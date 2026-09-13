@@ -921,6 +921,14 @@ internal static class BodyEmitter
                 writer.Append(")");
                 break;
 
+            case ImplicitConversionExpression { Operator.Modifiers.IsIntrinsic: true } toString when RegexLowering.Is(toString.ParameterType):
+                writer.Append(RegexLowering.PatternOf(RenderAt(toString.Operand, PostfixPrecedence, diagnostics)));
+                break;
+
+            case ImplicitConversionExpression conversion:
+                writer.Append(CastLowering.Implicit(conversion, Render(conversion.Operand, diagnostics)));
+                break;
+
             case AsExpression asExpression:
                 EmitAs(asExpression, writer, diagnostics);
                 break;
@@ -1599,26 +1607,9 @@ internal static class BodyEmitter
         writer.Append($" is {target} {bound} ? {bound} : default({target}?))");
     }
 
-    /// <summary>
-    /// A regex where a string is expected. Mist declares the conversion implicit and the CLR type
-    /// has none, so it is materialised at the sites the emitter already knows a target type for.
-    /// </summary>
-    private static bool ConvertsRegexToString(Expression expression, IMistType? target)
-    {
-        return RegexLowering.Is(expression.Type)
-            && target is not null
-            && target.FullyQualifiedName == WellKnownTypes.String.FullyQualifiedName;
-    }
-
     private static void EmitCoerced(
         Expression expression, IMistType? target, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        if(ConvertsRegexToString(expression, target))
-        {
-            writer.Append(RegexLowering.PatternOf(Render(expression, diagnostics)));
-            return;
-        }
-
         if(DelegateLowering.NeedsConstruction(expression.Type, target))
         {
             writer.Append($"new {TypeNameEmitter.Emit(target!)}({Render(expression, diagnostics)})");

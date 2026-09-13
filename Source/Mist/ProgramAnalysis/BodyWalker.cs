@@ -82,6 +82,7 @@ internal static class BodyWalker
         add<ExtensionPropertyAccessExpression>(e => [e.Receiver]);
         add<FieldReferenceExpression>(_ => []);
         add<FunctionReferenceExpression>(e => [e.Receiver]);
+        add<ImplicitConversionExpression>(e => [e.Operand]);
         add<IndexExpression>(e => [e.Receiver, e.Index]);
         add<InterpolatedStringExpression>(e => [.. e.Parts]);
         add<InterpolatedStringText>(_ => []);

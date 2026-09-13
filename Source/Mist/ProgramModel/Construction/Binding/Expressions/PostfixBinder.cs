@@ -325,10 +325,12 @@ internal static class PostfixBinder
 
         context.ProgramModel.TaskDrops.RecordCall(ctx.EnclosingMethod, selected);
 
+        var parameterTypes = selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner));
         var invocation = new InvocationExpression(
-            node, callee, OwnedProvenance.AtParameters(bound, selected.ParametersList),
-            returnType, selected,
-            selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner)))
+            node, callee,
+            OwnedProvenance.AtParameters(
+                ImplicitConversions.AtParameters(bound, selected, parameterTypes, interner), selected.ParametersList),
+            returnType, selected, parameterTypes)
         {
             IsImplicit = isImplicit,
         };
@@ -419,8 +421,10 @@ internal static class PostfixBinder
         // Invoking a func VALUE takes the same auto-drop as invoking a method: the rule is about what
         // the call produces and where it sits, and a delegate returning a task is a task-returning
         // call however it was reached.
+        var converted = ImplicitConversions.AtParameters(bound, method: null, function.ParameterTypes, context.ProgramModel.TypeInterner);
+
         return AutoDrop(
-            new InvocationExpression(node, receiver, bound, function.ReturnType, null, function.ParameterTypes), ctx, context);
+            new InvocationExpression(node, receiver, converted, function.ReturnType, null, function.ParameterTypes), ctx, context);
     }
 
     /// <summary>

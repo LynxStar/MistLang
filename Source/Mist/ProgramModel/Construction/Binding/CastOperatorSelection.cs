@@ -15,6 +15,9 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// answering exactly the written type is that type's own conversion and outranks one whose result only
 /// widens into it -- without that, <c>(long)counter</c> would tie an <c>int</c> operator with a
 /// <c>long</c> one. A cast the operand already satisfies losslessly calls nothing (Requirement 8.8).
+/// <see cref="Implicit"/> is the same call written invisibly (Requirement 7): implicit operators only, every
+/// candidate judged, and an operand reaching the parameter losslessly, being the one user-declared conversion
+/// its value may pass through.
 /// </summary>
 internal static class CastOperatorSelection
 {
@@ -28,20 +31,51 @@ internal static class CastOperatorSelection
         from = ConversionClassifier.Normalized(from, interner);
         to = ConversionClassifier.Normalized(to, interner);
 
-        var reaching = ConversionRelation.DeclaredOn(from)
-            .Concat(ConversionRelation.DeclaredOn(to))
-            .Distinct()
-            .Where(castOperator => ConversionClassifier.IsFree(castOperator.TargetType, to, interner))
-            .ToList();
+        var reaching = Reaching(from, to, interner, implicitOnly: false);
 
         if(reaching.Count < 2)
         {
             return reaching;
         }
 
-        var applicable = reaching.FindAll(
+        return Ranked(from, to, reaching.FindAll(
             castOperator => ConversionClassifier.IsImplicit(from, castOperator.SourceParameter.Type, interner)
-                || (integerConstant is { } constant && ConstantConversion.Fits(constant, from, castOperator.SourceParameter.Type)));
+                || Fits(integerConstant, from, castOperator)));
+    }
+
+    public static IReadOnlyList<CastOperator> Implicit(IMistType from, IMistType to, TypeInterner? interner, long? integerConstant = null)
+    {
+        if(ConversionClassifier.IsFree(from, to, interner)
+            || (integerConstant is { } constant && ConstantConversion.Fits(constant, from, to)))
+        {
+            return [];
+        }
+
+        from = ConversionClassifier.Normalized(from, interner);
+        to = ConversionClassifier.Normalized(to, interner);
+
+        return Ranked(from, to, Reaching(from, to, interner, implicitOnly: true).FindAll(
+            castOperator => ConversionClassifier.IsFree(from, castOperator.SourceParameter.Type, interner)
+                || Fits(integerConstant, from, castOperator)));
+    }
+
+    private static List<CastOperator> Reaching(IMistType from, IMistType to, TypeInterner? interner, bool implicitOnly)
+    {
+        return ConversionRelation.DeclaredOn(from)
+            .Concat(ConversionRelation.DeclaredOn(to))
+            .Distinct()
+            .Where(castOperator => (castOperator.IsImplicit || !implicitOnly)
+                && ConversionClassifier.IsFree(castOperator.TargetType, to, interner))
+            .ToList();
+    }
+
+    private static bool Fits(long? integerConstant, IMistType from, CastOperator castOperator)
+    {
+        return integerConstant is { } constant && ConstantConversion.Fits(constant, from, castOperator.SourceParameter.Type);
+    }
+
+    private static List<CastOperator> Ranked(IMistType from, IMistType to, List<CastOperator> applicable)
+    {
         var exact = applicable.FindAll(castOperator => ConversionRelation.IsIdentity(castOperator.TargetType, to));
         var candidates = exact.Count > 0 ? exact : applicable;
 

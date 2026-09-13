@@ -69,6 +69,15 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
 
             public static implicit operator int(Counter c) { return 1; }
         }
+
+        public class Level
+        {
+            public Level() { }
+
+            public static implicit operator Level(int value) { return new Level(); }
+
+            public static void Take(Level level) { }
+        }
         """;
 
     protected override string Preamble { get; } = """
@@ -152,6 +161,14 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
     public void AValueThroughOneDeclaredImplicitAndThenAWidening_IsAdmitted()
     {
         AssertSilent("long l = new Counter();");
+    }
+
+    [Theory]
+    [InlineData("Level declared = priority;")]
+    [InlineData("Level.Take(priority);")]
+    public void AValueThroughALosslessStepAndThenOneDeclaredImplicit_IsAdmitted(string statement)
+    {
+        AssertSilent(statement);
     }
 
     [Theory]

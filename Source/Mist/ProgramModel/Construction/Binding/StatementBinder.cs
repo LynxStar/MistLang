@@ -225,7 +225,10 @@ internal static class StatementBinder
                             initializer = ExpressionBinder.BindExpression(typed.Initializer, ctx, context);
                         }
 
-                        initializer = NewtypeLiterals.Admit(initializer, declaredType, context.ProgramModel.TypeInterner);
+                        initializer = ImplicitConversions.At(
+                            NewtypeLiterals.Admit(initializer, declaredType, context.ProgramModel.TypeInterner)!,
+                            declaredType,
+                            context.ProgramModel.TypeInterner);
                     }
 
                     var ownership = MemberTypeBuilder.ResolveOwnership(typed.OwnershipSpecifier);
@@ -379,6 +382,8 @@ internal static class StatementBinder
         {
             value = NewtypeLiterals.Admit(value, ctx.ReturnType, context.ProgramModel.TypeInterner)!;
         }
+
+        value = ImplicitConversions.At(value, ctx.ReturnType, context.ProgramModel.TypeInterner);
 
         return new ReturnStatement(value, ctx.ReturnType, returnStatement.RefKeyword is not null);
     }

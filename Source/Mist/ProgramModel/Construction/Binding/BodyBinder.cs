@@ -91,10 +91,13 @@ internal static class BodyBinder
 
         var (arguments, choice) = ExpressionBinder.BindConstructorCall(target, argumentList, chain, bindingCtx, context);
 
-        constructor.ChainArgumentsList.AddRange(OwnedProvenance.AtParameters(arguments, choice.Selected?.ParametersList));
+        var interner = context.ProgramModel.TypeInterner;
+        var parameterTypes = choice.Selected?.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner));
+
+        constructor.ChainArgumentsList.AddRange(OwnedProvenance.AtParameters(
+            ImplicitConversions.AtParameters(arguments, choice.Selected, parameterTypes, interner), choice.Selected?.ParametersList));
         constructor.ChainedConstructor = choice.Selected;
-        constructor.ChainParameterTypes = choice.Selected?.ParametersList.ConvertAll(
-            parameter => choice.Substitution.Apply(parameter.Type, context.ProgramModel.TypeInterner));
+        constructor.ChainParameterTypes = parameterTypes;
     }
 
     /// <summary>

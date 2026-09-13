@@ -113,6 +113,7 @@ Resolve each member's value expression and verify assignability to the underlyin
 ### Type Checker Changes
 
 - **Implicit conversion**: When assigning an `EnumType` value to a location of the underlying type, accept without error. The reverse (underlying → enum) is rejected.
+- **Explicit cast from a value** (Requirement 15): `(E)value` is sugar for a lookup function `E.ExplicitCast(underlying) : E?`. The operand is judged as an argument to that parameter, so every implicit conversion into the underlying type applies -- including another enum's -- and no narrowing does. The expression's type is `E | void` unless the operand is already an `E`.
 - **Nominal distinction**: Two `EnumType` instances with different `DisplayName` values are never assignable to each other, even if their underlying types match.
 - **Pattern matching**: `is EnumName.MemberName` resolves to a value equality check against the member's resolved value.
 
@@ -138,8 +139,19 @@ public record class Direction(string Value)
     public static readonly Direction West = new Direction("W");
 
     public static implicit operator string(Direction e) => e.Value;
+
+    public static explicit operator Direction?(string value)
+    {
+        if(Equals(value, Direction.North.Value)) return Direction.North;
+        if(Equals(value, Direction.South.Value)) return Direction.South;
+        if(Equals(value, Direction.East.Value)) return Direction.East;
+        if(Equals(value, Direction.West.Value)) return Direction.West;
+        return null;
+    }
 }
 ```
+
+The explicit operator is the lookup function of Requirement 15. A cast lowers to it, and an operand that is not already of the underlying type is converted to it in a cast of its own first, `((Direction?)(string)(operand))`: C# lets a cast apply only one user-defined conversion, so an operand that reaches the underlying type through one of its own -- another enum, a union carrier, a declared implicit operator -- would otherwise not reach the operator. That limit is C#'s, not Mist's, and lowering around it is the emitter's job.
 
 For union underlying types, the `Value` parameter type uses the union helper struct name (from `UnionHelperGenerator.GetHelperTypeName`).
 
@@ -260,6 +272,12 @@ Three updates to the TextMate grammar:
 *For any* enum with underlying type T, assigning a value of type T to a variable of the enum type SHALL produce a type error.
 
 **Validates: Requirements 7.3**
+
+### Property 13: A cast to an enum is an optional lookup
+
+*For any* enum E with underlying type T and any value v that could be passed to a parameter of type T, `(E)v` SHALL have the type `E?` and evaluate to the first member whose value equals v, or to void when none does; *for any* value that could not be passed to a parameter of type T, the cast SHALL produce a type error.
+
+**Validates: Requirements 15.1, 15.3, 15.4, 15.5, 15.6**
 
 ### Property 10: Pattern matching value equality
 

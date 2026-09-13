@@ -15,6 +15,7 @@ This document specifies the requirements for adding enum declarations to the Mis
 - **CSharp_Emitter**: The backend that translates the Mist semantic model into C# source code.
 - **Type_Inference_Engine**: The component that determines types when no explicit annotation is provided.
 - **Pattern_Matcher**: The component that evaluates `is` expressions for value equality checks.
+- **Cast_Expression**: An expression of the form `(Type)operand`, as the cast-operators spec defines it.
 
 ## Requirements
 
@@ -96,7 +97,7 @@ This document specifies the requirements for adding enum declarations to the Mis
 
 1. WHEN an enum value is assigned to a variable of the underlying type, THE Semantic_Model SHALL accept the assignment without error.
 2. WHEN an enum value is passed as an argument where the underlying type is expected, THE Semantic_Model SHALL accept the call without error.
-3. WHEN a value of the underlying type is assigned to a variable of the enum type, THE Semantic_Model SHALL report a type error (reverse conversion is not supported).
+3. WHEN a value of the underlying type is assigned to a variable of the enum type, THE Semantic_Model SHALL report a type error. No implicit conversion reaches an enum type; the explicit cast of Requirement 15 is the only way from a value to an enum, and it yields an optional enum rather than the enum.
 
 ### Requirement 8: Pattern Matching with Enum Values
 
@@ -165,7 +166,24 @@ This document specifies the requirements for adding enum declarations to the Mis
 #### Acceptance Criteria
 
 1. A sample project SHALL exist at `samples/Enums/Program.mist`.
-2. The sample SHALL demonstrate every syntax variant and usage pattern defined in the preceding requirements, including but not limited to: enum with explicit type annotation, enum without type annotation (inferred), name-only enum with auto-assigned values, enum with mixed explicit and implicit values, enum with union underlying type, enum member access via dot notation, enum used as variable type, enum used as parameter type, enum used as return type, enum used as field type, implicit conversion to underlying type, pattern matching with `is` expressions, public/private/default visibility modifiers, and trailing comma usage.
+2. The sample SHALL demonstrate every syntax variant and usage pattern defined in the preceding requirements, including but not limited to: enum with explicit type annotation, enum without type annotation (inferred), name-only enum with auto-assigned values, enum with mixed explicit and implicit values, enum with union underlying type, enum member access via dot notation, enum used as variable type, enum used as parameter type, enum used as return type, enum used as field type, implicit conversion to underlying type, explicit cast from a value to an enum with and without a matching member, pattern matching with `is` expressions, public/private/default visibility modifiers, and trailing comma usage.
 3. Each demonstrated permutation SHALL print labeled output to stdout so correctness is observable.
 4. `samples/AllFeatures/Program.mist` SHALL call `Enums.Program.RunDemo()` to include the feature in the full-suite sample run.
 5. The sample SHALL compile and run without errors using the Mist compiler.
+
+### Requirement 15: Explicit Cast from a Value to an Enum
+
+**User Story:** As a Mist developer, I want to turn a value back into the enum member that holds it with a cast, so that a stored or received value can be recovered as an enum, and a value no member holds is something the compiler makes me handle rather than a failure at runtime.
+
+A cast in Mist is sugar for calling a conversion function, and a cast to an enum is sugar for the enum's lookup function: `(E)value` means a static `E.ExplicitCast(value)` that takes one parameter of E's underlying type and returns `E?`. It asks which member holds a value, and is not a reinterpretation. The compiler can check that the value may be passed to that parameter, but it cannot know in general that some member holds it -- a member's value is any expression of the underlying type, not necessarily a constant -- so the only result it can guarantee is the optional enum.
+
+#### Acceptance Criteria
+
+1. WHEN a Cast_Expression `(E)value` names an enum type E and the value's compile-time type is not E, THE Semantic_Model SHALL give the expression the type `E?` (`E | void`), the return type of E's lookup function.
+2. WHEN the value's compile-time type is already E, THE Semantic_Model SHALL give the expression the type E, as the cast-operators spec's Requirement 8.8 gives any cast of a value to a type it already has.
+3. THE Semantic_Model SHALL accept `(E)value` exactly when the value could be passed as an argument to a parameter of E's underlying type: its compile-time type is the underlying type, or converts implicitly to it by any implicit conversion -- a numeric widening, a union widening, another enum's implicit conversion to its own underlying type, a declared implicit cast operator -- or it is an integer constant that fits an integral underlying type (`(Color)0` for a byte-backed enum). `(Tier)Other.One`, where Other is another `int`-backed enum, is accepted.
+4. IF the value could not be passed to a parameter of E's underlying type, THEN THE Semantic_Model SHALL report an error naming the value's type, E, and the underlying type. A value that would need a narrowing conversion to reach the underlying type -- a `double` or a `long` cast to an `int`-backed enum, an `int` variable cast to a `byte`-backed one -- SHALL be refused, never truncated.
+5. WHEN the cast is evaluated, THE result SHALL be the first member of E, in declaration order, whose value equals the operand as converted to the underlying type, under the value equality of Requirement 8.1.
+6. WHEN no member's value equals it, THE result SHALL be void.
+7. WHEN the result of `(E)value` is used where E is expected without first being narrowed -- by an `is E` pattern or a `??` fallback -- THE Semantic_Model SHALL report a type error, as for any other value of type `E?`.
+8. THE Compiler SHALL produce no runtime failure path for a cast to an enum: a value no member holds yields void, never an exception and never an absent value typed as E.

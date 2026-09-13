@@ -22,6 +22,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "No conversion is defined from '{0}' to '{1}'. A cast reaches only a type the value already is, or one a declared cast operator reaches; to narrow a value, test it with an 'is' pattern instead.");
 
+    public static readonly DiagnosticDescriptor EnumCastArgumentMismatch = new(
+        new DiagnosticId("MIST_PA_ENUM_CAST_ARGUMENT_MISMATCH"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot cast '{0}' to enum '{1}'. A cast to an enum looks up the variant holding a value of its underlying type '{2}', and '{0}' does not convert to '{2}' implicitly.");
+
     public static readonly DiagnosticDescriptor NoImplicitConversion = new(
         new DiagnosticId("MIST_PA_NO_IMPLICIT_CONVERSION"),
         DiagnosticSeverity.Error,

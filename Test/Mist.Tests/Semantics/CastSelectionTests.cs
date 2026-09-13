@@ -10,6 +10,7 @@
 // the first match found would pass a fixture where only one candidate exists.
 
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.Tests.Helpers;
 
@@ -64,6 +65,19 @@ public sealed class CastSelectionTests : ProgramModelProbe
         public class Unrelated
         {
             public Unrelated() { }
+        }
+        """;
+
+    private const string EnumTypes = """
+        public enum Rank : int
+        {
+            Low = 1,
+            High = 2
+        }
+
+        public enum Rival : int
+        {
+            One = 1
         }
         """;
 
@@ -190,6 +204,27 @@ public sealed class CastSelectionTests : ProgramModelProbe
     public void ACast_TypesTheExpressionAsItsTarget()
     {
         Assert.Equal("Probe.Kelvin", SingleLocal("var k = (Kelvin)celsius;").Type.FullyQualifiedName);
+    }
+
+    [Theory]
+    [InlineData("var r = (Rank)1;")]
+    [InlineData("var r = (Rank)Rival.One;")]
+    public void ACastToAnEnumFromAValue_IsTheLookupAnsweringTheOptionalEnum(string statement)
+    {
+        var cast = SingleCast(statement, EnumTypes);
+
+        Assert.Equal("Probe.Rank", cast.TargetType.FullyQualifiedName);
+        Assert.Equal("Probe.Rank", OptionalUnion.InnerType(cast.Type)?.FullyQualifiedName);
+        Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, cast.LookupParameterType?.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void ACastToAnEnumFromTheEnum_IsNoLookup()
+    {
+        var cast = SingleCast("var r = (Rank)Rank.Low;", EnumTypes);
+
+        Assert.Equal("Probe.Rank", cast.Type.FullyQualifiedName);
+        Assert.Null(cast.LookupParameterType);
     }
 
     // ── Harness ──────────────────────────────────────────────────────────

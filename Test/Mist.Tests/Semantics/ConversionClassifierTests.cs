@@ -63,6 +63,10 @@ public sealed class ConversionClassifierTests : ProgramModelProbe
             High = 2
         }
 
+        public enum Wide : long {
+            One = 1
+        }
+
         type Meters = new double;
         type Feet = new double;
         type AdultAge = int >= 18;
@@ -88,6 +92,7 @@ public sealed class ConversionClassifierTests : ProgramModelProbe
         IBox<string> textBox = new Box<string>();
         Color color = Color.Red;
         Priority priority = Priority.Low;
+        Wide wide = Wide.One;
         Meters meters = (Meters)1.0;
         Feet feet = (Feet)1.0;
         AdultAge adult = (AdultAge)20;
@@ -115,10 +120,15 @@ public sealed class ConversionClassifierTests : ProgramModelProbe
     [InlineData("box", "textBox", "None")]
     [InlineData("color", "b", "Implicit")]
     [InlineData("color", "i", "Implicit")]
-    [InlineData("i", "color", "Explicit")]
+    [InlineData("i", "color", "None")]
     [InlineData("b", "color", "Explicit")]
-    [InlineData("d", "color", "Explicit")]
+    [InlineData("d", "color", "None")]
+    [InlineData("i", "priority", "Explicit")]
+    [InlineData("b", "priority", "Explicit")]
+    [InlineData("l", "priority", "None")]
     [InlineData("color", "priority", "Explicit")]
+    [InlineData("priority", "wide", "Explicit")]
+    [InlineData("wide", "priority", "None")]
     [InlineData("meters", "d", "Explicit")]
     [InlineData("d", "meters", "Explicit")]
     [InlineData("feet", "meters", "None")]

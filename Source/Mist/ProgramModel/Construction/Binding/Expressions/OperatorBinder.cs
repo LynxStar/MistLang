@@ -385,12 +385,24 @@ internal static class OperatorBinder
                     var conversion = ConversionRelation.FindOperator(
                         operand.Type, targetType, includeExplicit: true);
 
-                    return new CastExpression(node, operand, targetType, conversion);
+                    return new CastExpression(
+                        node, operand, targetType, conversion, CastResultType(operand.Type, targetType, context));
                 }
 
             default:
                 return new UnresolvedExpression(node);
         }
+    }
+
+    private static IMistType CastResultType(IMistType operand, IMistType target, BuilderContext context)
+    {
+        var interner = context.ProgramModel.TypeInterner;
+
+        return target is EnumType
+            && ConversionClassifier.Classify(operand, target, interner) is ConversionKind.Explicit or ConversionKind.None
+            ? OptionalLifting.Lift(target, context.Resolver.LookupWellKnown(WellKnownTypes.Void), interner)
+            : target
+            ;
     }
 
     /// <summary>

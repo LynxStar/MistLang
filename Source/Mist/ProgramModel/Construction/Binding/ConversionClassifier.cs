@@ -26,13 +26,13 @@ internal enum ConversionKind
 /// within its own type constraints and nothing below them. A refinement is within its base, and the
 /// base reaches it only explicitly, its predicate being the refinement prover's to discharge rather than
 /// this classification's. A dependent value classifies as the type it is a value of. An enum is within
-/// its underlying type and reached from it only explicitly -- from any numeric type, for a numeric one,
-/// since C# admits an explicit numeric step into an explicit operator. A newtype and its source reach
-/// each other only explicitly. Those are the conversions the emitter spells as operators, stated here
-/// because the model declares none. A constructed type whose argument is an unknown value of some domain
-/// takes any value of that domain in the slot, so a sized array is within the unsized one; and a structural
-/// function type and a CLR delegate with the same Invoke shape are each within the other, the two being
-/// one type that emission alone tells apart.
+/// its underlying type, and is reached explicitly from whatever reaches that type implicitly, a cast to it
+/// being a call whose argument is the underlying value (see <see cref="Model.Expressions.CastExpression"/>).
+/// A newtype and its source reach each other only explicitly. Those are the conversions the emitter
+/// spells as operators, stated here because the model declares none. A constructed type whose argument is
+/// an unknown value of some domain takes any value of that domain in the slot, so a sized array is within
+/// the unsized one; and a structural function type and a CLR delegate with the same Invoke shape are each
+/// within the other, the two being one type that emission alone tells apart.
 /// </para>
 /// <para>
 /// UNCLASSIFIED is not a fifth kind of conversion. It answers for a sentinel standing in for a failure or
@@ -201,27 +201,12 @@ internal static class ConversionClassifier
         }
     }
 
-    private static readonly string[] NumericNames =
-    [
-        WellKnownTypes.Byte.FullyQualifiedName, WellKnownTypes.SByte.FullyQualifiedName,
-        WellKnownTypes.Int16.FullyQualifiedName, WellKnownTypes.UInt16.FullyQualifiedName,
-        WellKnownTypes.Int32.FullyQualifiedName, WellKnownTypes.UInt32.FullyQualifiedName,
-        WellKnownTypes.Int64.FullyQualifiedName, WellKnownTypes.UInt64.FullyQualifiedName,
-        WellKnownTypes.Char.FullyQualifiedName, WellKnownTypes.Single.FullyQualifiedName,
-        WellKnownTypes.Double.FullyQualifiedName, WellKnownTypes.Decimal.FullyQualifiedName,
-    ];
-
-    private static bool IsNumeric(IMistType type)
-    {
-        return Array.IndexOf(NumericNames, type.FullyQualifiedName) >= 0;
-    }
-
     private static bool ExplicitByDeclaration(IMistType from, IMistType to)
     {
         return to switch
         {
             EnumType { UnderlyingType: { } underlying }
-                when Reaches(from, underlying, []) || (IsNumeric(underlying) && IsNumeric(from)) => true,
+                when Classify(from, underlying) is ConversionKind.Identity or ConversionKind.Implicit => true,
             Newtype { SourceType: { } source } when Reaches(from, source, []) => true,
             RefinedType refined when Reaches(from, refined.BaseType, []) => true,
             _ => from is Newtype { SourceType: { } wrapped } && Reaches(wrapped, to, []),

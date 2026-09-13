@@ -1,0 +1,16 @@
+using Standard;
+
+namespace Refusal;
+
+public enum Priority : int { Low = 1, High = 2 }
+
+public class Probe
+{
+    public static void Main()
+    {
+        double measured = 1.5;
+        // REFUSE: MIST_PA_ENUM_CAST_ARGUMENT_MISMATCH
+        Priority? p = (Priority)measured;
+        Console.WriteLine("unreachable");
+    }
+}

@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+public enum Priority : int { Low = 1, High = 2 }
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        Priority p = (Priority)7;
+        Console.WriteLine("unreachable");
+    }
+}

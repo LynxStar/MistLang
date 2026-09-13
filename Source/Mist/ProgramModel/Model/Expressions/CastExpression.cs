@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
@@ -14,16 +15,28 @@ namespace Mist.ProgramModel.Model.Expressions;
 /// the only spelling and Roslyn to resolve it again, so the two answers agree by coincidence. The
 /// field is what a second backend, or a rule refusing an illegal cast, would read.
 /// </para>
+/// <para>
+/// A cast is sugar for calling a conversion function, so its type is that function's return type
+/// rather than the type written. The two part only for an enum reached from a value that is not
+/// already one: the enum's lookup function takes its underlying type and answers the optional enum,
+/// since no variant need hold the value (enums spec, Requirement 15). <see cref="LookupParameterType"/>
+/// is that function's parameter, which the operand is matched against as an argument is.
+/// </para>
 /// </summary>
 internal sealed class CastExpression(
     SyntaxNode node,
     Expression operand,
     IMistType targetType,
-    CastOperator? conversionOperator) : Expression(node)
+    CastOperator? conversionOperator,
+    IMistType resultType) : Expression(node)
 {
     public Expression Operand { get; } = operand;
 
+    public IMistType TargetType { get; } = targetType;
+
     public CastOperator? Operator { get; } = conversionOperator;
 
-    public override IMistType Type { get; } = targetType;
+    public override IMistType Type { get; } = resultType;
+
+    public IMistType? LookupParameterType => TargetType is EnumType { UnderlyingType: { } underlying } && !ReferenceEquals(Type, TargetType) ? underlying : null;
 }

@@ -17,7 +17,7 @@ The scope of this feature covers: allowing multiple method declarations with the
 - **Emitter**: The C# transpiler backend (`CSharpEmitter`) that produces C# source from the semantic model.
 - **Candidate**: A single method or constructor from an Overload_Set that could potentially match a given set of argument types.
 - **Exact_Match**: A Candidate whose Parameter_Signature types are identical to the argument types at the call site.
-- **Applicable_Candidate**: A Candidate where every argument type is assignable to the corresponding parameter type (including implicit conversions already supported by the compiler).
+- **Applicable_Candidate**: A Candidate where every argument is assignable to the corresponding parameter type (including implicit conversions already supported by the compiler). An argument that is an integer constant is assignable to every integral parameter type whose range holds its value, exactly as `byte b = 2;` is valid.
 - **Ambiguous_Call**: A call site where two or more Applicable_Candidates are equally valid and no single best match can be determined.
 
 ## Requirements
@@ -57,6 +57,7 @@ The scope of this feature covers: allowing multiple method declarations with the
 4. WHEN a method call has no Applicable_Candidates in the Overload_Set, THE Type_Checker SHALL emit a diagnostic error listing the method name and the argument types provided.
 5. WHEN a method call matches zero methods because the argument count does not match any Candidate's parameter count, THE Type_Checker SHALL emit a diagnostic error indicating no overload accepts the given number of arguments.
 6. THE Overload_Resolver SHALL consider the full Overload_Set including methods inherited from base classes.
+7. WHEN an argument is an integer constant, THE Overload_Resolver SHALL treat it as reaching every integral parameter type that holds its value, and otherwise as a value of its own type: `Take(2)` over `Take(byte)` and `Take(string)` selects `Take(byte)`, `Take(2)` over `Take(byte)` and `Take(long)` selects the more specific `Take(byte)`, and `Take(300)` over `Take(byte)` and `Take(string)` has no Applicable_Candidate. An integral value that is not a constant reaches no narrower integral type.
 
 ### Requirement 4: Ambiguous Call Diagnostics
 

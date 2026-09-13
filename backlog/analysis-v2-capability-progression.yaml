@@ -414,14 +414,26 @@ rules:
       narrowest), a CastDecisionTests admit among two operators, and the corpus case
       cast-constant-fitting-no-operator. Two mutations on confirmed builds each fail their tests: calls
       ignoring the constant, and casts ignoring it. Full suite green, 5915 of 5915.
+
+      A CONSTRUCTED TYPE REACHES ITS BASES IN THE RELATION TOO (2026-09-13), closing the task that said
+      Inherits could not see one. It was not only ranking: Inherits walked a MemberType alone, so a
+      constructed argument reached no base and its overload was not APPLICABLE. It now walks Bases, moved
+      from ConversionClassifier into ConversionRelation, substituting each constructed step's arguments.
+      MEASURED on v2 against classic, with QUALIFIED calls so classic's checker judges them.
+      `Sink.Take(list)` over Take(IEnumerable<int>) and Take(string): was MIST_PM_UNRESOLVABLE_OVERLOAD,
+      classic prints `enumerable`, now prints it. `Sink.Take(new Box<int>(4))` over Take(IHold<int>) and
+      Take(string): was UNRESOLVABLE, classic prints `held 4`, now prints it. Beside Take(unknown), both
+      pipelines printed `held 4` before, but the model chose Take(unknown), the only applicable candidate,
+      and Roslyn chose IHold<int>; they now agree.
+      PROVED BY OverloadSelectionTests (Box<int>, IntBox through Box<int>, and the unknown sibling reaching
+      IHold<int>; Box<int> reaching no IHold<string>) and ClrConstructedContainmentTests over the runtime's
+      metadata (List<int> within IList, ICollection and IEnumerable of int, not IEnumerable<string>). Two
+      mutations on confirmed builds each fail six tests: constructed types given no bases, and bases left
+      unsubstituted. Full suite green, 5923 of 5923.
     tasks:
       - >
         Order 5 is where the classification gets its other customers: assignment, argument, return, arm
         result and initializer value all ask it the question the cast rule asks now.
-      - >
-        ConversionRelation's own Inherits still cannot see a constructed base, so overload RANKING does
-        not know List<int> is within IEnumerable<int>. Adopting the classifier's base walk there is a
-        ranking change and belongs with a test that shows a call it fixes.
       - >
         A newtype's conversion is a function too, taking its source, yet `(Meters)reading` over `type
         Meters = new double` with Reading implicit to double is CAST_HAS_NO_CONVERSION on v2 and MIST_TC_0042

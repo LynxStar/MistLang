@@ -973,6 +973,10 @@ capabilities:
       ConstantConversion beside the type relation: `Take(2)` over Take(byte) and Take(string) was
       MIST_PM_UNRESOLVABLE_OVERLOAD where classic prints `byte 2`. Recorded on analysis order 4.
 
+      A CONSTRUCTED ARGUMENT REACHES ITS BASES (2026-09-13): `Sink.Take(list)` over
+      Take(IEnumerable<int>) and Take(string) was UNRESOLVABLE_OVERLOAD where classic prints
+      `enumerable`, since the relation gave a constructed type no bases. Recorded on analysis order 4.
+
       STILL MISSING, none of it contradicting the above: generic method type-argument inference, so
       an open parameter cannot be matched and falls to the arity path; explicit type arguments, which
       MethodCallSuffix still drops; extension and ambient methods, which never enter the group at

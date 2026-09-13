@@ -1873,20 +1873,40 @@ capabilities:
       A TIE IS REFUSED (2026-09-13), closing the analysis-phase task this entry held: `double d = tally;` over
       implicit int and long is MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION, reported by assignability-core off the
       node's AmbiguousOperators. Recorded in full under analysis order 5.
+
+      A CONSTRUCTED GENERIC TYPE'S CAST OPERATORS ARE SEARCHED (2026-09-13), closing the task that said they
+      were skipped. ConversionRelation.DeclaredOn walked a ConcreteType and its ConcreteType bases, so a
+      ConstructedType declared nothing and a class deriving from one inherited nothing past it. It now yields
+      each operator as a ConversionFunction -- the declaration with its parameter and result substituted
+      through the arguments of the constructed type it was found on -- and walks a constructed base with the
+      deriver's substitution applied, as ConversionRelation.Bases already did. Selection, the partial relation
+      and both expression kinds read the substituted parameter and result; CastExpression and
+      ImplicitConversionExpression still expose the declared CastOperator for its identity. Candidates from
+      the two ends are told apart by operator AND substituted signature, since one generic operator seen from
+      Box<int> and from Box<long> is two functions.
+      MEASURED on v2 before and after, with `class Box<T>` declaring `implicit operator Box<T>(T)` and
+      `explicit operator T(Box<T>)`: `(Box<int>)7` was MIST_PA_CAST_HAS_NO_CONVERSION and prints 7;
+      `Sink.Take(8)` into a Box<int> parameter, `return value;` from `Box<T> Wrap(T)` inside Box itself, and
+      `Box<long> widened = 11;` (an int widening to the substituted long parameter) were each
+      MIST_PA_NO_IMPLICIT_CONVERSION and print 8, nine and 11; `(int)derived` with `class IntBox : Box<int>`
+      was CAST_HAS_NO_CONVERSION and prints 10. With implicit operators both ways, `Box<int> boxed = 5;` and
+      `int unboxed = boxed;` print 5 and 5. `Box<string> wrong = 5;` stays NO_IMPLICIT_CONVERSION. Emitted
+      `((Probe.Box<long>)((long)(5)))`. Classic refuses the declarations themselves (MIST_TC_0040, "Either the
+      source type or the target type of a cast operator must be the enclosing type"), so this is v2 admitting
+      what classic cannot declare.
+      PROVED BY an ImplicitConversionSelectionTests theory (Box<int> from an int, Box<long> from an int through
+      the substituted long, an int out of IntBox through its constructed base) plus the Box<string> mismatch
+      left unwrapped, a CastSelectionTests fact for `(Box<int>)7`, and an emission row. Eight mutations on
+      confirmed builds, each failing at least one test: constructed types declaring nothing, the parameter
+      unsubstituted, the result unsubstituted, the base walk stopping at a constructed base, and the cast's
+      parameter, the implicit parameter, the implicit result and the cast result each read off the
+      declaration instead of the function.
     tasks:
       - >
         Record the conversion where a statement converts each element it reads: a foreach variable and a
         deconstruction from a value, both measured above as CS0457 on programs Mist admits. Neither has an
         expression to wrap, so each needs a design of its own. Until both record it, the classifier's implicit
         answer cannot ask CastOperatorSelection.Implicit, since each verdict it widens reaches Roslyn bare there.
-      - >
-        Search a CONSTRUCTED generic type's cast operators. Its operators are declared in terms of its
-        type parameters and would have to be substituted through its arguments before they could be
-        compared, so it is skipped rather than mismatched. No sample reaches it, but ordinary source does:
-        `Box<int> boxed = 5;` and `int unboxed = boxed;` through `implicit operator Box<T>(T)` and `implicit
-        operator T(Box<T>)` are both MIST_PA_NO_IMPLICIT_CONVERSION on v2. Classic refuses the declarations
-        themselves (MIST_TC_0040, "Either the source type or the target type of a cast operator must be the
-        enclosing type").
       - >
         DO NOT DELETE ConversionRelation.NumericWidening, which its own doc comment used to invite once
         cast operators were consulted, on the reasoning that scanning the stdlib's implicit operators

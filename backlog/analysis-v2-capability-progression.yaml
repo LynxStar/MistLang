@@ -342,6 +342,57 @@ rules:
       `(Wide)Priority.Low` with `Wide : long` is admitted, lowered `((Wide?)(long)(Priority.Low))` and
       prints the variant -- and the reverse is a narrowing and refused; a tenth admit, a third corpus
       case and two table rows hold both directions.
+
+      DECLARED CAST OPERATORS ARE CALLS TOO (2026-09-12), closing the task that said FindOperator still
+      followed C#. The language owner's rules: `(T)v` is `T.ExplicitCast(v)`, the operand is matched as an
+      argument, so choosing among operators is overload resolution and a tie is an error; a value passes
+      through at most ONE user-declared conversion, and lossless ones -- subsumption, Standard's intrinsic
+      conversions, an enum to its value -- never count; C#'s one-conversion-per-cast limit is the
+      emitter's to lower, never a reason to refuse. Now cast-operators Requirements 7.8 and 8.3-8.13.
+      CastOperatorSelection gathers the operators on both ends and their base chains whose result
+      reaches the target losslessly, prefers one answering the written type exactly, and ranks the rest
+      by OverloadResolution.CompareConversions; a lone candidate is returned unjudged, as a call's is.
+      CastExpression records the choice (Operator, AmbiguousOperators), its type is the called operator's
+      return type, and ParameterType generalises the enum lookup's parameter, so CastAnalyzer judges
+      either argument through Assignability and the emitter lowers either through CastLowering.Argument.
+      The classifier's EXPLICIT answer asks the same selection, through an implicit-only IsImplicit so a
+      cycle of operators cannot recurse.
+      MEASURED on v2 against classic, before and after. `Feet b = (Feet)reading;` with Reading implicit to
+      Meters and explicit Feet(Meters): was CAST_HAS_NO_CONVERSION, classic fails in Roslyn (CS0030), now
+      prints 6, lowered `((Feet)(Meters)(reading))`. The same with an IMPLICIT Feet(Meters): was refused,
+      classic Roslyn-fails, now prints 6 -- an explicit cast may call an implicit operator. `Feet f =
+      reading;` with the implicit operator stays refused, now CAST_REQUIRED rather than
+      NO_IMPLICIT_CONVERSION, since the cast that would work exists. `(Feet)Priority.High` over
+      Feet(int): was refused, classic Roslyn-fails, now prints 6. `(Feet)2` over Feet(byte): was refused,
+      classic prints 6, now prints 6. `(Label)car` through Vehicle's operator: admitted before and after,
+      classic refuses (MIST_TC_0042) by its reading of 8.7, which the amendment reverses. `(Feet)sensor`
+      needing two declared implicits: was CAST_HAS_NO_CONVERSION, classic Roslyn-fails, now
+      MIST_PA_CAST_ARGUMENT_MISMATCH naming the operator. Unchanged: `Meters m = reading; (Feet)m` and
+      `long l = new Counter(5)` print on v2, the second refused by classic (MIST_TC_0001).
+      AMBIGUITY, NEW TO v2. Two operators of one signature on both ends: Roslyn failed against generated
+      C# (CS0457), classic MIST_TC_0043, now MIST_PA_AMBIGUOUS_CAST naming both with their declaring
+      types. Two parameters a Reading reaches by declared implicits: was CAST_HAS_NO_CONVERSION, classic
+      cannot declare them (it reports MIST_SB_0043 "duplicate" for two explicit operators to one target),
+      now AMBIGUOUS_CAST. `(long)tally` with implicit int and long operators printed C#'s choice (105) and
+      still does, by the exact-return preference; classic refuses it (MIST_TC_0042). `(double)tally`, where
+      neither answers double exactly, printed C#'s choice (the most encompassing, long) and is NOW REFUSED
+      as ambiguous -- the one program this change stops compiling, and a question for the language owner
+      rather than a settled consequence: by the argument alone the two tie.
+      PROVED BY five corpus cases -- three ambiguities (two parameters, both ends, two widening results),
+      an argument needing two declared implicits, and an argument needing a narrowing -- plus
+      assignability-core's declared-implicit-after-declared-implicit for the implicit half. Admits: six
+      CastDecisionTests rows (through a declared implicit, an implicit operator called explicitly, a
+      declared implicit then a widening, an enum's backing value, a fitting constant, the exact-return
+      choice) and AssignabilityDecisionTests' declared implicit then a widening. Selection facts in
+      CastSelectionTests: the operator called through a declared implicit, the exact-return preference,
+      three ties recorded with none called, a lossless cast calling nothing among two widening operators,
+      and a cast typed as its operator's narrower result. Spellings in CastLoweringTests (renamed from
+      EnumCastLoweringTests). Six mutations on confirmed builds each fail at least one test: the
+      exact-return preference removed, the lone candidate judged by applicability, the argument never
+      judged, the classifier ignoring a called operator (which also breaks regex-from-a-string-variable,
+      Regex's explicit operator being a lone candidate), every argument spelled as a cast, and ties
+      resolved by taking the first. False positives: zero across all 80 banked samples, AllFeaturesV2 and
+      AllFeatures green, 5890 of 5890.
     tasks:
       - >
         Order 5 is where the classification gets its other customers: assignment, argument, return, arm
@@ -351,11 +402,30 @@ rules:
         not know List<int> is within IEnumerable<int>. Adopting the classifier's base walk there is a
         ranking change and belongs with a test that shows a call it fixes.
       - >
-        The cast-as-function rule applies to declared cast operators too, and FindOperator follows C#
-        instead: it brackets the operand by IsWithin "so a match cannot chain a second user-declared
-        conversion". An operand reaching a declared operator's parameter through another declared implicit
-        operator is a valid argument, so the cast should be admitted and lowered as an enum cast's operand
-        is. Unprobed, and it wants the cast-operators spec amended alongside.
+        `(double)tally`, where implicit int and long operators both widen into double and neither answers
+        it exactly, is refused as ambiguous; C# picks the most encompassing result (long) and v2 printed
+        that before. The argument alone ties them, which is what the rule says, but ranking candidates by
+        their RESULT is a language decision nobody has made. Ask before changing either way.
+      - >
+        An integer constant among SEVERAL candidates is not matched as an argument: `(Crate)2` over
+        Crate(byte) and Crate(string) is CAST_HAS_NO_CONVERSION, because applicability is asked of types
+        and a constant only fits in Assignability. A lone candidate is fine. The same gap refuses the call
+        `Take(2)` over Take(byte) and Take(string) with MIST_PM_UNRESOLVABLE_OVERLOAD, where classic prints
+        2, so it is one fix for both and belongs with overload applicability, not with casts.
+      - >
+        A newtype's conversion is a function too, taking its source, yet `(Meters)reading` over `type
+        Meters = new double` with Reading implicit to double is CAST_HAS_NO_CONVERSION on v2 and MIST_TC_0042
+        on classic. ExplicitByDeclaration reaches the source only losslessly. Under the sugar rule the
+        argument may take one declared implicit, as an enum lookup's does; not changed here because the
+        task was declared operators, and it wants the newtype spec read first.
+      - >
+        A union or optional target does not search its constituents' operators, so `(Feet?)meters` over
+        Feet(Meters) is refused on both pipelines (CAST_HAS_NO_CONVERSION, MIST_TC_0042). Whether `T?`
+        names T's conversion functions is a language question.
+      - >
+        A lossless intrinsic conversion Standard declares outside the numeric table -- Regex to String --
+        is not lossless to IsWithin, so it counts as the one declared implicit on an argument instead of
+        being free. No sample reaches a chain through it.
 
   - id: assignability-core
     name: Assignability at every position that has a target type

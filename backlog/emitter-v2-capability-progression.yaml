@@ -1622,6 +1622,17 @@ capabilities:
       CastExpression alternative binds its operand to a Unary, every form of which binds tighter than
       any binary operator in C# too, so `(Kelvin)a + b` arrives already shaped as a cast of `a` and
       cannot capture the `+ b`.
+
+      THE OPERAND IS AN ARGUMENT, AND IS LOWERED AS ONE (2026-09-12). A cast calls a conversion function
+      and its operand may reach that function's parameter through a declared implicit operator, an enum's
+      value or a union carrier -- each a user-defined conversion to C#, which applies one per cast.
+      CastLowering.Argument, generalised from EnumEmitter.LookupArgument, converts an operand not already
+      of CastExpression.ParameterType in a cast of its own: `(Feet)reading` with Reading implicit to
+      Meters emits `((Feet)(Probe.Meters)(reading))` and prints 6 where both pipelines failed before
+      (Roslyn CS0030 on classic). The selection is now CastOperatorSelection's, not FindOperator's, the
+      cast is typed as the called operator's return type, and the refusals it makes possible are analysis
+      order 4's. CastLoweringTests holds the spellings; no sample can, the baseline being shared with
+      classic, which fails every one that needs a step.
     unlocks: []
 
   - id: cast-operator-declarations

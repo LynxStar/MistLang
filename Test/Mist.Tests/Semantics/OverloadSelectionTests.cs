@@ -287,6 +287,27 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("var chosen = Held.Take(box);")]
+    [InlineData("var chosen = Held.Take(intBox);")]
+    [InlineData("var chosen = HeldOrAnything.Take(box);")]
+    public void AConstructedArgument_ReachesTheBaseItsDefinitionDeclaresOverItsOwnArguments(string statement)
+    {
+        var invocation = SingleInvocation(statement, ConstructedTypes, ConstructedPreamble);
+
+        Assert.NotNull(invocation.Method);
+        var parameter = Assert.Single(invocation.Method.ParametersList);
+        Assert.Equal("IHold<int>", TypeDisplay.Mist(parameter.Type));
+    }
+
+    [Fact]
+    public void AConstructedArgument_DoesNotReachABaseConstructedOverAnotherArgument()
+    {
+        var diagnostics = BuildRun("var chosen = HeldText.Take(box);", ConstructedTypes, ConstructedPreamble);
+
+        _ = Assert.Single(Errors(diagnostics, UnresolvableId));
+    }
+
+    [Theory]
     [InlineData("var chosen = Fit.Take(2);", "Standard.Byte")]
     [InlineData("var chosen = Fit.Take(255);", "Standard.Byte")]
     [InlineData("var chosen = Fit.Take(256);", "Standard.Int64")]
@@ -516,6 +537,53 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
             public static int Take(A a) { return 1; }
 
             public static int Take(B b) { return 2; }
+        }
+        """;
+
+    private const string ConstructedPreamble = """
+        var box = new Box<int>(4);
+        var intBox = new IntBox();
+        """;
+
+    private const string ConstructedTypes = """
+        public abstract IHold<T>
+        {
+            T Get();
+        }
+
+        public class Box<T> : IHold<T>
+        {
+            private T item;
+
+            public Box(T item) { this.item = item; }
+
+            public T Get() { return item; }
+        }
+
+        public class IntBox : Box<int>
+        {
+            public IntBox() : base(4) { }
+        }
+
+        public class Held
+        {
+            public static int Take(string s) { return 1; }
+
+            public static int Take(IHold<int> held) { return 2; }
+        }
+
+        public class HeldOrAnything
+        {
+            public static int Take(unknown value) { return 1; }
+
+            public static int Take(IHold<int> held) { return 2; }
+        }
+
+        public class HeldText
+        {
+            public static int Take(bool b) { return 1; }
+
+            public static int Take(IHold<string> held) { return 2; }
         }
         """;
 

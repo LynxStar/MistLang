@@ -189,7 +189,7 @@ internal static class TypeArgumentInference
                 return constructed;
             }
 
-            foreach(var baseType in ConversionClassifier.Bases(current))
+            foreach(var baseType in ConversionRelation.Bases(current))
             {
                 pending.Enqueue(baseType);
             }

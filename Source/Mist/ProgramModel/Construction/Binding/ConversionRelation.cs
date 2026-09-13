@@ -7,8 +7,8 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// <summary>
 /// Whether a value of one type is accepted where another is expected.
 /// <para>
-/// A false answer means no conversion is KNOWN, not that none exists -- variance, constructed generics
-/// and open type parameters are all declined. So a caller may use this to PREFER one candidate over
+/// A false answer means no conversion is KNOWN, not that none exists -- variance and open type
+/// parameters are declined. So a caller may use this to PREFER one candidate over
 /// another, and none may use it to refuse a program.
 /// </para>
 /// </summary>
@@ -278,37 +278,51 @@ internal static class ConversionRelation
     /// </summary>
     private static bool Inherits(IMistType from, IMistType to)
     {
-        var current = from as MemberType;
+        return Inherits(from, to, new HashSet<string>(StringComparer.Ordinal));
+    }
 
-        while(current is not null)
+    private static bool Inherits(IMistType from, IMistType to, HashSet<string> visited)
+    {
+        foreach(var baseType in Bases(from))
         {
-            foreach(var abstractBase in current.BaseAbstractTypes)
-            {
-                if(IsIdentity(abstractBase, to) || Inherits(abstractBase, to))
-                {
-                    return true;
-                }
-            }
-
-            foreach(var conformance in (current as ConcreteType)?.ConformancesList ?? [])
-            {
-                if(IsIdentity(conformance.AbstractType, to) || Inherits(conformance.AbstractType, to))
-                {
-                    return true;
-                }
-            }
-
-            var next = (current as ConcreteType)?.BaseType;
-
-            if(next is not null && IsIdentity(next, to))
+            if(IsIdentity(baseType, to) || (visited.Add(baseType.FullyQualifiedName) && Inherits(baseType, to, visited)))
             {
                 return true;
             }
-
-            current = next as MemberType;
         }
 
         return false;
+    }
+
+    public static IEnumerable<IMistType> Bases(IMistType type)
+    {
+        var (declaring, substitution) = type switch
+        {
+            ConstructedType { Definition: MemberType definition } constructed
+                => (definition, TypeSubstitution.ForReceiver(constructed)),
+            MemberType member => (member, TypeSubstitution.Empty),
+            _ => (null, TypeSubstitution.Empty),
+        };
+
+        if(declaring is null)
+        {
+            yield break;
+        }
+
+        if(declaring is ConcreteType { BaseType: { } baseType })
+        {
+            yield return substitution.Apply(baseType, interner: null);
+        }
+
+        foreach(var abstractBase in declaring.BaseAbstractTypes)
+        {
+            yield return substitution.Apply(abstractBase, interner: null);
+        }
+
+        foreach(var conformance in (declaring as ConcreteType)?.ConformancesList ?? [])
+        {
+            yield return substitution.Apply(conformance.AbstractType, interner: null);
+        }
     }
 
     private static Dictionary<string, string[]> BuildNumericWidening()

@@ -138,7 +138,7 @@ internal static class ConversionClassifier
                 .Concat(parameter.Domain is { } domain ? new IMistType[] { domain } : []),
             RefinedType refined => [refined.BaseType],
             EnumType { UnderlyingType: { } underlying } => [underlying],
-            _ => Bases(from),
+            _ => ConversionRelation.Bases(from),
         };
 
         foreach(var candidate in wider)
@@ -191,37 +191,6 @@ internal static class ConversionClassifier
             && DelegateShape.Of(from) is { } source
             && DelegateShape.Of(to) is { } target
             && DelegateShape.SameShape(source, target);
-    }
-
-    internal static IEnumerable<IMistType> Bases(IMistType type)
-    {
-        var (declaring, substitution) = type switch
-        {
-            ConstructedType { Definition: MemberType definition } constructed
-                => (definition, TypeSubstitution.ForReceiver(constructed)),
-            MemberType member => (member, TypeSubstitution.Empty),
-            _ => (null, TypeSubstitution.Empty),
-        };
-
-        if(declaring is null)
-        {
-            yield break;
-        }
-
-        if(declaring is ConcreteType { BaseType: { } baseType })
-        {
-            yield return substitution.Apply(baseType, interner: null);
-        }
-
-        foreach(var abstractBase in declaring.BaseAbstractTypes)
-        {
-            yield return substitution.Apply(abstractBase, interner: null);
-        }
-
-        foreach(var conformance in (declaring as ConcreteType)?.ConformancesList ?? [])
-        {
-            yield return substitution.Apply(conformance.AbstractType, interner: null);
-        }
     }
 
     private static bool ExplicitByDeclaration(IMistType from, IMistType to)

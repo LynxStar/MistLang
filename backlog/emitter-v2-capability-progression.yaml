@@ -4426,6 +4426,63 @@ capabilities:
       two static readings apart: two casts in count 2 in Jaguar's statics and one out counts 1 in Tiger's,
       where statics read through the receiver would print the counts the other way round. MSBuild compiles
       the emitted C# with no warning. Its lines were captured from v2 and read against the program by hand.
+
+      GENERIC, CONSTRUCTED AND ALIASED SOURCES ARE CLONED (2026-09-13, finishing spec task 13, which named them).
+      Before, a newtype with type parameters, a source written with type arguments and a source named through an
+      alias each kept the forwarding placeholder: `new IntBox(5)` over `Box<int>` was NO_IMPLICIT_CONVERSION 'int'
+      to 'T', no conversion existed, and a variadic class source or `new Outer<string>.Inner` emitted nothing and
+      failed in Roslyn. Registration now finds only the source's DECLARATION, which fixes the clone's kind --
+      through an alias's written target, a newtype's clone, parentheses, a pack-absorbing family by arity, or an
+      instantiation's nested type -- and NewtypeCloner.BindSources resolves the source after aliases are built, so
+      CloneScope answers each type parameter of the definition, and of an enclosing instantiation, with its
+      argument. The clone keeps the newtype declaration's own parameters, which only that declaration names: a
+      clone's type scope does not answer them, so `type Swap<A, B> = new Pair<B, A>` binds Pair's A to Swap's B.
+      THE SOURCE NAMED WITH ARGUMENTS INSIDE THE BODY is renamed by matching (CloneRenaming): it is the newtype
+      exactly when some instance of the newtype clones that construction. Inside `type IntBox = new Box<int>` a
+      Box<T> is IntBox and a Box<string> stays a Box; inside `type Boxes<U> = new Box<U>` a Box<string> is
+      Boxes<string>; Swap<int, string>.Flipped() is a Swap<string, int>. A plain source named inside a generic
+      clone (`type Id<T> = new int`) is the clone over its own parameters. A where clause of the source constrains
+      the clone parameter it is bound to (ConstraintResolver.ResolveRenamed), and nothing where it is bound to a
+      type, that construction being judged where the newtype names its source.
+      CONVERSIONS OVER A CONSTRUCTION. Both kinds read the source as the construction (ConcreteType.CloneSourceType).
+      A clonable generic source's out conversion binds its Clone under a ConstructionScope, which answers T with
+      the argument and reaches the declaration's members through the construction; the in conversion's receiver is
+      the construction, and ReceiverScope reaches its members through it. MEASURED FIRST in a C# scratch on .NET 10:
+      an UnsafeAccessor written against a closed generic, `extern ref int Item(Box<int> b)`, COMPILES AND THROWS
+      MissingFieldException 'Box`1.item' when called, while one declared in a generic class over the definition's
+      own parameters and called as `Access<int>.Item(b)` reads and writes fields, statics, backing fields,
+      methods, getters and constructors. So CloneCopyEmitter and UnsafeReach declare a generic source's members in
+      a nested holder over its parameters and call it on the construction the body reaches
+      (`__Probe_Pair_Access<int, string>.__first(ref value)`), and a static of the source is spelled on the
+      construction.
+      FOUND ON THE WAY, fixed because the in conversion stands on it: a bare reference to a field or property
+      inherited from a generic base was typed by the base's parameter -- `int a = value;` in `Derived : Base<int>`
+      was NO_IMPLICIT_CONVERSION 'T' to 'int' -- IdentifierBinder dropping the lookup's base constructions; the
+      reference now carries the substituted type. And a spread of a pack the clone binds (`Bundle<TArgs...>` in a
+      clone of Bundle<int, string>) splices its elements (PackBinding.Bind).
+      MEASURED on v2 by a scratch program whose emitted C# MSBuild compiles without warning: IntBox's Get, Again and
+      Named and a type test; IntPair, and IntMoney over a generic base's private field, copied both ways; IntCell
+      cast in twice and out once printing `3 fresh#1 made=2`, `3 fresh#2 made=2` and `3 fresh#2#1 made=1`, the
+      counts Tiger and Jaguar give; an alias, a generic alias, Boxes<string>, Swap, a constrained Ranked<Score>, a
+      newtype over IntBox, a variadic Bundle, `new Outer<string>.Inner`, `new (Point)`, `type Id<T> = new int` and
+      `type Tagged<T> = new Point`. NewtypeClones unchanged against its baseline.
+      STILL OPEN, each a refusal at the Mist source rather than generated C# that fails: a conversion or operator on
+      an INSTANCE of a generic newtype -- `Pair<int, int> p = twin` over `type Twin<T> = new Pair<T, T>`, `(Id<User>)5`
+      -- waits on order 46's constructed-generic cast operator task, the gap `new Tagged<string>(2) + new
+      Tagged<string>(3)` meets on any generic struct, so a generic clone synthesizes conversions only where an
+      intrinsic wrapper forwards through them; and a source reached through an enclosing instantiation gets no
+      copy conversion. The placeholder is NOT RETIRED: it still carries a tuple source (variadics spec 22.3), a
+      source the newtype builder refuses or cannot resolve, and an alias whose target is its own type parameter
+      (`type Same<X> = X; type B = new Same<Tiger>`), which the registration-time walk over syntax cannot see through.
+      PROVED BY NewtypeCloneTests (a constructed source's members, the renaming for the clone's arguments only and
+      for each generic instance, the moved constraint, alias, newtype, pack, enclosing instance and parentheses, a
+      plain source inside a generic clone), InheritedGenericMemberTests (the bare inherited field),
+      NewtypeConversionDecisionTests and ClonableNewtypeConversionDecisionTests (both directions over a
+      construction, the out body typed by the argument, the copy refused for another instantiation),
+      CloneCopyEmissionTests, CloneConversionEmissionTests and IntrinsicCloneEmissionTests (the holders, the statics
+      and constructor on the construction, a generic intrinsic clone wrapping as itself), and the Tier 4
+      ConstructedCloneConversionTests, which runs the conversions because the closed-generic accessor compiles.
+      Twenty mutations on confirmed builds each fail at least one test. Full suite green, 6021 of 6021.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across

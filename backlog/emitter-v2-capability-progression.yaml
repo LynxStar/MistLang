@@ -4413,9 +4413,9 @@ capabilities:
       total-conversion-classification/clone-conversion-through-a-renamed-field and
       mutable-class-newtype-from-a-source-with-no-copy, renamed from mutable-class-newtype-from-its-source.
       Eleven mutations each fail at least one test.
-      NOT HANDLED, each emitting C# Roslyn refuses rather than an operator that runs: a conditional access,
-      an increment or compound write through a computed property, a generic method, an indexer, or a method
-      group, when the member is one C# refuses from the newtype.
+      HANDLED SINCE, each of which emitted C# Roslyn refused where the member is one C# refuses from the
+      newtype: a conditional access or call, a `??=` through a computed property or an indexer, a generic
+      method, an indexer, and a method group. See the paragraph on the member kinds a clone body reaches below.
 
       THE REVISED MODEL IS BANKED (2026-09-13, spec task 18) by samples/NewtypeClones, referenced from
       AllFeaturesV2 alone: classic refuses it with 25 errors, implementing the earlier revision. One
@@ -4483,6 +4483,38 @@ capabilities:
       and constructor on the construction, a generic intrinsic clone wrapping as itself), and the Tier 4
       ConstructedCloneConversionTests, which runs the conversions because the closed-generic accessor compiles.
       Twenty mutations on confirmed builds each fail at least one test. Full suite green, 6021 of 6021.
+
+      THE MEMBER KINDS A CLONE BODY REACHES THROUGH AN ACCESSOR ARE COMPLETE (2026-09-13). MEASURED FIRST, a Tiger
+      whose Clone reads `maybe?.stripes`, calls `maybe?.Bump()` and `maybe?.Three()`, writes `Note ??= "self"` through a
+      computed property, reads and writes a private indexer, calls a private generic `Echo<int>`, and names `Three`,
+      the static `Seven` and `copy.Three` as function values, emitted C# Roslyn refused in both conversions: `?.` on a
+      private member, `??=` on a getter call, the generic method and the indexer written by name, and every method group
+      written bare inside a static operator, reachable or not. Mist has no increment and no compound arithmetic
+      assignment, so `??=` is the one compound write. Now a conditional access or a call with a value narrows its
+      receiver into a pattern variable ahead of the accessor, and a conditional call yielding nothing hands its call to a
+      When helper, a static accessor having no `?.` form. `??=` through a computed property or an indexer runs a Coalesced
+      helper that reads through the getter and writes through the setter only when the read is null, the value evaluated
+      only then, as C# evaluates it. An indexer goes through get_Item and set_Item. A generic method's accessor declares
+      the method's type parameters and where clauses: MEASURED on .NET 10, an accessor missing the target's constraints
+      compiles and throws InvalidProgramException 'Generic method constraints do not match' when called. A method group
+      is a lambda over its accessor cast to the function type, an explicit receiver bound once through a Bound helper as
+      a C# method group binds it, and a bare method group C# admits is qualified with its receiver as a method call
+      already was. A private method returning nothing now has an accessor returning C# void; it had spelled
+      Standard.Void, which the runtime binds to no method. UnsafeAccessors owns how each accessor, holder and helper is
+      declared, and UnsafeReach which member needs one.
+      MEASURED on v2: that Tiger cast to Jaguar and back prints `stripes=105 note=self`, `stripes=237 note=noted` and
+      `stripes=400 note=noted`, each worked through the body by hand, and MSBuild's only warnings on the emitted file
+      are CS8618 on the optional field itself, filed below. A constrained generic method, an indexer and a bound method
+      group on the generic clonable source Cell<int> run through holders and print `5 tag:5/fn=5` both ways.
+      PROVED BY CloneConversionEmissionTests (the narrowed access and the When call, the Coalesced write, the generic
+      accessor with its where clause, both indexer accessors, the lambda, the bound receiver and a qualified reachable
+      method group) and CloneConversionRuntimeTests, which runs that Tiger because a mismatched accessor compiles.
+      Eleven mutations on confirmed builds each fail at least one test. Full suite green, 6027 of 6027.
+      FOUND ON THE WAY, filed as their own tasks rather than fixed here: a coalesce nested in arithmetic emits without
+      its parentheses, so `1 + (maybe ?? 0) + 2` prints 6 on v2 and 8 on classic; an optional reference field is
+      declared non-nullable, drawing CS8618; an F-bounded constraint (`where T : IRank<T>`) is refused on any class,
+      ConstraintAnalyzer comparing against the unsubstituted constraint; and a constraint error anywhere in a program
+      becomes the reason every clonable cast is refused, that rule reading program-wide state inside a per-body run.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across

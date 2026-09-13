@@ -1756,7 +1756,7 @@ capabilities:
       of confusion. IsImplicit asks whether a conversion may happen unwritten; IsWithin asks whether every
       value of one type is already a value of the other. The second was first called IsStandardImplicit,
       which implied a non-existent "non-standard implicit" and made the superset calling the subset read
-      backwards. CompareConversions and TypeArgumentInference.Wider ask IsWithin, IsApplicable asks
+      backwards. CompareConversions asks IsWithin, IsApplicable asks
       IsImplicit, and FindOperator brackets an operator's ends with IsWithin so it cannot chain a second
       user-defined conversion.
 
@@ -2311,20 +2311,66 @@ capabilities:
       green, the AllFeaturesV2 v2 baseline among them, so nothing in the repository distinguishes
       stating the answer from not having one.
 
-      The reason to state it anyway is that this algorithm is the weaker of the two, in five named
-      ways: it does not walk bases or interfaces when matching, does not track variance, folds
-      repeated answers pairwise rather than resolving a bound set, has no inference from lambdas or
-      method groups, and runs one pass rather than fixing in dependency order. Every shape it does
+      The reason to state it anyway is that this algorithm is the weaker of the two, in three named
+      ways: it does not track variance, so a bound read from inside a construction is fixed like any
+      other rather than as an exact bound; it has no inference from lambdas or method groups; and it
+      runs one pass rather than fixing in dependency order. Every shape it does
       infer, C# infers and agrees on, so its successful answers are a subset of C#'s -- established
       by reasoning over the cases, not proved. Stating them therefore makes a wrong answer a C#
       error rather than something Roslyn quietly infers correctly on our behalf.
 
-      IT ALSO HAS A FAILURE MODE C# DOES NOT, and this cuts against the direction of order 26. Where
-      one parameter is answered twice with types neither of which converts, Wider keeps the first
-      arbitrarily; a lone candidate is then returned without weighing conversions, so
-      `F<T>(T, T)` called `F("x", 1)` emits `F<string>("x", 1)` and fails in Roslyn against a
-      generated file. C# reports CS0411 on the call itself. Refusing that in the frontend is the
-      best-common-type task below.
+      FIXING IS C#'S, BY DOMINANCE, measured 2026-09-13 on --pipeline experimental. Each type
+      parameter collects a bound set, deduplicated by identity, and once every argument is matched is
+      fixed to the first bound every other bound converts to. Against `Pick<T>(T a, T b)`:
+      `Pick(1, 2L)` binds as `Pick<long>` and prints 2; `Pick(new Dog(), new Animal())` as
+      `Pick<Animal>`; `Pick(u, 4)` with `u` unknown as `Pick<object>`; `Pick(n, 4)` and `Pick(4, n)`
+      with `n` a NonNegative both as `Pick<int>`, where the pairwise Wider fold had answered
+      NonNegative for one order; and `Pick(new Meters(1.0), new Feet(10.0))` as `Pick<Meters>` through
+      Feet's declared implicit operator, printing 3.048.
+
+      JUDGED BY ConversionClassifier, NOT ConversionRelation, which Wider asked. A parameter with no
+      dominant bound is refused, and the relation's contract bars refusing on it; the classifier is
+      what Stage 5's Assignability refuses an argument on, so a conflict is reported only where every
+      choice among the bounds would have had some argument refused there. It also brings the rules
+      the relation declines: a refinement within its base, a type parameter within its constraints, a
+      user-declared implicit operator. An error-typed bound classifies Unclassified, which counts as
+      converting both ways, so a failed argument never produces a conflict.
+
+      A SECOND TIER FOR REFINEMENTS, because the first alone regressed a running program.
+      `Pick(n, p)` with NonNegative n and Positive p printed 5 before this change, the fold keeping
+      NonNegative and the prover discharging p; neither refinement is implicitly reached from the
+      other, so dominance alone refused it. Where no bound qualifies, a refinement whose BASE the
+      others all reach is taken, first in argument order, its predicate being the prover's. Both
+      orders still run.
+
+      NO TYPE IS INFERRED THAT NO ARGUMENT HAS -- DECIDED 2026-09-13, reversing a union rule this
+      entry recorded as decided the same day. `Pick("x", 1)` and `Pick(new Dog(), new Cat())` are
+      refused as MIST_PM_TYPE_ARGUMENTS_CONFLICT naming the parameter and its bounds, where C# reports
+      CS0411; before, the first bound as `Pick<string>` and was refused only by Stage 5, at the second
+      argument, as 'int' to 'string'. A union and a shared base are both the caller's to state:
+      `Pick<string | int>("x", 1)` binds and runs, and `Pick<Animal>(dog, cat)` binds. Against
+      inferring either: a union always exists and `unknown` is always a shared supertype, so a rule
+      that looked for one would never fail and would silently accept what C# refuses, and several
+      incomparable shared bases leave no single answer.
+
+      OVERLOAD RESOLUTION KEEPS ITS SHAPE. A candidate whose parameter conflicts is left open and
+      excluded, so `Over.Pick("x", 1)` beside `Pick(unknown a, unknown b)` selects the latter, and
+      `Over.Pick(1, 2L)` the generic one. Only with no closed candidate is the conflict reported, and
+      a parameter no argument mentions reports MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED ahead of it.
+      TypeArgumentFixingTests holds 13 cases on ProgramModelProbe, each mutation-checked: fixing to
+      the first bound fails six, dropping the refinement tier one, dropping the not-inferred
+      precedence one, dropping the conflict from the choice two, judging the first tier by
+      ConversionRelation.IsWithin one, ignoring stated type arguments one, and refusing whenever any
+      candidate is open one. refusals/binding/type-argument-bounds-with-no-dominant.mist holds the
+      refusal.
+
+      A GENERIC EXTENSION RECEIVER CLOSES ONLY ON AGREEMENT. Unify shared the fold, so
+      `<T> extension(Duo<T, T> self)` matched a `Duo<int, long>` receiver with T fixed to long, and
+      Roslyn refused the generated call: 'Duo<int, long>' does not contain a definition for 'Same'. A
+      receiver's type arguments are not converted, so Unify closes a parameter only where its bounds
+      are one type; that receiver is now refused on the call as MIST_PM_UNRESOLVED_MEMBER, and
+      `Duo<int, int>` still prints. ExtensionLookupTests pins both, and fixing Unify by dominance
+      fails it.
 
       Which also means the sample does not test inference as tightly as it appears to. Every result
       it prints would print the same had inference answered nothing at all; what the baseline pins
@@ -2361,40 +2407,39 @@ capabilities:
         open and separate: a lambda argument to an INFERRING call, `Apply(1, v => ...)`, which is the
         body-task register's "lambda arguments deferred during applicability" and which classic
         refuses as well.
-      - Replace the pairwise Wider fold with a bound set per type parameter and a fixing step, which
-        is C#'s shape and the right one. The fixing RULE is DECIDED and differs from C#'s, in two
-        ordered steps. One, if some bound dominates -- every other bound implicitly converts to it --
-        fix to that bound, so {int, long} answers long. Two, failing that, fix to the UNION of the
-        bounds, so {string, int} answers `string | int` and `F<T>(T, T)` on `F("x", 1)` is a legal
-        call where C# reports CS0411. A union is the answer of last resort, never a first choice.
-      - The two steps have to be ordered EXPLICITLY, because step two is not a fallback that step one
-        subsumes and neither follows from "most specific". The union of the bounds is by construction
-        their LEAST common supertype, so a most-specific rule alone would answer `int | long` for
-        {int, long} and never reach `long`. Dominance is what expresses "a stricter fit exists".
-      - Fixing then never fails for a parameter carrying at least one bound, since every bound
-        converts to the union of the bounds by construction. So MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED
-        narrows to its real case, which is a parameter mentioned in no parameter type at all, where
-        the arguments say nothing about it whatsoever.
-      - Step one cannot answer `unknown`, and not because of a guard against it --
-        ConversionRelation declines `unknown` outright as indeterminate, so no conversion INTO it is
-        ever established and it cannot qualify as a common supertype. Worth knowing rather than
-        rediscovering, because were the relation to start modelling it as a true top type, step one
-        would admit it on every call. Step two needs no such guard -- a union of the bounds is
-        strictly more specific than the top type.
-      - BLOCKED ON A UNION ARM IN ConversionRelation, which has none -- constituent-to-union and
-        union-to-wider-union are both unmodelled, so a fixed union is found INAPPLICABLE and the
-        candidate eliminated wherever two or more share an arity. A lone candidate would bind and, as
-        it happens, compile, since the emitted carrier declares an implicit conversion from each
-        constituent. Half-live is the worst of the three states, so do the relation arm first. See
-        orders 76 to 78.
-      - COST TO WEIGH when it lands. `F<T>(T, T)` accepting `("x", 1)` is a signature saying "two of
-        the same thing" being handed two different things, and C# refuses it precisely to catch that.
-        Under this rule it compiles. If that turns out to be too quiet, the place to say so is a
-        warning at the fixing site, not a change to the rule.
-      - Until any of this, that call emits `F<string>("x", 1)` on an arbitrary first-wins pick and
-        fails in Roslyn against a generated file. This is the one gap in this entry reachable today,
-        and it puts an error where the user cannot act on it, which is the opposite of order 26's
-        direction. Refusing it in the frontend is worth doing on its own, ahead of the union work.
+      - >
+        DONE 2026-09-13. The pairwise Wider fold is a bound set per type parameter, fixed by dominance
+        with a refinement tier, and a conflict is refused in the frontend; see the evidence. The union
+        rule this task once recorded as decided was reversed by decision the same day: a union or a
+        shared base is stated by the caller, never inferred. The spec says so (Requirements 3.3, 3.5,
+        3.6).
+      - >
+        DONE 2026-09-13. Unify closes a repeated receiver parameter only where its bounds agree.
+      - >
+        OPEN, a divergence from C#. Where several bounds each qualify -- two types each declaring an
+        implicit operator into the other, Celsius and Fahrenheit -- fixing takes the first in argument
+        order, so the answer turns on the order; C# reports CS0411. Not refused, because the
+        classifier also answers "each within the other" for a function type and the CLR delegate of
+        the same shape, which are one type, and refusing mutual conversion would refuse those.
+      - >
+        OPEN. Bounds read from inside a construction are not exact bounds, so a disagreement there is
+        fixed and refused at an argument rather than refused as a conflict: `Both<T>(Box<T>, Box<T>)`
+        called with a Box<int> and a Box<long> fixes T to long, and Stage 5 reports 'Box<int>' to
+        'Box<long>' at the first argument, where C# refuses inference. A Box<int> with a Box<string>
+        is refused as a conflict. The same programs are refused either way; only the diagnostic
+        differs.
+      - >
+        OPEN, cosmetic. A conflict between an enclosing method's own `T` and another type reads "the
+        arguments give 'T' the types 'T', 'int'", the two T being different parameters.
+      - >
+        FOUND 2026-09-13, not this entry's. A STATED union over an open type parameter does not emit:
+        inside `Mixed<T>(T a, int b)`, `Sink.Pair<T | int>(a, b)` binds, and Roslyn reports that
+        'Union_Int32_T' could not be found, since EmitUnionCarriers skips an open union by design and
+        nothing lowers the call. Orders 76 to 78 own unions.
+      - >
+        COST OF THE RULE, recorded with the decision. A call mixing unrelated types needs its type
+        argument stated, as in C#. The union rule's cost was the opposite: `F<T>(T, T)` accepting two
+        different things without a word, most visibly where T never reaches the caller.
     unlocks: []
 
   - id: generic-constraints-nominal

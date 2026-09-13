@@ -4302,8 +4302,50 @@ capabilities:
     verified_by: sample
     evidence: >
       Two inference rules by base kind -- a string base takes the variant's own name, an integral base
-      counts on from the previous variant. Default base is byte filling from zero. NestedScoping is
+      counts on from the previous variant. A NAME-ONLY enum's base is byte, filling from zero; an
+      unannotated enum that writes values takes its base from them (see below). NestedScoping is
       banked in AllFeaturesV2 and byte-identical to classic.
+
+      "DEFAULT BASE IS BYTE" WAS WRONG, and read as a design choice when it contradicted the spec (found
+      2026-09-12). Enums Requirement 3.1 gives an unannotated enum the one type its written values share
+      and 3.2 the union of their types; only 3.3, the name-only enum, gets byte. v2 gave every
+      unannotated enum byte, so `enum Mixed { Num = 1, Text = "x" }`, `enum Dir { North = "N", South = "S" }`
+      and `enum Code { Ok = 200, Big = 1000 }` were refused ('string' or 'int' to 'byte') where classic
+      prints Text, S and 1000, and `enum Flag { A = 1, B = 2 }` compiled as byte-backed where classic
+      emits it over int. EnumTypeBuilder now settles the base in Phase 2 only for an annotation or a
+      name-only enum; EnumMemberBinder binds the written values of any other with NO TARGET, since the
+      base is what they decide, and takes TypeInterner.GetOrCreateUnionType of their types -- one type
+      comes back bare, and the union is flattened, deduplicated and ordered, so `{ "x", 1, 2 }` is
+      `int | string`. A value that failed to bind contributes nothing. Enums now bind BEFORE every other
+      body in Phase 3: a body's cast choosing between operators asks whether an enum reaches a parameter
+      through its base, and with the base still unset `(Fathoms)Code.Ok` over Fathoms(double) and
+      Fathoms(string) selected nothing and reached Roslyn.
+      MEASURED against classic on 30 probes; outcomes match except where noted. Inferred int
+      (`{ 200, 1000 }`, `{ -10, 40 }`), string, double, bool, and `int | string` in either order all print
+      as classic does; `{ Ok = 200, Next }` gives 201 and `{ First, Ok = 200 }` gives First = 0 over int,
+      as classic does. `byte b = Flag.A` over `{ 1, 2 }` is now MIST_PA_NO_IMPLICIT_CONVERSION, where v2
+      printed 1 and classic fails in Roslyn -- a corpus case. `{ 1, 3000000000L }` is `int | long` and
+      `{ 1, 4000000000u }` is `int | uint` on both pipelines, so `long l = Size.Huge` is refused on both.
+      `{ North = "N", South }` gives South its name, as classic does.
+      DIVERGENCES, none introduced by inference -- each holds for the same base written as an annotation.
+      An omitted value over a union base (`{ Num = 1, Text = "x", Other }`, `{ Text = "x", Other, Num = 1 }`)
+      is MIST_PM_ENUM_VALUE_NOT_INFERABLE, which v2 already reports over `: int | string`, where classic
+      counts on from the last integral value it saw (Other = 2) or from zero (Other = 0), read off its
+      emitted C#; a corpus case. An omitted value after a char or double is NOT_INFERABLE where classic
+      emits `(char)0` and 0, the integral-zero defect above. `enum Alias { First = Base.One }` over an
+      int-backed Base is admitted, where classic refuses it as a non-readonly base (MIST_TC_0102); v2
+      treats an enum as readonly with or without the annotation. And `int | string u = Mixed.Text` is
+      refused on BOTH pipelines, annotated or not, though an enum converts to its own base -- see the
+      first analysis_phase_tasks entry below.
+      PROVED BY EnumUnderlyingInferenceTests (six one-type rows, three unions, three that take nothing
+      from their values, three omitted values over an inferred base, and the operator chosen through an
+      inferred base) and two corpus cases. Three mutations on confirmed builds each fail at least one
+      test: every unannotated enum byte (thirteen failures, both corpus cases), the first written type
+      instead of the union (three), and enums bound after bodies (the operator test -- the only thing
+      that sees the order). samples/Enums does NOT cover Requirement 3.1 or 3.2: its sections labelled
+      "inferred" and "union" both carry annotations, and no sample or book snippet declares an
+      unannotated enum with written values, so nothing banked could shift -- measured, AllFeaturesV2 and
+      AllFeatures green.
 
       EVERY VARIANT LEAVES CONSTRUCTION WITH AN EXPRESSION, which is where this DIVERGES FROM CLASSIC
       and is the more consequential of the two divergences taken here. Classic emits a WRITTEN value by
@@ -4353,6 +4395,13 @@ capabilities:
       print-versus-match inconsistency turns out UNREACHABLE there; the inconsistency was real only in
       the emitted shape, never in a program classic would compile. Detection is logged below.
     analysis_phase_tasks:
+      - >
+        An enum does not convert to its own UNION base: `int | string u = Mixed.Text` over
+        `Mixed : int | string` is MIST_PA_NO_IMPLICIT_CONVERSION on v2 and MIST_TC_0070 on classic, though
+        Requirement 7.1 admits it and an enum to its backing value is lossless. The refusal is measured
+        (2026-09-12); the cause is read, not confirmed: ConversionClassifier.Within probes the target union's constituents with the same
+        visited set it then uses for the enum's own base, so the base is already marked visited when its
+        turn comes. Newly reachable from an unannotated enum, whose base can now be a union.
       - >
         Report two variants sharing an underlying value. Classic's MIST_SB_0085 is the model. Deferred
         rather than built because it judges a finished set of variants and nothing about it stops one

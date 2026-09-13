@@ -77,7 +77,15 @@ internal static class ConversionRelation
             || WidensElementwise(from, to)
             || WidensToUnknownArguments(from, to)
             || WidensToBaseDelegate(from, to)
+            || LeavesClone(from, to)
             ;
+    }
+
+    private static bool LeavesClone(IMistType from, IMistType to)
+    {
+        return from is ConcreteType { CloneSource: { } source } clone
+            && clone.CastOperatorsList.Exists(castOperator => castOperator is { CopiesClone: true, IsImplicit: true })
+            && IsWithin(source, to);
     }
 
     /// <summary>

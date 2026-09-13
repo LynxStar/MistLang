@@ -1,0 +1,21 @@
+using Standard;
+
+namespace Refusal;
+
+public class Entity
+{
+    public int Id;
+}
+
+type Actor = new Entity;
+
+public class Probe
+{
+    public static void Main()
+    {
+        var entity = new Entity();
+        // REFUSE: MIST_PA_CAST_HAS_NO_CONVERSION
+        var actor = (Actor)entity;
+        Console.WriteLine("unreachable");
+    }
+}

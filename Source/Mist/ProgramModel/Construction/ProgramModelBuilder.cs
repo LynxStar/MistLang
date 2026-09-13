@@ -159,6 +159,11 @@ public sealed class ProgramModelBuilder
 
         CloneDiagnostics.Run(clones, concreteTypeBuilder.Build, diagnostics);
 
+        foreach(var clone in clones)
+        {
+            NewtypeConversions.Synthesize(clone);
+        }
+
         // Phase 2b: Resolve extension blocks (after all types are fully resolved).
         var extensionBuilder = new ExtensionBuilder(context, context.Resolver);
         extensionBuilder.BuildAll();

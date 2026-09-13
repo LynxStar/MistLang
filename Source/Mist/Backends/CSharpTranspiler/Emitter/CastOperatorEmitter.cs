@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
@@ -22,10 +23,20 @@ internal static class CastOperatorEmitter
         writer.WriteLine($"{modifiers}{kind} operator {targetType}({parameters})");
         using(writer.Block())
         {
-            if(castOperator.Body is not null)
+            if(castOperator.CopiesClone)
+            {
+                CloneCopyEmitter.EmitBody(castOperator, writer, diagnostics);
+            }
+            else if(castOperator.Body is not null)
             {
                 BodyEmitter.EmitBlock(castOperator.Body, writer, diagnostics);
             }
+        }
+
+        if(castOperator is { CopiesClone: true, IsImplicit: true, DeclaringType: ConcreteType clone })
+        {
+            writer.WriteBlankLine();
+            CloneCopyEmitter.EmitAccessors(clone, writer, diagnostics);
         }
     }
 }

@@ -4259,6 +4259,30 @@ capabilities:
       at least one: renaming off, duplicates kept, nested types unreachable, clones analysed with the
       program. NewtypeResolutionTests' private-member case now expects the MIST_PA_INACCESSIBLE_MEMBER a
       plain class gives, the member being the clone's own. Full suite green, 5938 of 5938.
+
+      THE COPY CONVERSIONS OF A COPYABLE SOURCE (2026-09-13, spec task 15), for the cloned kinds above
+      whose source is a struct or a readonly class. NewtypeConversions synthesizes two bodiless cast
+      operators on the clone, marked CopiesClone: implicit to the source, explicit from it. The explicit
+      one is selected and lowered as any declared operator, so `(Coord)position` passes through Point and
+      `(Position)reading` through a declared implicit. The implicit one is lossless: ConversionRelation's
+      LeavesClone reads the clone as within whatever its source is within, which is what lets a declared
+      implicit to Position still reach Point and ranks Take(Point) above Take(unknown) for a Position.
+      CloneCopyEmitter writes both as a copy into a new target: every instance field and auto-property
+      backing field, flattened for a struct and along the Mist base chain for a class, each reached through
+      UnsafeAccessor because both types keep their state private -- prototyped first against readonly
+      struct fields, readonly class fields and a base class's private field -- and a class allocated
+      uninitialized so the source's constructor does not run twice.
+      MEASURED on v2, a struct and a readonly class with a private field, an auto-property and a base
+      class's private field: `(Position)point`, `Point back = pos`, `(Coord)pos`, `(Cash)money` and
+      `Money again = cash` were all refused, and now print every field's value; `Sink.Take(pos)` picks
+      Take(Point); a boxed Position is `is Position` and not `is Point`, and a Cash is not a Money.
+      PROVED BY NewtypeConversionDecisionTests (eight admits, four refusals including both directions of a
+      mutable class, the called conversion, the ranking) and CloneCopyEmissionTests (the private field,
+      the backing field, the base class's field, the uninitialized allocation), plus corpus cases
+      assignability-core/struct-newtype-from-its-source and
+      total-conversion-classification/mutable-class-newtype-from-its-source. Four mutations on confirmed
+      builds each fail at least one: nothing synthesized, the out-conversion not lossless, base fields not
+      copied, mutable classes treated as copyable. Full suite green, 5954 of 5954.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across

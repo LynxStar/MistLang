@@ -74,7 +74,7 @@ internal static class IntrinsicCloneEmitter
 
         if(logical && clone.OperatorsList.First(other => other.Kind is OperatorKind.LogicalAnd or OperatorKind.LogicalOr) == op)
         {
-            var self = TypeNameEmitter.Emit(clone);
+            var self = TypeNameEmitter.Emit(op.ParametersList[0].Type);
             writer.WriteLine($"public static bool operator true({self} value) => value.Value;");
             writer.WriteLine($"public static bool operator false({self} value) => !value.Value;");
         }
@@ -140,7 +140,7 @@ internal static class IntrinsicCloneEmitter
 
     private static IMistType Backing(IMistType type, ConcreteType clone)
     {
-        return ConversionRelation.IsIdentity(type, clone) ? clone.CloneSource! : type;
+        return IsItself(type, clone) ? clone.CloneSource! : type;
     }
 
     private static string Receiver(MemberModifiers modifiers, ConcreteType clone)
@@ -150,14 +150,19 @@ internal static class IntrinsicCloneEmitter
 
     private static string Unwrap(Parameter parameter, ConcreteType clone)
     {
-        return ConversionRelation.IsIdentity(parameter.Type, clone) ? $"{parameter.Name}.Value" : parameter.Name;
+        return IsItself(parameter.Type, clone) ? $"{parameter.Name}.Value" : parameter.Name;
     }
 
     private static string Wrap(IMistType type, ConcreteType clone, string expression)
     {
-        return ConversionRelation.IsIdentity(type, clone)
-            ? $"new {TypeNameEmitter.Emit(clone)}({expression})"
+        return IsItself(type, clone)
+            ? $"new {TypeNameEmitter.Emit(type)}({expression})"
             : expression;
+    }
+
+    private static bool IsItself(IMistType type, ConcreteType clone)
+    {
+        return ConversionRelation.IsIdentity(type, clone) || (type is ConstructedType { Definition: var definition } && ReferenceEquals(definition, clone));
     }
 
     private static Method? Counterpart(IEnumerable<Method> members, Storm.Runtime.SyntaxNode? declarationNode)

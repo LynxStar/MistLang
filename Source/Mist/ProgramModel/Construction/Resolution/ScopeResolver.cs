@@ -2,6 +2,7 @@ using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Scopes;
@@ -329,7 +330,7 @@ internal sealed class ScopeResolver
             }
 
             context.ProgramModel.ConstructorConstraintClosures.RecordType(baseType, typeArgs, namedRef);
-            return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(baseType, typeArgs);
+            return Construct(baseType, typeArgs, scope);
         }
 
         return baseType;
@@ -446,6 +447,21 @@ internal sealed class ScopeResolver
         }
 
         return current;
+    }
+
+    public IMistType Construct(IMistType definition, IReadOnlyList<IMistType> typeArguments, Scope scope)
+    {
+        var interner = context.ProgramModel.TypeInterner;
+
+        return CloneRenaming.Rename(scope, definition, typeArguments, interner)
+            ?? interner.GetOrCreateConstructedType(definition, typeArguments);
+    }
+
+    public IMistType? FindGenericDefinition(string stem, int arity, Scope scope)
+    {
+        var lookupName = arity > 0 ? BuildArityName(stem, arity) : stem;
+
+        return TryLookupType(lookupName, scope) ?? FindByArity(lookupName, stem, arity, scope);
     }
 
     public IMistType ResolveGenericDefinition(
@@ -944,7 +960,7 @@ internal sealed class ScopeResolver
         var name = spread.Name.IDENTIFIER.Lexeme;
         var resolved = ResolveNamedType(name, scope, spread);
 
-        if(resolved is TypeParameter { IsPack: true })
+        if(resolved is TypeParameter { IsPack: true } or LiftedType { Value: TypePackValue })
         {
             return new SpreadType(resolved);
         }

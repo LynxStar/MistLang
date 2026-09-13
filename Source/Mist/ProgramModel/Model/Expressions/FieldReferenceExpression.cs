@@ -11,9 +11,10 @@ namespace Mist.ProgramModel.Model.Expressions;
 /// </summary>
 internal sealed class FieldReferenceExpression(
     SyntaxNode node,
-    Field field) : Expression(node)
+    Field field,
+    IMistType? type = null) : Expression(node)
 {
     public Field Field { get; } = field;
 
-    public override IMistType Type => Field.Type;
+    public override IMistType Type => type ?? Field.Type;
 }

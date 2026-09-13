@@ -50,8 +50,21 @@ public sealed class CloneCopyEmissionTests : ProgramModelProbe
             }
         }
 
+        public struct Pair<A, B>
+        {
+            private A first;
+            public B Second { get; set; }
+
+            public Pair(A first, B second)
+            {
+                this.first = first;
+                this.Second = second;
+            }
+        }
+
         type Position = new Point;
         type Cash = new Money;
+        type IntPair = new Pair<int, string>;
         """;
 
     protected override string Preamble { get; } = "";
@@ -76,6 +89,17 @@ public sealed class CloneCopyEmissionTests : ProgramModelProbe
         Assert.Contains("GetUninitializedObject(typeof(Probe.Cash))", emitted);
         Assert.Contains("__Probe_Ledger_serial(copy) = __Probe_Ledger_serial(value);", emitted);
         Assert.Contains("__Probe_Cash_currency(copy) = __Probe_Money_currency(value);", emitted);
+    }
+
+    [Fact]
+    public void AConstructedSource_IsReachedThroughAHolderOverItsDefinitionsParameters()
+    {
+        var emitted = EmitDeclaration("IntPair");
+
+        Assert.Contains("__Probe_Pair_Access<int, string>.__first(ref copy) = __Probe_IntPair_first(ref value);", emitted);
+        Assert.Contains("__Probe_IntPair_Second_BackingField(ref copy) = __Probe_Pair_Access<int, string>.__Second_BackingField(ref value);", emitted);
+        Assert.Contains("private static class __Probe_Pair_Access<A, B>", emitted);
+        Assert.Contains("public static extern ref A __first(ref Probe.Pair<A, B> target);", emitted);
     }
 
     private string EmitDeclaration(string typeName)

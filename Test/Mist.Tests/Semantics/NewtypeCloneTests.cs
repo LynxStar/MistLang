@@ -5,6 +5,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -80,6 +81,78 @@ public sealed class NewtypeCloneTests : ProgramModelProbe
 
         type Jaguar = new Tiger;
         type Position = new Point;
+        """;
+
+    private const string Generics = """
+        public class Box<T>
+        {
+            private T item;
+
+            public Box(T item) { this.item = item; }
+
+            public T Get() { return item; }
+
+            public Box<T> Again() { return new Box<T>(item); }
+
+            public Box<string> Named() { return new Box<string>("named"); }
+        }
+
+        public struct Pair<A, B>
+        {
+            public A First;
+            public B Second;
+
+            public Pair(A first, B second)
+            {
+                this.First = first;
+                this.Second = second;
+            }
+
+            public Pair<B, A> Flipped() { return new Pair<B, A>(Second, First); }
+        }
+
+        public abstract IRank
+        {
+            int Rank();
+        }
+
+        public class Sorted<T> where T : IRank
+        {
+            public T Low;
+
+            public Sorted(T low) { this.Low = low; }
+
+            public int Floor() { return Low.Rank(); }
+        }
+
+        public class Bundle<params TArgs>
+        {
+            public Bundle() { }
+
+            public Bundle<TArgs...> Again() { return new Bundle<TArgs...>(); }
+        }
+
+        public class Outer<T>
+        {
+            public class Inner
+            {
+                public T Held;
+
+                public Inner(T held) { this.Held = held; }
+            }
+        }
+
+        type Coord = Pair<int, string>;
+        type IntBox = new Box<int>;
+        type Boxes<U> = new Box<U>;
+        type Swap<A, B> = new Pair<B, A>;
+        type Ranked<V> = new Sorted<V>;
+        type Spot = new Coord;
+        type BoxAgain = new IntBox;
+        type Two = new Bundle<int, string>;
+        type Holding = new Outer<string>.Inner;
+        type Parenthesized = new (Point);
+        type Id<T> = new Point;
         """;
 
     protected override string Preamble { get; } = """
@@ -180,6 +253,81 @@ public sealed class NewtypeCloneTests : ProgramModelProbe
         var cloneFailure = Assert.Single(findings, finding => finding.Id.Value == "MIST_PM_NEWTYPE_CLONE_INVALID");
         Assert.Contains("'Puma' cannot clone 'Lion', whose member 'Enroll'", cloneFailure.Message, StringComparison.Ordinal);
         _ = Assert.Single(findings, finding => finding.Id.Value == "MIST_PA_NO_IMPLICIT_CONVERSION");
+    }
+
+    [Fact]
+    public void ANewtypeOverAConstruction_IsANonGenericCloneWithItsArgumentsInItsMembers()
+    {
+        var intBox = Assert.IsType<ClassType>(GenericNamed("Probe.IntBox"));
+
+        Assert.Empty(intBox.TypeParametersList);
+        Assert.Equal("Probe.Box<Int32>", intBox.CloneSourceType?.FullyQualifiedName);
+        Assert.Equal("Standard.Int32", intBox.MethodsList.Single(method => method.Name == "Get").ReturnType.FullyQualifiedName);
+    }
+
+    [Theory]
+    [InlineData("Again", "Probe.IntBox")]
+    [InlineData("Named", "Probe.Box<String>")]
+    public void TheSourceNamedInTheClonesBody_IsTheCloneOnlyWithTheClonesArguments(string method, string expected)
+    {
+        var intBox = Assert.IsType<ClassType>(GenericNamed("Probe.IntBox"));
+
+        Assert.Equal(expected, intBox.MethodsList.Single(member => member.Name == method).ReturnType.FullyQualifiedName);
+    }
+
+    [Theory]
+    [InlineData("var named = new Boxes<string>(\"s\").Named();", "Probe.Boxes<String>")]
+    [InlineData("var flipped = new Swap<int, string>(\"s\", 1).Flipped();", "Probe.Swap<String, Int32>")]
+    public void AGenericNewtype_NamesEachInstanceOfItsSourceAsTheInstanceOfItselfThatClonesIt(string statement, string expected)
+    {
+        Assert.Equal(expected, SingleLocal(statement, Generics).Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void ASourcesConstraint_ConstrainsTheCloneParameterItIsBoundTo()
+    {
+        var ranked = Assert.IsType<ClassType>(GenericNamed("Probe.Ranked<>"));
+        var constraint = Assert.IsType<TypeConstraint>(Assert.Single(Assert.Single(ranked.TypeParametersList).ConstraintsList));
+
+        Assert.Equal("Probe.IRank", constraint.ConstraintType.FullyQualifiedName);
+    }
+
+    [Theory]
+    [InlineData("Probe.Spot", "Probe.Pair<Int32, String>")]
+    [InlineData("Probe.BoxAgain", "Probe.Box<Int32>")]
+    [InlineData("Probe.Two", "Probe.Bundle<[Int32, String]>")]
+    [InlineData("Probe.Holding", "Probe.Outer<String>.Inner")]
+    [InlineData("Probe.Parenthesized", "Probe.Point")]
+    public void ASourceReachedThroughAnAliasANewtypeAPackAnEnclosingInstanceOrParentheses_IsCloned(string newtype, string source)
+    {
+        Assert.Equal(source, Assert.IsAssignableFrom<ConcreteType>(GenericNamed(newtype)).CloneSourceType?.FullyQualifiedName);
+    }
+
+    [Theory]
+    [InlineData("Probe.Two", "Again", "Probe.Two")]
+    [InlineData("Probe.Id<>", "Moved", "Probe.Id<T>")]
+    public void TheSourceNamedInsideAPackOrAGenericCloneOfAPlainSource_IsTheClone(string newtype, string method, string expected)
+    {
+        var clone = Assert.IsAssignableFrom<ConcreteType>(GenericNamed(newtype));
+
+        Assert.Equal(expected, clone.MethodsList.Single(member => member.Name == method).ReturnType.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void AnEnclosingInstancesArgument_ReachesTheClonesMembers()
+    {
+        var holding = Assert.IsType<ClassType>(GenericNamed("Probe.Holding"));
+
+        Assert.Equal("Standard.String", holding.FieldsList.Single(field => field.Name == "Held").Type.FullyQualifiedName);
+    }
+
+    private MistType GenericNamed(string fullyQualifiedName)
+    {
+        var model = BuildModel("int ok = 1;", Generics, "", out var diagnostics);
+        var errors = diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Select(diagnostic => diagnostic.Message).ToList();
+        Assert.True(errors.Count == 0, string.Join(Environment.NewLine, errors));
+
+        return Assert.IsAssignableFrom<MistType>(model.TypesByFQN[fullyQualifiedName]);
     }
 
     private MistType TypeNamed(string fullyQualifiedName)

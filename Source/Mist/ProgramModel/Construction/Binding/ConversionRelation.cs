@@ -83,7 +83,7 @@ internal static class ConversionRelation
 
     private static bool LeavesClone(IMistType from, IMistType to)
     {
-        return from is ConcreteType { CloneSource: { } source } clone
+        return from is ConcreteType { CloneSourceType: { } source } clone
             && clone.CastOperatorsList.Exists(castOperator => castOperator is { CopiesClone: true, IsImplicit: true })
             && IsWithin(source, to);
     }

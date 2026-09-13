@@ -17,6 +17,7 @@ public sealed class IntrinsicCloneEmissionTests
         type Age = new int;
         type Label = new string;
         type Flag = new bool;
+        type Id<T> = new int;
         """;
 
     [Fact]
@@ -41,6 +42,16 @@ public sealed class IntrinsicCloneEmissionTests
         Assert.Contains("=> new Probe.Age(Value);", age);
         Assert.Contains("=> new Probe.Label(Value.ToUpper());", label);
         Assert.Contains("Length => Value.Length;", label);
+    }
+
+    [Fact]
+    public void AGenericClone_WrapsAResultAsItselfOverItsOwnParameters()
+    {
+        var emitted = EmitDeclaration("Id<>");
+
+        Assert.Contains("readonly struct Id<T>", emitted);
+        Assert.Contains("=> new Probe.Id<T>((a.Value + b.Value));", emitted);
+        Assert.Contains("explicit operator Probe.Id<T>(int value)", emitted);
     }
 
     [Fact]

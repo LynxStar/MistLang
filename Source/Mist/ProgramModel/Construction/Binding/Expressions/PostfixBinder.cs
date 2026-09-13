@@ -92,7 +92,7 @@ internal static class PostfixBinder
             definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
         var type = definition is TypeAlias alias
             ? context.Resolver.ExpandAlias(alias, typeArgs)
-            : context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
+            : context.Resolver.Construct(definition, typeArgs, ctx.Scope);
 
         return BindMemberAccess(node, new TypeReferenceExpression(node, type), node.Member.Lexeme, ctx, context);
     }

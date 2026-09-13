@@ -59,7 +59,7 @@ internal sealed record NamespaceResult(string NamespaceName) : LookupResult;
 /// The enclosing instance, for <c>this</c>. Carries the innermost enclosing type, since that is the
 /// scope that answered.
 /// </summary>
-internal sealed record ReceiverResult(MemberType Type) : LookupResult;
+internal sealed record ReceiverResult(IMistType Type) : LookupResult;
 
 /// <summary>
 /// <c>this</c> where there is an enclosing type but no instance of it. Distinct from

@@ -135,6 +135,7 @@ public sealed class ProgramModelBuilder
         }
 
         var clones = sourceTypes.OfType<ConcreteType>().Where(concrete => concrete.CloneSource is not null).ToList();
+        NewtypeCloner.BindSources(clones, context);
 
         foreach(var typeDef in sourceTypes)
         {
@@ -161,7 +162,7 @@ public sealed class ProgramModelBuilder
 
         foreach(var clone in clones)
         {
-            NewtypeConversions.Synthesize(clone);
+            NewtypeConversions.Synthesize(clone, context.ProgramModel.TypeInterner);
         }
 
         // Phase 2b: Resolve extension blocks (after all types are fully resolved).
@@ -222,6 +223,7 @@ public sealed class ProgramModelBuilder
     {
         return type switch
         {
+            ConcreteType { NewtypeDeclaration: { } newtypeDeclaration } => newtypeDeclaration,
             MemberType member => member.DeclarationNode,
             TypeAlias alias => alias.DeclarationNode,
             Newtype newtype => newtype.DeclarationNode,

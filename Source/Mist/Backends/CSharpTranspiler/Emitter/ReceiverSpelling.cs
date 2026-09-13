@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -14,7 +15,7 @@ internal static class ReceiverSpelling
     public const string Carrier = "@this";
 
     [ThreadStatic]
-    private static ConcreteType? carried;
+    private static IMistType? carried;
 
     [ThreadStatic]
     private static bool qualifiesEveryMember;
@@ -28,10 +29,10 @@ internal static class ReceiverSpelling
             return "";
         }
 
-        return (isStatic ? TypeNameEmitter.Emit(declaringType) : Carrier) + ".";
+        return (isStatic ? TypeNameEmitter.Emit(UnsafeReach.Closed(declaringType)) : Carrier) + ".";
     }
 
-    public static IDisposable Enter(ConcreteType type, bool qualifiesEveryMember = false)
+    public static IDisposable Enter(IMistType type, bool qualifiesEveryMember = false)
     {
         carried = type;
         ReceiverSpelling.qualifiesEveryMember = qualifiesEveryMember;

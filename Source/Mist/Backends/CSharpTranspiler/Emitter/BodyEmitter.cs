@@ -2032,7 +2032,7 @@ internal static class BodyEmitter
 
         var target = newExpression.Type is TypeParameter && newExpression.Arguments.Count > 0
             ? $"{TypeNameEmitter.Emit(newExpression.Type)}.{ConstructorConstraintInterfaces.MemberName}("
-            : UnsafeReach.Construction(newExpression.Constructor) is { } reachedConstructor
+            : UnsafeReach.Construction(newExpression) is { } reachedConstructor
                 ? $"{reachedConstructor}("
                 : $"new {TypeNameEmitter.Emit(newExpression.Type)}("
             ;

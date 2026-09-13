@@ -5,6 +5,8 @@
 // backlog/emitter-v2-capability-progression.yaml rest on this file.
 
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
@@ -156,6 +158,24 @@ public sealed class InheritedGenericMemberTests : ProgramModelProbe
     public void AnInheritedGenericMethodTakesTheReceiversArgument(string statement, string expected)
     {
         Assert.Equal(expected, TypeOf(statement));
+    }
+
+    [Fact]
+    public void AnInheritedGenericFieldNamedBare_TakesTheBasesArgument()
+    {
+        var model = BuildModel("", """
+            public class Counted : Holder<int>
+            {
+                public Counted() : base(1) { }
+
+                public int Read() { return Value; }
+            }
+            """, "", out _);
+
+        var read = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Counted"]).MethodsList.Single(method => method.Name == "Read");
+        var returned = Assert.IsType<ReturnStatement>(Assert.Single(read.Body!.Statements));
+
+        Assert.Equal("Standard.Int32", returned.Value!.Type.FullyQualifiedName);
     }
 
     private string TypeOf(string statement)

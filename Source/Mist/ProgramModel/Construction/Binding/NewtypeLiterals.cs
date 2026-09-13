@@ -23,7 +23,7 @@ internal static class NewtypeLiterals
         }
 
         if(value is null
-            || target is not ConcreteType { CloneSource: { } source } clone
+            || target is not ConcreteType { CloneSourceType: { } source } clone
             || !IsLiteral(value)
             || !Fits(value, source, interner)
             || clone.CastOperatorsList.Find(castOperator => castOperator is { CopiesClone: true, IsImplicit: false }) is not { } conversion)

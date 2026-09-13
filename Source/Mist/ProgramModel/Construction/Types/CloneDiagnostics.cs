@@ -37,9 +37,9 @@ internal static class CloneDiagnostics
                     ProgramModelDiagnostics.NewtypeCloneInvalid,
                     clone.NewtypeDeclaration!,
                     null,
-                    clone.Name,
-                    clone.CloneSource!.Name,
-                    MemberAt(clone, withheld.Location) ?? clone.CloneSource.Name,
+                    TypeDisplay.Mist(clone),
+                    TypeDisplay.Mist(clone.CloneSourceType ?? clone.CloneSource!),
+                    MemberAt(clone, withheld.Location) ?? TypeDisplay.Mist(clone.CloneSource!),
                     withheld.Message);
             }
         }

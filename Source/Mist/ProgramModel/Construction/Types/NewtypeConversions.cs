@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -11,16 +12,18 @@ namespace Mist.ProgramModel.Construction.Types;
 
 internal static class NewtypeConversions
 {
-    public static void Synthesize(ConcreteType clone)
+    public static void Synthesize(ConcreteType clone, TypeInterner interner)
     {
-        if(clone.CloneSource is not { } source)
+        if(clone is not { CloneSource: { } source, CloneSourceType: { } sourceType }
+            || (clone.TypeParametersList.Count > 0 && !source.IsIntrinsic)
+            || sourceType is ConstructedType { Enclosing: not null })
         {
             return;
         }
 
         if(!IsCopyable(source))
         {
-            SynthesizeClonable(clone, source);
+            SynthesizeClonable(clone, source, sourceType, interner);
             return;
         }
 
@@ -36,8 +39,10 @@ internal static class NewtypeConversions
             });
         }
 
-        clone.CastOperatorsList.Add(Copy(clone, source, clone, isImplicit: true));
-        clone.CastOperatorsList.Add(Copy(source, clone, clone, isImplicit: false));
+        var itself = clone.TypeParametersList.Count == 0 ? clone : (IMistType)interner.GetOrCreateConstructedType(clone, clone.TypeParametersList);
+
+        clone.CastOperatorsList.Add(Copy(itself, sourceType, clone, isImplicit: true));
+        clone.CastOperatorsList.Add(Copy(sourceType, itself, clone, isImplicit: false));
     }
 
     public static void Bind(ConcreteType clone, BuilderContext context)
@@ -56,38 +61,43 @@ internal static class NewtypeConversions
         return source is StructType || source.Modifiers.IsReadonly;
     }
 
-    private static void SynthesizeClonable(ConcreteType clone, ConcreteType source)
+    private static void SynthesizeClonable(ConcreteType clone, ConcreteType source, IMistType sourceType, TypeInterner interner)
     {
-        if(CloneMethod(source) is not { } sourceClone
+        if(CloneMethod(source, interner) is not { } sourceClone
             || clone.MethodsList.Find(method => ReferenceEquals(method.DeclarationNode, sourceClone.DeclarationNode)) is not { } renamedClone)
         {
             return;
         }
 
-        clone.CastOperatorsList.Add(Through(renamedClone, source, clone));
-        clone.CastOperatorsList.Add(Through(sourceClone, clone, clone));
+        var sourceScope = sourceType is ConstructedType construction ? new ConstructionScope(source.Scope, construction) : source.Scope;
+
+        clone.CastOperatorsList.Add(Through(renamedClone, clone, clone.Scope, sourceType, clone));
+        clone.CastOperatorsList.Add(Through(sourceClone, sourceType, sourceScope, clone, clone));
     }
 
-    private static Method? CloneMethod(ConcreteType source)
+    private static Method? CloneMethod(ConcreteType source, TypeInterner interner)
     {
+        var itself = source.TypeParametersList.Count == 0
+            ? (IMistType)source
+            : interner.GetOrCreateConstructedType(source, source.TypeParametersList);
+
         var clonable = source.BaseAbstractTypes.Any(abstractBase => abstractBase is ConstructedType { TypeArguments: [var argument] } constructed
             && constructed.Definition.FullyQualifiedName == WellKnownTypes.IClonable.FullyQualifiedName
-            && ConversionRelation.IsIdentity(argument, source));
+            && argument.FullyQualifiedName == itself.FullyQualifiedName);
 
         return clonable
             ? source.MethodsList.Find(method => method is { Name: "Clone", ParametersList.Count: 0, Body: not null, Modifiers.IsStatic: false })
             : null;
     }
 
-    private static CastOperator Through(Method cloneMethod, ConcreteType receiver, ConcreteType clone)
+    private static CastOperator Through(Method cloneMethod, IMistType result, Scope resultScope, IMistType receiver, ConcreteType clone)
     {
-        var result = (ConcreteType)cloneMethod.DeclaringType!;
         var modifiers = new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true };
 
         return new CastOperator(result, new Parameter("value", receiver), isImplicit: false, modifiers)
         {
             Body = new Block(cloneMethod.Body!.Node),
-            Scope = new MethodScope(new ReceiverScope(result.Scope, receiver)),
+            Scope = new MethodScope(new ReceiverScope(resultScope, receiver)),
             DeclaringType = clone,
             ClonesThrough = cloneMethod,
         };

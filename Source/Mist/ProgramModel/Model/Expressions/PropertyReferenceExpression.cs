@@ -13,9 +13,9 @@ namespace Mist.ProgramModel.Model.Expressions;
 /// assignment holds this as its target, so the surrounding expression is what says which it is.
 /// </para>
 /// </summary>
-internal sealed class PropertyReferenceExpression(SyntaxNode node, Property property) : Expression(node)
+internal sealed class PropertyReferenceExpression(SyntaxNode node, Property property, IMistType? type = null) : Expression(node)
 {
     public Property Property { get; } = property;
 
-    public override IMistType Type => Property.Type;
+    public override IMistType Type => type ?? Property.Type;
 }

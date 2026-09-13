@@ -148,7 +148,9 @@ internal static class TypeMemberLookup
             return;
         }
 
-        if(type is IHasTypeParameters generic)
+        // A clone's body is its source's syntax, naming the source's parameters, which CloneScope answers;
+        // the clone's own are named only by its newtype declaration.
+        if(type is IHasTypeParameters generic and not ConcreteType { CloneSource: not null })
         {
             foreach(var typeParameter in generic.TypeParametersList)
             {

@@ -1,7 +1,9 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
@@ -24,8 +26,9 @@ internal static class IdentifierBinder
         return result switch
         {
             VariableResult variable => new LocalReferenceExpression(node, variable.Variable, BodyScope.NarrowedIn(ctx.Scope, variable.Variable)),
-            FieldResult field => new FieldReferenceExpression(node, field.Field),
-            PropertyResult property => new PropertyReferenceExpression(node, property.Property),
+            FieldResult field => new FieldReferenceExpression(node, field.Field, Reached(field.Field.Type, field.BaseConstructions, context)),
+            PropertyResult property => new PropertyReferenceExpression(
+                node, property.Property, Reached(property.Property.Type, property.BaseConstructions, context)),
             TypeResult type => new TypeReferenceExpression(node, type.Type),
             MethodGroupResult { Methods.Count: > 0 } group => new MethodGroupExpression(node, null, name, group.Methods, null) { Paths = group.Paths },
             NamespaceResult ns => new NamespaceReferenceExpression(node, ns.NamespaceName),
@@ -38,6 +41,13 @@ internal static class IdentifierBinder
 
             _ => new UnresolvedExpression(node),
         };
+    }
+
+    private static IMistType? Reached(IMistType declared, IReadOnlyList<ConstructedType> path, BuilderContext context)
+    {
+        var interner = context.ProgramModel.TypeInterner;
+
+        return path.Count == 0 ? null : TypeSubstitution.ForPath(receiver: null, path, interner).Apply(declared, interner);
     }
 
     private static Expression ReportUnresolved(IdentifierExpressionPrimaryNode node, string name, BuilderContext context)

@@ -76,6 +76,21 @@ public sealed class ClonableNewtypeConversionDecisionTests
             public Entity() { }
         }
 
+        public class Cell<T> : IClonable<Cell<T>>
+        {
+            private static int made = 0;
+            private T content;
+
+            public Cell(T content) { this.content = content; }
+
+            public owned Cell<T> Clone()
+            {
+                made = made + 1;
+                return new Cell<T>(content);
+            }
+        }
+
+        public type IntCell = new Cell<int>;
         public type Jaguar = new Tiger;
         public type Puma = new Lion;
         public type Margay = new Ocelot;
@@ -89,11 +104,15 @@ public sealed class ClonableNewtypeConversionDecisionTests
         var puma = new Puma();
         var ocelot = new Ocelot();
         var entity = new Entity();
+        var cell = new Cell<int>(1);
+        var intCell = new IntCell(2);
         """;
 
     [Theory]
     [InlineData("var entered = (Jaguar)tiger;")]
     [InlineData("var left = (Tiger)jaguar;")]
+    [InlineData("var enteredFromAConstruction = (IntCell)cell;")]
+    [InlineData("var leftForAConstruction = (Cell<int>)intCell;")]
     public void ACastRunningAClonableSourcesClone_IsAdmittedEitherWay(string statement)
     {
         Assert.Empty(Errors(Analyse(statement)));
@@ -129,6 +148,17 @@ public sealed class ClonableNewtypeConversionDecisionTests
         Assert.Equal("Probe.Jaguar", conversion.ClonesThrough?.DeclaringType?.FullyQualifiedName);
         Assert.Equal("Probe.Tiger", conversion.SourceParameter.Type.FullyQualifiedName);
         Assert.True(conversion.IsCalled);
+    }
+
+    [Fact]
+    public void ACastToAConstructedSource_RunsItsCloneWithTheArgumentsInPlace()
+    {
+        var cast = Assert.IsType<CastExpression>(LastLocal(Build("var left = (Cell<int>)intCell;", out _)).Initializer);
+        var conversion = Assert.IsType<CastOperator>(cast.Operator);
+        var copy = Assert.IsType<ReturnStatement>(conversion.Body!.Statements[^1]).Value!;
+
+        Assert.Equal("Probe.Cell<Int32>", conversion.TargetType.FullyQualifiedName);
+        Assert.Equal("Probe.Cell<Int32>", copy.Type.FullyQualifiedName);
     }
 
     [Fact]

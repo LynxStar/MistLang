@@ -60,7 +60,9 @@ internal static class PackBinding
             bound.Add(arguments[i]);
         }
 
-        var absorbed = arguments.Skip(absorbing).Take(arguments.Count - absorbing - trailing).ToList();
+        var absorbed = arguments.Skip(absorbing).Take(arguments.Count - absorbing - trailing)
+            .SelectMany(argument => argument is SpreadType { Operand: LiftedType { Value: TypePackValue spliced } } ? spliced.Elements : [argument])
+            .ToList();
 
         // Already a pack when the use site wrote brackets, in which case it is adopted rather than
         // wrapped -- nesting it would make Foo<[int, string]> a different type from Foo<int, string>

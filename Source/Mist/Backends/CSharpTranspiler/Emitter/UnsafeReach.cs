@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -13,7 +14,9 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// <c>Clone</c> body is declared on the newtype, while the body is its source's own code and reaches the
 /// private members of either type (newtypes spec Requirement 10.2), so each member C# would refuse there is
 /// called through an UnsafeAccessor declared beside the conversion. Nothing the program's own code may touch
-/// is widened, and a member C# already admits is written as it always is.
+/// is widened, and a member C# already admits is written as it always is. The runtime matches an accessor
+/// against a generic type's member only in that type's own parameters, so a member of a generic source is
+/// declared in a holder class over those parameters and called on the construction the body reaches.
 /// </summary>
 internal sealed class UnsafeReach : IDisposable
 {
@@ -21,26 +24,29 @@ internal sealed class UnsafeReach : IDisposable
     private static UnsafeReach? current;
 
     private readonly ConcreteType home;
-    private readonly MemberType receiver;
+    private readonly IMistType receiver;
+    private readonly IMistType result;
     private readonly string prefix;
     private readonly DiagnosticBag diagnostics;
     private readonly Dictionary<object, string> names = [];
     private readonly List<IReadOnlyList<string>> declarations = [];
+    private readonly Dictionary<MemberType, List<(string Name, string[] Lines)>> holders = [];
     private int initializers;
 
-    private UnsafeReach(ConcreteType home, MemberType receiver, string prefix, DiagnosticBag diagnostics)
+    private UnsafeReach(ConcreteType home, IMistType receiver, IMistType result, string prefix, DiagnosticBag diagnostics)
     {
         this.home = home;
         this.receiver = receiver;
+        this.result = result;
         this.prefix = prefix;
         this.diagnostics = diagnostics;
     }
 
-    public IReadOnlyList<IReadOnlyList<string>> Declarations => declarations;
+    public IReadOnlyList<IReadOnlyList<string>> Declarations => [.. declarations, .. holders.Select(Holder)];
 
-    public static UnsafeReach Enter(ConcreteType home, MemberType receiver, string prefix, DiagnosticBag diagnostics)
+    public static UnsafeReach Enter(ConcreteType home, CastOperator conversion, string prefix, DiagnosticBag diagnostics)
     {
-        current = new UnsafeReach(home, receiver, prefix, diagnostics);
+        current = new UnsafeReach(home, conversion.SourceParameter.Type, conversion.TargetType, prefix, diagnostics);
         return current;
     }
 
@@ -49,17 +55,22 @@ internal sealed class UnsafeReach : IDisposable
         current = null;
     }
 
+    public static IMistType Closed(MemberType declaring)
+    {
+        return current is { } reach ? ClosedOwner(declaring, reach.receiver, reach.result) : declaring;
+    }
+
     public static string? Implicit(Field field)
     {
         return current is { } reach && !reach.Reaches(field.Modifiers.Accessibility, field.Modifiers.IsStatic, field.DeclaringType, reach.receiver)
-            ? $"{reach.FieldAccessor(field)}({Leading(field.Modifiers.IsStatic, null)})"
+            ? $"{reach.FieldAccessor(field, ClosedOwner(field.DeclaringType!, reach.receiver, reach.result))}({Leading(field.Modifiers.IsStatic, null)})"
             : null;
     }
 
     public static string? Implicit(Property property)
     {
         return current is { } reach && !reach.Reaches(Narrowest(property), property.Modifiers.IsStatic, property.DeclaringType, reach.receiver)
-            ? reach.Read(property, Leading(property.Modifiers.IsStatic, null))
+            ? reach.Read(property, ClosedOwner(property.DeclaringType!, reach.receiver, reach.result), Leading(property.Modifiers.IsStatic, null))
             : null;
     }
 
@@ -74,10 +85,10 @@ internal sealed class UnsafeReach : IDisposable
         {
             FieldResult { Field: var field }
                 when !reach.Reaches(field.Modifiers.Accessibility, field.Modifiers.IsStatic, field.DeclaringType, access.Receiver.Type)
-                => $"{reach.FieldAccessor(field)}({Leading(field.Modifiers.IsStatic, renderReceiver)})",
+                => $"{reach.FieldAccessor(field, ClosedOwner(field.DeclaringType!, access.Receiver.Type))}({Leading(field.Modifiers.IsStatic, renderReceiver)})",
             PropertyResult { Property: var property }
                 when !reach.Reaches(Narrowest(property), property.Modifiers.IsStatic, property.DeclaringType, access.Receiver.Type)
-                => reach.Read(property, Leading(property.Modifiers.IsStatic, renderReceiver)),
+                => reach.Read(property, ClosedOwner(property.DeclaringType!, access.Receiver.Type), Leading(property.Modifiers.IsStatic, renderReceiver)),
             _ => null,
         };
     }
@@ -105,29 +116,29 @@ internal sealed class UnsafeReach : IDisposable
             ? Leading(method.Modifiers.IsStatic, () => render(explicitReceiver.Receiver))
             : Leading(method.Modifiers.IsStatic, null);
 
-        return (reach.MethodAccessor(method), leading);
+        return (reach.MethodAccessor(method, ClosedOwner(method.DeclaringType!, receiverType, reach.result)), leading);
     }
 
-    public static string? Construction(Constructor? constructor)
+    public static string? Construction(NewExpression creation)
     {
         if(current is not { } reach
-            || constructor is not { DeclaringType: ConcreteType owner }
+            || creation.Constructor is not { DeclaringType: ConcreteType owner } constructor
             || reach.Reaches(constructor.Modifiers.Accessibility, isStatic: true, owner, null))
         {
             return null;
         }
 
-        return reach.Declare(constructor, $"{Flat(owner)}_new", name =>
+        return reach.Declare(constructor, owner, creation.Type, "new", (accessibility, name) =>
         [
             "[System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Constructor)]",
-            $"private static extern {TypeNameEmitter.Emit(owner)} {name}({ParameterEmitter.Emit(constructor.ParametersList, reach.diagnostics)});",
+            $"{accessibility} static extern {TypeNameEmitter.Emit(Itself(owner))} {name}({ParameterEmitter.Emit(constructor.ParametersList, reach.diagnostics)});",
         ]);
     }
 
     public static (string Helper, string Target)? Initializer(NewExpression creation)
     {
         if(current is not { } reach
-            || creation.Type is not MemberType created
+            || Definition(creation.Type) is not MemberType created
             || !creation.Initializer.Any(entry => entry.MemberName is { } name && !reach.Reaches(Lookup(created, name), created)))
         {
             return null;
@@ -148,7 +159,7 @@ internal sealed class UnsafeReach : IDisposable
     public static string Entry(NewExpression creation, ObjectInitializerAssignment entry, string target, string value)
     {
         var reach = current!;
-        var created = (MemberType)creation.Type;
+        var created = (MemberType)Definition(creation.Type);
 
         if(entry.MemberName is not { } name)
         {
@@ -158,9 +169,9 @@ internal sealed class UnsafeReach : IDisposable
         return Lookup(created, name) switch
         {
             FieldResult { Field: var field } when !reach.Reaches(field.Modifiers.Accessibility, false, field.DeclaringType, created)
-                => $"{reach.FieldAccessor(field)}({target}) = {value};",
+                => $"{reach.FieldAccessor(field, ClosedOwner(field.DeclaringType!, creation.Type))}({target}) = {value};",
             PropertyResult { Property: var property } when !reach.Reaches(Narrowest(property), false, property.DeclaringType, created)
-                => reach.Write(property, target, value) + ";",
+                => reach.Write(property, ClosedOwner(property.DeclaringType!, creation.Type), target, value) + ";",
             _ => $"{target}.{name} = {value};",
         };
     }
@@ -174,7 +185,7 @@ internal sealed class UnsafeReach : IDisposable
 
         var (property, receiverType, renderReceiver) = assignment.Target switch
         {
-            PropertyReferenceExpression implicitProperty => (implicitProperty.Property, (IMistType)reach.receiver, (Func<string>?)null),
+            PropertyReferenceExpression implicitProperty => (implicitProperty.Property, reach.receiver, (Func<string>?)null),
             MemberAccessExpression { Member: PropertyResult found, IsConditional: false } access
                 => (found.Property, access.Receiver.Type, () => render(access.Receiver)),
             _ => (null, null, null),
@@ -185,7 +196,9 @@ internal sealed class UnsafeReach : IDisposable
             return null;
         }
 
-        return (reach.PropertyAccessor(property, isSetter: true), Leading(property.Modifiers.IsStatic, renderReceiver));
+        var owner = ClosedOwner(property.DeclaringType!, receiverType!, reach.result);
+
+        return (reach.PropertyAccessor(property, owner, isSetter: true), Leading(property.Modifiers.IsStatic, renderReceiver));
     }
 
     private bool Reaches(LookupResult member, MemberType created)
@@ -235,6 +248,43 @@ internal sealed class UnsafeReach : IDisposable
         return false;
     }
 
+    private static IMistType ClosedOwner(MemberType declaring, params IMistType[] starts)
+    {
+        if(declaring.TypeParametersList.Count == 0)
+        {
+            return declaring;
+        }
+
+        foreach(var start in starts)
+        {
+            for(var type = (IMistType?)start; type is not null; type = BaseOf(type))
+            {
+                if(type is ConstructedType construction && ReferenceEquals(construction.Definition, declaring))
+                {
+                    return construction;
+                }
+            }
+        }
+
+        return declaring;
+    }
+
+    private static IMistType? BaseOf(IMistType type)
+    {
+        return (type, Definition(type)) switch
+        {
+            (ConstructedType construction, ConcreteType { BaseType: { } baseType })
+                => TypeSubstitution.ForReceiver(construction).Apply(baseType, interner: null),
+            (_, ConcreteType { BaseType: var baseType }) => baseType,
+            _ => null,
+        };
+    }
+
+    private static IMistType Itself(MemberType declaring)
+    {
+        return declaring.TypeParametersList.Count == 0 ? declaring : new ConstructedType(declaring, declaring.TypeParametersList);
+    }
+
     private static IMistType Definition(IMistType type)
     {
         return type is ConstructedType constructed ? constructed.Definition : type;
@@ -262,76 +312,108 @@ internal sealed class UnsafeReach : IDisposable
         return isStatic ? "null" : renderReceiver?.Invoke() ?? ReceiverSpelling.Carrier;
     }
 
-    private string Read(Property property, string leading)
+    private string Read(Property property, IMistType owner, string leading)
     {
         return IsAuto(property)
-            ? $"{FieldAccessor(property)}({leading})"
-            : $"{PropertyAccessor(property, isSetter: false)}({leading})";
+            ? $"{FieldAccessor(property, owner)}({leading})"
+            : $"{PropertyAccessor(property, owner, isSetter: false)}({leading})";
     }
 
-    private string Write(Property property, string target, string value)
+    private string Write(Property property, IMistType owner, string target, string value)
     {
         return IsAuto(property)
-            ? $"{FieldAccessor(property)}({target}) = {value}"
-            : $"{PropertyAccessor(property, isSetter: true)}({target}, {value})";
+            ? $"{FieldAccessor(property, owner)}({target}) = {value}"
+            : $"{PropertyAccessor(property, owner, isSetter: true)}({target}, {value})";
     }
 
-    private string FieldAccessor(Field field)
+    private string FieldAccessor(Field field, IMistType owner)
     {
-        return StorageAccessor(field, field.Name, field.Name, field.Type, field.DeclaringType!, field.Modifiers.IsStatic);
+        return StorageAccessor(field, field.Name, field.Name, field.Type, field.DeclaringType!, owner, field.Modifiers.IsStatic);
     }
 
-    private string FieldAccessor(Property property)
+    private string FieldAccessor(Property property, IMistType owner)
     {
         return StorageAccessor(
-            property, $"<{property.Name}>k__BackingField", property.Name, property.Type, property.DeclaringType!, property.Modifiers.IsStatic);
+            property, $"<{property.Name}>k__BackingField", property.Name, property.Type, property.DeclaringType!, owner, property.Modifiers.IsStatic);
     }
 
-    private string StorageAccessor(object member, string storage, string memberName, IMistType type, MemberType owner, bool isStatic)
+    private string StorageAccessor(
+        object member, string storage, string memberName, IMistType type, MemberType declaring, IMistType owner, bool isStatic)
     {
         var kind = isStatic ? "StaticField" : "Field";
 
-        return Declare(member, $"{Flat(owner)}_{memberName}", name =>
+        return Declare(member, declaring, owner, memberName, (accessibility, name) =>
         [
             $"[System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.{kind}, Name = \"{storage}\")]",
-            $"private static extern ref {TypeNameEmitter.Emit(type)} {name}({Target(owner, isStatic)});",
+            $"{accessibility} static extern ref {TypeNameEmitter.Emit(type)} {name}({Target(declaring, isStatic)});",
         ]);
     }
 
-    private string PropertyAccessor(Property property, bool isSetter)
+    private string PropertyAccessor(Property property, IMistType owner, bool isSetter)
     {
-        var owner = property.DeclaringType!;
+        var declaring = property.DeclaringType!;
         var kind = property.Modifiers.IsStatic ? "StaticMethod" : "Method";
         var accessor = isSetter ? "set" : "get";
         var signature = isSetter
-            ? $"void {{0}}({Target(owner, property.Modifiers.IsStatic)}, {TypeNameEmitter.Emit(property.Type)} value)"
-            : $"{TypeNameEmitter.Emit(property.Type)} {{0}}({Target(owner, property.Modifiers.IsStatic)})";
+            ? $"void {{0}}({Target(declaring, property.Modifiers.IsStatic)}, {TypeNameEmitter.Emit(property.Type)} value)"
+            : $"{TypeNameEmitter.Emit(property.Type)} {{0}}({Target(declaring, property.Modifiers.IsStatic)})";
 
-        return Declare((property, isSetter), $"{Flat(owner)}_{accessor}_{property.Name}", name =>
+        return Declare((property, isSetter), declaring, owner, $"{accessor}_{property.Name}", (accessibility, name) =>
         [
             $"[System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.{kind}, Name = \"{accessor}_{property.Name}\")]",
-            $"private static extern {string.Format(System.Globalization.CultureInfo.InvariantCulture, signature, name)};",
+            $"{accessibility} static extern {string.Format(System.Globalization.CultureInfo.InvariantCulture, signature, name)};",
         ]);
     }
 
-    private string MethodAccessor(Method method)
+    private string MethodAccessor(Method method, IMistType owner)
     {
-        var owner = method.DeclaringType!;
+        var declaring = method.DeclaringType!;
         var kind = method.Modifiers.IsStatic ? "StaticMethod" : "Method";
         var parameters = method.ParametersList.Count == 0
             ? ""
             : ", " + ParameterEmitter.Emit(method.ParametersList, diagnostics);
 
-        return Declare(method, $"{Flat(owner)}_{method.Name}", name =>
+        return Declare(method, declaring, owner, method.Name, (accessibility, name) =>
         [
             $"[System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.{kind}, Name = \"{method.Name}\")]",
-            $"private static extern {TypeNameEmitter.Emit(method.ReturnType)} {name}({Target(owner, method.Modifiers.IsStatic)}{parameters});",
+            $"{accessibility} static extern {TypeNameEmitter.Emit(method.ReturnType)} {name}({Target(declaring, method.Modifiers.IsStatic)}{parameters});",
         ]);
     }
 
-    private static string Target(MemberType owner, bool isStatic)
+    private static string Target(MemberType declaring, bool isStatic)
     {
-        return $"{TypeNameEmitter.Emit(owner)}{(isStatic ? "?" : "")} __target";
+        return $"{TypeNameEmitter.Emit(Itself(declaring))}{(isStatic ? "?" : "")} __target";
+    }
+
+    private string Declare(object member, MemberType declaring, IMistType owner, string stem, Func<string, string, string[]> declaration)
+    {
+        if(declaring.TypeParametersList.Count == 0)
+        {
+            return Declare(member, $"{Flat(declaring)}_{stem}", name => declaration("private", name));
+        }
+
+        if(!holders.TryGetValue(declaring, out var members))
+        {
+            members = [];
+            holders[declaring] = members;
+        }
+
+        if(!names.TryGetValue(member, out var known))
+        {
+            known = $"__{stem}";
+
+            for(var suffix = 2; members.Exists(declared => declared.Name == known); suffix++)
+            {
+                known = $"__{stem}_{suffix}";
+            }
+
+            names[member] = known;
+            members.Add((known, declaration("public", known)));
+        }
+
+        IEnumerable<IMistType> arguments = owner is ConstructedType construction ? construction.TypeArguments : declaring.TypeParametersList;
+
+        return $"{HolderName(declaring)}<{string.Join(", ", arguments.Select(TypeNameEmitter.Emit))}>.{known}";
     }
 
     private string Declare(object member, string stem, Func<string, string[]> declaration)
@@ -354,8 +436,26 @@ internal sealed class UnsafeReach : IDisposable
         return name;
     }
 
+    private string[] Holder(KeyValuePair<MemberType, List<(string Name, string[] Lines)>> holder)
+    {
+        return
+        [
+            $"private static class {HolderName(holder.Key)}<{string.Join(", ", holder.Key.TypeParametersList.Select(TypeNameEmitter.Emit))}>",
+            "{",
+            .. holder.Value.SelectMany(member => member.Lines).Select(line => $"    {line}"),
+            "}",
+        ];
+    }
+
+    private string HolderName(MemberType declaring)
+    {
+        return $"__{prefix}_{Flat(declaring)}_Access";
+    }
+
     private static string Flat(MistType owner)
     {
-        return new string([.. owner.FullyQualifiedName.Select(character => char.IsLetterOrDigit(character) ? character : '_')]);
+        var stem = owner.FullyQualifiedName.Where(character => character is not ('<' or '>' or ',' or ' '));
+
+        return new string([.. stem.Select(character => char.IsLetterOrDigit(character) ? character : '_')]);
     }
 }

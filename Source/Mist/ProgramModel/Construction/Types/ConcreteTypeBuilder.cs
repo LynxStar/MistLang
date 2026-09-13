@@ -7,6 +7,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
@@ -70,6 +71,16 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         {
             Context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.IntrinsicReservedForStandard, body.TypeBody, null, typeDef.Name);
+        }
+
+        if(typeDef.Scope.Parent is CloneScope { Arguments: { } arguments } cloneScope)
+        {
+            var targets = cloneScope.Source.TypeParametersList
+                .Where(parameter => arguments[parameter.Ordinal] is TypeParameter bound && typeDef.TypeParametersList.Contains(bound))
+                .ToDictionary(parameter => parameter.Name, parameter => (TypeParameter)arguments[parameter.Ordinal]);
+
+            ConstraintResolver.ResolveRenamed(body.TypeBody.Constraints, targets, typeDef.Scope);
+            return;
         }
 
         ConstraintResolver.Resolve(body.TypeBody.Constraints, typeDef.TypeParametersList, typeDef.Scope);

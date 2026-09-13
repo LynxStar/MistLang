@@ -1,5 +1,7 @@
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -27,6 +29,44 @@ internal static class NewtypeCloner
         }
     }
 
+    public static void BindSources(IEnumerable<ConcreteType> clones, BuilderContext context)
+    {
+        var bound = new HashSet<ConcreteType>();
+
+        foreach(var clone in clones)
+        {
+            _ = BindSource(clone, context, bound);
+        }
+    }
+
+    private static IMistType BindSource(ConcreteType clone, BuilderContext context, HashSet<ConcreteType> bound)
+    {
+        if(!bound.Add(clone))
+        {
+            return clone.CloneSourceType ?? ErrorType.Instance;
+        }
+
+        var scope = (CloneScope)clone.Scope.Parent!;
+        var interner = context.ProgramModel.TypeInterner;
+        scope.Itself = clone.TypeParametersList.Count == 0 ? clone : interner.GetOrCreateConstructedType(clone, clone.TypeParametersList);
+
+        var source = context.Resolver.Resolve(clone.NewtypeDeclaration!.SourceType, scope.Declaration) switch
+        {
+            ConcreteType { CloneSource: not null } other when !ReferenceEquals(other, clone) => BindSource(other, context, bound),
+            ConstructedType { Definition: ConcreteType { CloneSource: not null } other } constructed
+                => TypeSubstitution.ForReceiver(constructed).Apply(BindSource(other, context, bound), interner),
+            var resolved => resolved,
+        };
+
+        clone.CloneSourceType = source;
+        scope.Arguments = source is ConstructedType constructedSource && ReferenceEquals(constructedSource.Definition, clone.CloneSource)
+            ? constructedSource.TypeArguments
+            : [.. clone.CloneSource!.TypeParametersList.Select(_ => ErrorType.Instance)];
+        scope.Enclosing = (source as ConstructedType)?.Enclosing;
+
+        return source;
+    }
+
     private static ConcreteType? CloneOf(
         Newtype newtype, BuilderContext context, Dictionary<Newtype, ConcreteType?> clones, HashSet<Newtype> visiting)
     {
@@ -40,7 +80,8 @@ internal static class NewtypeCloner
             return null;
         }
 
-        var clone = SourceOf(newtype, context, clones, visiting) is { } source
+        var clone = newtype.DeclarationNode.SourceType is { SingleTypeRefs.IsEmpty: true } reference
+            && DefinitionOf(reference.First, newtype.Scope, context, clones, visiting, []) is { } source
             ? Replace(newtype, source, context.ProgramModel)
             : null;
 
@@ -48,27 +89,34 @@ internal static class NewtypeCloner
         return clone;
     }
 
-    private static ConcreteType? SourceOf(
-        Newtype newtype, BuilderContext context, Dictionary<Newtype, ConcreteType?> clones, HashSet<Newtype> visiting)
+    private static ConcreteType? DefinitionOf(
+        SingleTypeRefNode reference,
+        Scope scope,
+        BuilderContext context,
+        Dictionary<Newtype, ConcreteType?> clones,
+        HashSet<Newtype> visiting,
+        HashSet<TypeAlias> aliases)
     {
-        if(newtype.TypeParametersList.Count > 0 || newtype.DeclarationNode.SourceType is not { SingleTypeRefs.IsEmpty: true } reference)
+        var named = reference switch
         {
-            return null;
-        }
-
-        var named = reference.First switch
-        {
-            PrimitiveSingleTypeRefSingleTypeRefNode { ArrayRank: null, Optional: null } keyword => context.Resolver.Resolve(keyword, newtype.Scope),
-            NamedSingleTypeRefSingleTypeRefNode { TypeArgs: null, ArrayRank: null, Optional: null } name
-                => newtype.Scope.Lookup(new LookupRequest(Stem(name), MemberVisibility.None, name)) is TypeResult found ? found.Type : null,
+            PrimitiveSingleTypeRefSingleTypeRefNode { ArrayRank: null, Optional: null } keyword => context.Resolver.Resolve(keyword, scope),
+            NamedSingleTypeRefSingleTypeRefNode { ArrayRank: null, Optional: null } name
+                => context.Resolver.FindGenericDefinition(Stem(name.Name), Arity(name.TypeArgs), scope),
+            NestedGenericSingleTypeRefSingleTypeRefNode { TypeArgs: null, ArrayRank: null, Optional: null, Nested.IDENTIFIERs.IsEmpty: true } nested
+                => (context.Resolver.FindGenericDefinition(Stem(nested.Outer), Arity(nested.OuterArgs), scope) as MistType)?.NestedTypes
+                    .Find(member => member.Name == nested.Nested.IDENTIFIER.Lexeme),
+            ParenthesizedTypeRefSingleTypeRefNode { ArrayRank: null, Inner.SingleTypeRefs.IsEmpty: true } parenthesized
+                => DefinitionOf(parenthesized.Inner.First, scope, context, clones, visiting, aliases),
             _ => null,
         };
 
         return named switch
         {
             Newtype other => CloneOf(other, context, clones, visiting)?.CloneSource,
+            TypeAlias { DeclarationNode.Type: { RefinableSingleTypeExprs.IsEmpty: true, First.Refinement: null } aliased } alias
+                when aliases.Add(alias) => DefinitionOf(aliased.First.Type, alias.Scope, context, clones, visiting, aliases),
             ConcreteType { CloneSource: { } root } => root,
-            ConcreteType { DeclarationNode: BodyTypeTypeDeclarationNode body, TypeParametersList.Count: 0 } concrete
+            ConcreteType { DeclarationNode: BodyTypeTypeDeclarationNode body } concrete
                 when Cloneable(body.TypeBody.Modifiers) => concrete,
             _ => null,
         };
@@ -85,14 +133,19 @@ internal static class NewtypeCloner
             || modifiers.Any(modifier => modifier is ReadonlyModifierModifierNode);
     }
 
-    private static string Stem(NamedSingleTypeRefSingleTypeRefNode named)
+    private static string Stem(QualifiedIdentifierNode name)
     {
-        return named.Name.IDENTIFIERs.Length > 0 ? QualifiedNameHelper.Build(named.Name) : named.Name.IDENTIFIER.Lexeme;
+        return name.IDENTIFIERs.Length > 0 ? QualifiedNameHelper.Build(name) : name.IDENTIFIER.Lexeme;
+    }
+
+    private static int Arity(TypeArgumentListNode? typeArgs)
+    {
+        return typeArgs is null ? 0 : 1 + typeArgs.TypeArguments.Length;
     }
 
     private static ConcreteType Replace(Newtype newtype, ConcreteType source, Model.ProgramModel programModel)
     {
-        var scope = new CloneScope(source.Scope.Parent, source);
+        var scope = new CloneScope(source.Scope.Parent, source, newtype.Scope);
         ConcreteType clone = source is StructType
             ? new StructType(newtype.Name, newtype.NamespaceName, scope, newtype.DeclaringType, source.DeclarationNode)
             : new ClassType(newtype.Name, newtype.NamespaceName, scope, newtype.DeclaringType, source.DeclarationNode);
@@ -101,6 +154,7 @@ internal static class NewtypeCloner
         clone.CloneSource = source;
         clone.NewtypeDeclaration = newtype.DeclarationNode;
         clone.Assembly = newtype.Assembly;
+        clone.TypeParametersList.AddRange(newtype.TypeParametersList);
 
         programModel.ReplaceType(newtype, clone);
 

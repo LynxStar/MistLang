@@ -252,7 +252,7 @@ internal static class ExpressionBinder
             else
             {
                 context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, node);
-                type = context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
+                type = context.Resolver.Construct(definition, typeArgs, ctx.Scope);
             }
         }
         else

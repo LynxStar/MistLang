@@ -82,6 +82,38 @@ internal sealed class ConstraintResolver
     }
 
     /// <summary>
+    /// A clone's where clauses, which name its source's type parameters. Each constrains the clone's own
+    /// parameter it is bound to; one over a parameter the newtype binds to a type is judged where the newtype
+    /// names its source, as any construction's is, and has nothing here to constrain.
+    /// </summary>
+    public void ResolveRenamed(ImmutableArray<WhereClauseNode> whereClauses, IReadOnlyDictionary<string, TypeParameter> targets, Scope scope)
+    {
+        if(whereClauses.IsDefaultOrEmpty)
+        {
+            return;
+        }
+
+        foreach(var clause in whereClauses)
+        {
+            switch(clause)
+            {
+                case GenericConstraintClauseWhereClauseNode generic when targets.TryGetValue(generic.Name.Lexeme, out var target):
+                    ResolveConstraintList(generic.Constraints, target.ConstraintsList, scope);
+                    break;
+
+                case AdhocRefinementConstraintWhereClauseNode adhoc when targets.TryGetValue(adhoc.Name.Lexeme, out var target):
+                    target.RefinementNode = adhoc.Predicate;
+                    break;
+            }
+        }
+
+        foreach(var target in targets.Values.Distinct().Where(target => target.ConstraintsList.Count > 0))
+        {
+            ValidateConstraints(target);
+        }
+    }
+
+    /// <summary>
     /// Resolves a generic constraint clause (where T : class, IFoo).
     /// </summary>
     private void ResolveGenericConstraintClause(

@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Model.Scopes;
@@ -7,7 +8,7 @@ namespace Mist.ProgramModel.Model.Scopes;
 /// and every instance member answer from that type, while a static member or a type name answers from the
 /// declaration around the body, as it does in the member the body was written for.
 /// </summary>
-internal sealed class ReceiverScope(Scope parent, MemberType receiver) : Scope(parent)
+internal sealed class ReceiverScope(Scope parent, IMistType receiver) : Scope(parent)
 {
     internal override LookupResult Lookup(LookupRequest request)
     {
@@ -27,8 +28,14 @@ internal sealed class ReceiverScope(Scope parent, MemberType receiver) : Scope(p
             return new NotFoundResult();
         }
 
-        return request.Name == LookupRequest.ReceiverName
-            ? new ReceiverResult(receiver)
-            : TypeMemberLookup.Find(receiver, request with { Visibility = MemberVisibility.InstanceOnly });
+        if(request.Name == LookupRequest.ReceiverName)
+        {
+            return new ReceiverResult(receiver);
+        }
+
+        var definition = (MistType)((receiver as ConstructedType)?.Definition ?? receiver);
+        var found = TypeMemberLookup.Find(definition, request with { Visibility = MemberVisibility.InstanceOnly });
+
+        return receiver is ConstructedType construction ? ConstructionScope.Through(found, construction) : found;
     }
 }

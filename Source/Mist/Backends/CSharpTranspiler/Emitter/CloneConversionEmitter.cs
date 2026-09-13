@@ -13,13 +13,13 @@ internal static class CloneConversionEmitter
     public static void Emit(CastOperator conversion, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var clone = (ConcreteType)conversion.DeclaringType!;
-        var receiver = (ConcreteType)conversion.SourceParameter.Type;
+        var receiver = conversion.SourceParameter.Type;
         var direction = ReferenceEquals(conversion.TargetType, clone) ? "In" : "Out";
 
         writer.WriteLine(
             $"public static explicit operator {TypeNameEmitter.Emit(conversion.TargetType)}({TypeNameEmitter.Emit(receiver)} {ReceiverSpelling.Carrier})");
 
-        using var reach = UnsafeReach.Enter(clone, receiver, direction, diagnostics);
+        using var reach = UnsafeReach.Enter(clone, conversion, direction, diagnostics);
 
         using(writer.Block())
         using(ReceiverSpelling.Enter(receiver, qualifiesEveryMember: true))

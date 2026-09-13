@@ -110,12 +110,14 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static ConcreteType? UncopiedSource(IMistType from, IMistType to)
+    private static IMistType? UncopiedSource(IMistType from, IMistType to)
     {
         return (from, to) switch
         {
-            (ConcreteType { CloneSource: { } source }, _) when ConversionRelation.IsIdentity(to, source) && !NewtypeConversions.IsCopyable(source) => source,
-            (_, ConcreteType { CloneSource: { } source }) when ConversionRelation.IsIdentity(from, source) && !NewtypeConversions.IsCopyable(source) => source,
+            (ConcreteType { CloneSource: { } source, CloneSourceType: { } sourceType }, _)
+                when ConversionRelation.IsIdentity(to, sourceType) && !NewtypeConversions.IsCopyable(source) => sourceType,
+            (_, ConcreteType { CloneSource: { } source, CloneSourceType: { } sourceType })
+                when ConversionRelation.IsIdentity(from, sourceType) && !NewtypeConversions.IsCopyable(source) => sourceType,
             _ => null,
         };
     }

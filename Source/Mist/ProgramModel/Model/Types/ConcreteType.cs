@@ -85,6 +85,8 @@ internal abstract class ConcreteType : MemberType, IConcreteType
     /// </summary>
     public ConcreteType? CloneSource { get; internal set; }
 
+    public IMistType? CloneSourceType { get; internal set; }
+
     public NewtypeDeclarationNode? NewtypeDeclaration { get; internal set; }
 
     /// <summary>

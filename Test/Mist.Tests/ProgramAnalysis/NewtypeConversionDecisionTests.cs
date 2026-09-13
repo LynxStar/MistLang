@@ -78,8 +78,21 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
             public static int Take(unknown anything) { return 2; }
         }
 
+        public struct Pair<A, B>
+        {
+            private A first;
+            public B Second;
+
+            public Pair(A first, B second)
+            {
+                this.first = first;
+                this.Second = second;
+            }
+        }
+
         type Position = new Point;
         type Coord = new Point;
+        type IntPair = new Pair<int, string>;
         type Cash = new Money;
         type Actor = new Entity;
         """;
@@ -92,6 +105,8 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
         var entity = new Entity(7);
         var actor = new Actor(8);
         var reading = new Reading();
+        var pair = new Pair<int, string>(1, "a");
+        var intPair = new IntPair(2, "b");
         """;
 
     [Theory]
@@ -103,6 +118,8 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [InlineData("Position entersThroughADeclaredImplicit = (Position)reading;")]
     [InlineData("unknown widensThroughTheSource = position;")]
     [InlineData("Point leavesFreeAfterADeclaredImplicit = new Gauge();")]
+    [InlineData("Pair<int, string> leavesAConstructedSource = intPair;")]
+    [InlineData("IntPair entersAConstructedSourceByCast = (IntPair)pair;")]
     public void AConversionOfACopyableSource_IsAdmitted(string statement)
     {
         Assert.Empty(Analyse(statement));
@@ -113,6 +130,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [InlineData("Coord crossesWithoutACast = position;", "MIST_PA_CAST_REQUIRED")]
     [InlineData("Entity leavesAMutableClass = actor;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
     [InlineData("Actor entersAMutableClassByCast = (Actor)entity;", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
+    [InlineData("Pair<string, int> leavesOnlyForItsOwnArguments = intPair;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
     public void AConversionTheSourceDoesNotAdmit_IsRefused(string statement, string expected)
     {
         Assert.Equal(expected, Assert.Single(Analyse(statement)).Id.Value);

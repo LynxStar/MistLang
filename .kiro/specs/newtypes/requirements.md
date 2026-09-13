@@ -128,7 +128,7 @@ A newtype shares its source's implementation and none of its identity: `type Jag
    1. the initializer of a local variable declared with the newtype (`Age a = 30;`);
    2. the right-hand side of a simple assignment to a variable, field, property or element whose type is the newtype (`a = 31;`), including a member assignment in an object initializer;
    3. the initializer of a field or property declared with the newtype;
-   4. the default value of a parameter declared with the newtype;
+   4. the value of an entry in a `default` block for a field declared with the newtype;
    5. the value of a `return` from a method, property getter or operator whose declared return type is the newtype;
    6. an element of an array literal written directly in one of the positions above whose type is an array of the newtype (`Age[] ages = [30, 40];`).
 3. THE Type_Checker SHALL NOT admit a Newtype_Literal without a cast in any other position: not as a method, constructor or indexer argument (with parameters `Age` and `Height`, `CreatePerson(30, 180)` is refused), an operand of an operator, a branch of a conditional or `switch` expression, the value of a compound assignment, or the result of a lambda.

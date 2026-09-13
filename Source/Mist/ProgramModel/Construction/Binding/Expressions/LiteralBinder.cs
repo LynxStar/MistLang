@@ -141,7 +141,8 @@ internal static class LiteralBinder
 
             using(ctx.PushTargetType(targets?[i]))
             {
-                elements.Add(ExpressionBinder.BindExpression(value, ctx, context));
+                elements.Add(ImplicitConversions.At(
+                    ExpressionBinder.BindExpression(value, ctx, context), targets?[i], context.ProgramModel.TypeInterner));
             }
         }
 
@@ -173,11 +174,13 @@ internal static class LiteralBinder
         {
             using(ctx.PushTargetType(targetElementType))
             {
-                elements.Add(ExpressionBinder.BindExpression(list.First, ctx, context));
+                var interner = context.ProgramModel.TypeInterner;
+
+                elements.Add(ImplicitConversions.At(ExpressionBinder.BindExpression(list.First, ctx, context), targetElementType, interner));
 
                 foreach(var expression in list.Expressions)
                 {
-                    elements.Add(ExpressionBinder.BindExpression(expression, ctx, context));
+                    elements.Add(ImplicitConversions.At(ExpressionBinder.BindExpression(expression, ctx, context), targetElementType, interner));
                 }
             }
         }

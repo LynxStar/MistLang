@@ -35,7 +35,7 @@ internal static class OperatorBinder
             Expression right;
             using(ctx.PushTargetType(portion))
             {
-                right = BindLogicalOr(operand, ctx, context);
+                right = ImplicitConversions.At(BindLogicalOr(operand, ctx, context), portion, interner);
             }
 
             var resultType = OptionalUnion.ContainsVoid(right.Type)
@@ -469,9 +469,13 @@ internal static class OperatorBinder
     private static BinaryExpression MakeBinary(
         Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right, BuilderContext context)
     {
-        return new BinaryExpression(node, left, op, right, BinaryResultType(left, op, right, context))
+        var selected = OperatorAdmissibility.Selected(op, left.Type, right.Type);
+        var operands = ImplicitConversions.AtParameters(
+            [left, right], selected, selected?.ParametersList.ConvertAll(parameter => parameter.Type), context.ProgramModel.TypeInterner);
+
+        return new BinaryExpression(node, operands[0], op, operands[1], BinaryResultType(left, op, right, context))
         {
-            Operator = OperatorAdmissibility.Selected(op, left.Type, right.Type),
+            Operator = selected,
         };
     }
 

@@ -60,7 +60,8 @@ internal static class ObjectInitializerBinder
             value = ExpressionBinder.BindExpression(named.Value, ctx, context);
         }
 
-        value = NewtypeLiterals.Admit(value, target, context.ProgramModel.TypeInterner)!;
+        value = ImplicitConversions.At(
+            NewtypeLiterals.Admit(value, target, context.ProgramModel.TypeInterner)!, target, context.ProgramModel.TypeInterner);
 
         bound.Add(new ObjectInitializerAssignment(named, memberName, value, target));
     }
@@ -106,7 +107,11 @@ internal static class ObjectInitializerBinder
             return;
         }
 
-        bound.Add(new ObjectInitializerAssignment(assignment, memberName: null, value, targetType: null, choice.Selected));
+        var interner = context.ProgramModel.TypeInterner;
+        var parameterTypes = choice.Selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner));
+
+        bound.Add(new ObjectInitializerAssignment(
+            assignment, memberName: null, ImplicitConversions.AtParameters([value], choice.Selected, parameterTypes, interner)[0], targetType: null, choice.Selected));
     }
 
     private static ExpressionNode? Expression(PropertyAssignmentNode assignment)

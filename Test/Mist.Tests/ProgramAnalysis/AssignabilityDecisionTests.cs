@@ -166,6 +166,8 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
     [Theory]
     [InlineData("Level declared = priority;")]
     [InlineData("Level.Take(priority);")]
+    [InlineData("Level[] levels = [priority];")]
+    [InlineData("Level chosen = flag switch { true => priority, false => Priority.High };")]
     public void AValueThroughALosslessStepAndThenOneDeclaredImplicit_IsAdmitted(string statement)
     {
         AssertSilent(statement);

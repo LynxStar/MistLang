@@ -137,9 +137,15 @@ internal static class PostfixBinder
                 {
                     var index = ExpressionBinder.BindExpression(indexSuffix.Index, ctx, context);
                     var resultType = ResolveElementAccessType(receiver.Type, index.Type, indexSuffix, context);
-                    return new IndexExpression(suffix, receiver, index, resultType)
+                    var indexer = Indexability.IsRange(index.Type) ? null : Indexability.Indexer(receiver.Type);
+                    var interner = context.ProgramModel.TypeInterner;
+                    var parameterTypes = indexer?.ParametersList.ConvertAll(
+                        parameter => TypeSubstitution.ForReceiver(receiver.Type as ConstructedType).Apply(parameter.Type, interner));
+
+                    return new IndexExpression(
+                        suffix, receiver, ImplicitConversions.AtParameters([index], method: null, parameterTypes, interner)[0], resultType)
                     {
-                        Indexer = Indexability.IsRange(index.Type) ? null : Indexability.Indexer(receiver.Type),
+                        Indexer = indexer,
                     };
                 }
 
@@ -179,10 +185,15 @@ internal static class PostfixBinder
 
         var resultType = ctx.TargetType ?? CommonArmType(arms, node, context);
 
-        return resultType is ErrorType
-            ? new ErrorExpression(node)
-            : new SwitchExpression(node, scrutinee, arms, resultType)
-            ;
+        if(resultType is ErrorType)
+        {
+            return new ErrorExpression(node);
+        }
+
+        var converted = arms.ConvertAll(arm => new SwitchArm(
+            arm.Node, arm.Pattern, arm.Guard, ImplicitConversions.At(arm.Result, resultType, context.ProgramModel.TypeInterner)));
+
+        return new SwitchExpression(node, scrutinee, converted, resultType);
     }
 
     /// <summary>

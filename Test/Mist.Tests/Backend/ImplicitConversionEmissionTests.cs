@@ -38,6 +38,21 @@ public sealed class ImplicitConversionEmissionTests
             public static implicit operator Gauge(uint reading) { return new Gauge(); }
 
             public static implicit operator Gauge(short reading) { return new Gauge(); }
+
+            public static int operator +(Gauge a, Gauge b) { return 1; }
+        }
+
+        public class Panel
+        {
+            public static Gauge Kept = Panel.Small();
+
+            public Gauge Needle { get; set; }
+
+            public Panel() { this.Needle = new Gauge(); }
+
+            public static byte Small() { return 2; }
+
+            public int this[Gauge g] { get { return 1; } }
         }
 
         public class Tally
@@ -59,6 +74,40 @@ public sealed class ImplicitConversionEmissionTests
     public void AnOperandReachingTheParameterByAWidening_IsCastToTheParameterFirst()
     {
         Assert.Contains("Probe.Gauge g = ((Probe.Gauge)((short)(small)));", Emit("byte small = 2; Gauge g = small;"), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Gauge[] gauges = [small];")]
+    [InlineData("(Gauge, int) pair = (small, 1);")]
+    [InlineData("Gauge? maybe = void; Gauge fallback = maybe ?? small;")]
+    [InlineData("bool flag = true; Gauge chosen = flag switch { true => small, false => small };")]
+    [InlineData("var panel = new Panel { Needle = small };")]
+    [InlineData("var panel = new Panel(); var read = panel[small];")]
+    [InlineData("var total = new Gauge() + small;")]
+    public void AtAPositionWithItsOwnEmissionPath_TheOperandIsStillCastToTheParameter(string statement)
+    {
+        Assert.Contains("((Probe.Gauge)((short)(small)))", Emit("byte small = 2; " + statement), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ALambdaResult_IsCastToTheParameter()
+    {
+        Assert.Contains("((Probe.Gauge)((short)(b)))", Emit("func<byte, Gauge> convert = b => b;"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AFieldInitializer_IsCastToTheParameter()
+    {
+        var model = StandardModelProbe.Build("", out var built, Types);
+        Assert.Empty(built.Where(d => d.Severity == DiagnosticSeverity.Error));
+
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+
+        TypeEmitter.EmitTypeBody(
+            Assert.IsType<ClassType>(model.TypesByFQN["Probe.Panel"]), ConstraintClosureMap.Build(model, diagnostics), model.VariadicUses, writer, diagnostics);
+
+        Assert.Contains("((Probe.Gauge)((short)(Probe.Panel.Small())))", writer.ToString(), StringComparison.Ordinal);
     }
 
     [Theory]

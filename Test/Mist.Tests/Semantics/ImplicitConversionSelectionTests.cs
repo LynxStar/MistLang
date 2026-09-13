@@ -23,6 +23,8 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
         public class Fahrenheit
         {
             public Fahrenheit() { }
+
+            public static int operator +(Fahrenheit a, Fahrenheit b) { return 1; }
         }
 
         public class Kelvin
@@ -100,6 +102,21 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
         {
             public Chained(Celsius c) : base(c) { }
         }
+
+        public class Store
+        {
+            public static Fahrenheit Kept = new Celsius();
+
+            public Fahrenheit Held { get; set; } = new Celsius();
+
+            public Fahrenheit Current => new Celsius();
+
+            public Store() { }
+
+            public int this[Fahrenheit f] { get { return 1; } }
+
+            public void Add(Fahrenheit f) { }
+        }
         """;
 
     protected override string Preamble { get; } = """
@@ -109,6 +126,9 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
         byte small = 2;
         func<Fahrenheit, int> take = f => 1;
         Fahrenheit held = new Fahrenheit();
+        Fahrenheit? maybe = void;
+        bool flag = true;
+        var store = new Store();
         """;
 
     [Theory]
@@ -119,6 +139,18 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
     [InlineData("construction")]
     [InlineData("chain")]
     [InlineData("function value")]
+    [InlineData("field initializer")]
+    [InlineData("property initializer")]
+    [InlineData("getter")]
+    [InlineData("lambda result")]
+    [InlineData("array element")]
+    [InlineData("tuple element")]
+    [InlineData("coalesce")]
+    [InlineData("object initializer entry")]
+    [InlineData("collection element")]
+    [InlineData("switch arm")]
+    [InlineData("operator operand")]
+    [InlineData("indexer argument")]
     public void AValueReachingItsSlotThroughADeclaredImplicit_RecordsTheOperatorAtEverySite(string site)
     {
         var conversion = Assert.IsType<ImplicitConversionExpression>(ConvertedAt(site));
@@ -204,6 +236,18 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
             "construction" => InitializerOf<NewExpression>("var sink = new Sink(celsius);").Arguments[0],
             "chain" => Assert.IsType<ClassType>(Model().TypesByFQN["Probe.Chained"]).ConstructorsList.Single().ChainArgumentsList[0],
             "function value" => InitializerOf<InvocationExpression>("var called = take(celsius);").Arguments[0],
+            "field initializer" => Store().FieldsList.Single().Initializer,
+            "property initializer" => Store().PropertiesList.Single(p => p.Name == "Held").Initializer,
+            "getter" => Store().PropertiesList.Single(p => p.Name == "Current").Getter?.ExpressionBody,
+            "lambda result" => InitializerOf<LambdaExpression>("func<Celsius, Fahrenheit> convert = c => c;").Result,
+            "array element" => InitializerOf<ArrayLiteralExpression>("Fahrenheit[] temps = [celsius];").Elements[0],
+            "tuple element" => InitializerOf<TupleLiteralExpression>("(Fahrenheit, int) pair = (celsius, 1);").Elements[0],
+            "coalesce" => InitializerOf<CoalesceExpression>("Fahrenheit f = maybe ?? celsius;").Right,
+            "object initializer entry" => InitializerOf<NewExpression>("var stored = new Store { Held = celsius };").Initializer[0].Value,
+            "collection element" => InitializerOf<NewExpression>("var stored = new Store { celsius };").Initializer[0].Value,
+            "switch arm" => InitializerOf<SwitchExpression>("Fahrenheit f = flag switch { true => celsius, false => celsius };").Arms[0].Result,
+            "operator operand" => InitializerOf<BinaryExpression>("var sum = held + celsius;").Right,
+            "indexer argument" => InitializerOf<IndexExpression>("var item = store[celsius];").Index,
             _ => throw new ArgumentOutOfRangeException(nameof(site)),
         };
     }
@@ -214,6 +258,11 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
 
         Assert.NotNull(body);
         return body;
+    }
+
+    private ClassType Store()
+    {
+        return Assert.IsType<ClassType>(Model().TypesByFQN["Probe.Store"]);
     }
 
     private ProgramModel.Model.ProgramModel Model()

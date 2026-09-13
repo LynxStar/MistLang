@@ -98,7 +98,7 @@ internal static class LambdaBinder
         Expression result;
         using(ctx.PushTargetType(bodyTarget))
         {
-            result = ExpressionBinder.BindExpression(body, ctx, context);
+            result = ImplicitConversions.At(ExpressionBinder.BindExpression(body, ctx, context), bodyTarget, context.ProgramModel.TypeInterner);
         }
 
         var declared = target?.ReturnType

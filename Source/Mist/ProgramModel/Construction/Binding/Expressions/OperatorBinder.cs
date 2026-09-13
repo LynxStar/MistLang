@@ -388,6 +388,7 @@ internal static class OperatorBinder
                     if(called is [var chosen])
                     {
                         chosen.Operator.IsCalled = true;
+                        operand = ImplicitConversions.At(operand, chosen.Parameter, context.ProgramModel.TypeInterner);
                     }
 
                     return new CastExpression(

@@ -909,16 +909,16 @@ internal static class BodyEmitter
                 writer.Append(RegexLowering.Construct(Render(toRegex.Operand, diagnostics)));
                 break;
 
+            case CastExpression { Operator: { } called } toString when CastLowering.ReadsPattern(called, toString.ParameterType):
+                writer.Append(CastLowering.Pattern(Render(toString.Operand, diagnostics)));
+                break;
+
             case CastExpression cast:
                 // The operand is parenthesized whatever it is. Parentheses written in source bind the
                 // expression inside them and reach the model as nothing, so `(double)(a / b)` arrives as
                 // a cast of a division, which C# would read back bare as a division of a cast; and C#
                 // reads `(Kelvin)-a` as a subtraction unless the type is a keyword.
                 writer.Append($"(({TypeNameEmitter.Emit(cast.Type)})({CastLowering.Argument(cast, Render(cast.Operand, diagnostics))}))");
-                break;
-
-            case ImplicitConversionExpression { Operator.Modifiers.IsIntrinsic: true } toString when RegexLowering.Is(toString.ParameterType):
-                writer.Append(RegexLowering.PatternOf(RenderAt(toString.Operand, PostfixPrecedence, diagnostics)));
                 break;
 
             case ImplicitConversionExpression conversion:

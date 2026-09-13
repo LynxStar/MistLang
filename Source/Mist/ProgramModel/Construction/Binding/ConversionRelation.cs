@@ -30,7 +30,7 @@ internal static class ConversionRelation
 
     public static bool IsImplicit(IMistType from, IMistType to)
     {
-        return IsWithin(Unrefined(from), Unrefined(to)) || FindOperator(from, to) is not null;
+        return IsWithin(Unrefined(from), Unrefined(to)) || CastOperatorSelection.Implicit(from, to, interner: null).Count > 0;
     }
 
     /// <summary>

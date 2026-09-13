@@ -17,7 +17,9 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// <c>long</c> one. A cast the operand already satisfies losslessly calls nothing (Requirement 8.8).
 /// <see cref="Implicit"/> is the same call written invisibly (Requirement 7): implicit operators only, every
 /// candidate judged, and an operand reaching the parameter losslessly, being the one user-declared conversion
-/// its value may pass through.
+/// its value may pass through. Lossless admits one of Standard's intrinsic implicit conversions between free
+/// steps, since the cast-operators glossary counts those as changing no data even where, as Regex to String,
+/// no containment holds.
 /// </summary>
 internal static class CastOperatorSelection
 {
@@ -38,8 +40,14 @@ internal static class CastOperatorSelection
             return reaching;
         }
 
-        return Ranked(from, to, reaching.FindAll(
-            function => ConversionClassifier.IsImplicit(from, function.Parameter, interner) || Fits(integerConstant, from, function)));
+        return Ranked(from, to, reaching.FindAll(function => ReachesAsArgument(from, function.Parameter, interner, integerConstant)));
+    }
+
+    public static bool ReachesAsArgument(IMistType from, IMistType parameter, TypeInterner? interner, long? integerConstant = null)
+    {
+        return ConversionClassifier.IsImplicit(from, parameter, interner)
+            || (integerConstant is { } constant && ConstantConversion.Fits(constant, from, parameter))
+            || Implicit(from, parameter, interner, integerConstant).Count > 0;
     }
 
     public static IReadOnlyList<ConversionFunction> Implicit(IMistType from, IMistType to, TypeInterner? interner, long? integerConstant = null)
@@ -54,7 +62,7 @@ internal static class CastOperatorSelection
         to = ConversionClassifier.Normalized(to, interner);
 
         return Ranked(from, to, Reaching(from, to, interner, implicitOnly: true).FindAll(
-            function => ConversionClassifier.IsFree(from, function.Parameter, interner) || Fits(integerConstant, from, function)));
+            function => IsLossless(from, function.Parameter, interner) || Fits(integerConstant, from, function)));
     }
 
     private static List<ConversionFunction> Reaching(IMistType from, IMistType to, TypeInterner? interner, bool implicitOnly)
@@ -62,8 +70,17 @@ internal static class CastOperatorSelection
         return ConversionRelation.DeclaredOn(from)
             .Concat(ConversionRelation.DeclaredOn(to))
             .DistinctBy(function => (function.Operator, function.Parameter.FullyQualifiedName, function.Result.FullyQualifiedName))
-            .Where(function => (function.Operator.IsImplicit || !implicitOnly) && ConversionClassifier.IsFree(function.Result, to, interner))
+            .Where(function => (function.Operator.IsImplicit || !implicitOnly) && IsLossless(function.Result, to, interner))
             .ToList();
+    }
+
+    private static bool IsLossless(IMistType from, IMistType to, TypeInterner? interner)
+    {
+        return ConversionClassifier.IsFree(from, to, interner)
+            || ConversionRelation.DeclaredOn(from).Concat(ConversionRelation.DeclaredOn(to)).Any(
+                function => function.Operator is { IsImplicit: true, Modifiers.IsIntrinsic: true }
+                    && ConversionClassifier.IsFree(from, function.Parameter, interner)
+                    && ConversionClassifier.IsFree(function.Result, to, interner));
     }
 
     private static bool Fits(long? integerConstant, IMistType from, ConversionFunction function)

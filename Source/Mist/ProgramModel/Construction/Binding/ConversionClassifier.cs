@@ -94,7 +94,7 @@ internal static class ConversionClassifier
     private static bool CallsAnOperator(IMistType from, IMistType to, TypeInterner? interner)
     {
         return CastOperatorSelection.Best(from, to, interner) is [var called]
-            && IsImplicit(from, called.Parameter, interner);
+            && CastOperatorSelection.ReachesAsArgument(from, called.Parameter, interner);
     }
 
     private static IMistType Normalize(IMistType type)

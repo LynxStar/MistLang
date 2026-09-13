@@ -88,7 +88,6 @@ public sealed class CastLoweringTests : ProgramModelProbe
     [InlineData("var r = (Priority)counter;", "(int)(operand)")]
     [InlineData("var r = (Color)1;", "(byte)(operand)")]
     [InlineData("var r = (Mixed)\"x\";", "(Union_Int32_String)(operand)")]
-    [InlineData("var r = (Feet)reading;", "(Probe.Meters)(operand)")]
     [InlineData("var r = (Fathoms)x;", "(double)(operand)")]
     [InlineData("var r = (Fathoms)priority;", "(double)(operand)")]
     [InlineData("var r = (Fathoms)counter;", "(double)(operand)")]
@@ -106,6 +105,15 @@ public sealed class CastLoweringTests : ProgramModelProbe
     public void AnOperandAlreadyOfTheParameterType_IsLeftAsWritten(string statement)
     {
         Assert.Equal("operand", Lowered(statement));
+    }
+
+    [Fact]
+    public void AnOperandTakingADeclaredImplicit_IsThatConversionAndTheCastLeavesItAsWritten()
+    {
+        var cast = InitializerOf<CastExpression>("var r = (Feet)reading;");
+
+        Assert.Equal("Probe.Meters", Assert.IsType<ImplicitConversionExpression>(cast.Operand).Type.FullyQualifiedName);
+        Assert.Equal("operand", CastLowering.Argument(cast, "operand"));
     }
 
     private string Lowered(string statement)

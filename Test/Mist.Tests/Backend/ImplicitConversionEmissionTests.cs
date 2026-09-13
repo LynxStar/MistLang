@@ -69,6 +69,20 @@ public sealed class ImplicitConversionEmissionTests
             public static implicit operator Box<T>(T value) { return new Box<T>(); }
         }
 
+        public class Label
+        {
+            public Label() { }
+
+            public static implicit operator Label(string text) { return new Label(); }
+        }
+
+        public class Pattern
+        {
+            public Pattern() { }
+
+            public static implicit operator regex(Pattern p) { return `x+`; }
+        }
+
         public class Sink
         {
             public static int Length(string text) { return text.Length; }
@@ -127,10 +141,18 @@ public sealed class ImplicitConversionEmissionTests
     }
 
     [Theory]
-    [InlineData("string declared = pattern;", "string declared = pattern.ToString();")]
-    [InlineData("string assigned = \"\"; assigned = pattern;", "assigned = pattern.ToString();")]
-    [InlineData("var length = Sink.Length(pattern);", "Probe.Sink.Length(pattern.ToString())")]
+    [InlineData("string declared = pattern;", "string declared = (pattern).ToString();")]
+    [InlineData("string assigned = \"\"; assigned = pattern;", "assigned = (pattern).ToString();")]
+    [InlineData("var length = Sink.Length(pattern);", "Probe.Sink.Length((pattern).ToString())")]
     public void ARegexWhereAStringIsExpected_ReadsItsPatternAtEverySite(string statement, string expected)
+    {
+        Assert.Contains(expected, Emit("var pattern = `^[a-z]+$`; " + statement), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Label label = pattern;", "Probe.Label label = ((Probe.Label)((pattern).ToString()));")]
+    [InlineData("string text = new Pattern();", "string text = (((System.Text.RegularExpressions.Regex)(new Probe.Pattern()))).ToString();")]
+    public void ARegexStepBesideADeclaredOperator_ReadsThePatternOnItsSideOfTheCall(string statement, string expected)
     {
         Assert.Contains(expected, Emit("var pattern = `^[a-z]+$`; " + statement), StringComparison.Ordinal);
     }
@@ -138,7 +160,7 @@ public sealed class ImplicitConversionEmissionTests
     [Fact]
     public void ARegexReturnedWhereAStringIsExpected_ReadsItsPattern()
     {
-        Assert.Contains("return pattern.ToString();", Emit("", "Sink", "Back"), StringComparison.Ordinal);
+        Assert.Contains("return (pattern).ToString();", Emit("", "Sink", "Back"), StringComparison.Ordinal);
     }
 
     private static string Emit(string statements, string typeName = "Probe", string methodName = "Run")

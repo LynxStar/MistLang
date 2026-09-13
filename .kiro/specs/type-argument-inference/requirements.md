@@ -6,7 +6,7 @@ This document specifies the requirements for adding type argument inference to g
 
 Type argument inference applies to generic method invocations (both instance and static methods). It does not apply to generic type construction (`new Box<T>(...)`) — type arguments on constructors of generic types remain explicit.
 
-The inference algorithm examines each method parameter whose declared type mentions a type parameter and unifies it with the corresponding argument's resolved type. If all type parameters can be uniquely determined, the call succeeds without explicit type arguments. If inference fails (ambiguity, conflicting deductions, or insufficient information), the compiler emits a diagnostic requiring the programmer to supply explicit type arguments.
+The inference algorithm examines each method parameter whose declared type mentions a type parameter and unifies it with the corresponding argument's resolved type. If all type parameters can be uniquely determined, the call succeeds without explicit type arguments. Where several arguments give one type parameter different types, it is fixed to the one of those types that all the others implicitly convert to, as C# does. The compiler never infers a type no argument has: a union or a shared base type is stated explicitly, as in `Pick<string | int>("x", 1)`. If inference fails (conflicting deductions or insufficient information), the compiler emits a diagnostic requiring the programmer to supply explicit type arguments.
 
 **Interaction with existing features:**
 - Explicit type arguments remain supported and take precedence — inference is only attempted when type arguments are omitted.
@@ -26,6 +26,7 @@ The inference algorithm examines each method parameter whose declared type menti
 - **Type_Argument**: A concrete type deduced or explicitly supplied for a type parameter at a call site.
 - **Inference_Context**: The mapping from type parameter names to their inferred concrete types, built during inference for a single call site.
 - **Unification**: The process of matching a declared parameter type (which may contain type parameters) against an argument type to determine type parameter bindings.
+- **Bound**: A type unification records for a type parameter from one argument position. A type parameter appearing in several positions collects several bounds, and is fixed to one type from them per Requirement 3.
 - **ConstructedType**: A generic type with all type parameters substituted by concrete type arguments (e.g., `List<int>`).
 - **TypeParameterType**: The semantic model representation of an unsubstituted type parameter.
 - **Symbol**: The semantic model representation of a named entity (method, class, variable, etc.) carrying type parameter information.
@@ -40,7 +41,7 @@ The inference algorithm examines each method parameter whose declared type menti
 
 1. WHEN a generic method is invoked without explicit type arguments and the method has one or more type parameters, THE Inference_Engine SHALL attempt to infer each type parameter from the types of the arguments at the call site. Inference SHALL apply only to method invocations, not to generic type construction (e.g., `new Box<T>(...)`).
 2. WHEN a method parameter's declared type is a TypeParameterType (e.g., parameter `T item`), THE Inference_Engine SHALL infer that type parameter to be the resolved type of the corresponding argument (matched by position: argument 0 to parameter 0, argument 1 to parameter 1, and so on).
-3. WHEN every type parameter of the method is inferred to exactly one concrete type (i.e., each type parameter maps to a single non-TypeParameterType), THE Compiler SHALL treat the call as equivalent to an explicit invocation with those inferred type arguments.
+3. WHEN every type parameter of the method is fixed to one type per Requirement 3, THE Compiler SHALL treat the call as equivalent to an explicit invocation with those inferred type arguments.
 4. IF one or more type parameters cannot be inferred (because they do not appear in any method parameter type, or because no argument provides a binding), THEN THE Inference_Engine SHALL report inference as failed for that call site.
 5. WHEN explicit type arguments are provided at the call site (e.g., `Foo<int>(42)`), THE Compiler SHALL use the explicit type arguments and SHALL NOT attempt inference.
 6. THE Inference_Engine SHALL support inference for both instance methods and static methods.
@@ -65,8 +66,10 @@ The inference algorithm examines each method parameter whose declared type menti
 
 1. WHEN a generic method has multiple type parameters and each appears in a different parameter position, THE Inference_Engine SHALL infer each type parameter from the resolved type of its corresponding argument, producing an independent entry in the Inference_Context for each type parameter.
 2. WHEN the same type parameter appears in multiple parameter positions and all corresponding arguments resolve to the same concrete type (by exact type identity), THE Inference_Engine SHALL record that single concrete type in the Inference_Context and allow the call to proceed.
-3. IF the same type parameter appears in multiple parameter positions and the corresponding arguments resolve to different concrete types, THEN THE Compiler SHALL emit a diagnostic error naming the type parameter and the conflicting concrete types.
+3. IF the same type parameter appears in multiple parameter positions, the corresponding arguments resolve to different types, and no bound qualifies under 3.5 or 3.6, THEN THE Compiler SHALL emit a diagnostic error naming the type parameter and the conflicting types. `F<T>(T a, T b)` called `F("x", 1)` is refused, and so is `F(new Dog(), new Cat())` even where `Dog` and `Cat` both derive from `Animal`: no type is inferred that no argument has, whether a union of the bounds or a base type they share. The caller states it instead, as in `F<string | int>("x", 1)` or `F<Animal>(new Dog(), new Cat())`.
 4. IF a type parameter appears in multiple parameter positions and inference succeeds for at least one position but yields no type information from another position (e.g., the argument provides no resolvable type), THEN THE Inference_Engine SHALL use the successfully inferred type from the other position(s) without reporting a conflict.
+5. IF the same type parameter has bounds of different types and one of them is a type every other bound implicitly converts to -- by identity, numeric widening, inheritance or conformance, a type parameter's constraint, a refinement's base, into `unknown`, or through a user-declared implicit conversion -- THEN THE Inference_Engine SHALL fix the type parameter to that bound, the first in argument order where several qualify. `F(1, 2L)` fixes `T` to `long`, `F(new Dog(), new Animal())` to `Animal`, and `F(n, 4)` with `n` of a refinement type over `int` to `int`.
+6. IF no bound qualifies under 3.5 but a bound is a refinement type whose base type every other bound implicitly converts to, THEN THE Inference_Engine SHALL fix the type parameter to the first such bound in argument order, whether each argument satisfies its predicate being proven where the argument meets the parameter, as for any refinement-typed parameter.
 
 ### Requirement 4: Inference Failure Diagnostics
 
@@ -75,7 +78,7 @@ The inference algorithm examines each method parameter whose declared type menti
 #### Acceptance Criteria
 
 1. WHEN a type parameter cannot be inferred because it does not appear in any parameter position (e.g., only in the return type), THE Compiler SHALL emit a diagnostic error at the call site indicating the method name and the name of each type parameter that could not be inferred.
-2. WHEN inference produces conflicting types for the same type parameter (i.e., two or more argument positions infer different concrete types), THE Compiler SHALL emit a diagnostic error at the call site naming the type parameter and listing the conflicting inferred types.
+2. WHEN inference produces conflicting types for the same type parameter (i.e., two or more argument positions infer different types, and none is fixed per Requirement 3.5 or 3.6), THE Compiler SHALL emit a diagnostic error at the call site naming the type parameter and listing the conflicting inferred types.
 3. IF inference fails for any reason (uninferrable type parameter or conflicting inference), THEN THE Compiler SHALL emit exactly one diagnostic per call site with severity Error, preventing compilation from succeeding.
 4. IF inference succeeds but one or more inferred type arguments violate a constraint on the type parameter, THEN THE Type_Checker SHALL emit the same constraint violation diagnostic (same diagnostic ID and message format) as when explicit type arguments violate constraints.
 5. WHEN explicit type arguments are provided at the call site and inference is not attempted, THE Compiler SHALL NOT emit inference failure diagnostics regardless of whether the type parameters would have been inferrable.

@@ -9,7 +9,7 @@ The inference engine is a new pure-function component (`TypeArgumentInferenceEng
 Key design decisions:
 - **Inference is purely positional**: argument 0 maps to parameter 0, argument 1 to parameter 1, etc.
 - **Inference is local**: only the call site's arguments are examined; return type usage context is not considered.
-- **Inference is exact**: no "best common type" heuristic — if two arguments produce different bindings for the same type parameter, inference fails.
+- **Differing bindings fix by dominance, as in C#**: if two arguments produce different bindings for the same type parameter, it is fixed to the binding every other converts to implicitly (`{int, long}` fixes to `long`), and inference fails if there is none. No type is invented that no argument has: `{string, int}` is not fixed to `string | int`, nor `{Dog, Cat}` to a shared base `Animal`, because a union always exists and `unknown` is always a shared supertype, so a rule that looked for one would never fail and would silently accept the calls C# refuses. The caller states such a type argument explicitly.
 - **Inference integrates with overload resolution**: when multiple overloads exist, inference is attempted per-candidate and failed candidates are excluded.
 - **The emitter always emits explicit type arguments**: because C# inference rules differ from Mist's, the emitter writes out the inferred types explicitly.
 
@@ -89,13 +89,16 @@ The `TryInfer` method implements a constraint-collection approach:
 
 1. **Initialize** an `InferenceContext` — a dictionary mapping each `TypeParameterType.Name` to `null` (unbound).
 2. **For each parameter-argument pair** (positional), call `Unify(declaredParamType, argumentType, context)`:
-   - If `declaredParamType` is a `TypeParameterType`: bind it to `argumentType` (or check consistency if already bound).
+   - If `declaredParamType` is a `TypeParameterType`: add `argumentType` to its bounds, unless an identical type is already there.
    - If `declaredParamType` is a `ConstructedType` and `argumentType` is a `ConstructedType` with the same `GenericDefinition`: recursively unify each type argument position.
    - Otherwise: no bindings produced from this pair (skip silently).
-3. **After all pairs are processed**, check the context:
-   - If all type parameters are bound to non-null concrete types → **Success**.
-   - If any type parameter remains unbound → **Failure** (uninferrable).
-   - If any type parameter has conflicting bindings (detected during step 2) → **Failure** (conflict).
+3. **After all pairs are processed**, fix each type parameter from its bounds:
+   - If any type parameter has no bound → **Failure** (uninferrable).
+   - Else, the first bound every other bound implicitly converts to (Requirement 3.5) → that type.
+   - Else, the first refinement-typed bound whose base every other bound implicitly converts to (Requirement 3.6) → that type.
+   - Else → **Failure** (conflict).
+
+   Whether one bound converts to another is judged by the same classification that later refuses an argument that does not convert to its parameter, so a conflict is reported only where every choice among the bounds would have had some argument refused.
 
 ### Semantic Model Extension
 
@@ -247,11 +250,10 @@ internal sealed class InferenceContext
     }
     
     /// <summary>
-    /// Attempts to bind a type parameter to a concrete type.
-    /// Returns true if binding succeeded (new binding or consistent with existing).
-    /// Returns false if a conflict was detected.
+    /// Adds a bound for a type parameter. Bounds are fixed once every argument is
+    /// unified, and a conflict is recorded then, when no bound qualifies.
     /// </summary>
-    public bool TryBind(string typeParameterName, IType concreteType);
+    public void AddBound(string typeParameterName, IType bound);
     
     /// <summary>
     /// Returns the bound type for a type parameter, or null if unbound.
@@ -311,9 +313,9 @@ This is populated by the type checker during inference and read by the emitter d
 
 ### Property 4: Conflicting bindings produce diagnostic
 
-*For any* generic method where the same type parameter appears in multiple parameter positions, and *for any* set of arguments where two positions for that type parameter resolve to different concrete types, the inference engine SHALL report a conflict and the compiler SHALL emit exactly one diagnostic error at the call site.
+*For any* generic method where the same type parameter appears in multiple parameter positions, and *for any* set of arguments where two positions for that type parameter resolve to different types and none of those types is one every other converts to implicitly, the inference engine SHALL report a conflict and the compiler SHALL emit exactly one diagnostic error at the call site. Where one of them is, the engine SHALL fix the type parameter to it and report nothing.
 
-**Validates: Requirements 3.3, 4.2, 4.3**
+**Validates: Requirements 3.3, 3.5, 3.6, 4.2, 4.3**
 
 ### Property 5: Uninferrable type parameters produce diagnostic
 
@@ -359,7 +361,7 @@ The inference engine handles failures gracefully without crashing:
 
 1. **Uninferrable type parameters**: When a type parameter doesn't appear in any parameter position, the engine collects its name in the `UninferrableTypeParameters` list and returns `Success = false`.
 
-2. **Conflicting bindings**: When the same type parameter gets different concrete types from different argument positions, the engine records both types in the `Conflicts` list and returns `Success = false`. The first binding wins for recording purposes; the conflict is detected when a second, different binding is attempted.
+2. **Conflicting bindings**: When the same type parameter gets different types from different argument positions and fixing finds no bound the others convert to (Requirement 3.5, 3.6), the engine records the type parameter and its bounds in the `Conflicts` list and returns `Success = false`. An argument whose type is an error converts to and from every bound, so it never produces a conflict.
 
 3. **Mismatched ConstructedType**: When a parameter is `List<T>` but the argument is `Map<K,V>` (different GenericDefinition), no bindings are produced from that pair. This is not an error — other parameters may still provide the needed bindings.
 

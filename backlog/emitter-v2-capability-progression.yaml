@@ -4315,6 +4315,26 @@ capabilities:
       unwrapped, short-circuit symbols kept. Full suite 5966 of 5967, the one failure the parse timing
       flake recorded under property-tests-fail-together-under-full-suite, green on rerun.
       NOT YET DONE: the book's newtype chapter and its snippets' emitted C# still describe the old model.
+
+      A LITERAL ENTERS A NEWTYPE WHERE THE SLOT'S TYPE IS IN SIGHT (2026-09-13, spec task 16). The binder
+      calls NewtypeLiterals.Admit with the bound value at exactly the slots Requirement 9.2 names -- a typed
+      local, a simple assignment, an object initializer entry, a field or property initializer, a default
+      block entry, a getter's expression, a return outside a lambda -- and at each element of an array
+      literal standing in one; a literal the source accepts becomes the cast it stands for. Admitting at the
+      slot rather than inside the literal binder is what keeps a literal nested in the value, a call
+      argument and a lambda's result refused without a rule of their own. The spec named a parameter's
+      default value as a slot; Mist's grammar has none, so 9.2 now names the default block entry instead.
+      MEASURED on v2: a typed local, an assignment, `-5`, `[40, 41]` into Age[], a field, a property, a
+      default block, a return, a getter and `Meters m = 2` all print their values; `Take(30)`, `30 + 1`
+      and `() => 30` are CAST_REQUIRED and `Small s = 300` NO_IMPLICIT_CONVERSION. `a += 1` does not parse,
+      so compound assignment is unreachable. FOUND ON THE WAY: `((Age)-5)` failed Roslyn -- C# reads a cast
+      of a signed operand as a subtraction unless the type is a keyword -- which a written `(Age)-5` met
+      too; BodyEmitter now parenthesizes a signed operand.
+      PROVED BY NewtypeLiteralDecisionTests (seven admits, five refusals, the recorded cast, the negative
+      spelling) and the corpus case assignability-core/newtype-literal-as-an-argument, which replaces
+      newtype-from-its-source now that `Meters m = 1.0` is admitted. Five mutations each fail at least
+      one: declarations not admitted, lambda returns admitted, any expression admitted, array elements
+      not admitted, a signed operand left bare. Full suite green, 5981 of 5981.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across

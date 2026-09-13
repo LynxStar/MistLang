@@ -21,7 +21,7 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// </summary>
 internal static class CastOperatorSelection
 {
-    public static IReadOnlyList<CastOperator> Best(IMistType from, IMistType to, TypeInterner? interner, long? integerConstant = null)
+    public static IReadOnlyList<ConversionFunction> Best(IMistType from, IMistType to, TypeInterner? interner, long? integerConstant = null)
     {
         if(ConversionClassifier.IsFree(from, to, interner))
         {
@@ -39,11 +39,10 @@ internal static class CastOperatorSelection
         }
 
         return Ranked(from, to, reaching.FindAll(
-            castOperator => ConversionClassifier.IsImplicit(from, castOperator.SourceParameter.Type, interner)
-                || Fits(integerConstant, from, castOperator)));
+            function => ConversionClassifier.IsImplicit(from, function.Parameter, interner) || Fits(integerConstant, from, function)));
     }
 
-    public static IReadOnlyList<CastOperator> Implicit(IMistType from, IMistType to, TypeInterner? interner, long? integerConstant = null)
+    public static IReadOnlyList<ConversionFunction> Implicit(IMistType from, IMistType to, TypeInterner? interner, long? integerConstant = null)
     {
         if(ConversionClassifier.IsFree(from, to, interner)
             || (integerConstant is { } constant && ConstantConversion.Fits(constant, from, to)))
@@ -55,31 +54,29 @@ internal static class CastOperatorSelection
         to = ConversionClassifier.Normalized(to, interner);
 
         return Ranked(from, to, Reaching(from, to, interner, implicitOnly: true).FindAll(
-            castOperator => ConversionClassifier.IsFree(from, castOperator.SourceParameter.Type, interner)
-                || Fits(integerConstant, from, castOperator)));
+            function => ConversionClassifier.IsFree(from, function.Parameter, interner) || Fits(integerConstant, from, function)));
     }
 
-    private static List<CastOperator> Reaching(IMistType from, IMistType to, TypeInterner? interner, bool implicitOnly)
+    private static List<ConversionFunction> Reaching(IMistType from, IMistType to, TypeInterner? interner, bool implicitOnly)
     {
         return ConversionRelation.DeclaredOn(from)
             .Concat(ConversionRelation.DeclaredOn(to))
-            .Distinct()
-            .Where(castOperator => (castOperator.IsImplicit || !implicitOnly)
-                && ConversionClassifier.IsFree(castOperator.TargetType, to, interner))
+            .DistinctBy(function => (function.Operator, function.Parameter.FullyQualifiedName, function.Result.FullyQualifiedName))
+            .Where(function => (function.Operator.IsImplicit || !implicitOnly) && ConversionClassifier.IsFree(function.Result, to, interner))
             .ToList();
     }
 
-    private static bool Fits(long? integerConstant, IMistType from, CastOperator castOperator)
+    private static bool Fits(long? integerConstant, IMistType from, ConversionFunction function)
     {
-        return integerConstant is { } constant && ConstantConversion.Fits(constant, from, castOperator.SourceParameter.Type);
+        return integerConstant is { } constant && ConstantConversion.Fits(constant, from, function.Parameter);
     }
 
-    private static List<CastOperator> Ranked(IMistType from, IMistType to, List<CastOperator> applicable)
+    private static List<ConversionFunction> Ranked(IMistType from, IMistType to, List<ConversionFunction> applicable)
     {
-        var exact = applicable.FindAll(castOperator => ConversionRelation.IsIdentity(castOperator.TargetType, to));
+        var exact = applicable.FindAll(function => ConversionRelation.IsIdentity(function.Result, to));
         var candidates = exact.Count > 0 ? exact : applicable;
 
         return candidates.FindAll(candidate => !candidates.Any(other => OverloadResolution.CompareConversions(
-            from, other.SourceParameter.Type, candidate.SourceParameter.Type) < 0));
+            from, other.Parameter, candidate.Parameter) < 0));
     }
 }

@@ -387,12 +387,12 @@ internal static class OperatorBinder
 
                     if(called is [var chosen])
                     {
-                        chosen.IsCalled = true;
+                        chosen.Operator.IsCalled = true;
                     }
 
                     return new CastExpression(
                         node, operand, targetType, called,
-                        called is [var selected] ? selected.TargetType : CastResultType(operand.Type, targetType, context));
+                        called is [var selected] ? selected.Result : CastResultType(operand.Type, targetType, context));
                 }
 
             default:

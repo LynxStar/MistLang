@@ -29,20 +29,22 @@ internal sealed class CastExpression(
     SyntaxNode node,
     Expression operand,
     IMistType targetType,
-    IReadOnlyList<CastOperator> bestOperators,
+    IReadOnlyList<ConversionFunction> bestOperators,
     IMistType resultType) : Expression(node)
 {
     public Expression Operand { get; } = operand;
 
     public IMistType TargetType { get; } = targetType;
 
-    public CastOperator? Operator { get; } = bestOperators is [var called] ? called : null;
+    public CastOperator? Operator { get; } = bestOperators is [var called] ? called.Operator : null;
 
-    public IReadOnlyList<CastOperator> AmbiguousOperators { get; } = bestOperators.Count > 1 ? bestOperators : [];
+    public IReadOnlyList<CastOperator> AmbiguousOperators { get; } = bestOperators.Count > 1 ? [.. bestOperators.Select(function => function.Operator)] : [];
 
     public override IMistType Type { get; } = resultType;
 
     public IMistType? LookupParameterType => Operator is null && TargetType is EnumType { UnderlyingType: { } underlying } && !ReferenceEquals(Type, TargetType) ? underlying : null;
 
-    public IMistType? ParameterType => Operator?.SourceParameter.Type ?? LookupParameterType;
+    public IMistType? ParameterType => CalledParameter ?? LookupParameterType;
+
+    private IMistType? CalledParameter { get; } = bestOperators is [var called] ? called.Parameter : null;
 }

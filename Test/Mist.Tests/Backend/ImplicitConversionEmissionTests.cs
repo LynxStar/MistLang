@@ -62,6 +62,13 @@ public sealed class ImplicitConversionEmissionTests
             public static implicit operator int(Tally t) { return 1; }
         }
 
+        public class Box<T>
+        {
+            public Box() { }
+
+            public static implicit operator Box<T>(T value) { return new Box<T>(); }
+        }
+
         public class Sink
         {
             public static int Length(string text) { return text.Length; }
@@ -113,6 +120,7 @@ public sealed class ImplicitConversionEmissionTests
     [Theory]
     [InlineData("Point p = new Beacon();", "Probe.Point p = ((Probe.Position)(new Probe.Beacon()));")]
     [InlineData("int | string u = new Tally();", "((int)(new Probe.Tally()))")]
+    [InlineData("Box<long> widened = 5;", "Probe.Box<long> widened = ((Probe.Box<long>)((long)(5)));")]
     public void AResultReachingTheSlotLosslessly_IsCastToTheResultSoCSharpAppliesOneOperatorAtATime(string statement, string expected)
     {
         Assert.Contains(expected, Emit(statement), StringComparison.Ordinal);

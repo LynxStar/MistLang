@@ -15,17 +15,17 @@ internal sealed class ImplicitConversionExpression(
     SyntaxNode node,
     Expression operand,
     IMistType targetType,
-    IReadOnlyList<CastOperator> bestOperators) : Expression(node)
+    IReadOnlyList<ConversionFunction> bestOperators) : Expression(node)
 {
     public Expression Operand { get; } = operand;
 
     public IMistType TargetType { get; } = targetType;
 
-    public CastOperator? Operator { get; } = bestOperators is [var called] ? called : null;
+    public CastOperator? Operator { get; } = bestOperators is [var called] ? called.Operator : null;
 
-    public IReadOnlyList<CastOperator> AmbiguousOperators { get; } = bestOperators.Count > 1 ? bestOperators : [];
+    public IReadOnlyList<CastOperator> AmbiguousOperators { get; } = bestOperators.Count > 1 ? [.. bestOperators.Select(function => function.Operator)] : [];
 
-    public IMistType? ParameterType => Operator?.SourceParameter.Type;
+    public IMistType? ParameterType { get; } = bestOperators is [var called] ? called.Parameter : null;
 
-    public override IMistType Type => Operator?.TargetType ?? TargetType;
+    public override IMistType Type { get; } = bestOperators is [var called] ? called.Result : targetType;
 }

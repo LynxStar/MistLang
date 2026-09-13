@@ -386,6 +386,25 @@ public sealed class CastSelectionTests : ProgramModelProbe
         Assert.Equal("Probe.Weight", cast.Type.FullyQualifiedName);
     }
 
+    [Fact]
+    public void ACastToAConstructedType_CallsItsOperatorSubstitutedThroughItsArguments()
+    {
+        var cast = SingleCast(
+            "var boxed = (Box<int>)7;",
+            extraTypes: """
+                public class Box<T>
+                {
+                    public Box() { }
+
+                    public static explicit operator Box<T>(T value) { return new Box<T>(); }
+                }
+                """);
+
+        Assert.NotNull(cast.Operator);
+        Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, cast.ParameterType?.FullyQualifiedName);
+        Assert.Equal("Probe.Box<Int32>", cast.Type.FullyQualifiedName);
+    }
+
     // ── Harness ──────────────────────────────────────────────────────────
 
     private CastExpression SingleCast(string statement, string extraTypes = "", string extraPreamble = "")

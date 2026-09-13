@@ -103,6 +103,20 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
             public Chained(Celsius c) : base(c) { }
         }
 
+        public class Box<T>
+        {
+            public Box() { }
+
+            public static implicit operator Box<T>(T value) { return new Box<T>(); }
+
+            public static implicit operator T(Box<T> box) { return default; }
+        }
+
+        public class IntBox : Box<int>
+        {
+            public IntBox() { }
+        }
+
         public class Store
         {
             public static Fahrenheit Kept = new Celsius();
@@ -207,11 +221,24 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("Box<int> boxed = 5;", "Standard.Int32", "Probe.Box<Int32>")]
+    [InlineData("Box<long> widened = 5;", "Standard.Int64", "Probe.Box<Int64>")]
+    [InlineData("int unboxed = new IntBox();", "Probe.Box<Int32>", "Standard.Int32")]
+    public void AConstructedTypesOperator_IsSubstitutedThroughItsArguments(string statement, string parameter, string result)
+    {
+        var conversion = Conversion(statement);
+
+        Assert.Equal(parameter, conversion.ParameterType?.FullyQualifiedName);
+        Assert.Equal(result, conversion.Type.FullyQualifiedName);
+    }
+
+    [Theory]
     [InlineData("unknown u = celsius;")]
     [InlineData("long l = 5;")]
     [InlineData("byte b = 2;")]
     [InlineData("Feet f = reading;")]
     [InlineData("Kelvin k = celsius;")]
+    [InlineData("Box<string> mismatched = 5;")]
     public void AValueNeedingNoDeclaredImplicitOrMoreThanOne_IsLeftUnwrapped(string statement)
     {
         var declaration = DeclarationIn(statement, extraTypes: "");

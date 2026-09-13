@@ -105,19 +105,42 @@ internal static class ConversionRelation
     /// </summary>
     public static CastOperator? FindOperator(IMistType from, IMistType to)
     {
-        return DeclaredOn(from).Concat(DeclaredOn(to)).FirstOrDefault(castOperator => castOperator.IsImplicit
-            && IsWithin(from, castOperator.SourceParameter.Type)
-            && IsWithin(castOperator.TargetType, to));
+        return DeclaredOn(from).Concat(DeclaredOn(to))
+            .Where(function => function.Operator.IsImplicit && IsWithin(from, function.Parameter) && IsWithin(function.Result, to))
+            .Select(function => function.Operator)
+            .FirstOrDefault();
     }
 
-    public static IEnumerable<CastOperator> DeclaredOn(IMistType type)
+    public static IEnumerable<ConversionFunction> DeclaredOn(IMistType type)
     {
-        for(var current = type as ConcreteType; current is not null; current = current.BaseType as ConcreteType)
+        var (declaring, substitution) = type switch
         {
-            foreach(var castOperator in current.CastOperatorsList)
-            {
-                yield return castOperator;
-            }
+            ConstructedType { Definition: ConcreteType definition } constructed => (definition, TypeSubstitution.ForReceiver(constructed)),
+            ConcreteType concrete => (concrete, TypeSubstitution.Empty),
+            _ => (null, TypeSubstitution.Empty),
+        };
+
+        if(declaring is null)
+        {
+            yield break;
+        }
+
+        foreach(var castOperator in declaring.CastOperatorsList)
+        {
+            yield return new ConversionFunction(
+                castOperator,
+                substitution.Apply(castOperator.SourceParameter.Type, interner: null),
+                substitution.Apply(castOperator.TargetType, interner: null));
+        }
+
+        if(declaring.BaseType is not { } baseType)
+        {
+            yield break;
+        }
+
+        foreach(var inherited in DeclaredOn(substitution.Apply(baseType, interner: null)))
+        {
+            yield return inherited;
         }
     }
 

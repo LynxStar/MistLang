@@ -1,6 +1,7 @@
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -31,7 +32,7 @@ internal static class NewtypeLiterals
             return value;
         }
 
-        return new CastExpression(value.Node, value, clone, [conversion], clone);
+        return new CastExpression(value.Node, value, clone, [ConversionFunction.Unsubstituted(conversion)], clone);
     }
 
     private static bool IsLiteral(Expression value)

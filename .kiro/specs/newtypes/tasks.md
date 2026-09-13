@@ -182,3 +182,26 @@ Implement basic newtypes — `type Name = new SourceType;` — that create nomin
   ]
 }
 ```
+
+## Revision, 2026-09-13: the renamed clone (experimental pipeline)
+
+Each wave lands green on its own; the classic pipeline is not changed.
+
+- [ ] 13. The renamed clone of a class or struct source
+  - Build a newtype over a class or struct declared in Mist as a class or struct bound from the source's declaration under a scope that answers the source's name with the newtype, and a constructed source's type parameters with its arguments
+  - Retire member forwarding through the source; the clone carries its own members, base list and bodies
+  - Report a clone member that does not bind at the newtype declaration, and nothing the source already reports; refuse a source of any other kind
+  - _Requirements: 2.1, 2.2, 2.3, 3.2, 3.5, 3.6, 3.7_
+- [ ] 14. The renamed clone of an intrinsic source
+  - Clone an intrinsic Standard declaration, keeping `Value`; emit the wrapper supplying every Renamed intrinsic member
+  - _Requirements: 3.8, 5.2_
+- [ ] 15. Conversions of a copyable source
+  - Implicit and lossless to the source, ranked as the narrower target; a cast to the newtype as a call to its conversion function; emit both conversions as copies
+  - _Requirements: 2.4, 2.5, 2.6, 5.4_
+- [ ] 16. Literals entering a newtype in a visible slot
+  - _Requirements: 9.1, 9.2, 9.3_
+- [ ] 17. Conversions of a clonable class source
+  - Synthesize both conversions from the `Clone` bodies; refuse a source with no copy, and a body that does not bind, naming the member
+  - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+- [ ] 18. A v2 sample exercising every rule above, banked on AllFeaturesV2
+  - _Requirements: 5.3, Properties 3, 4, 11, 12_

@@ -9,16 +9,20 @@ The implementation spans the full compiler pipeline:
 2. **Parser** — AST node generation via Storm source generator
 3. **Pretty Printer** — Single-line formatting: `type {name} = new {source_type};`
 4. **Semantic Model Builder** — Type registration with a new `SymbolKind.Newtype` and unconditional member cloning from the source type
-5. **Type Checker** — Nominal distinctness enforcement (explicit cast required for conversion)
-6. **C# Transpiler** — Code generation: class→class, struct→struct, primitive→readonly struct wrapper
+5. **Type Checker** — Nominal distinctness: a value enters a newtype only by a cast or a literal in a visible slot, and leaves it for a copyable source implicitly
+6. **C# Transpiler** — Code generation: the renamed clone as a class or struct, an intrinsic source wrapped, and the conversions each source admits
 7. **TextMate Grammar** — Syntax highlighting for VS Code
+
+**Revision, 2026-09-13.** Requirements 2, 3.2 and 3.5–3.8, 5, 9 and 10, the Identity and Conversions and C# Transpiler sections below, and Properties 3, 4, 11 and 12 were revised by the language owner's decision. The classic pipeline implements the earlier revision, in which a newtype and its source reach each other only by an explicit cast, a primitive newtype is a wrapper with explicit operators both ways, and a cast between a class or struct newtype and its source does not compile. The experimental pipeline implements this one.
 
 ### Design Rationale
 
 - **Reuse of `type` keyword**: Newtypes are conceptually related to type aliases (both introduce a name for a type). Using `type Name = new SourceType;` makes the distinction clear — `new` signals cloning rather than aliasing.
 - **Unconditional cloning**: All members are cloned without filtering. This keeps the feature simple and predictable. If the source type gains new members, the newtype automatically includes them.
 - **Nominal distinctness**: The newtype is a completely separate type in the type system. This prevents accidental substitution and enables domain-specific type safety (e.g., `type UserId = new int;` cannot be confused with `type OrderId = new int;`).
-- **Primitive wrapping via readonly struct**: Primitives have no members to clone, so the transpiler emits a lightweight readonly struct wrapper with explicit conversion operators. This preserves value semantics while enforcing nominal distinctness.
+- **A clone, never a view**: Mist cannot change an object's type, so a newtype is not a lens over a source value the way a base type is. A Jaguar is built from Tiger's declaration and shares nothing with Tiger at runtime, which is why a conversion between them must copy.
+- **Intent at entry, freedom at exit**: What a newtype guards is a raw value entering its domain, so entry needs a cast, or a literal written where the slot's type is in sight. Leaving costs nothing where a copy cannot be told from the original, the way an enum reaches its backing value. A call argument is not a visible slot: the parameter's type sits in another declaration, and swapped literals are exactly the mistake a newtype exists to catch.
+- **A class copies by its own rules**: A mutable class has no copy Mist could define for it -- shallow or deep, private state, owned fields -- so it converts only when it implements `IClonable` of itself, and the conversion is its own `Clone`.
 
 ## Architecture
 
@@ -200,50 +204,57 @@ public class NewtypeType : IType
 }
 ```
 
-### Type Checker Updates
+### Identity and Conversions
 
-The `IsDirectlyAssignable` method is updated to reject assignments between:
-- Newtype → Source type (without explicit cast)
-- Source type → Newtype (without explicit cast)
-- Newtype A → Newtype B (even if they share the same source)
+**Building the clone (Requirement 3.2).** A newtype is built by binding its Source_Type's declaration a second time, as a class or struct named after the newtype, under a scope that sits between the clone's own type scope and the Source_Type's lexical parent. That scope answers the Source_Type's simple name with the newtype, and, for a constructed source, each type parameter of the definition with the instance's argument. Everything Requirement 3.2 lists then follows from ordinary binding: a `Tiger` field, a `Tiger` parameter, `new Tiger(...)` and `this` inside a body all resolve to `Jaguar`, and the clone's base list is Tiger's, Renamed. A declaration outside the node -- a `with` block, an extension block -- never reaches the clone, since nothing binds it for the clone (3.5).
 
-The `CheckCastExpression` method is updated to allow explicit casts between a newtype and its source type.
+The clone reuses the Source_Type's syntax, so a mistake in Tiger's body would be reported once for Tiger and once for Jaguar at the same place. The clone's diagnostics are compared with the source's and only those the source does not report are kept, anchored at the newtype declaration and naming the member (3.6).
 
-Member access on a newtype instance resolves against the newtype's own member scope (populated during cloning), not the source type's scope.
+**An intrinsic source (3.8, 5.2).** The clone of an intrinsic declaration is intrinsic, its members the Renamed contract, and it carries the synthesized `Value` field.
+
+**Conversions (2.4, 2.5).** A newtype over a Copyable_Source is within its source for the conversion relation, the way a numeric widening is: implicit, lossless, and ranked, so `Take(int)` is applicable to an `Age` and `Take(Age)` beats it as the narrower target. A cast to such a newtype calls a conversion function whose parameter is the source, recorded on the cast as an enum's lookup is, so the operand is judged and lowered as an argument. Newtype to newtype over one source is the composition of the two and needs no rule of its own.
+
+**Literals (9).** Assignability is told whether the position it judges is one Requirement 9.2 names, and admits a Newtype_Literal there alone. An argument position never is.
+
+**A clonable class (10).** Two cast operators are synthesized on the newtype, each bound from a `Clone` body with the receiver replaced by the operand and every member of both types reachable: the newtype's Renamed `Clone` for the source to the newtype, the Source_Type's `Clone` for the reverse. A body that does not bind produces no operator and records why, which the cast rule reports naming the member (10.4). A class that implements no `IClonable` of itself produces neither, and a cast is refused as defining no copy (10.3).
 
 ### C# Transpiler
 
-A new `EmitNewtypeDeclaration` method with three strategies based on source type category:
+Three strategies based on source type category. None lowers a newtype to its source, whose runtime type would then answer a type test the newtype must fail (Requirement 5.3).
 
 #### Strategy 1: Source is a Class
 
-Emit a C# class with the newtype name containing all cloned members:
+The Renamed_Clone is an ordinary class, emitted as every class is, its base list, members and bodies coming from binding. A clonable source adds the two synthesized conversions (Requirement 10):
 
 ```csharp
-// Mist: type OrderId = new EntityBase;
+// Mist: class Tiger : Cat, IClonable<Tiger> { ... }   type Jaguar = new Tiger;
 // C# output:
-public class OrderId
+public class Jaguar : Cat, IClonable<Jaguar>
 {
-    // All members from EntityBase, cloned
+    // Tiger's members and bodies, Renamed
+    public static explicit operator Jaguar(Tiger source) { /* Jaguar.Clone's body, this = source */ }
+    public static explicit operator Tiger(Jaguar source) { /* Tiger.Clone's body, this = source */ }
 }
 ```
 
-#### Strategy 2: Source is a Struct
+#### Strategy 2: Source is a Struct, or a Readonly Class
 
-Emit a C# struct with the newtype name containing all cloned members:
+As Strategy 1, with the copy conversions of Requirements 2.4 and 2.5: an implicit conversion to the source and an explicit one from it, each copying every field.
 
 ```csharp
 // Mist: type Vector2D = new Point;
 // C# output:
 public struct Vector2D
 {
-    // All members from Point, cloned
+    // Point's members and bodies, Renamed
+    public static implicit operator Point(Vector2D value) { /* copy each field */ }
+    public static explicit operator Vector2D(Point value) { /* copy each field */ }
 }
 ```
 
-#### Strategy 3: Source is a Primitive
+#### Strategy 3: Source is an Intrinsic Standard Type
 
-Emit a C# readonly struct wrapping the primitive value with explicit conversion operators:
+A struct wrapping the backing value, supplying each Renamed intrinsic member by forwarding to the backing value's and wrapping a result of the source type:
 
 ```csharp
 // Mist: type UserId = new int;
@@ -257,8 +268,11 @@ public readonly struct UserId
         Value = value;
     }
 
+    public static UserId operator +(UserId left, UserId right) => new UserId(left.Value + right.Value);
+    // ... every other Renamed member of Int32
+
+    public static implicit operator int(UserId id) => id.Value;
     public static explicit operator UserId(int value) => new UserId(value);
-    public static explicit operator int(UserId id) => id.Value;
 }
 ```
 
@@ -330,17 +344,17 @@ Symbol
 
 **Validates: Requirements 1.3**
 
-### Property 3: Nominal distinctness (bidirectional non-assignability)
+### Property 3: Entry needs intent
 
-*For any* newtype and its source type, assigning a value of the source type to a variable of the newtype (or vice versa) without an explicit cast SHALL produce a type mismatch diagnostic error.
+*For any* newtype and any value of another type -- its source type or another newtype over the same source among them -- using the value where the newtype is expected without a cast SHALL produce a type mismatch diagnostic error, unless the value is a Newtype_Literal in a position Requirement 9.2 names.
 
-**Validates: Requirements 2.1, 2.3, 2.4**
+**Validates: Requirements 2.6, 9.2, 9.3**
 
-### Property 4: Cross-newtype non-assignability
+### Property 4: A copyable newtype leaves freely and is never its source
 
-*For any* two distinct newtypes that share the same source type, assigning a value of one newtype to a variable of the other SHALL produce a type mismatch diagnostic error.
+*For any* newtype over a Copyable_Source, a value of the newtype SHALL be accepted where the source type is expected, and a type test of that value against the source type SHALL fail, both statically and when the program runs.
 
-**Validates: Requirements 2.5**
+**Validates: Requirements 2.1, 2.4, 5.3**
 
 ### Property 5: Member access resolves on cloned set
 
@@ -378,6 +392,18 @@ Symbol
 
 **Validates: Requirements 5.4**
 
+### Property 11: The clone is renamed
+
+*For any* member of a source type that takes or answers the source type, the newtype's member of the same name SHALL take or answer the newtype, and *for any* base type or abstract base of the source type, a newtype value SHALL be assignable to it.
+
+**Validates: Requirements 2.2, 2.3, 3.2**
+
+### Property 12: A class conversion copies
+
+*For any* newtype over a mutable class implementing `IClonable` of itself, a cast in either direction SHALL produce a value that is not the operand's object and whose observable state is what the operand's `Clone` would produce.
+
+**Validates: Requirements 10.1**
+
 ## Error Handling
 
 | Condition | Diagnostic ID | Severity | Message |
@@ -386,9 +412,13 @@ Symbol
 | Invalid token after `new` (not a type reference) | `MIST_PARSE_ERROR` | Error | `Expected type reference after 'new'` |
 | Duplicate newtype name in scope | `MIST_DUPLICATE_SYMBOL` | Error | `Type '{name}' is already defined in this scope` |
 | Undefined source type | `MIST_UNRESOLVED_TYPE` | Error | `Type '{name}' could not be found` |
-| Source→Newtype assignment without cast | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{source}' to '{newtype}' without an explicit cast` |
-| Newtype→Source assignment without cast | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{newtype}' to '{source}' without an explicit cast` |
-| Cross-newtype assignment | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{newtypeA}' to '{newtypeB}'` |
+| Source→Newtype use without cast | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{source}' to '{newtype}' without an explicit cast` |
+| Newtype→Source use without cast, mutable class source | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{newtype}' to '{source}'` |
+| Cross-newtype use without cast | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{newtypeA}' to '{newtypeB}' without an explicit cast` |
+| Newtype over an unsupported kind of type | assigned at implementation | Error | `A newtype over {kind} '{source}' is not supported` |
+| A member of the renamed clone does not bind | assigned at implementation | Error | `'{newtype}' cannot clone '{source}.{member}': {reason}` |
+| Cast between a mutable class source and its newtype, no `IClonable` of itself | assigned at implementation | Error | `'{source}' defines no copy to convert with; implement IClonable<{source}>` |
+| Cast whose `Clone` body does not bind with the operand as `this` | assigned at implementation | Error | `Cannot convert '{from}' to '{to}': its Clone reads '{member}', which is '{sourceMemberType}' in one type and '{newtypeMemberType}' in the other` |
 
 **Error recovery strategy**: When the source type is unresolved, the newtype symbol is assigned `ErrorType` so that downstream phases (type checker, transpiler) do not produce cascading errors. The newtype is still registered in the symbol table to prevent "undefined type" errors on subsequent references to the newtype name.
 

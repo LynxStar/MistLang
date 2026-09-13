@@ -259,44 +259,28 @@ internal static class BodyEmitter
                 }
 
             case ExpressionStatement exprStmt:
-                writer.Write("");
-
-                if(DiscardedCombinator(exprStmt.Expression, diagnostics) is { } direct)
                 {
-                    writer.Append(blockingAwaits ? $"{direct}.GetAwaiter().GetResult()" : $"await {direct}");
-                }
-                else
-                {
-                    EmitExpression(exprStmt.Expression, writer, diagnostics);
-                }
+                    using var hoisted = EmitHoisted(exprStmt.Expression, writer, diagnostics);
+                    writer.Write("");
 
-                writer.Append(";");
-                writer.AppendLine();
-                break;
-
-            case ReturnStatement returnStmt:
-                if(returnStmt.Value is { } value && OptionalUnion.IsVoid(value.Type))
-                {
-                    if(value is InvocationExpression)
+                    if(DiscardedCombinator(exprStmt.Expression, diagnostics) is { } direct)
                     {
-                        writer.Write("");
-                        EmitExpression(value, writer, diagnostics);
-                        writer.Append(";");
-                        writer.AppendLine();
+                        writer.Append(blockingAwaits ? $"{direct}.GetAwaiter().GetResult()" : $"await {direct}");
+                    }
+                    else
+                    {
+                        EmitExpression(exprStmt.Expression, writer, diagnostics);
                     }
 
-                    writer.WriteLine("return;");
-                }
-                else if(returnStmt.Value is not null)
-                {
-                    writer.Write(returnStmt.IsRef ? "return ref " : "return ");
-                    EmitExpression(returnStmt.Value, writer, diagnostics);
                     writer.Append(";");
                     writer.AppendLine();
+                    break;
                 }
-                else
+
+            case ReturnStatement returnStmt:
+                using(EmitHoisted(returnStmt.Value, writer, diagnostics))
                 {
-                    writer.WriteLine("return;");
+                    EmitReturn(returnStmt, writer, diagnostics);
                 }
 
                 break;
@@ -322,11 +306,15 @@ internal static class BodyEmitter
                 break;
 
             case ForEachStatement foreachStmt:
-                writer.Write(
-                    $"foreach ({TypeNameEmitter.EmitInferable(foreachStmt.Variable.Type)} {LocalNames.Of(foreachStmt.Variable)} in ");
-                EmitExpression(foreachStmt.Collection, writer, diagnostics);
-                writer.Append(")");
-                writer.AppendLine();
+                using(EmitHoisted(foreachStmt.Collection, writer, diagnostics))
+                {
+                    writer.Write(
+                        $"foreach ({TypeNameEmitter.EmitInferable(foreachStmt.Variable.Type)} {LocalNames.Of(foreachStmt.Variable)} in ");
+                    EmitExpression(foreachStmt.Collection, writer, diagnostics);
+                    writer.Append(")");
+                    writer.AppendLine();
+                }
+
                 using(writer.Block())
                 {
                     EmitBlock(foreachStmt.Body, writer, diagnostics);
@@ -453,6 +441,7 @@ internal static class BodyEmitter
                 continue;
             }
 
+            UnitHoisting.Refuse(arguments[i], diagnostics);
             EmitCoerced(
                 arguments[i],
                 parameters is not null && i < parameters.Count ? parameters[i].Type : null,
@@ -461,8 +450,59 @@ internal static class BodyEmitter
         }
     }
 
+    private static void EmitReturn(ReturnStatement returnStmt, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(returnStmt.Value is { } value && OptionalUnion.IsVoid(value.Type))
+        {
+            if(value is InvocationExpression)
+            {
+                writer.Write("");
+                EmitExpression(value, writer, diagnostics);
+                writer.Append(";");
+                writer.AppendLine();
+            }
+
+            writer.WriteLine("return;");
+        }
+        else if(returnStmt.Value is not null)
+        {
+            writer.Write(returnStmt.IsRef ? "return ref " : "return ");
+            EmitExpression(returnStmt.Value, writer, diagnostics);
+            writer.Append(";");
+            writer.AppendLine();
+        }
+        else
+        {
+            writer.WriteLine("return;");
+        }
+    }
+
+    private static UnitHoisting.Hoisting EmitHoisted(Expression? root, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var hoisting = UnitHoisting.Plan(root);
+
+        foreach(var step in hoisting.Steps)
+        {
+            var text = Render(step.Expression, diagnostics);
+
+            if(step.IsHoist)
+            {
+                writer.WriteLine($"{text};");
+                hoisting.Bind(step, "Standard.Void.Instance");
+                continue;
+            }
+
+            var temporary = TemporaryName();
+            writer.WriteLine($"{TypeNameEmitter.EmitInferable(step.Expression.Type)} {temporary} = {text};");
+            hoisting.Bind(step, temporary);
+        }
+
+        return hoisting;
+    }
+
     private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var hoisted = EmitHoisted(localDecl.Initializer, writer, diagnostics);
         var local = localDecl.Local;
         var refKeyword = RefKeywords.For(local.IsRef, local.IsReadonly);
 
@@ -574,13 +614,38 @@ internal static class BodyEmitter
 
     private static void EmitWhile(WhileStatement whileStmt, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        writer.Write("while (");
-        EmitExpression(whileStmt.Condition, writer, diagnostics);
-        writer.Append(")");
-        writer.AppendLine();
+        if(UnitHoisting.Plan(whileStmt.Condition).Steps.Count == 0)
+        {
+            writer.Write("while (");
+            EmitExpression(whileStmt.Condition, writer, diagnostics);
+            writer.Append(")");
+            writer.AppendLine();
 
+            using(writer.Block())
+            {
+                EmitBlock(whileStmt.Body, writer, diagnostics);
+            }
+
+            return;
+        }
+
+        writer.WriteLine("while (true)");
         using(writer.Block())
         {
+            using(EmitHoisted(whileStmt.Condition, writer, diagnostics))
+            {
+                writer.Write("if (!(");
+                EmitExpression(whileStmt.Condition, writer, diagnostics);
+                writer.Append("))");
+                writer.AppendLine();
+            }
+
+            using(writer.Block())
+            {
+                writer.WriteLine("break;");
+            }
+
+            writer.WriteBlankLine();
             EmitBlock(whileStmt.Body, writer, diagnostics);
         }
     }
@@ -593,6 +658,7 @@ internal static class BodyEmitter
     private static void EmitDeconstruction(
         TupleDeconstructionStatement deconstruction, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var hoisted = EmitHoisted(deconstruction.Initializer, writer, diagnostics);
         var targets = deconstruction.Targets.Select(
             target => $"{TypeNameEmitter.EmitInferable(target.Type)} {LocalNames.Of(target)}");
 
@@ -604,6 +670,7 @@ internal static class BodyEmitter
 
     private static void EmitIf(IfStatement ifStmt, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var hoisted = EmitHoisted(ifStmt.Condition, writer, diagnostics);
         writer.Write("if (");
         EmitExpression(ifStmt.Condition, writer, diagnostics);
         writer.Append(")");
@@ -613,7 +680,8 @@ internal static class BodyEmitter
             EmitBlock(ifStmt.ThenBranch, writer, diagnostics);
         }
 
-        if(ifStmt.ElseBranch is IfStatement { ConditionBinds: true } bindingElseIf)
+        if(ifStmt.ElseBranch is IfStatement bindingElseIf
+            && (bindingElseIf.ConditionBinds || UnitHoisting.Plan(bindingElseIf.Condition).Steps.Count > 0))
         {
             writer.WriteLine("else");
             using(writer.Block())
@@ -682,6 +750,12 @@ internal static class BodyEmitter
 
     internal static void EmitExpression(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(UnitHoisting.Substitution(expression) is { } substituted)
+        {
+            writer.Append(substituted);
+            return;
+        }
+
         switch(expression)
         {
             // A lift needs a task built around a value C# has no other way to wrap; a suppression needs
@@ -867,6 +941,7 @@ internal static class BodyEmitter
                 }
 
                 writer.Append(assignment.IsCoalescing ? " ??= " : " = ");
+                UnitHoisting.Refuse(assignment.Value, diagnostics);
                 EmitExpression(assignment.Value, writer, diagnostics);
                 break;
 
@@ -949,6 +1024,7 @@ internal static class BodyEmitter
                             writer.Append(text.Text);
                             break;
                         case InterpolatedStringHole hole:
+                            UnitHoisting.Refuse(hole.Expression, diagnostics);
                             writer.Append("{");
 
                             // An optional's absence lowers to null, which interpolation prints
@@ -2136,6 +2212,7 @@ internal static class BodyEmitter
             return;
         }
 
+        UnitHoisting.Refuse(memberAccess.Receiver, diagnostics);
         EmitSubExpression(memberAccess.Receiver, PostfixPrecedence, writer, diagnostics);
         writer.Append(memberAccess.IsConditional ? "?." : ".");
         writer.Append(CalleeName(memberAccess.MemberName, memberAccess.TypeArguments, parameters));

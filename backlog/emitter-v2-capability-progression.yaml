@@ -1687,10 +1687,10 @@ capabilities:
     v2_status: partial
     verified_by: v2-semantics
     evidence: >
-      PARTIAL, on its own name: a conversion is recorded at a declaration, an assignment, a return and an
-      argument (2026-09-13, below), and not yet at the other positions that have a target type, where the
-      same shapes still fail in Roslyn -- see the first task. The paragraphs up to that date describe the
-      relation alone, before any conversion was recorded.
+      PARTIAL, on its own name: a conversion is recorded at every position that binds a value against a
+      type (2026-09-13, below), and not yet where a statement converts each element it reads -- a foreach
+      variable and a deconstruction from a value -- where the same shapes still fail in Roslyn. See the first
+      task. The paragraphs up to that date describe the relation alone, before any conversion was recorded.
 
       Nothing in the syntax marks these. An assignment from Celsius to Fahrenheit requires
       searching the SOURCE type for an implicit operator to the target, and an argument
@@ -1847,15 +1847,34 @@ capabilities:
       bracketed by ConversionRelation.IsWithin, the result required to be the slot's type, the parameter step
       and the result cast each dropped from the lowering, and the regex case removed. Full suite green, 6022 of
       6022, AllFeaturesV2 among them.
+
+      EVERY OTHER POSITION THAT BINDS A VALUE AGAINST A TYPE NOW WRAPS (2026-09-13), closing most of the task
+      the paragraph above opened: field and property initializers, expression-bodied getters, a lambda's
+      result, array and tuple literal elements, the right of `??`, object initializer entries, a collection
+      initializer element against the Add it selected, and a switch arm against the switch's type. Probing
+      for more found two argument positions the earlier list missed, with the same CS0457: a user-defined
+      binary operator's operand and an indexer argument. Both wrap against the selected member's parameters.
+      A unary operand does not: a unary operator is looked up on its operand's own type, so no declared
+      implicit is ever needed to reach it. After: the Gauge probe prints 2 at all eleven positions and 52 for
+      the operator (`new Gauge(5) + small`, operator returning a*10+b); the enum step at a static field and in
+      an array literal prints 6 where it was CAST_REQUIRED, admitted now because the value wraps rather than
+      because the classifier changed.
+      STILL FAILING, measured: `foreach(Gauge g in bytes)` and `(Gauge a, int b) = pair;` with `pair` a
+      `(byte, int)` variable, each CS0457. Neither statement has an expression to wrap. A deconstruction from a
+      tuple LITERAL is fine, its elements wrapping as tuple elements. A collection initializer on a type that
+      is not IEnumerable fails in Roslyn for a reason of its own ("does not implement
+      System.Collections.IEnumerable"), so its element is proved on the model only.
+      PROVED BY twelve more rows in the ImplicitConversionSelectionTests site theory, ImplicitConversionEmissionTests
+      for the positions with an emission path of their own (array, tuple, coalesce, switch, object initializer,
+      indexer, operator, lambda result, field initializer), and AssignabilityDecisionTests admits for the enum
+      step in an array literal and a switch arm. Eleven mutations, one per binder change, each failing at least
+      one test. Full suite green, 6045 of 6045.
     tasks:
       - >
-        Wrap at the other positions that have a target type, measured above as Roslyn failures on programs Mist
-        admits: field and property initializers, expression-bodied getters, a lambda's result, array literal
-        elements, the right of `??`, object initializer entries, a switch arm, a tuple literal's elements. A
-        foreach variable and a deconstruction from a value have no expression to wrap -- each element is
-        converted where the statement reads it -- so those two need a design of their own. Until every such
-        position wraps, the classifier's implicit answer cannot ask CastOperatorSelection.Implicit, since each
-        verdict it widens reaches Roslyn bare at the positions that do not.
+        Record the conversion where a statement converts each element it reads: a foreach variable and a
+        deconstruction from a value, both measured above as CS0457 on programs Mist admits. Neither has an
+        expression to wrap, so each needs a design of its own. Until both record it, the classifier's implicit
+        answer cannot ask CastOperatorSelection.Implicit, since each verdict it widens reaches Roslyn bare there.
       - >
         Search a CONSTRUCTED generic type's cast operators. Its operators are declared in terms of its
         type parameters and would have to be substituted through its arguments before they could be

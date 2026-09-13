@@ -758,9 +758,9 @@ internal static class BodyEmitter
 
                 if(UnsafeReach.Call(invocation, receiver => RenderAt(receiver, PostfixPrecedence, diagnostics)) is { } reached)
                 {
-                    writer.Append($"{reached.Accessor}({reached.Leading}{(invocation.Arguments.Count > 0 ? ", " : "")}");
+                    writer.Append(reached.Open);
                     EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, writer, diagnostics);
-                    writer.Append(")");
+                    writer.Append(reached.Close);
                     break;
                 }
 
@@ -852,10 +852,8 @@ internal static class BodyEmitter
                 break;
 
             case AssignmentExpression assignment
-                when UnsafeReach.Assignment(assignment, receiver => RenderAt(receiver, PostfixPrecedence, diagnostics)) is { } setter:
-                writer.Append($"{setter.Accessor}({setter.Leading}, ");
-                EmitExpression(assignment.Value, writer, diagnostics);
-                writer.Append(")");
+                when UnsafeReach.Assignment(assignment, operand => RenderAt(operand, PostfixPrecedence, diagnostics)) is { } written:
+                writer.Append(written);
                 break;
 
             case AssignmentExpression assignment:
@@ -870,6 +868,11 @@ internal static class BodyEmitter
 
                 writer.Append(assignment.IsCoalescing ? " ??= " : " = ");
                 EmitExpression(assignment.Value, writer, diagnostics);
+                break;
+
+            case IndexExpression elementAccess
+                when UnsafeReach.Index(elementAccess, operand => RenderAt(operand, PostfixPrecedence, diagnostics)) is { } reachedIndex:
+                writer.Append(reachedIndex);
                 break;
 
             case IndexExpression elementAccess:
@@ -989,11 +992,20 @@ internal static class BodyEmitter
                     + EmitTypeArguments(methodRef.TypeArguments, methodRef.Method.TypeParametersList));
                 break;
 
+            case FunctionReferenceExpression functionRef
+                when UnsafeReach.Function(functionRef, operand => RenderAt(operand, PostfixPrecedence, diagnostics)) is { } reachedFunction:
+                writer.Append(reachedFunction);
+                break;
+
             case FunctionReferenceExpression functionRef:
                 if(functionRef.Receiver is { } functionTarget)
                 {
                     EmitExpression(functionTarget, writer, diagnostics);
                     writer.Append(".");
+                }
+                else
+                {
+                    writer.Append(ReceiverSpelling.Qualifier(functionRef.Method.DeclaringType, functionRef.Method.Modifiers.IsStatic));
                 }
 
                 writer.Append(LocalNames.Of(functionRef.Method));

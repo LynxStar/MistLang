@@ -12,12 +12,12 @@ using Mist.Semantics.Model;
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Tier 4, the boundary from emitted C# to the runtime: the conversions of a newtype over a constructed
-/// source reach that source's private state through UnsafeAccessors the runtime binds only when the call
-/// runs. An accessor declared on the closed construction compiles and throws MissingFieldException there,
-/// so only running the conversions tells a holder over the definition's parameters from one that is not.
+/// Tier 4, the boundary from emitted C# to the runtime: a newtype's conversions reach private state through
+/// UnsafeAccessors the runtime binds by signature only when the call runs. An accessor declared on a closed
+/// generic, or one whose name or signature misses its target, compiles and throws there, so only running the
+/// conversions tells a working accessor from one that is not.
 /// </summary>
-public sealed class ConstructedCloneConversionTests : IDisposable
+public sealed class CloneConversionRuntimeTests : IDisposable
 {
     private const string ConvertsEachKindOfConstructedSource = """
         using Standard;
@@ -124,9 +124,129 @@ public sealed class ConstructedCloneConversionTests : IDisposable
         }
         """;
 
+    private const string ReachesEveryKindOfPrivateMember = """
+        using Standard;
+
+        namespace Reached;
+
+        public abstract IShow
+        {
+            string Show();
+        }
+
+        public class Word : IShow
+        {
+            private string text;
+
+            public Word(string text)
+            {
+                this.text = text;
+            }
+
+            public string Show()
+            {
+                return text;
+            }
+        }
+
+        public class Tiger : IClonable<Tiger>
+        {
+            private int stripes;
+            private string? note;
+
+            private int Doubled
+            {
+                get { return stripes * 2; }
+                set { stripes = value / 2; }
+            }
+
+            private string? Note
+            {
+                get { return note; }
+                set { note = value; }
+            }
+
+            private int this[int index]
+            {
+                get { return stripes + index; }
+                set { stripes = value - index; }
+            }
+
+            public Tiger(int stripes)
+            {
+                this.stripes = stripes;
+            }
+
+            private T Echo<T>(T value)
+            {
+                return value;
+            }
+
+            private int Three()
+            {
+                return 3;
+            }
+
+            private void Bump()
+            {
+                stripes = stripes + 100;
+            }
+
+            private static int Seven()
+            {
+                return 7;
+            }
+
+            private string Shown<U>(U item) where U : IShow
+            {
+                return item.Show();
+            }
+
+            public owned Tiger Clone()
+            {
+                var copy = new Tiger(Echo<int>(stripes));
+                Tiger? maybe = copy;
+                int? viaConditional = maybe?.stripes;
+                Doubled = Doubled + 2;
+                copy.Note ??= copy.Shown<Word>(new Word("noted"));
+                Note ??= Shown<Word>(new Word("self"));
+                copy[1] = this[1] + 10;
+                func<int> three = Three;
+                func<int> seven = Seven;
+                func<int> copyThree = copy.Three;
+                maybe?.Bump();
+                int? maybeThree = maybe?.Three();
+                Bump();
+                int conditional = viaConditional ?? 0;
+                int fromMaybe = maybeThree ?? 0;
+                copy.stripes = copy.stripes + three() + conditional + copy.Echo<int>(1) + seven() + copyThree() + fromMaybe;
+                return copy;
+            }
+
+            public string Describe()
+            {
+                return $"stripes={stripes} note={note}";
+            }
+        }
+
+        public type Jaguar = new Tiger;
+
+        public class Program
+        {
+            public static void Main()
+            {
+                var tiger = new Tiger(4);
+                var jaguar = (Jaguar)tiger;
+                var back = (Tiger)jaguar;
+
+                Console.WriteLine($"{tiger.Describe()} | {jaguar.Describe()} | {back.Describe()}");
+            }
+        }
+        """;
+
     private readonly string scratchDir;
 
-    public ConstructedCloneConversionTests()
+    public CloneConversionRuntimeTests()
     {
         scratchDir = Path.Combine(Path.GetTempPath(), "mist-constructed-clone-" + Guid.NewGuid().ToString("N"));
         _ = Directory.CreateDirectory(scratchDir);
@@ -150,6 +270,14 @@ public sealed class ConstructedCloneConversionTests : IDisposable
             CompileAndRun(ConvertsEachKindOfConstructedSource).ReplaceLineEndings("\n"));
     }
 
+    [Fact]
+    public void EveryKindOfPrivateMemberAConversionReaches_RunsThroughItsAccessor()
+    {
+        Assert.Equal(
+            "stripes=105 note=self | stripes=237 note=noted | stripes=400 note=noted",
+            CompileAndRun(ReachesEveryKindOfPrivateMember));
+    }
+
     private string CompileAndRun(string source)
     {
         var sourcePath = Path.Combine(scratchDir, "Program.mist");
@@ -168,8 +296,8 @@ public sealed class ConstructedCloneConversionTests : IDisposable
             Backend: new BackendId("csharp"),
             OutputDirectory: Path.Combine(scratchDir, "out"),
             BinDirectory: Path.Combine(scratchDir, "bin"),
-            ProjectName: "Constructed",
-            NamespaceRoot: "Constructed",
+            ProjectName: "Probe",
+            NamespaceRoot: "Probe",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             Pipeline: PipelineMode.Experimental));
 

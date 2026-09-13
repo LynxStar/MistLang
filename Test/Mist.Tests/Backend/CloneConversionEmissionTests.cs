@@ -73,9 +73,64 @@ public sealed class CloneConversionEmissionTests
             }
         }
 
+        public abstract IShow
+        {
+            string Show();
+        }
+
+        public class Word : IShow
+        {
+            public Word() { }
+
+            public string Show() { return "word"; }
+        }
+
+        public class Lynx : IClonable<Lynx>
+        {
+            private int spots;
+            private string? note;
+
+            private string? Note
+            {
+                get { return note; }
+                set { note = value; }
+            }
+
+            private int this[int index]
+            {
+                get { return spots + index; }
+                set { spots = value - index; }
+            }
+
+            public Lynx(int spots) { this.spots = spots; }
+
+            private T Echo<T>(T value) { return value; }
+
+            private int Three() { return 3; }
+
+            private void Bump() { spots = spots + 1; }
+
+            private string Shown<U>(U item) where U : IShow { return item.Show(); }
+
+            public owned Lynx Clone()
+            {
+                var copy = new Lynx(Echo<int>(spots));
+                Lynx? maybe = copy;
+                int? read = maybe?.spots;
+                maybe?.Bump();
+                Note ??= "self";
+                copy[1] = this[1] + 10;
+                func<int> three = Three;
+                func<int> copyThree = copy.Three;
+                var shown = Shown<Word>(new Word());
+                return copy;
+            }
+        }
+
         public type Jaguar = new Tiger;
         public type Puma = new Lion;
         public type IntCell = new Cell<int>;
+        public type Ocelot = new Lynx;
         """;
 
     private const string Casts = """
@@ -83,6 +138,8 @@ public sealed class CloneConversionEmissionTests
         var tiger = (Tiger)jaguar;
         var intCell = (IntCell)new Cell<int>(1);
         var cell = (Cell<int>)intCell;
+        var ocelot = (Ocelot)new Lynx(1);
+        var lynx = (Lynx)ocelot;
         """;
 
     [Fact]
@@ -130,6 +187,57 @@ public sealed class CloneConversionEmissionTests
         Assert.Contains("__Out_Probe_Cell_Access<int>.__made(null) = __Out_Probe_Cell_Access<int>.__made(null) + 1;", emitted);
         Assert.Contains("return __Out_Probe_Cell_Access<int>.__new(@this.content, __Out_Probe_Cell_Access<int>.__made(null));", emitted);
         Assert.Contains("public static extern Probe.Cell<T> __new(T content, int serial);", emitted);
+    }
+
+    [Fact]
+    public void AConditionalAccessToAnUnreachableMember_NarrowsItsReceiverBeforeTheAccessor()
+    {
+        var emitted = EmitDeclaration("Ocelot");
+
+        Assert.Matches(@"int\? read = \(maybe is \{ \} (__reached\d+) \? \(int\?\)__Out_Probe_Lynx_spots\(\1\) : null\);", emitted);
+        Assert.Matches(@"__Out_When\(maybe, (__reached\d+) => __Out_Probe_Lynx_Bump\(\1\)\);", emitted);
+        Assert.Contains("private static extern void __Out_Probe_Lynx_Bump(Probe.Lynx __target);", emitted);
+    }
+
+    [Fact]
+    public void ACoalescingWriteThroughAComputedProperty_ReadsAndWritesThroughItsAccessors()
+    {
+        var emitted = EmitDeclaration("Ocelot");
+
+        Assert.Contains(
+            "__In_Coalesced(@this, (object?)null, (__t, __k) => __In_Probe_Lynx_get_Note(__t), (__t, __k, __v) => __In_Probe_Lynx_set_Note(__t, __v), () => \"self\");",
+            emitted);
+    }
+
+    [Fact]
+    public void AGenericMethod_IsCalledThroughAGenericAccessor()
+    {
+        var emitted = EmitDeclaration("Ocelot");
+
+        Assert.Contains("new Probe.Ocelot(__In_Probe_Lynx_Echo<int>(@this, __In_Probe_Lynx_spots(@this)))", emitted);
+        Assert.Contains("private static extern T __In_Probe_Lynx_Echo<T>(Probe.Lynx __target, T value);", emitted);
+        Assert.Contains("private static extern string __In_Probe_Lynx_Shown<U>(Probe.Lynx __target, U item)", emitted);
+        Assert.Contains("    where U : Probe.IShow;", emitted);
+    }
+
+    [Fact]
+    public void AnIndexer_IsReadAndWrittenThroughItsItemAccessors()
+    {
+        var emitted = EmitDeclaration("Ocelot");
+
+        Assert.Contains("copy[1] = __In_Probe_Lynx_get_Item(@this, 1) + 10;", emitted);
+        Assert.Contains("__Out_Probe_Lynx_set_Item(copy, 1, (@this[1] + 10));", emitted);
+        Assert.Contains("private static extern void __Out_Probe_Lynx_set_Item(Probe.Lynx __target, int index, int value);", emitted);
+    }
+
+    [Fact]
+    public void AMethodGroup_IsALambdaOverItsAccessorWithAnExplicitReceiverBoundOnce()
+    {
+        var emitted = EmitDeclaration("Ocelot");
+
+        Assert.Contains("System.Func<int> three = ((System.Func<int>)(() => __In_Probe_Lynx_Three(@this)));", emitted);
+        Assert.Contains("System.Func<int> copyThree = __Out_Bound(copy, __t => (System.Func<int>)(() => __Out_Probe_Lynx_Three(__t)));", emitted);
+        Assert.Contains("System.Func<int> three = @this.Three;", emitted);
     }
 
     [Fact]

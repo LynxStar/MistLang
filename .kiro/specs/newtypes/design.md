@@ -216,7 +216,7 @@ The clone reuses the Source_Type's syntax, so a mistake in Tiger's body would be
 
 **Literals (9).** Assignability is told whether the position it judges is one Requirement 9.2 names, and admits a Newtype_Literal there alone. An argument position never is.
 
-**A clonable class (10).** Two cast operators are synthesized on the newtype, each bound from a `Clone` body with the receiver replaced by the operand and every member of both types reachable: the newtype's Renamed `Clone` for the source to the newtype, the Source_Type's `Clone` for the reverse. A body that does not bind produces no operator and records why, which the cast rule reports naming the member (10.4). A class that implements no `IClonable` of itself produces neither, and a cast is refused as defining no copy (10.3).
+**A clonable class (10).** Two explicit cast operators are synthesized on the newtype when the Source_Type names `IClonable` of itself in its own base list and declares the `Clone`: the newtype's Renamed `Clone` body for the source to the newtype, the Source_Type's `Clone` body for the reverse. Each body is bound again under a scope that answers `this` and every instance member from the operand's type, and a static member or a type name from the body's own declaration, so `(Jaguar)tiger` reads `tiger`'s state, constructs a `Jaguar`, and counts in `Jaguar`'s statics. The operator exists either way; whether its body holds is judged where a cast calls it. Stage 5 runs every rule over each such body on its own, withholding what they find, and the first error -- the binder's, or a rule's other than accessibility, which 10.2 waives -- is the reason a cast calling the operator is refused, naming the member at the error's location (10.4). A class that declares no `IClonable` of itself produces neither operator, and a cast is refused as defining no copy (10.3).
 
 ### C# Transpiler
 
@@ -232,10 +232,12 @@ The Renamed_Clone is an ordinary class, emitted as every class is, its base list
 public class Jaguar : Cat, IClonable<Jaguar>
 {
     // Tiger's members and bodies, Renamed
-    public static explicit operator Jaguar(Tiger source) { /* Jaguar.Clone's body, this = source */ }
-    public static explicit operator Tiger(Jaguar source) { /* Tiger.Clone's body, this = source */ }
+    public static explicit operator Jaguar(Tiger @this) { /* Jaguar.Clone's body */ }
+    public static explicit operator Tiger(Jaguar @this) { /* Tiger.Clone's body */ }
 }
 ```
+
+The operator's parameter stands for `this`, and every implicit member in the body is written through it or through its declaring type, a bare name resolving against `Jaguar` in C#. A member C# refuses from `Jaguar` -- one private to `Tiger`, a protected one read through a `Tiger` -- is reached through an `UnsafeAccessor` declared beside the operator, and an object initializer naming one runs its entries through a helper against the constructed value. Only an operator some cast calls is emitted, since one no cast calls may hold a body that does not type.
 
 #### Strategy 2: Source is a Struct, or a Readonly Class
 
@@ -415,10 +417,10 @@ Symbol
 | Source→Newtype use without cast | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{source}' to '{newtype}' without an explicit cast` |
 | Newtype→Source use without cast, mutable class source | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{newtype}' to '{source}'` |
 | Cross-newtype use without cast | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{newtypeA}' to '{newtypeB}' without an explicit cast` |
-| Newtype over an unsupported kind of type | assigned at implementation | Error | `A newtype over {kind} '{source}' is not supported` |
-| A member of the renamed clone does not bind | assigned at implementation | Error | `'{newtype}' cannot clone '{source}.{member}': {reason}` |
-| Cast between a mutable class source and its newtype, no `IClonable` of itself | assigned at implementation | Error | `'{source}' defines no copy to convert with; implement IClonable<{source}>` |
-| Cast whose `Clone` body does not bind with the operand as `this` | assigned at implementation | Error | `Cannot convert '{from}' to '{to}': its Clone reads '{member}', which is '{sourceMemberType}' in one type and '{newtypeMemberType}' in the other` |
+| Newtype over an unsupported kind of type | `MIST_PM_NEWTYPE_SOURCE_NOT_SUPPORTED` | Error | `A newtype over '{source}' is not supported: a newtype clones a class or a struct declared in Mist.` |
+| A member of the renamed clone does not bind | `MIST_PM_NEWTYPE_CLONE_INVALID` | Error | `'{newtype}' cannot clone '{source}', whose member '{member}' does not hold for '{newtype}': {reason}` |
+| Cast between a mutable class source and its newtype, no `IClonable` of itself | `MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY` | Error | `Cannot cast '{from}' to '{to}'. '{source}' defines no copy to convert with; ...` |
+| Cast whose `Clone` body does not hold with the operand as `this` | `MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD` | Error | `Cannot cast '{from}' to '{to}'. The cast runs '{type}.Clone' with a '{receiver}' as this, and it does not hold at '{member}': {reason}` |
 
 **Error recovery strategy**: When the source type is unresolved, the newtype symbol is assigned `ErrorType` so that downstream phases (type checker, transpiler) do not produce cascading errors. The newtype is still registered in the symbol table to prevent "undefined type" errors on subsequent references to the newtype name.
 

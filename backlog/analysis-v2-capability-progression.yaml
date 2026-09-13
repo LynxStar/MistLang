@@ -452,6 +452,14 @@ rules:
       invisibly: `Feet? f = meters;` through Feet's implicit operator stays MIST_PA_NO_IMPLICIT_CONVERSION,
       STRICTER THAN CLASSIC, which prints 6 for it. An operator declared on the SOURCE whose result reaches
       Feet? losslessly still applies, being found on the operand's own type. No code changed.
+
+      TWO REFUSALS FOR A NEWTYPE OVER A MUTABLE CLASS (2026-09-13, newtypes spec task 17, recorded in full
+      under emitter order 86). A cast between the newtype and a source with no IClonable of itself is
+      MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY rather than CAST_HAS_NO_CONVERSION. Where the source has one,
+      the cast calls an operator running a Clone body with the operand as this, and the rule reports
+      MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD when that body does not type: the runner judges each such body
+      first, every rule over it alone with its findings withheld, and hands the reasons to the rule through
+      AnalysisContext.ConversionRefusals.
     tasks:
       - >
         Order 5 is where the classification gets its other customers: assignment, argument, return, arm

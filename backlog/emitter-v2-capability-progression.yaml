@@ -4335,6 +4335,43 @@ capabilities:
       newtype-from-its-source now that `Meters m = 1.0` is admitted. Five mutations each fail at least
       one: declarations not admitted, lambda returns admitted, any expression admitted, array elements
       not admitted, a signed operand left bare. Full suite green, 5981 of 5981.
+
+      A NEWTYPE AND ITS CLONABLE CLASS SOURCE CONVERT THROUGH THE SOURCE'S OWN COPY (2026-09-13, spec task
+      17). Where the source names IClonable of itself in its own base list and declares the Clone, the
+      newtype gets two explicit operators, each running a Clone body with the operand as this:
+      `(Jaguar)tiger` the newtype's Renamed body, `(Tiger)jaguar` the source's. The language owner chose this
+      over calling the operand's Clone and moving the copy's fields -- "reuse the clone code, but it
+      constructs a jaguar instead of a tiger" -- and kept sealed forbidding a newtype. A ReceiverScope
+      answers this and instance members from the operand, and statics and type names from the body's own
+      declaration, so the forward body counts in Jaguar's statics (10.1 now says so). Whether a body holds
+      is judged only where a cast calls it: Stage 5 runs every rule over each body alone with its findings
+      withheld, and the first error -- the binder's, or a rule's other than accessibility, which 10.2 waives
+      -- refuses the cast as MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD naming the member at its location. A
+      source with no IClonable of itself, one inherited from a base included, is
+      MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY, replacing CAST_HAS_NO_CONVERSION for a mutable class.
+      EMITTED as operators on the newtype whose parameter is @this, every implicit member written through
+      it or through its declaring type, since a bare name resolves against the newtype in C#. A member C#
+      refuses from the newtype -- private to the source, protected read through a source receiver, a private
+      constructor, a private auto-property's backing field, an initializer entry naming one -- goes through
+      an UnsafeAccessor declared beside the operator, the initializer through a helper running its entries
+      in order. Only an operator some cast calls is emitted, one no cast calls being free not to type;
+      CastOperator.IsCalled, set when a cast selects it, is what says.
+      MEASURED on v2 by a scratch program: a cast each way over a class with a private field, constructor,
+      method, static counter and auto-property, a public auto-property with a private setter, and a
+      protected base field and method printed `Shere' stripes=12 secret=sShere weight=101 made=1` and
+      `Shere'' stripes=21 secret=sShere weight=102 made=1`, leaving the operand as it was; an initializer
+      naming a private field printed `Leo! mane=4` and `Leo!! mane=5`.
+      PROVED BY ClonableNewtypeConversionDecisionTests (both directions admitted over private and protected
+      reads, six refusals, the blocking member named, the operator recorded as called, a static resolved to
+      the body's type) and CloneConversionEmissionTests (accessors each way, qualified statics, the
+      initializer helper, an uncalled operator not emitted), plus the corpus cases
+      total-conversion-classification/clone-conversion-through-a-renamed-field and
+      mutable-class-newtype-from-a-source-with-no-copy, renamed from mutable-class-newtype-from-its-source.
+      Eleven mutations each fail at least one test.
+      NOT HANDLED, each emitting C# Roslyn refuses rather than an operator that runs: a conditional access,
+      an increment or compound write through a computed property, a generic method, an indexer, or a method
+      group, when the member is one C# refuses from the newtype. NOT YET BANKED: Roslyn has compiled the
+      accessors only in the scratch program, which task 18's sample is to carry into AllFeaturesV2.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across

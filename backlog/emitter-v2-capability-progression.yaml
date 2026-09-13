@@ -3915,6 +3915,36 @@ capabilities:
       classic because the short name is Void either way. VoidType runs byte-identical to
       classic, VoidValueLiteral runs for the FIRST TIME ON ANY PIPELINE and matches classic
       line-for-line; all three unlocked samples are banked in AllFeaturesV2.
+
+      NESTED VALUE RECEIVERS ARE HOISTED (2026-09-13). MEASURED FIRST on v2: `Log.G(Log.F(), Log.H())`,
+      `$"hole={Log.F()}"` and `unit = Log.F()` each failed in Roslyn -- 'cannot convert from void to
+      Standard.Void', 'to object?', 'Cannot implicitly convert type void' -- where classic prints
+      `g(Void,1) trail=fh`, `hole=Void then 1` and `unit=Void`. UnitHoisting walks an expression
+      statement, a local's initializer, a return value, a deconstruction, a foreach collection and an if
+      condition in evaluation order. A call yielding nothing whose value is taken runs as a statement
+      ahead of it with Standard.Void.Instance in its place, and every operand C# would have evaluated
+      before the call is first stored in a temporary: `g3(k(), f(), h())` emits `int __e1 = k(); f();
+      g3(__e1, Standard.Void.Instance, h())`. No temporary for a local, a literal, this or a lambda, which
+      no call can change; nor for a value-type receiver or a by-reference argument, which C# reads as a
+      location when the call is made. An else-if whose condition hoists emits inside its else, and a
+      while condition lowers to `while (true) { hoisted; if (!(condition)) break; body }` so the call
+      runs on every iteration. The emitter reads the substitutions by node, so no bound expression is
+      rebuilt. Whether a call yields nothing is its method's DECLARED return type: `Echo<void>(void)`
+      returns a real Standard.Void in C# and is left where it is. A call yielding nothing that cannot be
+      hoisted -- under an operand that may not run, in a for loop, or with no statement of its own -- is
+      MIST_BE_UNHOISTED_UNIT_CALL at the argument, hole, assignment value or receiver, where Roslyn
+      failed before; see the task below.
+      MEASURED on v2, each line identical to classic's: the three positions above, `g3(2,Void,1)
+      trail=kfh`, a field read before the call (`read(x) trail=xf`), a receiver made before it
+      (`took trail=mf`), a unit call as the argument of one (`both(Void,2) trail=fw`), a binary operand
+      stored ahead of the call (`nameread(j) trail=nf`), a constructor argument, `Log.F().ToString()`, a return, a block lambda, a while condition
+      running `fbfbf`, an else-if, a foreach collection and a deconstruction; MSBuild compiles the
+      lowered loop without warning. `flag && Log.Check(Log.F())` is refused on v2 and runs on classic.
+      PROVED BY UnitHoistingEmissionTests (each position, the stored operand, a local left unstored, the
+      lowered loop, the else-if, a unit value left alone, the refusal) and the Tier 4
+      UnitHoistingRuntimeTests, whose trail `kfh`, `xf` and `mfhfk` is the order the program ran in,
+      identical to classic's. Ten mutations on confirmed builds each fail at least one test. Full
+      suite green, 6038 of 6038.
     tasks:
       - >
         Emit Standard.Void by transpiling Standard/Void.mist rather than generating the C#
@@ -3923,11 +3953,14 @@ capabilities:
         reimplementing it. Still waits on properties, operator declarations and cast operator
         declarations, all of which Void.mist uses.
       - >
-        Hoist a unit-valued call out of NESTED value receivers -- an argument, an interpolation
-        hole, an assignment right side -- preserving evaluation order against the other
-        operands, in `g(f(), h())` f still running before h. Root receivers are done; the
-        nested case is the part that looks smaller than it is, because every side-effectful
-        operand sequenced before the call must hoist with it.
+        Take the value of a unit-valued call where hoisting cannot: under an operand that may not
+        run (the right of `&&` or `||`, a coalesce, a conditional access, a switch arm, a `??=`
+        value), in a `for` loop's condition or step, and in an expression with no statement of its
+        own -- an expression-bodied lambda, member or local function, a field or property
+        initializer, a default block entry, a constructor's base arguments. Each is
+        MIST_BE_UNHOISTED_UNIT_CALL today. The first needs the conditional lowered to statements,
+        the rest a statement to hoist into. Classic runs all of them but the expression-bodied
+        lambda, which fails in Roslyn there too.
       - >
         Wrap rather than convert where a unit-returning method is used as a function value,
         since Func<Standard.Void> cannot bind a void-returning method. Waits on lambdas and

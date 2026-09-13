@@ -64,6 +64,18 @@ public sealed class ExtensionLookupTests : ProgramModelProbe
                 return 1;
             }
         }
+
+        public class Duo<A, B>
+        {
+        }
+
+        <T> extension(Duo<T, T> self)
+        {
+            public int Same()
+            {
+                return 1;
+            }
+        }
         """;
 
     protected override string Preamble { get; } = "Dog dog = new Dog();";
@@ -131,6 +143,16 @@ public sealed class ExtensionLookupTests : ProgramModelProbe
         Assert.Equal("Tall", access.Property.Name);
         Assert.Equal("Boolean", access.Type.Name);
         Assert.EndsWith("Extensions_Program_0", access.CarrierName, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AGenericReceiverRepeatingAParameterMatchesOnlyWhereItsArgumentsAgree()
+    {
+        Assert.Equal("Int32", ReturnTypeOf("new Duo<int, int>().Same()"));
+
+        var errors = BuildRun("var chosen = new Duo<int, long>().Same();");
+
+        Assert.Contains(errors, d => d.Id.Value == "MIST_PM_UNRESOLVED_MEMBER");
     }
 
     [Fact]

@@ -55,12 +55,11 @@ internal static class TypeArgumentInference
         var bounds = NewBounds(parameters.Count);
         Match(declared, actual, parameters, bounds);
 
-        var inferred = Fix(parameters, bounds, interner: null, out _);
-        var closed = new IMistType[inferred.Length];
+        var closed = new IMistType[bounds.Length];
 
-        for(var i = 0; i < inferred.Length; i++)
+        for(var i = 0; i < bounds.Length; i++)
         {
-            if(inferred[i] is not { } slot)
+            if(bounds[i] is not [var slot])
             {
                 return null;
             }
@@ -226,7 +225,7 @@ internal static class TypeArgumentInference
     private static IMistType?[] Fix(
         IReadOnlyList<TypeParameter> parameters,
         List<IMistType>[] bounds,
-        TypeInterner? interner,
+        TypeInterner interner,
         out TypeArgumentConflict? conflict)
     {
         var fixedTypes = new IMistType?[bounds.Length];
@@ -262,7 +261,7 @@ internal static class TypeArgumentInference
     /// to discharge. A common base or a union of the bounds is never invented; the caller states one
     /// (type-argument-inference Requirement 3).
     /// </summary>
-    private static IMistType? Dominant(List<IMistType> bounds, TypeInterner? interner)
+    private static IMistType? Dominant(List<IMistType> bounds, TypeInterner interner)
     {
         return bounds.Find(candidate => bounds.TrueForAll(bound => ConversionClassifier.IsImplicit(bound, candidate, interner)))
             ?? bounds.Find(candidate => bounds.TrueForAll(

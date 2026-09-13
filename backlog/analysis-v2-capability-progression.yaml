@@ -430,6 +430,28 @@ rules:
       metadata (List<int> within IList, ICollection and IEnumerable of int, not IEnumerable<string>). Two
       mutations on confirmed builds each fail six tests: constructed types given no bases, and bases left
       unsubstituted. Full suite green, 5923 of 5923.
+
+      A SIGNED INTEGRAL PARAMETER OUTRANKS AN UNSIGNED ONE IT DOES NOT CONTAIN (2026-09-13), BY DECISION AND
+      MORE PERMISSIVE THAN CLASSIC. The language owner adopted C#'s table (method-overloading Requirement
+      3.3, cast-operators 8.11): sbyte over byte, ushort, uint and ulong; short over ushort, uint and ulong;
+      int over uint and ulong; long over ulong. The decision was first taken on a false premise and asked
+      again: `Take(b)` inside Program printed `short 2` on classic only because classic's checker never
+      judges a bare-name call and Roslyn chose. QUALIFIED, classic refuses every such call --
+      `Sink.Take(b)` and `sink.Take(b)` over Take(short) and Take(uint), and five pairs from the table, are
+      MIST_TC_0032 -- and v2 reported MIST_PM_AMBIGUOUS_OVERLOAD for the same calls. Now all print C#'s
+      choice. Containment still decides first: a ushort over Take(short) and Take(uint) reaches uint alone.
+      PROVED BY an OverloadSelectionTests theory (a byte over short and uint, a ushort over long and ulong,
+      2 over sbyte and byte, 200 reaching byte alone, a ushort reaching uint alone) and a CastSelectionTests
+      fact for the same choice among operators. Two mutations on confirmed builds each fail four tests: no
+      preference, and unsigned preferred. Full suite green, 5929 of 5929.
+
+      A CAST TO `T?` CALLS `T | void`'S CONVERSION FUNCTION, NOT T'S (2026-09-13), closing the task that
+      asked. The language owner: the operator a cast to `Feet?` matches is Feet?'s, "aka Feet | Void NOT
+      Feet". A union declares no conversions, so `(Feet?)meters` through an operator Feet declares stays
+      CAST_HAS_NO_CONVERSION, as it was on both pipelines, and the implicit form is the same call written
+      invisibly: `Feet? f = meters;` through Feet's implicit operator stays MIST_PA_NO_IMPLICIT_CONVERSION,
+      STRICTER THAN CLASSIC, which prints 6 for it. An operator declared on the SOURCE whose result reaches
+      Feet? losslessly still applies, being found on the operand's own type. No code changed.
     tasks:
       - >
         Order 5 is where the classification gets its other customers: assignment, argument, return, arm
@@ -437,13 +459,9 @@ rules:
       - >
         A newtype's conversion is a function too, taking its source, yet `(Meters)reading` over `type
         Meters = new double` with Reading implicit to double is CAST_HAS_NO_CONVERSION on v2 and MIST_TC_0042
-        on classic. ExplicitByDeclaration reaches the source only losslessly. Under the sugar rule the
-        argument may take one declared implicit, as an enum lookup's does; not changed here because the
-        task was declared operators, and it wants the newtype spec read first.
-      - >
-        A union or optional target does not search its constituents' operators, so `(Feet?)meters` over
-        Feet(Meters) is refused on both pipelines (CAST_HAS_NO_CONVERSION, MIST_TC_0042). Whether `T?`
-        names T's conversion functions is a language question.
+        on classic. Reading the spec found it written for a different model, so the newtypes spec was
+        REVISED on 2026-09-13 (a renamed clone, implicit out of a copyable source, a cast in as a call) and
+        this is its task 15, staged after the clone itself (tasks 13 and 14).
       - >
         A lossless intrinsic conversion Standard declares outside the numeric table -- Regex to String --
         is not lossless to IsWithin, so it counts as the one declared implicit on an argument instead of

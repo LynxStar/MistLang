@@ -35,7 +35,8 @@ Key characteristics:
 - **Emitter**: The C# code emission component (`CSharpEmitter` / `CSharpSourceWriter`) that translates the Mist AST into C# source files.
 - **Cast_Operator_Declaration**: A member declaration inside a class or struct that defines a conversion. Syntax: `modifiers implicit operator TargetType(SourceType param) body` or `modifiers explicit operator TargetType(SourceType param) body`.
 - **Implicit_Cast**: A conversion that the Compiler applies automatically when the source type has an `implicit operator` targeting the destination type. No explicit cast syntax is required.
-- **Explicit_Cast**: A conversion that requires the programmer to write `(TargetType)expression`. The Compiler verifies that an `explicit operator` (or `implicit operator`) exists on the compile-time type of the expression.
+- **Explicit_Cast**: A conversion that requires the programmer to write `(TargetType)expression`. The Compiler verifies that the expression could be passed as an argument to an `explicit operator` (or `implicit operator`) that converts to the target type (Requirement 8).
+- **Lossless_Conversion**: A conversion that changes no data, and so never counts as a user-declared conversion: subsumption (a derived type to its base, `T` to `T | void`, a constituent to its union, a refinement to its base, anything to `unknown`), a Standard `intrinsic` conversion operator, and an enum to its underlying value. A declared cast operator is never lossless, since it cannot promise that its body changes nothing.
 - **Cast_Expression**: The expression syntax `(TargetType)expression` that invokes an explicit (or implicit) cast operator.
 - **Compile_Time_Type**: The static type of an expression as determined by the Compiler during type checking, as opposed to the runtime type. Cast operator lookup uses only the Compile_Time_Type.
 - **Enclosing_Type**: The class or struct in which a Cast_Operator_Declaration is declared. Either the source parameter type or the return type of a cast operator must be the Enclosing_Type.
@@ -120,6 +121,8 @@ Key characteristics:
 
 **User Story:** As a Mist developer, I want implicit casts to be applied automatically during assignment, argument passing, and return statements, so that I do not need to write explicit cast syntax for safe conversions.
 
+An implicit conversion is the same call as an explicit cast (Requirement 8), written invisibly. Because the user cannot see it, it is the one user-declared conversion its value may pass through: user code the reader cannot see must not run in sequence.
+
 #### Acceptance Criteria
 
 1. WHEN the source type of an assignment is not directly assignable to the target type, THE Type_Checker SHALL search for an implicit cast operator on the Compile_Time_Type of the source expression that converts to the target type.
@@ -129,33 +132,42 @@ Key characteristics:
 5. THE Type_Checker SHALL search for implicit cast operators on both the source type and the target type, consistent with C# semantics where either side can define the conversion.
 6. WHEN multiple implicit cast operators are applicable for the same conversion, THE Type_Checker SHALL emit a diagnostic error indicating an ambiguous implicit conversion.
 7. WHEN no implicit cast operator is found and the types are not directly assignable, THE Type_Checker SHALL emit the existing type mismatch diagnostic.
+8. THE Type_Checker SHALL apply an implicit cast operator only when the source value reaches the operator's parameter, and the operator's result reaches the destination, by Lossless_Conversions alone. A value that would need a second user-declared cast operator -- `Feet f = reading;` where `Reading` converts implicitly to `Meters` and `Feet` declares `implicit operator Feet(Meters)` -- SHALL be refused; when the explicit cast of Requirement 8 would accept the same value, the diagnostic SHALL say that an explicit cast exists.
 
 ### Requirement 8: Explicit Cast Expression Type Checking
 
 **User Story:** As a Mist developer, I want the compiler to validate explicit cast expressions against the compile-time type of the operand, so that I get compile-time errors instead of runtime failures.
 
+A cast in Mist is sugar for calling a static conversion function: `(T)v` means `T.ExplicitCast(v)`, and finding the function to call is the desugaring, much as finding an extension method is. The declared cast operators that can convert to `T` are that function's overloads, and the operand is matched against their parameters **as an argument**, so choosing among them is ordinary overload resolution: two equally good candidates are an ambiguity, exactly as `Feet.Convert(reading)` would be. The written cast is the call itself, and its argument may take one user-declared implicit conversion of its own, so `(Feet)reading` is valid where `Reading` converts implicitly to `Meters` and `Feet` declares `explicit operator Feet(Meters)`.
+
 #### Acceptance Criteria
 
 1. WHEN a Cast_Expression is encountered, THE Type_Checker SHALL resolve the target type reference to an IType.
 2. WHEN a Cast_Expression is encountered, THE Type_Checker SHALL determine the Compile_Time_Type of the operand expression.
-3. THE Type_Checker SHALL search for an explicit or implicit cast operator on the Compile_Time_Type of the operand that converts to the target type.
-4. THE Type_Checker SHALL also search for an explicit or implicit cast operator on the target type that converts from the Compile_Time_Type of the operand.
-5. WHEN a matching cast operator is found, THE Type_Checker SHALL set the type of the Cast_Expression to the target type and record the resolved cast operator on the cast expression node.
-6. WHEN no matching cast operator exists on the Compile_Time_Type of the operand or on the target type, THE Type_Checker SHALL emit a diagnostic error indicating that no cast operator exists between the two types.
-7. THE Type_Checker SHALL NOT search base types or derived types of the Compile_Time_Type for cast operators; only operators declared directly on the Compile_Time_Type and the target type are considered.
+3. THE Type_Checker SHALL take as candidates the explicit and implicit cast operators declared on the Compile_Time_Type of the operand and on its base types whose return type reaches the target type by a Lossless_Conversion.
+4. THE Type_Checker SHALL also take as candidates the explicit and implicit cast operators declared on the target type and on its base types whose return type reaches the target type by a Lossless_Conversion.
+5. WHEN a cast operator is selected, THE Type_Checker SHALL set the type of the Cast_Expression to the selected operator's return type, the return type of the function the cast calls, and record the selected cast operator on the cast expression node.
+6. WHEN no candidate exists, or none accepts the operand as an argument, THE Type_Checker SHALL emit a diagnostic error indicating that no cast operator exists between the two types.
+7. THE Type_Checker SHALL find candidates on the base types of the Compile_Time_Type, since a value is a valid argument to a parameter of its base type, and SHALL NOT search derived types, since a value of a base type is not a valid argument to a parameter of a derived type (Requirement 9.2).
 8. WHEN the Compile_Time_Type is already assignable to the target type (identity or subtype), THE Type_Checker SHALL treat the cast expression as valid without requiring a cast operator, and set the expression type to the target type.
-9. WHEN multiple cast operators (explicit and implicit combined) are applicable for the same cast expression, THE Type_Checker SHALL emit a diagnostic error indicating an ambiguous cast.
+9. WHEN two or more candidates accept the operand and overload resolution finds none better than the others, THE Type_Checker SHALL emit a diagnostic error indicating an ambiguous cast that names the tied operators, and SHALL NOT choose one. Candidates declared with the same signature on both ends tie.
+10. A candidate SHALL accept the operand exactly when the operand could be passed as an argument to the candidate's parameter: its Compile_Time_Type reaches the parameter type by Lossless_Conversions, possibly around one user-declared implicit cast operator, or it is an integer constant that fits an integral parameter type. An operand that would need a narrowing conversion or a second user-declared cast operator to reach the parameter -- `(Feet)sensor` where `Sensor` converts implicitly to `Reading` and `Reading` to `Meters` -- SHALL NOT be accepted.
+11. Overload resolution among candidates that accept the operand SHALL prefer an operand whose type is the parameter type over one that converts to it, and otherwise the narrower parameter type. Before that comparison, a candidate whose return type is the target type itself SHALL outrank one whose return type only widens into it, since it is the target type's own conversion: `(long)counter` calls `implicit operator long(Counter)` over `implicit operator int(Counter)`.
+12. WHEN exactly one candidate exists and it does not accept the operand, THE Type_Checker SHALL emit a diagnostic error naming the operand's type, the target type, the operator and its parameter type, as for a call to a method with a single overload.
+13. THE Type_Checker SHALL NOT refuse a cast because the emitted C# would need more than one user-defined conversion in a single cast. That limit is the target language's, not Mist's, and the Emitter lowers each step as a cast of its own.
 
 ### Requirement 9: Compile-Time-Only Cast Safety
 
 **User Story:** As a Mist developer, I want the guarantee that all casts are validated at compile time against the static type, so that I never encounter a runtime cast failure.
+
+What is decided at compile time is which conversion function a cast calls and that the operand may be passed to it. What the called operator's body then does is its own code, as the body of any called method is.
 
 #### Acceptance Criteria
 
 1. THE Type_Checker SHALL resolve cast operators using only the Compile_Time_Type of the operand expression, not any potential runtime type.
 2. WHEN a variable is typed as a base class and the derived class defines a cast operator, THE Type_Checker SHALL NOT make that cast operator available through the base-typed variable.
 3. WHEN a variable is typed as an interface and a class implementing the interface defines a cast operator, THE Type_Checker SHALL NOT make that cast operator available through the interface-typed variable.
-4. THE Compiler SHALL produce no runtime type checks, runtime cast exceptions, or runtime cast failure paths for cast operator invocations; all cast validity is determined at compile time.
+4. THE Compiler SHALL produce no runtime type checks, runtime cast exceptions, or runtime cast failure paths for cast operator invocations; which operator a cast calls, and that its operand may be passed to that operator, are determined at compile time.
 
 ### Requirement 10: C# Code Emission for Cast Operator Declarations
 

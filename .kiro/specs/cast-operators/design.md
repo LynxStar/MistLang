@@ -34,7 +34,8 @@ The implementation touches every stage of the compiler pipeline:
 - **Cast operator lookup uses encoded names**: The naming convention `operator_implicit_{TargetType}` and `operator_explicit_{TargetType}` allows O(1) lookup by name when searching for a specific conversion, while also enabling enumeration of all cast operators on a type by prefix matching.
 - **Resolved cast operators are stored on the semantic model**: Like arithmetic operator resolution, the type checker records the resolved cast operator symbol on the AST node via `RecordResolvedOperator`. The emitter reads this to determine how to emit the conversion.
 - **Implicit casts are a fallback after direct assignability**: The `IsAssignable` method first checks identity, subtype, interface, trait, and numeric widening. Only when all of those fail does it search for implicit cast operators. This preserves existing behavior and prevents cast operators from shadowing inheritance relationships.
-- **Both source and target types are searched for cast operators**: Consistent with C# semantics, when checking if type A can convert to type B, the compiler searches both A's members and B's members for applicable cast operators.
+- **Both source and target types are searched for cast operators**: Consistent with C# semantics, when checking if type A can convert to type B, the compiler searches both A's members and B's members, and each one's base types, for applicable cast operators.
+- **A cast is a call**: `(T)v` is sugar for a static conversion function `T.ExplicitCast(v)`, and the declared cast operators are its overloads. The operand is matched as an argument, so selection is overload resolution and a tie is an ambiguity, and the cast's type is the called operator's return type. See "Selection as Overload Resolution" below.
 - **Cast expressions are added to the `Unary` rule**: The `(Type)expr` syntax has the same precedence as `!expr` and `-expr`. The parser disambiguates from `ParenthesizedExpression` by checking whether the parenthesized content is a type reference followed by a unary expression.
 - **No runtime cast checks**: Since all cast validity is determined at compile time against the static type, the emitter never generates `is`/`as` checks or try-catch blocks for casts. This is the key differentiator from C#.
 - **Intrinsic cast operators are supported**: The stdlib can define intrinsic cast operators (e.g., numeric conversions between primitive types) using the same `intrinsic` modifier pattern as arithmetic operators. The emitter looks up emission templates from the `IntrinsicEmissionRegistry`.
@@ -286,10 +287,27 @@ case CastExpressionUnaryNode castExpr:
 3. If the operand type is already assignable to the target type (identity or subtype), the cast is valid — no operator needed. Record the expression type as the target type.
 4. Otherwise, searches for an explicit or implicit cast operator on the compile-time type of the operand that converts to the target type.
 5. Also searches the target type for an explicit or implicit cast operator that converts from the operand's compile-time type.
-6. **Does NOT search base types or derived types** — only operators declared directly on the compile-time type and the target type (Requirement 8.7).
-7. If a matching operator is found, records it via `RecordResolvedOperator` and sets the expression type to the target type.
+6. Searches the base types of both, since an operand is a valid argument to a parameter of its base type, and **does NOT search derived types** (Requirement 8.7).
+7. If an operator is selected, records it via `RecordResolvedOperator` and sets the expression type to that operator's return type.
 8. If no operator is found, emits `MIST_TC_0042` naming the source and target types.
-9. If multiple operators are found (ambiguous), emits `MIST_TC_0043`.
+9. If overload resolution leaves several operators tied (ambiguous), emits `MIST_TC_0043`.
+
+#### Selection as Overload Resolution
+
+A cast is a call to a conversion function (Requirement 8), so selecting its operator is overload resolution with the operand as the only argument:
+
+1. **A cast the operand already satisfies calls nothing.** Identity and every Lossless_Conversion -- subsumption, a Standard `intrinsic` conversion, an enum to its underlying value -- need no function, so `(unknown)celsius` does not choose among Celsius's operators.
+2. **Candidates** are the explicit and implicit operators declared on the operand's type, the target type, and the base types of each, whose return type reaches the target by a Lossless_Conversion.
+3. **A lone candidate is selected unjudged**, as a method with one overload is: whether the operand may be passed to it is the argument check that follows, which is also what admits an integer constant into a narrower integral parameter.
+4. **Otherwise a candidate is applicable** when the operand reaches its parameter by Lossless_Conversions, around at most one user-declared implicit operator. That is the "at most one user-declared conversion per value" rule: the written cast is the call, and its argument may take one implicit conversion of its own. An implicit conversion at an assignment, argument or return is the call itself, so its value may take none (Requirement 7.8).
+5. **Among applicable candidates, one returning the target type itself outranks one whose result only widens into it**, since it is the target's own conversion: `(long)counter` calls `long(Counter)` rather than `int(Counter)`.
+6. **The best candidate** is chosen as a call's is -- an exact parameter beats a converted one, and otherwise the narrower parameter wins. Several unbeaten candidates are an ambiguity (Requirement 8.9), including two operators of the same signature declared on the two ends, and `(double)counter` where only `int(Counter)` and `long(Counter)` widen into `double`.
+
+The selected operator's parameter is recorded on the cast, and the operand is judged against it exactly as an argument is. A narrowing, or a second user-declared operator, is refused there.
+
+#### Lowering Around C#'s One-Conversion Limit
+
+C# lets a cast apply at most one user-defined conversion, and Mist does not share that rule (Requirement 8.13). An operand that reaches the called operator's parameter through a conversion C# treats as user-defined -- a declared implicit operator, an enum record's conversion to its value, a union carrier's conversion from a constituent -- is converted to the parameter type in a cast of its own first: `(Feet)reading` lowers to `((Feet)(Meters)(reading))`. The enums spec lowers a cast to an enum's lookup the same way.
 
 #### Cast Operator Lookup Algorithm
 
@@ -618,9 +636,9 @@ Explicit cast expressions follow a different path — they are checked in `Check
 
 ### Property 6: Explicit cast expression compile-time safety
 
-*For any* cast expression `(TargetType)expr` where the compile-time type of `expr` declares (directly, not via inheritance) an explicit or implicit cast operator to `TargetType`, or where `TargetType` declares a cast operator from the compile-time type of `expr`, the type checker SHALL accept the cast and set the expression type to `TargetType`. *For any* cast expression where the cast operator is defined only on a derived type of the compile-time type (not on the compile-time type itself), the type checker SHALL reject the cast with a diagnostic naming the compile-time type. *For any* cast expression where the compile-time type is already assignable to the target type, the cast SHALL be accepted without requiring a cast operator.
+*For any* cast expression `(TargetType)expr` where exactly one best cast operator converting to `TargetType` is declared on the compile-time type of `expr`, on `TargetType`, or on a base type of either, and `expr` could be passed as an argument to that operator's parameter, the type checker SHALL accept the cast and set the expression type to that operator's return type. *For any* cast expression where two or more such operators tie under overload resolution, the type checker SHALL reject the cast as ambiguous. *For any* cast expression where the cast operator is defined only on a derived type of the compile-time type (not on the compile-time type itself), the type checker SHALL reject the cast with a diagnostic naming the compile-time type. *For any* cast expression where the compile-time type is already assignable to the target type, the cast SHALL be accepted without requiring a cast operator.
 
-**Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9.1, 9.2, 9.3**
+**Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 8.10, 8.11, 8.12, 9.1, 9.2, 9.3**
 
 ### Property 7: Cast operator C# emission correctness
 

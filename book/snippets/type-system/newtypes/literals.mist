@@ -1,0 +1,33 @@
+using Standard;
+// with: declaration.mist
+
+public class Account
+{
+    public UserId Owner = 1;
+    public UserId Manager { get; set; } = 2;
+
+    public static UserId Guest()
+    {
+        return 0;
+    }
+}
+
+public class Program
+{
+    private static string Describe(UserId id)
+    {
+        return $"user {id}";
+    }
+
+    public static void Main(string[] args)
+    {
+        UserId id = 7;
+        id = 8;
+        UserId[] team = [10, 11];
+        var account = new Account();
+
+        Console.WriteLine($"{Describe(id)} team={team[0]},{team[1]}");
+        Console.WriteLine($"owner={account.Owner} manager={account.Manager} guest={Account.Guest()}");
+        Console.WriteLine(Describe((UserId)9));
+    }
+}

@@ -1,0 +1,40 @@
+using Standard;
+
+public class Tiger : IClonable<Tiger>
+{
+    private static int made = 0;
+    private int stripes;
+
+    public Tiger(int stripes)
+    {
+        this.stripes = stripes;
+    }
+
+    public owned Tiger Clone()
+    {
+        made = made + 1;
+        return new Tiger(stripes + made);
+    }
+
+    public string Describe()
+    {
+        return $"stripes={stripes} made={made}";
+    }
+}
+
+type Jaguar = new Tiger;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var tiger = new Tiger(10);
+        var first = (Jaguar)tiger;
+        var second = (Jaguar)tiger;
+        var back = (Tiger)second;
+
+        Console.WriteLine($"first {first.Describe()}");
+        Console.WriteLine($"second {second.Describe()}");
+        Console.WriteLine($"back {back.Describe()}");
+    }
+}

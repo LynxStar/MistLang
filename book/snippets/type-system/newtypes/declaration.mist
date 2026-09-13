@@ -1,5 +1,21 @@
 using Standard;
 
-type UserId = new int;
-type Label = new string;
-type Flag = new bool;
+public struct Point
+{
+    public int X;
+    public int Y;
+
+    public Point(int x, int y)
+    {
+        this.X = x;
+        this.Y = y;
+    }
+
+    public Point Moved(int dx)
+    {
+        return new Point(X + dx, Y);
+    }
+}
+
+public type UserId = new int;
+public type Position = new Point;

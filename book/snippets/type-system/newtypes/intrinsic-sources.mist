@@ -1,0 +1,16 @@
+using Standard;
+// with: declaration.mist
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        UserId first = 41;
+        UserId next = first + (UserId)1;
+        int raw = next;
+        unknown boxed = next;
+
+        Console.WriteLine($"next={next} value={next.Value} even={next.IsEven()} raw={raw}");
+        Console.WriteLine($"is UserId={boxed is UserId} is int={boxed is int}");
+    }
+}

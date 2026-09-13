@@ -1,0 +1,37 @@
+using Standard;
+// with: declaration.mist
+
+public readonly class Money
+{
+    public int Amount { get; }
+
+    public Money(int amount)
+    {
+        this.Amount = amount;
+    }
+}
+
+type Cash = new Money;
+type Meters = new double;
+type Feet = new double;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var position = new Position(1, 2);
+        Point point = position;
+        point.X = 99;
+        Position entered = (Position)point;
+        Position moved = entered.Moved(5);
+
+        Money money = new Cash(7);
+        var cash = (Cash)money;
+
+        Feet feet = 3.5;
+        Meters meters = (Meters)feet;
+
+        Console.WriteLine($"position.X={position.X} point.X={point.X} moved.X={moved.X}");
+        Console.WriteLine($"money={money.Amount} cash={cash.Amount} meters={meters}");
+    }
+}

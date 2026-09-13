@@ -27,7 +27,7 @@ Significant Features
 
 - **Ownership** — A tiered ownership system that tracks how values are shared and mutated, catching use-after-move and aliasing errors at compile time.
 - **Type Aliases** — Transparent alternative names for existing types (`type Name = ExistingType;`) that the compiler erases during transpilation. Values of the alias and the underlying type are fully interchangeable without casts.
-- **Newtypes** — Distinct types that wrap an existing type (`type Name = new SourceType;`). Unlike aliases, newtypes are opaque — you cannot pass a `UserId` where a plain `int` is expected without an explicit cast, giving compile-time type safety for domain concepts without runtime overhead.
+- **Newtypes** — Distinct types cloned from an existing type (`type Name = new SourceType;`). A newtype has its source's members but never its identity: a raw value enters it only through a cast, or as a literal written where the newtype is in sight, so a `UserId` cannot be confused with an `OrderId` or a plain `int`.
 - **Type Unions** — First-class union types (`A | B`) that let a value hold one of several types, narrowed safely via pattern matching.
 - **Refinement Types** — Types constrained by predicates (e.g., `int where > 0`) that are enforced at compile time and runtime boundaries.
 - **Dependent Types** — Types parameterized by a compile-time constant value rather than another type (e.g., `FixedBuffer<Size:int>`), creating a family of distinct types indexed by that value. A `FixedBuffer<5>` and a `FixedBuffer<10>` are incompatible types, giving compile-time guarantees about dimensions and capacities.

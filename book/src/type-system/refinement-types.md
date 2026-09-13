@@ -2,7 +2,7 @@
 
 Refinement types let you express value constraints directly in the type system. A refinement type narrows an existing base type by attaching a predicate — only values satisfying that predicate belong to the refined type. This gives you compile-time rejection of invalid values and runtime validation via pattern matching, without writing manual guard code.
 
-Unlike [type aliases](./type-aliases.md) (which are transparent names) or [newtypes](./newtypes.md) (which create distinct wrapper types), refinement types keep the same underlying representation as their base type but restrict which values are valid.
+Unlike [type aliases](./type-aliases.md) (which are transparent names) or [newtypes](./newtypes.md) (which create distinct types cloned from their source), refinement types keep the same underlying representation as their base type but restrict which values are valid.
 
 Refinement predicates use the same clause syntax as [pattern matching](./pattern-matching.md) — relational operators, `and` combinators, and property patterns. The key difference is that pattern clauses test a value at runtime and branch on the result, while refinement predicates declare a constraint that the compiler enforces statically wherever possible.
 

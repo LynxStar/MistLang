@@ -1,0 +1,39 @@
+using Standard;
+
+public class Cat
+{
+    public string Name;
+
+    public Cat(string name)
+    {
+        this.Name = name;
+    }
+}
+
+public class Tiger : Cat
+{
+    public Tiger(string name) : base(name)
+    {
+    }
+
+    public Tiger Twin()
+    {
+        return new Tiger($"{Name} II");
+    }
+}
+
+type Jaguar = new Tiger;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var jaguar = new Jaguar("Bagheera");
+        Jaguar twin = jaguar.Twin();
+        Cat cat = twin;
+        unknown boxed = twin;
+
+        Console.WriteLine($"twin={twin.Name} cat={cat.Name}");
+        Console.WriteLine($"is Jaguar={boxed is Jaguar} is Tiger={boxed is Tiger} is Cat={boxed is Cat}");
+    }
+}

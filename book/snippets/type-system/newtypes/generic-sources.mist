@@ -1,0 +1,43 @@
+using Standard;
+
+public class Box<T>
+{
+    private T item;
+
+    public Box(T item)
+    {
+        this.item = item;
+    }
+
+    public T Get()
+    {
+        return item;
+    }
+
+    public Box<T> Again()
+    {
+        return new Box<T>(item);
+    }
+
+    public Box<string> Label()
+    {
+        return new Box<string>($"<{item}>");
+    }
+}
+
+type IntBox = new Box<int>;
+type Boxed<T> = new Box<T>;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var box = new IntBox(5);
+        IntBox again = box.Again();
+        Box<string> label = box.Label();
+        var boxed = new Boxed<bool>(true);
+        Boxed<string> relabelled = boxed.Label();
+
+        Console.WriteLine($"again={again.Get()} label={label.Get()} relabelled={relabelled.Get()}");
+    }
+}

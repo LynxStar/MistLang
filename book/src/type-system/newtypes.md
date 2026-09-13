@@ -1,10 +1,12 @@
 # Newtypes
 
-A newtype creates a distinct type from an existing type. The compiler creates a new type of the same kind (struct for struct, class for class) and clones all of the source's public members into it. Unlike type aliases, which are transparent and interchangeable with their source type, a newtype is a separate type at compile time — you cannot accidentally pass a `UserId` where a plain `int` is expected, or vice versa. This gives you type safety for domain concepts without runtime overhead.
+A newtype is a renamed clone of an existing type. `type Jaguar = new Tiger;` builds `Jaguar` from `Tiger`'s own declaration -- the same base type, the same abstract bases, the same fields, properties, methods, constructors, operators and indexers -- with every reference to `Tiger` in that declaration replaced by `Jaguar`. What the newtype does not get is `Tiger`'s identity. A `Jaguar` is never a `Tiger`, statically or at runtime.
 
-## Newtype Declaration
+That gap is the point. A newtype guards the place where a raw value enters a domain: a `UserId` made from an `int` has to say so, and an `OrderId` cannot be passed where a `UserId` is expected. Leaving the domain costs nothing where a copy of the value is as good as the value itself.
 
-A newtype is declared with the `type` keyword, a name, and `= new SourceType;`. The source type can be any struct or class.
+## Declaring a Newtype
+
+A newtype is declared with the `type` keyword, a name, and `= new` followed by the source type. The source can be a class or a struct declared in Mist, or a readonly intrinsic Standard type such as `int`, `double`, `bool` or `string`.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -19,108 +21,188 @@ A newtype is declared with the `type` keyword, a name, and `= new SourceType;`. 
 {{#endtab }}
 {{#endtabs }}
 
-The compiler clones all public members from the source type into the newtype and generates explicit cast operators in both directions so conversions are always intentional.
+The source may also be named through a type alias, or be a constructed generic type (see [Generic Sources](#generic-sources)). An array, an enum, a union, a function type, a refinement, a type parameter or a CLR type cannot be the source of a newtype, and neither can a sealed class. A tuple source is covered by [Variadics](./variadics.md).
 
-## Newtypes from User-Defined Types
+## A Renamed Clone
 
-Newtypes work the same way regardless of whether the source is a struct or a class. The compiler produces a new type of the same kind with the source's constructor and public members cloned in.
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/type-system/newtypes/wrapping-structs.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/type-system/newtypes/wrapping-structs.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
+Because the newtype is its source's declaration bound again under a new name, a member that takes or returns the source takes or returns the newtype. `Tiger.Twin()` returns a `Tiger`, so `Jaguar.Twin()` returns a `Jaguar`. The source's base types come along too: a `Jaguar` is a `Cat` wherever `Tiger` is one.
 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/type-system/newtypes/wrapping-classes.mist}}
+{{#include ../../snippets/type-system/newtypes/renamed-clone.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/type-system/newtypes/wrapping-classes.cs}}
+{{#include ../../snippets/type-system/newtypes/renamed-clone.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
 
-Even though `Position` has the same shape as `Point` and `Actor` has the same shape as `Entity`, they are distinct types — you cannot assign one to the other without an explicit cast.
+The type tests show the other half. A `Jaguar` passes `is Jaguar` and `is Cat`, and fails `is Tiger`, because nothing in the program makes a `Jaguar` a `Tiger`. The emitted C# keeps that true at runtime: the newtype is a class of its own, deriving from `Cat`, not from `Tiger`.
+
+Only what the source's own declaration contains is cloned. A retroactive conformance such as `with Tiger : INamed { ... }`, or an extension block for `Tiger`, does not apply to `Jaguar`. A type nested inside `Tiger` is not cloned either; the clone refers to the same nested type. If a member of the source does not hold once renamed -- a `Tiger` method passing `this` to a parameter of type `Tiger` passes a `Jaguar` in the clone -- the compiler reports it at the newtype declaration, naming the member.
 
 ## Newtypes vs Type Aliases
-
-The key difference between newtypes and type aliases is **interchangeability**:
 
 | | Type Alias | Newtype |
 |---|---|---|
 | **Declaration** | `type Name = SourceType;` | `type Name = new SourceType;` |
-| **Type identity** | Same type as the source — fully interchangeable | Distinct type — not interchangeable |
-| **Assignment** | Can assign source type values directly | Requires explicit cast |
-| **Purpose** | Readability and convenience | Type safety and domain modeling |
+| **Type identity** | The source type under another name | A distinct type that is never its source |
+| **Members** | The source's | The source's, renamed |
+| **Entering from the source** | Nothing to do | A cast, or a literal where the slot's type is in sight |
+| **Leaving for the source** | Nothing to do | Implicit for a copyable source, a cast for a clonable class |
+| **Emitted C#** | Erased | A type of its own |
 
-A type alias is transparent: `type Seconds = int;` means `Seconds` and `int` are the same type everywhere. A newtype is opaque: `type Seconds = new int;` means `Seconds` is its own type, and you must cast explicitly to convert between `Seconds` and `int`.
+Use an alias for a shorter or clearer name. Use a newtype when values that share a representation must not be mixed up.
 
-Use type aliases when you want a shorter or more descriptive name. Use newtypes when you want the compiler to prevent accidental mixing of values that happen to share the same underlying representation (e.g., `UserId` vs `OrderId`, both wrapping `int`).
+## Intrinsic Sources
 
-## Member Access
-
-Newtype instances expose the source type's public members directly — they're cloned into the new type. You access fields and methods on a newtype the same way you would on the source type.
-
-{{#tabs }}
-{{#tab name="Mist" }}
-```mist
-{{#include ../../snippets/type-system/newtypes/member-access.mist}}
-```
-{{#endtab }}
-{{#tab name="Emitted C#" }}
-```csharp
-{{#include ../../snippets/type-system/newtypes/member-access.cs}}
-```
-{{#endtab }}
-{{#endtabs }}
-
-The source type's public fields, properties, and methods are all reproduced on the newtype. The only addition is the explicit cast operators that let you convert between the newtype and its source.
-
-## Explicit Casting
-
-Converting between a newtype and its source type requires an explicit cast. This is intentional — the whole point of a newtype is to prevent accidental mixing of types that share the same representation.
+A newtype over an intrinsic Standard type is that type's contract renamed. `type UserId = new int;` has `int`'s operators and members, taking and returning `UserId`, so `first + (UserId)1` is a `UserId`. It also has a public readonly `Value` field holding the backing `int`.
 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/type-system/newtypes/explicit-casting.mist}}
+{{#include ../../snippets/type-system/newtypes/intrinsic-sources.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/type-system/newtypes/explicit-casting.cs}}
+{{#include ../../snippets/type-system/newtypes/intrinsic-sources.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
 
-The cast syntax is `(NewType)value` to create the newtype and `(SourceType)newtypeValue` to extract the source value. Without the cast, the compiler reports a type error — there is no implicit conversion between a newtype and its source type.
+A boxed `UserId` fails `is int`: the emitted newtype is a struct of its own holding the value, never the `int` itself.
 
-## Type Identity and Pattern Matching
+## Copyable Sources
 
-Because a newtype is a nominally distinct type, it does not match its source type in pattern matching. A `UserId` is not an `int` — even though it wraps one. This means `is int` will fail on a `UserId` value, and `is UserId` will fail on a plain `int`.
+A struct, a readonly intrinsic type and a readonly class are **copyable**: a copy of one cannot be told from the original. A newtype over a copyable source converts in both directions, and the two directions differ on purpose.
+
+- **Leaving is implicit.** A newtype value converts to its source wherever the source is expected, and the result is a copy. The conversion loses nothing, so it never counts as the one user-declared conversion a value may pass through: `int raw = next;` holds, and so does `long wide = next;`.
+- **Entering takes a cast.** `(Position)point` calls the newtype's conversion from its source, and the result is the newtype itself, never an optional. The operand is matched as an argument would be, so it may reach the source through a declared implicit conversion first, and `(Meters)feet` works for two newtypes over `double` because a `Feet` leaves for `double` on its way in.
 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../../snippets/type-system/newtypes/type-identity.mist}}
+{{#include ../../snippets/type-system/newtypes/copyable-conversions.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../../snippets/type-system/newtypes/type-identity.cs}}
+{{#include ../../snippets/type-system/newtypes/copyable-conversions.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
 
-Passing a `UserId` to an `unknown` parameter and checking `is int` produces no match — the runtime type is `UserId`, not `int`. Only `is UserId` succeeds. This is the core guarantee of newtypes: they are separate types at every level, including runtime type identity.
+Changing `point.X` leaves `position` untouched: `Point point = position;` copied it. The emitted conversions copy field by field, reaching each field through an `UnsafeAccessor` so neither type's private state is widened, and allocate a class uninitialized so the source's constructor does not run a second time.
+
+Without a cast, any other value is refused where a newtype is expected -- the source, and another newtype over the same source alike:
+
+```text
+error MIST_PA_CAST_REQUIRED: Cannot implicitly convert type 'int' to 'UserId'. An explicit cast exists (are you missing a cast?)
+error MIST_PA_CAST_REQUIRED: Cannot implicitly convert type 'Feet' to 'Meters'. An explicit cast exists (are you missing a cast?)
+```
+
+## Literals in Sight
+
+A literal enters a newtype without a cast when the type of the slot it is written into is in sight. `UserId id = 7;` names `UserId` right there, so the intent is stated. The positions that qualify are:
+
+- the initializer of a local declared with the newtype;
+- the right-hand side of a simple assignment to a variable, field, property or element of the newtype, including an object initializer entry;
+- the initializer of a field or property declared with the newtype, and an entry in a `default` block for such a field;
+- a `return` from a method, getter or operator declared to return the newtype;
+- an element of an array literal written in one of those positions for an array of the newtype.
+
+The literal has to be one the source accepts: `300` cannot enter a newtype over `byte`.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/newtypes/literals.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/newtypes/literals.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Everywhere else a literal needs its cast. A call argument is the case that matters most: with `Describe(UserId id)`, the call `Describe(9)` shows no `UserId` at the call site, and two swapped literal arguments are exactly the mistake a newtype exists to catch.
+
+```text
+error MIST_PA_CAST_REQUIRED: Cannot implicitly convert type 'int' to 'UserId'. An explicit cast exists (are you missing a cast?)
+```
+
+The same goes for an operand of an operator, a branch of a `switch` expression, and the result of a lambda.
+
+## Clonable Class Sources
+
+A class that is not readonly has no copy Mist could define for it: shallow or deep, private state, owned fields are all the class's own business. So a newtype and a mutable class source convert only when the class says how it is copied, by implementing `IClonable` of itself.
+
+When it does, both conversions are explicit, and each runs a `Clone` body with the operand as `this`:
+
+- `(Jaguar)tiger` runs `Jaguar`'s renamed `Clone`, so it reads `tiger`'s state and constructs a `Jaguar`.
+- `(Tiger)jaguar` runs `Tiger`'s own `Clone`, reading `jaguar`'s state and constructing a `Tiger`.
+
+Only the receiver changes. A static member the body names belongs to the type whose `Clone` it is, and the body reaches every member of either type that it reads, private ones included, since it is the source's own code.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/newtypes/clonable-classes.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/newtypes/clonable-classes.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The two casts into `Jaguar` count `made` to 2 in `Jaguar`'s statics, while the cast back counts 1 in `Tiger`'s. In the emitted C#, each conversion is an operator on the newtype whose parameter stands for `this`, and a member C# would refuse from the newtype -- a private field of `Tiger` -- is reached through an `UnsafeAccessor` declared beside it.
+
+A class with no `IClonable` of itself, including one that only inherits `IClonable` of a base, defines no copy, and a cast either way is refused:
+
+```text
+error MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY: Cannot cast 'Entity' to 'Actor'. 'Entity' defines no copy to convert with; a newtype and its mutable class source convert only when the class implements 'IClonable<Entity>' with a Clone of its own.
+```
+
+A `Clone` body can also fail to hold with the other type as `this`. A field declared `Tiger? Mate` is `Jaguar? Mate` in the clone, so copying `Mate` across passes a `Tiger` where a `Jaguar` is needed. Fields are never converted recursively; the cast is refused, naming the member:
+
+```text
+error MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD: Cannot cast 'Tiger' to 'Jaguar'. The cast runs 'Jaguar.Clone' with a 'Tiger' as this, and it does not hold at 'Mate': Cannot implicitly convert type 'Tiger | void' to 'Jaguar | void'.
+```
+
+## Generic Sources
+
+The source of a newtype can be a constructed generic type, and a newtype can declare type parameters of its own. `type IntBox = new Box<int>;` is `Box`'s declaration with `T` bound to `int`, so `IntBox.Get()` returns an `int`. `type Boxed<T> = new Box<T>;` is a generic clone.
+
+Inside the clone, the source named with type arguments is the newtype exactly when some instance of the newtype is a clone of that construction. In `IntBox`, `Box<T>` is `IntBox`, while `Box<string>` stays a `Box<string>`, since no `IntBox` clones it. In `Boxed<T>`, `Box<string>` is `Boxed<string>`.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/newtypes/generic-sources.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/newtypes/generic-sources.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+A constraint on the source's type parameter moves to the newtype's parameter it is bound to. A newtype over a constructed source gets the same conversions as any other: `IntBox` over a clonable `Box<int>`, or a newtype over a constructed struct, converts as described above.
+
+> **Not yet implemented:** a conversion or an operator on an instance of a *generic* newtype, such as `Pair<int, int> pair = twin;` with `type Twin<T> = new Pair<T, T>;`, is refused on the experimental pipeline. It waits on cast operators and operators declared on generic types being found for their constructed instances, which no generic type has yet.
+
+## How Newtypes Compile to C#
+
+A newtype is never lowered to its source, because a value of the source's C# type would pass the type test the newtype must fail. The emitted shape follows the source:
+
+- **A class source** becomes a class named after the newtype, with the source's base list, members and bodies renamed. A clonable source adds an explicit conversion operator in each direction, emitted only when some cast calls it.
+- **A struct or readonly class source** does the same, adding an implicit conversion to the source and an explicit one from it, each copying every field.
+- **An intrinsic source** becomes a struct holding the backing value in `Value`, supplying each member of the source's contract by forwarding to the backing value and wrapping a result of the newtype.

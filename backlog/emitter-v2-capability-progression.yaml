@@ -1913,6 +1913,42 @@ capabilities:
       unsubstituted, the result unsubstituted, the base walk stopping at a constructed base, and the cast's
       parameter, the implicit parameter, the implicit result and the cast result each read off the
       declaration instead of the function.
+
+      A LOSSLESS INTRINSIC STEP IS FREE IN A CHAIN, AND A CAST'S ARGUMENT IS RECORDED (2026-09-13), closing brief
+      item 3 and analysis order 4's last task. Regex to String is Standard's one intrinsic implicit conversion
+      outside the numeric table, lossless by the cast-operators glossary but not containment, so
+      ConversionClassifier.IsFree never admitted it and a chain through it spent the one declared conversion.
+      CastOperatorSelection now brackets both ends of a candidate with IsLossless: free, or one intrinsic
+      implicit conversion between free steps. A cast whose operand takes its one declared implicit wraps that
+      operand in an ImplicitConversionExpression, the operand being an argument; ReachesAsArgument -- implicit
+      by the classifier, a fitting constant, or through that selection -- is what a cast candidate's
+      applicability and the classifier's explicit answer ask. ConversionRelation.IsImplicit, which overload
+      applicability alone reads, asks the implicit selection in place of FindOperator, so an overload is
+      applicable exactly where its argument would wrap.
+      MEASURED on v2 before and after. TWO ADMITTED PROGRAMS FAILED IN ROSLYN: `(string)pattern` and `(Tag)pattern`
+      over explicit Tag(string), each "Cannot convert type Regex to string", the intrinsic conversion having only
+      a C# cast to spell it; both print the pattern. FIVE VALID PROGRAMS WERE REFUSED: `Label label = pattern;`
+      (MIST_PA_CAST_REQUIRED), `Sink.Show(pattern)` over Show(Label) and Show(int)
+      (MIST_PM_UNRESOLVABLE_OVERLOAD), `(Feet)pattern` through explicit Feet(Meters) and implicit Meters(string)
+      and `(Grade)Priority.High` through explicit Grade(Level) and implicit Level(int) (both
+      MIST_PA_CAST_ARGUMENT_MISMATCH), and `string text = new Pattern();` through `implicit operator
+      regex(Pattern)` (MIST_PA_NO_IMPLICIT_CONVERSION); all five run. Classic fails the Label argument in Roslyn;
+      the rest were not probed on classic. The regex step reads the pattern on whichever side of the call it
+      falls, with the receiver parenthesized: `((Probe.Label)((pattern).ToString()))`,
+      `(((System.Text.RegularExpressions.Regex)(new Probe.Pattern()))).ToString()`, and `(Feet)pattern` as
+      `((Probe.Feet)(((Probe.Meters)((pattern).ToString()))))`.
+      STILL REFUSED, as they must be: `Label twice = new Pattern();`, two declared conversions around the
+      intrinsic step, and `Feet needsCast = pattern;`, now CAST_REQUIRED since the cast that works is found.
+      PROVED BY RegexChainSelectionTests over the real Standard (the parameter a regex reaches, a regex result
+      reaching a string, the overload made applicable, both casts' operands recorded, six admits, the
+      cast-required message, the two-declared refusal), CastEmissionTests and ImplicitConversionEmissionTests
+      for the spellings, and CastLoweringTests, whose `(Feet)reading` row moved to a fact: the step to Meters is
+      the recorded argument now, not CastLowering's. Ten mutations on confirmed builds, each failing at least
+      one test: no intrinsic step lossless, a declared operator counted as lossless, the cast operand
+      unrecorded, argument reach blind to the chain, overload applicability back on FindOperator, the operand
+      and result steps each cast rather than read, the intrinsic cast and the intrinsic implicit call each
+      spelled as a cast, and the classifier's explicit answer blind to the chain. Full suite green, 6075 of
+      6075.
     tasks:
       - >
         Record the conversion where a statement converts each element it reads: a foreach variable and a

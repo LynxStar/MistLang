@@ -460,6 +460,19 @@ rules:
       MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD when that body does not type: the runner judges each such body
       first, every rule over it alone with its findings withheld, and hands the reasons to the rule through
       AnalysisContext.ConversionRefusals.
+
+      REGEX TO STRING IS FREE IN A CHAIN (2026-09-13, emitter order 46), closing the task that said it counted
+      as the one declared implicit. CastOperatorSelection brackets an operator's ends with a lossless test that
+      admits one of Standard's intrinsic implicit conversions between free steps, as the glossary's
+      Lossless_Conversion names them, and a cast's operand that takes its one declared implicit is now recorded
+      as an ImplicitConversionExpression. MEASURED on v2 before and after: `(Feet)pattern` through explicit
+      Feet(Meters) and implicit Meters(string) was MIST_PA_CAST_ARGUMENT_MISMATCH and prints the pattern;
+      `(Grade)Priority.High` through explicit Grade(Level) and implicit Level(int), the enum step being lossless
+      too, was CAST_ARGUMENT_MISMATCH and prints 6. `Label label = pattern;` with implicit Label(string) was
+      MIST_PA_CAST_REQUIRED, and `string text = new Pattern();` with `implicit operator regex(Pattern)` was
+      MIST_PA_NO_IMPLICIT_CONVERSION; both print. `Label twice = new Pattern();`, two declared conversions
+      around the intrinsic step, stays refused, and `Feet needsCast = pattern;` is CAST_REQUIRED, the cast
+      that would work being found through the same step. Recorded in full under emitter order 46.
     tasks:
       - >
         Order 5 is where the classification gets its other customers: assignment, argument, return, arm
@@ -470,10 +483,6 @@ rules:
         on classic. Reading the spec found it written for a different model, so the newtypes spec was
         REVISED on 2026-09-13 (a renamed clone, implicit out of a copyable source, a cast in as a call) and
         this is its task 15, staged after the clone itself (tasks 13 and 14).
-      - >
-        A lossless intrinsic conversion Standard declares outside the numeric table -- Regex to String --
-        is not lossless to IsWithin, so it counts as the one declared implicit on an argument instead of
-        being free. No sample reaches a chain through it.
 
   - id: assignability-core
     name: Assignability at every position that has a target type

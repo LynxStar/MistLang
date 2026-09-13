@@ -833,7 +833,7 @@ internal static class BodyEmitter
                 // So `(Kelvin)a + b` arrives already shaped as a cast of `a`, and emitting the
                 // operand bare cannot capture the `+ b`.
                 writer.Append($"(({TypeNameEmitter.Emit(cast.Type)})");
-                writer.Append(EnumEmitter.LookupArgument(cast, Render(cast.Operand, diagnostics)));
+                writer.Append(CastLowering.Argument(cast, Render(cast.Operand, diagnostics)));
                 writer.Append(")");
                 break;
 

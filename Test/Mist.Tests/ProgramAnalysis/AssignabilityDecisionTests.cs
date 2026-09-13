@@ -62,6 +62,13 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
             public static int Outer() { var f = () => { return "a"; }; return f().Length; }
             public static int Wrapped() { var t = async { return "a"; }; return 1; }
         }
+
+        public class Counter
+        {
+            public Counter() { }
+
+            public static implicit operator int(Counter c) { return 1; }
+        }
         """;
 
     protected override string Preamble { get; } = """
@@ -139,6 +146,12 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
     public void AValueAlreadyWithinItsTarget_IsAdmitted(string statement)
     {
         AssertSilent(statement);
+    }
+
+    [Fact]
+    public void AValueThroughOneDeclaredImplicitAndThenAWidening_IsAdmitted()
+    {
+        AssertSilent("long l = new Counter();");
     }
 
     [Theory]

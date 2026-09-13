@@ -382,11 +382,12 @@ internal static class OperatorBinder
                     }
 
                     var targetType = context.Resolver.Resolve(cast.TargetType, ctx.Scope);
-                    var conversion = ConversionRelation.FindOperator(
-                        operand.Type, targetType, includeExplicit: true);
+                    var called = CastOperatorSelection.Best(
+                        operand.Type, targetType, context.ProgramModel.TypeInterner);
 
                     return new CastExpression(
-                        node, operand, targetType, conversion, CastResultType(operand.Type, targetType, context));
+                        node, operand, targetType, called,
+                        called is [var selected] ? selected.TargetType : CastResultType(operand.Type, targetType, context));
                 }
 
             default:

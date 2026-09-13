@@ -30,7 +30,7 @@ internal static class ConversionRelation
 
     public static bool IsImplicit(IMistType from, IMistType to)
     {
-        return IsWithin(Unrefined(from), Unrefined(to)) || FindOperator(from, to, includeExplicit: false) is not null;
+        return IsWithin(Unrefined(from), Unrefined(to)) || FindOperator(from, to) is not null;
     }
 
     /// <summary>
@@ -95,33 +95,22 @@ internal static class ConversionRelation
     /// ends are bracketed by <see cref="IsWithin"/> rather than <see cref="IsImplicit"/>, so a match
     /// cannot chain a second user-declared conversion. Null means none was found, not that one is built in.
     /// </summary>
-    public static CastOperator? FindOperator(IMistType from, IMistType to, bool includeExplicit)
+    public static CastOperator? FindOperator(IMistType from, IMistType to)
     {
-        return DeclaredBy(from, from, to, includeExplicit)
-            ?? DeclaredBy(to, from, to, includeExplicit)
-            ;
+        return DeclaredOn(from).Concat(DeclaredOn(to)).FirstOrDefault(castOperator => castOperator.IsImplicit
+            && IsWithin(from, castOperator.SourceParameter.Type)
+            && IsWithin(castOperator.TargetType, to));
     }
 
-    private static CastOperator? DeclaredBy(IMistType declaring, IMistType from, IMistType to, bool includeExplicit)
+    public static IEnumerable<CastOperator> DeclaredOn(IMistType type)
     {
-        var current = declaring as ConcreteType;
-
-        while(current is not null)
+        for(var current = type as ConcreteType; current is not null; current = current.BaseType as ConcreteType)
         {
             foreach(var castOperator in current.CastOperatorsList)
             {
-                if((castOperator.IsImplicit || includeExplicit)
-                    && IsWithin(from, castOperator.SourceParameter.Type)
-                    && IsWithin(castOperator.TargetType, to))
-                {
-                    return castOperator;
-                }
+                yield return castOperator;
             }
-
-            current = current.BaseType as ConcreteType;
         }
-
-        return null;
     }
 
     /// <summary>

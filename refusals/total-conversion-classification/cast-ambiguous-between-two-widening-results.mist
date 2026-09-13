@@ -1,0 +1,27 @@
+using Standard;
+
+namespace Refusal;
+
+public class Tally
+{
+    public static implicit operator int(Tally t)
+    {
+        return 1;
+    }
+
+    public static implicit operator long(Tally t)
+    {
+        return 2L;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var tally = new Tally();
+        // REFUSE: MIST_PA_AMBIGUOUS_CAST
+        var converted = (double)tally;
+        Console.WriteLine("unreachable");
+    }
+}

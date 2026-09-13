@@ -1,7 +1,8 @@
-// Tier 3 (Component): the casts to an enum that CastAnalyzer deliberately does NOT refuse. A cast is sugar
-// for a conversion function, so an enum cast admits exactly what could be passed to a parameter of the
-// underlying type -- enums spec, Requirement 15.3 -- and each row is one kind of argument conversion. The
-// corpus holds what the rule refuses; a silence has no line to put a marker on.
+// Tier 3 (Component): the casts CastAnalyzer deliberately does NOT refuse. A cast is sugar for a conversion
+// function, so a cast admits exactly what could be passed to the function it calls -- an enum's lookup
+// (enums spec, Requirement 15.3) or a declared cast operator (cast-operators spec, Requirement 8) -- and
+// each row is one kind of argument conversion. The corpus holds what the rule refuses; a silence has no line
+// to put a marker on.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
@@ -14,6 +15,7 @@ public sealed class CastDecisionTests : ProgramModelProbe
     private static readonly string[] Ids =
     [
         "MIST_PA_ENUM_CAST_ARGUMENT_MISMATCH", "MIST_PA_CAST_HAS_NO_CONVERSION", "MIST_PA_NO_IMPLICIT_CONVERSION",
+        "MIST_PA_CAST_ARGUMENT_MISMATCH", "MIST_PA_AMBIGUOUS_CAST", "MIST_PA_CAST_REQUIRED",
     ];
 
     public CastDecisionTests()
@@ -42,6 +44,55 @@ public sealed class CastDecisionTests : ProgramModelProbe
                 return c.Count;
             }
         }
+
+        public class Meters
+        {
+            public Meters() { }
+        }
+
+        public class Reading
+        {
+            public Reading() { }
+
+            public static implicit operator Meters(Reading r) { return new Meters(); }
+        }
+
+        public class Feet
+        {
+            public Feet() { }
+
+            public static explicit operator Feet(Meters m) { return new Feet(); }
+        }
+
+        public class Yards
+        {
+            public Yards() { }
+
+            public static implicit operator Yards(Meters m) { return new Yards(); }
+        }
+
+        public class Fathoms
+        {
+            public Fathoms() { }
+
+            public static explicit operator Fathoms(double depth) { return new Fathoms(); }
+        }
+
+        public class Crate
+        {
+            public Crate() { }
+
+            public static explicit operator Crate(byte size) { return new Crate(); }
+        }
+
+        public class Tally
+        {
+            public Tally() { }
+
+            public static implicit operator int(Tally t) { return 1; }
+
+            public static implicit operator long(Tally t) { return 2L; }
+        }
         """;
 
     protected override string Preamble { get; } = """
@@ -49,6 +100,8 @@ public sealed class CastDecisionTests : ProgramModelProbe
         byte b = 1;
         Priority priority = Priority.Low;
         Counter counter = new Counter(2);
+        Reading reading = new Reading();
+        Tally tally = new Tally();
         """;
 
     [Theory]
@@ -63,6 +116,18 @@ public sealed class CastDecisionTests : ProgramModelProbe
     [InlineData("Priority fromItself = (Priority)priority;")]
     [InlineData("Priority narrowedByCoalescing = (Priority)x ?? Priority.Low;")]
     public void ACastToAnEnumWhoseOperandCouldBePassedToItsUnderlyingType_IsAdmitted(string statement)
+    {
+        Assert.Empty(Analyse(statement));
+    }
+
+    [Theory]
+    [InlineData("Feet throughADeclaredImplicit = (Feet)reading;")]
+    [InlineData("Yards anImplicitOperatorCalledExplicitly = (Yards)reading;")]
+    [InlineData("Fathoms throughADeclaredImplicitThenAWidening = (Fathoms)counter;")]
+    [InlineData("Fathoms throughAnEnumsBackingValue = (Fathoms)priority;")]
+    [InlineData("Crate aFittingConstant = (Crate)2;")]
+    [InlineData("long theOperatorAnsweringTheWrittenType = (long)tally;")]
+    public void ACastWhoseOperandCouldBePassedToTheOperatorItCalls_IsAdmitted(string statement)
     {
         Assert.Empty(Analyse(statement));
     }

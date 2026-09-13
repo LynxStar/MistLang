@@ -1,7 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
-using Mist.ProgramModel.Construction.Binding;
-using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -79,21 +77,6 @@ internal static class EnumEmitter
 
             writer.WriteLine("return null;");
         }
-    }
-
-    /// <summary>
-    /// The operand of a cast to an enum, converted to the lookup operator's parameter type when it is not
-    /// already that type. Mist matches the operand as an argument, so any implicit conversion into the
-    /// underlying type applies; a C# cast applies at most one user-defined conversion, so an operand that
-    /// reaches the underlying type through one of its own -- another enum, a union carrier, a declared
-    /// implicit operator -- must reach it in a cast of its own before the lookup operator can take it.
-    /// </summary>
-    internal static string LookupArgument(CastExpression cast, string operand)
-    {
-        return cast.LookupParameterType is { } parameter && !ConversionRelation.IsIdentity(cast.Operand.Type, parameter)
-            ? $"({TypeNameEmitter.Emit(parameter)})({operand})"
-            : operand
-            ;
     }
 
     private static void EmitToString(EnumType type, CSharpWriter writer)

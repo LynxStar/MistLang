@@ -448,7 +448,7 @@ internal static class OverloadResolution
     /// FROM CLASSIC where a user-declared operator between them resolves the call instead.
     /// </para>
     /// </summary>
-    private static int CompareConversions(IMistType argument, IMistType left, IMistType right)
+    internal static int CompareConversions(IMistType argument, IMistType left, IMistType right)
     {
         if(ConversionRelation.IsIdentity(left, right))
         {

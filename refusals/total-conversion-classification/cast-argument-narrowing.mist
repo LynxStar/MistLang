@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+public class Feet
+{
+    public static explicit operator Feet(int length)
+    {
+        return new Feet();
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        long length = 3L;
+        // REFUSE: MIST_PA_CAST_ARGUMENT_MISMATCH
+        var converted = (Feet)length;
+        Console.WriteLine("unreachable");
+    }
+}

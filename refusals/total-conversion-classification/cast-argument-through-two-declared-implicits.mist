@@ -1,0 +1,42 @@
+using Standard;
+
+namespace Refusal;
+
+public class Meters
+{
+}
+
+public class Feet
+{
+    public static explicit operator Feet(Meters m)
+    {
+        return new Feet();
+    }
+}
+
+public class Reading
+{
+    public static implicit operator Meters(Reading r)
+    {
+        return new Meters();
+    }
+}
+
+public class Sensor
+{
+    public static implicit operator Reading(Sensor s)
+    {
+        return new Reading();
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var sensor = new Sensor();
+        // REFUSE: MIST_PA_CAST_ARGUMENT_MISMATCH
+        var converted = (Feet)sensor;
+        Console.WriteLine("unreachable");
+    }
+}

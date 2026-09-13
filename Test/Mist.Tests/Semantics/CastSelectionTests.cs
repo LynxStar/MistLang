@@ -81,6 +81,63 @@ public sealed class CastSelectionTests : ProgramModelProbe
         }
         """;
 
+    private const string ChainTypes = """
+        public class Reading
+        {
+            public Reading() { }
+
+            public static implicit operator Meters(Reading r) { return new Meters(1.0); }
+        }
+
+        public class Tally
+        {
+            public Tally() { }
+
+            public static implicit operator int(Tally t) { return 1; }
+
+            public static implicit operator long(Tally t) { return 2L; }
+        }
+        """;
+
+    private const string TiedTypes = """
+        public class Yards
+        {
+            public Yards() { }
+        }
+
+        public class Fathom
+        {
+            public Fathom() { }
+
+            public static explicit operator Fathom(Meters m) { return new Fathom(); }
+
+            public static explicit operator Fathom(Yards y) { return new Fathom(); }
+        }
+
+        public class Sounding
+        {
+            public Sounding() { }
+
+            public static implicit operator Meters(Sounding s) { return new Meters(1.0); }
+
+            public static implicit operator Yards(Sounding s) { return new Yards(); }
+        }
+
+        public class Link
+        {
+            public Link() { }
+
+            public static explicit operator Anchor(Link l) { return new Anchor(); }
+        }
+
+        public class Anchor
+        {
+            public Anchor() { }
+
+            public static explicit operator Anchor(Link l) { return new Anchor(); }
+        }
+        """;
+
     public CastSelectionTests()
         : base("MistCast_")
     {
@@ -225,6 +282,65 @@ public sealed class CastSelectionTests : ProgramModelProbe
 
         Assert.Equal("Probe.Rank", cast.Type.FullyQualifiedName);
         Assert.Null(cast.LookupParameterType);
+    }
+
+    [Fact]
+    public void ACastWhoseOperandReachesTheParameterByADeclaredImplicit_CallsTheOperator()
+    {
+        var cast = SingleCast("var f = (Feet)reading;", ChainTypes, "var reading = new Reading();");
+
+        Assert.NotNull(cast.Operator);
+        Assert.Equal("Probe.Meters", cast.Operator.SourceParameter.Type.FullyQualifiedName);
+        Assert.Equal("Probe.Meters", cast.ParameterType?.FullyQualifiedName);
+        Assert.Equal("Probe.Feet", cast.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void AnOperatorAnsweringTheWrittenType_OutranksOneWideningIntoIt()
+    {
+        var cast = SingleCast("var l = (long)tally;", ChainTypes, "var tally = new Tally();");
+
+        Assert.Equal(WellKnownTypes.Int64.FullyQualifiedName, cast.Operator?.TargetType.FullyQualifiedName);
+    }
+
+    [Theory]
+    [InlineData("var d = (double)tally;", "var tally = new Tally();")]
+    [InlineData("var f = (Fathom)sounding;", "var sounding = new Sounding();")]
+    [InlineData("var a = (Anchor)link;", "var link = new Link();")]
+    public void EquallyGoodOperators_AreRecordedAsATieAndNoneIsCalled(string statement, string preamble)
+    {
+        var cast = SingleCast(statement, ChainTypes + TiedTypes, preamble);
+
+        Assert.Null(cast.Operator);
+        Assert.Equal(2, cast.AmbiguousOperators.Count);
+    }
+
+    [Fact]
+    public void ACastTheValueAlreadySatisfies_CallsNoOperatorAmongSeveralThatWidenIntoIt()
+    {
+        var cast = SingleCast("var u = (unknown)celsius;");
+
+        Assert.Null(cast.Operator);
+        Assert.Empty(cast.AmbiguousOperators);
+    }
+
+    [Fact]
+    public void ACastCallingAnOperatorWhoseResultWidensIntoTheTarget_IsTypedAsThatResult()
+    {
+        var cast = SingleCast(
+            "var m = (Measurement)scale;",
+            extraTypes: """
+                public class Scale
+                {
+                    public Scale() { }
+
+                    public static explicit operator Weight(Scale s) { return new Weight(); }
+                }
+                """,
+            extraPreamble: "var scale = new Scale();");
+
+        Assert.Equal("Probe.Measurement", cast.TargetType.FullyQualifiedName);
+        Assert.Equal("Probe.Weight", cast.Type.FullyQualifiedName);
     }
 
     // ── Harness ──────────────────────────────────────────────────────────

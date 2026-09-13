@@ -1,0 +1,30 @@
+using Standard;
+
+namespace Refusal;
+
+public class Link
+{
+    public static explicit operator Anchor(Link l)
+    {
+        return new Anchor();
+    }
+}
+
+public class Anchor
+{
+    public static explicit operator Anchor(Link l)
+    {
+        return new Anchor();
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var link = new Link();
+        // REFUSE: MIST_PA_AMBIGUOUS_CAST
+        var converted = (Anchor)link;
+        Console.WriteLine("unreachable");
+    }
+}

@@ -44,9 +44,37 @@ internal static class ConversionClassifier
 {
     public static ConversionKind Classify(IMistType from, IMistType to, TypeInterner? interner = null)
     {
-        from = Normalize(Expanded(from, interner));
-        to = Normalize(Expanded(to, interner));
+        from = Normalized(from, interner);
+        to = Normalized(to, interner);
 
+        var kind = ImplicitKind(from, to);
+
+        return kind == ConversionKind.None && (CallsAnOperator(from, to, interner) || ExplicitByDeclaration(from, to))
+            ? ConversionKind.Explicit
+            : kind
+            ;
+    }
+
+    public static bool IsImplicit(IMistType from, IMistType to, TypeInterner? interner)
+    {
+        return ImplicitKind(Normalized(from, interner), Normalized(to, interner)) != ConversionKind.None;
+    }
+
+    public static bool IsFree(IMistType from, IMistType to, TypeInterner? interner)
+    {
+        from = Normalized(from, interner);
+        to = Normalized(to, interner);
+
+        return !IsSentinel(from) && !IsSentinel(to) && (Same(from, to) || Within(from, to, []));
+    }
+
+    public static IMistType Normalized(IMistType type, TypeInterner? interner)
+    {
+        return Normalize(interner is null ? type : AliasTransparency.Expand(type, interner));
+    }
+
+    private static ConversionKind ImplicitKind(IMistType from, IMistType to)
+    {
         if(IsSentinel(from) || IsSentinel(to))
         {
             return ConversionKind.Unclassified;
@@ -57,21 +85,16 @@ internal static class ConversionClassifier
             return ConversionKind.Identity;
         }
 
-        if(Within(from, to, []) || ConversionRelation.FindOperator(from, to, includeExplicit: false) is not null)
-        {
-            return ConversionKind.Implicit;
-        }
-
-        return ConversionRelation.FindOperator(from, to, includeExplicit: true) is not null
-            || ExplicitByDeclaration(from, to)
-            ? ConversionKind.Explicit
+        return Within(from, to, []) || ConversionRelation.FindOperator(from, to) is not null
+            ? ConversionKind.Implicit
             : ConversionKind.None
             ;
     }
 
-    private static IMistType Expanded(IMistType type, TypeInterner? interner)
+    private static bool CallsAnOperator(IMistType from, IMistType to, TypeInterner? interner)
     {
-        return interner is null ? type : AliasTransparency.Expand(type, interner);
+        return CastOperatorSelection.Best(from, to, interner) is [var called]
+            && IsImplicit(from, called.SourceParameter.Type, interner);
     }
 
     private static IMistType Normalize(IMistType type)

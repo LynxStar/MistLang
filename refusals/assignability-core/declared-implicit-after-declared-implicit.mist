@@ -1,0 +1,34 @@
+using Standard;
+
+namespace Refusal;
+
+public class Meters
+{
+}
+
+public class Feet
+{
+    public static implicit operator Feet(Meters m)
+    {
+        return new Feet();
+    }
+}
+
+public class Reading
+{
+    public static implicit operator Meters(Reading r)
+    {
+        return new Meters();
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var reading = new Reading();
+        // REFUSE: MIST_PA_CAST_REQUIRED
+        Feet converted = reading;
+        Console.WriteLine("unreachable");
+    }
+}

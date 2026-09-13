@@ -28,6 +28,18 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot cast '{0}' to enum '{1}'. A cast to an enum looks up the variant holding a value of its underlying type '{2}', and '{0}' does not convert to '{2}' implicitly.");
 
+    public static readonly DiagnosticDescriptor CastArgumentMismatch = new(
+        new DiagnosticId("MIST_PA_CAST_ARGUMENT_MISMATCH"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot cast '{0}' to '{1}'. The cast calls {2}, and '{0}' does not convert to its parameter type '{3}' implicitly.");
+
+    public static readonly DiagnosticDescriptor AmbiguousCast = new(
+        new DiagnosticId("MIST_PA_AMBIGUOUS_CAST"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The cast from '{0}' to '{1}' is ambiguous between {2}. Cast the value to one operator's parameter type first to choose it.");
+
     public static readonly DiagnosticDescriptor NoImplicitConversion = new(
         new DiagnosticId("MIST_PA_NO_IMPLICIT_CONVERSION"),
         DiagnosticSeverity.Error,

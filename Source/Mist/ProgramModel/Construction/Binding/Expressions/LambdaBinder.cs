@@ -54,7 +54,9 @@ internal static class LambdaBinder
             // method's does; the delegate it fills still says the task. Both are restored after,
             // because the lambda sits inside a body whose own context is unaffected by it.
             var enclosingIsAsync = ctx.IsAsyncContext;
+            var enclosingInLambda = ctx.InLambda;
             ctx.IsAsyncContext = isAsync || enclosingIsAsync;
+            ctx.InLambda = true;
 
             var bodyTarget = isAsync && target?.ReturnType is { } asyncReturn
                 ? TaskResult.Of(asyncReturn) ?? asyncReturn
@@ -73,6 +75,7 @@ internal static class LambdaBinder
             finally
             {
                 ctx.IsAsyncContext = enclosingIsAsync;
+                ctx.InLambda = enclosingInLambda;
             }
         }
         finally

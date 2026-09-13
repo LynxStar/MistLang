@@ -58,6 +58,11 @@ internal static class ExpressionBinder
                     value = BindExpression(assignmentOp.Value, ctx, context);
                 }
 
+                if(!isCoalescing)
+                {
+                    value = NewtypeLiterals.Admit(value, valueTarget, context.ProgramModel.TypeInterner)!;
+                }
+
                 return new AssignmentExpression(expression, target, value, value.Type, isCoalescing);
             }
 

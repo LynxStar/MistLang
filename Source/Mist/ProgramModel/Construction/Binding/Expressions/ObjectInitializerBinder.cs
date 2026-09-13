@@ -60,6 +60,8 @@ internal static class ObjectInitializerBinder
             value = ExpressionBinder.BindExpression(named.Value, ctx, context);
         }
 
+        value = NewtypeLiterals.Admit(value, target, context.ProgramModel.TypeInterner)!;
+
         bound.Add(new ObjectInitializerAssignment(named, memberName, value, target));
     }
 

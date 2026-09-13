@@ -831,9 +831,11 @@ internal static class BodyEmitter
                 // The operand needs no parentheses of its own because the grammar bounds it to a
                 // Unary, every form of which binds tighter than any binary operator in C# as well.
                 // So `(Kelvin)a + b` arrives already shaped as a cast of `a`, and emitting the
-                // operand bare cannot capture the `+ b`.
+                // operand bare cannot capture the `+ b`. A signed operand is the one exception: C#
+                // reads `(Kelvin)-a` as a subtraction unless the type is a keyword.
+                var operand = Render(cast.Operand, diagnostics);
                 writer.Append($"(({TypeNameEmitter.Emit(cast.Type)})");
-                writer.Append(CastLowering.Argument(cast, Render(cast.Operand, diagnostics)));
+                writer.Append(CastLowering.Argument(cast, operand.StartsWith('-') || operand.StartsWith('+') ? $"({operand})" : operand));
                 writer.Append(")");
                 break;
 

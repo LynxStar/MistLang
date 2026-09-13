@@ -29,6 +29,8 @@ internal sealed class BindingContext
     /// </summary>
     public IMistType? TargetType { get; set; }
 
+    public bool InLambda { get; set; }
+
     /// <summary>
     /// The member whose body is being bound, or null outside one. Carried so an await can be recorded
     /// against the body that contains it, which is the only place that knows.
@@ -76,6 +78,7 @@ internal sealed class BindingContext
         EnclosingProperty = enclosing.EnclosingProperty;
         EnclosingMethod = enclosing.EnclosingMethod;
         IsAsyncContext = enclosing.IsAsyncContext;
+        InLambda = enclosing.InLambda;
     }
 
     /// <summary>

@@ -121,7 +121,8 @@ internal static class BodyBinder
 
         using(bindingCtx.PushTargetType(memberType))
         {
-            return ExpressionBinder.BindExpression(initializerNode, bindingCtx, context);
+            return NewtypeLiterals.Admit(
+                ExpressionBinder.BindExpression(initializerNode, bindingCtx, context), memberType, context.ProgramModel.TypeInterner);
         }
     }
 
@@ -210,7 +211,8 @@ internal static class BodyBinder
 
         using(bindingCtx.PushTargetType(targetType))
         {
-            return ExpressionBinder.BindExpression(expressionNode, bindingCtx, context);
+            return NewtypeLiterals.Admit(
+                ExpressionBinder.BindExpression(expressionNode, bindingCtx, context), targetType, context.ProgramModel.TypeInterner);
         }
     }
 

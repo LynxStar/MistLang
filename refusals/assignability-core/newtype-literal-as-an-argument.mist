@@ -6,10 +6,14 @@ type Meters = new double;
 
 public class Probe
 {
+    private static void Measure(Meters distance)
+    {
+        Console.WriteLine("unreachable");
+    }
+
     public static void Main()
     {
         // REFUSE: MIST_PA_CAST_REQUIRED
-        Meters m = 1.0;
-        Console.WriteLine("unreachable");
+        Measure(1.0);
     }
 }

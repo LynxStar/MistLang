@@ -12,8 +12,10 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// accessor is not a <see cref="Model.Members.Method"/> at all, so each needs finding separately.
 /// </para>
 /// <para>
-/// Order is irrelevant, within a type and across them. Phase 2 resolved every signature already,
-/// so no body, chain, initializer or accessor depends on which member was bound first.
+/// Order is irrelevant, within a type and across them, with one exception. Phase 2 resolved every
+/// signature already, so no body, chain, initializer or accessor depends on which member was bound
+/// first -- but an enum's base may be inferred from its variants' values, and a body converting to or
+/// from that enum reads the base, so enums bind before everything else.
 /// </para>
 /// </summary>
 internal static class MemberBinder
@@ -24,16 +26,16 @@ internal static class MemberBinder
     /// </summary>
     public static void BindAll(IEnumerable<IMistType> sourceTypes, BuilderContext context)
     {
+        foreach(var enumType in sourceTypes.OfType<EnumType>())
+        {
+            EnumMemberBinder.BindAll(enumType, context);
+        }
+
         foreach(var memberType in sourceTypes.OfType<MemberType>())
         {
             BindDelegates(memberType, context);
             BindInitializers(memberType, context);
             BindAccessors(memberType, context);
-        }
-
-        foreach(var enumType in sourceTypes.OfType<EnumType>())
-        {
-            EnumMemberBinder.BindAll(enumType, context);
         }
     }
 

@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+public enum Flag { A = 1, B = 2 }
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        byte b = Flag.A;
+        Console.WriteLine("unreachable");
+    }
+}

@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+public enum Mixed
+{
+    Num = 1,
+    Text = "x",
+    // REFUSE: MIST_PM_ENUM_VALUE_NOT_INFERABLE
+    Other
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

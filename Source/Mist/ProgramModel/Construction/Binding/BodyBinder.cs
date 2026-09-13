@@ -102,11 +102,12 @@ internal static class BodyBinder
     /// there is no initializer so the caller can assign the result back unconditionally.
     /// <para>
     /// <see cref="InitializerScope"/> is where the no-receiver rule lives. The member's own type is
-    /// pushed as target type because a declared type is the only target an initializer ever has.
+    /// pushed as target type because a declared type is the only target an initializer ever has; a
+    /// member whose type the initializer itself decides passes none.
     /// </para>
     /// </summary>
     public static Expression? BindInitializer(
-        Expression? parked, IMistType memberType, Scope typeScope, BuilderContext context)
+        Expression? parked, IMistType? memberType, Scope typeScope, BuilderContext context)
     {
         // Matched rather than cast so that a future caller parking something other than an
         // ExpressionNode leaves the initializer unbound instead of throwing.

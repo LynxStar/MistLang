@@ -35,20 +35,25 @@ internal sealed class EnumTypeBuilder
 
         typeDef.Modifiers = modifiers;
 
-        ResolveUnderlyingType(enumDecl, typeDef);
         ResolveMembers(enumDecl, typeDef);
+        ResolveUnderlyingType(enumDecl, typeDef);
     }
 
     /// <summary>
-    /// Settled in Phase 2 because Phase 3 reads the base to infer each omitted variant value, so it
-    /// must already have an answer by then.
+    /// An annotation, or a name-only enum's byte, is settled here. A base the variants' written values
+    /// decide (enums spec, Requirement 3) is left unset for <see cref="Binding.EnumMemberBinder"/>,
+    /// since no value has a type until it binds.
     /// </summary>
     private void ResolveUnderlyingType(EnumDeclarationNode enumDecl, EnumType typeDef)
     {
-        typeDef.UnderlyingType = enumDecl.Type is { } typeAnnotation
-            ? scopeResolver.Resolve(typeAnnotation, typeDef.Scope)
-            : scopeResolver.LookupWellKnown(WellKnownTypes.Byte)
-            ;
+        if(enumDecl.Type is { } typeAnnotation)
+        {
+            typeDef.UnderlyingType = scopeResolver.Resolve(typeAnnotation, typeDef.Scope);
+        }
+        else if(typeDef.MembersList.TrueForAll(member => member.Value is null))
+        {
+            typeDef.UnderlyingType = scopeResolver.LookupWellKnown(WellKnownTypes.Byte);
+        }
     }
 
     /// <summary>

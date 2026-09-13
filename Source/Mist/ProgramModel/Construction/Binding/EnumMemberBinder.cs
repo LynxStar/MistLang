@@ -8,7 +8,9 @@ namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
 /// Phase 3 for an enum's variants: binds every written value and SYNTHESIZES the omitted ones, so
-/// each variant leaves with an expression of its own.
+/// each variant leaves with an expression of its own. An enum with no annotation whose variants write
+/// values takes its base from them first -- their one type, or the union of their types (enums spec,
+/// Requirement 3.1 and 3.2) -- so the written values bind with no target, the base being what they decide.
 /// <para>
 /// Synthesizing rather than leaving the gap for emission to fill is what keeps the answer in one
 /// place. A backend that re-derived an omitted value would be reimplementing the inference rules,
@@ -20,9 +22,9 @@ internal static class EnumMemberBinder
 {
     public static void BindAll(EnumType enumType, BuilderContext context)
     {
-        var underlying = enumType.UnderlyingType;
+        var underlying = enumType.UnderlyingType ??= InferredBase(enumType, context);
 
-        if(underlying is null)
+        if(underlying is ErrorType)
         {
             return;
         }
@@ -36,9 +38,12 @@ internal static class EnumMemberBinder
 
         foreach(var member in enumType.MembersList)
         {
-            member.Value = member.Value is not null
-                ? BodyBinder.BindInitializer(member.Value, underlying, enumType.Scope, context)
-                : Infer(member, enumType, underlying, previous, countable, context);
+            member.Value = member.Value switch
+            {
+                null => Infer(member, enumType, underlying, previous, countable, context),
+                UnresolvedExpression written => BodyBinder.BindInitializer(written, underlying, enumType.Scope, context),
+                var bound => bound,
+            };
 
             if(Fold(member.Value) is { } constant)
             {
@@ -50,6 +55,23 @@ internal static class EnumMemberBinder
                 countable = false;
             }
         }
+    }
+
+    private static IMistType InferredBase(EnumType enumType, BuilderContext context)
+    {
+        var written = new List<IMistType>();
+
+        foreach(var member in enumType.MembersList)
+        {
+            member.Value = BodyBinder.BindInitializer(member.Value, null, enumType.Scope, context);
+
+            if(member.Value?.Type is { } type and not ErrorType)
+            {
+                written.Add(type);
+            }
+        }
+
+        return written.Count == 0 ? ErrorType.Instance : context.ProgramModel.TypeInterner.GetOrCreateUnionType(written);
     }
 
     private static Expression? Infer(

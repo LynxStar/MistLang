@@ -13,22 +13,22 @@ namespace Mist.ProgramModel.Construction.Types;
 /// </summary>
 internal static class NewtypeCloner
 {
-    public static void CloneAll(Model.ProgramModel programModel)
+    public static void CloneAll(BuilderContext context)
     {
         var clones = new Dictionary<Newtype, ConcreteType?>();
-        var placeholders = programModel.TypesByFQN.Values
+        var placeholders = context.ProgramModel.TypesByFQN.Values
             .OfType<Newtype>()
             .Where(newtype => newtype.Assembly.HasMistSource)
             .ToList();
 
         foreach(var newtype in placeholders)
         {
-            _ = CloneOf(newtype, programModel, clones, []);
+            _ = CloneOf(newtype, context, clones, []);
         }
     }
 
     private static ConcreteType? CloneOf(
-        Newtype newtype, Model.ProgramModel programModel, Dictionary<Newtype, ConcreteType?> clones, HashSet<Newtype> visiting)
+        Newtype newtype, BuilderContext context, Dictionary<Newtype, ConcreteType?> clones, HashSet<Newtype> visiting)
     {
         if(clones.TryGetValue(newtype, out var known))
         {
@@ -40,8 +40,8 @@ internal static class NewtypeCloner
             return null;
         }
 
-        var clone = SourceOf(newtype, programModel, clones, visiting) is { } source
-            ? Replace(newtype, source, programModel)
+        var clone = SourceOf(newtype, context, clones, visiting) is { } source
+            ? Replace(newtype, source, context.ProgramModel)
             : null;
 
         clones[newtype] = clone;
@@ -49,25 +49,45 @@ internal static class NewtypeCloner
     }
 
     private static ConcreteType? SourceOf(
-        Newtype newtype, Model.ProgramModel programModel, Dictionary<Newtype, ConcreteType?> clones, HashSet<Newtype> visiting)
+        Newtype newtype, BuilderContext context, Dictionary<Newtype, ConcreteType?> clones, HashSet<Newtype> visiting)
     {
-        if(newtype.TypeParametersList.Count > 0
-            || newtype.DeclarationNode.SourceType is not { SingleTypeRefs.IsEmpty: true, First: NamedSingleTypeRefSingleTypeRefNode named }
-            || named is not { TypeArgs: null, ArrayRank: null, Optional: null })
+        if(newtype.TypeParametersList.Count > 0 || newtype.DeclarationNode.SourceType is not { SingleTypeRefs.IsEmpty: true } reference)
         {
             return null;
         }
 
-        var name = named.Name.IDENTIFIERs.Length > 0 ? QualifiedNameHelper.Build(named.Name) : named.Name.IDENTIFIER.Lexeme;
-
-        return newtype.Scope.Lookup(new LookupRequest(name, MemberVisibility.None, named)) switch
+        var named = reference.First switch
         {
-            TypeResult { Type: Newtype other } => CloneOf(other, programModel, clones, visiting)?.CloneSource,
-            TypeResult { Type: ConcreteType { CloneSource: { } root } } => root,
-            TypeResult { Type: ConcreteType { DeclarationNode: BodyTypeTypeDeclarationNode body, TypeParametersList.Count: 0 } concrete }
-                when !body.TypeBody.Modifiers.Any(modifier => modifier is IntrinsicModifierModifierNode) => concrete,
+            PrimitiveSingleTypeRefSingleTypeRefNode { ArrayRank: null, Optional: null } keyword => context.Resolver.Resolve(keyword, newtype.Scope),
+            NamedSingleTypeRefSingleTypeRefNode { TypeArgs: null, ArrayRank: null, Optional: null } name
+                => newtype.Scope.Lookup(new LookupRequest(Stem(name), MemberVisibility.None, name)) is TypeResult found ? found.Type : null,
             _ => null,
         };
+
+        return named switch
+        {
+            Newtype other => CloneOf(other, context, clones, visiting)?.CloneSource,
+            ConcreteType { CloneSource: { } root } => root,
+            ConcreteType { DeclarationNode: BodyTypeTypeDeclarationNode body, TypeParametersList.Count: 0 } concrete
+                when Cloneable(body.TypeBody.Modifiers) => concrete,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// An intrinsic source is cloned only when it is readonly, so that its clone is a copyable wrapper
+    /// around one backing value (newtypes spec Requirement 5.2); an intrinsic with state of its own to
+    /// share, Console or a Task, is left for the newtype builder to refuse.
+    /// </summary>
+    internal static bool Cloneable(IEnumerable<ModifierNode> modifiers)
+    {
+        return !modifiers.Any(modifier => modifier is IntrinsicModifierModifierNode)
+            || modifiers.Any(modifier => modifier is ReadonlyModifierModifierNode);
+    }
+
+    private static string Stem(NamedSingleTypeRefSingleTypeRefNode named)
+    {
+        return named.Name.IDENTIFIERs.Length > 0 ? QualifiedNameHelper.Build(named.Name) : named.Name.IDENTIFIER.Lexeme;
     }
 
     private static ConcreteType Replace(Newtype newtype, ConcreteType source, Model.ProgramModel programModel)

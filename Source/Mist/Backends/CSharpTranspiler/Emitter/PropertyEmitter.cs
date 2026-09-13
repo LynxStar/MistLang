@@ -11,6 +11,12 @@ internal static class PropertyEmitter
     public static void Emit(
         Property property, bool emitReadonly, bool readonlyGetter, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(IntrinsicCloneEmitter.Forwards(property.Modifiers, property.DeclaringType))
+        {
+            IntrinsicCloneEmitter.EmitProperty(property, writer);
+            return;
+        }
+
         var modifiers = MemberModifierEmitter.Emit(property.Modifiers, emitReadonly);
         var declaration = $"{modifiers}{TypeNameEmitter.Emit(property.Type)} {property.Name}";
 

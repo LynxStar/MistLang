@@ -66,7 +66,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         // declares: a user type marked intrinsic vanished, and a call to one of its ordinary members
         // then failed against generated C#. The member-level marker needs no separate check, the
         // pairing rule already requiring an intrinsic container (spec Req 5.6, 5.13 and 5.15).
-        if(modifiers.IsIntrinsic && typeDef.Assembly.Kind != MistAssemblyKind.Standard)
+        if(modifiers.IsIntrinsic && typeDef.Assembly.Kind != MistAssemblyKind.Standard && typeDef.CloneSource is null)
         {
             Context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.IntrinsicReservedForStandard, body.TypeBody, null, typeDef.Name);

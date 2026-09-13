@@ -10,7 +10,7 @@ public class Probe
     public static void Main()
     {
         Feet f = (Feet)2.0;
-        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        // REFUSE: MIST_PA_CAST_REQUIRED
         Meters m = f;
         Console.WriteLine("unreachable");
     }

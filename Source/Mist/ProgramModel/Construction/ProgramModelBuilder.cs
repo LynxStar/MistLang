@@ -96,7 +96,7 @@ public sealed class ProgramModelBuilder
         ambientProvider.BuildAndRegister(programModel);
 
         // Phase 1c: newtypes over Mist classes and structs become their renamed clones.
-        NewtypeCloner.CloneAll(programModel);
+        NewtypeCloner.CloneAll(context);
 
         // Phase 2a: Resolve member signatures on all registered types.
         var concreteTypeBuilder = new ConcreteTypeBuilder(context, context.Resolver);

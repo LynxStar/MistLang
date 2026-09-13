@@ -2,14 +2,19 @@ using Standard;
 
 namespace Refusal;
 
-type Meters = new double;
+public class Entity
+{
+    public int Id;
+}
+
+type Actor = new Entity;
 
 public class Probe
 {
     public static void Main()
     {
         // REFUSE: MIST_PA_ARRAY_REQUIRES_INITIALIZER
-        var distances = new Meters[3];
+        var actors = new Actor[3];
         Console.WriteLine("unreachable");
     }
 }

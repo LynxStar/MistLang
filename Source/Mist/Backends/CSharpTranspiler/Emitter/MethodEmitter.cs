@@ -18,6 +18,12 @@ internal static class MethodEmitter
         DiagnosticBag diagnostics,
         MemberType? owner = null)
     {
+        if(IntrinsicCloneEmitter.Forwards(method.Modifiers, method.DeclaringType))
+        {
+            IntrinsicCloneEmitter.EmitMethod(method, writer, diagnostics);
+            return;
+        }
+
         var modifiers = MemberModifierEmitter.Emit(method.Modifiers, emitReadonly)
             + (AsyncPromotion.EmitsAsync(method) ? "async " : "");
 

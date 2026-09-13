@@ -12,6 +12,12 @@ internal static class OperatorEmitter
 {
     public static void Emit(Operator op, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(IntrinsicCloneEmitter.Forwards(op.Modifiers, op.DeclaringType))
+        {
+            IntrinsicCloneEmitter.EmitOperator(op, writer, diagnostics);
+            return;
+        }
+
         var modifiers = MemberModifierEmitter.Emit(op.Modifiers, emitReadonly: false);
         var returnType = MethodEmitter.EmitReturnType(op);
         var parameters = ParameterEmitter.Emit(op.ParametersList, diagnostics);

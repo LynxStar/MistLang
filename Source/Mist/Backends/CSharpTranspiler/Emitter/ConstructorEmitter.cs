@@ -29,6 +29,12 @@ internal static class ConstructorEmitter
         IReadOnlyDictionary<StructType, string>? structInitNames = null,
         string? nameOverride = null)
     {
+        if(IntrinsicCloneEmitter.Forwards(constructor.Modifiers, declaringType))
+        {
+            IntrinsicCloneEmitter.EmitConstructor(constructor, writer, diagnostics);
+            return;
+        }
+
         var modifiers = ResolveModifiers(constructor, declaringType);
         var parameters = ParameterEmitter.Emit(constructor.ParametersList, diagnostics);
 

@@ -1,5 +1,8 @@
+using Mist.Common.Diagnostics;
+using Mist.Generated;
 using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -40,5 +43,23 @@ internal sealed class NewtypeBuilder
                 OwnershipKind.Unrestricted,
                 new MemberModifiers { Accessibility = Accessibility.Public, IsReadonly = true });
         }
+
+        if(IsUnsupported(typeDef.SourceType))
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.NewtypeSourceNotSupported, decl, null, TypeDisplay.Mist(typeDef.SourceType!));
+        }
+    }
+
+    private static bool IsUnsupported(IMistType? source)
+    {
+        return source switch
+        {
+            null or ErrorType or Newtype or ITupleType => false,
+            TypeAlias { AliasedType: { } aliased } => IsUnsupported(aliased),
+            ConcreteType { DeclarationNode: BodyTypeTypeDeclarationNode body } => !NewtypeCloner.Cloneable(body.TypeBody.Modifiers),
+            ConstructedType { Definition: ConcreteType definition } => IsUnsupported(definition),
+            _ => true,
+        };
     }
 }

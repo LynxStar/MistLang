@@ -15,6 +15,13 @@ internal static class CastOperatorEmitter
 {
     public static void Emit(CastOperator castOperator, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(IntrinsicCloneEmitter.Wraps(castOperator.DeclaringType)
+            && (castOperator.CopiesClone || castOperator.Modifiers.IsIntrinsic))
+        {
+            IntrinsicCloneEmitter.EmitCastOperator(castOperator, writer, diagnostics);
+            return;
+        }
+
         var modifiers = MemberModifierEmitter.Emit(castOperator.Modifiers, emitReadonly: false);
         var kind = castOperator.IsImplicit ? "implicit" : "explicit";
         var targetType = TypeNameEmitter.Emit(castOperator.TargetType);

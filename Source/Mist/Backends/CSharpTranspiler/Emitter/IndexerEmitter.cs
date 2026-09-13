@@ -11,6 +11,12 @@ internal static class IndexerEmitter
     public static void Emit(
         Indexer indexer, bool emitReadonly, bool readonlyGetter, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(IntrinsicCloneEmitter.Forwards(indexer.Modifiers, indexer.DeclaringType))
+        {
+            IntrinsicCloneEmitter.EmitIndexer(indexer, writer, diagnostics);
+            return;
+        }
+
         var modifiers = MemberModifierEmitter.Emit(indexer.Modifiers, emitReadonly);
         var type = TypeNameEmitter.Emit(indexer.Type);
         var parameters = ParameterEmitter.Emit(indexer.ParametersList, diagnostics);

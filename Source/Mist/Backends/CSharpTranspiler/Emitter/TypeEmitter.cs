@@ -37,7 +37,7 @@ internal static class TypeEmitter
     /// </summary>
     private static bool SuppliedByBackend(DeclaredType type)
     {
-        return type is ConcreteType { IsIntrinsic: true }
+        return type is ConcreteType { IsIntrinsic: true, CloneSource: null }
             || OptionalUnion.IsVoid(type)
             || (type is AbstractType && ClrProjection.Projects(type));
     }
@@ -191,6 +191,12 @@ internal static class TypeEmitter
             var initNames = flattened is not null
                 ? StructInitEmitter.BuildNames(flattened)
                 : null;
+
+            if(IntrinsicCloneEmitter.Wraps(type))
+            {
+                SeparateMember(writer, ref anyEmitted);
+                IntrinsicCloneEmitter.EmitWrapper(concrete!, writer);
+            }
 
             foreach(var constructor in concrete?.ConstructorsList ?? [])
             {

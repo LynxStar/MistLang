@@ -14,6 +14,18 @@ internal static class NewtypeConversions
             return;
         }
 
+        if(source.IsIntrinsic)
+        {
+            clone.FieldsList.Insert(0, new Field(
+                "Value",
+                source,
+                OwnershipKind.Unrestricted,
+                new MemberModifiers { Accessibility = Accessibility.Public, IsReadonly = true })
+            {
+                DeclaringType = clone,
+            });
+        }
+
         clone.CastOperatorsList.Add(Copy(clone, source, clone, isImplicit: true));
         clone.CastOperatorsList.Add(Copy(source, clone, clone, isImplicit: false));
     }

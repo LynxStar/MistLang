@@ -299,6 +299,17 @@ flakes:
       PROCESS NOTE: redirect the run to a file and grep the file, rather than piping the run through
       a summary filter. Two of the three sightings across this register lost their failure message
       to exactly that.
+
+      SIGHTING 2026-09-13, NAME CAPTURED, MESSAGE AND SEED NOT. One of 664 failed in
+      Storm.SourceGenerator.Tests under `dotnet test Mist.slnx --no-build`, the run piped through
+      `grep -E '^\s+Failed |Passed!|Failed!'` -- the pattern kept the name and discarded the message
+      again, so the trx advice under storm-trait-field-type-resolution-property still stands. Three
+      isolated reruns of the test with --filter and no edit between passed, 25, 19 and 19 ms. The
+      working tree held the newtype clone (ProgramModel construction, ProgramAnalysis's runner and
+      rules, one DiagnosticBag method, Test/Mist.Tests); `git status` showed nothing under
+      Source/Storm.SourceGenerator or Test/Storm.SourceGenerator.Tests. During the run the Mist CLI
+      was invoked against a scratch directory outside samples/, and source files were edited without
+      a build.
   - id: sample-runner-tests-race-concurrent-sample-runs
     test: Mist.Tests.Integration.SamplesCompileAndMatchBaselineTest.EnumReadonlyRestriction_CompilesAndProducesExpectedOutput
     file: Test/Mist.Tests/Integration/SamplesCompileAndMatchBaselineTest.cs

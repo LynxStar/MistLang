@@ -4230,6 +4230,35 @@ capabilities:
       resolves to the Newtype object; no chain semantics defined), over a constructed generic
       (constructor selection would miss the substitution context), and cross-assembly use of
       an internal-by-default newtype.
+
+      THE RENAMED CLONE (2026-09-13), the newtypes spec having been revised the same day to the language
+      owner's model and this being its task 13. A newtype over a non-generic, non-intrinsic class or
+      struct declared in Mist is no longer a Newtype forwarding lookup to its source. NewtypeCloner, between
+      registration and the first resolved signature, replaces the placeholder with a ClassType or
+      StructType built from the source's own declaration under a CloneScope, which answers the source's
+      name with the clone and the source's nested types by simple name. Base, abstract bases, members and
+      bodies all come from binding: `type Jaguar = new Tiger` is a Cat and an IStriped, `jaguar.Twin()` is
+      a Jaguar, and the emitter writes `class Jaguar : Cat, IStriped` with Tiger's bodies renamed. A with
+      block or extension declared for Tiger elsewhere does not reach it, and nothing makes it a Tiger.
+      A CLONE REBINDS ITS SOURCE'S SYNTAX, so building, binding and Stage 5 run over clones after the
+      program with diagnostics withheld (DiagnosticBag.Withhold, CloneDiagnostics): one the source already
+      reports at that place is dropped, and an error only the renaming causes -- a Tiger body passing `this`
+      to Admit(Tiger) -- is MIST_PM_NEWTYPE_CLONE_INVALID at the newtype, naming the member. Stage 5 runs
+      once over the program without clones and once per clone, so every rule reads AnalysisContext.Types
+      and Bodies instead of walking the model.
+      MEASURED on v2. A Jaguar assigned to Cat and to IStriped: was CAST_REQUIRED twice, now runs. A Tiger
+      with a Stage 5 mistake of its own and a clone-only one: the first reported once, the second at the
+      newtype; before, the first twice and the second against Tiger's line. Newtypes byte-identical to its
+      baseline. The cast between a class or struct newtype and its source, a Roslyn failure on both
+      pipelines, is now CAST_HAS_NO_CONVERSION at the Mist source until spec tasks 15 and 17.
+      NOT YET CLONED, keeping the forwarding placeholder: an intrinsic source (task 14), a generic newtype or
+      a generic source, and a source named through an alias.
+      PROVED BY NewtypeCloneTests -- kinds, containment in the bases and never the source, a renamed member
+      and body, a nested type not cloned, a with block not carried, the withheld report -- and the corpus
+      case binding/newtype-clone-passes-itself-as-its-source. Four mutations on confirmed builds each fail
+      at least one: renaming off, duplicates kept, nested types unreachable, clones analysed with the
+      program. NewtypeResolutionTests' private-member case now expects the MIST_PA_INACCESSIBLE_MEMBER a
+      plain class gives, the member being the clone's own. Full suite green, 5938 of 5938.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across

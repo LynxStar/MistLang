@@ -1645,6 +1645,18 @@ capabilities:
       cast is typed as the called operator's return type, and the refusals it makes possible are analysis
       order 4's. CastLoweringTests holds the spellings; no sample can, the baseline being shared with
       classic, which fails every one that needs a step.
+
+      THE NO-PARENTHESES PARAGRAPH ABOVE WAS WRONG, AND IT PRINTED A WRONG ANSWER (2026-09-13). The grammar
+      does bound the operand to a Unary, but a parenthesized expression is a Unary whose parentheses bind
+      the expression inside them and reach the model as nothing -- ParenthesizedExpression binds straight to
+      its inner expression. So `(double)(a / b)` arrived as a cast of a division and was emitted
+      `((double)a / b)`: with a = 7 and b = 2, v2 printed 3.5 where classic prints 3. `(long)(a * b)` emitted
+      `((long)a * b)` too and printed 14 on both only because the product is the same either way. Found
+      while changing this emitter case for order 46. The operand is now parenthesized whatever it is,
+      `((double)(a / b))`, which also covers the signed operand the old code special-cased. v2 prints 3.
+      PROVED BY CastEmissionTests (a division, a product and a negation); mutating the case back to a bare
+      operand fails all three, the negation's spelling being `((long)-a)` there. Full suite green, 6057 of
+      6057.
     unlocks: []
 
   - id: cast-operator-declarations

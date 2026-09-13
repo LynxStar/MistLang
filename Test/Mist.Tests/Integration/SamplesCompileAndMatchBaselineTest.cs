@@ -63,10 +63,9 @@ public sealed class SamplesCompileAndMatchBaselineTest
     /// <para>
     /// The stored baseline was captured from the classic pipeline, which compiles and
     /// runs this sample correctly, so it is pipeline-independent: both pipelines are
-    /// held to the same output. The three exceptions are LocalFunctions, which classic cannot
-    /// parse, OperatorOverloads, which classic cannot compile, and StandardSurface, which classic
-    /// refuses for awaiting a non-generic Task: their lines were captured from v2 and read
-    /// against the program by hand.
+    /// held to the same output. The exceptions are the samples classic cannot run, each marked
+    /// V2-ONLY in backlog/emitter-v2-capability-progression.yaml with the reason: their lines were
+    /// captured from v2 and read against the program by hand.
     /// </para>
     /// <para>
     /// See <c>.kiro/steering/testing-philosophy.md</c>, Tier 6.

@@ -46,18 +46,18 @@ greenness. The one sample it cannot hold is `samples/Testing`, a library with no
 which `Testing_RunsUnderTheTestCommandOnTheExperimentalPipeline` holds under `mist test` instead.
 
 The baseline was captured from classic and is pipeline-independent: both pipelines are held
-to the same stdout. There are three exceptions: `samples/LocalFunctions`, which classic cannot
-parse; `samples/OperatorOverloads`, which classic parses but cannot compile (it never emits an
-operator declaration); and `samples/StandardSurface`, which classic refuses because it cannot
-await a non-generic `Task`. Each is referenced from `AllFeaturesV2` alone, and its lines were
-captured from v2 and read against the program by hand. Note the blind spot — a stdout diff cannot
+to the same stdout. The exceptions are the samples classic cannot run -- `samples/LocalFunctions`,
+which it cannot parse, and `samples/NewtypeClones`, written for a revision of the newtypes spec it
+does not implement, among them. Each is marked V2-ONLY, with the reason, in the register's
+`untested` list, is referenced from `AllFeaturesV2` alone, and has its lines captured from v2 and
+read against the program by hand. Note the blind spot — a stdout diff cannot
 see things like a dropped `sealed` modifier.
 
 ## Backlog registers
 
 | File | Role |
 |---|---|
-| `backlog/emitter-v2-capability-progression.yaml` | **Source of truth** for what v2 still needs and in what order. 187 ordered capabilities, 81 samples, stated invariants. Valid YAML. Large — grep it, don't read it whole. |
+| `backlog/emitter-v2-capability-progression.yaml` | **Source of truth** for what v2 still needs and in what order. 187 ordered capabilities, 82 samples, stated invariants. Valid YAML. Large — grep it, don't read it whole. |
 | `backlog/analysis-v2-capability-progression.yaml` | **Source of truth for Stage 5**, the analysis phase. The 91 `analysis_phase_tasks` from the emitter register, reordered into the order a checker can be built in, with the invariants that gate them. Each rule cites the emitter order it came from. |
 | `backlog/program-model-body-tasks.yaml` | The other axis: what the binder does not yet understand, by language construct. **Not valid YAML** despite the extension. |
 | `backlog/flaky-tests.yaml` | Flake register. Recording a flake is mandatory (see `Test/CLAUDE.md`). |

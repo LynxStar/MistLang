@@ -4370,8 +4370,17 @@ capabilities:
       Eleven mutations each fail at least one test.
       NOT HANDLED, each emitting C# Roslyn refuses rather than an operator that runs: a conditional access,
       an increment or compound write through a computed property, a generic method, an indexer, or a method
-      group, when the member is one C# refuses from the newtype. NOT YET BANKED: Roslyn has compiled the
-      accessors only in the scratch program, which task 18's sample is to carry into AllFeaturesV2.
+      group, when the member is one C# refuses from the newtype.
+
+      THE REVISED MODEL IS BANKED (2026-09-13, spec task 18) by samples/NewtypeClones, referenced from
+      AllFeaturesV2 alone: classic refuses it with 25 errors, implementing the earlier revision. One
+      program runs an intrinsic clone's renamed operator and member, the implicit copies out of int, a
+      struct and a readonly class, a type test failing against each source at runtime, casts in through a
+      declared implicit and across newtypes, a literal in each visible slot, a renamed class member and
+      base, and both clonable conversions over private and protected state. The conversion lines tell the
+      two static readings apart: two casts in count 2 in Jaguar's statics and one out counts 1 in Tiger's,
+      where statics read through the receiver would print the counts the other way round. MSBuild compiles
+      the emitted C# with no warning. Its lines were captured from v2 and read against the program by hand.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across
@@ -4383,7 +4392,7 @@ capabilities:
         Report a newtype over a sealed type (classic MIST_TC_0178) and a duplicate newtype
         name (classic's MIST_SB_0063, the half not colliding with alias arity mismatch).
         Neither stops construction.
-    unlocks: [Newtypes]
+    unlocks: [Newtypes, NewtypeClones]
 
   # ===================================================================
   # Layer P -- enums.
@@ -10564,6 +10573,37 @@ samples:
       - >
         A default inherited through a chain of generic abstracts, `Holder<T> : Base<T>`, is not in the
         sample; the path composes exactly as an inherited struct member's does (order 53).
+
+  - name: NewtypeClones
+    intro_order: 94
+    threshold: newtype-declarations
+    requires: [class-declaration, struct-declaration, constructors, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
+               var-type-inference, instance-fields, static-fields, base-type-list, accessibility-full-model,
+               property-declarations-and-accessors, property-accessor-accessibility-and-init,
+               object-initializer-blocks, default-value-synthesis, array-literals, cast-expression,
+               cast-operator-declarations, user-defined-conversion-insertion, unknown-top-type,
+               pattern-matching-core, iclonable-implicit-clone, intrinsic-member-declarations,
+               newtype-declarations]
+    untested:
+      - >
+        V2-ONLY. Classic implements the earlier revision of the newtypes spec, in which a newtype and its
+        source reach each other only by an explicit cast and a class newtype does not convert at all, so
+        it refuses this sample (MIST_TC_0001, 0003, 0028, 0042 among others, measured 2026-09-13). The
+        sample is referenced from AllFeaturesV2 alone and its lines were captured from v2 and read
+        against the program by hand.
+      - >
+        Every refusal the model makes is absent, a sample being a valid program: a value entering a
+        newtype without a cast (Property 3), a literal as an argument, a class with no copy, a Clone body
+        that does not hold. NewtypeConversionDecisionTests, NewtypeLiteralDecisionTests,
+        ClonableNewtypeConversionDecisionTests and the refusal corpus hold them.
+      - >
+        How a conversion reaches private state is invisible to stdout: an accessibility widened in the
+        emitted C# would print the same lines. CloneCopyEmissionTests and CloneConversionEmissionTests
+        hold the UnsafeAccessor text.
+      - >
+        A conversion no cast calls is not emitted, which no line here can show; neither can the members
+        the conversion emitter does not handle (order 86), none of which this Clone uses.
 
 # =====================================================================
 

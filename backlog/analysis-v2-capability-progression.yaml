@@ -320,6 +320,28 @@ rules:
       facts. Six mutations, each on a confirmed build -- cast rule silenced, constructed types given no
       bases, substitution ignored, type parameters given no constraint, numeric sources barred from enums,
       sentinels refused -- and each fails at least one test.
+
+      THE ENUM RULE IS REVERSED BY DECISION (2026-09-12), superseding "found twice" above, which followed
+      classic. Any numeric source was C#'s explicit numeric step leaking through, and it TRUNCATED:
+      `Tier? t = (Tier)1.5;` printed Low on both pipelines while `(int)1.5` is refused on both. The
+      language owner's rule, now enums Requirement 15: a cast is sugar for a conversion function, and a
+      cast to an enum calls its lookup, `(underlying) -> E?`. The operand is admitted exactly when it could
+      be passed to a parameter of the underlying type, judged by Assignability, so a fitting constant is
+      admitted (`(Color)0`, which samples/Enums needs) and a narrowing never is. The cast is typed
+      `E | void`; the refusal of `E e = (E)v` is order 5's.
+      STRICTER THAN CLASSIC, measured -- `(Tier)1.5`, `(Tier)2L` and `(Color)n` from an int variable are
+      MIST_PA_ENUM_CAST_ARGUMENT_MISMATCH, where classic admits all three. MORE PERMISSIVE -- another
+      enum (`(Tier)Other.One`), a union-backed enum's constituent and a class declaring `implicit operator
+      int` are admitted as arguments are; classic passes the first two through its checks and fails them
+      in Roslyn, and the third was not probed on classic. The table's `i -> color` and `d -> color` rows
+      are None now, and the int-into-an-enum corpus case reports NO_IMPLICIT_CONVERSION rather than
+      CAST_REQUIRED, since no cast from an int variable reaches a byte-backed enum. Two corpus cases and
+      a CastDecisionTests theory of nine admits; mutating the enum branch to refuse every lookup fails
+      eight of the nine, the ninth being a cast of an enum to itself, which is no lookup. An enum over a
+      NARROWER base reaches a wider one through its own implicit conversion and a widening --
+      `(Wide)Priority.Low` with `Wide : long` is admitted, lowered `((Wide?)(long)(Priority.Low))` and
+      prints the variant -- and the reverse is a narrowing and refused; a tenth admit, a third corpus
+      case and two table rows hold both directions.
     tasks:
       - >
         Order 5 is where the classification gets its other customers: assignment, argument, return, arm
@@ -329,8 +351,11 @@ rules:
         not know List<int> is within IEnumerable<int>. Adopting the classifier's base walk there is a
         ranking change and belongs with a test that shows a call it fixes.
       - >
-        char into a numeric-backed enum follows from the C# rule and is admitted, but no probe has asked
-        classic about it.
+        The cast-as-function rule applies to declared cast operators too, and FindOperator follows C#
+        instead: it brackets the operand by IsWithin "so a match cannot chain a second user-declared
+        conversion". An operand reaching a declared operator's parameter through another declared implicit
+        operator is a valid argument, so the cast should be admitted and lowered as an enum cast's operand
+        is. Unprobed, and it wants the cast-operators spec amended alongside.
 
   - id: assignability-core
     name: Assignability at every position that has a target type

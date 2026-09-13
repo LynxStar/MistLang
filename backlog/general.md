@@ -168,6 +168,7 @@ qt.Property(q => q.Resolution).HasConversion(v => v, v => (ResolutionTier)v ?? R
 2. Fix generic method inference propagation — after inferring type args for a generic method, substitute them into parameter types BEFORE resolving lambda bodies. This is the same pattern `ResolveArgumentListWithParameterTypes` already does when parameter types are known; it just needs to also handle the case where parameter types require substitution from inferred type args.
 3. Add a test case: expression lambda with `(EnumType)v` inside a generic method that expects `Func<underlying, EnumType>` — must produce a diagnostic.
 
+**On the experimental pipeline (measured 2026-09-12):** sub-problem 1 does not arise — Stage 5's assignability rule judges an expression lambda's result against its target — and the Pendragon shape is refused now that a cast to an enum is typed as the optional it is (enums spec Requirement 15): `func<int, Tier> f = v => (Tier)v;` reports `MIST_PA_NO_IMPLICIT_CONVERSION`, 'Tier | void' to 'Tier'. Sub-problem 2's v2 counterpart -- stated type arguments not reaching a lambda argument's target, which refused `Apply<int, string>(1, v => v.ToString())` where classic prints `1` -- is closed by 1583cdfa, and with both halves in place this entry's own test case is refused on v2: `Tier t = Apply<int, Tier>(7, v => (Tier)v);` against `TOut Apply<TIn, TOut>(TIn value, func<TIn, TOut> f)` reports `MIST_PA_NO_IMPLICIT_CONVERSION` at the lambda body. The entry stays open for classic.
 
 ---
 

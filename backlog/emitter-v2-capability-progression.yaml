@@ -4391,6 +4391,26 @@ capabilities:
       WHAT THE CHOICE COSTS is that v2, which does not yet detect duplicates, treats two variants
       sharing a value as ALIASES naming the first -- coherent, and what C# enums do, where classic
       would have printed two names for one value. See order 88.
+
+      SPECIFIED, AND LOWERED AS THE CALL IT IS (2026-09-12). The partial direction had no spec -- enums
+      Requirement 7.3 said only that reverse conversion is not supported -- and v2 typed `(Tier)7` as
+      Tier, so `Tier t = (Tier)7;` compiled clean and threw NullReferenceException where classic
+      refuses it with MIST_TC_0071; `func<int, Tier> f = v => (Tier)v;` compiled clean the same way. No
+      sample could see it, samples/Enums casting only into an optional. The language owner's rule is now
+      enums Requirement 15: a cast is sugar for a conversion function, `(E)v` is `E.ExplicitCast(v)`
+      taking the underlying type and answering `E?`, and the operand is matched as an argument is. The
+      binder types the cast `E | void` (CastExpression carries TargetType beside Type, as AsExpression
+      does), analysis order 4 judges the operand against the underlying type, and order 5 refuses the
+      unnarrowed result wherever it meets an E -- both lines above are refused now.
+
+      THE UNION-BACKED CAST ABOVE IS NO LONGER A LIMIT. One user-defined conversion per cast is C#'s rule,
+      not Mist's, and lowering around it is the emitter's job: EnumEmitter.LookupArgument converts an
+      operand that is not already the lookup operator's parameter type in a cast of its own, so a probe's
+      `(Mixed)"x"` over `int | string` emits `((Mixed?)(Union_Int32_String)("x"))`. The same lowering carries
+      another enum, `(Tier)Other.One` -> `((Tier?)(int)(Other.One))`, and a class declaring `implicit
+      operator int`. Measured on v2, each prints the right variant. Classic passes the first two through
+      its checks and fails them in Roslyn (Cannot convert type), so none can join samples/Enums, whose
+      baseline both pipelines share; EnumCastLoweringTests holds the spellings instead.
     unlocks: []
 
   # ===================================================================

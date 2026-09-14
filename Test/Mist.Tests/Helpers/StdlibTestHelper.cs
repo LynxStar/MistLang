@@ -44,39 +44,47 @@ internal static class StdlibTestHelper
     /// </summary>
     public static (ImmutableArray<CompilationUnit> Units, ImmutableArray<Storm.Runtime.SyntaxNode> Asts) LoadStdlib()
     {
-        if(cachedUnits.HasValue)
-        {
-            return (cachedUnits.Value, cachedAsts!.Value);
-        }
+        return Stdlib.Value;
+    }
 
+    private static readonly Lazy<(ImmutableArray<CompilationUnit> Units, ImmutableArray<Storm.Runtime.SyntaxNode> Asts)> Stdlib =
+        new(ReadStdlib);
+
+    private static (ImmutableArray<CompilationUnit> Units, ImmutableArray<Storm.Runtime.SyntaxNode> Asts) ReadStdlib()
+    {
         var repoRoot = FindRepoRoot();
         var stdlibRoot = Path.Combine(repoRoot, "Source", "Standard");
 
         var loaderDiag = new DiagnosticBag();
         var units = StdlibLoader.LoadFrom(stdlibRoot, loaderDiag);
+        if(loaderDiag.HasErrors || units.IsEmpty)
+        {
+            throw new InvalidOperationException(
+                $"No standard library could be read from {stdlibRoot}: "
+                + string.Join("; ", loaderDiag.ToImmutableArray().Select(d => d.Message)));
+        }
 
         ILexer lexer = new MistLexer();
         IParser parser = new MistParser();
-        var parseDiag = new DiagnosticBag();
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>(units.Length);
 
         foreach(var unit in units)
         {
+            var parseDiag = new DiagnosticBag();
             var tokens = lexer.Lex(unit.Source, parseDiag);
             var parseResult = parser.Parse(tokens, parseDiag);
-            if(parseResult.Root is not null)
+            if(parseResult.Root is null || parseDiag.HasErrors)
             {
-                asts.Add(parseResult.Root);
+                throw new InvalidOperationException(
+                    $"{unit.Source.Path} did not lex and parse: "
+                    + string.Join("; ", parseDiag.ToImmutableArray().Concat(parseResult.Diagnostics).Select(d => d.Message)));
             }
+
+            asts.Add(parseResult.Root);
         }
 
-        cachedUnits = units;
-        cachedAsts = asts.ToImmutable();
-        return (units, cachedAsts.Value);
+        return (units, asts.ToImmutable());
     }
-
-    private static ImmutableArray<CompilationUnit>? cachedUnits;
-    private static ImmutableArray<Storm.Runtime.SyntaxNode>? cachedAsts;
 
     /// <summary>
     /// Builds a semantic model that includes stdlib types alongside the

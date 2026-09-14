@@ -21,7 +21,7 @@ public static class StdlibLoader
     // avoids re-reading 19 files from disk on every CompilerDriver.Compile()
     // call — a significant win for property-based tests that compile
     // hundreds of programs in a single test run.
-    private static ImmutableArray<CompilationUnit>? cachedUnits;
+    private static ImmutableArray<CompilationUnit> cachedUnits;
     private static readonly object CacheLock = new();
 
     /// <summary>
@@ -41,24 +41,26 @@ public static class StdlibLoader
         _ = backend; // reserved for future backend-specific stdlib selection
 
         // Fast path: return cached units if available.
-        if(cachedUnits.HasValue)
+        var cached = cachedUnits;
+        if(!cached.IsDefault)
         {
-            return cachedUnits.Value;
+            return cached;
         }
 
         lock(CacheLock)
         {
             // Double-check after acquiring lock.
-            if(cachedUnits.HasValue)
+            if(!cachedUnits.IsDefault)
             {
-                return cachedUnits.Value;
+                return cachedUnits;
             }
 
             var stdlibRoot = Path.Combine(AppContext.BaseDirectory, "Standard");
             var units = LoadFrom(stdlibRoot, diagnostics);
 
-            // Only cache if loading succeeded (no errors).
-            if(!diagnostics.HasErrors)
+            // An empty listing without an error is what a Standard directory looks like before a
+            // build has copied into it, and caching it would leave the process without a stdlib.
+            if(!diagnostics.HasErrors && !units.IsEmpty)
             {
                 cachedUnits = units;
             }

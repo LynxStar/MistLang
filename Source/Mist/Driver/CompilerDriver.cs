@@ -18,17 +18,10 @@ namespace Mist.Driver;
 /// </summary>
 public sealed class CompilerDriver : ICompilerDriver
 {
-    // ── Stdlib lex/parse cache ────────────────────────────────────────────
-    // The stdlib files never change during a process lifetime. Caching the
-    // lexed token streams and parsed ASTs avoids re-lexing/re-parsing 19
-    // files on every Compile() call — a significant win for property-based
-    // tests that compile hundreds of programs in a single test run.
-    private static (ImmutableArray<TokenStream> Tokens, ImmutableArray<Storm.Runtime.SyntaxNode> Asts)? stdlibCache;
-    private static readonly object StdlibCacheLock = new();
-
     private ILexer lexer;
     private IParser parser;
     private ImmutableDictionary<string, IBackend> backends;
+    private readonly StdlibParseCache stdlibParseCache;
     private readonly ICompilationProgressReporter progressReporter;
     private readonly ICompilationPipeline classicPipeline;
     private readonly ICompilationPipeline experimentalPipeline;
@@ -40,10 +33,23 @@ public sealed class CompilerDriver : ICompilerDriver
         ImmutableArray<IAnalyzer> analyzers,
         ImmutableArray<IBackend> backends,
         ICompilationProgressReporter? progressReporter = null)
+        : this(lexer, parser, semanticModelBuilder, analyzers, backends, StdlibParseCache.Shared, progressReporter)
+    {
+    }
+
+    internal CompilerDriver(
+        ILexer lexer,
+        IParser parser,
+        ISemanticModelBuilder semanticModelBuilder,
+        ImmutableArray<IAnalyzer> analyzers,
+        ImmutableArray<IBackend> backends,
+        StdlibParseCache stdlibParseCache,
+        ICompilationProgressReporter? progressReporter = null)
     {
         this.lexer = lexer;
         this.parser = parser;
         this.backends = backends.ToImmutableDictionary(b => b.Id.Value);
+        this.stdlibParseCache = stdlibParseCache;
         this.progressReporter = progressReporter ?? NullProgressReporter.Instance;
         classicPipeline = new ClassicPipeline(semanticModelBuilder, analyzers, this.progressReporter);
         experimentalPipeline = new ExperimentalPipeline();
@@ -313,7 +319,7 @@ public sealed class CompilerDriver : ICompilerDriver
     private sealed record LexResult(
         Dictionary<CompilationUnit, TokenStream> TokenStreams,
         ImmutableArray<TokenStream>.Builder? StdlibTokensForCache,
-        (ImmutableArray<TokenStream> Tokens, ImmutableArray<Storm.Runtime.SyntaxNode> Asts)? CachedStdlib);
+        StdlibParseCache.Entry? CachedStdlib);
 
     /// <summary>
     /// Stage 2 – Lexing: tokenizes each compilation unit, skipping stdlib
@@ -326,16 +332,16 @@ public sealed class CompilerDriver : ICompilerDriver
         progressReporter.ReportStageStart("2", "Lexing");
 
         // Try to retrieve cached stdlib lex/parse results.
-        var cachedStdlib = stdlibCache;
+        var cachedStdlib = stdlibParseCache.TryGet(compilation.Units.Count(u => u.IsStdlib));
 
         var tokenStreams = new Dictionary<CompilationUnit, TokenStream>();
-        var stdlibTokensForCache = cachedStdlib.HasValue
+        var stdlibTokensForCache = cachedStdlib is not null
             ? null
             : ImmutableArray.CreateBuilder<TokenStream>();
 
         foreach(var unit in compilation.Units)
         {
-            if(unit.IsStdlib && cachedStdlib.HasValue)
+            if(unit.IsStdlib && cachedStdlib is not null)
             {
                 // Stdlib tokens are already cached; skip lexing.
                 continue;
@@ -362,9 +368,9 @@ public sealed class CompilerDriver : ICompilerDriver
 
         lexingStopwatch.Stop();
         var totalTokens = tokenStreams.Values.Sum(ts => ts.DefaultChannelTokens.Length);
-        if(cachedStdlib.HasValue)
+        if(cachedStdlib is not null)
         {
-            totalTokens += cachedStdlib.Value.Tokens.Sum(ts => ts.DefaultChannelTokens.Length);
+            totalTokens += cachedStdlib.Tokens.Sum(ts => ts.DefaultChannelTokens.Length);
         }
 
         progressReporter.ReportStageComplete("2", lexingStopwatch.Elapsed, new[]
@@ -392,21 +398,21 @@ public sealed class CompilerDriver : ICompilerDriver
         MistCompilation compilation,
         Dictionary<CompilationUnit, TokenStream> tokenStreams,
         ImmutableArray<TokenStream>.Builder? stdlibTokensForCache,
-        (ImmutableArray<TokenStream> Tokens, ImmutableArray<Storm.Runtime.SyntaxNode> Asts)? cachedStdlib,
+        StdlibParseCache.Entry? cachedStdlib,
         DiagnosticBag allDiagnostics)
     {
         var parsingStopwatch = Stopwatch.StartNew();
         progressReporter.ReportStageStart("3", "Parsing");
 
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
-        var stdlibAstsForCache = cachedStdlib.HasValue
+        var stdlibAstsForCache = cachedStdlib is not null
             ? null
             : ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
 
         // If we have cached stdlib ASTs, prepend them first.
-        if(cachedStdlib.HasValue)
+        if(cachedStdlib is not null)
         {
-            asts.AddRange(cachedStdlib.Value.Asts);
+            asts.AddRange(cachedStdlib.Asts);
         }
 
         var unitsWithTopLevelStatements = new HashSet<CompilationUnit>();
@@ -456,15 +462,12 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         // Populate the stdlib cache if this is the first successful compile.
-        if(!cachedStdlib.HasValue && stdlibTokensForCache is not null && stdlibAstsForCache is not null)
+        if(stdlibTokensForCache is not null && stdlibAstsForCache is not null)
         {
-            lock(StdlibCacheLock)
-            {
-                if(!stdlibCache.HasValue)
-                {
-                    stdlibCache = (stdlibTokensForCache.ToImmutable(), stdlibAstsForCache.ToImmutable());
-                }
-            }
+            stdlibParseCache.Offer(
+                compilation.Units.Count(u => u.IsStdlib),
+                stdlibTokensForCache.ToImmutable(),
+                stdlibAstsForCache.ToImmutable());
         }
 
         parsingStopwatch.Stop();

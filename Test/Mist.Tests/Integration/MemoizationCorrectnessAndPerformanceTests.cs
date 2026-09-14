@@ -2,6 +2,8 @@ using System.Diagnostics;
 using Mist.Common.Diagnostics;
 using Mist.Lexing;
 using Mist.Parsing;
+using Mist.Tests.Helpers;
+using Xunit.Abstractions;
 
 namespace Mist.Tests.Integration;
 
@@ -10,7 +12,8 @@ namespace Mist.Tests.Integration;
 /// + @memo annotations) preserves parsing correctness and meets performance targets
 /// when applied to the AllFeatures corpus.
 /// </summary>
-public sealed class MemoizationCorrectnessAndPerformanceTests
+[Collection(WallClockCollection.Name)]
+public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper output)
 {
     /// <summary>
     /// Verifies that parsing the AllFeatures corpus with expanded memoization
@@ -111,6 +114,10 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
         }
 
         // Measured pass: lex + parse only
+        var pauseBefore = GC.GetTotalPauseDuration();
+        var collectionsBefore = GC.CollectionCount(2);
+        var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        var processCpuBefore = Process.GetCurrentProcess().TotalProcessorTime;
         var stopwatch = Stopwatch.StartNew();
         foreach(var source in sources)
         {
@@ -123,6 +130,12 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
         stopwatch.Stop();
 
         var elapsed = stopwatch.Elapsed;
+        var conditions =
+            $"GC pause {(GC.GetTotalPauseDuration() - pauseBefore).TotalSeconds:F2}s, " +
+            $"{GC.CollectionCount(2) - collectionsBefore} gen2 collections, " +
+            $"{(GC.GetAllocatedBytesForCurrentThread() - allocatedBefore) / (1024 * 1024)} MB allocated by this thread, " +
+            $"{(Process.GetCurrentProcess().TotalProcessorTime - processCpuBefore).TotalSeconds:F2}s CPU across the whole test process";
+        output.WriteLine($"lex+parse {elapsed.TotalSeconds:F2}s wall; {conditions}");
 
         // Performance target: under 2 seconds wall-clock time for lex+parse.
         // In Release builds this typically completes in ~1s. In Debug/interpreted
@@ -135,7 +148,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests
             elapsed.TotalSeconds < 15.0,
             $"AllFeatures corpus lex+parse took {elapsed.TotalSeconds:F2}s, " +
             $"exceeding the 15-second regression ceiling ({sourceFiles.Count} files). " +
-            $"The production target is 2 seconds (Release mode).");
+            $"The production target is 2 seconds (Release mode). During the measured pass: {conditions}.");
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.IR;
 
@@ -364,27 +365,14 @@ public class DfaPipelinePropertyTests
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  Helper: run property over samples
-    // ══════════════════════════════════════════════════════════════════
-
-    private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
-    {
-        var samples = gen.Sample(maxTests);
-        foreach(var sample in samples)
-        {
-            check(sample);
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════════════
     //  10.2 — P1: NFA Round-Trip
     //  For any ExpressionIR and any string, NFA acceptance matches
     //  the DFA acceptance (both built from the same expression).
     //  **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 11.1, 11.3**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P1_NfaRoundTrip_NfaAcceptanceMatchesDfa()
+    [Property(MaxTest = 100)]
+    public Property P1_NfaRoundTrip_NfaAcceptanceMatchesDfa()
     {
         var gen = GenExpressionIR(3).SelectMany(expr =>
             Gen.Frequency(
@@ -392,7 +380,7 @@ public class DfaPipelinePropertyTests
                 (2, GenMatchingString(expr))
             ).Select(input => (expr, input)));
 
-        RunProperty(gen, pair =>
+        return Prop.ForAll(gen.ToArbitrary(), pair =>
         {
             var (expr, input) = pair;
 
@@ -411,7 +399,7 @@ public class DfaPipelinePropertyTests
             var dfaResult = DfaAccepts(dfa, input);
 
             Assert.Equal(nfaResult, dfaResult);
-        }, 100);
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -421,8 +409,8 @@ public class DfaPipelinePropertyTests
     //  **Validates: Requirements 2.1**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P2_CombinedNfaUnion_CombinedAcceptsIffAnyIndividualAccepts()
+    [Property(MaxTest = 100)]
+    public Property P2_CombinedNfaUnion_CombinedAcceptsIffAnyIndividualAccepts()
     {
         var genTokenExprs = Gen.Choose(2, 4).SelectMany(count =>
             Gen.ArrayOf(GenExpressionIR(2), count));
@@ -438,7 +426,7 @@ public class DfaPipelinePropertyTests
             ).Select(input => (exprs, input));
         });
 
-        RunProperty(gen, pair =>
+        return Prop.ForAll(gen.ToArbitrary(), pair =>
         {
             var (exprs, input) = pair;
 
@@ -465,7 +453,7 @@ public class DfaPipelinePropertyTests
             var combinedAccepts = NfaAcceptingToken(combinedNfa, input) >= 0;
 
             Assert.Equal(anyIndividualAccepts, combinedAccepts);
-        }, 100);
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -475,8 +463,8 @@ public class DfaPipelinePropertyTests
     //  **Validates: Requirements 3.1, 3.2, 3.3**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P3_SubsetConstruction_DfaAcceptsIffNfaAcceptsWithCorrectPriority()
+    [Property(MaxTest = 100)]
+    public Property P3_SubsetConstruction_DfaAcceptsIffNfaAcceptsWithCorrectPriority()
     {
         var genTokenExprs = Gen.Choose(2, 4).SelectMany(count =>
             Gen.ArrayOf(GenExpressionIR(2), count));
@@ -492,7 +480,7 @@ public class DfaPipelinePropertyTests
             ).Select(input => (exprs, input));
         });
 
-        RunProperty(gen, pair =>
+        return Prop.ForAll(gen.ToArbitrary(), pair =>
         {
             var (exprs, input) = pair;
 
@@ -517,7 +505,7 @@ public class DfaPipelinePropertyTests
             {
                 Assert.Equal(nfaToken, dfaToken);
             }
-        }, 100);
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -527,8 +515,8 @@ public class DfaPipelinePropertyTests
     //  **Validates: Requirements 4.1, 4.2, 4.3**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P4_MinimizationCorrectness_MinimizedDfaMatchesOriginal()
+    [Property(MaxTest = 100)]
+    public Property P4_MinimizationCorrectness_MinimizedDfaMatchesOriginal()
     {
         var genTokenExprs = Gen.Choose(1, 4).SelectMany(count =>
             Gen.ArrayOf(GenExpressionIR(2), count));
@@ -544,7 +532,7 @@ public class DfaPipelinePropertyTests
             ).Select(input => (exprs, input));
         });
 
-        RunProperty(gen, pair =>
+        return Prop.ForAll(gen.ToArbitrary(), pair =>
         {
             var (exprs, input) = pair;
 
@@ -567,7 +555,7 @@ public class DfaPipelinePropertyTests
             {
                 Assert.Equal(originalToken, minimizedToken);
             }
-        }, 100);
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -576,13 +564,13 @@ public class DfaPipelinePropertyTests
     //  **Validates: Requirements 4.4**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P5_MinimizationIdempotence_DoubleMinimizeSameStateCount()
+    [Property(MaxTest = 100)]
+    public Property P5_MinimizationIdempotence_DoubleMinimizeSameStateCount()
     {
         var genTokenExprs = Gen.Choose(1, 4).SelectMany(count =>
             Gen.ArrayOf(GenExpressionIR(2), count));
 
-        RunProperty(genTokenExprs, exprs =>
+        return Prop.ForAll(genTokenExprs.ToArbitrary(), exprs =>
         {
             var tokens = exprs.Select((e, i) =>
                 new TokenIR($"T{i}", e, false, i)).ToList();
@@ -595,7 +583,7 @@ public class DfaPipelinePropertyTests
             var minimized2 = DfaMinimizer.Minimize(minimized1);
 
             Assert.Equal(minimized1.States.Count, minimized2.States.Count);
-        }, 100);
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -606,8 +594,8 @@ public class DfaPipelinePropertyTests
     //  **Validates: Requirements 12.1, 12.2, 12.3, 12.4, 12.5**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P10_FullLexerEquivalence_DfaPipelineConsistentWithNfa()
+    [Property(MaxTest = 100)]
+    public Property P10_FullLexerEquivalence_DfaPipelineConsistentWithNfa()
     {
         // Define a small grammar: identifiers, numbers, whitespace
         var identExpr = (ExpressionIR)new SequenceIR(new List<ExpressionIR>
@@ -689,7 +677,7 @@ public class DfaPipelinePropertyTests
             Gen.ArrayOf(Gen.Elements(inputChars), len)
                 .Select(arr => new string(arr)));
 
-        RunProperty(gen, input =>
+        return Prop.ForAll(gen.ToArbitrary(), input =>
         {
             // Table-driven lexing (simulating the emitted code)
             var tableLexTokens = new List<(int tokenKind, string lexeme)>();
@@ -777,6 +765,6 @@ public class DfaPipelinePropertyTests
                 Assert.Equal(nfaLexTokens[i].lexeme, tableLexTokens[i].lexeme);
                 Assert.Equal(nfaLexTokens[i].tokenKind, tableLexTokens[i].tokenKind);
             }
-        }, 100);
+        });
     }
 }

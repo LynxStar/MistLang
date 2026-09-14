@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Frontend;
 using Storm.SourceGenerator.Validate;
@@ -275,8 +276,8 @@ public class InlineBlockReachabilityTests
     /// Generates grammars where an inline block's prefix FIRST-k does NOT overlap
     /// with sibling alternatives. Asserts zero STORM0006.
     /// </summary>
-    [Fact]
-    public void P7_InlineBlockOpaque_NoOverlapWithSiblings_ZeroSTORM0006()
+    [Property(MaxTest = 100)]
+    public Property P7_InlineBlockOpaque_NoOverlapWithSiblings_ZeroSTORM0006()
     {
         // Strategy: generate unique token names for:
         // - prefixToken (starts the prefix rule)
@@ -298,9 +299,9 @@ public class InlineBlockReachabilityTests
                  tailTokenNames: tailTokenNames.ToList(),
                  siblingTokenNames: siblingTokenNames.ToList()))))))));
 
-        var samples = testGen.Sample(100);
-        foreach(var (prefixName, armCount, siblingCount, armNames, altNames, tailTokenNames, siblingTokenNames) in samples)
+        return Prop.ForAll(testGen.ToArbitrary(), drawn =>
         {
+            var (prefixName, armCount, siblingCount, armNames, altNames, tailTokenNames, siblingTokenNames) = drawn;
             // Ensure all names are distinct
             var allNames = new HashSet<string>(StringComparer.Ordinal)
             {
@@ -332,7 +333,7 @@ public class InlineBlockReachabilityTests
 
             if(validArms.Count == 0 || validSiblings.Count == 0)
             {
-                continue;
+                return;
             }
 
             // Build grammar: prefix starts with PrefixTok, siblings start with their own tokens
@@ -367,7 +368,7 @@ public class InlineBlockReachabilityTests
                 $"Expected zero STORM0006 but got {storm0006.Count}: " +
                 $"{string.Join("; ", storm0006.Select(d => d.Message))}\n" +
                 $"Source:\n{source}");
-        }
+        });
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -384,8 +385,8 @@ public class InlineBlockReachabilityTests
     /// Generates inline blocks where all arm tails have distinct FIRST tokens.
     /// Asserts zero STORM0006 for the arms.
     /// </summary>
-    [Fact]
-    public void P8_AllArmTailsDistinct_ZeroSTORM0006()
+    [Property(MaxTest = 100)]
+    public Property P8_AllArmTailsDistinct_ZeroSTORM0006()
     {
         var testGen =
             Gen.Choose(2, 5).SelectMany(armCount =>
@@ -400,9 +401,9 @@ public class InlineBlockReachabilityTests
                  tailTokenNames: tailTokenNames.ToList(),
                  siblingToken)))))));
 
-        var samples = testGen.Sample(100);
-        foreach(var (prefixName, armCount, armNames, altNames, tailTokenNames, siblingToken) in samples)
+        return Prop.ForAll(testGen.ToArbitrary(), drawn =>
         {
+            var (prefixName, armCount, armNames, altNames, tailTokenNames, siblingToken) = drawn;
             var allNames = new HashSet<string>(StringComparer.Ordinal)
             {
                 prefixName, "PrefixTok"
@@ -425,7 +426,7 @@ public class InlineBlockReachabilityTests
             // Need a sibling token distinct from all others for CheckInlineBlock to trigger
             if(!allNames.Add(siblingToken) || validArms.Count < 2)
             {
-                continue;
+                return;
             }
 
             var source = new System.Text.StringBuilder();
@@ -453,15 +454,15 @@ public class InlineBlockReachabilityTests
                 $"Expected zero STORM0006 but got {storm0006.Count}: " +
                 $"{string.Join("; ", storm0006.Select(d => d.Message))}\n" +
                 $"Source:\n{source}");
-        }
+        });
     }
 
     /// <summary>
     /// Generates inline blocks where a later arm has a tail FIRST-k that duplicates
     /// an earlier arm's. Asserts STORM0006 for the duplicating arm.
     /// </summary>
-    [Fact]
-    public void P8_LaterArmTailSubset_EmitsSTORM0006()
+    [Property(MaxTest = 100)]
+    public Property P8_LaterArmTailSubset_EmitsSTORM0006()
     {
         // Strategy: generate N-1 arms with distinct tail tokens, then add a final
         // arm whose tail reuses one of the earlier tokens (making it a subset).
@@ -481,9 +482,9 @@ public class InlineBlockReachabilityTests
                  siblingToken,
                  duplicateIndex))))))));
 
-        var samples = testGen.Sample(100);
-        foreach(var (prefixName, armCount, armNames, altNames, distinctTailTokens, siblingToken, duplicateIndex) in samples)
+        return Prop.ForAll(testGen.ToArbitrary(), drawn =>
         {
+            var (prefixName, armCount, armNames, altNames, distinctTailTokens, siblingToken, duplicateIndex) = drawn;
             var allNames = new HashSet<string>(StringComparer.Ordinal)
             {
                 prefixName, "PrefixTok"
@@ -501,13 +502,13 @@ public class InlineBlockReachabilityTests
 
             if(validDistinctTokens.Count < 2)
             {
-                continue;
+                return;
             }
 
             // Need a distinct sibling token
             if(!allNames.Add(siblingToken))
             {
-                continue;
+                return;
             }
 
             // Build arms: first N-1 with distinct tokens, last arm duplicates one
@@ -526,7 +527,7 @@ public class InlineBlockReachabilityTests
 
             if(validArms.Count < 2)
             {
-                continue;
+                return;
             }
 
             // Add the duplicating arm (last arm uses a token from an earlier arm)
@@ -536,7 +537,7 @@ public class InlineBlockReachabilityTests
             var lastAltName = "DupAlt";
             if(!allNames.Add(lastArmName) || !allNames.Add(lastAltName))
             {
-                continue;
+                return;
             }
 
             validArms.Add((lastArmName, lastAltName, dupToken));
@@ -573,7 +574,7 @@ public class InlineBlockReachabilityTests
                 $"Expected at least one STORM0006 for duplicating arm but got none.\n" +
                 $"Source:\n{source}");
             Assert.Contains(storm0006, d => d.Message.Contains(lastAltName));
-        }
+        });
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -590,8 +591,8 @@ public class InlineBlockReachabilityTests
     /// Verifies that the FIRST-k set computed for an inline block expression equals
     /// the FIRST-k set computed directly from the prefix rule.
     /// </summary>
-    [Fact]
-    public void P9_BlockFirstKEqualsPrefixFirstK()
+    [Property(MaxTest = 100)]
+    public Property P9_BlockFirstKEqualsPrefixFirstK()
     {
         // Strategy: generate grammars with an inline block and verify that
         // ComputeFirstKSequences(inlineBlock) == ComputeFirstKSequences(prefixRule.Body)
@@ -609,9 +610,9 @@ public class InlineBlockReachabilityTests
                  tailTokenNames: tailTokenNames.ToList(),
                  prefixTokenNames: prefixTokenNames.ToList()))))))));
 
-        var samples = testGen.Sample(100);
-        foreach(var (prefixName, armCount, prefixTokenCount, armNames, altNames, tailTokenNames, prefixTokenNames) in samples)
+        return Prop.ForAll(testGen.ToArbitrary(), drawn =>
         {
+            var (prefixName, armCount, prefixTokenCount, armNames, altNames, tailTokenNames, prefixTokenNames) = drawn;
             var allNames = new HashSet<string>(StringComparer.Ordinal)
             {
                 prefixName
@@ -629,7 +630,7 @@ public class InlineBlockReachabilityTests
 
             if(validPrefixTokens.Count == 0)
             {
-                continue;
+                return;
             }
 
             var validArms = new List<(string armName, string altName, string tailToken)>();
@@ -648,7 +649,7 @@ public class InlineBlockReachabilityTests
 
             if(validArms.Count == 0)
             {
-                continue;
+                return;
             }
 
             // Build grammar
@@ -687,7 +688,7 @@ public class InlineBlockReachabilityTests
 
             if(inlineBlockExpr == null)
             {
-                continue;
+                return;
             }
 
             // Compute FIRST-k for the inline block (should use prefix FIRST-k)
@@ -704,6 +705,6 @@ public class InlineBlockReachabilityTests
                 $"Block FIRST-k {{{string.Join(", ", blockFirstK)}}} != " +
                 $"Prefix FIRST-k {{{string.Join(", ", prefixFirstK)}}}\n" +
                 $"Source:\n{source}");
-        }
+        });
     }
 }

@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Analyze;
 using Storm.SourceGenerator.IR;
 
@@ -209,11 +210,10 @@ public class MultiCallerCandidatePropertyTests
     //  **Validates: Requirements 4.1, 4.2**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P4_MultiCallerDetection_RulesIn2PlusAlternatives_AppearInPlan()
+    [Property(MaxTest = 200)]
+    public Property P4_MultiCallerDetection_RulesIn2PlusAlternatives_AppearInPlan()
     {
-        var samples = GenMultiCallerGrammar().Sample(200);
-        foreach(var desc in samples)
+        return Prop.ForAll(GenMultiCallerGrammar().ToArbitrary(), desc =>
         {
             var grammar = BuildGrammarIR(desc);
             var plan = MemoizationAnalysisPass.Run(grammar);
@@ -229,6 +229,6 @@ public class MultiCallerCandidatePropertyTests
                     $"but was NOT included in the MemoizationPlan.\n" +
                     $"Grammar descriptor: {desc}");
             }
-        }
+        });
     }
 }

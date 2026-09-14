@@ -679,6 +679,23 @@ flakes:
           StormTraitBindingRoundTripPropertyTests.P2, and StormTraitInterfaceEmissionPropertyTests.P5a, P5b
           and P5c. Twenty-one other files in the project still draw through Gen.Sample and were not replayed.
 
+          THE REST OF THE PROJECT, same day, and it found nothing. Those twenty-one files held 48 properties,
+          26 as [Fact] loops over Gen.Sample and 22 behind RunProperty helpers in four files; all were
+          converted to [Property] over their generators and each replayed for five rounds of 200000 draws.
+          All 240 rounds passed, and no test in the project draws through Gen.Sample any more. No failure in
+          a million draws bounds a property at about three failing draws per million (the rule of three) --
+          an upper bound, not an estimate, and 48 such bounds together do not rule this entry's sightings
+          out.
+
+          THE REPLAY MEASURED THE NEW TESTS, which differ from the old in two measured ways. Gen.Sample drew
+          at size 50 and a [Property] sweeps size from 1 to 100, so the three regex-literal generators and
+          InlineKeywordLexerTests.P1, which call ListOf() or ArrayOf() without a count, now draw lengths up
+          to 100. And a draw that returns early checks nothing: over 20000 draws nine such properties skipped
+          at most 10 each, InlineBlockReachabilityTests.P8_LaterArmTailSubset skips a third by construction (a
+          two-arm draw has one distinct tail token), and StormRegexLiteralEmitterPropertyTests skips the 42 to
+          58 per cent of patterns the regex parser rejects. That test now discards them through Prop.When, so
+          a run that can test nothing fails as exhausted where it used to need its own count.
+
   - id: storm-trait-structural-satisfaction-property
     test: Storm.SourceGenerator.Tests.StormTraitStructuralSatisfactionPropertyTests.P4c_MismatchedField_EmitsSTORM0021
     file: Test/Storm.SourceGenerator.Tests/StormTraitStructuralSatisfactionPropertyTests.cs

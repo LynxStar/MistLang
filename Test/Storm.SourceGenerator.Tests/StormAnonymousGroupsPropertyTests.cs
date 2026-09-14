@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.IR;
 
@@ -559,18 +560,6 @@ public class StormAnonymousGroupsPropertyTests
         return ParserEmitter.Emit(context);
     }
 
-    private static void RunProperty<T>(Gen<T> gen, Action<T> check)
-    {
-        var samples = gen.Sample(Iterations).ToList();
-        Assert.True(
-            samples.Count >= Iterations,
-            $"Expected at least {Iterations} generated samples, got {samples.Count}.");
-        foreach(var sample in samples)
-        {
-            check(sample);
-        }
-    }
-
     private static Gen<int> SeedGen()
     {
         return Gen.Choose(1, int.MaxValue - 1);
@@ -684,8 +673,8 @@ public class StormAnonymousGroupsPropertyTests
     /// exactly one field per value-bearing element (in source order) and no field for a
     /// bare structural token.
     /// </summary>
-    [Fact]
-    public void Property1_TwoOrMoreValueBearingGroup_ProjectsStructWithOneFieldPerElement()
+    [Property(MaxTest = Iterations)]
+    public Property Property1_TwoOrMoreValueBearingGroup_ProjectsStructWithOneFieldPerElement()
     {
         var gen = SeedGen().Select(seed =>
         {
@@ -700,7 +689,7 @@ public class StormAnonymousGroupsPropertyTests
             return built;
         });
 
-        RunProperty(gen, built =>
+        return Prop.ForAll(gen.ToArbitrary(), built =>
         {
             var context = Describe(built);
             var output = EmitAst(built);
@@ -740,8 +729,8 @@ public class StormAnonymousGroupsPropertyTests
     /// struct names are Group0..Group{K-1} in left-to-right source order with no gaps and
     /// no duplicates.
     /// </summary>
-    [Fact]
-    public void Property2_MultipleGroups_ProduceUniqueSequentialIndicesInOrder()
+    [Property(MaxTest = Iterations)]
+    public Property Property2_MultipleGroups_ProduceUniqueSequentialIndicesInOrder()
     {
         var gen = SeedGen().Select(seed =>
         {
@@ -759,7 +748,7 @@ public class StormAnonymousGroupsPropertyTests
             return built;
         });
 
-        RunProperty(gen, built =>
+        return Prop.ForAll(gen.ToArbitrary(), built =>
         {
             var context = Describe(built);
             var output = EmitAst(built);
@@ -799,8 +788,8 @@ public class StormAnonymousGroupsPropertyTests
     /// <c>ImmutableArray&lt;{Rule}NodeGroup{N}&gt;</c>. (No-modifier groups are not
     /// projected by the committed detector and so are outside this property.)
     /// </summary>
-    [Fact]
-    public void Property3_ParentPropertyType_MatchesGroupModifier()
+    [Property(MaxTest = Iterations)]
+    public Property Property3_ParentPropertyType_MatchesGroupModifier()
     {
         var gen = SeedGen().Select(seed =>
         {
@@ -812,7 +801,7 @@ public class StormAnonymousGroupsPropertyTests
             return built;
         });
 
-        RunProperty(gen, built =>
+        return Prop.ForAll(gen.ToArbitrary(), built =>
         {
             var context = Describe(built);
             var output = EmitAst(built);
@@ -844,8 +833,8 @@ public class StormAnonymousGroupsPropertyTests
     /// struct. The new <c>Group{N}</c> property is present and no <c>[Obsolete]</c> shim
     /// is emitted.
     /// </summary>
-    [Fact]
-    public void Property4_ShimsDisabled_ParentHasNoFlatFieldForInGroupLabels()
+    [Property(MaxTest = Iterations)]
+    public Property Property4_ShimsDisabled_ParentHasNoFlatFieldForInGroupLabels()
     {
         var gen = SeedGen().Select(seed =>
         {
@@ -859,7 +848,7 @@ public class StormAnonymousGroupsPropertyTests
             return built;
         });
 
-        RunProperty(gen, built =>
+        return Prop.ForAll(gen.ToArbitrary(), built =>
         {
             var context = Describe(built);
             var output = EmitAst(built, emitObsoleteShims: false);
@@ -890,8 +879,8 @@ public class StormAnonymousGroupsPropertyTests
     /// Part (b): a labelled token-only alternation appearing inside a two-or-more
     /// value-bearing struct group becomes a <c>Token</c> struct field (no nested struct).
     /// </summary>
-    [Fact]
-    public void Property5_PureTokenAlternation_CollapsesToToken()
+    [Property(MaxTest = Iterations)]
+    public Property Property5_PureTokenAlternation_CollapsesToToken()
     {
         // Part (a): lone pure-token alternation group -> no struct, token promotion.
         var loneGen = SeedGen().Select(seed =>
@@ -901,7 +890,7 @@ public class StormAnonymousGroupsPropertyTests
             return built;
         });
 
-        RunProperty(loneGen, built =>
+        var loneProperty = Prop.ForAll(loneGen.ToArbitrary(), built =>
         {
             var context = $"seed={built.Seed} node={built.NodeName} lone-alt label={built.LabelName} mod={built.Modifier}";
             var output = AstEmitter.EmitAstNodes(new EmissionContext(
@@ -936,7 +925,7 @@ public class StormAnonymousGroupsPropertyTests
             return built;
         });
 
-        RunProperty(structGen, built =>
+        var structProperty = Prop.ForAll(structGen.ToArbitrary(), built =>
         {
             var context = Describe(built);
             var output = EmitAst(built);
@@ -951,6 +940,8 @@ public class StormAnonymousGroupsPropertyTests
             AssertContains(structBlock, $"public Token {altField.Name};", context);
             AssertDoesNotContain(output, $"public struct {group.StructName}Group0", context);
         });
+
+        return loneProperty.And(structProperty);
     }
 
     // -- Property 6: Parser struct construction per iteration --
@@ -965,8 +956,8 @@ public class StormAnonymousGroupsPropertyTests
     /// finalised list to <c>node.Group{N}</c>, and never writes an in-group field as a
     /// scalar node property.
     /// </summary>
-    [Fact]
-    public void Property6_StarPlusGroup_ParserBuildsStructPerIteration()
+    [Property(MaxTest = Iterations)]
+    public Property Property6_StarPlusGroup_ParserBuildsStructPerIteration()
     {
         var gen = SeedGen().Select(seed =>
         {
@@ -978,7 +969,7 @@ public class StormAnonymousGroupsPropertyTests
             return built;
         });
 
-        RunProperty(gen, built =>
+        return Prop.ForAll(gen.ToArbitrary(), built =>
         {
             var context = Describe(built);
             var parser = EmitParser(built);
@@ -1009,8 +1000,8 @@ public class StormAnonymousGroupsPropertyTests
     /// feature adds), and the classic promotion (<c>ImmutableArray&lt;T&gt;</c> /
     /// <c>T?</c> / <c>T</c>) is retained.
     /// </summary>
-    [Fact]
-    public void Property7_SubTwoValueBearingRules_ProduceNoGroupProjection()
+    [Property(MaxTest = Iterations)]
+    public Property Property7_SubTwoValueBearingRules_ProduceNoGroupProjection()
     {
         var gen = SeedGen().Select(seed =>
         {
@@ -1019,7 +1010,7 @@ public class StormAnonymousGroupsPropertyTests
             return built;
         });
 
-        RunProperty(gen, built =>
+        return Prop.ForAll(gen.ToArbitrary(), built =>
         {
             var context = $"seed={built.Seed} node={built.NodeName} shape={built.Shape} classic={built.ClassicSubstring}";
 
@@ -1053,8 +1044,8 @@ public class StormAnonymousGroupsPropertyTests
     /// gets a list shim forwarding through <c>Group{N}.Select(g =&gt; g.{Field})</c>. The
     /// <c>[Obsolete("Use Group{N}")]</c> attribute is present.
     /// </summary>
-    [Fact]
-    public void Property8_StarPlusGroup_ShimsForwardToGroupData()
+    [Property(MaxTest = Iterations)]
+    public Property Property8_StarPlusGroup_ShimsForwardToGroupData()
     {
         var gen = SeedGen().Select(seed =>
         {
@@ -1072,7 +1063,7 @@ public class StormAnonymousGroupsPropertyTests
             return built;
         });
 
-        RunProperty(gen, built =>
+        return Prop.ForAll(gen.ToArbitrary(), built =>
         {
             var context = Describe(built);
             var output = EmitAst(built, emitObsoleteShims: true);
@@ -1113,8 +1104,8 @@ public class StormAnonymousGroupsPropertyTests
     /// <c>Children()</c> override iterates the group list with a <c>foreach</c> and yields
     /// each node-typed field; token fields are not yielded.
     /// </summary>
-    [Fact]
-    public void Property9_StarPlusGroup_ChildrenYieldsNodeFields()
+    [Property(MaxTest = Iterations)]
+    public Property Property9_StarPlusGroup_ChildrenYieldsNodeFields()
     {
         var gen = SeedGen().Select(seed =>
         {
@@ -1128,7 +1119,7 @@ public class StormAnonymousGroupsPropertyTests
             return built;
         });
 
-        RunProperty(gen, built =>
+        return Prop.ForAll(gen.ToArbitrary(), built =>
         {
             var context = Describe(built);
             var output = EmitAst(built);

@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.IR;
 using Storm.SourceGenerator.Resolve;
@@ -324,8 +325,8 @@ public class InlineBlockAstEmitterTests
                     .Select(chars => start + new string(chars))));
     }
 
-    [Fact]
-    public void P11_AstEmission_CorrectNodeClassPerArm()
+    [Property(MaxTest = 60)]
+    public Property P11_AstEmission_CorrectNodeClassPerArm()
     {
         // Generate grammars with varying arm counts (1-4) and varying alt names.
         // Verify: exactly N sealed classes named {AltName}{RuleName}Node are emitted,
@@ -338,14 +339,14 @@ public class InlineBlockAstEmitterTests
             Gen.ListOf(GenIdentifier(), armCount).Select(armNames =>
                 (ruleName, prefixName, armCount, altNames: altNames.ToList(), armNames: armNames.ToList()))))));
 
-        var samples = testGen.Sample(60);
-        foreach(var (ruleName, prefixName, armCount, altNames, armNames) in samples)
+        return Prop.ForAll(testGen.ToArbitrary(), drawn =>
         {
+            var (ruleName, prefixName, armCount, altNames, armNames) = drawn;
             // Ensure all names are unique
             var allNames = new HashSet<string>(StringComparer.Ordinal);
             if(!allNames.Add(ruleName) || !allNames.Add(prefixName))
             {
-                continue;
+                return;
             }
 
             var validArms = new List<(string armName, string altName, string tailToken)>();
@@ -364,7 +365,7 @@ public class InlineBlockAstEmitterTests
 
             if(validArms.Count == 0)
             {
-                continue;
+                return;
             }
 
             // Build grammar source
@@ -391,7 +392,7 @@ public class InlineBlockAstEmitterTests
             }
             catch
             {
-                continue; // Skip invalid name collisions
+                return; // Skip invalid name collisions
             }
 
             var output = AstEmitter.EmitAstNodes(ctx);
@@ -405,7 +406,7 @@ public class InlineBlockAstEmitterTests
                 var expectedClassName = $"{altName}{ruleName}Node";
                 Assert.Contains($"public sealed class {expectedClassName} : {ruleName}Node", output);
             }
-        }
+        });
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -418,8 +419,8 @@ public class InlineBlockAstEmitterTests
     //  **Validates: Requirements 8.2, 8.4, 8.5**
     // ═══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P12_AstEmission_PropertyOrderingMatchesPrefixPlusTail()
+    [Property(MaxTest = 60)]
+    public Property P12_AstEmission_PropertyOrderingMatchesPrefixPlusTail()
     {
         // The inline keyword is a parse-time optimization. The AST shape must be
         // identical to what a standalone `label:TargetRule as AltName` produces:
@@ -433,9 +434,9 @@ public class InlineBlockAstEmitterTests
                  prefixLabels: prefixLabels.ToList(),
                  tailLabels: tailLabels.ToList())))));
 
-        var samples = testGen.Sample(60);
-        foreach(var (prefixFieldCount, tailFieldCount, prefixLabels, tailLabels) in samples)
+        return Prop.ForAll(testGen.ToArbitrary(), drawn =>
         {
+            var (prefixFieldCount, tailFieldCount, prefixLabels, tailLabels) = drawn;
             // Ensure all labels are unique and valid as token names
             var allNames = new HashSet<string>(StringComparer.Ordinal)
             {
@@ -470,7 +471,7 @@ public class InlineBlockAstEmitterTests
 
             if(validPrefixLabels.Count == 0 || validTailLabels.Count == 0)
             {
-                continue;
+                return;
             }
 
             // Build grammar
@@ -500,7 +501,7 @@ public class InlineBlockAstEmitterTests
             }
             catch
             {
-                continue;
+                return;
             }
 
             var output = AstEmitter.EmitAstNodes(ctx);
@@ -534,7 +535,7 @@ public class InlineBlockAstEmitterTests
                 var propName = PascalCase(label);
                 Assert.DoesNotContain($"public Token {propName} {{ get; set; }}", classBody);
             }
-        }
+        });
     }
 
     private static string PascalCase(string name)

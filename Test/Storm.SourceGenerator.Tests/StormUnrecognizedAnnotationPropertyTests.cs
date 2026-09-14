@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Frontend;
 
@@ -43,11 +44,10 @@ public class StormUnrecognizedAnnotationPropertyTests
     //  **Validates: Requirements 2.3**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P2_UnrecognizedAnnotation_EmitsDiagnosticAndNoDeclaration()
+    [Property(MaxTest = 200)]
+    public Property P2_UnrecognizedAnnotation_EmitsDiagnosticAndNoDeclaration()
     {
-        var samples = GenNonMemoIdentifier().Sample(200);
-        foreach(var identifier in samples)
+        return Prop.ForAll(GenNonMemoIdentifier().ToArbitrary(), identifier =>
         {
             var annotation = "@" + identifier;
             // Place the unrecognized annotation before a rule declaration
@@ -72,6 +72,6 @@ public class StormUnrecognizedAnnotationPropertyTests
                 .Where(d => d.IsMemo)
                 .ToList();
             Assert.Empty(memoDecls);
-        }
+        });
     }
 }

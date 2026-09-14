@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.IR;
 using Storm.SourceGenerator.Resolve;
@@ -85,62 +86,62 @@ public class StormRegexLiteralEmitterPropertyTests
     /// For any RegexLiteralIR with a valid regex pattern p, the generated C# code SHALL NOT contain
     /// any runtime Regex usage, and SHALL contain DFA transition tables instead.
     /// </summary>
-    [Fact]
-    public void Emitter_CompilesRegexIntoDfaTables()
+    [Property(MaxTest = 100)]
+    public Property Emitter_CompilesRegexIntoDfaTables()
     {
-        var patterns = GenRegexPattern().Sample(100);
-        var testedCount = 0;
-        foreach(var pattern in patterns)
+        return Prop.ForAll(GenRegexPattern().ToArbitrary(), pattern =>
         {
-            var grammarSource = $"token T = `{pattern}`;\nrule Start = T;";
+            var output = TryEmitLexer(pattern);
 
-            EmissionContext ctx;
-            try
+            return Prop.When(output != null, () =>
             {
-                ctx = CreateContext(grammarSource);
-            }
-            catch
-            {
-                // Skip patterns that fail grammar lowering
-                continue;
-            }
+                // Must NOT contain runtime Regex usage (DFA replaces it)
+                Assert.False(output!.Contains("using System.Text.RegularExpressions;"),
+                    $"Should not contain Regex using directive for pattern: {pattern}");
 
-            string output;
-            try
-            {
-                output = LexerEmitter.Emit(ctx);
-            }
-            catch(FormatException)
-            {
-                // Skip patterns that are not valid for the RegexParser
-                // (e.g., unterminated character classes from random generation)
-                continue;
-            }
+                Assert.False(output.Contains("RegexOptions.Compiled"),
+                    $"Should not contain RegexOptions.Compiled for pattern: {pattern}");
 
-            testedCount++;
+                Assert.False(output.Contains("private static readonly Regex"),
+                    $"Should not contain Regex field for pattern: {pattern}");
 
-            // Must NOT contain runtime Regex usage (DFA replaces it)
-            Assert.False(output.Contains("using System.Text.RegularExpressions;"),
-                $"Should not contain Regex using directive for pattern: {pattern}");
+                // Must contain DFA transition tables
+                Assert.True(output.Contains("_charClass"),
+                    $"Missing _charClass array for pattern: {pattern}");
 
-            Assert.False(output.Contains("RegexOptions.Compiled"),
-                $"Should not contain RegexOptions.Compiled for pattern: {pattern}");
+                Assert.True(output.Contains("_trans_default"),
+                    $"Missing transition table for pattern: {pattern}");
 
-            Assert.False(output.Contains("private static readonly Regex"),
-                $"Should not contain Regex field for pattern: {pattern}");
+                Assert.True(output.Contains("_accept_default"),
+                    $"Missing accepting table for pattern: {pattern}");
+            });
+        });
+    }
 
-            // Must contain DFA transition tables
-            Assert.True(output.Contains("_charClass"),
-                $"Missing _charClass array for pattern: {pattern}");
+    private static string? TryEmitLexer(string pattern)
+    {
+        var grammarSource = $"token T = `{pattern}`;\nrule Start = T;";
 
-            Assert.True(output.Contains("_trans_default"),
-                $"Missing transition table for pattern: {pattern}");
-
-            Assert.True(output.Contains("_accept_default"),
-                $"Missing accepting table for pattern: {pattern}");
+        EmissionContext ctx;
+        try
+        {
+            ctx = CreateContext(grammarSource);
+        }
+        catch
+        {
+            // Skip patterns that fail grammar lowering
+            return null;
         }
 
-        // Ensure we tested at least some patterns
-        Assert.True(testedCount > 0, "No valid patterns were tested");
+        try
+        {
+            return LexerEmitter.Emit(ctx);
+        }
+        catch(FormatException)
+        {
+            // Skip patterns that are not valid for the RegexParser
+            // (e.g., unterminated character classes from random generation)
+            return null;
+        }
     }
 }

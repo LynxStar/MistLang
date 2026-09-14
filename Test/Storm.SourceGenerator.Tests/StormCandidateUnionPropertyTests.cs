@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Analyze;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.IR;
@@ -149,11 +150,10 @@ public class StormCandidateUnionPropertyTests
     //  **Validates: Requirements 5.1, 5.2**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P5_CandidateUnion_PlanContainsExactlyUnionOfAllSources()
+    [Property(MaxTest = 100)]
+    public Property P5_CandidateUnion_PlanContainsExactlyUnionOfAllSources()
     {
-        var samples = GenGrammarScenario().Sample(100);
-        foreach(var scenario in samples)
+        return Prop.ForAll(GenGrammarScenario().ToArbitrary(), scenario =>
         {
             // Strip the "grammar Test;\n" prefix that BuildGrammar will add
             // Our source already has it, so we pass it directly through the full pipeline
@@ -203,7 +203,7 @@ public class StormCandidateUnionPropertyTests
                 $"Expected {expectedCandidates.Count} memoized rules but got {plan.Count}. " +
                 $"Plan rules: [{string.Join(", ", plan.MemoizedRuleNames)}]. " +
                 $"Expected: [{string.Join(", ", expectedCandidates)}].\nSource:\n{scenario.Source}");
-        }
+        });
     }
 
     /// <summary>

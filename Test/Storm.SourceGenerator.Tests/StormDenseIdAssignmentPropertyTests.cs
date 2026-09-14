@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Analyze;
 using Storm.SourceGenerator.IR;
 
@@ -115,11 +116,10 @@ public class StormDenseIdAssignmentPropertyTests
     //  **Validates: Requirements 5.4**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P6_DenseDeclarationOrderIdAssignment_IdsAreDenseZeroToNMinus1_InDeclarationOrder()
+    [Property(MaxTest = 200)]
+    public Property P6_DenseDeclarationOrderIdAssignment_IdsAreDenseZeroToNMinus1_InDeclarationOrder()
     {
-        var samples = GenMemoGrammarRules().Sample(200);
-        foreach(var rules in samples)
+        return Prop.ForAll(GenMemoGrammarRules().ToArbitrary(), rules =>
         {
             var source = BuildGrammarSource(rules);
             var grammar = BuildGrammarIR(source);
@@ -128,7 +128,7 @@ public class StormDenseIdAssignmentPropertyTests
             // Only verify non-empty plans (property precondition)
             if(plan.Count == 0)
             {
-                continue;
+                return;
             }
 
             // 1. Verify Count matches the number of memoized rules in RuleIds
@@ -166,6 +166,6 @@ public class StormDenseIdAssignmentPropertyTests
                 $"MemoizedRuleNames does not match declaration order.\n" +
                 $"Expected: [{string.Join(", ", memoizedInDeclarationOrder)}]\n" +
                 $"Actual: [{string.Join(", ", plan.MemoizedRuleNames)}]\nSource:\n{source}");
-        }
+        });
     }
 }

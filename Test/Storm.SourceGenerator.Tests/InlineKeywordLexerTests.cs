@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Frontend;
 
@@ -164,8 +165,8 @@ public class InlineKeywordLexerTests
         return Gen.Elements(":", " ", ";", "|", "{", "}", "(", ")", "\n", "");
     }
 
-    [Fact]
-    public void P1_InlineKeyword_StandaloneInline_ProducesInlineKeyword()
+    [Property(MaxTest = 100)]
+    public Property P1_InlineKeyword_StandaloneInline_ProducesInlineKeyword()
     {
         var whitespaceGen = GenWhitespace();
         var suffixGen = GenNonIdentSuffix();
@@ -173,8 +174,7 @@ public class InlineKeywordLexerTests
         var inputGen = whitespaceGen.SelectMany(ws =>
             suffixGen.Select(suffix => ws + "inline" + suffix));
 
-        var samples = inputGen.Sample(100);
-        foreach(var input in samples)
+        return Prop.ForAll(inputGen.ToArbitrary(), input =>
         {
             var tokens = ContentTokens(input);
 
@@ -185,7 +185,7 @@ public class InlineKeywordLexerTests
             // No token should be an Identifier with lexeme "inline"
             Assert.DoesNotContain(tokens,
                 t => t.Kind == StormTokenKind.Identifier && t.Lexeme == "inline");
-        }
+        });
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -228,11 +228,10 @@ public class InlineKeywordLexerTests
             });
     }
 
-    [Fact]
-    public void P2_NonStandaloneInline_ProducesIdentifier()
+    [Property(MaxTest = 100)]
+    public Property P2_NonStandaloneInline_ProducesIdentifier()
     {
-        var samples = GenIdentifierContainingInline().Sample(100);
-        foreach(var identifier in samples)
+        return Prop.ForAll(GenIdentifierContainingInline().ToArbitrary(), identifier =>
         {
             var tokens = ContentTokens(identifier);
 
@@ -242,7 +241,7 @@ public class InlineKeywordLexerTests
 
             // Must NOT produce InlineKeyword
             Assert.DoesNotContain(tokens, t => t.Kind == StormTokenKind.InlineKeyword);
-        }
+        });
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -265,14 +264,13 @@ public class InlineKeywordLexerTests
                     .Select(chars => start + new string(chars))));
     }
 
-    [Fact]
-    public void P3_CommaClassification_ProducesCommaAtCorrectOffset()
+    [Property(MaxTest = 100)]
+    public Property P3_CommaClassification_ProducesCommaAtCorrectOffset()
     {
         // Generate inputs of the form: identifier + "," with known offset
         var identGen = GenNonCommaIdentifier();
 
-        var samples = identGen.Sample(100);
-        foreach(var ident in samples)
+        return Prop.ForAll(identGen.ToArbitrary(), ident =>
         {
             var input = ident + ",";
             var expectedOffset = ident.Length;
@@ -286,6 +284,6 @@ public class InlineKeywordLexerTests
             Assert.Equal(expectedOffset, commaToken.Offset);
             Assert.Equal(1, commaToken.Line);
             Assert.Equal(expectedOffset + 1, commaToken.Column);
-        }
+        });
     }
 }

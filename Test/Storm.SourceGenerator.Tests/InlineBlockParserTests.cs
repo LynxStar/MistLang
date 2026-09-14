@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Frontend;
 
@@ -424,8 +425,8 @@ public class InlineBlockParserTests
         return $"rule Test = inline {prefix}: {{ {armList} }};";
     }
 
-    [Fact]
-    public void P4_InlineBlockParsing_RoundTrip()
+    [Property(MaxTest = 100)]
+    public Property P4_InlineBlockParsing_RoundTrip()
     {
         var testGen = GenIdentifier().SelectMany(prefix =>
             Gen.Choose(1, 5).SelectMany(armCount =>
@@ -433,9 +434,9 @@ public class InlineBlockParserTests
                     GenTrailingComma().Select(trailing =>
                         (prefix, arms: arms.ToList(), trailing)))));
 
-        var samples = testGen.Sample(100);
-        foreach(var (prefix, arms, trailing) in samples)
+        return Prop.ForAll(testGen.ToArbitrary(), drawn =>
         {
+            var (prefix, arms, trailing) = drawn;
             var source = BuildInlineBlockSource(prefix, arms, trailing);
             var file = Parse(source, out var diags);
 
@@ -461,7 +462,7 @@ public class InlineBlockParserTests
                 var actualExpr = Assert.IsType<StormReferenceExpr>(actual.Expression);
                 Assert.Equal(expected.RuleRef, actualExpr.Name);
             }
-        }
+        });
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -503,8 +504,8 @@ public class InlineBlockParserTests
         return $"rule Test = inline {outerPrefix}: {{ {string.Join(", ", outerArmStrings)} }};";
     }
 
-    [Fact]
-    public void P5_NestedInlineBlockParsing()
+    [Property(MaxTest = 100)]
+    public Property P5_NestedInlineBlockParsing()
     {
         var testGen = GenIdentifier().SelectMany(outerPrefix =>
             GenIdentifier().SelectMany(innerPrefix =>
@@ -519,9 +520,9 @@ public class InlineBlockParserTests
                                          outerPlainArms: outerPlainArms.ToList(),
                                          nestedLabel, nestedAltName)))))))));
 
-        var samples = testGen.Sample(100);
-        foreach(var (outerPrefix, innerPrefix, innerArms, outerPlainArms, nestedLabel, nestedAltName) in samples)
+        return Prop.ForAll(testGen.ToArbitrary(), drawn =>
         {
+            var (outerPrefix, innerPrefix, innerArms, outerPlainArms, nestedLabel, nestedAltName) = drawn;
             var source = BuildNestedInlineBlockSource(
                 outerPrefix, outerPlainArms, innerPrefix, innerArms, nestedLabel, nestedAltName);
             var file = Parse(source, out var diags);
@@ -570,6 +571,6 @@ public class InlineBlockParserTests
                 var actualExpr = Assert.IsType<StormReferenceExpr>(actual.Expression);
                 Assert.Equal(expected.RuleRef, actualExpr.Name);
             }
-        }
+        });
     }
 }

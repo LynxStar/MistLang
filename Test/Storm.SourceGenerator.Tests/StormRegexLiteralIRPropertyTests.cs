@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.IR;
 using Storm.SourceGenerator.Resolve;
 
@@ -70,11 +71,10 @@ public class StormRegexLiteralIRPropertyTests
     /// InlineFragments and LowerRuleExpression SHALL produce RegexLiteralIR
     /// with Pattern == p.
     /// </summary>
-    [Fact]
-    public void IRLowering_PreservesRegexPattern()
+    [Property(MaxTest = 100)]
+    public Property IRLowering_PreservesRegexPattern()
     {
-        var patterns = GenRegexPattern().Sample(100);
-        foreach(var pattern in patterns)
+        return Prop.ForAll(GenRegexPattern().ToArbitrary(), pattern =>
         {
             // Build a grammar with a token using the regex literal (tests InlineFragments path)
             var grammarSource = $"grammar Test;\ntoken T = `{pattern}`;\nrule Start = T;";
@@ -93,6 +93,6 @@ public class StormRegexLiteralIRPropertyTests
             Assert.NotNull(tokenIR);
             var regexIR = Assert.IsType<RegexLiteralIR>(tokenIR!.Expression);
             Assert.Equal(pattern, regexIR.Pattern);
-        }
+        });
     }
 }

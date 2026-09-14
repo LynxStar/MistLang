@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Validate;
 
@@ -256,8 +257,8 @@ public class InlinePrefixVerificationTests
     /// Generates a grammar where all arms correctly start with the prefix rule.
     /// Property: verification produces zero STORM0017 diagnostics.
     /// </summary>
-    [Fact]
-    public void P6_AllArmsStartWithPrefix_ZeroDiagnostics()
+    [Property(MaxTest = 80)]
+    public Property P6_AllArmsStartWithPrefix_ZeroDiagnostics()
     {
         // Generate: unique prefix name, unique arm names, unique alt names,
         // unique tail token names. All arms begin with the prefix rule reference.
@@ -270,9 +271,9 @@ public class InlinePrefixVerificationTests
                 (prefixName, armCount, tailTokenNames: tailTokenNames.ToList(),
                  armNames: armNames.ToList(), altNames: altNames.ToList()))))));
 
-        var samples = testGen.Sample(80);
-        foreach(var (prefixName, armCount, tailTokenNames, armNames, altNames) in samples)
+        return Prop.ForAll(testGen.ToArbitrary(), drawn =>
         {
+            var (prefixName, armCount, tailTokenNames, armNames, altNames) = drawn;
             // Ensure all names are distinct to avoid grammar conflicts
             var allNames = new HashSet<string>(StringComparer.Ordinal)
             {
@@ -297,7 +298,7 @@ public class InlinePrefixVerificationTests
 
             if(validArms.Count == 0)
             {
-                continue;
+                return;
             }
 
             // Build the grammar source
@@ -321,15 +322,15 @@ public class InlinePrefixVerificationTests
                 $"Expected zero diagnostics but got {diagnostics.Count}: " +
                 $"{string.Join("; ", diagnostics.Select(d => d.Message))}\n" +
                 $"Source:\n{source}");
-        }
+        });
     }
 
     /// <summary>
     /// Generates a grammar where some arms do NOT start with the prefix rule.
     /// Property: exactly one STORM0017 per failing arm.
     /// </summary>
-    [Fact]
-    public void P6_ArmsNotStartingWithPrefix_ExactlyOneDiagnosticPerFailingArm()
+    [Property(MaxTest = 80)]
+    public Property P6_ArmsNotStartingWithPrefix_ExactlyOneDiagnosticPerFailingArm()
     {
         var testGen =
             GenIdentifier().SelectMany(prefixName =>
@@ -344,9 +345,9 @@ public class InlinePrefixVerificationTests
                  altNames: altNames.ToList(),
                  tailTokenNames: tailTokenNames.ToList())))))));
 
-        var samples = testGen.Sample(80);
-        foreach(var (prefixName, armCount, startsWithPrefix, armNames, altNames, tailTokenNames) in samples)
+        return Prop.ForAll(testGen.ToArbitrary(), drawn =>
         {
+            var (prefixName, armCount, startsWithPrefix, armNames, altNames, tailTokenNames) = drawn;
             // Ensure all names are distinct
             var allNames = new HashSet<string>(StringComparer.Ordinal)
             {
@@ -370,7 +371,7 @@ public class InlinePrefixVerificationTests
 
             if(validArms.Count == 0)
             {
-                continue;
+                return;
             }
 
             // Build the grammar source
@@ -413,6 +414,6 @@ public class InlinePrefixVerificationTests
                         d.Message.Contains(altName));
                 }
             }
-        }
+        });
     }
 }

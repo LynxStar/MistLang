@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.IR;
 
@@ -95,15 +96,6 @@ public class ParserEmitterPropertyTests
         return ParserEmitter.Emit(ctx);
     }
 
-    private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
-    {
-        var samples = gen.Sample(maxTests);
-        foreach(var sample in samples)
-        {
-            check(sample);
-        }
-    }
-
     // ── Property 1: Multi-alternative rules emit PEG ordered-choice pattern ──
 
     /// <summary>
@@ -114,10 +106,10 @@ public class ParserEmitterPropertyTests
     /// (b) one state-reset block per alternative,
     /// (c) an epilogue restoring _hasError to savedError.
     /// </summary>
-    [Fact]
-    public void MultiAlt_EmitsPegOrderedChoicePattern()
+    [Property(MaxTest = 100)]
+    public Property MultiAlt_EmitsPegOrderedChoicePattern()
     {
-        RunProperty(GenMultiAltRule(), rule =>
+        return Prop.ForAll(GenMultiAltRule().ToArbitrary(), rule =>
         {
             var output = EmitForRule(rule);
 
@@ -163,10 +155,10 @@ public class ParserEmitterPropertyTests
     /// For any RuleIR with exactly 1 alternative, the emitted code SHALL begin with
     /// `if (_hasError) return null;` and SHALL NOT contain backtracking artifacts.
     /// </summary>
-    [Fact]
-    public void SingleAlt_EmitsDirectParseWithoutBacktracking()
+    [Property(MaxTest = 100)]
+    public Property SingleAlt_EmitsDirectParseWithoutBacktracking()
     {
-        RunProperty(GenSingleAltRule(), rule =>
+        return Prop.ForAll(GenSingleAltRule().ToArbitrary(), rule =>
         {
             var output = EmitForRule(rule);
 
@@ -200,10 +192,10 @@ public class ParserEmitterPropertyTests
     /// For any RuleIR (any arity), the emitted code SHALL NOT contain legacy
     /// prediction artifacts: switch(Peek()), Peek(1), TryParse, or _memo.
     /// </summary>
-    [Fact]
-    public void NoLegacyPredictionArtifacts()
+    [Property(MaxTest = 100)]
+    public Property NoLegacyPredictionArtifacts()
     {
-        RunProperty(GenAnyArityRule(), rule =>
+        return Prop.ForAll(GenAnyArityRule().ToArbitrary(), rule =>
         {
             var output = EmitForRule(rule);
 
@@ -223,8 +215,8 @@ public class ParserEmitterPropertyTests
     /// calling TruncateTo(n) where n &lt;= Count SHALL result in Count == n
     /// and the first n messages being identical to the first n messages before the call.
     /// </summary>
-    [Fact]
-    public void DiagnosticBag_TruncateTo_PreservesPrefix()
+    [Property(MaxTest = 100)]
+    public Property DiagnosticBag_TruncateTo_PreservesPrefix()
     {
         var messagePool = new[] {
             "error1", "error2", "warning1", "info1", "error3",
@@ -236,7 +228,7 @@ public class ParserEmitterPropertyTests
                 Gen.Choose(0, messages.Length).Select(truncTarget =>
                     (messages, truncTarget))));
 
-        RunProperty(gen, pair =>
+        return Prop.ForAll(gen.ToArbitrary(), pair =>
         {
             var (messages, truncateTarget) = pair;
 

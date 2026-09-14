@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Frontend;
 
@@ -41,11 +42,10 @@ public class StormAnnotationTokenPropertyTests
     //  **Validates: Requirements 1.1, 1.3**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P1_AnnotationTokenLexing_AtPlusValidIdentifier_ProducesSingleAnnotationToken()
+    [Property(MaxTest = 200)]
+    public Property P1_AnnotationTokenLexing_AtPlusValidIdentifier_ProducesSingleAnnotationToken()
     {
-        var samples = GenValidIdentifier().Sample(200);
-        foreach(var identifier in samples)
+        return Prop.ForAll(GenValidIdentifier().ToArbitrary(), identifier =>
         {
             var input = "@" + identifier;
             var diagnostics = new List<StormDiagnostic>();
@@ -59,6 +59,6 @@ public class StormAnnotationTokenPropertyTests
             _ = Assert.Single(contentTokens);
             Assert.Equal(StormTokenKind.Annotation, contentTokens[0].Kind);
             Assert.Equal(input, contentTokens[0].Lexeme);
-        }
+        });
     }
 }

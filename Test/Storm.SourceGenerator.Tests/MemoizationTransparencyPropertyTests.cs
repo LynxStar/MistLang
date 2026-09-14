@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Reflection;
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Storm.SourceGenerator.Analyze;
@@ -316,14 +317,13 @@ public class MemoizationTransparencyPropertyTests
     //  **Validates: Requirements 7.1, 7.2, 7.3**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P7_MemoizationTransparency_IdenticalAstAndDiagnostics()
+    [Property(MaxTest = 200)]
+    public Property P7_MemoizationTransparency_IdenticalAstAndDiagnostics()
     {
         var memoizedAsm = MemoizedAsm.Value;
         var unmemoizedAsm = UnmemoizedAsm.Value;
 
-        var samples = GenMixedInput().Sample(200);
-        foreach(var input in samples)
+        return Prop.ForAll(GenMixedInput().ToArbitrary(), input =>
         {
             var (memoNode, memoDiagCount) = ParseWithDiagnostics(
                 memoizedAsm, "Memo.Generated", "Memo", "Start", input);
@@ -354,6 +354,6 @@ public class MemoizationTransparencyPropertyTests
             Assert.True(memoDiagCount == plainDiagCount,
                 $"Diagnostic count mismatch for input [{input}]: " +
                 $"memoized={memoDiagCount}, plain={plainDiagCount}.");
-        }
+        });
     }
 }

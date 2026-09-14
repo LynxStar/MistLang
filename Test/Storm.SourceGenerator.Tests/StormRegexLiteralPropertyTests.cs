@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Frontend;
 
@@ -53,11 +54,10 @@ public class StormRegexLiteralPropertyTests
     /// token T = `p`;, tokenizing, and parsing SHALL produce
     /// StormRegexLiteralExpr with Pattern == p.
     /// </summary>
-    [Fact]
-    public void LexParseRoundTrip_PreservesRegexPattern()
+    [Property(MaxTest = 100)]
+    public Property LexParseRoundTrip_PreservesRegexPattern()
     {
-        var samples = GenRegexPattern().Sample(100);
-        foreach(var pattern in samples)
+        return Prop.ForAll(GenRegexPattern().ToArbitrary(), pattern =>
         {
             var input = $"token T = `{pattern}`;";
             var diagnostics = new List<StormDiagnostic>();
@@ -70,6 +70,6 @@ public class StormRegexLiteralPropertyTests
             var decl = Assert.IsType<StormTokenDecl>(file.Declarations[0]);
             var regexExpr = Assert.IsType<StormRegexLiteralExpr>(decl.Body);
             Assert.Equal(pattern, regexExpr.Pattern);
-        }
+        });
     }
 }

@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.IR;
 using Storm.SourceGenerator.Resolve;
 
@@ -503,8 +504,8 @@ public class InlineBlockIRLoweringTests
                     .Select(chars => start + new string(chars))));
     }
 
-    [Fact]
-    public void P10_PrefixStripping_FirstElementRemoval()
+    [Property(MaxTest = 60)]
+    public Property P10_PrefixStripping_FirstElementRemoval()
     {
         // Generate grammars with:
         // - A prefix rule with 1-3 token elements
@@ -523,9 +524,9 @@ public class InlineBlockIRLoweringTests
                  armCount, tailCounts: tailCounts.ToList(),
                  armNames: armNames.ToList(), altNames: altNames.ToList()))))))));
 
-        var samples = testGen.Sample(60);
-        foreach(var (prefixName, prefixTokenNames, armCount, tailCounts, armNames, altNames) in samples)
+        return Prop.ForAll(testGen.ToArbitrary(), drawn =>
         {
+            var (prefixName, prefixTokenNames, armCount, tailCounts, armNames, altNames) = drawn;
             // Build unique names to avoid collisions
             var allNames = new HashSet<string>(StringComparer.Ordinal) { prefixName };
             var validPrefixTokens = new List<string>();
@@ -539,7 +540,7 @@ public class InlineBlockIRLoweringTests
 
             if(validPrefixTokens.Count == 0)
             {
-                continue;
+                return;
             }
 
             var validArms = new List<(string armName, string altName, List<string> tailTokens)>();
@@ -572,7 +573,7 @@ public class InlineBlockIRLoweringTests
 
             if(validArms.Count == 0)
             {
-                continue;
+                return;
             }
 
             // Build grammar source
@@ -637,6 +638,6 @@ public class InlineBlockIRLoweringTests
                 Assert.Equal(validArms[i].altName, arm.AlternativeName);
                 Assert.Equal(validArms[i].armName, arm.TargetRule.Name);
             }
-        }
+        });
     }
 }

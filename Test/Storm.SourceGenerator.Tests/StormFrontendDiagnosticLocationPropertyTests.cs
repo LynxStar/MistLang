@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Frontend;
 
@@ -127,19 +128,6 @@ public class StormFrontendDiagnosticLocationPropertyTests
     }
 
     // ══════════════════════════════════════════════════════════════════
-    //  Helper: run property over samples
-    // ══════════════════════════════════════════════════════════════════
-
-    private static void RunProperty<T>(Gen<T> gen, Action<T> check, int maxTests = 100)
-    {
-        var samples = gen.Sample(maxTests);
-        foreach(var sample in samples)
-        {
-            check(sample);
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════════════
     //  Property 6: Storm frontend diagnostic location completeness
     //
     //  For any invalid Storm grammar source text with a non-null file
@@ -150,13 +138,13 @@ public class StormFrontendDiagnosticLocationPropertyTests
     //  **Validates: Requirements 6.3**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P6_StormLexer_AllDiagnosticsHaveValidLocation()
+    [Property(MaxTest = 100)]
+    public Property P6_StormLexer_AllDiagnosticsHaveValidLocation()
     {
         var gen = GenFilePath().SelectMany(filePath =>
             GenInvalidStormSource().Select(source => (filePath, source)));
 
-        RunProperty(gen, pair =>
+        return Prop.ForAll(gen.ToArbitrary(), pair =>
         {
             var (filePath, sourceText) = pair;
             var source = new StormSourceText(filePath, sourceText);
@@ -172,16 +160,16 @@ public class StormFrontendDiagnosticLocationPropertyTests
                 Assert.True(diag.Column > 0,
                     $"Expected Column > 0 but got {diag.Column} for diagnostic '{diag.Message}' in source: {sourceText}");
             }
-        }, 100);
+        });
     }
 
-    [Fact]
-    public void P6_StormParser_AllDiagnosticsHaveValidLocation()
+    [Property(MaxTest = 100)]
+    public Property P6_StormParser_AllDiagnosticsHaveValidLocation()
     {
         var gen = GenFilePath().SelectMany(filePath =>
             GenInvalidStormSource().Select(source => (filePath, source)));
 
-        RunProperty(gen, pair =>
+        return Prop.ForAll(gen.ToArbitrary(), pair =>
         {
             var (filePath, sourceText) = pair;
             var source = new StormSourceText(filePath, sourceText);
@@ -201,16 +189,16 @@ public class StormFrontendDiagnosticLocationPropertyTests
                 Assert.True(diag.Column > 0,
                     $"Expected Column > 0 but got {diag.Column} for diagnostic '{diag.Message}' in source: {sourceText}");
             }
-        }, 100);
+        });
     }
 
-    [Fact]
-    public void P6_StormFrontend_CombinedDiagnosticsHaveValidLocation()
+    [Property(MaxTest = 100)]
+    public Property P6_StormFrontend_CombinedDiagnosticsHaveValidLocation()
     {
         var gen = GenFilePath().SelectMany(filePath =>
             GenInvalidStormSource().Select(source => (filePath, source)));
 
-        RunProperty(gen, pair =>
+        return Prop.ForAll(gen.ToArbitrary(), pair =>
         {
             var (filePath, sourceText) = pair;
             var source = new StormSourceText(filePath, sourceText);
@@ -232,6 +220,6 @@ public class StormFrontendDiagnosticLocationPropertyTests
                 Assert.True(diag.Column > 0,
                     $"Expected Column > 0 but got {diag.Column} for diagnostic '{diag.Message}' in source: {sourceText}");
             }
-        }, 100);
+        });
     }
 }

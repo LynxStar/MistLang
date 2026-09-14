@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Reflection;
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Storm.SourceGenerator.Analyze;
@@ -397,6 +398,13 @@ public class MemoizationEmitterTests
             numGen.ArrayOf(count).Select(nums => string.Join(",", nums)));
     }
 
+    private static readonly Lazy<Assembly> MemoizedParser = new(() =>
+        CompileParser(RecursiveListGrammar, new MemoizationPlan(new[] { MemoizedRuleName }), "Memo", "Memo.Generated"));
+
+    // Empty plan => the unmemoized body emission (byte-identical to pre-feature).
+    private static readonly Lazy<Assembly> UnmemoizedParser = new(() =>
+        CompileParser(RecursiveListGrammar, MemoizationPlan.Empty, "Plain", "Plain.Generated"));
+
     /// <summary>
     /// **Validates: Requirements 2.1, 2.2**
     ///
@@ -413,13 +421,12 @@ public class MemoizationEmitterTests
     /// with <c>_pos</c> reset to the entry position in between (the memo table is
     /// NOT reset, so the second call is a genuine cache hit).
     /// </summary>
-    [Fact]
-    public void MemoizedRule_TwoInvocationsAtSamePosition_ReturnReferenceIdenticalNodeAndSameEndPosition()
+    [Property(MaxTest = 50)]
+    public Property MemoizedRule_TwoInvocationsAtSamePosition_ReturnReferenceIdenticalNodeAndSameEndPosition()
     {
         const string ns = "Memo.Generated";
         const string grammarName = "Memo";
-        var plan = new MemoizationPlan(new[] { MemoizedRuleName });
-        var asm = CompileParser(RecursiveListGrammar, plan, grammarName, ns);
+        var asm = MemoizedParser.Value;
 
         var parserType = asm.GetType($"{ns}.{grammarName}Parser")!;
         var initMethod = parserType.GetMethod("Init", BindingFlags.NonPublic | BindingFlags.Static)!;
@@ -429,8 +436,7 @@ public class MemoizationEmitterTests
         var errorField = parserType.GetField("_hasError", BindingFlags.NonPublic | BindingFlags.Static)!;
 
         // Single compile; drive many inputs (no process spawn anywhere).
-        var samples = GenNumberList().Sample(50);
-        foreach(var input in samples)
+        return Prop.ForAll(GenNumberList().ToArbitrary(), input =>
         {
             var (tokenStream, diagnostics) = Lex(asm, ns, grammarName, input);
 
@@ -466,7 +472,7 @@ public class MemoizationEmitterTests
             Assert.True(endAfterFirst == endAfterSecond,
                 $"Two invocations at the same position left _pos at different end positions " +
                 $"({endAfterFirst} vs {endAfterSecond}) for input [{input}].");
-        }
+        });
     }
 
     /// <summary>
@@ -482,22 +488,18 @@ public class MemoizationEmitterTests
     /// alter the parse result. Both parsers are driven in-process; no external
     /// process is spawned.
     /// </summary>
-    [Fact]
-    public void MemoizedRule_CachedResult_EqualsUnmemoizedBodyResult()
+    [Property(MaxTest = 50)]
+    public Property MemoizedRule_CachedResult_EqualsUnmemoizedBodyResult()
     {
         const string memoNs = "Memo.Generated";
         const string memoName = "Memo";
         const string plainNs = "Plain.Generated";
         const string plainName = "Plain";
 
-        var memoizedAsm = CompileParser(
-            RecursiveListGrammar, new MemoizationPlan(new[] { MemoizedRuleName }), memoName, memoNs);
-        // Empty plan => the unmemoized body emission (byte-identical to pre-feature).
-        var unmemoizedAsm = CompileParser(
-            RecursiveListGrammar, MemoizationPlan.Empty, plainName, plainNs);
+        var memoizedAsm = MemoizedParser.Value;
+        var unmemoizedAsm = UnmemoizedParser.Value;
 
-        var samples = GenNumberList().Sample(50);
-        foreach(var input in samples)
+        return Prop.ForAll(GenNumberList().ToArbitrary(), input =>
         {
             var memoizedRoot = ParsePublic(memoizedAsm, memoNs, memoName, "Start", input);
             var unmemoizedRoot = ParsePublic(unmemoizedAsm, plainNs, plainName, "Start", input);
@@ -510,7 +512,7 @@ public class MemoizationEmitterTests
             // The cached (memoized) result is structurally identical to the
             // unmemoized body's result for the same input.
             Assert.Equal(StructuralKey(unmemoizedRoot!), StructuralKey(memoizedRoot!));
-        }
+        });
     }
 
     // ===============================================================

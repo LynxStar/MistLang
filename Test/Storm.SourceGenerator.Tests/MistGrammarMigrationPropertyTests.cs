@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Reflection;
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Storm.SourceGenerator.Emit;
@@ -304,17 +305,20 @@ namespace Mist.Common.Source
     /// (regex literals) SHALL produce a token sequence identical in token kinds
     /// and lexemes to the original grammar (character classes).
     /// </summary>
-    [Fact]
-    public void MigrationProducesIdenticalTokenization()
+    private static readonly Lazy<(Assembly Original, Assembly Migrated)> Lexers = new(() =>
     {
         // Generate assemblies fresh to avoid thread-static interference
         var (origRuntime, origLexer) = GenerateLexerCode(OriginalGrammar, "Original", "Original.Generated");
         var (migrRuntime, migrLexer) = GenerateLexerCode(MigratedGrammar, "Migrated", "Migrated.Generated");
-        var origAsm = CompileLexer(origRuntime, origLexer);
-        var migrAsm = CompileLexer(migrRuntime, migrLexer);
+        return (CompileLexer(origRuntime, origLexer), CompileLexer(migrRuntime, migrLexer));
+    });
 
-        var samples = GenMistSourceSnippet().Sample(100);
-        foreach(var input in samples)
+    [Property(MaxTest = 100)]
+    public Property MigrationProducesIdenticalTokenization()
+    {
+        var (origAsm, migrAsm) = Lexers.Value;
+
+        return Prop.ForAll(GenMistSourceSnippet().ToArbitrary(), input =>
         {
             var originalTokens = Tokenize(origAsm, "Original.Generated", "Original", input);
             var migratedTokens = Tokenize(migrAsm, "Migrated.Generated", "Migrated", input);
@@ -335,7 +339,7 @@ namespace Mist.Common.Source
                     $"Original[{i}]: [{Escape(originalTokens[i].lexeme)}]\n" +
                     $"Migrated[{i}]: [{Escape(migratedTokens[i].lexeme)}]");
             }
-        }
+        });
     }
 
     private static string Escape(string s)

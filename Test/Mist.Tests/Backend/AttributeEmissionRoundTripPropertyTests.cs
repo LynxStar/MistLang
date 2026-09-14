@@ -461,78 +461,15 @@ public sealed class AttributeEmissionRoundTripPropertyTests : IDisposable
     private static (bool Passed, string? Reason) VerifyEmittedAttributes(
         string csOutput, AttributeScenario scenario)
     {
-        // 1. Verify each attribute list is emitted as a separate bracketed line
-        //    (multiple lists = multiple lines, each with [attrs])
+        // A list that is a whole line by itself is grouped and separate at once. Searching for an
+        // attribute as a substring instead finds a bare `[Fact]` inside `[Fact("reason")]`.
+        var lines = csOutput.Split('\n').Select(line => line.Trim()).ToHashSet(StringComparer.Ordinal);
         foreach(var list in scenario.Lists)
         {
-            // Build the expected bracket content for this list
-            var expectedParts = new List<string>();
-            foreach(var attr in list.Attributes)
+            var expectedLine = $"[{string.Join(", ", list.Attributes.Select(BuildExpectedCSharpAttr))}]";
+            if(!lines.Contains(expectedLine))
             {
-                var expected = BuildExpectedCSharpAttr(attr);
-                expectedParts.Add(expected);
-            }
-
-            var expectedLine = $"[{string.Join(", ", expectedParts)}]";
-
-            if(!csOutput.Contains(expectedLine))
-            {
-                return (false, $"Expected attribute line not found: '{expectedLine}' in output:\n{csOutput}");
-            }
-        }
-
-        // 2. Verify grouping: each AttrList produces exactly one [...] line
-        //    Multi-attribute lists should be comma-separated within one bracket pair.
-        foreach(var list in scenario.Lists)
-        {
-            if(list.Attributes.Count > 1)
-            {
-                // All attributes in this list should be in ONE bracket pair
-                var firstAttr = BuildExpectedCSharpAttr(list.Attributes[0]);
-                var lastAttr = BuildExpectedCSharpAttr(list.Attributes[^1]);
-
-                // They should appear on the same line
-                var lines = csOutput.Split('\n');
-                var foundOnSameLine = lines.Any(line =>
-                    line.Contains(firstAttr) && line.Contains(lastAttr));
-
-                if(!foundOnSameLine)
-                {
-                    return (false,
-                        $"Multi-attribute list not on same line: '{firstAttr}' and '{lastAttr}'");
-                }
-            }
-        }
-
-        // 3. Verify that multiple separate lists produce separate lines
-        if(scenario.Lists.Count > 1)
-        {
-            var firstListExpected = BuildExpectedCSharpAttr(scenario.Lists[0].Attributes[0]);
-            var secondListExpected = BuildExpectedCSharpAttr(scenario.Lists[1].Attributes[0]);
-
-            var lines = csOutput.Split('\n');
-            var firstLine = Array.FindIndex(lines, l => l.Contains(firstListExpected));
-            var secondLine = Array.FindIndex(lines, l => l.Contains(secondListExpected));
-
-            // If both come from their own lists, they should be on different lines.
-            // However they might be in different lists but happen to have the same name -
-            // we just need to confirm multi-list produces multi-line.
-            if(firstLine >= 0 && secondLine >= 0 && firstLine == secondLine
-                && scenario.Lists[0].Attributes.Count == 1
-                && scenario.Lists[1].Attributes.Count == 1)
-            {
-                // Check if they are actually from separate lists (not same-list comma separated)
-                var line = lines[firstLine];
-                // If it looks like [A, B] and A is from list[0] and B is from list[1],
-                // that's a grouping violation (should be [A]\n[B])
-                var bracketContent = ExtractBracketContent(line);
-                if(bracketContent is not null &&
-                    bracketContent.Contains(firstListExpected) &&
-                    bracketContent.Contains(secondListExpected))
-                {
-                    return (false,
-                        $"Separate attribute lists were merged onto one line: '{line}'");
-                }
+                return (false, $"Expected attribute list alone on its own line: '{expectedLine}' in output:\n{csOutput}");
             }
         }
 
@@ -572,21 +509,6 @@ public sealed class AttributeEmissionRoundTripPropertyTests : IDisposable
         }
 
         return sb.ToString();
-    }
-
-    /// <summary>
-    /// Extracts the content between the outermost [ and ] on a line.
-    /// </summary>
-    private static string? ExtractBracketContent(string line)
-    {
-        var start = line.IndexOf('[');
-        var end = line.LastIndexOf(']');
-        if(start >= 0 && end > start)
-        {
-            return line.Substring(start + 1, end - start - 1);
-        }
-
-        return null;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

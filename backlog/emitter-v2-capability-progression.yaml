@@ -1696,10 +1696,10 @@ capabilities:
                operators-arithmetic-comparison-logical, string-interpolation,
                var-type-inference, standard-library-binding,
                implicit-instance-field-access]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
-      A conversion is recorded at every position that binds a value against a type, and where a foreach or a
+      DONE on its own name: a conversion is recorded at every position that binds a value against a type, and where a foreach or a
       deconstruction converts each element it reads (2026-09-13, below). The paragraphs up to that date
       describe the relation alone, before any conversion was recorded.
 
@@ -1987,12 +1987,18 @@ capabilities:
       each failing at least one test: either statement's conversion unrecorded, the walker skipping either,
       either statement judged by the classifier despite its conversion, the loop variable not declared from its
       conversion, and the loop variable not readonly. Full suite green, 6088 of 6088.
+
+      ONE HOME FOR AN IMPLICIT OPERATOR CONVERSION (2026-09-13), closing the last task. ConversionClassifier's
+      implicit answer asks CastOperatorSelection.Implicit, and ConversionRelation.FindOperator -- the first
+      implicit operator whose ends are contained -- is deleted, its only caller gone. OperatorAdmissibility drops
+      the selection it asked beside the classifier, the classifier now answering it. The classifier's own
+      verdict moves where the old search was narrower: `Priority` and a byte-backed `Color` into `Level` through
+      `implicit operator Level(int)` were Explicit (the cast that works being found) and are Implicit; an int
+      stays Implicit and a long stays None. No test outside the classification table saw a difference, since
+      every position that would ask already records the same selection's answer. PROVED BY four
+      ConversionClassifierTests rows; restoring the containment-bracketed search fails two of them and the
+      operator-operand emission row. Full suite green, 6092 of 6092.
     tasks:
-      - >
-        Point ConversionClassifier's implicit answer at CastOperatorSelection.Implicit and delete
-        ConversionRelation.FindOperator, its last caller. Every position now wraps by that selection, so the two
-        answer the same wherever a node could exist; the classifier still brackets an operator's ends by
-        containment and takes the first match, which is one home too many.
       - >
         DO NOT DELETE ConversionRelation.NumericWidening, which its own doc comment used to invite once
         cast operators were consulted, on the reasoning that scanning the stdlib's implicit operators

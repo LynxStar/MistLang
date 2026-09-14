@@ -491,6 +491,12 @@ rules:
       first, every rule over it alone with its findings withheld, and hands the reasons to the rule through
       AnalysisContext.ConversionRefusals.
 
+      THE CLASSIFIER'S IMPLICIT ANSWER ASKS CastOperatorSelection.Implicit (2026-09-13, emitter order 46), the
+      selection that records the conversion at every implicit position, in place of ConversionRelation.FindOperator,
+      which is deleted. So a value is implicitly convertible exactly when some position would record a conversion
+      for it: `Priority` into a `Level` with `implicit operator Level(int)` classifies Implicit, where the
+      containment-bracketed search had answered Explicit.
+
       REGEX TO STRING IS FREE IN A CHAIN (2026-09-13, emitter order 46), closing the task that said it counted
       as the one declared implicit. CastOperatorSelection brackets an operator's ends with a lossless test that
       admits one of Standard's intrinsic implicit conversions between free steps, as the glossary's

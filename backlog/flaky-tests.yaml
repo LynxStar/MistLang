@@ -680,3 +680,41 @@ flakes:
       Source/Mist (binding, CastAnalyzer, CastLowering, diagnostics) and four ProgramModelProbe test
       classes, about 75 tests, all of which passed under --filter before the full run and again in the
       rerun, so it cannot account for 465 failures across unrelated classes.
+    recurrences:
+      - date: 2026-09-13
+        detail: >
+          469 of 6052, finishing in 1m30s against 5m29s and 9m39s for the next two runs. Seen on the first
+          full run after rebasing claude/newtype-revision-loose-ends-7317d8 onto main, which brought in
+          four commits (type argument fixing by dominance). The messages that survived the output filter are
+          the incoherent kind again, but a new one: "System.InvalidOperationException : ErrorType has no
+          TypeKind -- it is an error sentinel", from classic's model, beside a property test reporting that
+          no constructor error was emitted. Failures spanned Analysis (146), Backend (134), Semantics (71),
+          Integration (64), Variadics (41), Driver (7) and ReadonlyContexts (6). The run was
+          `dotnet format Mist.slnx --verify-no-changes 2>&1 | tail -3; echo; dotnet test Mist.slnx`: format
+          chained BEFORE the test run rather than beside it, and tail drains its input, so neither known
+          trigger applies. A `dotnet build Mist.slnx` had returned "Build succeeded" with no warning
+          immediately before. Tests from three of the failing classes then passed under --filter with
+          --no-build, the next full run failed 1 of 6052, and the one after passed 6052 of 6052, all on the
+          same rebased source with nothing edited. Cause still unknown.
+
+  - id: unidentified-mist-tests-single-failure-2026-09-13
+    test: >
+      NOT CAPTURED. One test of 6052 in Mist.Tests.
+    file: unknown
+    discovered: 2026-09-13
+    status: unreproduced
+    symptom: >
+      A single failure in Mist.Tests.dll on a full `dotnet test Mist.slnx` (6051 passed, 1 failed, 9m39s).
+      Mist.CLI.Tests and Storm.SourceGenerator.Tests were green in the same run. The next full run was
+      6052/6052.
+    cause: >
+      Unknown. Not attributed to unidentified-mist-tests-single-failure-2026-08-02 or any other entry:
+      without the test's name, the shared coarse signature cannot tell them apart.
+    evidence: >
+      THE NAME WAS LOST TO THE OUTPUT FILTER once more: the run was piped through a grep for per-assembly
+      summary lines only, which the 2026-08-02 entry asks the next sighting not to do. It came on the run
+      after the 469-failure recurrence recorded under mist-tests-garbled-lexemes-without-a-lock-warning,
+      on the same source, with nothing edited or rebuilt in between; the run after it, with its whole
+      output captured to a file, was green. The source was the rebase of
+      claude/newtype-revision-loose-ends-7317d8 onto main; no file under Test/ was edited between the
+      three runs.

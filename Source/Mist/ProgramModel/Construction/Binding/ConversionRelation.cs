@@ -98,19 +98,6 @@ internal static class ConversionRelation
         return from is IFunctionType && Array.IndexOf(BaseDelegateNames, to.FullyQualifiedName) >= 0;
     }
 
-    /// <summary>
-    /// Searches BOTH ends and each end's base chain, since either type may declare the conversion. The
-    /// ends are bracketed by <see cref="IsWithin"/> rather than <see cref="IsImplicit"/>, so a match
-    /// cannot chain a second user-declared conversion. Null means none was found, not that one is built in.
-    /// </summary>
-    public static CastOperator? FindOperator(IMistType from, IMistType to)
-    {
-        return DeclaredOn(from).Concat(DeclaredOn(to))
-            .Where(function => function.Operator.IsImplicit && IsWithin(from, function.Parameter) && IsWithin(function.Result, to))
-            .Select(function => function.Operator)
-            .FirstOrDefault();
-    }
-
     public static IEnumerable<ConversionFunction> DeclaredOn(IMistType type)
     {
         var (declaring, substitution) = type switch

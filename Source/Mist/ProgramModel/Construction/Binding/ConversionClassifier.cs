@@ -47,7 +47,7 @@ internal static class ConversionClassifier
         from = Normalized(from, interner);
         to = Normalized(to, interner);
 
-        var kind = ImplicitKind(from, to);
+        var kind = ImplicitKind(from, to, interner);
 
         return kind == ConversionKind.None && (CallsAnOperator(from, to, interner) || ExplicitByDeclaration(from, to))
             ? ConversionKind.Explicit
@@ -57,7 +57,7 @@ internal static class ConversionClassifier
 
     public static bool IsImplicit(IMistType from, IMistType to, TypeInterner? interner)
     {
-        return ImplicitKind(Normalized(from, interner), Normalized(to, interner)) != ConversionKind.None;
+        return ImplicitKind(Normalized(from, interner), Normalized(to, interner), interner) != ConversionKind.None;
     }
 
     public static bool IsFree(IMistType from, IMistType to, TypeInterner? interner)
@@ -73,7 +73,7 @@ internal static class ConversionClassifier
         return Normalize(interner is null ? type : AliasTransparency.Expand(type, interner));
     }
 
-    private static ConversionKind ImplicitKind(IMistType from, IMistType to)
+    private static ConversionKind ImplicitKind(IMistType from, IMistType to, TypeInterner? interner)
     {
         if(IsSentinel(from) || IsSentinel(to))
         {
@@ -85,7 +85,7 @@ internal static class ConversionClassifier
             return ConversionKind.Identity;
         }
 
-        return Within(from, to, []) || ConversionRelation.FindOperator(from, to) is not null
+        return Within(from, to, []) || CastOperatorSelection.Implicit(from, to, interner).Count > 0
             ? ConversionKind.Implicit
             : ConversionKind.None
             ;

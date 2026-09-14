@@ -238,7 +238,7 @@ public sealed class CastSelectionTests : ProgramModelProbe
     /// <summary>
     /// A downcast is a conversion the language provides, so there is no operator to record. Null here is
     /// the absence of a USER-DEFINED conversion, never the claim that the cast is illegal -- see
-    /// ConversionRelation.FindOperator.
+    /// CastOperatorSelection.
     /// </summary>
     [Fact]
     public void AnInheritanceDowncast_SelectsNoOperator()

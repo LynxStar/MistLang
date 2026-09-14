@@ -52,6 +52,14 @@ public sealed class ConversionClassifierTests : ProgramModelProbe
             }
         }
 
+        public class Level
+        {
+            public static implicit operator Level(int value)
+            {
+                return new Level();
+            }
+        }
+
         public enum Color {
             Red,
             Green,
@@ -98,6 +106,7 @@ public sealed class ConversionClassifierTests : ProgramModelProbe
         AdultAge adult = (AdultAge)20;
         Celsius celsius = new Celsius();
         Kelvin kelvin = new Kelvin();
+        Level level = new Level();
         int[] arr = [1, 2];
         var lit = [1, 2];
         int[2] two = [1, 2];
@@ -136,6 +145,10 @@ public sealed class ConversionClassifierTests : ProgramModelProbe
     [InlineData("i", "adult", "Explicit")]
     [InlineData("celsius", "kelvin", "Explicit")]
     [InlineData("kelvin", "celsius", "None")]
+    [InlineData("i", "level", "Implicit")]
+    [InlineData("priority", "level", "Implicit")]
+    [InlineData("color", "level", "Implicit")]
+    [InlineData("l", "level", "None")]
     [InlineData("lit", "arr", "Implicit")]
     [InlineData("two", "arr", "Implicit")]
     [InlineData("arr", "lit", "None")]

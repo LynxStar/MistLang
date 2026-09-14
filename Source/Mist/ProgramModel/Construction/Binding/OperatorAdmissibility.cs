@@ -170,8 +170,7 @@ internal static class OperatorAdmissibility
     private static bool Accepts(IMistType parameter, IMistType argument)
     {
         return parameter is TypeParameter
-            || ConversionClassifier.Classify(argument, parameter) is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified
-            || CastOperatorSelection.Implicit(argument, parameter, interner: null).Count > 0;
+            || ConversionClassifier.Classify(argument, parameter) is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified;
     }
 
     private static IMistType Underlying(IMistType type)

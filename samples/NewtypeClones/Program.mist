@@ -135,6 +135,160 @@ public class Lion : IClonable<Lion>
     }
 }
 
+public class Box<T>
+{
+    private T item;
+
+    public Box(T item)
+    {
+        this.item = item;
+    }
+
+    public T Get()
+    {
+        return item;
+    }
+
+    public Box<T> Again()
+    {
+        return new Box<T>(item);
+    }
+
+    public Box<string> Named()
+    {
+        return new Box<string>($"<{item}>");
+    }
+}
+
+public struct Pair<A, B>
+{
+    private A first;
+    public B Second { get; set; }
+
+    public Pair(A first, B second)
+    {
+        this.first = first;
+        this.Second = second;
+    }
+
+    public A First()
+    {
+        return first;
+    }
+}
+
+public class Cell<T> : IClonable<Cell<T>>
+{
+    private static int made = 0;
+    private T content;
+    private string label { get; set; }
+
+    public Cell(T content)
+    {
+        this.content = content;
+        this.label = "fresh";
+    }
+
+    private Cell(T content, string label)
+    {
+        this.content = content;
+        this.label = label;
+    }
+
+    public owned Cell<T> Clone()
+    {
+        made = made + 1;
+        return new Cell<T>(content, $"{label}#{made}");
+    }
+
+    public string Describe()
+    {
+        return $"{content} {label} made={made}";
+    }
+}
+
+public abstract ITag
+{
+    string Tag();
+}
+
+public class Mark : ITag
+{
+    private string text;
+
+    public Mark(string text)
+    {
+        this.text = text;
+    }
+
+    public string Tag()
+    {
+        return text;
+    }
+}
+
+public class Lynx : IClonable<Lynx>
+{
+    private int spots;
+    private int? spare;
+
+    private int? Spare
+    {
+        get { return spare; }
+        set { spare = value; }
+    }
+
+    private int this[int index]
+    {
+        get { return spots + index; }
+        set { spots = value - index; }
+    }
+
+    public Lynx(int spots)
+    {
+        this.spots = spots;
+    }
+
+    private string Shown<U>(U item) where U : ITag
+    {
+        return item.Tag();
+    }
+
+    private int Three()
+    {
+        return 3;
+    }
+
+    private void Bump()
+    {
+        spots = spots + 100;
+    }
+
+    public owned Lynx Clone()
+    {
+        var copy = new Lynx(spots);
+        copy[1] = this[1] + 10;
+        Lynx? maybe = copy;
+        int? read = maybe?.spots;
+        maybe?.Bump();
+        copy.Spare ??= 5;
+        Spare ??= 7;
+        func<int> three = Three;
+        func<int> copyThree = copy.Three;
+        int fromRead = read ?? 0;
+        int tagged = Shown<Mark>(new Mark("ab")).Length + copy.Shown<Mark>(new Mark("xyz")).Length;
+        copy.spots = copy.spots + three() + copyThree() + fromRead + tagged;
+        return copy;
+    }
+
+    public string Describe()
+    {
+        return $"spots={spots} spare={spare}";
+    }
+}
+
+public type Slot = Pair<int, string>;
+
 public type Age = new int;
 public type Label = new string;
 public type Position = new Point;
@@ -143,6 +297,12 @@ public type Meters = new double;
 public type Feet = new double;
 public type Jaguar = new Tiger;
 public type Puma = new Lion;
+public type IntBox = new Box<int>;
+public type Boxed<T> = new Box<T>;
+public type IntPair = new Pair<int, string>;
+public type AliasedPair = new Slot;
+public type IntCell = new Cell<int>;
+public type Ocelot = new Lynx;
 
 public class Person
 {
@@ -243,6 +403,33 @@ public class Program
         Console.WriteLine($"tiger={tiger.Describe()}");
         var puma = (Puma)new Lion(3);
         Console.WriteLine($"puma-mane={puma.Mane()} lion-mane={((Lion)puma).Mane()}");
+
+        Console.WriteLine("--- Constructed and aliased sources ---");
+        var box = new IntBox(5);
+        IntBox again = box.Again();
+        Box<string> named = box.Named();
+        Boxed<string> renamed = new Boxed<bool>(true).Named();
+        unknown boxedBox = box;
+        Console.WriteLine($"again={again.Get()} named={named.Get()} renamed={renamed.Get()} box-is-Box={boxedBox is Box<int>}");
+        var pair = new IntPair(1, "one");
+        Pair<int, string> leftPair = pair;
+        IntPair enteredPair = (IntPair)new Pair<int, string>(2, "two");
+        Slot slot = new AliasedPair(3, "three");
+        Console.WriteLine($"leftPair={leftPair.First()},{leftPair.Second} enteredPair={enteredPair.First()},{enteredPair.Second} slot={slot.First()},{slot.Second}");
+
+        Console.WriteLine("--- Clonable constructed source ---");
+        var cell = new Cell<int>(3);
+        var firstCell = (IntCell)cell;
+        var secondCell = (IntCell)cell;
+        var cellBack = (Cell<int>)secondCell;
+        Console.WriteLine($"firstCell={firstCell.Describe()} secondCell={secondCell.Describe()}");
+        Console.WriteLine($"cellBack={cellBack.Describe()} cell={cell.Describe()}");
+
+        Console.WriteLine("--- Members a Clone reaches ---");
+        var lynx = new Lynx(4);
+        var ocelot = (Ocelot)lynx;
+        var lynxBack = (Lynx)ocelot;
+        Console.WriteLine($"lynx={lynx.Describe()} ocelot={ocelot.Describe()} lynxBack={lynxBack.Describe()}");
 
         Console.WriteLine("=== Newtype Clones Done ===");
     }

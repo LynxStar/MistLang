@@ -1962,4 +1962,12 @@ converted=Shere#2 stripes=103 keeper=zoo made=2
 returned=Shere#2#1 stripes=103 keeper=zoo made=1
 tiger=Shere stripes=3 keeper=zoo made=1
 puma-mane=4 lion-mane=5
+--- Constructed and aliased sources ---
+again=5 named=<5> renamed=<True> box-is-Box=False
+leftPair=1,one enteredPair=2,two slot=3,three
+--- Clonable constructed source ---
+firstCell=3 fresh#1 made=2 secondCell=3 fresh#2 made=2
+cellBack=3 fresh#2#1 made=1 cell=3 fresh made=1
+--- Members a Clone reaches ---
+lynx=spots=4 spare=7 ocelot=spots=139 spare=5 lynxBack=spots=409 spare=5
 === Newtype Clones Done ===

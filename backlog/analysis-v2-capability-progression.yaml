@@ -986,6 +986,16 @@ rules:
       MIST_PA_STATIC_LOCAL_FUNCTION_CAPTURE for an outer variable, `this`, an instance field or an instance
       property. Two corpus cases, a local and a field; the lambda rows of the decision tests pin the shape
       and LocalFunctionDecisionTests pins that a static function capturing nothing is admitted.
+
+      A FOREACH ITERATION VARIABLE IS A READONLY LOCAL (2026-09-13), so reassigning one is
+      MIST_PA_READONLY_LOCAL_REASSIGNED. MEASURED BEFORE: `foreach(int n in numbers) { n = 5; }` passed
+      Mist on BOTH pipelines and failed in Roslyn, "Cannot assign to 'n' because it is a 'foreach iteration
+      variable'" -- the rule was C#'s alone. It could stay C#'s only while every loop emitted its variable in
+      the foreach header: emitter order 46 now emits a loop whose element converts as a foreach over the
+      element with the variable declared from its conversion, an ordinary local, and on that loop the
+      reassignment compiled and printed 9. The binder marks the variable readonly, which this rule already
+      judges; nothing else reads a local's readonly flag but ref-local emission, which a loop variable never
+      reaches. Two corpus cases, a plain loop and a converting one.
     tasks:
       - >
         `numbers[^1]` is admitted, order 123's task notwithstanding: Array's indexer takes a refinement

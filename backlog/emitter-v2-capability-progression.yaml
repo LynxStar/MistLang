@@ -1699,10 +1699,9 @@ capabilities:
     v2_status: partial
     verified_by: v2-semantics
     evidence: >
-      PARTIAL, on its own name: a conversion is recorded at every position that binds a value against a
-      type (2026-09-13, below), and not yet where a statement converts each element it reads -- a foreach
-      variable and a deconstruction from a value -- where the same shapes still fail in Roslyn. See the first
-      task. The paragraphs up to that date describe the relation alone, before any conversion was recorded.
+      A conversion is recorded at every position that binds a value against a type, and where a foreach or a
+      deconstruction converts each element it reads (2026-09-13, below). The paragraphs up to that date
+      describe the relation alone, before any conversion was recorded.
 
       Nothing in the syntax marks these. An assignment from Celsius to Fahrenheit requires
       searching the SOURCE type for an implicit operator to the target, and an argument
@@ -1958,12 +1957,42 @@ capabilities:
       spellings over an enum reaching `implicit operator Level(int)` -- `((Probe.Level)((int)(priority)))` --
       which fails in Roslyn written bare, C# having no implicit conversion from an enum to its value. Operator
       admissibility asks the implicit selection too, so the operator-operand position takes that step.
+
+      A FOREACH AND A DECONSTRUCTION RECORD THE CONVERSION EACH ELEMENT TAKES (2026-09-13), closing the last
+      positions, by the language owner's choice of recording it on the statement rather than desugaring the
+      loop. Neither has an expression for the element, so ElementReadExpression stands for the element the
+      statement reads, as the operand of an ImplicitConversionExpression held on ForEachStatement.ElementConversion
+      and TupleDeconstructionStatement.ElementConversions; the loop variable and the deconstruction targets stay
+      what they are for every rule. A deconstruction from a tuple LITERAL records none, its elements converting
+      as tuple elements. BodyWalker walks the conversions, so a tie is reported at the collection or the
+      initializer, and assignability-core skips an element that records one. Emission reads the element into a
+      temporary and declares the variable from the conversion: `foreach (Priority __element123 in priorities) {
+      Probe.Level each = ((Probe.Level)((int)(__element123))); ... }`, and a deconstruction evaluates its
+      initializer once into `__tuple123` and declares each target from `__tuple123.ItemN`.
+      MEASURED on v2 before and after, where the loop header had been written bare and C# chose: `foreach(Gauge
+      g in bytes)` was admitted and failed in Roslyn (CS0457) and is MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION;
+      `foreach(double d in tallies)` and `(double d, int n) = pair` over implicit int and long ran and printed
+      C#'s 2, and are AMBIGUOUS_IMPLICIT_CONVERSION; `foreach(Point p in beacons)` through a newtype and
+      `foreach(int | string u in counters)` through a union were admitted and failed in Roslyn ("Cannot convert
+      type"), and print 2 and True; `foreach(Level l in priorities)` and `(Level l, int n) = pair` through the
+      enum step were MIST_PA_CAST_REQUIRED and print 6. The Celsius-to-Fahrenheit loop and deconstruction both
+      pipelines already ran print 32, 212 and 50 as before.
+      A LOOP VARIABLE HAD BEEN READ-ONLY ONLY THROUGH ROSLYN, and emitting it as an ordinary local made a
+      reassignment inside a converting loop compile and print 9. It is now a readonly local in the model,
+      refused as MIST_PA_READONLY_LOCAL_REASSIGNED on both kinds of loop; recorded under analysis order 9.
+      PROVED BY two more site rows (foreach variable, deconstruction target) and a literal-deconstruction fact
+      in ImplicitConversionSelectionTests, AssignabilityDecisionTests admits for the enum step in a loop and a
+      deconstruction, emission facts for both spellings, and four corpus cases: a tie in a loop, a tie in a
+      deconstruction, and a reassigned loop variable plain and converting. Eight mutations on confirmed builds,
+      each failing at least one test: either statement's conversion unrecorded, the walker skipping either,
+      either statement judged by the classifier despite its conversion, the loop variable not declared from its
+      conversion, and the loop variable not readonly. Full suite green, 6088 of 6088.
     tasks:
       - >
-        Record the conversion where a statement converts each element it reads: a foreach variable and a
-        deconstruction from a value, both measured above as CS0457 on programs Mist admits. Neither has an
-        expression to wrap, so each needs a design of its own. Until both record it, the classifier's implicit
-        answer cannot ask CastOperatorSelection.Implicit, since each verdict it widens reaches Roslyn bare there.
+        Point ConversionClassifier's implicit answer at CastOperatorSelection.Implicit and delete
+        ConversionRelation.FindOperator, its last caller. Every position now wraps by that selection, so the two
+        answer the same wherever a node could exist; the classifier still brackets an operator's ends by
+        containment and takes the first match, which is one home too many.
       - >
         DO NOT DELETE ConversionRelation.NumericWidening, which its own doc comment used to invite once
         cast operators were consulted, on the reasoning that scanning the stdlib's implicit operators

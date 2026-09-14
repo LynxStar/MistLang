@@ -62,6 +62,7 @@ internal static class IntrinsicCloneEmitter
         var parameters = ParameterEmitter.Emit(op.ParametersList, diagnostics);
         var modifiers = MemberModifierEmitter.Emit(op.Modifiers, emitReadonly: false);
         var logical = op.Kind is OperatorKind.LogicalAnd or OperatorKind.LogicalOr;
+        var result = IsItself(op.ReturnType, clone) ? clone.CloneSource! : op.ReturnType;
         var symbol = op.Kind switch
         {
             OperatorKind.LogicalAnd => "&",
@@ -70,7 +71,7 @@ internal static class IntrinsicCloneEmitter
         };
 
         writer.WriteLine($"{modifiers}{MethodEmitter.EmitReturnType(op)} operator {symbol}({parameters})");
-        writer.WriteLine($"    => {Wrap(op.ReturnType, clone, $"({expression})")};");
+        writer.WriteLine($"    => {Wrap(op.ReturnType, clone, NarrowArithmetic.Spell(result, $"({expression})"))};");
 
         if(logical && clone.OperatorsList.First(other => other.Kind is OperatorKind.LogicalAnd or OperatorKind.LogicalOr) == op)
         {

@@ -18,6 +18,8 @@ public sealed class IntrinsicCloneEmissionTests
         type Label = new string;
         type Flag = new bool;
         type Id<T> = new int;
+        type Tiny = new byte;
+        type Offset = new sbyte;
         """;
 
     [Fact]
@@ -42,6 +44,18 @@ public sealed class IntrinsicCloneEmissionTests
         Assert.Contains("=> new Probe.Age(Value);", age);
         Assert.Contains("=> new Probe.Label(Value.ToUpper());", label);
         Assert.Contains("Length => Value.Length;", label);
+    }
+
+    [Fact]
+    public void ArithmeticOverANarrowIntegral_IsSpelledBackIntoTheSourceBeforeItIsWrapped()
+    {
+        var tiny = EmitDeclaration("Tiny");
+        var offset = EmitDeclaration("Offset");
+
+        Assert.Contains("=> new Probe.Tiny(((byte)((a.Value + b.Value))));", tiny);
+        Assert.Contains("=> new Probe.Tiny(((byte)((a.Value % b.Value))));", tiny);
+        Assert.Contains("=> (a.Value < b.Value);", tiny);
+        Assert.Contains("=> new Probe.Offset(((sbyte)((-a.Value))));", offset);
     }
 
     [Fact]

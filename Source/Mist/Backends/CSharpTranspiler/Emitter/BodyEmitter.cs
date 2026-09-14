@@ -915,10 +915,21 @@ internal static class BodyEmitter
                     Render(binary.Right, diagnostics)));
                 break;
 
+            case BinaryExpression binary when NarrowArithmetic.Promotes(binary.Type):
+                writer.Append(NarrowArithmetic.Spell(
+                    binary.Type,
+                    $"{RenderSubExpression(binary.Left, GetPrecedence(binary.OperatorKind), diagnostics)} {MapBinaryOperator(binary.OperatorKind)} {RenderSubExpression(binary.Right, GetPrecedence(binary.OperatorKind), diagnostics)}"));
+                break;
+
             case BinaryExpression binary:
                 EmitSubExpression(binary.Left, GetPrecedence(binary.OperatorKind), writer, diagnostics);
                 writer.Append($" {MapBinaryOperator(binary.OperatorKind)} ");
                 EmitSubExpression(binary.Right, GetPrecedence(binary.OperatorKind), writer, diagnostics);
+                break;
+
+            case UnaryExpression unary when NarrowArithmetic.Promotes(unary.Type):
+                writer.Append(NarrowArithmetic.Spell(
+                    unary.Type, $"{MapUnaryOperator(unary.OperatorKind)}{RenderSubExpression(unary.Operand, PrefixPrecedence, diagnostics)}"));
                 break;
 
             case UnaryExpression unary:
@@ -2500,6 +2511,13 @@ internal static class BodyEmitter
         }
 
         EmitExpression(child, writer, diagnostics);
+    }
+
+    private static string RenderSubExpression(Expression child, int operatorPrecedence, DiagnosticBag diagnostics)
+    {
+        var scratch = new CSharpWriter();
+        EmitSubExpression(child, operatorPrecedence, scratch, diagnostics);
+        return scratch.ToString();
     }
 
     private static int GetPrecedence(Expression expression)

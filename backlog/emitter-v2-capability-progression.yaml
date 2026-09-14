@@ -406,6 +406,38 @@ capabilities:
       a live defect in any valid program: classic refuses both inputs with MIST_TC_0005, so Mist has no
       `==` over a reference type for a user to write. The gap is that v2 types it instead of refusing
       it. Left unbuilt because the fix is a diagnostic and refusing a program is analysis-phase work.
+
+      ARITHMETIC ON A NARROW INTEGRAL ANSWERS ITS OWN TYPE (2026-09-14), BY DECISION, found while probing
+      a newtype over byte for analysis order 4. Standard declares `Byte operator +(Byte, Byte)`
+      (standard-library Requirement 3.4) and C# answers int for the same arithmetic, so every narrow slot
+      failed in Roslyn on BOTH pipelines: `byte c = a + b;`, the same over `-`, `*`, `/`, `%`, short,
+      sbyte and ushort, `-a` over sbyte, a byte argument and a byte return (CS0266 and CS1503). v2 typed
+      `var c = a + b;` byte by the declaration and failed there too, where classic printed 300, C#'s int
+      leaking through. The language owner: "I see no reason byte + byte isn't byte." NarrowArithmetic spells
+      a byte, sbyte, short or ushort result back into its type, `((byte)(a + b))`, wrapping as int already
+      does; BodyEmitter asks it for a binary and a unary expression, and IntrinsicCloneEmitter for a clone's
+      operator over its backing values, so `type Tiny = new byte;` -- which failed in Roslyn even unused, its
+      five arithmetic operators spelled `new Tiny((a.Value + b.Value))` -- now compiles (order 86).
+      MEASURED on v2 after, one project per probe: bytes 200 and 100 give 44 for `+` (in a local, `var`, an
+      argument, a return and an interpolation), 156 for `b - a`, 32 for `*`; 200 and 30 give 6 and 20 for `/`
+      and `%`; shorts 30000 and 10000 give -25536; sbytes 100 and 50 give -106, and `-(-128)` gives -128;
+      ushorts 60000 and 10000 give 4464. `a + b > b` is False, where classic prints True, and `$"{a + b}"`
+      44, where classic prints 300: the two divergences, both by the decision. Newtypes over byte, short,
+      sbyte and ushort wrap through their own operators -- Tinies 200 and 100 print 44, 156, 32, 2, 0 for `+`,
+      `b - a`, `*`, `/`, `%` -- and `Tiny doubled = box.Size + box.Size` over a field holding 7 prints 14. Unchanged: `byte + int` selects Int32's operator and prints
+      300, and a newtype over int still wraps (-294967296).
+      PROVED BY NarrowArithmeticEmissionTests (seven spellings, including a nested subtraction and a
+      comparison over a sum, and three left as written) and an IntrinsicCloneEmissionTests fact over a byte
+      and an sbyte clone. Three mutations on confirmed builds: nothing promoted fails eight tests, the
+      clone spelled by its own type rather than its source fails the clone fact, and the binary case removed
+      fails six.
+    tasks:
+      - >
+        A coalescing operand of a binary expression loses its parentheses, silently. Measured 2026-09-14:
+        `int? maybe = 250; int b = 10; int c = (maybe ?? b) + b;` prints 250 on v2 and 260 on classic, the
+        emitted C# being `maybe ?? b + b`. GetPrecedence has no row for a CoalesceExpression, so
+        EmitSubExpression never parenthesizes one; the byte form, `((byte)(maybe ?? b + b))`, is the same
+        defect.
     analysis_phase_tasks:
       - >
         Report a comparison whose operands have no operator that admits them, rather than typing the
@@ -4766,6 +4798,10 @@ capabilities:
       hand: the counts and spots were worked through each Clone body, `ocelot=spots=139` and
       `lynxBack=spots=409` being 2S + 131 from S = 4 and S = 139. No diagnostic, MSBuild compiles the emitted
       C# without warning, and AllFeaturesV2 matches the extended baseline.
+
+      A NEWTYPE OVER A NARROW INTEGRAL COMPILES (2026-09-14). `type Tiny = new byte;` failed in Roslyn even
+      unused, and over short, sbyte and ushort alike, while classic ran it; its cloned arithmetic now spells
+      the backing result back into the source before wrapping it. Recorded in full under order 9.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across

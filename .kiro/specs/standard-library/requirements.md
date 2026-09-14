@@ -82,7 +82,7 @@ This document specifies requirements only. Distribution/loading strategy is an o
 1. THE `Int32` type SHALL declare Operator_Declarations for each of `+`, `-`, `*`, `/`, `%` that take two `Int32` operands and return an `Int32`.
 2. THE `Int32` type SHALL declare Operator_Declarations for each of `<`, `>`, `<=`, `>=`, `==`, `!=` that take two `Int32` operands and return a `Boolean`.
 3. THE `Int32` type SHALL declare a unary `-` Operator_Declaration that takes one `Int32` and returns an `Int32`.
-4. THE bootstrap tier SHALL repeat Requirement 3.1 through 3.3 for each of `UInt32`, `Int64`, `UInt64`, `Int16`, `UInt16`, `Byte`, `SByte`, `Single`, `Double`, `Decimal`, except that `UInt32`, `UInt64`, `UInt16`, and `Byte` SHALL NOT declare unary `-`.
+4. THE bootstrap tier SHALL repeat Requirement 3.1 through 3.3 for each of `UInt32`, `Int64`, `UInt64`, `Int16`, `UInt16`, `Byte`, `SByte`, `Single`, `Double`, `Decimal`, except that `UInt32`, `UInt64`, `UInt16`, and `Byte` SHALL NOT declare unary `-`. Arithmetic on `Byte`, `SByte`, `Int16` and `UInt16` answers the operand type, as declared, and wraps on overflow as `Int32` arithmetic does: `200 + 100` over two `Byte` operands is `44`. The Backend supplies that result whatever the target language's own arithmetic answers.
 5. THE `Boolean` type SHALL declare Operator_Declarations for `&&`, `||`, and unary `!`.
 6. THE `Boolean` type SHALL declare Operator_Declarations for `==` and `!=` between two `Boolean` operands returning a `Boolean`.
 7. THE `Char` type SHALL declare Operator_Declarations for `==`, `!=`, `<`, `>`, `<=`, `>=` between two `Char` operands returning a `Boolean`.

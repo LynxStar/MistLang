@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Frontend;
 
@@ -111,11 +112,10 @@ public class StormTraitBindingRoundTripPropertyTests
     //  **Validates: Requirements 3, 10**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P2_RuleTraitBindingRoundTrip_PreservesTraitBindingListInOrder()
+    [Property(MaxTest = 200)]
+    public Property P2_RuleTraitBindingRoundTrip_PreservesTraitBindingListInOrder()
     {
-        var samples = GenRuleWithTraitBindings().Sample(200);
-        foreach(var rule in samples)
+        return Prop.ForAll(GenRuleWithTraitBindings().ToArbitrary(), rule =>
         {
             var source = BuildSource(rule);
 
@@ -143,6 +143,6 @@ public class StormTraitBindingRoundTripPropertyTests
 
             // Assert rule name is preserved
             Assert.Equal(rule.RuleName, decl2.Name);
-        }
+        });
     }
 }

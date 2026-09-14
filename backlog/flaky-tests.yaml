@@ -671,6 +671,14 @@ flakes:
           recurrence above asked for now exists: tools/test-ledger/run.sh keeps every failure's name,
           message and FsCheck seed, and Test/CLAUDE.md sends full runs through it.
 
+          TWO MORE CANDIDATES, same day, and again NOT an attribution. The five remaining trait property
+          files that looped over Gen.Sample were converted and replayed for 1000000 draws a property. Two
+          drew invalid grammars -- see storm-trait-composition-inheritance-property and
+          storm-trait-multi-alt-rejection-property -- at about one run in 540 for the likelier. The other
+          five properties passed every draw: StormTraitRoundTripPropertyTests.P1,
+          StormTraitBindingRoundTripPropertyTests.P2, and StormTraitInterfaceEmissionPropertyTests.P5a, P5b
+          and P5c. Twenty-one other files in the project still draw through Gen.Sample and were not replayed.
+
   - id: storm-trait-structural-satisfaction-property
     test: Storm.SourceGenerator.Tests.StormTraitStructuralSatisfactionPropertyTests.P4c_MismatchedField_EmitsSTORM0021
     file: Test/Storm.SourceGenerator.Tests/StormTraitStructuralSatisfactionPropertyTests.cs
@@ -972,3 +980,91 @@ flakes:
       output captured to a file, was green. The source was the rebase of
       claude/newtype-revision-loose-ends-7317d8 onto main; no file under Test/ was edited between the
       three runs.
+
+  - id: storm-trait-composition-inheritance-property
+    test: >
+      Storm.SourceGenerator.Tests.StormTraitCompositionInheritancePropertyTests.P6_ComposingTrait_EmittedInterfaceExtendsBase,
+      Storm.SourceGenerator.Tests.StormTraitCompositionInheritancePropertyTests.P6_RuleBindingComposingTrait_NodeImplementsComposingInterface,
+      Storm.SourceGenerator.Tests.StormTraitCompositionInheritancePropertyTests.P6_RuleBindingComposingTrait_BaseInterfaceInheritedTransitively,
+      Storm.SourceGenerator.Tests.StormTraitCompositionInheritancePropertyTests.P6_BaseTraitInterface_HasOwnProperties
+    file: Test/Storm.SourceGenerator.Tests/StormTraitCompositionInheritancePropertyTests.cs
+    discovered: 2026-09-14
+    status: fixed
+    symptom: >
+      Never sighted by name in a suite run. Found by replay while converting the remaining trait property
+      tests that looped over Gen.Sample, the pattern the three storm-* entries above were fixed for. The
+      failure read "Failed to build emission context for scenario" and printed the drawn grammar, with no
+      diagnostic.
+    cause: >
+      THE GENERATOR DREW INVALID GRAMMARS, the habit named under storm-trait-field-type-resolution-property,
+      in a fourth file. GenScenario renames the two trait names, the rule name and every token name apart,
+      but DeduplicateFields kept field names distinct only within one trait, so traits A and B could each
+      declare a field of the same name. Their token types are always distinct, so `trait B : A` inherits
+      one field with two definitions, TraitValidationPass reports STORM0025, and BuildEmissionContext
+      returned null. Storm is right to reject it: B includes all of A's fields (requirement 3.6 of
+      storm-trait-keyword), and a node cannot carry one field at two types -- the composition analogue of
+      requirement 9.3. All four tests share the generator, so all four could draw it.
+    evidence: >
+      REPRODUCED BY REPLAY, 2026-09-14. The four tests were converted from [Fact]s over Gen.Sample to
+      [Property]s over the unchanged generator, and a scratch harness ran each through Check.One for five
+      rounds of 200000 draws, each on a fresh seed. Three rounds failed across 3717301 draws of the shared
+      generator, about one draw in 1.2 million, or one run of the four tests' 550 draws in 2250:
+      P6_RuleBindingComposingTrait_NodeImplementsComposingInterface after 154985 and 38941 draws, and
+      P6_RuleBindingComposingTrait_BaseInterfaceInheritedTransitively after 123375. The other two passed
+      1000000 each. The three inputs gave A and B a field named `nff`, `qid` and `qmx`.
+
+      CONFIRMED AS FIXED INPUTS, before the fix. Each recorded grammar built (grammar.Succeeded=True) and
+      lowered (Succeeded=True), and TraitValidationPass reported "STORM0025 Trait 'Qqq2n' has conflicting
+      definitions for field 'nff' from composed traits", and likewise 'qid' on Iw6 and 'qmx' on Qxlt. The
+      first grammar with B's field renamed `nff1` validated with no diagnostics and emitted
+      `public interface IQqq2nNode : IMz24aib5Node` and
+      `public sealed class PfqmiuNode : SyntaxNode, IQqq2nNode`.
+    fix: >
+      APPLIED 2026-09-14. DeduplicateFields shares one field-name set across both traits, and
+      BuildEmissionContext asserts each step -- grammar build, trait validation, lowering -- with that
+      step's diagnostics, so a future invalid draw fails naming the diagnostic instead of returning null.
+      After it the four properties passed five rounds of 200000 draws each, 20 of 20. At the rate above
+      those 4000000 draws should have held about three failures, so a clean run is consistent with the fix
+      rather than proof of it; the proof is that one shared set cannot hand two fields the same name.
+
+  - id: storm-trait-multi-alt-rejection-property
+    test: >
+      Storm.SourceGenerator.Tests.StormTraitMultiAltRejectionPropertyTests.P8_MultiAltRuleWithTraitBindings_AlwaysEmitsSTORM0022,
+      Storm.SourceGenerator.Tests.StormTraitMultiAltRejectionPropertyTests.P8_Inverse_SingleAltRuleWithTraitBindings_NeverEmitsSTORM0022
+    file: Test/Storm.SourceGenerator.Tests/StormTraitMultiAltRejectionPropertyTests.cs
+    discovered: 2026-09-14
+    status: fixed
+    symptom: >
+      Never sighted by name in a suite run. Found by replay alongside
+      storm-trait-composition-inheritance-property. The failure read "Grammar build failed for source" and
+      printed the drawn grammar, with no diagnostic.
+    cause: >
+      THE GENERATORS DREW INVALID GRAMMARS, the same habit in a fifth file. Both tests renamed the rule
+      apart from the other declarations but left the trait's name unchecked. P8 declares a token for each
+      alternative's reference name and P8_Inverse one for each trait field's type name, and either could be
+      the trait's own name. One name declared twice is STORM0003, and traits share the declaration
+      namespace with tokens and rules by design (storm-trait-keyword design.md, TraitValidationPass item 2),
+      so Storm is right.
+    evidence: >
+      REPRODUCED BY REPLAY, 2026-09-14, the same way as storm-trait-composition-inheritance-property.
+      P8_MultiAltRuleWithTraitBindings_AlwaysEmitsSTORM0022 failed four rounds of five, after 98863, 32158,
+      76350 and 21704 draws: four failures in 429075 draws, about one in 107000, or one run in 540 at the
+      test's 200 draws. Each time the trait was named like one of the alternatives' tokens -- La3e, Brb,
+      Axj, Wa6. P8_Inverse failed one round, after 162739 draws, on `trait Znq = jxt6:Znq ...` beside
+      `token Znq`: one failure in 962739 draws, too few to call a rate.
+
+      CONFIRMED AS FIXED INPUTS, before the fix. The recorded grammars for La3e and Wa6, and the P8_Inverse
+      grammar, each gave grammar.Succeeded=False with "STORM0003 Duplicate declaration name". With the token
+      renamed apart (La3e1, Znq1) both built: the multi-alternative grammar still reported STORM0022, and
+      the single-alternative one reported no trait diagnostic and emitted
+      `public sealed class Id7k9Node : SyntaxNode, IZnqNode`.
+
+      LEFT AS IT IS, and noted so it is not rediscovered: P8's generator also binds undeclared traits and
+      names undeclared field types, so its grammars report STORM0018 and STORM0019 beside STORM0022. The
+      property asks only that STORM0022 is present, which those do not disturb.
+    fix: >
+      APPLIED 2026-09-14. Each generator requires the trait's name to differ from every name it declares as
+      a token, and the grammar-built assertion prints the build diagnostics. After it both properties
+      passed five rounds of 200000 draws each, 10 of 10, where P8 had failed four rounds of five before.
+      P8_Inverse's clean million is weak evidence on its own, given one failure in 962739 draws before; the
+      filter rejects the colliding draw by construction.

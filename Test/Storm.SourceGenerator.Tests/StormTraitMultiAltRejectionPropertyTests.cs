@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Validate;
 
@@ -231,8 +232,8 @@ public class StormTraitMultiAltRejectionPropertyTests
     //  **Validates: Requirement 3.5**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P8_MultiAltRuleWithTraitBindings_AlwaysEmitsSTORM0022()
+    [Property(MaxTest = 200)]
+    public Property P8_MultiAltRuleWithTraitBindings_AlwaysEmitsSTORM0022()
     {
         var testCaseGen = GenTrait().SelectMany(trait =>
             GenPascalCaseIdentifier().SelectMany(ruleName =>
@@ -260,25 +261,28 @@ public class StormTraitMultiAltRejectionPropertyTests
                         }
 
                         return (trait.TraitName, trait.Fields, finalRuleName, bindings, alts);
-                    }))));
+                    }))))
+            .Where(drawn => drawn.alts.All(a => a.RefName != drawn.TraitName));
 
-        var samples = testCaseGen.Sample(200);
-        foreach(var (traitName, fields, ruleName, bindings, alts) in samples)
+        return Prop.ForAll(testCaseGen.ToArbitrary(), drawn =>
         {
+            var (traitName, fields, ruleName, bindings, alts) = drawn;
             var source = BuildMultiAltGrammar(traitName, fields, ruleName, bindings, alts);
             var grammar = ValidationTestHelpers.BuildGrammar(source);
-            Assert.True(grammar.Succeeded, $"Grammar build failed for source:\n{source}");
+            Assert.True(grammar.Succeeded,
+                $"Grammar build failed for source:\n{source}\n" +
+                $"Diagnostics: {string.Join("; ", grammar.Diagnostics.Select(d => $"{d.Id} {d.Message}"))}");
 
             var diagnostics = TraitValidationPass.Run(grammar);
 
             Assert.Contains(diagnostics, d =>
                 d.Id == StormDiagnosticIds.STORM_TRAIT_MULTI_ALT &&
                 d.Message.Contains(ruleName));
-        }
+        });
     }
 
-    [Fact]
-    public void P8_Inverse_SingleAltRuleWithTraitBindings_NeverEmitsSTORM0022()
+    [Property(MaxTest = 200)]
+    public Property P8_Inverse_SingleAltRuleWithTraitBindings_NeverEmitsSTORM0022()
     {
         var testCaseGen = GenTrait().SelectMany(trait =>
             GenPascalCaseIdentifier().Select(ruleName =>
@@ -297,20 +301,23 @@ public class StormTraitMultiAltRejectionPropertyTests
                 }
 
                 return (trait.TraitName, trait.Fields, finalRuleName);
-            }));
+            }))
+            .Where(drawn => drawn.Fields.All(f => f.TypeName != drawn.TraitName));
 
-        var samples = testCaseGen.Sample(200);
-        foreach(var (traitName, fields, ruleName) in samples)
+        return Prop.ForAll(testCaseGen.ToArbitrary(), drawn =>
         {
+            var (traitName, fields, ruleName) = drawn;
             var bindings = new List<string> { traitName };
             var source = BuildSingleAltGrammar(traitName, fields, ruleName, bindings);
             var grammar = ValidationTestHelpers.BuildGrammar(source);
-            Assert.True(grammar.Succeeded, $"Grammar build failed for source:\n{source}");
+            Assert.True(grammar.Succeeded,
+                $"Grammar build failed for source:\n{source}\n" +
+                $"Diagnostics: {string.Join("; ", grammar.Diagnostics.Select(d => $"{d.Id} {d.Message}"))}");
 
             var diagnostics = TraitValidationPass.Run(grammar);
 
             Assert.DoesNotContain(diagnostics, d =>
                 d.Id == StormDiagnosticIds.STORM_TRAIT_MULTI_ALT);
-        }
+        });
     }
 }

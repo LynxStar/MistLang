@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.Frontend;
 using Storm.SourceGenerator.IR;
@@ -358,13 +359,12 @@ public class StormTraitInterfaceEmissionPropertyTests
     //  **Validates: Requirements 6, 7**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P5a_InterfaceDeclaration_ExistsForEachTrait()
+    [Property(MaxTest = 200)]
+    public Property P5a_InterfaceDeclaration_ExistsForEachTrait()
     {
         var scenarioGen = GenScenario();
-        var samples = scenarioGen.Sample(200);
 
-        foreach(var scenario in samples)
+        return Prop.ForAll(scenarioGen.ToArbitrary(), scenario =>
         {
             var source = BuildGrammarSource(scenario);
             var output = EmitAstFromGrammar(source);
@@ -380,7 +380,7 @@ public class StormTraitInterfaceEmissionPropertyTests
                     $"Grammar source:\n{source}\n" +
                     $"Emitted output (first 500 chars):\n{output[..Math.Min(500, output.Length)]}");
             }
-        }
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -391,13 +391,12 @@ public class StormTraitInterfaceEmissionPropertyTests
     //  **Validates: Requirements 6, 7**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P5b_InterfaceProperties_HaveCorrectTypes()
+    [Property(MaxTest = 200)]
+    public Property P5b_InterfaceProperties_HaveCorrectTypes()
     {
         var scenarioGen = GenScenario();
-        var samples = scenarioGen.Sample(200);
 
-        foreach(var scenario in samples)
+        return Prop.ForAll(scenarioGen.ToArbitrary(), scenario =>
         {
             var source = BuildGrammarSource(scenario);
             var output = EmitAstFromGrammar(source);
@@ -418,7 +417,7 @@ public class StormTraitInterfaceEmissionPropertyTests
                         $"Trait: {trait.Name}, Field: {field.FieldName}:{field.TypeName}{CardinalitySuffix(field.Cardinality)}");
                 }
             }
-        }
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -429,13 +428,12 @@ public class StormTraitInterfaceEmissionPropertyTests
     //  **Validates: Requirements 6, 7**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P5c_NodeClass_IncludesTraitInterfacesInImplementsList()
+    [Property(MaxTest = 200)]
+    public Property P5c_NodeClass_IncludesTraitInterfacesInImplementsList()
     {
         var scenarioGen = GenScenario();
-        var samples = scenarioGen.Sample(200);
 
-        foreach(var scenario in samples)
+        return Prop.ForAll(scenarioGen.ToArbitrary(), scenario =>
         {
             var source = BuildGrammarSource(scenario);
             var output = EmitAstFromGrammar(source);
@@ -469,6 +467,6 @@ public class StormTraitInterfaceEmissionPropertyTests
                         $"Grammar source:\n{source}");
                 }
             }
-        }
+        });
     }
 }

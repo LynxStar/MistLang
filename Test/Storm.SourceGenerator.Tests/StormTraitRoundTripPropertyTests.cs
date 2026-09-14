@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Frontend;
 
@@ -199,8 +200,8 @@ public class StormTraitRoundTripPropertyTests
     //  **Validates: Requirements 1, 2, 10**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P1_TraitDeclRoundTrip_PrettyPrintAndReparse_ProducesIdenticalNode()
+    [Property(MaxTest = 200)]
+    public Property P1_TraitDeclRoundTrip_PrettyPrintAndReparse_ProducesIdenticalNode()
     {
         var traitNameGen = GenTypeName();
         var fieldsGen = GenFields();
@@ -210,9 +211,10 @@ public class StormTraitRoundTripPropertyTests
             fieldsGen.SelectMany(fields =>
                 composedGen.Select(composed => (name, fields, composed))));
 
-        var samples = sampleGen.Sample(200);
-        foreach(var (traitName, fields, composedTraits) in samples)
+        return Prop.ForAll(sampleGen.ToArbitrary(), drawn =>
         {
+            var (traitName, fields, composedTraits) = drawn;
+
             // Build source from generated data
             var source = BuildTraitSource(traitName, fields, composedTraits);
 
@@ -248,6 +250,6 @@ public class StormTraitRoundTripPropertyTests
             {
                 Assert.Equal(originalDecl.ComposedTraits[i], roundTrippedDecl.ComposedTraits[i]);
             }
-        }
+        });
     }
 }

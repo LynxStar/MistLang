@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.Frontend;
@@ -108,10 +109,11 @@ public class StormTraitCompositionInheritancePropertyTests
                                     var finalTraitBName = MakeUnique(traitBName, allNames);
                                     var finalRuleName = MakeUnique(ruleName, allNames);
 
-                                    // Ensure token names in fields are unique
+                                    // Ensure field names and token names are unique across both traits
                                     var tokenNames = new HashSet<string>(allNames);
-                                    var finalAFields = DeduplicateFields(aFields, tokenNames);
-                                    var finalBFields = DeduplicateFields(bFields, tokenNames);
+                                    var fieldNames = new HashSet<string>();
+                                    var finalAFields = DeduplicateFields(aFields, fieldNames, tokenNames);
+                                    var finalBFields = DeduplicateFields(bFields, fieldNames, tokenNames);
 
                                     return new CompositionScenario(
                                         finalTraitAName,
@@ -145,9 +147,8 @@ public class StormTraitCompositionInheritancePropertyTests
         return result;
     }
 
-    private static List<FieldDef> DeduplicateFields(List<FieldDef> fields, HashSet<string> allNames)
+    private static List<FieldDef> DeduplicateFields(List<FieldDef> fields, HashSet<string> fieldNames, HashSet<string> allNames)
     {
-        var fieldNames = new HashSet<string>();
         var result = new List<FieldDef>();
         foreach(var f in fields)
         {
@@ -235,7 +236,7 @@ public class StormTraitCompositionInheritancePropertyTests
     /// Builds a StormGrammar from source, validates traits, lowers to IR,
     /// builds trait IR, and constructs an EmissionContext.
     /// </summary>
-    private static (EmissionContext Context, string Source)? BuildEmissionContext(CompositionScenario scenario)
+    private static (EmissionContext Context, string Source) BuildEmissionContext(CompositionScenario scenario)
     {
         var source = BuildGrammarSource(scenario);
 
@@ -246,25 +247,16 @@ public class StormTraitCompositionInheritancePropertyTests
         var resolver = new StormImportResolver(ValidationTestHelpers.InMemoryFileReader(files));
         var resolution = resolver.Resolve("root/main.storm");
         var grammar = StormGrammar.Build(resolution);
-
-        if(!grammar.Succeeded)
-        {
-            return null;
-        }
+        AssertStepSucceeded("Grammar build", grammar.Succeeded, grammar.Diagnostics, source);
 
         // Validate traits
         var traitDiags = TraitValidationPass.Run(grammar);
-        if(traitDiags.Any(d => d.Severity == StormDiagnosticSeverity.Error))
-        {
-            return null;
-        }
+        AssertStepSucceeded(
+            "Trait validation", !traitDiags.Any(d => d.Severity == StormDiagnosticSeverity.Error), traitDiags, source);
 
         // Lower to GrammarIR
         var loweringResult = GrammarIRLowering.Lower(grammar);
-        if(!loweringResult.Succeeded)
-        {
-            return null;
-        }
+        AssertStepSucceeded("Lowering", loweringResult.Succeeded, loweringResult.Diagnostics, source);
 
         // Build trait IR
         var traitBuildResult = TraitIRBuilder.Build(grammar);
@@ -280,6 +272,15 @@ public class StormTraitCompositionInheritancePropertyTests
         return (ctx, source);
     }
 
+    private static void AssertStepSucceeded(
+        string step, bool succeeded, IEnumerable<StormDiagnostic> diagnostics, string source)
+    {
+        Assert.True(
+            succeeded,
+            $"{step} failed for source:\n{source}\n" +
+            $"Diagnostics: {string.Join("; ", diagnostics.Select(d => $"{d.Id} {d.Message}"))}");
+    }
+
     // ══════════════════════════════════════════════════════════════════
     //  Property 6: Trait composition inheritance
     //
@@ -290,19 +291,12 @@ public class StormTraitCompositionInheritancePropertyTests
     //  **Validates: Requirements 3.6, 6.9, 7.3**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P6_ComposingTrait_EmittedInterfaceExtendsBase()
+    [Property(MaxTest = 150)]
+    public Property P6_ComposingTrait_EmittedInterfaceExtendsBase()
     {
-        var samples = GenScenario().Sample(150);
-
-        foreach(var scenario in samples)
+        return Prop.ForAll(GenScenario().ToArbitrary(), scenario =>
         {
-            var result = BuildEmissionContext(scenario);
-            Assert.True(result != null,
-                $"Failed to build emission context for scenario.\n" +
-                $"Source:\n{BuildGrammarSource(scenario)}");
-
-            var (ctx, source) = result.Value;
+            var (ctx, source) = BuildEmissionContext(scenario);
             var output = AstEmitter.EmitAstNodes(ctx);
 
             // Verify IBNode : IANode (the composing trait interface extends the base)
@@ -312,22 +306,15 @@ public class StormTraitCompositionInheritancePropertyTests
                 $"Expected emitted output to contain '{expectedDecl}' but it did not.\n" +
                 $"Source:\n{source}\n" +
                 $"Output (trait interfaces section):\n{ExtractInterfaceSection(output, scenario.TraitBName)}");
-        }
+        });
     }
 
-    [Fact]
-    public void P6_RuleBindingComposingTrait_NodeImplementsComposingInterface()
+    [Property(MaxTest = 150)]
+    public Property P6_RuleBindingComposingTrait_NodeImplementsComposingInterface()
     {
-        var samples = GenScenario().Sample(150);
-
-        foreach(var scenario in samples)
+        return Prop.ForAll(GenScenario().ToArbitrary(), scenario =>
         {
-            var result = BuildEmissionContext(scenario);
-            Assert.True(result != null,
-                $"Failed to build emission context for scenario.\n" +
-                $"Source:\n{BuildGrammarSource(scenario)}");
-
-            var (ctx, source) = result.Value;
+            var (ctx, source) = BuildEmissionContext(scenario);
             var output = AstEmitter.EmitAstNodes(ctx);
 
             // The rule's node class should implement IBNode directly
@@ -348,22 +335,15 @@ public class StormTraitCompositionInheritancePropertyTests
                 $"Expected node class to implement '{expectedImplements}'.\n" +
                 $"Class declaration: {classLine.Trim()}\n" +
                 $"Source:\n{source}");
-        }
+        });
     }
 
-    [Fact]
-    public void P6_RuleBindingComposingTrait_BaseInterfaceInheritedTransitively()
+    [Property(MaxTest = 150)]
+    public Property P6_RuleBindingComposingTrait_BaseInterfaceInheritedTransitively()
     {
-        var samples = GenScenario().Sample(150);
-
-        foreach(var scenario in samples)
+        return Prop.ForAll(GenScenario().ToArbitrary(), scenario =>
         {
-            var result = BuildEmissionContext(scenario);
-            Assert.True(result != null,
-                $"Failed to build emission context for scenario.\n" +
-                $"Source:\n{BuildGrammarSource(scenario)}");
-
-            var (ctx, source) = result.Value;
+            var (ctx, source) = BuildEmissionContext(scenario);
             var output = AstEmitter.EmitAstNodes(ctx);
 
             // The node class should NOT explicitly list IANode -- it's inherited
@@ -388,21 +368,15 @@ public class StormTraitCompositionInheritancePropertyTests
                 $"Expected node class NOT to list I{scenario.TraitAName}Node directly " +
                 $"(it should be inherited transitively via I{scenario.TraitBName}Node).\n" +
                 $"Class: {classLine.Trim()}\nSource:\n{source}");
-        }
+        });
     }
 
-    [Fact]
-    public void P6_BaseTraitInterface_HasOwnProperties()
+    [Property(MaxTest = 100)]
+    public Property P6_BaseTraitInterface_HasOwnProperties()
     {
-        var samples = GenScenario().Sample(100);
-
-        foreach(var scenario in samples)
+        return Prop.ForAll(GenScenario().ToArbitrary(), scenario =>
         {
-            var result = BuildEmissionContext(scenario);
-            Assert.True(result != null,
-                $"Failed to build emission context.\nSource:\n{BuildGrammarSource(scenario)}");
-
-            var (ctx, source) = result.Value;
+            var (ctx, source) = BuildEmissionContext(scenario);
             var output = AstEmitter.EmitAstNodes(ctx);
 
             // IANode interface should declare its own properties
@@ -419,7 +393,7 @@ public class StormTraitCompositionInheritancePropertyTests
                     $"Expected I{scenario.TraitAName}Node to declare property '{propName}'.\n" +
                     $"Interface section:\n{interfaceSection}\nSource:\n{source}");
             }
-        }
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════

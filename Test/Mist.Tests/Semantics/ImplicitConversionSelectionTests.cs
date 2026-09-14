@@ -165,6 +165,8 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
     [InlineData("switch arm")]
     [InlineData("operator operand")]
     [InlineData("indexer argument")]
+    [InlineData("foreach variable")]
+    [InlineData("deconstruction target")]
     public void AValueReachingItsSlotThroughADeclaredImplicit_RecordsTheOperatorAtEverySite(string site)
     {
         var conversion = Assert.IsType<ImplicitConversionExpression>(ConvertedAt(site));
@@ -173,6 +175,15 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
         Assert.Equal("Probe.Celsius", conversion.ParameterType?.FullyQualifiedName);
         Assert.Equal("Probe.Celsius", conversion.Operand.Type.FullyQualifiedName);
         Assert.Equal("Probe.Fahrenheit", conversion.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void ADeconstructionFromATupleLiteral_ConvertsTheLiteralsElementsAndNotTheTargets()
+    {
+        var deconstruction = BodyIn("(Fahrenheit first, int second) = (celsius, 1);").Statements.OfType<TupleDeconstructionStatement>().Single();
+
+        Assert.All(deconstruction.ElementConversions, Assert.Null);
+        _ = Assert.IsType<ImplicitConversionExpression>(Assert.IsType<TupleLiteralExpression>(deconstruction.Initializer).Elements[0]);
     }
 
     [Fact]
@@ -283,6 +294,10 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
             "switch arm" => InitializerOf<SwitchExpression>("Fahrenheit f = flag switch { true => celsius, false => celsius };").Arms[0].Result,
             "operator operand" => InitializerOf<BinaryExpression>("var sum = held + celsius;").Right,
             "indexer argument" => InitializerOf<IndexExpression>("var item = store[celsius];").Index,
+            "foreach variable" => BodyIn("Celsius[] readings = [celsius]; foreach(Fahrenheit each in readings) { }")
+                .Statements.OfType<ForEachStatement>().Single().ElementConversion,
+            "deconstruction target" => BodyIn("(Celsius, int) pair = (celsius, 1); (Fahrenheit first, int second) = pair;")
+                .Statements.OfType<TupleDeconstructionStatement>().Single().ElementConversions[0],
             _ => throw new ArgumentOutOfRangeException(nameof(site)),
         };
     }

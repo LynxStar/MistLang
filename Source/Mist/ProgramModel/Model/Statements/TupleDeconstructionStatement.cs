@@ -9,7 +9,9 @@ namespace Mist.ProgramModel.Model.Statements;
 /// does.
 /// </summary>
 internal sealed class TupleDeconstructionStatement(
-    IReadOnlyList<LocalVariable> targets, Expression initializer) : Statement
+    IReadOnlyList<LocalVariable> targets,
+    Expression initializer,
+    IReadOnlyList<ImplicitConversionExpression?>? elementConversions = null) : Statement
 {
     /// <summary>
     /// The declared locals in positional order, one per tuple element.
@@ -17,4 +19,6 @@ internal sealed class TupleDeconstructionStatement(
     public IReadOnlyList<LocalVariable> Targets { get; } = targets;
 
     public Expression Initializer { get; } = initializer;
+
+    public IReadOnlyList<ImplicitConversionExpression?> ElementConversions { get; } = elementConversions ?? [.. targets.Select(_ => (ImplicitConversionExpression?)null)];
 }

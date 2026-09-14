@@ -111,6 +111,22 @@ public sealed class ImplicitConversionEmissionTests
     }
 
     [Fact]
+    public void AForeachWhoseElementConverts_ReadsTheElementAndDeclaresTheVariableFromIt()
+    {
+        var emitted = Emit("Priority[] priorities = [Priority.High]; foreach(Level each in priorities) { }");
+
+        Assert.Matches(@"foreach \((?:Probe\.)?Priority (__element\d+) in priorities\)\s*\{\s*Probe\.Level each = \(\(Probe\.Level\)\(\(int\)\(\1\)\)\);", emitted);
+    }
+
+    [Fact]
+    public void ADeconstructionWhoseElementConverts_ReadsEachElementOfOneEvaluation()
+    {
+        var emitted = Emit("(Priority, int) pair = (Priority.High, 1); (Level first, int second) = pair;");
+
+        Assert.Matches(@"\((?:Probe\.)?Priority, int\) (__tuple\d+) = pair;\s*Probe\.Level first = \(\(Probe\.Level\)\(\(int\)\(\1\.Item1\)\)\);\s*int second = \1\.Item2;", emitted);
+    }
+
+    [Fact]
     public void ALambdaResult_IsCastToTheParameter()
     {
         Assert.Contains("((Probe.Level)((int)(p)))", Emit("func<Priority, Level> convert = p => p;"), StringComparison.Ordinal);

@@ -78,6 +78,7 @@ internal static class BodyWalker
         add<CloneExpression>(e => [e.Source]);
         add<CoalesceExpression>(e => [e.Left, e.Right]);
         add<DefaultExpression>(_ => []);
+        add<ElementReadExpression>(_ => []);
         add<ErrorExpression>(_ => []);
         add<ExtensionPropertyAccessExpression>(e => [e.Receiver]);
         add<FieldReferenceExpression>(_ => []);
@@ -116,13 +117,13 @@ internal static class BodyWalker
         add<Block>(b => [.. b.Statements]);
         add<BreakStatement>(_ => []);
         add<ExpressionStatement>(s => [s.Expression]);
-        add<ForEachStatement>(s => [s.Collection, s.Body]);
+        add<ForEachStatement>(s => [s.Collection, s.ElementConversion, s.Body]);
         add<ForStatement>(s => [s.Initializer, s.Condition, s.Iterator, s.Body]);
         add<IfStatement>(s => [s.Condition, s.ThenBranch, s.ElseBranch]);
         add<LocalDeclarationStatement>(s => [s.Initializer]);
         add<LocalFunctionStatement>(s => [s.Body]);
         add<ReturnStatement>(s => [s.Value]);
-        add<TupleDeconstructionStatement>(s => [s.Initializer]);
+        add<TupleDeconstructionStatement>(s => [s.Initializer, .. s.ElementConversions]);
         add<UnsupportedStatement>(_ => []);
         add<WhileStatement>(s => [s.Condition, s.Body]);
         add<WithBlockStatement>(s => [s.Value, s.Body]);

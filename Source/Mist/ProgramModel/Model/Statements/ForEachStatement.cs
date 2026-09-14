@@ -8,11 +8,14 @@ namespace Mist.ProgramModel.Model.Statements;
 internal sealed class ForEachStatement(
     LocalVariable variable,
     Expression collection,
-    Block body) : Statement
+    Block body,
+    ImplicitConversionExpression? elementConversion = null) : Statement
 {
     public LocalVariable Variable { get; } = variable;
 
     public Expression Collection { get; } = collection;
+
+    public ImplicitConversionExpression? ElementConversion { get; } = elementConversion;
 
     public Block Body { get; } = body;
 }

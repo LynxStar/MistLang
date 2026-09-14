@@ -318,8 +318,8 @@ internal static class StatementBinder
             initializer = ExpressionBinder.BindExpression(node.Initializer, ctx, context);
         }
 
-        _ = ElementTypesFor(initializer, elementNodes.Count, node, context);
-
+        var elementTypes = ElementTypesFor(initializer, elementNodes.Count, node, context);
+        var interner = context.ProgramModel.TypeInterner;
         var targets = new List<LocalVariable>(elementNodes.Count);
 
         for(var i = 0; i < elementNodes.Count; i++)
@@ -329,7 +329,10 @@ internal static class StatementBinder
             targets.Add(local);
         }
 
-        return new TupleDeconstructionStatement(targets, initializer);
+        var conversions = elementTypes?.Select((element, i) => ImplicitConversions.At(
+            new ElementReadExpression(node.Initializer, element), declaredTypes[i], interner) as ImplicitConversionExpression).ToList();
+
+        return new TupleDeconstructionStatement(targets, initializer, conversions);
     }
 
     /// <summary>
@@ -547,12 +550,18 @@ internal static class StatementBinder
                     new Block(null!));
         }
 
-        var variable = new LocalVariable(variableName, variableType);
+        // Read-only as C#'s iteration variable is. A loop whose element converts emits its variable as an
+        // ordinary local, so Roslyn cannot be the one to refuse a reassignment.
+        var variable = new LocalVariable(variableName, variableType) { IsReadonly = true };
         foreachScope.DeclareLocal(variable, context.Diagnostics);
 
         var body = new Block(bodyNode);
         BodyBinder.BindNestedBlock(body, foreachScope, ctx, context);
 
-        return new ForEachStatement(variable, collection, body);
+        var conversion = EnumerableElement.Of(collection.Type) is { } element
+            ? ImplicitConversions.At(new ElementReadExpression(collection.Node, element), variableType, context.ProgramModel.TypeInterner) as ImplicitConversionExpression
+            : null;
+
+        return new ForEachStatement(variable, collection, body, conversion);
     }
 }

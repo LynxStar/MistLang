@@ -306,20 +306,7 @@ internal static class BodyEmitter
                 break;
 
             case ForEachStatement foreachStmt:
-                using(EmitHoisted(foreachStmt.Collection, writer, diagnostics))
-                {
-                    writer.Write(
-                        $"foreach ({TypeNameEmitter.EmitInferable(foreachStmt.Variable.Type)} {LocalNames.Of(foreachStmt.Variable)} in ");
-                    EmitExpression(foreachStmt.Collection, writer, diagnostics);
-                    writer.Append(")");
-                    writer.AppendLine();
-                }
-
-                using(writer.Block())
-                {
-                    EmitBlock(foreachStmt.Body, writer, diagnostics);
-                }
-
+                EmitForEach(foreachStmt, writer, diagnostics);
                 break;
 
             case BreakStatement:
@@ -659,13 +646,57 @@ internal static class BodyEmitter
         TupleDeconstructionStatement deconstruction, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         using var hoisted = EmitHoisted(deconstruction.Initializer, writer, diagnostics);
-        var targets = deconstruction.Targets.Select(
-            target => $"{TypeNameEmitter.EmitInferable(target.Type)} {LocalNames.Of(target)}");
 
-        writer.Write($"({string.Join(", ", targets)}) = ");
+        if(deconstruction.ElementConversions.All(conversion => conversion is null))
+        {
+            var targets = deconstruction.Targets.Select(
+                target => $"{TypeNameEmitter.EmitInferable(target.Type)} {LocalNames.Of(target)}");
+
+            writer.Write($"({string.Join(", ", targets)}) = ");
+            EmitExpression(deconstruction.Initializer, writer, diagnostics);
+            writer.Append(";");
+            writer.AppendLine();
+            return;
+        }
+
+        var tuple = $"__tuple{deconstruction.Initializer.Node.Span.Start}";
+
+        writer.Write($"{TypeNameEmitter.EmitInferable(deconstruction.Initializer.Type)} {tuple} = ");
         EmitExpression(deconstruction.Initializer, writer, diagnostics);
         writer.Append(";");
         writer.AppendLine();
+
+        for(var i = 0; i < deconstruction.Targets.Count; i++)
+        {
+            var read = $"{tuple}.Item{i + 1}";
+            var value = deconstruction.ElementConversions[i] is { } conversion ? CastLowering.Implicit(conversion, read) : read;
+
+            writer.WriteLine($"{TypeNameEmitter.EmitInferable(deconstruction.Targets[i].Type)} {LocalNames.Of(deconstruction.Targets[i])} = {value};");
+        }
+    }
+
+    private static void EmitForEach(ForEachStatement loop, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var conversion = loop.ElementConversion;
+        var element = conversion is null ? LocalNames.Of(loop.Variable) : $"__element{conversion.Node.Span.Start}";
+
+        using(EmitHoisted(loop.Collection, writer, diagnostics))
+        {
+            writer.Write($"foreach ({TypeNameEmitter.EmitInferable(conversion?.Operand.Type ?? loop.Variable.Type)} {element} in ");
+            EmitExpression(loop.Collection, writer, diagnostics);
+            writer.Append(")");
+            writer.AppendLine();
+        }
+
+        using(writer.Block())
+        {
+            if(conversion is not null)
+            {
+                writer.WriteLine($"{TypeNameEmitter.EmitInferable(loop.Variable.Type)} {LocalNames.Of(loop.Variable)} = {CastLowering.Implicit(conversion, element)};");
+            }
+
+            EmitBlock(loop.Body, writer, diagnostics);
+        }
     }
 
     private static void EmitIf(IfStatement ifStmt, CSharpWriter writer, DiagnosticBag diagnostics)

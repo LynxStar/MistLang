@@ -73,7 +73,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     Check(context, result, target);
                     break;
 
-                case ForEachStatement loop when EnumerableElement.Of(loop.Collection.Type) is { } element:
+                case ForEachStatement { ElementConversion: null } loop when EnumerableElement.Of(loop.Collection.Type) is { } element:
                     Check(context, element, loop.Variable.Type, loop.Collection.Node, [loop.Collection]);
                     break;
 
@@ -202,6 +202,11 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 
         for(var i = 0; i < elements.Count; i++)
         {
+            if(deconstruction.ElementConversions[i] is not null)
+            {
+                continue;
+            }
+
             Check(
                 context, elements[i], deconstruction.Targets[i].Type,
                 deconstruction.Initializer.Node, [deconstruction.Initializer]);

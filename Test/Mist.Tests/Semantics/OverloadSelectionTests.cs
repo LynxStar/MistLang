@@ -338,6 +338,8 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     [InlineData("var chosen = Fit.Take(255);", "Standard.Byte")]
     [InlineData("var chosen = Fit.Take(256);", "Standard.Int64")]
     [InlineData("var chosen = Fit.Take(-2);", "Standard.Int64")]
+    [InlineData("var chosen = OptionalFit.Take(2);", "Standard.Byte | Standard.Void")]
+    [InlineData("var chosen = WideOptionalFit.Take(2);", "Standard.Byte | Standard.Void")]
     public void AnIntegerConstant_ReachesTheNarrowestIntegralParameterItFits(string statement, string expectedParameterType)
     {
         var invocation = SingleInvocation(statement, ConstantTypes);
@@ -651,6 +653,20 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
             public static int Take(string s) { return 1; }
 
             public static int Take(byte b) { return 2; }
+        }
+
+        public class OptionalFit
+        {
+            public static int Take(string s) { return 1; }
+
+            public static int Take(byte? b) { return 2; }
+        }
+
+        public class WideOptionalFit
+        {
+            public static int Take(long? l) { return 1; }
+
+            public static int Take(byte? b) { return 2; }
         }
         """;
 

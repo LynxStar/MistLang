@@ -31,6 +31,11 @@ internal static class ConstantConversion
     {
         to = Unrefined(to);
 
+        if(to is UnionType union)
+        {
+            return union.Constituents.Any(constituent => Fits(constant, from, constituent));
+        }
+
         if(from.FullyQualifiedName == WellKnownTypes.Int64.FullyQualifiedName)
         {
             return to.FullyQualifiedName == WellKnownTypes.UInt64.FullyQualifiedName && constant >= 0;

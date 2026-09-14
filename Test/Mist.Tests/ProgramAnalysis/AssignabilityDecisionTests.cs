@@ -43,6 +43,7 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
         type AdultAge = int >= 18;
         type DrinkingAge = int >= 21;
         type PositiveInt = int > 0;
+        type SmallAdult = byte >= 18;
 
         public class Sized<Count:PositiveInt>
         {
@@ -53,6 +54,7 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
         {
             public static int Twice(int v) { return v * 2; }
             public static void Take(int v) { }
+            public static void TakeOptional(byte? v) { }
             public static void TakeFn(func<int, int> f) { }
             public static T Id<T>(T v) { return v; }
             public static Animal Up<T>(T v) where T : Animal { return v; }
@@ -140,6 +142,19 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
     [InlineData("o3 ??= 1; { int n = o3; }")]
     [InlineData("o3 ??= 1; o3 = 5; int n = o3;")]
     public void AValueIntoAUnionOrOutOfAnOptional_IsAdmitted(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Theory]
+    [InlineData("byte? ob = 2;")]
+    [InlineData("sbyte? os = -2;")]
+    [InlineData("ulong? oul = 2L;")]
+    [InlineData("byte | string bs = 2;")]
+    [InlineData("SmallAdult? osa = 20;")]
+    [InlineData("Helpers.TakeOptional(2);")]
+    [InlineData("byte? later = void; later = 2;")]
+    public void AnIntegerConstantIntoAUnionWithAConstituentThatHoldsIt_IsAdmitted(string statement)
     {
         AssertSilent(statement);
     }

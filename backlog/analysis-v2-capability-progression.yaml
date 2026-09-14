@@ -668,7 +668,43 @@ rules:
       (long)new Tally();` (the cast chooses). A corpus case, implicit-conversion-ambiguous, and three
       decision rows. Two mutations on confirmed builds: the report silenced fails the corpus case; the report
       made on every conversion fails seven decision rows.
+
+      AN INTEGER CONSTANT REACHES A UNION THROUGH A CONSTITUENT THAT HOLDS IT (2026-09-14), closing a false
+      refusal found while probing order 4's constant cast. ConstantConversion asked whether a constant fits
+      the slot's type as a whole, and `byte | void` is no integral type, so every optional over a narrower
+      integral was refused a constant that classic runs. It now answers for a union as for any constituent,
+      the relation's own rule for a value that is already one, and every asker -- assignability, overload
+      applicability, a cast operator's parameter, order 4's cast -- takes it from there.
+      MEASURED on v2 before and after, one project per probe, against classic. `byte? b = 2;`, `sbyte? s =
+      -2;`, `ulong? u = 2L;`, `SmallAdult? a = 20;` over `byte >= 18`, `Sink.Opt(2)` into a byte?
+      parameter, `return 2;` from a byte? method, a field initializer `byte? Size = 2;`, and `b = 2;` into a
+      byte? local: were MIST_PA_NO_IMPLICIT_CONVERSION, classic prints each, now print, emitted as written
+      (`byte? b = 2;`). `byte | string u = 2;`: was refused, classic prints `Union_Byte_String` (the wrapper
+      has no ToString), now prints the same, and `u is byte x` reads 2 on both. `Sink.Pick(2)` over
+      Pick(byte?) and Pick(string): was MIST_PM_UNRESOLVABLE_OVERLOAD, classic prints byte?, now prints it.
+      `Sink.Wide(2)` over Wide(byte?) and Wide(long?) printed byte? on v2 before and after, but before, the
+      MODEL chose long?, the only applicable candidate, and Roslyn chose byte? from the emitted call; they
+      now agree, the narrower optional being the more specific. Classic refuses that call as ambiguous
+      (MIST_TC_0032), which v2 does not follow: byte? is within long?, so it is no tie. `(byte?)2` was
+      CAST_HAS_NO_CONVERSION on both pipelines and now prints 2, lowered `((byte?)(2))`, by order 4's
+      amended Requirement 8.8. `SmallAdult? a = 10;` reported NO_IMPLICIT_CONVERSION beside
+      REFINEMENT_VIOLATED, one mistake twice, and now reports the second alone, as classic's TC_0097 does.
+      Unchanged: `byte? b = 300;`, `int i = 2; byte? b = i;` and `(byte?)300` stay refused; classic fails
+      the first two in Roslyn and refuses the third.
+      PROVED BY an AssignabilityDecisionTests theory of seven admits (four optionals, a union with string, an
+      argument, an assignment after void), OverloadSelectionTests rows for Pick(2) and Wide(2) choosing byte?,
+      a CastDecisionTests row for `(byte?)2`, and the corpus case constant-out-of-range-into-an-optional.
+      Mutating the union branch away on a confirmed build fails all ten rows.
     tasks:
+      - >
+        A value that could enter a union through two constituents neither containing the other is emitted
+        and left to Roslyn. Measured 2026-09-14: `byte small = 2; short | ushort u = small;` fails in Roslyn
+        on v2 and on classic (ambiguous user-defined conversions on Union_Int16_UInt16). `byte | sbyte u = 2;`
+        fails the same way on both, and `sbyte | byte | void u = 2;` on v2 (classic cannot emit a void
+        constituent there); v2 refused both as NO_IMPLICIT_CONVERSION, for the wrong reason, until a constant
+        could reach a constituent. `byte | short u = 2;` enters byte on both, byte being within short. By the rule calls and conversions share -- between integral types neither containing
+        the other there is no preference -- this is an ambiguity at the Mist source, and it wants a
+        diagnostic of its own; which, and whether union entry follows the call rule at all, is a decision.
       - >
         CLR optional parameters are not representable, so arity can select an overload Roslyn will not;
         until they are, no argument to a CLR-projected member is judged, and the `UseNpgsql` call in

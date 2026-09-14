@@ -151,6 +151,7 @@ public sealed class CastDecisionTests : ProgramModelProbe
     [InlineData("ulong anIntConstantAnUnsignedLongHolds = (ulong)2;")]
     [InlineData("ulong aNonNegativeLongConstant = (ulong)2L;")]
     [InlineData("SmallAdult aConstantTheRefinedBaseHolds = (SmallAdult)20;")]
+    [InlineData("byte? aConstantAnOptionalsInnerTypeHolds = (byte?)2;")]
     public void ACastOfAnIntegerConstantTheTargetTypeHolds_IsAdmitted(string statement)
     {
         Assert.Empty(Analyse(statement));

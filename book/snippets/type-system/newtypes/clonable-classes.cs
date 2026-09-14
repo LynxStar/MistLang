@@ -69,9 +69,9 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Tiger tiger = new Snippet.Tiger(10);
-        Snippet.Jaguar first = ((Snippet.Jaguar)tiger);
-        Snippet.Jaguar second = ((Snippet.Jaguar)tiger);
-        Snippet.Tiger back = ((Snippet.Tiger)second);
+        Snippet.Jaguar first = ((Snippet.Jaguar)(tiger));
+        Snippet.Jaguar second = ((Snippet.Jaguar)(tiger));
+        Snippet.Tiger back = ((Snippet.Tiger)(second));
         System.Console.WriteLine($"first {first.Describe()}");
         System.Console.WriteLine($"second {second.Describe()}");
         System.Console.WriteLine($"back {back.Describe()}");

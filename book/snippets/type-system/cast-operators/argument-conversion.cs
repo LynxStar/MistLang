@@ -12,7 +12,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Celsius freezing = new Snippet.Celsius(0.0);
-        PrintTemperature(freezing);
+        PrintTemperature(((Snippet.Fahrenheit)(freezing)));
     }
 
     public Program()

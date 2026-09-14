@@ -54,7 +54,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Celsius boiling = new Snippet.Celsius(100.0);
-        Snippet.Fahrenheit f = ((Snippet.Fahrenheit)boiling);
+        Snippet.Fahrenheit f = ((Snippet.Fahrenheit)(boiling));
         System.Console.WriteLine($"{f.Degrees} F");
     }
 

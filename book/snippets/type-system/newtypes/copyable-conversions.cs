@@ -188,12 +188,12 @@ public class Program
         Snippet.Position position = new Snippet.Position(1, 2);
         Snippet.Point point = position;
         point.X = 99;
-        Snippet.Position entered = ((Snippet.Position)point);
+        Snippet.Position entered = ((Snippet.Position)(point));
         Snippet.Position moved = entered.Moved(5);
         Snippet.Money money = new Snippet.Cash(7);
-        Snippet.Cash cash = ((Snippet.Cash)money);
-        Snippet.Feet feet = ((Snippet.Feet)3.5);
-        Snippet.Meters meters = ((Snippet.Meters)(double)(feet));
+        Snippet.Cash cash = ((Snippet.Cash)(money));
+        Snippet.Feet feet = ((Snippet.Feet)(3.5));
+        Snippet.Meters meters = ((Snippet.Meters)((double)(feet)));
         System.Console.WriteLine($"position.X={position.X} point.X={point.X} moved.X={moved.X}");
         System.Console.WriteLine($"money={money.Amount} cash={cash.Amount} meters={meters}");
     }

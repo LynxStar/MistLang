@@ -20,8 +20,20 @@ namespace Mist.Tests.Integration;
 /// test covers the entire sample suite. Individual sample tests verify
 /// standalone compilation and expected output for specific features.
 /// </summary>
-public sealed class SamplesCompileAndMatchBaselineTest
+public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
 {
+    private readonly string scratchDir = Path.Combine(Path.GetTempPath(), "MistSamples_" + Guid.NewGuid().ToString("N"));
+
+    public void Dispose()
+    {
+        if(Directory.Exists(scratchDir))
+        {
+            try { Directory.Delete(scratchDir, recursive: true); } catch(IOException) { }
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
     [Fact]
     public async Task AllFeatures_CompilesRunsAndMatchesBaseline()
     {
@@ -207,8 +219,8 @@ public sealed class SamplesCompileAndMatchBaselineTest
             ProjectFolder: sampleDir,
             SourcePaths: sourceFiles.ToImmutableArray(),
             Backend: new BackendId("csharp"),
-            OutputDirectory: Path.Combine(sampleDir, "out"),
-            BinDirectory: Path.Combine(sampleDir, "bin"),
+            OutputDirectory: Path.Combine(scratchDir, "out"),
+            BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "Enums",
             NamespaceRoot: "Enums",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty);
@@ -262,10 +274,11 @@ public sealed class SamplesCompileAndMatchBaselineTest
     /// Mist.Tests.csproj, carried for its build ORDER alone. Neither half works without the other.
     /// </para>
     /// </summary>
-    private static async Task<(int ExitCode, string Stdout, string Stderr)> RunMistCli(
+    private async Task<(int ExitCode, string Stdout, string Stderr)> RunMistCli(
         string cliProjectPath, string sampleDir, string? pipeline = null, string command = "run")
     {
         var pipelineFlag = pipeline is null ? "" : $" --pipeline {pipeline}";
+        var outputFlags = $" --output \"{Path.Combine(scratchDir, "out")}\" --bin \"{Path.Combine(scratchDir, "bin")}\"";
 
         var process = new Process
         {
@@ -273,7 +286,7 @@ public sealed class SamplesCompileAndMatchBaselineTest
             {
                 FileName = "dotnet",
                 Arguments =
-                    $"run --project \"{cliProjectPath}\" --no-build -v q -- {command} \"{sampleDir}\" --quiet{pipelineFlag}",
+                    $"run --project \"{cliProjectPath}\" --no-build -v q -- {command} \"{sampleDir}\" --quiet{pipelineFlag}{outputFlags}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

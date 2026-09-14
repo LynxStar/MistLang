@@ -392,7 +392,7 @@ flakes:
     test: Mist.Tests.Integration.SamplesCompileAndMatchBaselineTest.EnumReadonlyRestriction_CompilesAndProducesExpectedOutput
     file: Test/Mist.Tests/Integration/SamplesCompileAndMatchBaselineTest.cs
     discovered: 2026-07-31
-    status: open
+    status: fixed
     symptom: >
       Failed once in a full-solution run, then passed 19/19 under --filter with no intervening
       edit, and the sample it drives ran clean from the shell with no diagnostics.
@@ -408,14 +408,31 @@ flakes:
       AccessorEmitter, the TypeEmitter walk -- has no path to it. Running the sample directly on
       classic gave a clean exit and the expected sections. The test file was unmodified. The full
       suite then passed 5324/5324 twice, both times run on its own rather than beside a sweep.
-    fix: >
-      Do not run a sample sweep, or any manual `mist run`, at the same time as the test suite. They
-      contend for samples/*/out/. Sequence them instead, which is what turned this green and kept it
-      green.
 
-      A durable fix would give the spawning tests their own output directory rather than the
-      sample's, which would also let the suite parallelise against local experimentation. That is a
-      change to the test harness rather than to the compiler, and nothing depends on it yet.
+      THE FIX, MEASURED 2026-09-14. Before touching the test, the four CLI invocations the class makes
+      were run by hand with --output and --bin pointed at a scratch directory outside the repo:
+      AllFeatures and EnumReadonlyRestriction on classic, AllFeaturesV2 on experimental, and Testing
+      under `mist test` on experimental. All four exited 0, and `find . -newer <marker>` over the
+      whole worktree (excluding .git) was empty, as was the diff of `git status --ignored samples` --
+      so nothing reached a sample's out/, bin/ or obj/, nor any of the samples AllFeatures and
+      AllFeaturesV2 reference, which the driver only reads. `mist test`'s obj/ landed under the
+      --output directory. Both AllFeatures stdouts matched their baselines byte for byte.
+
+      After the change the class passed 5/5 through the ledger, and a poll of the temp path during a
+      one-test run saw the per-test directory holding bin/ and out/ and then saw it removed. The full
+      solution then passed 6883/6883 through the ledger (Mist.Tests 6151, Storm 664, CLI 68), with
+      no path under samples/ newer than a marker set before it and no MistSamples_ directory left in
+      the temp path. That also confirms nothing else in the suite writes under samples/.
+    fix: >
+      APPLIED 2026-09-14. Each SamplesCompileAndMatchBaselineTest instance owns a MistSamples_<guid>
+      directory under the system temp path, passes it to the CLI as --output and --bin, points the
+      in-process Enums compile at it too, and deletes it on Dispose. --no-build is unchanged. The
+      suite no longer writes under samples/, so a sweep or a manual `mist run` beside it cannot
+      collide over samples/*/out/.
+
+      Sequencing a sweep after the suite is still the safer habit, for a different reason: a sweep
+      that builds the CLI can rewrite the standard library the suite's CLI reads, by the mechanism
+      under property-tests-fail-together-under-full-suite.
   - id: storm-trait-field-type-resolution-property
     test: Storm.SourceGenerator.Tests.StormTraitFieldTypeResolutionPropertyTests.P3_FragmentFieldType_STORM0018Emitted
     file: Test/Storm.SourceGenerator.Tests/StormTraitFieldTypeResolutionPropertyTests.cs

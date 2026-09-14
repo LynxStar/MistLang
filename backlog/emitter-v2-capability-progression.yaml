@@ -1949,6 +1949,15 @@ capabilities:
       and result steps each cast rather than read, the intrinsic cast and the intrinsic implicit call each
       spelled as a cast, and the classifier's explicit answer blind to the chain. Full suite green, 6075 of
       6075.
+
+      THE GAUGE SHAPE IS NOW A REFUSAL (2026-09-13), by the decision recorded under analysis order 4: a signed
+      integral parameter no longer outranks an unsigned one, for calls and conversions alike. So the byte into
+      implicit Gauge(uint) and Gauge(short) that the paragraphs above record as calling the signed operator, and
+      printing 2 at every site, is MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION; `Gauge g = (short)small;` chooses.
+      The recording and lowering it proved are unchanged, and the emission tests that used it now hold the same
+      spellings over an enum reaching `implicit operator Level(int)` -- `((Probe.Level)((int)(priority)))` --
+      which fails in Roslyn written bare, C# having no implicit conversion from an enum to its value. Operator
+      admissibility asks the implicit selection too, so the operator-operand position takes that step.
     tasks:
       - >
         Record the conversion where a statement converts each element it reads: a foreach variable and a

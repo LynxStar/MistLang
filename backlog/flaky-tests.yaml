@@ -705,6 +705,21 @@ flakes:
           immediately before. Tests from three of the failing classes then passed under --filter with
           --no-build, the next full run failed 1 of 6052, and the one after passed 6052 of 6052, all on the
           same rebased source with nothing edited. Cause still unknown.
+      - date: 2026-09-13
+        detail: >
+          465 failures again, of 6081, in 1m42s against 7m14s for the green rerun, with the same messages: 647
+          lines of MIST_INTERNAL_AST_UNIT_MISMATCH "AST count (1) does not match compilation unit count (33)",
+          266 of MIST_UNDEFINED_NAMESPACE for `Standard`, and MIST_UNDEFINED_TYPE for 'e', 't' and 'i' beside
+          'Func', 'Span' and 'Action'. Classic and v2 classes alike, samples and the refusal corpus among them;
+          the other two assemblies passed. The run was chained straight after `dotnet build Mist.slnx`, which
+          reported 0 warnings and 0 errors and rewrote Test/Mist.Tests/bin/.../Mist.Core.dll at 22:19:17;
+          Mist.Tests.dll there carried 22:16:48 and the copied Standard tree 11:03:26, and none of the three
+          changed before the rerun. Five of the failing classes (75 tests) then passed under --filter, and a
+          full `--no-build` rerun on those binaries, with nothing edited or built, gave 6081 of 6081. The
+          change under test removed the signed-over-unsigned tiebreak from OverloadResolution and widened
+          OperatorAdmissibility; it touches neither lexer, parser, grammar nor Standard. A FACT ALL THREE MASS
+          FAILURES SHARE, recorded without a cause: each began within seconds of a solution build returning,
+          and none of the reruns after them had a build before it.
 
   - id: unidentified-mist-tests-single-failure-2026-09-13
     test: >

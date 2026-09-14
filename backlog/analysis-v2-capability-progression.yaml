@@ -445,6 +445,36 @@ rules:
       fact for the same choice among operators. Two mutations on confirmed builds each fail four tests: no
       preference, and unsigned preferred. Full suite green, 5929 of 5929.
 
+      THE SIGNED PREFERENCE IS REVERSED BY DECISION (2026-09-13), superseding the paragraph above. The language
+      owner, weighing which of C#'s two algorithms was more sound: "Let's mirror classic and be stricter.
+      Ambiguous is ambiguous." Measured in plain C# first: C#'s conversion-operator algorithm breaks a tie only
+      when one of the two types implicitly converts to the other, so implicit `int(Tally)` and `long(Tally)`
+      into a double pick long and `Dial(short)` and `Dial(int)` from a byte pick short, while `short(Mirror)`
+      and `uint(Mirror)` into a long and `Gauge(uint)` and `Gauge(short)` from a byte are both CS0457; only
+      its method overload resolution carries the signed table, so the same signatures as static methods pick
+      short. The preference was the one tiebreak Mist kept that chooses between two pieces of user code on a
+      convention rather than on the argument, a byte reaching both short and uint unchanged. It goes for calls
+      and conversions together, never for one alone, so the invisible call keeps meaning what the visible one
+      does. method-overloading Requirement 3.3 is rewritten, and cast-operators 8.11 defers to it.
+      MEASURED on v2 after: `Sink.Take(small)` over Take(uint) and Take(short) is MIST_PM_AMBIGUOUS_OVERLOAD, as
+      is `Sink.Small(2)` over Small(byte) and Small(sbyte); `(Meter)small` over explicit Meter(uint) and
+      Meter(short) is MIST_PA_AMBIGUOUS_CAST; `Gauge g = small;` over the implicit pair is
+      MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION. Classic cannot declare either operator pair (MIST_SB_0043) and
+      reports the calls as MIST_TC_0032. DISAMBIGUATION, measured: `Gauge g = (short)small;` prints 2,
+      `(uint)small` 1, `(Meter)(short)small` 2, `Sink.Take((short)small)` short and `(uint)small` uint. A
+      CONSTANT CANNOT BE DISAMBIGUATED BY A CAST: `(sbyte)2` and `(byte)2` are MIST_PA_CAST_HAS_NO_CONVERSION, as
+      classic refuses `(byte)5`, so `Small(2)` chooses through a local, `sbyte signedTwo = 2;`, which prints
+      sbyte. Containment still decides first: a ushort over Take(short) and Take(uint) reaches uint alone, and
+      200 over Small(sbyte) and Small(byte) reaches byte.
+      Operator admissibility asks the implicit selection beside the classifier in the same change, as overload
+      applicability already did, so a user-defined operator's operand takes the lossless enum step too:
+      `new Level() + priority` found no operator before.
+      PROVED BY three corpus cases (the call, the implicit conversion, the cast), OverloadSelectionTests rows
+      for the three ties and for the choices containment, a cast or a typed local makes, a CastSelectionTests
+      theory of the tie and the cast that breaks it, and ImplicitConversionSelectionTests facts for the tie and
+      both casts. Two mutations on confirmed builds, failing three tests and one: the signed preference
+      reinstated, and operator admissibility blind to the selection. Full suite green, 6081 of 6081.
+
       A CAST TO `T?` CALLS `T | void`'S CONVERSION FUNCTION, NOT T'S (2026-09-13), closing the task that
       asked. The language owner: the operator a cast to `Feet?` matches is Feet?'s, "aka Feet | Void NOT
       Feet". A union declares no conversions, so `(Feet?)meters` through an operator Feet declares stays

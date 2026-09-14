@@ -250,7 +250,7 @@ string? EmitSnippet(string mistPath)
     }
     catch (Exception ex)
     {
-        Console.Error.WriteLine($"  FAILED (exception): {relativeMist}: {ex.Message}");
+        Console.Error.WriteLine($"  FAILED (exception): {relativeMist}: {ex}");
         return null;
     }
     finally

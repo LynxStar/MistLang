@@ -60,7 +60,9 @@ Arguments = $"run --project \"{cliProjectPath}\" -- run \"{tempDir}\"";
 
 ## Shared Driver
 
-When multiple test iterations need compilation, use a single shared `CompilerDriver` instance rather than constructing a new one per iteration. The driver is stateless and safe to reuse.
+When multiple test iterations need compilation, use a single shared `CompilerDriver` instance rather than constructing a new one per iteration. The driver is safe to reuse **sequentially, not concurrently**: classic's `TypeCheckerAnalyzer` keeps per-compile instance state (`currentEnclosingType` and others). A `private static` driver owned by one test class is sequential, because xunit runs a class's tests one at a time. A driver shared by several classes runs concurrently and needs a lock — see `Test/Mist.Tests/Helpers/VariadicsCompilerFixture.cs`.
+
+The lexed and parsed standard library is cached once per process for every driver (`Source/Mist/Driver/StdlibParseCache.cs`), whatever lexer and parser each driver was given.
 
 ```csharp
 private static readonly CompilerDriver SharedDriver = new(
@@ -151,6 +153,28 @@ Assert.Equal("Hello - World", output);
 # Test Failure Triage Policy
 
 Two rules for the same situation: a test just failed and you need to know whether it is yours.
+
+## Rule 0: Run the suite through the ledger
+
+A full run goes through `tools/test-ledger/run.sh`, which builds, runs with a trx logger, keeps the
+whole output, and writes every failure's name, message and stack to
+`TestResults/ledger/<stamp>/failures.txt`, with a signature classification in `summary.txt`:
+
+```bash
+tools/test-ledger/run.sh
+```
+
+Pass a project and `dotnet test` arguments after it, e.g.
+`tools/test-ledger/run.sh Test/Mist.Tests --filter "FullyQualifiedName~X"`, and set
+`LEDGER_NO_BUILD=1` when the binaries are current. Do not pipe a test run through `grep`, `head` or
+`tail`: that is how five entries in `backlog/flaky-tests.yaml` lost the name of the test that failed.
+Read the ledger before rerunning, because a green rerun destroys the evidence.
+
+Running `dotnet test` while another worktree's suite or build is running changes timing. The ledger
+records other `dotnet` processes in `env.txt`, so check it before reading a slow test as a defect. A
+test that asserts on elapsed time belongs in `[Collection(WallClockCollection.Name)]`, which runs
+after the parallel phase; in parallel, most of what a stopwatch reads is other tests' garbage
+collection.
 
 ## Rule 1: Rebuild before blaming the working tree
 

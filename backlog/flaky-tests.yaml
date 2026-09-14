@@ -86,6 +86,12 @@ flakes:
 
       This supersedes "unknown" rather than guessing at it -- see the 462-failure reproduction under
       recurrences, which is where the window is measured.
+
+      THE RESIDUE, REVISITED 2026-09-14. A second in-process mechanism was found and fixed under
+      mist-tests-garbled-lexemes-without-a-lock-warning: a test that poisons the process-wide stdlib
+      parse cache. The 462 run's in-process failures fit it, but that run also built concurrently, so
+      they are not attributed. The 9-failure run in the evidence below does NOT fit it: a poisoned
+      process fails every compile after the poisoning, about 470 tests, not nine. It stays unexplained.
     evidence: >
       Found while delivering order 146, which changes type-argument emission -- so the first of the
       three had to be treated as a real regression rather than assumed flaky, since it asserts
@@ -210,18 +216,42 @@ flakes:
           passed 6022 of 6022. The change under test added ImplicitConversionExpression -- the binders, CastOperatorSelection,
           BodyEmitter, CastLowering, BodyWalker -- and touches neither the lexer, the parser nor the grammar;
           the test file was unmodified. Only file writes to two new test files ran beside the suite.
+      - date: 2026-09-14
+        detail: >
+          AllFeatures_ParsesWithinPerformanceTarget MEASURED WHAT IT SITS BESIDE, not the parser, and it
+          no longer does. The measured pass now records the garbage collector's pause time, gen2
+          collections, the bytes this thread allocated and the whole process's CPU, in its output and in
+          its failure message. In a green full-solution run: 3.52s wall, of which 2.82s was GC pause
+          across 2 gen2 collections, 358 MB allocated by this thread. Alone, twice: 0.33s and 0.32s wall,
+          0.12s and 0.11s GC pause, 0 gen2 collections, the same 358 MB. The parser did identical work
+          both times. Four fifths of the in-suite figure were the testhost's stop-the-world collections,
+          triggered by everything else compiling in parallel, and the rest CPU contention. The 16.77s,
+          20.88s and 30.52s readings above fit that pause on a machine that was also swapping, though
+          their GC numbers were never recorded. None is evidence of a compiler regression.
+
+          FIXED by running the class in Test/Mist.Tests/Helpers/WallClockCollection.cs, a collection with
+          parallelization disabled, which xunit runs after the parallel phase. In the next full-solution
+          run the class started at +416.1s of 417s and measured 0.50s wall with 0.18s of GC pause.
+          Test/CLAUDE.md now sends any test that asserts on elapsed time there. Another worktree's suite
+          can still slow it; the failure message would now show that as GC pause or CPU rather than as a
+          bare number.
 
   - id: attribute-emission-round-trip-unreproduced
     test: Mist.Tests.Backend.AttributeEmissionRoundTripPropertyTests.AttributeEmission_PreservesStructure_RoundTrip
     file: Test/Mist.Tests/Backend/AttributeEmissionRoundTripPropertyTests.cs
     discovered: 2026-07-26
-    status: unreproduced
+    status: fixed
     symptom: >
       Failed twice during full-solution runs and passed on immediate rerun. Not reproduced since,
       across 19 deliberate attempts.
     cause: >
-      Unknown. The first recorded cause was wrong and is disproven below; do not reinstate it without
-      new evidence.
+      A FALSE POSITIVE IN THE TEST'S OWN VERIFIER, confirmed 2026-09-14. The emitter was right. Check 3
+      of VerifyEmittedAttributes located each of the first two lists by the first output line
+      CONTAINING its first attribute. When the second list is a lone attribute whose text is a
+      substring of the first list's -- `[Xunit.Fact]` after `[Xunit.Fact<string>("reason", ...)]` -- both
+      searches land on the first line, and the check reports the lists merged. The generator drew that
+      shape once in 5000 measured scenarios -- on that one hit, something like one run in fifty of a
+      100-scenario test, from a fresh seed each time: never on demand, and indifferent to load.
     evidence: >
       DISPROVEN -- the original entry blamed the generator for drawing the same named argument twice,
       producing invalid C#. Three findings kill that theory. The test never invokes Roslyn: it
@@ -249,15 +279,24 @@ flakes:
       unfinished build (`dotnet test --no-build` batched in parallel with `dotnet build
       --no-incremental`, which made every test project report its assembly as an invalid argument).
       A test run against half-written binaries could produce an unrelated failure.
-    fix: >
-      None proposed; the cause is unknown. The next sighting should capture the FULL failure message
-      before rerunning -- the message names whether the scenario failed to compile or failed
-      verification, and which, together with the emitted output, is the missing evidence. Both
-      earlier sightings were rerun before that was read.
 
-      Optional and unrelated: the generator can still produce a duplicate named argument, which is
-      invalid Mist that currently passes only because nothing rejects it. Constraining names to be
-      distinct would remove a latent fragility, but it is not a fix for this entry.
+      REPRODUCED BY FIXED INPUT, 2026-09-14, as the 2026-09-09 recurrence proposed. The recorded scenario
+      `[Xunit.Fact<string>("reason", 279, Order = "reason")] [Xunit.Fact] on Class`, compiled through the
+      test's own CompileAndGetOutput, emitted the two lists on SEPARATE lines, and the test's own
+      VerifyEmittedAttributes still returned "Separate attribute lists were merged onto one line". The
+      merge the entry could not find in AttributeEmitter does not exist.
+
+      MEASURED BY VOLUME through the test's generator, compiler call and verifier: 1 failure in 5000
+      drawn scenarios on the old verifier, the same shape (`[Serializable(601, 689, ...)] [Serializable]
+      on Method`); 0 in 20000 on the new one. The new verifier was also fed a genuinely merged output
+      and a single list split across two lines, and rejected both.
+    fix: >
+      APPLIED 2026-09-14. VerifyEmittedAttributes requires each expected list to be an entire output
+      line by itself, which proves grouping and separation at once and cannot mistake one attribute for
+      a prefix of another. The test stays a [Fact]: its failure message already carries the complete
+      scenario and Mist source, which is what replaying it needs.
+
+      Earlier, and unrelated to the cause: the generator no longer draws duplicate named arguments.
     recurrences:
       - date: 2026-09-08
         detail: >
@@ -293,10 +332,17 @@ flakes:
     test: Storm.SourceGenerator.Tests.StormMemoPropagationPropertyTests.P3_MemoPropagation_RuleIR_IsMemo_MatchesSource
     file: Test/Storm.SourceGenerator.Tests/StormMemoPropagationPropertyTests.cs
     discovered: 2026-07-30
-    status: unreproduced
+    status: fixed
     symptom: >
       Failed once in a full-solution test run and passed on immediate isolated rerun.
-    cause: unknown
+    cause: >
+      THE GENERATOR DREW INVALID GRAMMARS, confirmed 2026-09-14 by replay. GenRuleName draws an uppercase
+      letter and 1-8 lowercase ones, so it can draw `Tok`, the name of the token every generated grammar
+      declares. `rule Tok = Tok;` beside `token Tok = [a-z]+;` is a duplicate declaration: StormGrammar
+      reports STORM0003 and the generator stops there. The test never checked the grammar built. It
+      lowered the failed grammar anyway -- lowering reports success and simply has no rule `Tok` -- and
+      failed on "Rule 'Tok' not found in lowered grammar IR". Storm was right throughout. About one draw
+      in 17000, fresh seed every run, so roughly one run in eighty: indifferent to load.
     evidence: >
       Failed during `dotnet test Mist.slnx --no-build` (all three test projects concurrent).
       Immediate rerun with --filter passed. The change being tested (generic object creation
@@ -329,6 +375,19 @@ flakes:
       Source/Storm.SourceGenerator or Test/Storm.SourceGenerator.Tests. During the run the Mist CLI
       was invoked against a scratch directory outside samples/, and source files were edited without
       a build.
+
+      REPRODUCED BY REPLAY, 2026-09-14. The test was converted from a [Fact] over Gen.Sample(200) to
+      [Property(MaxTest = 200)] over the same generator, so FsCheck prints the seed and the drawn input,
+      and a scratch harness ran it through Check.One for five rounds of 200000 draws, each on a fresh
+      seed. All five rounds failed, after 23578, 7952, 10494, 19434 and 23138 draws, every one on a
+      drawn rule named `Tok`. The recorded grammar built as a fixed input gave grammar.Succeeded=False
+      with "STORM0003 Duplicate declaration name 'Tok'", and lowering it anyway gave Succeeded=True with
+      rules [Ohcwzl, Atlcrbbx, Xckexzv]. StormIncrementalGenerator returns on a failed grammar before it
+      lowers, so no user grammar reaches that path.
+    fix: >
+      APPLIED 2026-09-14. GenRuleName excludes the fixed token's name, and LowerGrammar asserts the grammar
+      built before lowering it, so a future invalid draw fails naming STORM0003 rather than a missing
+      rule. The test is a [Property], so a failure prints its replay seed and input.
   - id: sample-runner-tests-race-concurrent-sample-runs
     test: Mist.Tests.Integration.SamplesCompileAndMatchBaselineTest.EnumReadonlyRestriction_CompilesAndProducesExpectedOutput
     file: Test/Mist.Tests/Integration/SamplesCompileAndMatchBaselineTest.cs
@@ -361,10 +420,15 @@ flakes:
     test: Storm.SourceGenerator.Tests.StormTraitFieldTypeResolutionPropertyTests.P3_FragmentFieldType_STORM0018Emitted
     file: Test/Storm.SourceGenerator.Tests/StormTraitFieldTypeResolutionPropertyTests.cs
     discovered: 2026-08-01
-    status: unreproduced
+    status: fixed
     symptom: >
       Failed once in a full-solution run and passed 5/5 on immediate isolated rerun.
-    cause: unknown
+    cause: >
+      THE GENERATOR DREW INVALID GRAMMARS, confirmed 2026-09-14 by replay -- the same defect as
+      storm-memo-propagation-property, in a different generator. The test's grammar declares
+      `token Tok`, and the fragment and trait names are drawn PascalCase identifiers that can be `Tok`.
+      Either one redeclares the token, StormGrammar reports STORM0003, and the test's "Grammar build
+      failed" assertion fires. Not load, and not shared state between the Storm tests.
     evidence: >
       Failed during `dotnet test Mist.slnx --no-build` (all three test projects concurrent). Rerun
       with --filter passed 5/5 with no intervening edit. The change it ran against was overload
@@ -387,6 +451,19 @@ flakes:
       The failure message was captured only as the FAIL line; the assertion detail was lost to a
       `Select-String` summary filter, which is the same mistake that entry's process note warns
       about. Next sighting in this project should redirect the run to a file and read the file.
+
+      REPRODUCED BY REPLAY, 2026-09-14, after converting the file's five tests to [Property] over their
+      unchanged generators. Five rounds of 200000 draws each: P3_FragmentFieldType failed in four, after
+      170198, 93280, 117306 and 59203 draws, on a fragment named `Tok` three times and a trait named
+      `Tok` once. The other four properties in the file passed all 1000000 draws; their scenario
+      generator already renames colliding token, rule and trait names apart.
+
+      SO THE PATTERN NOTE UNDER storm-trait-structural-satisfaction-property WAS RIGHT ABOUT "SOMETHING
+      SHARED" AND WRONG ABOUT WHAT: the shared thing is a generator habit, repeated in three files, of
+      drawing declaration names without keeping them distinct.
+    fix: >
+      APPLIED 2026-09-14. The fragment and trait names may not be the fixed token's name, and the test
+      is a [Property], so a failure prints its replay seed and input.
   - id: mass-standard-namespace-not-found-stale-binaries
     test: Not one test -- 430 of 4645, then 431 of 4647, in Mist.Tests, across every area that compiles Mist source.
     file: n/a
@@ -453,6 +530,16 @@ flakes:
       OverloadSelectionTests -- so a test-infrastructure change cannot be dismissed on the usual
       "nothing I touched is referenced" grounds. It is ruled out on scale instead: only two classes
       derive from it, 42 tests between them, which cannot produce 432 failures.
+
+      A SECOND CANDIDATE, 2026-09-14, and NOT an attribution. All three sightings fit the poisoned stdlib
+      parse cache confirmed under mist-tests-garbled-lexemes-without-a-lock-warning: 430-432 failures, a
+      run that finished in half the time, and the one captured message naming `Standard`. They equally
+      fit the concurrent-build triggers recorded here, and only one message was ever read, so neither
+      mechanism is established for them. What would tell them apart: a poisoned cache also yields
+      "AST count (k) ... (k+32)" on v2 tests and names from other files' text on classic ones, where a
+      Standard directory listed empty yields neither. Both routes are now closed -- the cache fix, and
+      StdlibLoader no longer caching an empty listing -- so a recurrence under tools/test-ledger/run.sh
+      would be a third mechanism, and its failures.txt would say which.
     fix: >
       Do not batch `dotnet format` in parallel with `dotnet test`. Chain them, or run the tests first.
       Do not pipe `dotnet build` into `head` either, or into anything else that closes the pipe early;
@@ -557,19 +644,35 @@ flakes:
           THE DEFAULT SHOULD CHANGE, not the intention. Four entries now close by asking the next
           person to attach a trx logger and four sightings have not. Whatever is decided, an
           instruction that has failed five times is not a plan.
+      - date: 2026-09-14
+        detail: >
+          NOT A SIGHTING, and NOT an attribution. Four Storm property tests were found by replay to draw
+          invalid grammars, between about once in 17000 and once in 165000 draws, and fixed -- see
+          storm-memo-propagation-property, storm-trait-field-type-resolution-property and
+          storm-trait-structural-satisfaction-property. This entry and its recurrence fit that shape,
+          but without a name they cannot be matched to it, so the entry stays unreproduced. The default the
+          recurrence above asked for now exists: tools/test-ledger/run.sh keeps every failure's name,
+          message and FsCheck seed, and Test/CLAUDE.md sends full runs through it.
 
   - id: storm-trait-structural-satisfaction-property
     test: Storm.SourceGenerator.Tests.StormTraitStructuralSatisfactionPropertyTests.P4c_MismatchedField_EmitsSTORM0021
     file: Test/Storm.SourceGenerator.Tests/StormTraitStructuralSatisfactionPropertyTests.cs
     discovered: 2026-08-26
-    status: unreproduced
+    status: fixed
     symptom: >
       Failed once in a full `dotnet test Mist.slnx` run and passed on immediate rerun in isolation
       with no intervening code change. One sighting only.
     cause: >
-      Unknown. See the pattern note below before guessing: the candidate worth testing is shared
-      Storm property-test infrastructure rather than anything specific to trait satisfaction, but
-      nothing here establishes that and a fix aimed at it would be a guess.
+      THE GENERATOR DREW INVALID GRAMMARS, confirmed 2026-09-14 by replay. Every field's type is
+      declared as a token, and the trait name, the rule name and (in P4c) the wrong type name are drawn
+      independently of those token names. When the trait or rule name equals a field's type name, or the
+      wrong type equals the trait or rule name, the grammar declares one name twice and StormGrammar
+      reports STORM0003. The trait binding then resolves to nothing (STORM0019) or validation sees no
+      trait at all, and the property's Assert.Contains finds no STORM0020 or STORM0021 to match.
+
+      P4a_ValidSatisfaction DRAWS THE SAME INVALID GRAMMARS AND PASSES ON THEM. It asserts the ABSENCE of
+      STORM0020 and STORM0021, which a grammar that failed to build satisfies vacuously, so it never went
+      red and was never a flake -- but it was checking invalid input and calling it valid.
     evidence: >
       NOT THE CHANGE UNDER TEST. The working tree held the v2 ranges layer only -- orders 123-125,
       confined to Source/Mist/ProgramModel, Source/Mist/Backends/CSharpTranspiler/Emitter,
@@ -593,11 +696,23 @@ flakes:
       FsCheck seed. A seed would settle the draw question outright, which is the cheapest of the
       candidates to rule in or out.
 
+      REPRODUCED BY REPLAY, 2026-09-14, which settled the draw question the way the note above hoped.
+      The file's three tests were converted to [Property] over their generators; P4b and P4c had chosen
+      their field with Math.Abs(traitName.GetHashCode()), which .NET randomizes per process and no seed
+      can replay, so that index is now drawn. Five rounds of 200000 draws each: P4b failed in four
+      (after 45530, 74019, 184807 and 162783 draws), P4c in three (21517, 38746, 27177), P4a in none.
+      Every falsifying input shared a name between two declarations: rule `S95` and field type `S95`,
+      trait `Y2q` and field type `Y2q`, and for P4c trait `U5d` with wrong type `U5d`.
+    fix: >
+      APPLIED 2026-09-14. All three generators require every declared name -- field types, trait, rule,
+      and P4c's wrong type -- to be distinct, and each test asserts the grammar built before judging
+      trait validation. The tests are [Property]s, so a failure prints its replay seed and input.
+
   - id: mist-tests-mass-failure-under-stale-copy
     test: Mist.Tests (433 of 5000, no single test implicated)
     file: Test/Mist.Tests
     discovered: 2026-09-06
-    status: explained
+    status: fixed
     symptom: >
       A full `dotnet test Mist.slnx --no-build` reported 433 failures out of 5000. An immediate
       rerun with NO intervening code change reported 5000 passed, 0 failed. The failure messages
@@ -605,7 +720,16 @@ flakes:
       "MIST_UNDEFINED_TYPE: The type 'fixing' could not be found", naming a type no fixture
       declares -- which is the tell that the binaries under test did not match the sources.
     cause: >
-      Stale Mist.Tests.dll, not a test defect. A previous `dotnet test` was still running when the
+      SUPERSEDED 2026-09-14: the poisoned stdlib parse cache recorded under
+      mist-tests-garbled-lexemes-without-a-lock-warning, fixed there. 'fixing' is a word in the comment
+      at Source/Standard/Bootstrap/Action.mist:3, and a user AST sliced against that file's text is
+      exactly what an empty cache produces; deliberately poisoning the cache reproduced the message.
+      A stale test DLL has no path to a name read out of a Standard comment -- mismatched binaries
+      fail with missing members, not with other files' text. The MSB3026 warnings below were real and
+      remain worth avoiding, but they were not needed to produce this failure.
+
+      THE ORIGINAL EXPLANATION, kept so the reasoning can be checked: stale Mist.Tests.dll, not a test
+      defect. A previous `dotnet test` was still running when the
       next `dotnet build` fired, and MSBuild reported
       "Could not copy obj\Debug\net10.0\Mist.Tests.dll to bin\Debug\net10.0\Mist.Tests.dll ...
       The file is locked by: testhost". It retried, printed no error, and the build was treated as
@@ -619,6 +743,10 @@ flakes:
       members), which touches only the ambient provider and the program model builder and cannot
       explain a failure naming a type called 'fixing'.
     note: >
+      THE TELL BELOW PREDATES THE MECHANISM. Garbled names were read here as the sign of mismatched
+      binaries; they were the poisoned cache, which the fix removes. The advice about not building
+      while a test run is live stands on its own.
+
       NOT A FLAKE TO CHASE, and recorded because the SHAPE is worth recognising: a mass failure with
       messages that do not correspond to any assertion means suspect the binaries first, not the
       change. Test/CLAUDE.md's triage policy says rebuild before blaming the working tree; this is
@@ -663,11 +791,16 @@ flakes:
       tools/SnippetEmitter/Program.cs, so that one recurrence names the throwing frame instead of
       leaving the next person exactly where this entry is.
 
+      APPLIED 2026-09-14: the catch prints the whole exception. The cause is still unknown and nothing
+      was changed on a guess. One lead is ruled out by construction: the tool compiles sequentially,
+      so the poisoned stdlib parse cache found under mist-tests-garbled-lexemes-without-a-lock-warning
+      could only be written by its own first compile, and an injected lexer never runs there.
+
   - id: mist-tests-garbled-lexemes-without-a-lock-warning
     test: Mist.Tests (465 of 5890, no single test implicated; RefusalCorpusTest and AllFeatures among them)
     file: Test/Mist.Tests
     discovered: 2026-09-12
-    status: open
+    status: fixed
     symptom: >
       `dotnet test Mist.slnx --no-build` reported 465 failures in Mist.Tests, finishing in 1m5s against
       4m44s for the green rerun. The messages are the incoherent kind: 625 of
@@ -675,7 +808,29 @@ flakes:
       MIST_UNDEFINED_TYPE for names no source declares -- 'derly', 't', 'i', 'e' -- beside 268 of
       MIST_UNDEFINED_NAMESPACE for `Standard`. Failures span classic and v2 tests alike. The other two
       test assemblies passed.
-    cause: unknown
+    cause: >
+      A TEST POISONED THE PROCESS-WIDE STDLIB PARSE CACHE, confirmed 2026-09-14 by deliberate replication
+      and by a natural reproduction from unmodified test code. CompilerDriver kept the lexed and parsed
+      standard library in a static shared by every driver in the testhost, while the lexer and parser are
+      injected per driver. PipelineBackendPropertyTests.PipelineShortCircuit_LexErrorSkipsParser builds a
+      driver whose lexer reports an error for EVERY unit, the 32 stdlib units included, so its compile
+      lexes and parses nothing. If that compile was the first to reach the cache write, the cache held
+      (0 token streams, 0 ASTs) for the rest of the process.
+
+      EVERY LATER COMPILE THEN MISALIGNED. Both pipelines pair AST i with unit i. v2 checks the counts
+      and reports AST count (1) against (33) -- one user AST, 32 stdlib units plus the user's. Classic
+      does not check: it pairs the user's AST with Bootstrap/Action.mist, the first stdlib unit in
+      ordinal order, and slices that file's text with the user's spans, which is where 'fixing' (a word
+      in Action.mist's comment), 't', 'i', 'e' and the missing Standard namespace come from. 'derly'
+      comes from a multi-file sample compile slicing one user file's spans against another's.
+
+      IT IS OCCASIONAL BECAUSE XUNIT SHUFFLES COLLECTIONS. xunit 2.9.3 starts test classes in an order
+      that differs from run to run on identical binaries (measured: two runs of the same filter started
+      classes in different orders). LexErrorSkipsParser is always the first test of its class, so the
+      process is poisoned exactly when PipelineBackendPropertyTests is among the classes that start
+      before any real compile finishes parsing the stdlib -- 22 of 984 classes in a measured green run,
+      more when a loaded machine slows that first parse. A draw, not a load failure, which is why every
+      rerun was green.
     evidence: >
       The same garbled-lexeme signature as mist-tests-mass-failure-under-stale-copy, but WITHOUT that
       entry's cause: the build immediately before reported 0 warnings, so no MSB3026 lock was hidden,
@@ -689,6 +844,64 @@ flakes:
       Source/Mist (binding, CastAnalyzer, CastLowering, diagnostics) and four ProgramModelProbe test
       classes, about 75 tests, all of which passed under --filter before the full run and again in the
       rerun, so it cannot account for 465 failures across unrelated classes.
+
+      REPLICATION, 2026-09-14, on cc43c5ff, every run captured through tools/test-ledger/run.sh. Five
+      measurements, each checked against a control.
+
+      (1) The consequence. A scratch test that ran LexErrorSkipsParser's body and then compiled one
+      program read the static cache through reflection: null before, tokens=0 asts=0 after. Classic
+      then reported MIST_UNDEFINED_NAMESPACE for `Standard` against Action.mist, and v2 reported "AST
+      count (1) does not match compilation unit count (33)" verbatim. In a fresh process without the
+      ErrorLexer step the cache filled with 32 and 32 and both pipelines compiled clean.
+
+      (2) The natural trigger, unmodified test code. `--filter` on PipelineBackendPropertyTests plus
+      CrossFileTypeResolutionTests: 9 of 13 failed, all nine CrossFile scenarios on `Standard`, 3 runs of
+      3. CrossFileTypeResolutionTests alone: 9 of 9 passed, 2 runs of 2.
+
+      (3) The whole signature. A module initializer that ran LexErrorSkipsParser before any other test,
+      then all of Mist.Tests: 468 of 6053 failed in 79s -- against this entry's 469 of 6052 in 1m30s --
+      carrying 'fixing', 'derly', 't', 'i', 'e', "AST count (1) ... (33)", MIST_UNDEFINED_NAMESPACE for
+      `Standard`, three of "ErrorType has no TypeKind", and "Expected 'Program.cs' in emitted files.
+      Got: [Action.cs]". Every message this entry and mist-tests-mass-failure-under-stale-copy recorded
+      came back from the one trigger.
+
+      (4) The draw. A green natural full run with a watcher thread on the cache: first populated at
+      +782ms with 32 and 32, by which time 22 of 984 classes had started; LexErrorSkipsParser started
+      at +7.4s, its class 88th, after the cache was full. Class start order differed between two
+      identical filtered runs.
+
+      (5) The fix. After it, (2) passed 13 of 13 in 3 runs of 3, and (3) passed 6055 of 6055: the
+      ErrorLexer compile left the cache empty and the next compile filled it with 32 and 32.
+
+      NOT CAPTURED: a natural full-suite run that drew the poison under the watcher. From (4) the odds
+      are something like 22 in 984 a run on a quiet machine, and fifty runs to catch one was not worth
+      it once (2) had reproduced it from real test code.
+
+      THE RECURRENCES BELOW, both "cause still unknown" when written, carry the replicated signature:
+      "AST count (1) ... (33)", `Standard`, 'e', 't', 'i', and 'Func', 'Span' and 'Action', all of which
+      (3) produced. The second notes that every mass failure began seconds after a solution build and no
+      green rerun had one. That fits without being measured: the poison needs PipelineBackendPropertyTests
+      to start before the first real compile finishes parsing the stdlib, and a first compile straight
+      after a build runs with a cold JIT and file cache, so it parses slower and the window is wider.
+    fix: >
+      APPLIED 2026-09-14. The cache moved into Source/Mist/Driver/StdlibParseCache.cs. It records an
+      entry only when the compile produced a token stream and an AST for every stdlib unit, serves an
+      entry only to a compile with the same stdlib unit count, and is published with
+      Interlocked.CompareExchange rather than written as a struct under a lock and read without one.
+      CompilerDriver takes it through an internal constructor, so
+      Test/Mist.Tests/Driver/StdlibParseCacheTests.cs drives the ErrorLexer-then-real sequence against a
+      private instance -- deterministically, without racing the rest of the suite. Each of that file's
+      two tests fails when its guard is removed and passes with it.
+
+      The same class of silent short population was closed in the two other stdlib caches:
+      StdlibLoader no longer caches an empty listing and reads its cache without a torn Nullable, and
+      Test/Mist.Tests/Helpers/StdlibTestHelper.cs uses Lazy and throws on a stdlib unit that does not
+      lex and parse instead of skipping it.
+
+      AFTER EVERY FIX IN THIS REGISTER LANDED, ten consecutive `tools/test-ledger/run.sh Mist.slnx` runs
+      (2026-09-14, 00:25-01:35) were 10 of 10 green at 6786 tests, with no other worktree's test process
+      running when any of them started. Ten runs cannot measure a two-per-cent flake on their own; the
+      evidence for this fix is (5) above, where the trigger that failed 468 tests passes 6055.
     recurrences:
       - date: 2026-09-13
         detail: >

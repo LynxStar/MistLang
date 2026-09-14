@@ -645,3 +645,18 @@ Expected: one `MIST_PA_CONSTRAINT_NOT_SATISFIED` on the `Holder<Plain>` line and
 1. Make the program-wide analyzers honour the analysis scope, or filter the per-conversion findings to diagnostics located inside the conversion body's syntax. Audit every analyzer in `ProgramAnalysisRunner.Analyzers` for the same shape.
 2. Prove it in `Test/Mist.Tests/ProgramAnalysis/ClonableNewtypeConversionDecisionTests.cs` with an admit test whose program also holds an unrelated error, and mutation-check it.
 3. Record evidence in the `newtype-declarations` entry (order 86) of `backlog/emitter-v2-capability-progression.yaml`, inside its `evidence: >` block.
+
+---
+
+## 🟢 Two tests change process-wide state while other test classes run beside them
+
+**Severity: low** -- both are contained today, and both are the shape of defect that produced the mass failures in `backlog/flaky-tests.yaml`: a test writing state every other class in the testhost reads, under xunit's per-run shuffle of which classes run together.
+
+1. `Test/Mist.Tests/Backend/TypeInspectorTests.cs` calls `Console.SetError` (lines 197 and 233) and restores it in a `finally`. `Console.Error` is process-wide, so anything another class writes to stderr during that window is captured by this test's writer instead, and a test asserting on stderr would lose it.
+2. `Test/Mist.Tests/Integration/Vector3OperatorIntegrationTest.cs` (lines 186-187) writes the mutable static `TypeCheckerAnalyzer.useOperatorOverloadResolution` (`Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs:43`). It writes `true`, which the flag already holds, so it is inert; writing any other value would switch every classic compile in the process for the duration.
+
+**Action:**
+1. Give `TypeInspector` a `TextWriter` to report to rather than redirecting the process's stderr, or move the two tests into a collection with parallelization disabled.
+2. Delete the flag write, since it restores the default, or the flag itself if nothing sets it to `false`.
+
+Recorded during the flaky-tests investigation (2026-09-14), not fixed there, because neither has produced a failure.

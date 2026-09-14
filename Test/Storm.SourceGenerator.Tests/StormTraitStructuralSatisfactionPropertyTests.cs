@@ -1,7 +1,9 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Frontend;
+using Storm.SourceGenerator.Resolve;
 using Storm.SourceGenerator.Validate;
 
 namespace Storm.SourceGenerator.Tests;
@@ -125,6 +127,20 @@ public class StormTraitStructuralSatisfactionPropertyTests
     // ══════════════════════════════════════════════════════════════════
     //  Helpers: Build Storm grammar source strings
     // ══════════════════════════════════════════════════════════════════
+
+    private static bool DeclaresEachNameOnce(IEnumerable<string> names)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        return names.All(seen.Add);
+    }
+
+    private static void AssertGrammarBuilt(StormGrammar grammar, string source)
+    {
+        Assert.True(
+            grammar.Succeeded,
+            $"Grammar build failed for source:\n{source}\n" +
+            $"Diagnostics: {string.Join("; ", grammar.Diagnostics.Select(d => $"{d.Id} {d.Message}"))}");
+    }
 
     private static string CardinalitySuffix(StormFieldCardinality cardinality)
     {
@@ -266,8 +282,8 @@ public class StormTraitStructuralSatisfactionPropertyTests
     //  **Validates: Requirement 5**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P4a_ValidSatisfaction_NoDiagnostics()
+    [Property(MaxTest = 200)]
+    public Property P4a_ValidSatisfaction_NoDiagnostics()
     {
         var traitNameGen = GenTypeName();
         var ruleNameGen = GenTypeName();
@@ -276,13 +292,14 @@ public class StormTraitStructuralSatisfactionPropertyTests
         var sampleGen = traitNameGen.SelectMany(tn =>
             ruleNameGen.SelectMany(rn =>
                 fieldsGen.Select(fields => (TraitName: tn, RuleName: rn, Fields: fields))))
-            .Where(x => x.TraitName != x.RuleName);
+            .Where(x => DeclaresEachNameOnce(x.Fields.Select(f => f.TypeName).Append(x.TraitName).Append(x.RuleName)));
 
-        var samples = sampleGen.Sample(200);
-        foreach(var (traitName, ruleName, fields) in samples)
+        return Prop.ForAll(sampleGen.ToArbitrary(), drawn =>
         {
+            var (traitName, ruleName, fields) = drawn;
             var source = BuildValidGrammarSource(traitName, ruleName, fields);
             var grammar = ValidationTestHelpers.BuildGrammar(source);
+            AssertGrammarBuilt(grammar, source);
 
             var diagnostics = TraitValidationPass.Run(grammar);
 
@@ -296,7 +313,7 @@ public class StormTraitStructuralSatisfactionPropertyTests
                 $"  Trait: {traitName}, Rule: {ruleName}\n" +
                 $"  Fields: {string.Join(", ", fields.Select(f => $"{f.FieldName}:{f.TypeName}{CardinalitySuffix(f.Cardinality)}"))}\n" +
                 $"  Diagnostics: {string.Join("; ", traitDiagnostics.Select(d => d.Message))}");
-        }
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -306,8 +323,8 @@ public class StormTraitStructuralSatisfactionPropertyTests
     //  **Validates: Requirement 5**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P4b_MissingField_EmitsSTORM0020()
+    [Property(MaxTest = 200)]
+    public Property P4b_MissingField_EmitsSTORM0020()
     {
         var traitNameGen = GenTypeName();
         var ruleNameGen = GenTypeName();
@@ -315,17 +332,17 @@ public class StormTraitStructuralSatisfactionPropertyTests
 
         var sampleGen = traitNameGen.SelectMany(tn =>
             ruleNameGen.SelectMany(rn =>
-                fieldsGen.Select(fields => (TraitName: tn, RuleName: rn, Fields: fields))))
-            .Where(x => x.TraitName != x.RuleName);
+                fieldsGen.SelectMany(fields =>
+                    Gen.Choose(0, fields.Count - 1).Select(omit => (TraitName: tn, RuleName: rn, Fields: fields, FieldToOmit: omit)))))
+            .Where(x => DeclaresEachNameOnce(x.Fields.Select(f => f.TypeName).Append(x.TraitName).Append(x.RuleName)));
 
-        var samples = sampleGen.Sample(200);
-        foreach(var (traitName, ruleName, fields) in samples)
+        return Prop.ForAll(sampleGen.ToArbitrary(), drawn =>
         {
-            // Pick a random field index to omit
-            var fieldToOmit = Math.Abs(traitName.GetHashCode()) % fields.Count;
+            var (traitName, ruleName, fields, fieldToOmit) = drawn;
 
             var source = BuildMissingFieldGrammarSource(traitName, ruleName, fields, fieldToOmit);
             var grammar = ValidationTestHelpers.BuildGrammar(source);
+            AssertGrammarBuilt(grammar, source);
 
             var diagnostics = TraitValidationPass.Run(grammar);
 
@@ -334,7 +351,7 @@ public class StormTraitStructuralSatisfactionPropertyTests
                 d.Id == StormDiagnosticIds.STORM_TRAIT_FIELD_MISSING &&
                 d.Message.Contains(missingFieldName) &&
                 d.Message.Contains(traitName));
-        }
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -345,8 +362,8 @@ public class StormTraitStructuralSatisfactionPropertyTests
     //  **Validates: Requirement 5**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P4c_MismatchedField_EmitsSTORM0021()
+    [Property(MaxTest = 200)]
+    public Property P4c_MismatchedField_EmitsSTORM0021()
     {
         var traitNameGen = GenTypeName();
         var ruleNameGen = GenTypeName();
@@ -357,17 +374,15 @@ public class StormTraitStructuralSatisfactionPropertyTests
         var sampleGen = traitNameGen.SelectMany(tn =>
             ruleNameGen.SelectMany(rn =>
                 fieldsGen.SelectMany(fields =>
-                    wrongTypeGen.SelectMany(wt =>
-                        wrongCardGen.Select(wc =>
-                            (TraitName: tn, RuleName: rn, Fields: fields, WrongType: wt, WrongCard: wc))))))
-            .Where(x => x.TraitName != x.RuleName)
-            .Where(x => !x.Fields.Any(f => f.TypeName == x.WrongType));
+                    Gen.Choose(0, fields.Count - 1).SelectMany(mismatch =>
+                        wrongTypeGen.SelectMany(wt =>
+                            wrongCardGen.Select(wc =>
+                                (TraitName: tn, RuleName: rn, Fields: fields, FieldToMismatch: mismatch, WrongType: wt, WrongCard: wc)))))))
+            .Where(x => DeclaresEachNameOnce(x.Fields.Select(f => f.TypeName).Append(x.TraitName).Append(x.RuleName).Append(x.WrongType)));
 
-        var samples = sampleGen.Sample(200);
-        foreach(var (traitName, ruleName, fields, wrongType, wrongCard) in samples)
+        return Prop.ForAll(sampleGen.ToArbitrary(), drawn =>
         {
-            // Pick a field to mismatch
-            var fieldToMismatch = Math.Abs(traitName.GetHashCode()) % fields.Count;
+            var (traitName, ruleName, fields, fieldToMismatch, wrongType, wrongCard) = drawn;
             var originalField = fields[fieldToMismatch];
 
             // Ensure we actually create a mismatch (different type OR different cardinality)
@@ -385,6 +400,7 @@ public class StormTraitStructuralSatisfactionPropertyTests
             var source = BuildMismatchedFieldGrammarSource(
                 traitName, ruleName, fields, fieldToMismatch, actualWrongType, actualWrongCard);
             var grammar = ValidationTestHelpers.BuildGrammar(source);
+            AssertGrammarBuilt(grammar, source);
 
             var diagnostics = TraitValidationPass.Run(grammar);
 
@@ -393,6 +409,6 @@ public class StormTraitStructuralSatisfactionPropertyTests
                 d.Id == StormDiagnosticIds.STORM_TRAIT_FIELD_MISMATCH &&
                 d.Message.Contains(mismatchedFieldName) &&
                 d.Message.Contains(traitName));
-        }
+        });
     }
 }

@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Resolve;
 using Storm.SourceGenerator.Validate;
@@ -298,14 +299,13 @@ public class StormTraitFieldTypeResolutionPropertyTests
     //  **Validates: Requirements 4, 5**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P3_TokenFieldType_NoSTORM0018Emitted()
+    [Property(MaxTest = 150)]
+    public Property P3_TokenFieldType_NoSTORM0018Emitted()
     {
-        var samples = GenScenario()
-            .Where(s => s.TokenFields.Count > 0 && s.UndefinedFields.Count == 0 && s.RuleFields.Count == 0)
-            .Sample(150);
+        var scenarios = GenScenario()
+            .Where(s => s.TokenFields.Count > 0 && s.UndefinedFields.Count == 0 && s.RuleFields.Count == 0);
 
-        foreach(var scenario in samples)
+        return Prop.ForAll(scenarios.ToArbitrary(), scenario =>
         {
             var source = BuildGrammarSource(scenario);
             var grammar = BuildGrammar(source);
@@ -319,17 +319,16 @@ public class StormTraitFieldTypeResolutionPropertyTests
                 $"Expected no STORM0018 for token field references but got {storm0018.Count}.\n" +
                 $"Source:\n{source}\n" +
                 $"Diagnostics: {string.Join("; ", storm0018.Select(d => d.Message))}");
-        }
+        });
     }
 
-    [Fact]
-    public void P3_RuleFieldType_NoSTORM0018Emitted()
+    [Property(MaxTest = 150)]
+    public Property P3_RuleFieldType_NoSTORM0018Emitted()
     {
-        var samples = GenScenario()
-            .Where(s => s.RuleFields.Count > 0 && s.UndefinedFields.Count == 0 && s.TokenFields.Count == 0)
-            .Sample(150);
+        var scenarios = GenScenario()
+            .Where(s => s.RuleFields.Count > 0 && s.UndefinedFields.Count == 0 && s.TokenFields.Count == 0);
 
-        foreach(var scenario in samples)
+        return Prop.ForAll(scenarios.ToArbitrary(), scenario =>
         {
             var source = BuildGrammarSource(scenario);
             var grammar = BuildGrammar(source);
@@ -343,17 +342,16 @@ public class StormTraitFieldTypeResolutionPropertyTests
                 $"Expected no STORM0018 for rule field references but got {storm0018.Count}.\n" +
                 $"Source:\n{source}\n" +
                 $"Diagnostics: {string.Join("; ", storm0018.Select(d => d.Message))}");
-        }
+        });
     }
 
-    [Fact]
-    public void P3_UndefinedFieldType_STORM0018Emitted()
+    [Property(MaxTest = 150)]
+    public Property P3_UndefinedFieldType_STORM0018Emitted()
     {
-        var samples = GenScenario()
-            .Where(s => s.UndefinedFields.Count > 0)
-            .Sample(150);
+        var scenarios = GenScenario()
+            .Where(s => s.UndefinedFields.Count > 0);
 
-        foreach(var scenario in samples)
+        return Prop.ForAll(scenarios.ToArbitrary(), scenario =>
         {
             var source = BuildGrammarSource(scenario);
             var grammar = BuildGrammar(source);
@@ -379,17 +377,16 @@ public class StormTraitFieldTypeResolutionPropertyTests
                     $"but it did not.\nSource:\n{source}\n" +
                     $"Diagnostics: {string.Join("; ", storm0018.Select(d => d.Message))}");
             }
-        }
+        });
     }
 
-    [Fact]
-    public void P3_MixedFieldTypes_STORM0018OnlyForUndefined()
+    [Property(MaxTest = 100)]
+    public Property P3_MixedFieldTypes_STORM0018OnlyForUndefined()
     {
-        var samples = GenScenario()
-            .Where(s => s.TokenFields.Count > 0 && s.RuleFields.Count > 0 && s.UndefinedFields.Count > 0)
-            .Sample(100);
+        var scenarios = GenScenario()
+            .Where(s => s.TokenFields.Count > 0 && s.RuleFields.Count > 0 && s.UndefinedFields.Count > 0);
 
-        foreach(var scenario in samples)
+        return Prop.ForAll(scenarios.ToArbitrary(), scenario =>
         {
             var source = BuildGrammarSource(scenario);
             var grammar = BuildGrammar(source);
@@ -421,22 +418,24 @@ public class StormTraitFieldTypeResolutionPropertyTests
                     $"STORM0018 should not mention valid type names.\n" +
                     $"Diagnostic: {diag.Message}");
             }
-        }
+        });
     }
 
-    [Fact]
-    public void P3_FragmentFieldType_STORM0018Emitted()
+    private const string FixedTokenName = "Tok";
+
+    [Property(MaxTest = 100)]
+    public Property P3_FragmentFieldType_STORM0018Emitted()
     {
         // Fragments are not valid trait field types - they should also trigger STORM0018
-        var samples = GenPascalCaseIdentifier().SelectMany(traitName =>
+        var cases = GenPascalCaseIdentifier().SelectMany(traitName =>
             GenPascalCaseIdentifier().SelectMany(fragmentName =>
                 GenFieldName().Select(fieldName => (traitName, fragmentName, fieldName))))
-            .Where(t => t.traitName != t.fragmentName)
-            .Sample(100);
+            .Where(t => t.traitName != t.fragmentName && t.traitName != FixedTokenName && t.fragmentName != FixedTokenName);
 
-        foreach(var (traitName, fragmentName, fieldName) in samples)
+        return Prop.ForAll(cases.ToArbitrary(), drawn =>
         {
-            var source = $"grammar Test;\ntoken Tok = \"x\";\nfragment {fragmentName} = [a-z];\ntrait {traitName} = {fieldName}:{fragmentName};";
+            var (traitName, fragmentName, fieldName) = drawn;
+            var source = $"grammar Test;\ntoken {FixedTokenName} = \"x\";\nfragment {fragmentName} = [a-z];\ntrait {traitName} = {fieldName}:{fragmentName};";
             var grammar = BuildGrammar(source);
             Assert.True(grammar.Succeeded, $"Grammar build failed for source:\n{source}");
 
@@ -450,6 +449,6 @@ public class StormTraitFieldTypeResolutionPropertyTests
                 $"Diagnostics: {string.Join("; ", storm0018.Select(d => d.Message))}");
 
             Assert.Contains(fragmentName, storm0018[0].Message);
-        }
+        });
     }
 }

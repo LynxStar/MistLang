@@ -1,5 +1,6 @@
 using FsCheck;
 using FsCheck.Fluent;
+using FsCheck.Xunit;
 using Storm.SourceGenerator.IR;
 using Storm.SourceGenerator.Resolve;
 
@@ -26,8 +27,11 @@ public class StormMemoPropagationPropertyTests
         return Gen.Elements(upperChars).SelectMany(first =>
             Gen.Choose(1, 8).SelectMany(len =>
                 Gen.ArrayOf(Gen.Elements(lowerChars), len)
-                    .Select(tail => first + new string(tail))));
+                    .Select(tail => first + new string(tail))))
+            .Where(name => name != TokenName);
     }
+
+    private const string TokenName = "Tok";
 
     /// <summary>
     /// Generates a list of (ruleName, isMemo) pairs representing rule declarations.
@@ -65,7 +69,7 @@ public class StormMemoPropagationPropertyTests
     {
         var sb = new System.Text.StringBuilder();
         _ = sb.AppendLine("grammar Test;");
-        _ = sb.AppendLine("token Tok = [a-z]+;");
+        _ = sb.AppendLine($"token {TokenName} = [a-z]+;");
 
         foreach(var (name, isMemo) in rules)
         {
@@ -74,7 +78,7 @@ public class StormMemoPropagationPropertyTests
                 _ = sb.AppendLine($"@memo");
             }
 
-            _ = sb.AppendLine($"rule {name} = Tok;");
+            _ = sb.AppendLine($"rule {name} = {TokenName};");
         }
 
         return sb.ToString();
@@ -108,6 +112,9 @@ public class StormMemoPropagationPropertyTests
         var resolver = new StormImportResolver(InMemoryFileReader(files));
         var resolution = resolver.Resolve("root/main.storm");
         var grammar = StormGrammar.Build(resolution);
+        Assert.True(grammar.Succeeded,
+            $"Grammar build failed for source:\n{grammarSource}\n" +
+            $"Diagnostics: {string.Join(", ", grammar.Diagnostics.Select(d => $"{d.Id} {d.Message}"))}");
         return GrammarIRLowering.Lower(grammar);
     }
 
@@ -119,15 +126,14 @@ public class StormMemoPropagationPropertyTests
     //  **Validates: Requirements 3.1, 3.2**
     // ══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public void P3_MemoPropagation_RuleIR_IsMemo_MatchesSource()
+    [Property(MaxTest = 200)]
+    public Property P3_MemoPropagation_RuleIR_IsMemo_MatchesSource()
     {
-        var samples = GenRuleDeclarations().Sample(200);
-        foreach(var rules in samples)
+        return Prop.ForAll(GenRuleDeclarations().ToArbitrary(), rules =>
         {
             if(rules.Count == 0)
             {
-                continue;
+                return;
             }
 
             var source = BuildGrammarSource(rules);
@@ -151,6 +157,6 @@ public class StormMemoPropagationPropertyTests
             // Also verify count matches — no extra rules
             Assert.True(result.Grammar!.Rules.Count == rules.Count,
                 $"Expected {rules.Count} rules but got {result.Grammar.Rules.Count}.\nSource:\n{source}");
-        }
+        });
     }
 }

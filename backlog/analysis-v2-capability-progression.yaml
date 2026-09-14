@@ -509,6 +509,44 @@ rules:
       MIST_PA_NO_IMPLICIT_CONVERSION; both print. `Label twice = new Pattern();`, two declared conversions
       around the intrinsic step, stays refused, and `Feet needsCast = pattern;` is CAST_REQUIRED, the cast
       that would work being found through the same step. Recorded in full under emitter order 46.
+
+      A CAST OF A FITTING INTEGER CONSTANT IS ADMITTED (2026-09-14), BY DECISION AND MORE PERMISSIVE THAN
+      CLASSIC, superseding "It is NOT a constant rule" and "A CONSTANT CANNOT BE DISAMBIGUATED BY A CAST"
+      above. The advice every ambiguity gave was false for a constant: `Sink.Small(2)` over Small(byte) and
+      Small(sbyte) said "Cast an argument to choose one", and `Sink.Small((sbyte)2)` was
+      CAST_HAS_NO_CONVERSION. The language owner chose to admit the cast rather than reword the advice: the
+      constant is already a value of the target, as `byte b = 2;` says, and every conversion FUNCTION already
+      took a fitting constant as its argument -- a declared operator (`(Crate)2` over Crate(byte)), an enum's
+      lookup (`(Color)0`), a newtype's conversion (`(Small)2` over `new short`) -- leaving only the integral
+      type itself refused. cast-operators Requirement 8.8 is amended to say so, and method-overloading 3.3
+      now names `Take((sbyte)2)` as the remedy. CastAnalyzer admits a cast with no conversion function when
+      ConstantConversion.Fits holds, so the rule has one home with `byte b = 2`.
+      MEASURED on v2 before and after, one project per probe, against classic. `(byte)2`, `(sbyte)-1`,
+      `(uint)2`, `(ulong)2` and `(SmallAdult)20` over `byte >= 18`: were CAST_HAS_NO_CONVERSION, classic
+      MIST_TC_0042, now print, lowered `((byte)(2))`, `((sbyte)(-1))`, the first typed byte (Show(byte) over
+      Show(int) prints byte). `Sink.Small((sbyte)2)` and `((byte)2)`: were CAST_HAS_NO_CONVERSION, classic
+      TC_0042 and TC_0032, now print sbyte and byte. Unchanged: `(byte)300`, `(byte)-1` and `(byte)count`
+      from an int local stay CAST_HAS_NO_CONVERSION; `(long)2` and `(AdultAge)20` print on both.
+      THE THREE REMEDY MESSAGES ARE KEPT, now true for a constant. A constant reaches all three ties:
+      `Sink.Small(2)` is MIST_PM_AMBIGUOUS_OVERLOAD, `Crate c = 2;` over implicit Crate(byte) and
+      Crate(sbyte) MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION, `(Crate)2` over the explicit pair
+      MIST_PA_AMBIGUOUS_CAST, and classic cannot declare either pair (MIST_SB_0043). Each remedy now works:
+      `Sink.Small((sbyte)2)` prints sbyte, `Crate c = (byte)2;` and `(Crate)(byte)2` print byte, where all
+      three were CAST_HAS_NO_CONVERSION. An argument with no type of its own reaches no tie to be advised on:
+      `Sink.Run(x => x)` over Run(Func<int, int>) and Run(Func<string, string>) is
+      MIST_PM_LAMBDA_PARAMETER_NO_TYPE, and `Sink.Many([])` over int[] and string[]
+      MIST_PM_EMPTY_ARRAY_LITERAL_NO_TARGET, both before overload resolution. So every argument reaching the
+      messages is a typed value or a fitting constant, and a cast to a parameter type is admitted for both.
+      Classic also refuses the typed local, `sbyte signedTwo = 2; Sink.Small(signedTwo);` being TC_0032, so on
+      classic no remedy reaches Small(sbyte) from a constant; v2 prints sbyte for it, as before.
+      NOT CHANGED, and not this rule's: a cast INTO a refinement is proven by nothing on either pipeline.
+      `(AdultAge)10` and `(AdultAge)n` from an int local holding 10 print 10 on v2 and on classic, and
+      `(SmallAdult)20` now joins them in going unproven rather than refused; recorded as a task on order 12.
+      PROVED BY a CastDecisionTests theory of five admits (byte, a negative sbyte, ulong from an int and from a
+      long constant, a refinement over byte), OverloadSelectionTests rows for `(sbyte)2` and `(byte)2` choosing
+      among Take(sbyte) and Take(byte), and three corpus cases: constant-narrowing now `(byte)300`, and new
+      negative-constant-to-an-unsigned-type and integral-narrowing-of-a-variable. The admit mutated away on a
+      confirmed build fails the five admits.
     tasks:
       - >
         Order 5 is where the classification gets its other customers: assignment, argument, return, arm
@@ -1483,6 +1521,15 @@ rules:
       local and a field holder. The sweep found one more site, Attributes' indexer SETTER, guarded
       now as its getter is, with the spec proof code following.
     tasks:
+      - >
+        A cast INTO a refinement is proven by nothing: the prover lists no cast among the places a value
+        meets a refinement. Measured 2026-09-14 on v2 and classic alike: `(AdultAge)10` prints 10, and so
+        does `int n = 10; AdultAge a = (AdultAge)n;`, where `AdultAge a = 10;` is
+        MIST_PA_REFINEMENT_VIOLATED (classic MIST_TC_0097). `(SmallAdult)20` over `byte >= 18` joined them
+        when order 4 admitted fitting constants. If a cast is a call whose
+        argument meets the target's type, the operand owes the predicate there as an argument does; that
+        reading, and whether a cast into a refinement is instead the one sanctioned unchecked narrowing, is a
+        decision for the language owner before it is built.
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
         f = Process` -- needs contravariance judged, since the func promises any int. Moot until v2

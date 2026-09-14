@@ -84,7 +84,8 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
                         TypeDisplay.Mist(parameter));
                 }
             }
-            else if(ConversionClassifier.Classify(cast.Operand.Type, cast.TargetType, interner) != ConversionKind.None)
+            else if(ConversionClassifier.Classify(cast.Operand.Type, cast.TargetType, interner) != ConversionKind.None
+                || ConstantConversion.Fits(cast.Operand, cast.TargetType))
             {
                 continue;
             }

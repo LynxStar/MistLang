@@ -1,7 +1,8 @@
 // Tier 3 (Component): the casts CastAnalyzer deliberately does NOT refuse. A cast is sugar for a conversion
 // function, so a cast admits exactly what could be passed to the function it calls -- an enum's lookup
-// (enums spec, Requirement 15.3) or a declared cast operator (cast-operators spec, Requirement 8) -- and
-// each row is one kind of argument conversion. The corpus holds what the rule refuses; a silence has no line
+// (enums spec, Requirement 15.3) or a declared cast operator (cast-operators spec, Requirement 8) -- or,
+// for a value already of the target type, calls nothing (Requirement 8.8); each row is one kind of argument
+// conversion. The corpus holds what the rule refuses; a silence has no line
 // to put a marker on.
 
 using Mist.Common.Diagnostics;
@@ -29,6 +30,8 @@ public sealed class CastDecisionTests : ProgramModelProbe
         public enum Wide : long { One = 1 }
         public enum Color : byte { Red, Green }
         public enum Mixed : int | string { Num = 1, Text = "x" }
+
+        type SmallAdult = byte >= 18;
 
         public class Counter
         {
@@ -138,6 +141,17 @@ public sealed class CastDecisionTests : ProgramModelProbe
     [InlineData("Bin aFittingConstantAmongOperators = (Bin)2;")]
     [InlineData("long theOperatorAnsweringTheWrittenType = (long)tally;")]
     public void ACastWhoseOperandCouldBePassedToTheOperatorItCalls_IsAdmitted(string statement)
+    {
+        Assert.Empty(Analyse(statement));
+    }
+
+    [Theory]
+    [InlineData("byte aFittingConstant = (byte)2;")]
+    [InlineData("sbyte aNegativeConstantASignedTypeHolds = (sbyte)-1;")]
+    [InlineData("ulong anIntConstantAnUnsignedLongHolds = (ulong)2;")]
+    [InlineData("ulong aNonNegativeLongConstant = (ulong)2L;")]
+    [InlineData("SmallAdult aConstantTheRefinedBaseHolds = (SmallAdult)20;")]
+    public void ACastOfAnIntegerConstantTheTargetTypeHolds_IsAdmitted(string statement)
     {
         Assert.Empty(Analyse(statement));
     }

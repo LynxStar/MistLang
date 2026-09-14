@@ -8,7 +8,7 @@ public class Probe
     {
         int unused = 0;
         // REFUSE: MIST_PA_CAST_HAS_NO_CONVERSION
-        var small = (byte)5;
+        var small = (byte)300;
         Console.WriteLine("unreachable");
     }
 }

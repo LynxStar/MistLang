@@ -321,6 +321,8 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     [InlineData("var chosen = ConstantSigns.Take(200);", "Standard.Byte")]
     [InlineData("var chosen = Signs.Take((short)small);", "Standard.Int16")]
     [InlineData("var chosen = Signs.Take((uint)small);", "Standard.UInt32")]
+    [InlineData("var chosen = ConstantSigns.Take((sbyte)2);", "Standard.SByte")]
+    [InlineData("var chosen = ConstantSigns.Take((byte)2);", "Standard.Byte")]
     [InlineData("sbyte signedTwo = 2; var chosen = ConstantSigns.Take(signedTwo);", "Standard.SByte")]
     public void BetweenIntegralParametersNeitherContaining_OneTheArgumentAloneReachesIsChosen(string statement, string expectedParameterType)
     {

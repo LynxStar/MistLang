@@ -4559,6 +4559,14 @@ capabilities:
       each was run on v2 and its output read against the prose before SnippetEmitter wrote its C# tab. The
       quoted diagnostics are copied from v2's output. SnippetEmitter: 7 updated, 361 unchanged, 0 failed,
       then a second pass with 0 updated -- so the three changes above altered no other snippet's C#.
+
+      NEWTYPECLONES CARRIES BOTH ADDITIONS (2026-09-13, extended with the language owner's leave). IntBox's
+      Again and Named, a Boxed<bool> renamed to Boxed<string>, IntPair copied both ways, an AliasedPair over
+      the alias Slot, IntCell cast in twice and out once, and a Lynx whose Clone reaches every member kind
+      above print five new lines under three new headers, captured from v2 and read against the program by
+      hand: the counts and spots were worked through each Clone body, `ocelot=spots=139` and
+      `lynxBack=spots=409` being 2S + 131 from S = 4 and S = 139. No diagnostic, MSBuild compiles the emitted
+      C# without warning, and AllFeaturesV2 matches the extended baseline.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across
@@ -10762,7 +10770,10 @@ samples:
                object-initializer-blocks, default-value-synthesis, array-literals, cast-expression,
                cast-operator-declarations, user-defined-conversion-insertion, unknown-top-type,
                pattern-matching-core, iclonable-implicit-clone, intrinsic-member-declarations,
-               newtype-declarations]
+               newtype-declarations, type-parameters-and-constructed-types, generic-arity-keyed-lookup,
+               generic-methods, generic-constraints-nominal, indexer-declarations,
+               optional-union-representation, optional-operators, type-alias-declarations,
+               func-structural-function-types, method-group-conversion]
     untested:
       - >
         V2-ONLY. Classic implements the earlier revision of the newtypes spec, in which a newtype and its
@@ -10780,8 +10791,12 @@ samples:
         emitted C# would print the same lines. CloneCopyEmissionTests and CloneConversionEmissionTests
         hold the UnsafeAccessor text.
       - >
-        A conversion no cast calls is not emitted, which no line here can show; neither can the members
-        the conversion emitter does not handle (order 86), none of which this Clone uses.
+        A conversion no cast calls is not emitted, which no line here can show. Lynx's Clone reaches a
+        conditional access and call, a `??=` through a computed property, an indexer, a constrained
+        generic method and two method groups in one direction or both, but stdout cannot tell an accessor
+        from a widened member; CloneConversionEmissionTests and CloneConversionRuntimeTests hold the
+        spelling and the runtime binding. A generic newtype's conversions are refused (order 46), so
+        Boxed<T> shows its renamed members only.
 
 # =====================================================================
 

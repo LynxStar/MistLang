@@ -431,3 +431,217 @@ above is constructible, which would shrink the bootstrap set from thirteen types
    (`await Task.WhenAll(pending);` in statement position needs no array), and three of its four members
    need not be `async` -- the generic `WhenAll` is a pass-through and both `WhenAny`s are
    `TaskExtensions.Unwrap`.
+
+---
+
+## 🔴 v2 drops the parentheses around a coalesce nested inside an operator
+
+**Severity: critical** -- a silent wrong result. The program compiles and prints a plausible value that differs from classic's.
+
+**Verified empirically** (2026-09-13) on `--pipeline experimental`:
+
+```mist
+using Standard;
+
+namespace Co;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int? maybe = 5;
+        int? absent = void;
+        int total = 1 + (maybe ?? 0) + 2;
+        int other = 10 + (absent ?? 1) * 3;
+        Console.WriteLine($"total={total} other={other}");
+    }
+}
+```
+
+v2 prints `total=6 other=3`; classic prints `total=8 other=13`. The emitted C# is `int total = 1 + maybe ?? 0 + 2;` and `int other = 10 + absent ?? 1 * 3;`.
+
+**Likely cause:** `Source/Mist/Backends/CSharpTranspiler/Emitter/BodyEmitter.cs` emits `CoalesceExpression`, and the precedence `GetPrecedence` gives it does not reflect that C#'s `??` binds looser than every arithmetic, comparison and logical operator.
+
+**Action:**
+1. Fix the precedence, and check the other low-precedence forms for the same gap: `is`, `as`, switch expressions, lambdas, assignment.
+2. Pin it with a Tier 3 test on the emitted text. The failure compiles and prints a plausible value, so consider whether a Tier 4 run in the style of `Test/Mist.Tests/Integration/RegexEmissionTests.cs` is justified too. Mutation-check it.
+3. Record evidence in the matching capability entry of `backlog/emitter-v2-capability-progression.yaml`, inside its `evidence: >` block.
+
+---
+
+## 🟡 v2 emits an optional reference field as non-nullable
+
+**Severity: medium** -- the emitted project sets `<Nullable>enable</Nullable>`, so MSBuild reports CS8618, and `samples/CLAUDE.md` requires samples to build with zero warnings.
+
+**Verified empirically** (2026-09-13) on `--pipeline experimental`:
+
+```mist
+using Standard;
+
+namespace Nf;
+
+public class Holder
+{
+    private string? note;
+
+    public Holder()
+    {
+    }
+
+    public string Show()
+    {
+        return note ?? "none";
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Console.WriteLine(new Holder().Show());
+    }
+}
+```
+
+It prints `none`, but `out/Nf/Program.cs` declares `private string note;` and assigns `this.note = null;` in the constructor, and `dotnet build out/Nf.csproj` reports CS8618 four times.
+
+**Action:**
+1. Read `FieldEmitter`, `TypeNameEmitter` and how `OptionalUnion` lowers `T | void` for a reference `T`. Decide whether the field -- and by the same reasoning locals, parameters and properties -- should carry `?`, checking what those positions already do before changing one in isolation.
+2. Pin it with a Tier 3 test on the emitted text and mutation-check it.
+3. Record evidence in the optional-union capability entry of `backlog/emitter-v2-capability-progression.yaml`.
+
+---
+
+## 🟡 v2 refuses an F-bounded constraint on any class
+
+**Severity: medium** -- a valid program is refused.
+
+**Verified empirically** (2026-09-13) on `--pipeline experimental`:
+
+```mist
+using Standard;
+
+namespace P2f;
+
+public abstract IRank<T>
+{
+    int CompareTo(T other);
+}
+
+public class Score : IRank<Score>
+{
+    public int Points;
+
+    public Score(int points)
+    {
+        this.Points = points;
+    }
+
+    public int CompareTo(Score other)
+    {
+        return Points - other.Points;
+    }
+}
+
+public class Sorted<T> where T : IRank<T>
+{
+    private T low;
+
+    public Sorted(T a)
+    {
+        this.low = a;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var sorted = new Sorted<Score>(new Score(9));
+        Console.WriteLine("ok");
+    }
+}
+```
+
+Observed: `error MIST_PA_CONSTRAINT_NOT_SATISFIED: Type argument 'Score' does not satisfy the 'IRank<T>' constraint on type parameter 'T'.` Expected: admitted, printing `ok`. Check classic's verdict before deciding; its runtime behaviour is the contract, not its code.
+
+**Root cause:** `Judge` in `Source/Mist/ProgramAnalysis/Rules/ConstraintAnalyzer.cs` calls `ConversionClassifier.Classify(argument, typed.ConstraintType, ...)` without substituting the closing's type arguments into the constraint type.
+
+**Action:**
+1. Substitute the declaration's type parameters by the closing's arguments (`TypeSubstitution`) before classifying. `TypeArgumentClosing` and `ConstructorConstraintClosures` record which declaration's parameters a closing closes.
+2. Prove it at Tier 3 beside the existing constraint analysis tests (grep `Test/` for `ConstraintNotSatisfied`): an F-bounded admit, and a refusal where the argument implements the abstract over a different type. Mutation-check both.
+3. Record evidence in `backlog/analysis-v2-capability-progression.yaml`, order 6 (declaration-shape checks).
+
+---
+
+## 🟡 A constraint error anywhere becomes the reason every clonable newtype cast is refused
+
+**Severity: medium** -- misleading extra errors. The program is already refused, but each clonable cast reports a reason that has nothing to do with it.
+
+**Observed** (2026-09-13, not yet reduced): a program held an unrelated constraint violation, `new Ranked<Score>(...)` where `Ranked<V>` is a newtype over `Sorted<V> where V : IRank<V>` (it hits the F-bounded entry above), and every cast between `Cell<int>` and its clonable newtype `IntCell` was also refused:
+
+```
+error MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD: Cannot cast 'Cell<int>' to 'IntCell'. The cast runs 'IntCell.Clone' with a 'Cell<int>' as this, and it does not hold at 'Clone': Type argument 'Score' does not satisfy the 'IRank<V>' constraint on type parameter 'V'.
+```
+
+**Root cause:** `Source/Mist/ProgramAnalysis/ProgramAnalysisRunner.cs` judges each conversion that runs a `Clone` body by running every analyzer over an `AnalysisScope` holding just that body, and `CloneConversionRefusals.Judge` takes the first error as the refusal reason. `ConstraintAnalyzer` ignores the scope and walks `context.Model.ConstructorConstraintClosures.Closings` for the whole model, so any program-wide constraint finding lands in every per-body run.
+
+**Reproduction to confirm first** (unverified; once the F-bounded entry is fixed, use an ordinary violation):
+
+```mist
+using Standard;
+
+namespace Leak;
+
+public abstract IShow
+{
+    string Show();
+}
+
+public class Plain
+{
+    public Plain()
+    {
+    }
+}
+
+public class Holder<T> where T : IShow
+{
+    public Holder()
+    {
+    }
+}
+
+public class Tiger : IClonable<Tiger>
+{
+    private int stripes;
+
+    public Tiger(int stripes)
+    {
+        this.stripes = stripes;
+    }
+
+    public owned Tiger Clone()
+    {
+        return new Tiger(stripes);
+    }
+}
+
+public type Jaguar = new Tiger;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var bad = new Holder<Plain>();
+        var jaguar = (Jaguar)new Tiger(3);
+    }
+}
+```
+
+Expected: one `MIST_PA_CONSTRAINT_NOT_SATISFIED` on the `Holder<Plain>` line and nothing at the cast.
+
+**Action:**
+1. Make the program-wide analyzers honour the analysis scope, or filter the per-conversion findings to diagnostics located inside the conversion body's syntax. Audit every analyzer in `ProgramAnalysisRunner.Analyzers` for the same shape.
+2. Prove it in `Test/Mist.Tests/ProgramAnalysis/ClonableNewtypeConversionDecisionTests.cs` with an admit test whose program also holds an unrelated error, and mutation-check it.
+3. Record evidence in the `newtype-declarations` entry (order 86) of `backlog/emitter-v2-capability-progression.yaml`, inside its `evidence: >` block.

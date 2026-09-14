@@ -546,7 +546,7 @@ rules:
       long constant, a refinement over byte), OverloadSelectionTests rows for `(sbyte)2` and `(byte)2` choosing
       among Take(sbyte) and Take(byte), and three corpus cases: constant-narrowing now `(byte)300`, and new
       negative-constant-to-an-unsigned-type and integral-narrowing-of-a-variable. The admit mutated away on a
-      confirmed build fails the five admits.
+      confirmed build fails the five admits. Full suite green on the branch, 6177 of 6177.
     tasks:
       - >
         Order 5 is where the classification gets its other customers: assignment, argument, return, arm
@@ -694,7 +694,7 @@ rules:
       PROVED BY an AssignabilityDecisionTests theory of seven admits (four optionals, a union with string, an
       argument, an assignment after void), OverloadSelectionTests rows for Pick(2) and Wide(2) choosing byte?,
       a CastDecisionTests row for `(byte?)2`, and the corpus case constant-out-of-range-into-an-optional.
-      Mutating the union branch away on a confirmed build fails all ten rows.
+      Mutating the union branch away on a confirmed build fails all ten rows. Full suite green, 6177 of 6177.
     tasks:
       - >
         A value that could enter a union through two constituents neither containing the other is emitted

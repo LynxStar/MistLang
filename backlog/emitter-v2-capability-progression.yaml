@@ -430,7 +430,8 @@ capabilities:
       comparison over a sum, and three left as written) and an IntrinsicCloneEmissionTests fact over a byte
       and an sbyte clone. Three mutations on confirmed builds: nothing promoted fails eight tests, the
       clone spelled by its own type rather than its source fails the clone fact, and the binary case removed
-      fails six.
+      fails six. Full suite green, 6177 of 6177, and SnippetEmitter changed no snippet by this (8 stale tabs
+      from earlier cast spelling changes regenerated, 360 unchanged, 0 failed).
     tasks:
       - >
         A coalescing operand of a binary expression loses its parentheses, silently. Measured 2026-09-14:

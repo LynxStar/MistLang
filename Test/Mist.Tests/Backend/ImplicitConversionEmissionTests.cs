@@ -1,7 +1,7 @@
 // Tier 3 (Component): how an implicit conversion is spelled in C#, over the real Standard sources. Asserted on
 // the emitted text because each shape here compiled to a Roslyn error when the operand was written bare -- C#
-// refused the signed choice as ambiguous, would not apply a declared operator beside a second user-defined
-// one, and has no conversion from Regex to string at all. No sample can hold them: the baseline is shared
+// has no implicit conversion from an enum to its value, would not apply a declared operator beside a second
+// user-defined one, and has no conversion from Regex to string at all. No sample can hold them: the baseline is shared
 // with classic, which cannot declare the first or run the rest. No Roslyn compile and no process spawning.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
@@ -31,28 +31,28 @@ public sealed class ImplicitConversionEmissionTests
             public static implicit operator Position(Beacon b) { return (Position)new Point(2); }
         }
 
-        public class Gauge
+        public enum Priority : int { Low = 1, High = 6 }
+
+        public class Level
         {
-            public Gauge() { }
+            public Level() { }
 
-            public static implicit operator Gauge(uint reading) { return new Gauge(); }
+            public static implicit operator Level(int value) { return new Level(); }
 
-            public static implicit operator Gauge(short reading) { return new Gauge(); }
-
-            public static int operator +(Gauge a, Gauge b) { return 1; }
+            public static int operator +(Level a, Level b) { return 1; }
         }
 
         public class Panel
         {
-            public static Gauge Kept = Panel.Small();
+            public static Level Kept = Panel.Current();
 
-            public Gauge Needle { get; set; }
+            public Level Needle { get; set; }
 
-            public Panel() { this.Needle = new Gauge(); }
+            public Panel() { this.Needle = new Level(); }
 
-            public static byte Small() { return 2; }
+            public static Priority Current() { return Priority.High; }
 
-            public int this[Gauge g] { get { return 1; } }
+            public int this[Level l] { get { return 1; } }
         }
 
         public class Tally
@@ -92,28 +92,28 @@ public sealed class ImplicitConversionEmissionTests
         """;
 
     [Fact]
-    public void AnOperandReachingTheParameterByAWidening_IsCastToTheParameterFirst()
+    public void AnOperandReachingTheParameterByALosslessStep_IsCastToTheParameterFirst()
     {
-        Assert.Contains("Probe.Gauge g = ((Probe.Gauge)((short)(small)));", Emit("byte small = 2; Gauge g = small;"), StringComparison.Ordinal);
+        Assert.Contains("Probe.Level level = ((Probe.Level)((int)(priority)));", Emit("Priority priority = Priority.High; Level level = priority;"), StringComparison.Ordinal);
     }
 
     [Theory]
-    [InlineData("Gauge[] gauges = [small];")]
-    [InlineData("(Gauge, int) pair = (small, 1);")]
-    [InlineData("Gauge? maybe = void; Gauge fallback = maybe ?? small;")]
-    [InlineData("bool flag = true; Gauge chosen = flag switch { true => small, false => small };")]
-    [InlineData("var panel = new Panel { Needle = small };")]
-    [InlineData("var panel = new Panel(); var read = panel[small];")]
-    [InlineData("var total = new Gauge() + small;")]
+    [InlineData("Level[] levels = [priority];")]
+    [InlineData("(Level, int) pair = (priority, 1);")]
+    [InlineData("Level? maybe = void; Level fallback = maybe ?? priority;")]
+    [InlineData("bool flag = true; Level chosen = flag switch { true => priority, false => priority };")]
+    [InlineData("var panel = new Panel { Needle = priority };")]
+    [InlineData("var panel = new Panel(); var read = panel[priority];")]
+    [InlineData("var total = new Level() + priority;")]
     public void AtAPositionWithItsOwnEmissionPath_TheOperandIsStillCastToTheParameter(string statement)
     {
-        Assert.Contains("((Probe.Gauge)((short)(small)))", Emit("byte small = 2; " + statement), StringComparison.Ordinal);
+        Assert.Contains("((Probe.Level)((int)(priority)))", Emit("Priority priority = Priority.High; " + statement), StringComparison.Ordinal);
     }
 
     [Fact]
     public void ALambdaResult_IsCastToTheParameter()
     {
-        Assert.Contains("((Probe.Gauge)((short)(b)))", Emit("func<byte, Gauge> convert = b => b;"), StringComparison.Ordinal);
+        Assert.Contains("((Probe.Level)((int)(p)))", Emit("func<Priority, Level> convert = p => p;"), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public sealed class ImplicitConversionEmissionTests
         TypeEmitter.EmitTypeBody(
             Assert.IsType<ClassType>(model.TypesByFQN["Probe.Panel"]), ConstraintClosureMap.Build(model, diagnostics), model.VariadicUses, writer, diagnostics);
 
-        Assert.Contains("((Probe.Gauge)((short)(Probe.Panel.Small())))", writer.ToString(), StringComparison.Ordinal);
+        Assert.Contains("((Probe.Level)((int)(Probe.Panel.Current())))", writer.ToString(), StringComparison.Ordinal);
     }
 
     [Theory]

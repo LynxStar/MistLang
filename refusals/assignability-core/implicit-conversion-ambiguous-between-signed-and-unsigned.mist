@@ -1,0 +1,27 @@
+using Standard;
+
+namespace Refusal;
+
+public class Gauge
+{
+    public static implicit operator Gauge(uint reading)
+    {
+        return new Gauge();
+    }
+
+    public static implicit operator Gauge(short reading)
+    {
+        return new Gauge();
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        byte small = 2;
+        // REFUSE: MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION
+        Gauge converted = small;
+        Console.WriteLine("unreachable");
+    }
+}

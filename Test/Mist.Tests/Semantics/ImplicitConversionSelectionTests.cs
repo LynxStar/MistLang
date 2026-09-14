@@ -176,9 +176,17 @@ public sealed class ImplicitConversionSelectionTests : ProgramModelProbe
     }
 
     [Fact]
-    public void BetweenIntegralParametersNeitherContaining_TheConversionCallsTheSignedOne()
+    public void BetweenIntegralParametersNeitherContaining_TheConversionTies()
     {
-        Assert.Equal(WellKnownTypes.Int16.FullyQualifiedName, Conversion("Gauge g = small;").ParameterType?.FullyQualifiedName);
+        Assert.Equal(2, Conversion("Gauge g = small;").AmbiguousOperators.Count);
+    }
+
+    [Theory]
+    [InlineData("Gauge g = (short)small;", "Standard.Int16")]
+    [InlineData("Gauge g = (uint)small;", "Standard.UInt32")]
+    public void ACastToOneParameterType_ChoosesThatOperator(string statement, string expectedParameterType)
+    {
+        Assert.Equal(expectedParameterType, Conversion(statement).ParameterType?.FullyQualifiedName);
     }
 
     [Fact]

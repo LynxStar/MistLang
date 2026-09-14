@@ -318,11 +318,13 @@ public sealed class CastSelectionTests : ProgramModelProbe
         Assert.Equal(expectedParameterType, cast.Operator?.SourceParameter.Type.FullyQualifiedName);
     }
 
-    [Fact]
-    public void BetweenIntegralParametersNeitherContaining_TheCastCallsTheSignedOne()
+    [Theory]
+    [InlineData("var g = (Gauge)small;", null)]
+    [InlineData("var g = (Gauge)(short)small;", "Standard.Int16")]
+    public void BetweenIntegralParametersNeitherContaining_TheCastTiesUntilTheOperandChooses(string statement, string? expectedParameterType)
     {
         var cast = SingleCast(
-            "var g = (Gauge)small;",
+            statement,
             extraTypes: """
                 public class Gauge
                 {
@@ -335,7 +337,8 @@ public sealed class CastSelectionTests : ProgramModelProbe
                 """,
             extraPreamble: "byte small = 2;");
 
-        Assert.Equal("Standard.Int16", cast.Operator?.SourceParameter.Type.FullyQualifiedName);
+        Assert.Equal(expectedParameterType, cast.Operator?.SourceParameter.Type.FullyQualifiedName);
+        Assert.Equal(expectedParameterType is null ? 2 : 0, cast.AmbiguousOperators.Count);
     }
 
     [Fact]

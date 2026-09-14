@@ -308,12 +308,21 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("var chosen = Signs.Take(small);", "Standard.Int16")]
+    [InlineData("var chosen = Signs.Take(small);")]
+    [InlineData("var chosen = WideSigns.Take(mid);")]
+    [InlineData("var chosen = ConstantSigns.Take(2);")]
+    public void BetweenIntegralParametersNeitherContaining_NeitherIsPreferred(string statement)
+    {
+        _ = Assert.Single(Errors(BuildRun(statement, SignTypes, "byte small = 2; ushort mid = 3;"), AmbiguousId));
+    }
+
+    [Theory]
     [InlineData("var chosen = Signs.Take(mid);", "Standard.UInt32")]
-    [InlineData("var chosen = WideSigns.Take(mid);", "Standard.Int64")]
-    [InlineData("var chosen = ConstantSigns.Take(2);", "Standard.SByte")]
     [InlineData("var chosen = ConstantSigns.Take(200);", "Standard.Byte")]
-    public void BetweenIntegralParametersNeitherContaining_TheSignedOneWins(string statement, string expectedParameterType)
+    [InlineData("var chosen = Signs.Take((short)small);", "Standard.Int16")]
+    [InlineData("var chosen = Signs.Take((uint)small);", "Standard.UInt32")]
+    [InlineData("sbyte signedTwo = 2; var chosen = ConstantSigns.Take(signedTwo);", "Standard.SByte")]
+    public void BetweenIntegralParametersNeitherContaining_OneTheArgumentAloneReachesIsChosen(string statement, string expectedParameterType)
     {
         var invocation = SingleInvocation(statement, SignTypes, "byte small = 2; ushort mid = 3;");
 

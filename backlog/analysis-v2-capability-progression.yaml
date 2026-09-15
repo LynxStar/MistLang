@@ -903,6 +903,14 @@ rules:
         `string s = t[1]` over `int this[int i]` and `string this[int j]` is NO_IMPLICIT_CONVERSION on v2,
         beside classic's two TC_0029 and a TC_0001.
       - >
+        A refinement whose base is a type parameter is not substituted, so a valid call through a closed
+        receiver is refused. Measured 2026-09-15 over `Keyed<K>` declaring `Ne(K key) where key not 18`:
+        `new Keyed<int>().Ne(3)` is MIST_PA_NO_IMPLICIT_CONVERSION ("'int' to 'K'") on v2 and prints 2 on
+        classic. TypeSubstitution descends through constructions, unions, tuples and function types but not
+        a RefinedType, which is emitter order 85's residue. Order 6 refuses the relational form of the same
+        declaration (MIST_PA_REFINEMENT_NOT_COMPARABLE) and silences its uses; an equality predicate is valid
+        and still reaches this.
+      - >
         A collection-initializer element is not judged against the Add overload the binder selected.
       - >
         An index into an intrinsic indexer is not judged, since the model records no Indexer or slot for
@@ -1031,6 +1039,90 @@ rules:
       (MIST_PM_OPERATOR_MUST_BE_STATIC): the binder needs it to scope the body. Five corpus cases; a
       complete operator set, scalar-left `*` and unary `-` included, is a fixture under analysis in every
       decision row.
+
+      A RELATIONAL REFINEMENT ON A TYPE WITH NO ORDER, since 2026-09-15: MIST_PA_REFINEMENT_NOT_COMPARABLE,
+      reported at the predicate's first relational pattern. MEASURED at 7f3f6bb4 on both pipelines, one
+      project per topic so that no stage-gated error could hide a verdict; v2 refused none of it. A RELATIONAL
+      `where` is MIST_REFINEMENT_0007 on classic, printed with both placeholders unfilled, over: an
+      unconstrained `K` at a method, a static method, an indexer and a constructor of `Keyed<K>`; `K : struct`;
+      `K` under a declared abstract; a method's own `T`; bool (`>= 0`, `> true`); string (`>= 3`, `> "a"`); a
+      struct with no operators; a struct declaring `<`, `>`, `<=` and `>=`; `int?`; `int | long`; an enum
+      (`>= Color.Green`, `>= 2`); an abstract slot's parameter; an extension method's parameter; `not >= 3` on
+      string; `true and >= 0` on bool; a `where` over a named refinement, `Aged(Adult a) where a >= 30`; and a
+      dependent `Flag:bool` on a class. Classic ADMITS `(> 1 or < 0)` on bool, a dependent `Flag:bool` on a
+      method, and a `where` on an `unknown` parameter. `K : IComparable<K>` under `using System` cannot be
+      measured on classic, which fails to resolve IComparable (MIST_CONSTRAINT_0008); v2 admitted it. A NAMED
+      refinement is MIST_TC_0072 on classic ("not valid for base type") over bool, string, both structs, an
+      enum, `unknown`, `type Min<K> = K >= 18`, `type Adult = K >= 18` nested in `Keyed<K>`, and the string
+      constituent of `int >= 0 | string > "a"`. Classic admits `type Senior = Adult >= 65`, and `Tagged {
+      Name: > "m" }` over a readonly string member. `==` and `!=` are not predicates: `where key == 18` is
+      MIST_PARSE_INCOMPLETE on both, because the grammar's `where` takes a pattern. Equality is the constant
+      pattern, and both pipelines admit it over K, bool and string: `where key 18`, `where key not 18`, `where
+      flag true`, `where s not ""`, `type Yes = bool true`.
+
+      EVERY USE WAS A SECOND COMPLAINT ON v2. `Keyed<byte>.At(b)` and `k[b]` with a byte local, and
+      `Keyed<int>`'s `i[20]`, were MIST_PA_NO_IMPLICIT_CONVERSION into 'K', and `Min<byte> m = b` into 'Min',
+      because substitution does not reach a refinement's base (emitter order 85's residue). The prover read a
+      truth as an integer: `Take(true)` over `where flag > true` was CONSTRAINT_VIOLATED against '>= 2', and
+      `(> 1 or < 0)` read as '<= -1 or >= 2'. `Flag f = true` over `type Flag = bool > true` was
+      REFINEMENT_VIOLATED and a bool local UNPROVEN. A string local over `>= 3`, and a Point or Meters local,
+      were UNPROVEN. `Some s = 1` over `unknown >= 3` was VIOLATED, and so was `Take(-1)` over the `int?`. `b is
+      Flag` was MIST_PA_PATTERN_NOT_COMPARABLE at the alias, order 8 walking the alias's predicate.
+
+      THE RULE. PatternAnalyzer.IsComparable moved, unchanged, to Comparability.Supports, which both rules
+      ask, so a pattern and a refinement cannot disagree about a type: a primitive numeric, a char, or a
+      refinement or enum over one. Comparability.Misordered finds a relational comparison whose own scrutinee
+      Supports refuses. It looks through `and`, `or` and `not`, not into a property subpattern, and never at a
+      scrutinee that is already an ErrorType. DeclarationShapeAnalyzer asks it of each predicate
+      PredicateBinder binds: every constituent of an alias; every dependent parameter of a type or of a method,
+      operator, constructor or cast operator; and every parameter of those, and of an indexer, whose type is an
+      ANONYMOUS refinement. A parameter typed by a named refinement is the alias's to answer. One report per
+      predicate, however many of its conjuncts order. THE USES STAY SILENT by asking the same question in each
+      reader that complained. Requirement.Of reads a misordered comparison as nothing it can decide, which
+      silences the prover, the strengthening check and dependent closings. Assignability admits any value into
+      a refused refinement. PatternAnalyzer does not walk a refused refinement under a type test.
+
+      DECISIONS, each against classic's verdict where they differ. AN ENUM IS ADMITTED, as a `where` and as a
+      named refinement, because Comparability orders an enum for order 8's patterns, as C# does; classic
+      refuses both. The prover cannot read an enum bound, so nothing proves one (task on order 12). A `where`
+      over a named refinement of an ordered type is admitted and proven, `Aged(40)` included. `(> 1 or < 0)`
+      on bool and a dependent `Flag:bool` on a method are refused, stricter than classic: adhoc-refinement-
+      constraints Req 11.1 and 11.2 name the type, not the combinator or the member declaring it. `int?` and
+      `int | long` are refused, as classic refuses them. refinement-types' "refinements apply to the
+      non-nullable base type" reads as refining the base and making it optional outside, and under `int? >=
+      0` a null argument could never satisfy the predicate. `K : IComparable<K>` is refused, because a
+      relational pattern calls no CompareTo and no constraint orders a type parameter. `unknown` is refused at
+      a `where`, as classic refuses it at an alias. A property subpattern ordering a string member is admitted
+      at the declaration, as classic admits it; order 8 refuses it at the first `is` against the alias, and
+      reports it at the alias. A dependent `Label:string` with a relational `where` reports MIST_DT_0001 and
+      this rule: one complaint for each clause.
+
+      AFTER: each refused probe reports this rule once per predicate and nothing at its uses. `Keyed<int>.Ne(3)`
+      over `where key not 18` is still NO_IMPLICIT_CONVERSION (task on order 5), and the enum and extension
+      probes run as before (tasks on order 12). PROVED BY fifteen corpus cases, one per refused shape, each
+      carrying the uses that complained: a type parameter at a method and at an indexer, a string at a
+      constructor, a bool at an abstract slot, both structs (the first through `and`), `int?`, bool through
+      `or`, string through `not`, the bool, generic, unknown and union-constituent aliases (the bool alias with
+      a parameter typed by it), and a dependent bool on a class and on a method. DeclarationShapeDecisionTests
+      gains fixtures under analysis in every row: ordered `where`s over byte, ulong, decimal, double, char, an
+      enum and a named refinement; an indexer's `where`; constant and `not` predicates over K, bool and string;
+      `Senior`, `Letter`, `Ratio`, `Warm`, `Yes`, `NonEmpty` and `Late`; and dependent `N:int` and `F:bool`
+      with constant predicates. Ten rows meet them, and one row's `where` names a type that did not resolve.
+      Twenty mutations on a confirmed build, all caught. The rule silenced failed all fifteen cases, two
+      reaching Roslyn. A type parameter counted as ordered failed the two type-parameter cases and the generic
+      alias, their uses complaining into 'K' and 'Min' again. An enum not ordered failed every row, through the
+      enum fixtures. A refinement's base not looked through failed every row and the existing
+      narrowed-binding-not-implied case, through the pattern rule. Equality refused failed every row and the
+      existing bool-literal-violates-refinement. An ErrorType scrutinee judged failed the unresolved row alone.
+      `and`, `or` and `not` not walked each failed its own case. Union constituents not walked failed the
+      union-constituent case, and aliases not walked failed all four alias cases. A type's and a method's
+      dependent parameters not walked each failed its own case. Method parameters not walked failed seven
+      cases; constructor parameters and indexer parameters each failed one. A parameter typed by a named
+      refinement judged again failed the bool alias case. Removing the three silences in turn --
+      Assignability's, the prover's, the pattern rule's -- failed the three type-parameter and generic cases,
+      eight cases with uses, and the bool alias's type test. The full suite -- 6246, 664 and 68 tests,
+      AllFeaturesV2's baseline among them -- passed with no failure and no rerun, and the build and `dotnet
+      format` were clean.
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
@@ -1054,14 +1146,6 @@ rules:
         A top-level type declared `private` or `protected` is not refused here; since emitter order 40
         spells every level, Roslyn refuses it as CS1527, which is what classic does with it too. The
         frontend owning the rule is a decision.
-      - >
-        A relational `where` over a parameter whose type does not support comparison is not refused.
-        Measured 2026-09-15 over `class Keyed<K>`, with K unconstrained: classic reports
-        MIST_REFINEMENT_0007 for `public int this[K key] where key >= 18` and for `public int At(K key)
-        where key >= 18`. v2 reports nothing at either declaration. Every use then reports
-        MIST_PA_NO_IMPLICIT_CONVERSION ("Cannot implicitly convert type 'int' to 'K'"), even
-        `Keyed<byte>` given a byte local, because substitution does not reach a refinement whose base is
-        the type parameter. Refusing the declaration makes that second complaint unreachable.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance
@@ -1869,4 +1953,16 @@ rules:
       - >
         A refined return through a lambda, an `async` result, or a `switch` arm is judged where the
         binder recorded a target; a refined field initialiser is judged as a declaration is.
+      - >
+        An enum refinement is admitted and never proven. Measured 2026-09-15 over `type Warm = Color >=
+        Color.Green` and `Take(Color c) where c >= Color.Green`: `Warm w = Color.Red` and `Take(Color.Red)`
+        both run on v2, because Requirement reads an enum variant bound as nothing it can decide. Classic
+        refuses both declarations (MIST_TC_0072, MIST_REFINEMENT_0007). v2 admits them because Comparability
+        orders an enum, as order 8's patterns and C# do (order 6's 2026-09-15 paragraph).
+      - >
+        An extension method's `where` is neither judged at its declaration nor proven at a call. Measured
+        2026-09-15: `"s".Wide(1)` over `extension(string self)`'s `Wide(int other) where other >= 3`
+        prints 1 on both pipelines, and `Wide(bool other) where other >= 3` is MIST_REFINEMENT_0007 on
+        classic and silent on v2. PredicateBinder finds predicates by walking types, and an extension block
+        is not one, so its predicate is never bound for order 6 or this order to read.
 

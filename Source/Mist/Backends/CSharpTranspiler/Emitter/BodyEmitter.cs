@@ -22,11 +22,17 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class BodyEmitter
 {
-    private const int RelationalPrecedence = 4;
+    private const int AssignmentPrecedence = 0;
 
-    private const int PrefixPrecedence = 7;
+    private const int CoalescePrecedence = 1;
 
-    private const int PostfixPrecedence = 8;
+    private const int RelationalPrecedence = 5;
+
+    private const int SwitchPrecedence = 8;
+
+    private const int PrefixPrecedence = 9;
+
+    private const int PostfixPrecedence = 10;
 
     private const int DisjunctionPrecedence = 1;
 
@@ -902,9 +908,9 @@ internal static class BodyEmitter
                 break;
 
             case CoalesceExpression coalesce:
-                EmitExpression(coalesce.Left, writer, diagnostics);
+                EmitSubExpression(coalesce.Left, CoalescePrecedence + 1, writer, diagnostics);
                 writer.Append(" ?? ");
-                EmitExpression(coalesce.Right, writer, diagnostics);
+                EmitSubExpression(coalesce.Right, CoalescePrecedence, writer, diagnostics);
                 break;
 
             case BinaryExpression binary
@@ -915,21 +921,23 @@ internal static class BodyEmitter
                     Render(binary.Right, diagnostics)));
                 break;
 
+            // Every binary operator Mist has is left-associative, so a right operand of the same precedence is
+            // one the source parenthesized: `a - (b - c)` written bare is `(a - b) - c`.
             case BinaryExpression binary when NarrowArithmetic.Promotes(binary.Type):
                 writer.Append(NarrowArithmetic.Spell(
                     binary.Type,
-                    $"{RenderSubExpression(binary.Left, GetPrecedence(binary.OperatorKind), diagnostics)} {MapBinaryOperator(binary.OperatorKind)} {RenderSubExpression(binary.Right, GetPrecedence(binary.OperatorKind), diagnostics)}"));
+                    $"{RenderAt(binary.Left, GetPrecedence(binary.OperatorKind), diagnostics)} {MapBinaryOperator(binary.OperatorKind)} {RenderAt(binary.Right, GetPrecedence(binary.OperatorKind) + 1, diagnostics)}"));
                 break;
 
             case BinaryExpression binary:
                 EmitSubExpression(binary.Left, GetPrecedence(binary.OperatorKind), writer, diagnostics);
                 writer.Append($" {MapBinaryOperator(binary.OperatorKind)} ");
-                EmitSubExpression(binary.Right, GetPrecedence(binary.OperatorKind), writer, diagnostics);
+                EmitSubExpression(binary.Right, GetPrecedence(binary.OperatorKind) + 1, writer, diagnostics);
                 break;
 
             case UnaryExpression unary when NarrowArithmetic.Promotes(unary.Type):
                 writer.Append(NarrowArithmetic.Spell(
-                    unary.Type, $"{MapUnaryOperator(unary.OperatorKind)}{RenderSubExpression(unary.Operand, PrefixPrecedence, diagnostics)}"));
+                    unary.Type, $"{MapUnaryOperator(unary.OperatorKind)}{RenderAt(unary.Operand, PrefixPrecedence, diagnostics)}"));
                 break;
 
             case UnaryExpression unary:
@@ -1488,7 +1496,7 @@ internal static class BodyEmitter
             : null
             ;
 
-        EmitExpression(switchExpression.Scrutinee, writer, diagnostics);
+        EmitSubExpression(switchExpression.Scrutinee, SwitchPrecedence + 1, writer, diagnostics);
         writer.Append(" switch { ");
 
         EmitList.Separated(switchExpression.Arms, ", ", writer, arm =>
@@ -1600,7 +1608,7 @@ internal static class BodyEmitter
         if(asExpression.Kind is AsConversionKind.Widening)
         {
             writer.Append($"(({target})");
-            EmitExpression(asExpression.Operand, writer, diagnostics);
+            EmitSubExpression(asExpression.Operand, PrefixPrecedence, writer, diagnostics);
             writer.Append(")");
             return;
         }
@@ -2513,21 +2521,19 @@ internal static class BodyEmitter
         EmitExpression(child, writer, diagnostics);
     }
 
-    private static string RenderSubExpression(Expression child, int operatorPrecedence, DiagnosticBag diagnostics)
-    {
-        var scratch = new CSharpWriter();
-        EmitSubExpression(child, operatorPrecedence, scratch, diagnostics);
-        return scratch.ToString();
-    }
-
     private static int GetPrecedence(Expression expression)
     {
         return expression switch
         {
+            BinaryExpression or UnaryExpression when NarrowArithmetic.Promotes(expression.Type) => int.MaxValue,
             BinaryExpression binary => GetPrecedence(binary.OperatorKind),
             UnaryExpression => PrefixPrecedence,
             InvocationExpression drop when TaskResult.Dropped(drop) is not null => PrefixPrecedence,
             IsPatternExpression => RelationalPrecedence,
+            AsExpression { Kind: AsConversionKind.Identity } identity => GetPrecedence(identity.Operand),
+            SwitchExpression => SwitchPrecedence,
+            CoalesceExpression => CoalescePrecedence,
+            AssignmentExpression => AssignmentPrecedence,
             _ => int.MaxValue,
         };
     }
@@ -2536,15 +2542,15 @@ internal static class BodyEmitter
     {
         return kind switch
         {
-            BinaryOperatorKind.LogicalOr => 1,
-            BinaryOperatorKind.LogicalAnd => 2,
-            BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual => 3,
+            BinaryOperatorKind.LogicalOr => 2,
+            BinaryOperatorKind.LogicalAnd => 3,
+            BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual => 4,
             BinaryOperatorKind.LessThan or BinaryOperatorKind.GreaterThan or
             BinaryOperatorKind.LessThanOrEqual or BinaryOperatorKind.GreaterThanOrEqual => RelationalPrecedence,
             BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or
-            BinaryOperatorKind.Concatenate => 5,
+            BinaryOperatorKind.Concatenate => 6,
             BinaryOperatorKind.Multiply or BinaryOperatorKind.Divide or
-            BinaryOperatorKind.Modulo => 6,
+            BinaryOperatorKind.Modulo => 7,
             _ => 0,
         };
     }

@@ -432,13 +432,44 @@ capabilities:
       clone spelled by its own type rather than its source fails the clone fact, and the binary case removed
       fails six. Full suite green, 6177 of 6177, and SnippetEmitter changed no snippet by this (8 stale tabs
       from earlier cast spelling changes regenerated, 360 unchanged, 0 failed).
-    tasks:
-      - >
-        A coalescing operand of a binary expression loses its parentheses, silently. Measured 2026-09-14:
-        `int? maybe = 250; int b = 10; int c = (maybe ?? b) + b;` prints 250 on v2 and 260 on classic, the
-        emitted C# being `maybe ?? b + b`. GetPrecedence has no row for a CoalesceExpression, so
-        EmitSubExpression never parenthesizes one; the byte form, `((byte)(maybe ?? b + b))`, is the same
-        defect.
+
+      AN OPERAND KEEPS THE PARENTHESES ITS POSITION NEEDS (2026-09-14), closing the task that said a
+      coalescing operand lost them. Parentheses written in source reach the model as nothing, so
+      EmitSubExpression puts them back wherever an operand binds more loosely than its position in C#, and
+      it asked GetPrecedence, which knew binary, unary, `is` and a dropped task and called everything else
+      an atom. The probe for the named defect found six more, most of them compiling and printing a
+      different value. The scale now has C#'s levels for the kinds Mist emits bare -- assignment, then
+      `??`, below `||`; a switch expression between multiplicative and prefix; an identity `as` taking its
+      operand's own level; a byte, sbyte, short or ushort operation an atom, being spelled as a cast --
+      and four sites stop writing an operand bare: a right operand of a binary asks one level tighter,
+      since every binary operator Mist has is left-associative; `??` asks its own level of its right
+      operand and one tighter of its left; a switch asks one tighter than itself of its scrutinee; and an
+      `as` widening asks a cast's operand level.
+      MEASURED on v2 before and after, one project per probe, against classic. Coalescing operands: `(maybe
+      ?? b) + b` with 250 and 10 printed 250, classic 260, now 260; `b + (maybe ?? b)` over void printed 10
+      for 20; `-(maybe ?? b)` 10 for -10; `!(flag ?? false)` over void False for True; `(flag ?? false) ||
+      true` over false False for True; `(text ?? "abc").ToUpper()` over "xyz" printed xyz for XYZ;
+      `((maybe ?? b) as int) + b` 250 for 260; `(maybe ?? b) > 5`, `(maybe ?? b) is 10`, `(text ??
+      "abc").Length`, `(xs ?? ys)[0]` and `arr[(m ?? 0)..]` failed in Roslyn where classic prints True, True,
+      3, 7 and 3. Right operands: `a - (b - c)` with 10, 3 and 2 printed 5 for 9, and `a / (b / c)` with 12,
+      6 and 2 printed 1 for 4. `(a + b) switch { 3 => "three", _ => "other" }` printed 1other for three,
+      `-(x switch { 1 => 5, _ => 6 })` 6 for -5, and `int c = (a = 5) + 1;` left a at 6 where classic has 5.
+      All now print classic's value. Two v2-only shapes, classic refusing the program: `"n=" + (a + b)`
+      printed n=12 and now n=3 (the concatenation is analysis order 9's recorded divergence), and `(big +
+      big) as long` over 2000000000 printed 4000000000, the widening applied before the sum, and now
+      -294967296 (classic MIST_TC_0160). Unchanged and still bare: `a - b - c`, `a + b * c`, `maybe ?? b`,
+      and `(x switch { ... }) * 2`, which C# already reads as written and printed 10 on both.
+      NOT REACHED: a lambda as an operand -- `f ?? (y => y + 1)` does not parse on either pipeline and
+      `(y => y + 1)(1)` is refused on both (MIST_PM_LAMBDA_PARAMETER_NO_TYPE, MIST_TC_0116) -- and `??=` as
+      an operand, refused as a statement on both.
+      PROVED BY OperandParenthesesEmissionTests (nine coalescing operands, three right operands, six looser
+      operands including `maybe ?? (a = 5)` and `(maybe = other) ?? 9`, four left bare) and a
+      NarrowArithmeticEmissionTests row where a declared `byte operator -` over a sum keeps its right
+      operand's parentheses inside the cast. Ten mutations on confirmed builds each fail at least one test:
+      no coalescing row (nine), right operands at the operator's own level (three), no switch row, the
+      scrutinee bare, assignment as an atom (three), no identity-`as` row, the widening operand bare, the
+      coalescing operands bare (two), a narrow operation not an atom, and the narrow case's right operand at
+      the operator's own level. Full suite green, 6200 of 6200; SnippetEmitter 0 updated, 368 unchanged.
     analysis_phase_tasks:
       - >
         Report a comparison whose operands have no operator that admits them, rather than typing the
@@ -5420,6 +5451,12 @@ capabilities:
       Emission writes one line, matching how array literals emit rather than introducing a second
       multi-line-expression style. Exercised in every position that matters -- initializer, argument,
       interpolation hole, a target-typed local, and an arm result that is itself a switch expression.
+    tasks:
+      - >
+        A member read off a parenthesized switch expression binds against the scrutinee's type. Measured
+        2026-09-14: `int x = 1; int n = (x switch { 1 => "five", _ => "six" }).Length;` is
+        MIST_PM_UNRESOLVED_MEMBER "'Int32' has no member named 'Length'" beside a NO_IMPLICIT_CONVERSION on
+        v2, and prints 4 on classic.
     analysis_phase_tasks:
       - >
         Report an arm whose result type cannot convert to the target type. Construction accepts it on the

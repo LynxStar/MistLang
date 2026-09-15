@@ -326,6 +326,8 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("Small g = Giver.Give();", "public class Giver { public static Small Give() { return 300; } }")]
     [InlineData("var c = new Crate(300);", "public class Crate { public Crate(Small s) { } }")]
     [InlineData("var c = new Crate();", "public class Crate { public Crate(Small s) { } public Crate() : this(300) { } }")]
+    [InlineData("var shelf = new Shelf(); int r = shelf[300];", "public class Shelf { public int this[byte slot] where slot <= 10 { get { return slot; } } }")]
+    [InlineData("var shelf = new Shelf(); int r = shelf[x];", "public class Shelf { public int this[byte slot] where slot <= 10 { get { return slot; } } }")]
     public void AValueAssignabilityRefuses_IsLeftToAssignability(string statement, string extraTypes)
     {
         AssertSilent(statement, extraTypes);

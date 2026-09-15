@@ -146,6 +146,7 @@ internal static class PostfixBinder
                         suffix, receiver, ImplicitConversions.AtParameters([index], method: null, parameterTypes, interner)[0], resultType)
                     {
                         Indexer = indexer,
+                        ParameterType = parameterTypes is [var slot] && !Indexability.IsIndex(index.Type) ? slot : null,
                     };
                 }
 

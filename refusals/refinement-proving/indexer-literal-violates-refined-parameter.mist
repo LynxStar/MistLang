@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+type SmallAdult = byte >= 18;
+
+public class Shelf
+{
+    public int this[SmallAdult slot]
+    {
+        get { return slot; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var shelf = new Shelf();
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        Console.WriteLine(shelf[5]);
+        Console.WriteLine("unreachable");
+    }
+}

@@ -16,7 +16,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// target type to, and reported at the value, since the value is what has to change. An argument is
 /// judged only where it pairs with a parameter by position: not across a flattened pack slot, which
 /// absorbs several, and not on a CLR-projected member, whose optional parameters the model does not
-/// represent yet, so the overload it names can be one Roslyn will not choose.
+/// represent yet, so the overload it names can be one Roslyn will not choose. An index is judged only
+/// into a type's sole indexer for the same reason: of several, the binder names the first.
 /// </summary>
 internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 {
@@ -46,6 +47,10 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 
                 case NewExpression creation:
                     CheckConstruction(context, creation);
+                    break;
+
+                case IndexExpression { ParameterType: { } parameter, Indexer: { } indexer } index when PairsWithIndex(indexer):
+                    Check(context, index.Index, parameter);
                     break;
 
                 case CoalesceExpression coalesce:
@@ -182,6 +187,11 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
     {
         return method is not null
             && (method.Modifiers.IsClrProjected || ValuePack.FlattenedSlot(method.ParametersList) is not null);
+    }
+
+    private static bool PairsWithIndex(Indexer indexer)
+    {
+        return !indexer.Modifiers.IsClrProjected && indexer.DeclaringType is { IndexersList.Count: 1 };
     }
 
     private static void CheckConstruction(AnalysisContext context, NewExpression creation)

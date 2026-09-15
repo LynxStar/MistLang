@@ -65,6 +65,28 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
             public static int Wrapped() { var t = async { return "a"; }; return 1; }
         }
 
+        public class Bytes
+        {
+            public int this[byte index] { get { return 1; } set { } }
+        }
+
+        public class Keyed<K>
+        {
+            public string this[K key] { get { return "keyed"; } }
+        }
+
+        public class Overloaded
+        {
+            public string this[int i] { get { return "int"; } }
+            public string this[string s] { get { return "string"; } }
+        }
+
+        public class Counted
+        {
+            public int Count { get { return 3; } }
+            public int this[int i] { get { return i; } }
+        }
+
         public class Counter
         {
             public Counter() { }
@@ -155,6 +177,22 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
     [InlineData("Helpers.TakeOptional(2);")]
     [InlineData("byte? later = void; later = 2;")]
     public void AnIntegerConstantIntoAUnionWithAConstituentThatHoldsIt_IsAdmitted(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Theory]
+    [InlineData("var bytes = new Bytes(); int ib = bytes[2]; bytes[3] = ib;")]
+    [InlineData("var keyed = new Keyed<byte>(); string ik = keyed[2];")]
+    public void AnIndexWithinItsIndexersParameter_IsAdmitted(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Theory]
+    [InlineData("var counted = new Counted(); int ic = counted[^1];")]
+    [InlineData("var overloaded = new Overloaded(); string io = overloaded[\"a\"];")]
+    public void AnIndexNotBoundAgainstTheIndexersParameter_IsNotJudged(string statement)
     {
         AssertSilent(statement);
     }
@@ -266,6 +304,7 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
     [InlineData("int y = \"a\";")]
     [InlineData("Helpers.TakeFn(y => { int z = \"a\"; return y; });")]
     [InlineData("var f = () => { string s = \"a\"; int z = s; return z; };")]
+    [InlineData("var bytes = new Bytes(); int r = bytes[\"a\"];")]
     public void AMismatchIsReportedOnceWhereverItSits(string statement)
     {
         _ = Assert.Single(Analyse(statement));

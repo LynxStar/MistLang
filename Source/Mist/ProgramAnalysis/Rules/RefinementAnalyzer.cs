@@ -318,11 +318,9 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return;
             }
 
-            var indexer = (receiverType is ConstructedType other ? other.Definition : receiverType) is MemberType member ? member.IndexersList.FirstOrDefault() : null;
-
-            if(indexer is { ParametersList: [var parameter] } && Requirement.OfType(parameter.Type) is { } constraint)
+            if(index is { ParameterType: { } slot, Indexer.ParametersList: [var parameter] })
             {
-                Need(state, index.Index, constraint, index.Index, onConstraint: parameter.Name);
+                Need(state, index.Index, slot, index.Index, onConstraint: parameter.Name);
             }
         }
 

@@ -23,5 +23,12 @@ internal sealed class IndexExpression(
     /// </summary>
     public Indexer? Indexer { get; init; }
 
+    /// <summary>
+    /// The type the index was bound against: <see cref="Indexer"/>'s one parameter read through the
+    /// receiver's type arguments. Null for a from-end index, which reaches the element through the
+    /// receiver's Count or Length rather than through the parameter.
+    /// </summary>
+    public IMistType? ParameterType { get; init; }
+
     public override IMistType Type { get; } = type;
 }

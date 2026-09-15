@@ -705,6 +705,19 @@ rules:
       argument, an assignment after void), OverloadSelectionTests rows for Pick(2) and Wide(2) choosing byte?,
       a CastDecisionTests row for `(byte?)2`, and the corpus case constant-out-of-range-into-an-optional.
       Mutating the union branch away on a confirmed build fails all ten rows. Full suite green, 6177 of 6177.
+
+      A CONSTRUCTOR CHAIN'S ARGUMENTS ARE JUDGED (2026-09-15). This order skipped them because no chained
+      constructor was recorded, but the binder has recorded Constructor.ChainedConstructor and
+      ChainParameterTypes since order 12 needed them, so the reason had stopped being true. MEASURED on v2
+      at 78c6ad92: `public Chain() : this("x")` and `: this(300)` over `Chain(byte b)`, and `: base(300)`
+      over `Parent(byte b)`, each reached Roslyn as MIST_CS_ERROR. On classic, the first is
+      MIST_TC_0013 and the second fails in Roslyn. Each is now MIST_PA_NO_IMPLICIT_CONVERSION at the
+      argument. A call, a construction and a chain share CheckArguments' one guard: the parameter types are
+      recorded, pair with the arguments by position, and belong to neither a CLR-projected member nor a
+      flattened pack. FOUND WHILE PROVING ORDER 12'S FIRST TASK, which depended on it: `: this(-5)` over a
+      `byte >= 18` parameter was refused by the prover alone, and would have reached Roslyn once the prover
+      stopped judging a value this rule refuses. One corpus case, constructor-chain-argument. With the chain
+      check removed on a confirmed build, that case fails, reaching Roslyn as MIST_CS_ERROR again.
     tasks:
       - >
         A value that could enter a union through two constituents neither containing the other is emitted
@@ -720,8 +733,15 @@ rules:
         until they are, no argument to a CLR-projected member is judged, and the `UseNpgsql` call in
         samples/CSharpInteropV2 is the case to prove it on.
       - >
-        A collection-initializer element is not judged against the Add overload the binder selected,
-        and a constructor chain's arguments have no chained constructor to be judged against.
+        A collection-initializer element is not judged against the Add overload the binder selected.
+      - >
+        An index argument is not judged against the indexer's parameter. Measured 2026-09-15: `b[300]` and
+        `b["x"]` over `public int this[byte index]` reach Roslyn as MIST_CS_ERROR on v2, and `b[300]` does
+        on classic too. The model records no parameter type on an IndexExpression, and RefinementAnalyzer's
+        NeedIndex reads the indexer's parameter for itself. When this position is judged, NeedIndex's
+        indexer path must first ask whether the index can enter the parameter's base, as a call argument
+        does, or `b[-5]` over `this[byte index] where index >= 18` becomes two complaints. Today it is one,
+        CONSTRAINT_VIOLATED.
       - >
         Arithmetic whose operands are not both primitives keeps the left operand's type, so `int x = money
         * 2` with a user operator returning something else is a false negative, never a false positive.
@@ -1598,13 +1618,65 @@ rules:
       baseline among them -- passed with no failure and no rerun, and the build and `dotnet format` were
       clean. RefinementAnalyzer stood at 699 lines, so how a finding is worded moved to RefinementFindings
       first.
+
+      ONE COMPLAINT FOR A VALUE ITS REFINED BASE CANNOT HOLD, since 2026-09-15. MEASURED on v2 at 78c6ad92,
+      one project per shape, over `SmallAdult = byte >= 18`, `SmallOrName = SmallAdult | string`, `AdultAge =
+      int >= 18` and `Upper = char >= 'A' and <= 'Z'`. These each reported MIST_PA_NO_IMPLICIT_CONVERSION and
+      MIST_PA_REFINEMENT_VIOLATED: `SmallAdult a = -5;`, `a = -5;` after `SmallAdult a = 20;`,
+      `Helpers.Take(-5)` over Take(SmallAdult), `return -5;` from a method returning SmallAdult,
+      `new Box(-5)` over Box(SmallAdult), `SmallOrName s = -5;`, `Upper u = 5;`, `SmallAdult a = 5L;` and
+      `AdultAge a = 5L;`. Over `Where(byte b) where b >= 18`, `Helpers.Where(-5)`, `Helpers.Where(5L)` and
+      `b = -5;` inside Where each reported NO_IMPLICIT_CONVERSION and CONSTRAINT_VIOLATED. The `where` path
+      asked no type question at all, so a value that is no constant was reported twice too: `return
+      Where(n);` from a method over `int n` reported NO_IMPLICIT_CONVERSION and CONSTRAINT_UNPROVEN.
+      `SmallAdult a = 300;` was one complaint only because 300 satisfies `>= 18`. Classic reports one
+      complaint for the declaration (MIST_TC_0097) and for the `where` argument (MIST_REFINEMENT_0005).
+      ALREADY ONE COMPLAINT, and unchanged: `SmallAdult a = 5;`, `AgeRange r = 500;`, `Upper u = 'a';` and
+      `Where(5)` report the refinement or constraint alone, as a constant cast does behind
+      CastAnalyzer.Converts. `b[-5]` over `this[byte index] where index >= 18` is CONSTRAINT_VIOLATED alone,
+      because no rule judges an index argument's type (order 5's task); NeedIndex is untouched.
+
+      THE SAME HOLE ADMITTED A PROGRAM. `type Split = int <= 5 | byte >= 200; Split s = 300;` compiled and
+      ran, on v2 and on classic. The int constituent refuses 300. The byte constituent cannot hold 300, but
+      its predicate was asked anyway and admitted it. This entry's own union task says a constant is judged
+      by any integral constituent it FITS; Need implemented any integral constituent. The program is now
+      REFINEMENT_VIOLATED, stricter than classic, by the rule that a value is proven where it meets a
+      refined type and nothing is left to a guard. The language's owner confirmed the verdict after it was
+      built ("300 is correct to be rejected", 2026-09-15). `Split s = 3;` and `Split s = 250;` are admitted,
+      as before.
+
+      THE RULE. A value is judged against a refined constituent only where it can enter that constituent.
+      Either its type converts implicitly to the constituent's base (Accepts, unchanged), or it is an
+      integer constant ConstantConversion.Fits. That is the predicate Assignability admits a constant by,
+      so the two rules cannot disagree about a constant. A `where` parameter's anonymous refinement is the
+      one constituent of its slot and passes the same test before its predicate is asked. The assignment
+      and argument sites therefore no longer dispatch to it separately: Need does it once, for a caller that
+      names the constrained slot. A cast names none, so an operator's `where` parameter keeps the refinement
+      wording. A value no constituent admits is assignability's alone, the type error surviving as it does
+      in `(Small)300`'s CAST_HAS_NO_CONVERSION.
+
+      NOT THE ASSIGNABILITY VERDICT AT THE POSITION, which was the first plan (`Assignability.Judge(value,
+      target) is null`, in CastAnalyzer.Converts' shape). That verdict answers for the slot, not the
+      constituent. It admits `Split s = 300` because int holds 300, and the prover would still have asked
+      byte's predicate. The overload it would gate also serves the cast arm, which Converts gates. A
+      CONSTRUCTOR CHAIN HAD TO BE JUDGED FIRST: `: this(-5)` over a SmallAdult parameter was refused by
+      this rule alone, and order 5 skipped chain arguments. Order 5 judges them now (measured on its entry).
+
+      PROVED BY five corpus cases. Four are in assignability-core, each marked NO_IMPLICIT_CONVERSION alone:
+      constant-outside-a-refined-base, constant-outside-a-refined-parameter-base,
+      constant-outside-a-refined-union-constituent and value-outside-a-refined-parameter-base. The fifth,
+      literal-violates-the-only-constituent-that-holds-it, is here. AValueAssignabilityRefuses_IsLeftToAssignability
+      has eleven rows: a char, a long, an assignment, a union, a named and a `where` argument, a local into
+      `where`, a `where` reassignment, a return, a constructor argument and a chain. Two mutations, each on a
+      confirmed build. Restoring the any-integral-constituent clause fails ten of the eleven rows and four
+      corpus cases: the three constants, each with an unexpected refinement or constraint finding, and Split,
+      which reports nothing. The row it misses, a local into `where`, is caught by the second. Asking a
+      `where` parameter's predicate before the entry test fails the three `where` rows and both parameter-base
+      cases, and the local reports CONSTRAINT_UNPROVEN as it did before the fix. RefinementAnalyzer is 610
+      lines. The full suite -- 6222, 664 and 68 tests, AllFeaturesV2's baseline among them, over both this
+      fix and order 5's chain -- passed with no failure and no rerun, and the build and `dotnet format` were
+      clean.
     tasks:
-      - >
-        An integer constant into a refinement whose base cannot hold it is two complaints: `SmallAdult a =
-        -5;` over `byte >= 18` is MIST_PA_NO_IMPLICIT_CONVERSION and MIST_PA_REFINEMENT_VIOLATED (measured
-        2026-09-14), and `SmallAdult a = 300;` is one only because 300 satisfies `>= 18`. Need considers a
-        constant for any integral constituent without asking whether that constituent's base holds it. The
-        cast of the same constant is one complaint, behind CastAnalyzer.Converts.
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
         f = Process` -- needs contravariance judged, since the func promises any int. Moot until v2

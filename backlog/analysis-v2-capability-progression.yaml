@@ -962,16 +962,6 @@ rules:
         samples/CSharpInteropV2 is the case to prove it on. An index into a CLR-projected indexer is not
         judged either: `d[1]` over `Dictionary<string, int>` reaches Roslyn (measured 2026-09-15).
       - >
-        Two indexers with the same parameter types are not refused at the declaration (properties
-        Requirement 11.6). Measured 2026-09-15: `this[int i]` and `this[int j]` on one class is MIST_TC_0029
-        at each declaration on classic and MIST_CS_ERROR from Roslyn on v2, and two methods of one signature
-        split the same way, MIST_SM_0020 on classic and MIST_CS_ERROR on v2. No v2 home refuses a duplicate
-        member signature -- the MIST_PM_DUPLICATE_TYPE refusal in TypeBuilder covers type names, which is
-        what order 6 measured as SB_0061/0063 -- so it belongs with order 6 rather than here. Until then a
-        use of the pair binds the first, OverloadResolution binding a tie whose candidates render alike:
-        `string s = t[1]` over `int this[int i]` and `string this[int j]` is NO_IMPLICIT_CONVERSION on v2,
-        beside classic's two TC_0029 and a TC_0001.
-      - >
         A collection-initializer element is not judged against the Add overload the binder selected.
       - >
         An index into an intrinsic indexer is not judged, since the model records no Indexer or slot for
@@ -1184,6 +1174,104 @@ rules:
       eight cases with uses, and the bool alias's type test. The full suite -- 6246, 664 and 68 tests,
       AllFeaturesV2's baseline among them -- passed with no failure and no rerun, and the build and `dotnet
       format` were clean.
+
+      TWO MEMBERS OF ONE SIGNATURE ARE REFUSED WHERE THEY ARE DECLARED (2026-09-15), as
+      MIST_PA_DUPLICATE_SIGNATURE -- method-overloading Requirements 1.2, 1.4 and 2.2, properties 11.6.
+      MEASURED at 7f3f6bb4 on both pipelines, one project per probe. Each of these reached Roslyn as
+      MIST_CS_ERROR on v2 and is now refused at the later declaration: `Take(int i)` beside `Take(int j)`,
+      and the pair differing only in return type or as static against instance (classic MIST_SM_0020 at the
+      second); two constructors, parameterless or not (SM_0021 at the second); two indexers over one
+      parameter or two (classic TC_0029 at EACH declaration); an abstract's pair and a struct's (SM_0020);
+      three declarations, refused at the second and third as classic refuses them; `Take<T>(T)` beside
+      `Take<U>(U)`, `Take<T, U>(T, U)` beside `Take<U, T>(U, T)`, and `Take<T>(Box<T>)` beside
+      `Take<U>(Box<U>)` (Roslyn on classic too); a parameter over a refinement beside its base, whether a
+      `where`, a named refinement or an indexer's `where` (SM_0020 or TC_0029, the named one Roslyn on
+      classic), and two different `where`s over one base; `readonly ref int` beside `ref int` (Roslyn's
+      CS0663 on both); `readonly`, `owned`, `borrowed` or `frozen` beside an unmarked parameter (SM_0020);
+      `params int[]` beside `int[]`, `int | string` beside `string | int`, `int?` beside `int | void`, and a
+      generic pair differing only in constraints (SM_0020); and `(int x, int y)` beside `(int a, int b)` and
+      a public alias beside what it names (Roslyn on classic). Measured after only: a newtype clone of a
+      type holding a pair is refused once, at the source, as classic's SM_0020 is; and `Take<A>(A | M)`
+      beside `Take<Z>(Z | M)`, with M nested in the declaring type, is refused, fails in Roslyn on classic,
+      and fails in Roslyn on v2 with the rule silenced. Its constituents are sorted by qualified name,
+      which puts M after A and before Z.
+
+      NOT DUPLICATES, running on both pipelines: `ref int` beside `int`; `Take<T, U>(T, U)` beside
+      `Take<T, U>(U, T)`; `Pair<A, B>` declaring `Take(A)` and `Take(B)`; `Box<T>` declaring `Take(T)` and
+      `Take<U>(U)`; `Keyed<K>` declaring `Take(K)` and `Take(int)`, which collide only as Keyed<int>, where
+      a call is order 5's ambiguity; a newtype beside its source; `int?` beside `int`. THREE DIVERGENCES,
+      each more permissive than classic and each compiling in C#: `Take<T>(int)` beside `Take(int)` is
+      SM_0020 on classic, but the count of a member's own type parameters is part of its signature;
+      `Box<T>` declaring `Take<T>(T)` and `Take<U>(T)` is SM_0020 on classic, but the method's T is not the
+      type's; and `Take(Left.Widget)` beside `Take(Right.Widget)`, or `Box<Left.Widget>` beside
+      `Box<Right.Widget>`, with the Widgets nested or in two namespaces, which classic cannot resolve and v2
+      runs.
+
+      THE HOME IS THIS ORDER, not the binder. Both declarations are representable and emittable, so refusing
+      them judges a finished model, which is Stage 5's however early classic reports it;
+      MIST_PM_DUPLICATE_TYPE stays in TypeBuilder because a second type of one name cannot be registered at
+      all. What the binder already owned was the RELATION, since selection hides an inherited member of the
+      same signature, so the one definition lives beside selection as OverloadSignature and this order
+      consults it. REPORTED AT EVERY LATER DECLARATION, never at the first: one complaint per declaration the
+      fix deletes, as a duplicate enum value, a duplicate type and a duplicate local function are reported,
+      and as classic reports a method or a constructor; its indexer at each is the one verdict not followed.
+
+      WHAT COUNTS AS THE SAME SIGNATURE: as many type parameters of the member's own, and position by
+      position the same passing and the same parameter type, never the return type, a name, `params`,
+      `readonly` or an ownership tier. Passing is by reference or by value, since `ref` against `readonly
+      ref` is one C# signature. A refinement reads as its base through ConversionRelation.Unrefined, as
+      applicability reads it. A member's own type parameter reads as its position and a type's parameter as
+      itself. NOT OverloadFailure.DescribeSignatures, which the task named: it spells a type by simple name,
+      a type parameter by its name and passing not at all, so a rule keyed on it refuses `Take(Left.Widget)`
+      beside `Take(Right.Widget)` and `ref int` beside `int`, both programs v2 runs, and misses `Take<T>(T)`
+      beside `Take<U>(U)`. Nor a type's FullyQualifiedName whole, since a construction spells its arguments
+      by simple name and `Box<Left.Widget>` shares one with `Box<Right.Widget>`. OverloadSignature walks the
+      type and reads each declared type by its qualified name. A signature naming a type that did not
+      resolve, `Box<Nothing>` included, has none and repeats nothing, so the unresolved type is the one
+      complaint. DescribeSignatures still words the finding.
+
+      SELECTION'S HIDING ASKED THE SAME QUESTION WRONGLY, and now asks it there. WithoutHidden keyed a
+      signature on TypeDisplay, and MEASURED on v2 at 7f3f6bb4: over a base's `Take(int)` and a derived
+      `Take(ref int)`, `d.Take(x)` bound the by-ref member and printed `derived-ref` where classic prints
+      `base`, a wrong answer with no diagnostic; over a base's `Take(Left.Widget)` and a derived
+      `Take(Right.Widget)`, `d.Take(new Left.Widget())` was refused as MIST_PA_NO_IMPLICIT_CONVERSION
+      ("'Widget' to 'Widget'"); and over a base's `Take(int)` and a derived `Take(Positive)` with
+      `Positive = int > 0`, `d.Take(-5)` printed `derived`, the refinement never judged, where classic refuses
+      the call as ambiguous (TC_0032). They now print `base` and `derived-ref`, print `left` and `right`,
+      and report MIST_PA_REFINEMENT_VIOLATED, `d.Take(5)` still printing `derived`. Classic refuses each of
+      those declarations as MIST_MEMBER_REDECLARATION (task below). A LATER REPEAT ON ONE TYPE IS HIDDEN BY
+      THE FIRST, so a use binds the declaration this order leaves standing: `Sink.Take(1)` over `Take<T>(T)`
+      and `Take<U>(U)` was MIST_PM_AMBIGUOUS_OVERLOAD, and nothing at the declarations, which is classic's
+      TC_0032; it is now the duplicate alone. A use is judged against that first declaration, so `string s =
+      t[1]` over `int this[int i]` and `string this[int j]` is still NO_IMPLICIT_CONVERSION beside the
+      duplicate: the verdict the use keeps once the refused declaration is deleted, and classic's TC_0001
+      beside its two TC_0029. Only a member declared in Mist source repeats one, so no pair of projected CLR
+      overloads is hidden this way.
+
+      PROVED BY 15 corpus cases, one per refused shape: a method's signature, return type only, static
+      against instance, three declarations, a generic, a generic over a union its type parameter sorts
+      into, a refinement beside its base, `readonly ref` beside `ref`, ownership, `params`, tuple element
+      names, two spellings of an optional, an abstract's method, a constructor and an indexer. DeclarationShapeDecisionTests holds 13 differing pairs silent, and
+      Keyed<int>'s collision, a redeclared inherited signature, and pairs over `Nothing` and `Box<Nothing>`.
+      SignatureHidingTests holds the six hiding verdicts, the repeat binding its first, and Keyed<int>'s
+      call staying ambiguous. Twenty mutations on a confirmed build, each caught by the case or row named
+      for it: the rule silenced, every corpus case, each then reaching Roslyn; the return type made part of
+      the signature, the return-type case; passing dropped, the ref and constructor-ref rows and
+      `derived.ByRef(x)`; the type-parameter count dropped, the `Take<T>(int)` row; a member's own type
+      parameter read by its qualified name, which is its declaring type's, the two generic cases, the
+      Shadow row and the repeat binding its first;
+      every type parameter read by its ordinal, the Shadow row; the refinement kept, the refinement case and
+      `derived.Refined(5)`; a declared type read by its simple name, the Widget rows and
+      `derived.Nested(new Left.Widget())`; a construction read by its qualified name whole, the
+      `Box<Widget>` and `Box<Nothing>` rows; the report moved to the first declaration, every corpus case;
+      hiding keyed on TypeDisplay again, three hiding rows; the repeat on one type not hidden, the repeat
+      row; the repeat judged on the closed signature, Keyed<int>'s ambiguity; an unresolved type given an
+      identity, both `Nothing` rows; methods not grouped by name, 45 rows over the shared fixtures; and
+      constructors, indexers, abstracts, the union's re-sort and a tuple's names each dropped in turn, their
+      own case. The union case was added when that mutation survived the first run, since no case reached a
+      union ordered by its type parameter's name. MEASURED: the full suite -- 6260, 664 and 68 tests, passing with no failure and no rerun -- with
+      AllFeaturesV2's baseline among them, so no banked sample or Standard declaration reports a duplicate
+      and no banked program's output moved, and the build and `dotnet format` were clean.
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
@@ -1220,6 +1308,23 @@ rules:
         types a constant pattern is accepted on; refusing the constant against the base at the
         declaration would silence every use through Comparability.IsRefused, as the relational form
         already is.
+      - >
+        A member redeclaring an inherited signature is admitted and hides it, which is C#'s rule, where
+        classic reports MIST_MEMBER_REDECLARATION. Measured 2026-09-15: `Derived.Take(int j)` over
+        `Base.Take(int i)` prints `derived` through a Derived and `base` through a Base on v2. The
+        method-overloading spec's Requirement 5.2 and class-inheritance's 4.4 both say refuse, and 4.4
+        refuses a redeclared name whatever its signature. A decision.
+      - >
+        Two operators of one signature, and two conversions between one pair of types, are not refused.
+        Measured 2026-09-15 on a struct Money: `operator +(Money a, Money b)` declared twice is MIST_SM_0020
+        on classic and MIST_CS_ERROR on v2, and `implicit operator int(Money m)` twice is MIST_SB_0043 with
+        SM_0020 on classic and MIST_CS_ERROR on v2. Neither Operator nor CastOperator is an IOverload, so
+        OverloadSignature does not reach them.
+      - >
+        Two extension members of one signature in one block are not refused. Measured 2026-09-15:
+        `Describe(int a)` and `Describe(int b)` in one `extension(int self)` block is MIST_SB_0073 on
+        classic and MIST_CS_ERROR on v2. In two blocks for int, v2's binder already refuses the second as
+        MIST_PM_DUPLICATE_EXTENSION_MEMBER, and classic as SB_0073.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance

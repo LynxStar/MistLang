@@ -5,6 +5,7 @@
 // Several fixtures below declare the wanted overload SECOND on purpose. Taking the first candidate is
 // what selection replaced, so a fixture that happens to want the first one passes either way.
 
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -17,6 +18,8 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     private const string AmbiguousId = "MIST_PM_AMBIGUOUS_OVERLOAD";
     private const string UnresolvableId = "MIST_PM_UNRESOLVABLE_OVERLOAD";
     private const string MethodGroupId = "MIST_PM_METHOD_GROUP_NOT_CONVERTED";
+    private const string UnresolvedIdentifierId = "MIST_PM_UNRESOLVED_IDENTIFIER";
+    private const string ForEachElementId = "MIST_PM_FOREACH_ELEMENT_NOT_INFERABLE";
 
     private const string Mixer = """
         public class Mixer
@@ -437,6 +440,41 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
 
         Assert.Empty(Errors(diagnostics, NoOverloadId));
         Assert.Empty(Errors(diagnostics, AmbiguousId));
+    }
+
+    [Theory]
+    [InlineData("var r = Signs.Take(small); var chosen = p.Format(r);", AmbiguousId)]
+    [InlineData("var r = table[small]; var chosen = p.Format(r);", AmbiguousId)]
+    [InlineData("var r = Unreachable.Take(i); var chosen = p.Format(r);", UnresolvableId)]
+    [InlineData("var r = neverDeclared; var chosen = p.Format(r);", UnresolvedIdentifierId)]
+    [InlineData("var r = neverDeclared; var again = r; var chosen = p.Format(again);", UnresolvedIdentifierId)]
+    [InlineData("var r = neverDeclared; var chosen = p.Format(r.Length);", UnresolvedIdentifierId)]
+    [InlineData("var r = neverDeclared; var chosen = p.Format(r(1));", UnresolvedIdentifierId)]
+    [InlineData("var r = neverDeclared; var chosen = p.Format(r + 1);", UnresolvedIdentifierId)]
+    [InlineData("var r = neverDeclared; var chosen = p.Format(-r);", UnresolvedIdentifierId)]
+    [InlineData("var chosen = p.Format(neverDeclared[0]);", UnresolvedIdentifierId)]
+    [InlineData("var chosen = p.Format(neverDeclared + 1);", UnresolvedIdentifierId)]
+    [InlineData("for(var k = neverDeclared; k < 3; k = k + 1) { var chosen = p.Format(k); }", UnresolvedIdentifierId)]
+    [InlineData("foreach(var e in neverDeclared) { var chosen = p.Format(e); }", UnresolvedIdentifierId)]
+    [InlineData("foreach(var e in 5) { var chosen = p.Format(e); }", ForEachElementId)]
+    [InlineData("with var w = neverDeclared; var chosen = p.Format(w);", UnresolvedIdentifierId)]
+    public void AnArgumentBoundFromAValueThatAlreadyFailed_IsNotReportedAgain(string statement, string reportedId)
+    {
+        var diagnostics = BuildRun(statement, SignTypes + FailingTypes, "byte small = 2; var table = new Table();");
+
+        Assert.Equal(reportedId, Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error).Id.Value);
+    }
+
+    [Theory]
+    [InlineData("var chosen = p.Format(u is (0, 0));")]
+    [InlineData("var r = u is (0, 0); var chosen = p.Format(r);")]
+    [InlineData("var r = u is (0, 0); var again = r; var chosen = p.Format(again);")]
+    [InlineData("foreach(var e in u is (0, 0)) { var chosen = p.Format(e); }")]
+    public void AnArgumentTheCompilerCouldNotFinish_IsStillReported(string statement)
+    {
+        var diagnostics = BuildRun(statement, extraPreamble: "unknown u = 1;");
+
+        Assert.Equal(UnresolvableId, Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error).Id.Value);
     }
 
     /// <summary>
@@ -861,6 +899,22 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
             public static int Take(byte b) { return 1; }
 
             public static int Take(sbyte s) { return 2; }
+        }
+        """;
+
+    private const string FailingTypes = """
+        public class Table
+        {
+            public string this[uint u] { get { return "uint"; } }
+
+            public string this[short s] { get { return "short"; } }
+        }
+
+        public class Unreachable
+        {
+            public static int Take(string a) { return 1; }
+
+            public static int Take(bool a) { return 2; }
         }
         """;
 

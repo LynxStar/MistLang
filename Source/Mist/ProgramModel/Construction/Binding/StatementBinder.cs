@@ -156,7 +156,7 @@ internal static class StatementBinder
 
         if(name is not null)
         {
-            local = new LocalVariable(name, keyType ?? value.Type);
+            local = new LocalVariable(name, keyType ?? value.Type) { IsFailed = keyType is null && PriorFailure.Of(value) };
             scope.DeclareLocal(local, context.Diagnostics);
         }
 
@@ -254,6 +254,7 @@ internal static class StatementBinder
                         IsRef = MemberTypeBuilder.IsRefSpecifier(inferred.OwnershipSpecifier),
                         IsReadonly = IsReadonlyBinding(inferred.ReadonlyModifier is not null, inferred.OwnershipSpecifier),
                         Ownership = inferredOwnership,
+                        IsFailed = PriorFailure.Of(initializer),
                     };
                     ctx.Scope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(
@@ -493,7 +494,7 @@ internal static class StatementBinder
             case ForInitializerVarDeclarationForInitializerNode varDecl:
                 {
                     var init = ExpressionBinder.BindExpression(varDecl.Initializer, ctx, context);
-                    var local = new LocalVariable(varDecl.Name.Lexeme, init.Type);
+                    var local = new LocalVariable(varDecl.Name.Lexeme, init.Type) { IsFailed = PriorFailure.Of(init) };
                     forScope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(local, init);
                 }
@@ -519,6 +520,7 @@ internal static class StatementBinder
         Expression collection;
         string variableName;
         BlockNode bodyNode;
+        var failed = false;
 
         switch(node)
         {
@@ -539,6 +541,8 @@ internal static class StatementBinder
                         Model.Types.TypeDisplay.Mist(collection.Type));
                 }
 
+                failed = variableType is Model.Types.ErrorType
+                    && (collection.Type is not Model.Types.ErrorType || PriorFailure.Of(collection));
                 variableName = varForeach.Name.Lexeme;
                 bodyNode = varForeach.Body;
                 break;
@@ -552,7 +556,7 @@ internal static class StatementBinder
 
         // Read-only as C#'s iteration variable is. A loop whose element converts emits its variable as an
         // ordinary local, so Roslyn cannot be the one to refuse a reassignment.
-        var variable = new LocalVariable(variableName, variableType) { IsReadonly = true };
+        var variable = new LocalVariable(variableName, variableType) { IsReadonly = true, IsFailed = failed };
         foreachScope.DeclareLocal(variable, context.Diagnostics);
 
         var body = new Block(bodyNode);

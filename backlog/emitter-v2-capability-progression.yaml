@@ -3091,6 +3091,17 @@ capabilities:
       string-keyed write, `var v = t["x"]; v.Length`, and an int read beside them now run and print the
       selected indexer's results, where each was refused on both pipelines before. The refusals this adds
       and the rows proving it are recorded on analysis order 5.
+
+      BANKED BY samples/OverloadedIndexers (2026-09-15), referenced from AllFeaturesV2 alone because
+      classic types an index by the first indexer. Every index in it reaches the indexer its type declares
+      second, in a position where the first would be refused: a string read, a string write and a `var`
+      local's `.Length` over an int-first Roster; and int writes, reads, a subtraction, a from-end index
+      and a list pattern over a string-first Ledger with a Count, whose int indexer carries a satisfied
+      `where`. MEASURED BY MUTATION on a confirmed build: Indexability.Select handed the first indexer alone
+      refused every index line in the sample, 25 diagnostics. On the first draft it left the list pattern
+      standing, because `[int first, int second, _]` is a type test the string element can still enter;
+      the positions now bind `var` and subtract, and the mutation refuses the subtraction. Classic's
+      refusals and what stdout cannot show are in the sample's untested notes.
     unlocks: []
 
   - id: generic-indexers
@@ -3124,6 +3135,11 @@ capabilities:
       v2; `keyed["a"]` records its slot as string, which SelectionRecordingTests pins. At `Keyed<int>` the
       two close to one signature and the index is refused as ambiguous, recorded as a decision on
       analysis order 5.
+
+      samples/OverloadedIndexers banks it (2026-09-15). `Keyed<string>` declares `this[int slot]` before
+      `this[K key]`, and `keyed["title"] = "Mist"` and `var title = keyed["title"]; title.ToUpper()` run
+      because the second indexer is selected and read as string through the receiver. The mutation recorded
+      on order 62 refuses all three lines.
     unlocks: [TypeArgumentInference]
 
   - id: object-initializer-blocks
@@ -7821,7 +7837,7 @@ capabilities:
       - >
         Cover every position the clause is admitted in: type parameters, method parameters, constructor
         parameters and indexer parameters. Only the indexer-parameter position has a sample.
-    unlocks: [AdhocRefinementConstraints, Properties, RefParameters]
+    unlocks: [AdhocRefinementConstraints, Properties, RefParameters, OverloadedIndexers]
 
   - id: array-bounds-flow-analysis
     name: Flow-sensitive array bounds discharge
@@ -11114,6 +11130,41 @@ samples:
         from a widened member; CloneConversionEmissionTests and CloneConversionRuntimeTests hold the
         spelling and the runtime binding. A generic newtype's conversions are refused (order 46), so
         Boxed<T> shows its renamed members only.
+
+  - name: OverloadedIndexers
+    intro_order: 95
+    threshold: adhoc-refinement-where-clauses
+    requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
+               var-type-inference, operators-arithmetic-comparison-logical, control-flow-basic,
+               arrays-sized-index-length, instance-fields, this-expression, implicit-instance-field-access,
+               field-initializers, property-declarations-and-accessors, indexer-declarations,
+               type-parameters-and-constructed-types, type-argument-substitution, generic-indexers,
+               discard-and-var-patterns, index-and-range-expressions, list-and-slice-patterns,
+               adhoc-refinement-where-clauses]
+    untested:
+      - >
+        V2-ONLY. Classic types an index by the first indexer its type declares, and every index here reaches
+        the second, so it refuses this sample: MIST_UNDEFINED_MEMBER at `mate.Length` and `title.ToUpper()`,
+        which stops its type checker, and with those two removed MIST_TC_0001 at every other index and
+        MIST_TC_0003 at `ledger[2] - ledger[0]` (measured 2026-09-15; the list pattern alone is not refused).
+        The sample is referenced from AllFeaturesV2 alone and its lines were captured from v2 and read
+        against the program by hand.
+      - >
+        Stdout cannot show a selection: emission re-spells each index and Roslyn selects again, so every
+        line prints Roslyn's answer. What the sample proves is that the model's choice types each line so it
+        compiles; SelectionRecordingTests and ListPatternResolutionTests pin the choice itself.
+      - >
+        The `where` on Ledger's int indexer is met by every literal index, so a where that was never proven
+        passes identically; indexer-constraint-violated-on-the-selected-overload in
+        refusals/refinement-proving holds the refusal. The from-end index and the list pattern's positions
+        are not proven against it at all: measured 2026-09-15 on a scratch Ledger whose Count is 9,
+        `ledger[^1]` and a nine-element list pattern each reached position 8 over `where entry >= 0 and < 3`
+        with no diagnostic. Ledger's Count is its array's Length, which is why this sample's run is sound.
+      - >
+        Only `Keyed<string>` is reached. At `Keyed<int>` its two indexers close to one signature and the
+        index is refused as ambiguous, a decision recorded on analysis order 5. Keyed's `this[K key]` ignores
+        its key, so the right indexer reached with the wrong argument prints the same.
 
 # =====================================================================
 

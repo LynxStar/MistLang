@@ -57,7 +57,7 @@ see things like a dropped `sealed` modifier.
 
 | File | Role |
 |---|---|
-| `backlog/emitter-v2-capability-progression.yaml` | **Source of truth** for what v2 still needs and in what order. 187 ordered capabilities, 82 samples, stated invariants. Valid YAML. Large — grep it, don't read it whole. |
+| `backlog/emitter-v2-capability-progression.yaml` | **Source of truth** for what v2 still needs and in what order. 187 ordered capabilities, 83 samples, stated invariants. Valid YAML. Large — grep it, don't read it whole. |
 | `backlog/analysis-v2-capability-progression.yaml` | **Source of truth for Stage 5**, the analysis phase. The 91 `analysis_phase_tasks` from the emitter register, reordered into the order a checker can be built in, with the invariants that gate them. Each rule cites the emitter order it came from. |
 | `backlog/program-model-body-tasks.yaml` | The other axis: what the binder does not yet understand, by language construct. **Not valid YAML** despite the extension. |
 | `backlog/flaky-tests.yaml` | Flake register. Recording a flake is mandatory (see `Test/CLAUDE.md`). |

@@ -733,7 +733,8 @@ rules:
       be the one Roslyn chooses. That covered an index into a type declaring more than one indexer until
       the binder selected among them by the index, as a call selects (the 2026-09-15 paragraph below). It
       still covers an index into a CLR-projected indexer: `d[1]` over `Dictionary<string, int>` still
-      reaches Roslyn. An intrinsic indexer has no Indexer recorded and is not judged either (task below).
+      reaches Roslyn. An intrinsic indexer was not judged either, recording no slot, until the paragraph on
+      intrinsic indexers below.
 
       THE PROVER READS THE SAME SLOT. RefinementAnalyzer.NeedIndex looked the indexer up for itself,
       unsubstituted, and asked its predicate of any integral index. It now asks Need of the recorded slot,
@@ -952,6 +953,100 @@ rules:
       instantiations, not the name. The full suite -- 6277, 664 and 68 tests, AllFeaturesV2's and
       AllFeatures' baselines among them -- passed with no failure and no rerun, and the build and
       `dotnet format` were clean.
+
+      AN INDEX INTO AN INTRINSIC INDEXER IS JUDGED AGAINST THE PARAMETER STANDARD DECLARES (2026-09-15).
+      MEASURED at 7f3f6bb4 on both pipelines, one project per probe, over `int[3]`, a stackalloc'd
+      `Span<int>` and `ReadOnlySpan<int>`, and `string`. Each was indexed by an int, byte, long, uint, ulong,
+      double and string local, by `1`, `(byte)1`, `1L`, `1u`, `1UL`, `1.0` and `"x"`, by `^1` and by `0..2`;
+      then by an sbyte, short, ushort and char, a byte-based enum and a class declaring `implicit operator
+      int`, with a write through a long and an unsized `int[]` read through a long. CLASSIC admits an array
+      or span index only when it is an int. Every other index is MIST_TC_0010, its message template left
+      unformatted -- a byte, a char, the enum and the conversion included -- and `(byte)1` fails first as
+      TC_0042. Over string classic judges nothing: a byte, short, char, the enum and the conversion run, and
+      a long, uint, ulong, double or string fails in Roslyn. Over a user `this[int i]` a byte runs and a long
+      fails in Roslyn. V2, BEFORE: the array was bound without consulting its indexer. It ran every integral
+      index, C# admitting a long, uint and ulong array index, and reached Roslyn as MIST_CS_ERROR with a
+      double or a string. The spans and the string reached Roslyn with a wide integral, a double or a
+      string, except that a wide integral LOCAL into a span, or into an unsized array, was
+      MIST_PA_INDEX_UNPROVEN: the prover judged the bounds of an index that could not stand there.
+
+      THE DECISION. An intrinsic indexer is judged as a user indexer declaring the same parameter would be.
+      Array-bounds-flow-analysis Requirement 2.1 forbids an array-only path around the indexer parameter,
+      and stack-only-types Requirements 2.5 and 3.5 give each span its SpanBounds parameter. Standard
+      declares `this[ArrayBounds index]`, `this[SpanBounds index]` and `this[Int32 index]`, all over int. So
+      an index is admitted where it reaches int: an int, sbyte, byte, short, ushort or char, an enum, a
+      declared implicit into int, or an int constant. A long, uint or ulong, constant or not, is
+      MIST_PA_NO_IMPLICIT_CONVERSION, as a double and a string are. The wide integrals follow classic --
+      TC_0010 on arrays and spans, Roslyn's refusal on string -- and C#'s wider array index is not adopted:
+      `r[i]` with a long i into `int[3]` printed 20 on v2 and no longer compiles. The narrow integrals, char,
+      the enum and the conversion DIVERGE from classic on arrays and spans, more permissively. Classic
+      admits the same values into string's `this[Int32 index]` and into a user int indexer, C# compiles
+      them, and v2 ran them before.
+
+      WHAT CHANGED. IndexBinder no longer answers an array's element before consulting its indexers. Every
+      element access selects among the receiver's indexers, an intrinsic one included, records
+      ParameterType read through the receiver's substitution, and places a declared implicit at it, as a
+      user indexer's access does. Indexer stays null for an intrinsic indexer, because ReadonlyAnalyzer,
+      ReadonlyInference and UnsafeReach read it as a user accessor, and an array's element type is still its
+      type argument. AssignabilityAnalyzer judges any recorded slot whose indexer is not CLR-projected.
+
+      THE PROVER OWNS THE BOUNDS, ONCE. RefinementAnalyzer.NeedIndex asked both its paths, the Length path
+      and the indexer-slot path, of any integral index. Each now asks only of an index that can enter the
+      slot, by the entry test Need applies to an argument: Accepts, or ConstantConversion.Fits (order 12's
+      2026-09-15 rule). The integral test remains only where no slot is recorded. So `cells[slot]` with a
+      long slot into `int[]`, which was INDEX_UNPROVEN and would have become two complaints, is
+      NO_IMPLICIT_CONVERSION alone. The integral test had also let three programs through, each measured.
+      `new int[1]` indexed by a local holding `Color.Green`, or by a Counter, compiled on v2 and threw
+      IndexOutOfRangeException. `shelf[new Counter()]` over `this[int i] where i >= 18` printed 1, while
+      `Sink.Take(new Counter())` over the same `where` was CONSTRAINT_UNPROVEN. Classic refuses all three
+      (TC_0010 twice, REFINEMENT_0005); they are now INDEX_UNPROVEN twice and CONSTRAINT_UNPROVEN.
+      `s[new Counter()]` over `this[AdultAge a]` printed 1 on v2 and threw on classic, and is
+      REFINEMENT_UNPROVEN, as the call is.
+
+      NOT JUDGED: a from-end index or a range, which records no slot, as a user indexer's does; that closes
+      order 9's task on `numbers[^1]`. A CLR-projected indexer, as before (task below). NOT CHANGED, and
+      measured beside it: no variable index into an unknown-length span can be proven, since `span.Length`
+      types as unknown (the task on order 10, amended with the measurement); and `cells[(byte)1]` into
+      `int[3]` is INDEX_UNPROVEN, the prover reading no constant through a cast, where classic refuses the
+      cast itself.
+
+      PROVED BY nine corpus cases and twenty rows. Seven cases are in assignability-core:
+      index-into-an-array-with-a-string, index-into-an-array-with-a-long (an unsized array and a long
+      parameter, pinning one complaint), index-write-into-an-array-with-a-uint,
+      index-into-a-span-with-a-ulong, index-into-a-read-only-span-with-a-double,
+      index-into-a-string-with-a-long and index-into-a-string-with-a-string. Two are in refinement-proving:
+      enum-index-unproven and indexer-constraint-unproven-through-a-conversion. IntrinsicIndexDecisionTests
+      builds over the real Standard sources, a shell declaring no indexer. Its rows: the slot recorded, with
+      no Indexer, for an array, an unsized array, both spans and a string; a declared implicit recorded at
+      the string's slot; a from-end index and a range recording none and reported by nothing; and an int,
+      sbyte, byte, short, ushort and char local, an enum, a conversion, `1` and `'a'`, each reported for
+      nothing but its bounds at every intrinsic indexer, read and written. Seven mutations on a confirmed
+      build, after a baseline run green on the same filter, all caught. No slot for an intrinsic indexer
+      failed eight corpus cases (the seven here, six reaching Roslyn or the prover and the uint write
+      running, and enum-index-unproven) and the five recording rows. Judging keyed on a recorded Indexer
+      failed the seven here. The bounds gated on an integral index again failed index-into-an-array-with-a-long
+      and index-into-a-span-with-a-ulong, each with a second complaint, and enum-index-unproven with none.
+      The slot path gated the same way failed indexer-constraint-unproven-through-a-conversion. The
+      intrinsic indexer recorded as Indexer failed the five recording rows. The array short-circuited before
+      its indexers again failed the three array cases, enum-index-unproven and the two array recording rows.
+      No implicit placed at an intrinsic slot failed the conversion row. The full suite -- 6255, 664 and 68
+      tests, AllFeaturesV2's baseline among them -- passed with no failure and no rerun, and the build and
+      `dotnet format` were clean.
+
+      REBASED ONTO 84f70426 (2026-09-19), where the prover's lattice had moved to RefinementFlow and a
+      from-end index had gained a judgment of its own. The entry test now sits in Reaching, where main had
+      moved the integral test, and the slot path loses that gate as it did here. THE MERGE WAS TEXTUALLY
+      CLEAN AND WRONG in IndexBinder: with the intrinsic early return gone, main's from-end record asked an
+      array for a Count, so `array[^1]` was MIST_PM_RECEIVER_NOT_COUNTABLE -- five from-end corpus cases and
+      the from-end row here failed on the first run. An intrinsic indexer takes `^` natively, so it records
+      no CountedIndexer and the prover's Length path judges it as before. Three mutations re-run on the
+      merged build, each caught: the from-end record kept for an intrinsic indexer
+      (from-end-index-out-of-bounds and unguarded-from-end-index-into-parameter, each with a second
+      complaint), the bounds gated on an integral index again (index-into-an-array-with-a-long with a second
+      complaint, enum-index-unproven running and throwing), and the slot path gated the same way
+      (indexer-constraint-unproven-through-a-conversion printing 1). The full suite -- 6451, 664 and 68
+      tests, AllFeaturesV2's baseline among them -- passed with no failure and no rerun, AllFeaturesV2 run
+      by hand was byte-identical and reported nothing, and the build and `dotnet format` were clean.
     tasks:
       - >
         A value that could enter a union through two constituents neither containing the other is emitted
@@ -970,12 +1065,34 @@ rules:
       - >
         A collection-initializer element is not judged against the Add overload the binder selected.
       - >
-        An index into an intrinsic indexer is not judged, since the model records no Indexer or slot for
-        one. Measured 2026-09-15: `a["x"]` over `int[]`, and `s["x"]` or `s[n]` with a long n over string,
-        reach Roslyn as MIST_CS_ERROR on v2. String's `this[Int32 index]` is a plain position. The array's
-        and span's take ArrayBounds and SpanBounds, which the prover's Length path already judges, and C#
-        admits a long, uint or ulong array index where the declared parameter is an int refinement. Judging
-        those is a question of what an array index may be, not only a position to add.
+        Arithmetic whose operands are not both primitives keeps the left operand's type, so `int x = money
+        * 2` with a user operator returning something else is a false negative, never a false positive.
+      - >
+        A return with a value in a void method, and a top-level `return 0`, carry a void target and are
+        skipped here; order 6 owns the declaration-shape refusal.
+      - >
+        `int c = opt ?? o3` is refused at the local, since the link is now optional; classic blamed the
+        right operand. Same verdict, different line.
+      - >
+        A CLR `System.Object` parameter or local is not a top type to the classifier; invisible today
+        only because every CLR-projected callee is skipped.
+    tasks:
+      - >
+        A value that could enter a union through two constituents neither containing the other is emitted
+        and left to Roslyn. Measured 2026-09-14: `byte small = 2; short | ushort u = small;` fails in Roslyn
+        on v2 and on classic (ambiguous user-defined conversions on Union_Int16_UInt16). `byte | sbyte u = 2;`
+        fails the same way on both, and `sbyte | byte | void u = 2;` on v2 (classic cannot emit a void
+        constituent there); v2 refused both as NO_IMPLICIT_CONVERSION, for the wrong reason, until a constant
+        could reach a constituent. `byte | short u = 2;` enters byte on both, byte being within short. By the rule calls and conversions share -- between integral types neither containing
+        the other there is no preference -- this is an ambiguity at the Mist source, and it wants a
+        diagnostic of its own; which, and whether union entry follows the call rule at all, is a decision.
+      - >
+        CLR optional parameters are not representable, so arity can select an overload Roslyn will not;
+        until they are, no argument to a CLR-projected member is judged, and the `UseNpgsql` call in
+        samples/CSharpInteropV2 is the case to prove it on. An index into a CLR-projected indexer is not
+        judged either: `d[1]` over `Dictionary<string, int>` reaches Roslyn (measured 2026-09-15).
+      - >
+        A collection-initializer element is not judged against the Add overload the binder selected.
       - >
         Arithmetic whose operands are not both primitives keeps the left operand's type, so `int x = money
         * 2` with a user operator returning something else is a false negative, never a false positive.
@@ -1604,7 +1721,8 @@ rules:
       order 5 already types it; a variant of one enum equals another; and `ToString` on unknown reaches
       Standard/Unknown.mist's universal extension, which order 81 asked for. Class equality without a
       declared operator is refused as classic refuses it. `numbers[^1]` stays admitted: order 123's
-      task would refuse samples/RangesAndIndices, and is the decision recorded below.
+      task would refuse samples/RangesAndIndices, and was a decision left open here until order 5 recorded
+      it on 2026-09-15 -- a from-end index reaches the element through the length, not the parameter.
 
       ONE HOME FOR WHAT AN OPERATOR ADMITS. OperatorAdmissibility, beside the classifier, gives the type
       a binary operator produces over two operand types or null where none does: numeric promotion as
@@ -1715,11 +1833,6 @@ rules:
       findings, the full suite through the ledger at 7113 tests with none failing, zero warnings, and format
       clean.
     tasks:
-      - >
-        `numbers[^1]` is admitted, order 123's task notwithstanding: Array's indexer takes a refinement
-        of int and Standard.Index satisfies none, yet samples/RangesAndIndices indexes from the end and
-        runs. Whether the indexer parameter should be judged is a decision, and it would need Index to
-        be admitted first.
       - >
         A readonly FIELD assigned outside a constructor is left to Roslyn (CS0191): the analysis owner
         of a body is its type, not its member, so a constructor cannot yet be told from a method.
@@ -1867,7 +1980,10 @@ rules:
       - >
         `Span<T>` erases its length to `unknown` rather than an unknown int VALUE, so `int n =
         span.Length;` is refused by order 5 as unknown-to-int; `int[]` gets this right. Found while
-        probing stackalloc; not a flow matter, and left as an order 5 finding.
+        probing stackalloc; not a flow matter, and left as an order 5 finding. Measured again 2026-09-15:
+        `i < span.Length` is MIST_PA_UNKNOWN_HAS_NO_OPERATORS, so no variable index into an unknown-length
+        span can be proven on v2, where classic runs a guarded `span[i]`, a loop to `span.Length` and a
+        span parameter indexed under a guard.
       - >
         Parameters have no Introduce step: the model keeps a method's parameters as Parameter, and
         the LocalVariable each is referenced through is the body scope's. Order 11 will want them on

@@ -40,9 +40,8 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     Check(context, value, target);
                     break;
 
-                case InvocationExpression { ParameterTypes: { } parameters } call
-                    when parameters.Count == call.Arguments.Count && !AbsorbsArguments(call.Method):
-                    CheckArguments(context, call.Arguments, parameters);
+                case InvocationExpression call:
+                    CheckArguments(context, call.Arguments, call.ParameterTypes, call.Method);
                     break;
 
                 case NewExpression creation:
@@ -147,6 +146,11 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                 Check(context, initializer, field.Type);
             }
         }
+
+        foreach(var constructor in (member as ConcreteType)?.ConstructorsList ?? [])
+        {
+            CheckArguments(context, constructor.ChainArgumentsList, constructor.ChainParameterTypes, constructor.ChainedConstructor);
+        }
     }
 
     private static void CheckGetter(AnalysisContext context, PropertyAccessor? getter, IMistType type)
@@ -158,9 +162,14 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
     }
 
     private static void CheckArguments(
-        AnalysisContext context, IReadOnlyList<Expression> arguments, IReadOnlyList<IMistType> parameters)
+        AnalysisContext context, IReadOnlyList<Expression> arguments, IReadOnlyList<IMistType>? parameters, Method? callee)
     {
-        for(var i = 0; i < arguments.Count && i < parameters.Count; i++)
+        if(parameters is null || parameters.Count != arguments.Count || AbsorbsArguments(callee))
+        {
+            return;
+        }
+
+        for(var i = 0; i < arguments.Count; i++)
         {
             if(arguments[i] is not SpreadExpression)
             {
@@ -177,12 +186,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 
     private static void CheckConstruction(AnalysisContext context, NewExpression creation)
     {
-        if(creation.ParameterTypes is { } parameters
-            && parameters.Count == creation.Arguments.Count
-            && !AbsorbsArguments(creation.Constructor))
-        {
-            CheckArguments(context, creation.Arguments, parameters);
-        }
+        CheckArguments(context, creation.Arguments, creation.ParameterTypes, creation.Constructor);
 
         foreach(var entry in creation.Initializer)
         {

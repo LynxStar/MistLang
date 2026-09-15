@@ -1430,6 +1430,12 @@ rules:
         `Describe(int a)` and `Describe(int b)` in one `extension(int self)` block is MIST_SB_0073 on
         classic and MIST_CS_ERROR on v2. In two blocks for int, v2's binder already refuses the second as
         MIST_PM_DUPLICATE_EXTENSION_MEMBER, and classic as SB_0073.
+      - >
+        An indexer is not judged for accessibility. A `private` indexer read from another type reaches Roslyn
+        as "inaccessible due to its protection level" on both pipelines, measured 2026-09-15.
+        AccessibilityAnalyzer judges fields, properties, calls, constructions and function references, and
+        IndexExpression is not among them, though IndexExpression.Indexer records the selected indexer and
+        its declaring type.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance
@@ -1651,6 +1657,63 @@ rules:
       reassignment compiled and printed 9. The binder marks the variable readonly, which this rule already
       judges; nothing else reads a local's readonly flag but ref-local emission, which a loop variable never
       reaches. Two corpus cases, a plain loop and a converting one.
+
+      A PROPERTY OR INDEXER USED WHERE ITS ACCESSOR IS MISSING (2026-09-15), the properties spec's
+      Requirements 13.1-13.2 and 11.4-11.5. MEASURED FIRST, on both pipelines, over an indexer and a property
+      each get-only and set-only: a write, a read, `t[i] = t[i] + 1`, and `??=`. `t[i] += 1` does not parse
+      on either, Mist having no compound assignment, so the long form stands in for it. v2 refused none of
+      them at the Mist source; every one reached Roslyn as CS0200 or CS0154 against the generated file, and
+      so did an overloaded pair whose selected indexer lacked the accessor its sibling had. Classic refuses
+      one shape itself, a set-only property read (MIST_TC_0019, reported twice for `s.X = s.X + 1`, the write
+      target counted as a read), and refuses `??=` on every property and indexer, read-write included, as a
+      garbled MIST_TC_0043. That last is not followed: a read-write `t[i] ??= 5` runs on v2 and prints 5.
+
+      AccessorAnalyzer refuses a read with no getter (MIST_PA_NO_GET_ACCESSOR) and a write with no set or
+      init accessor (MIST_PA_NO_SET_ACCESSOR), once each, at an indexer, a property through a receiver, and a
+      property by name. A `??=` is both a read and a write. An index is judged as its index selected it and
+      never re-selected by accessor, which is C#'s order: select, then refuse. THE DIRECTION IS DERIVED ONCE.
+      The runner's walk records each assignment's target and AnalysisContext.DirectionOf answers from it,
+      because the model already leaves direction to the surrounding expression -- PropertyReferenceExpression
+      says so -- and ReadonlyAnalyzer's private set of write targets was the same derivation made a second
+      time; it reads DirectionOf now. A get-only AUTO-property stays assignable in its own type's constructor,
+      as C# admits and banked samples rely on. Refused by Roslyn on both pipelines, and refused here: the same
+      write from a method, from a lambda or local function inside that constructor, on another instance, on a
+      base type's property from a derived constructor, and on a static property from an instance
+      constructor. A static one from a static constructor runs and is admitted. An init accessor counts as a
+      setter for this rule; the init window is emitter order 60's.
+
+      THE SWEEP FOUND A MODEL DEFECT. AllFeaturesV2 reported MIST_PA_NO_GET_ACCESSOR twice in Variadics, at
+      `row.Slot1`: a spread property's per-element projection was synthesized with the aggregate's name, type
+      and modifiers but without its accessors or its declaring type, so the model said Slot1 could be neither
+      read nor written. Both projection sites -- SpreadProjection per construction and TypeMemberLookup's
+      fixed-arity family -- now carry the aggregate's. Then zero findings and identical stdout.
+
+      EMISSION. UnsafeReach declared an indexer's get_Item accessor for every write a clone conversion made
+      through an indexer it cannot reach, whether or not the write reads. Over a private set-only indexer that
+      is an UnsafeAccessor naming a method that does not exist, compiled because it is never called: measured
+      in the emitted file of a probe that printed 10. The getter is declared for `??=` alone, the one write
+      that reads.
+
+      PROOF. 22 corpus cases, one refusal each. AccessorDecisionTests pins a read-write indexer and property
+      read, written, reassigned from themselves and coalesced; each single-accessor slot used in the direction
+      it has; the sibling selected and written; the constructor privilege, instance and static; both
+      projection families read; and an init write and an array element left to other rules.
+      CloneConversionEmissionTests pins the getter left undeclared. Seventeen mutations, each on a confirmed
+      build, all caught by name: each accessor check silenced (index-read-without-a-getter,
+      index-written-without-a-setter); the indexer, member-access and by-name arms silenced in turn
+      (selected-indexer-without-a-setter, property-written-without-a-setter,
+      property-written-by-name-without-a-setter); the constructor privilege removed (every
+      AccessorDecisionTests row, its fixture being under analysis in each); lambda and local-function bodies
+      privileged, local functions alone left uncollected, and the declaring type, the static match and the
+      `this` receiver each dropped from the privilege (the five get-only-auto-property cases, one apiece); a
+      `??=` target taken as a write only and as a read only (index-coalesced-without-a-getter,
+      index-coalesced-without-a-setter); assignment targets not recorded (property-written-without-a-setter);
+      the clone write declaring its getter (AWriteThroughASetOnlyIndexer_DeclaresNoGetter); and each
+      projection family dropping its getter (AccessorDecisionTests). The four on order 11's analyzer are
+      recorded there. Rebased onto main at e48d8dba on 2026-09-19, which had banked OverloadedIndexers and the
+      inherited-indexer candidates meanwhile, and measured again there: AllFeaturesV2 identical with zero
+      findings, the full suite through the ledger at 7113 tests with none failing, zero warnings, and format
+      clean.
     tasks:
       - >
         `numbers[^1]` is admitted, order 123's task notwithstanding: Array's indexer takes a refinement
@@ -1672,6 +1735,17 @@ rules:
       - >
         A user operator is found on either operand's own type and its base chain, not through
         conformances or extensions.
+      - >
+        A property pattern and an object initializer entry are not judged for their accessor. `s is { X: 1 }`
+        over a set-only X reaches Roslyn on both pipelines, and `new Gauge { Level = 5 }` over a get-only
+        Level reaches it on v2, where classic refuses it as MIST_PI_0003 (emitter order 64's task); measured
+        2026-09-15. PropertySubpattern and ObjectInitializerAssignment record the member's NAME only, so there
+        is no accessor for this rule to read until they record the member.
+      - >
+        Accessor ACCESSIBILITY is not judged at a use. A property or an indexer declared with `private set`
+        and written from outside its type reaches Roslyn as "the set accessor is inaccessible" on both
+        pipelines, measured 2026-09-15. It is emitter order 60's enforcement, which no task on this register
+        holds; the direction it needs is AnalysisContext.DirectionOf's.
 
 # ===================================================================
 # The other three subsystems. Expanded when reached; the tasks stay on
@@ -1959,6 +2033,19 @@ rules:
       admitted either number of times. Both are in the corpus and in OwnershipDecisionTests. Measured
       on the way: on 64cc36c4 the written `await v; await v;` was silent, the rule matching only the
       spelled Drop, which is the gap the one-node reading closes.
+
+      A READONLY `??=` WAS A HOLE (2026-09-15), found by the probes order 9's accessor rule was measured
+      with. `O ??= 5` inside a readonly method called the setter and printed 5 on both pipelines, while
+      `O = 5` beside it was MIST_PA_READONLY_CONTEXT_SETS_PROPERTY on v2: ReadonlyAnalyzer judged only `=`
+      and took a coalescing target for a read. It judges every assignment's target as the write it is, so
+      the property case is MIST_PA_READONLY_CONTEXT_SETS_PROPERTY and `this[0] ??= 5`
+      MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_INDEX. Whether a target is ALSO read is
+      AnalysisContext.DirectionOf's answer, which replaced the analyzer's own set of write targets. One
+      corpus case, readonly-method-coalesces-property; ReadonlyContextDecisionTests pins a readonly method
+      coalescing a local, admitted, and a write whose getter mutates judged once, as a setter. Four
+      mutations, all caught by name: the coalescing write left unjudged (the corpus case), and each of the
+      three read guards -- indexer, property by name, property through a receiver -- judging a write as a
+      read (AWriteIsJudgedAsASetterOnlyEvenWhereTheGetterMutates).
     tasks:
       - >
         The ownership-v2 spec is stricter than classic in five places v2 follows classic on: mutable

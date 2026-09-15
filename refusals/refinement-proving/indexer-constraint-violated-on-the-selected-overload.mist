@@ -1,0 +1,27 @@
+using Standard;
+
+namespace Refusal;
+
+public class Table
+{
+    public string this[string key]
+    {
+        get { return key; }
+    }
+
+    public int this[int index] where index >= 0
+    {
+        get { return index; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var table = new Table();
+        // REFUSE: MIST_PA_CONSTRAINT_VIOLATED
+        Console.WriteLine(table[-1]);
+        Console.WriteLine("unreachable");
+    }
+}

@@ -454,7 +454,7 @@ internal static class PatternBinder
         BuilderContext context)
     {
         var matched = OptionalLifting.NonVoidPortion(scrutineeType, context.ProgramModel.TypeInterner);
-        var elementType = Indexability.ElementType(matched, context);
+        var elementType = Indexability.ElementType(matched, Indexability.Position(node, context), context);
 
         if(elementType is ErrorType)
         {

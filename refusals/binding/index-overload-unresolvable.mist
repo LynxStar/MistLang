@@ -1,0 +1,26 @@
+using Standard;
+
+namespace Refusal;
+
+public class Table
+{
+    public int this[int i]
+    {
+        get { return i; }
+    }
+
+    public string this[string key]
+    {
+        get { return key; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var table = new Table();
+        // REFUSE: MIST_PM_UNRESOLVABLE_OVERLOAD
+        Console.WriteLine(table[1.5]);
+    }
+}

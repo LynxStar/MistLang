@@ -134,21 +134,7 @@ internal static class PostfixBinder
                 }
 
             case IndexSuffixPostfixSuffixNode indexSuffix:
-                {
-                    var index = ExpressionBinder.BindExpression(indexSuffix.Index, ctx, context);
-                    var resultType = ResolveElementAccessType(receiver.Type, index.Type, indexSuffix, context);
-                    var indexer = Indexability.IsRange(index.Type) ? null : Indexability.Indexer(receiver.Type);
-                    var interner = context.ProgramModel.TypeInterner;
-                    var parameterTypes = indexer?.ParametersList.ConvertAll(
-                        parameter => TypeSubstitution.ForReceiver(receiver.Type as ConstructedType).Apply(parameter.Type, interner));
-
-                    return new IndexExpression(
-                        suffix, receiver, ImplicitConversions.AtParameters([index], method: null, parameterTypes, interner)[0], resultType)
-                    {
-                        Indexer = indexer,
-                        ParameterType = parameterTypes is [var slot] && !Indexability.IsIndex(index.Type) ? slot : null,
-                    };
-                }
+                return IndexBinder.Bind(indexSuffix, receiver, ctx, context);
 
             case SpreadSuffixPostfixSuffixNode:
                 return new SpreadExpression(suffix, receiver, receiver.Type);
@@ -607,34 +593,5 @@ internal static class PostfixBinder
             TypeResult type => type.Type,
             _ => ErrorType.Instance,
         };
-    }
-
-    /// <summary>
-    /// <c>a[x]</c> yields an element or a sub-sequence depending on what <c>x</c> IS, so the receiver
-    /// alone cannot type it -- <c>numbers[1]</c> and <c>numbers[1..3]</c> differ in result type while
-    /// naming the same indexer. Only the range case reports: an index that resolves nothing keeps
-    /// answering <see cref="ErrorType"/> silently as it always has, where a range that resolves nothing
-    /// has no C# to write and would otherwise reach emission as a slice of an error type.
-    /// </summary>
-    private static IMistType ResolveElementAccessType(
-        IMistType receiverType,
-        IMistType argumentType,
-        IndexSuffixPostfixSuffixNode node,
-        BuilderContext context)
-    {
-        if(!Indexability.IsRange(argumentType))
-        {
-            return Indexability.ElementType(receiverType, context);
-        }
-
-        var sliced = Indexability.SliceType(receiverType, context);
-
-        if(sliced is ErrorType)
-        {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.ReceiverNotSliceable, node, null, receiverType.Name);
-        }
-
-        return sliced;
     }
 }

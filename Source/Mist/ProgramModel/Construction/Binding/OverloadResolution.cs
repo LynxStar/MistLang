@@ -8,10 +8,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// Chooses which overload a call selects, in three stages: filter by arity, keep the candidates every
-/// argument can reach, then take the best of those. Reporting a failed choice belongs to
-/// <see cref="OverloadFailure"/>; the applicability and betterness rules stay here, since they are what
-/// <see cref="Select"/> does rather than a separate concern it consults.
+/// Chooses which overload a call or an index selects, in three stages: filter by arity, keep the
+/// candidates every argument can reach, then take the best of those. Reporting a failed choice belongs
+/// to <see cref="OverloadFailure"/>; the applicability and betterness rules stay here, since they are
+/// what <see cref="Select"/> does rather than a separate concern it consults.
 /// <para>
 /// <see cref="ConversionRelation"/> is partial and documents the obligation that comes with it: it may
 /// narrow and rank, never refuse. That bars selection from reading an eliminated candidate as proof
@@ -44,8 +44,8 @@ internal static class OverloadResolution
         IReadOnlyList<IMistType>? typeArguments,
         TypeInterner interner,
         IReadOnlyList<bool>? argumentIsRef = null,
-        IReadOnlyDictionary<Method, IReadOnlyList<ConstructedType>>? paths = null)
-        where T : Method
+        IReadOnlyDictionary<T, IReadOnlyList<ConstructedType>>? paths = null)
+        where T : class, IOverload
     {
         var receiverSubstitution = TypeSubstitution.ForReceiver(receiver);
 
@@ -146,7 +146,7 @@ internal static class OverloadResolution
     }
 
     private sealed record Applicant<T>(T Method, TypeSubstitution Substitution)
-        where T : Method;
+        where T : class, IOverload;
 
     /// <summary>
     /// A signature declared on a more derived type hides the same signature inherited from a base or
@@ -155,7 +155,7 @@ internal static class OverloadResolution
     /// since the two coincide only once the base's parameters are substituted.
     /// </summary>
     private static List<Applicant<T>> WithoutHidden<T>(List<Applicant<T>> closed, TypeInterner interner)
-        where T : Method
+        where T : class, IOverload
     {
         if(closed.Count < 2)
         {
@@ -186,7 +186,7 @@ internal static class OverloadResolution
     }
 
     private static string ClosedSignature<T>(Applicant<T> applicant, TypeInterner interner)
-        where T : Method
+        where T : class, IOverload
     {
         var parameters = applicant.Method.ParametersList
             .Select(parameter => TypeDisplay.Mist(applicant.Substitution.Apply(parameter.Type, interner)));
@@ -249,13 +249,13 @@ internal static class OverloadResolution
     }
 
     private static OverloadChoice<T> Winner<T>(Applicant<T> applicant)
-        where T : Method
+        where T : class, IOverload
     {
         return new OverloadChoice<T> { Selected = applicant.Method, Substitution = applicant.Substitution };
     }
 
     private static List<T> Methods<T>(List<Applicant<T>> applicants)
-        where T : Method
+        where T : class, IOverload
     {
         return applicants.ConvertAll(applicant => applicant.Method);
     }
@@ -270,7 +270,7 @@ internal static class OverloadResolution
         IReadOnlyList<IMistType>? typeArguments,
         TypeInterner interner,
         out TypeArgumentConflict? conflict)
-        where T : Method
+        where T : class, IOverload
     {
         conflict = null;
 
@@ -301,7 +301,7 @@ internal static class OverloadResolution
     /// </summary>
     private static List<Applicant<T>> Maximal<T>(
         List<Applicant<T>> applicable, IReadOnlyList<Expression> arguments, TypeInterner interner)
-        where T : Method
+        where T : class, IOverload
     {
         var maximal = new List<Applicant<T>>();
 
@@ -335,7 +335,7 @@ internal static class OverloadResolution
     /// call is bound instead.
     /// </summary>
     private static bool AreDistinguishable<T>(List<T> tied)
-        where T : Method
+        where T : class, IOverload
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -371,7 +371,7 @@ internal static class OverloadResolution
         IReadOnlyList<Expression> arguments,
         IReadOnlyList<bool>? argumentIsRef,
         TypeInterner interner)
-        where T : Method
+        where T : class, IOverload
     {
         for(var i = 0; i < arguments.Count; i++)
         {
@@ -418,7 +418,7 @@ internal static class OverloadResolution
     /// </summary>
     private static bool IsBetter<T>(
         Applicant<T> left, Applicant<T> right, IReadOnlyList<Expression> arguments, TypeInterner interner)
-        where T : Method
+        where T : class, IOverload
     {
         var strictlyBetterSomewhere = false;
 
@@ -477,7 +477,7 @@ internal static class OverloadResolution
     }
 
     private static IMistType ParameterType<T>(Applicant<T> candidate, int index, TypeInterner interner)
-        where T : Method
+        where T : class, IOverload
     {
         return candidate.Substitution.Apply(candidate.Method.ParametersList[index].Type, interner);
     }

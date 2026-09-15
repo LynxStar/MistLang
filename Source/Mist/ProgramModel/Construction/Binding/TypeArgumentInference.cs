@@ -16,7 +16,7 @@ internal static class TypeArgumentInference
     /// One slot per type parameter the method declares, by ordinal -- not one per argument.
     /// </summary>
     public static IMistType?[] Infer(
-        Method method,
+        IOverload method,
         IReadOnlyList<Expression> arguments,
         TypeSubstitution receiver,
         TypeInterner interner,
@@ -76,7 +76,7 @@ internal static class TypeArgumentInference
     /// cannot do, because the slot and the argument stop sharing an index at the pack.
     /// </summary>
     private static void InferAcrossPack(
-        Method method,
+        IOverload method,
         IReadOnlyList<Expression> arguments,
         TypeSubstitution receiver,
         TypeInterner interner,

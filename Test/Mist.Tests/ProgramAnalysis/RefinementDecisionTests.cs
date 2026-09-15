@@ -333,6 +333,14 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
         AssertSilent(statement, extraTypes);
     }
 
+    [Fact]
+    public void AnIndexIsHeldOnlyToThePredicateOfTheIndexerItSelects()
+    {
+        AssertSilent(
+            "var pick = new Pick(); string r = pick[-1];",
+            "public class Pick { public string this[long l] where l >= 0 { get { return \"long\"; } } public string this[int i] { get { return \"int\"; } } }");
+    }
+
     // ── Harness ─────────────────────────────────────────────────────────
 
     private void AssertSilent(string statement, string extraTypes = "")

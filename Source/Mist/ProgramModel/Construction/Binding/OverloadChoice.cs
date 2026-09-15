@@ -7,7 +7,7 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// one of the five failure members non-empty, since each carries a different diagnostic.
 /// </summary>
 internal sealed class OverloadChoice<T>
-    where T : Method
+    where T : class, IOverload
 {
     public required T? Selected { get; init; }
 

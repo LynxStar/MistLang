@@ -1,0 +1,21 @@
+using Standard;
+
+namespace Refusal;
+
+public class Grid
+{
+    public int this[int row, int column]
+    {
+        get { return row + column; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var grid = new Grid();
+        // REFUSE: MIST_PM_NO_APPLICABLE_OVERLOAD
+        Console.WriteLine(grid[1]);
+    }
+}

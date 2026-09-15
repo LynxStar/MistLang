@@ -90,7 +90,7 @@ internal sealed class TypeSubstitution
     /// <param name="typeArguments">
     /// A null entry is skipped rather than bound, leaving its parameter for <see cref="Unbound"/>.
     /// </param>
-    public static TypeSubstitution ForMethod(Method method, IReadOnlyList<IMistType?> typeArguments)
+    public static TypeSubstitution ForMethod(IOverload method, IReadOnlyList<IMistType?> typeArguments)
     {
         return ByOrdinal(method.TypeParametersList, typeArguments);
     }

@@ -191,7 +191,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 
     private static bool PairsWithIndex(Indexer indexer)
     {
-        return !indexer.Modifiers.IsClrProjected && indexer.DeclaringType is { IndexersList.Count: 1 };
+        return !indexer.Modifiers.IsClrProjected;
     }
 
     private static void CheckConstruction(AnalysisContext context, NewExpression creation)

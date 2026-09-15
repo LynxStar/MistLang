@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -31,19 +32,23 @@ internal static class Indexability
             ;
     }
 
-    public static bool IsIndexable(IMistType type, BuilderContext context)
-    {
-        return ElementType(type, context) is not ErrorType;
-    }
-
     public static bool IsSliceable(IMistType type, BuilderContext context)
     {
         return SliceType(type, context) is not ErrorType;
     }
 
-    public static IMistType ElementType(IMistType receiverType, BuilderContext context)
+    public static IMistType ElementType(IMistType receiverType, Expression index, BuilderContext context)
     {
-        return ArrayElement(receiverType) ?? IndexerType(receiverType, context);
+        if(ArrayElement(receiverType) is { } element)
+        {
+            return element;
+        }
+
+        return Indexers(receiverType) is { Count: > 0 } indexers
+            && Select(indexers, receiverType, index, context) is { Selected: { } selected } choice
+            ? IndexerType(selected, choice.Substitution, context)
+            : ErrorType.Instance
+            ;
     }
 
     public static IMistType SliceType(IMistType receiverType, BuilderContext context)
@@ -71,34 +76,41 @@ internal static class Indexability
             : null;
     }
 
-    public static Indexer? Indexer(IMistType receiverType)
-    {
-        return Declared(receiverType) is { Modifiers.IsIntrinsic: false } user ? user : null;
-    }
-
-    private static Indexer? Declared(IMistType receiverType)
+    public static IReadOnlyList<Indexer> Indexers(IMistType receiverType)
     {
         var lookupType = (receiverType as ConstructedType)?.Definition ?? receiverType;
 
-        return lookupType is MemberType { IndexersList.Count: > 0 } memberType ? memberType.IndexersList[0] : null;
+        return lookupType is MemberType memberType ? memberType.IndexersList : [];
     }
 
-    private static IMistType IndexerType(IMistType receiverType, BuilderContext context)
+    /// <summary>
+    /// A from-end index that no indexer takes as it is reaches the element through a position instead,
+    /// as C# lowers <c>c[^1]</c> onto Count and an int indexer, so it selects as a list pattern's
+    /// positional element does.
+    /// </summary>
+    public static OverloadChoice<Indexer> Select(
+        IReadOnlyList<Indexer> indexers, IMistType receiverType, Expression index, BuilderContext context)
     {
-        if(Declared(receiverType) is not { } indexer)
-        {
-            return ErrorType.Instance;
-        }
-
         var constructed = receiverType as ConstructedType;
+        var interner = context.ProgramModel.TypeInterner;
+        var choice = OverloadResolution.Select(indexers, [index], constructed, null, interner);
 
-        var substituted = TypeSubstitution
-            .ForReceiver(constructed)
-            .Apply(indexer.Type, context.ProgramModel.TypeInterner);
+        return choice.Selected is null && IsIndex(index.Type)
+            ? OverloadResolution.Select(indexers, [Position(index.Node, context)], constructed, null, interner)
+            : choice
+            ;
+    }
 
+    public static Expression Position(Storm.Runtime.SyntaxNode node, BuilderContext context)
+    {
+        return new DefaultExpression(node, context.Resolver.LookupWellKnown(WellKnownTypes.Int32));
+    }
+
+    public static IMistType IndexerType(Indexer indexer, TypeSubstitution substitution, BuilderContext context)
+    {
         return ClrInboundLifting.Close(
             indexer.Modifiers,
-            substituted,
+            substitution.Apply(indexer.Type, context.ProgramModel.TypeInterner),
             context.Resolver.LookupWellKnown(WellKnownTypes.Void),
             context.ProgramModel.TypeInterner);
     }

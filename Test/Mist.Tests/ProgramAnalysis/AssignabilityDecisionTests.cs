@@ -81,6 +81,12 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
             public string this[string s] { get { return "string"; } }
         }
 
+        public class Differing
+        {
+            public int this[int i] { get { return i; } set { } }
+            public string this[string s] { get { return s; } set { } }
+        }
+
         public class Counted
         {
             public int Count { get { return 3; } }
@@ -184,6 +190,8 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
     [Theory]
     [InlineData("var bytes = new Bytes(); int ib = bytes[2]; bytes[3] = ib;")]
     [InlineData("var keyed = new Keyed<byte>(); string ik = keyed[2];")]
+    [InlineData("var overloaded = new Overloaded(); string io = overloaded[\"a\"];")]
+    [InlineData("var differing = new Differing(); string ds = differing[\"a\"]; int di = differing[1]; differing[\"b\"] = ds; differing[2] = di;")]
     public void AnIndexWithinItsIndexersParameter_IsAdmitted(string statement)
     {
         AssertSilent(statement);
@@ -191,7 +199,6 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
 
     [Theory]
     [InlineData("var counted = new Counted(); int ic = counted[^1];")]
-    [InlineData("var overloaded = new Overloaded(); string io = overloaded[\"a\"];")]
     public void AnIndexNotBoundAgainstTheIndexersParameter_IsNotJudged(string statement)
     {
         AssertSilent(statement);

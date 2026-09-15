@@ -14,7 +14,7 @@ internal class Method(
     string name,
     IMistType returnType,
     List<Parameter> parameters,
-    MemberModifiers modifiers) : IMethod, IHasTypeParameters, IHasAttributes
+    MemberModifiers modifiers) : IMethod, IHasTypeParameters, IHasAttributes, IOverload
 {
     public string Name { get; } = name;
 

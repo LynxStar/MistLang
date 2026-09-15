@@ -30,7 +30,7 @@ internal static class OverloadFailure
         string description,
         Storm.Runtime.SyntaxNode node,
         DiagnosticBag diagnostics)
-        where T : Method
+        where T : class, IOverload
     {
         // AN ARGUMENT THAT ALREADY FAILED MAKES THIS FAILURE DERIVED, so it is not reported: no
         // overload could have matched, and saying so adds a second complaint about one mistake.
@@ -103,7 +103,7 @@ internal static class OverloadFailure
     /// this renders two of them alike.
     /// </summary>
     internal static string DescribeSignatures<T>(IReadOnlyList<T> candidates)
-        where T : Method
+        where T : class, IOverload
     {
         var signatures = candidates
             .Select(c => $"({string.Join(", ", c.ParametersList.Select(p => TypeDisplay.Mist(p.Type)))})");
@@ -116,7 +116,7 @@ internal static class OverloadFailure
     /// otherwise say the call was wrong without saying what would be right.
     /// </summary>
     private static string DescribeArities<T>(IReadOnlyList<T> candidates)
-        where T : Method
+        where T : class, IOverload
     {
         var arities = new SortedSet<int>();
         foreach(var candidate in candidates)
@@ -128,7 +128,7 @@ internal static class OverloadFailure
     }
 
     private static string DescribeTypeArities<T>(IReadOnlyList<T> candidates)
-        where T : Method
+        where T : class, IOverload
     {
         var arities = new SortedSet<int>();
         foreach(var candidate in candidates)
@@ -145,7 +145,7 @@ internal static class OverloadFailure
     /// ones went undetermined is therefore not worth carrying out of selection.
     /// </summary>
     private static string DescribeTypeParameters<T>(IReadOnlyList<T> candidates)
-        where T : Method
+        where T : class, IOverload
     {
         var names = candidates[0].TypeParametersList.Select(parameter => $"'{parameter.Name}'");
 

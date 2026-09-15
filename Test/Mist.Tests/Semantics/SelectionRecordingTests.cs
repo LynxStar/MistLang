@@ -55,12 +55,38 @@ public sealed class SelectionRecordingTests : ProgramModelProbe
                 }
             }
         }
+
+        public class Table
+        {
+            public int this[int i] { get { return i; } }
+
+            public string this[string key] { get { return key; } }
+        }
+
+        public class Ledger
+        {
+            public int Count { get { return 2; } }
+
+            public string this[string key] { get { return key; } }
+
+            public int this[int i] { get { return i; } }
+        }
+
+        public class Keyed<K>
+        {
+            public int this[int i] { get { return i; } }
+
+            public K this[K key] { get { return key; } }
+        }
         """;
 
     protected override string Preamble { get; } = """
         var a = new Vec(1);
         var b = new Vec(2);
         var grid = new Grid();
+        var table = new Table();
+        var ledger = new Ledger();
+        var keyed = new Keyed<string>();
         int[] cells = [1, 2, 3];
         """;
 
@@ -89,6 +115,36 @@ public sealed class SelectionRecordingTests : ProgramModelProbe
 
         Assert.NotNull(read.Indexer);
         Assert.Same(read.Indexer, ((ClassType)read.Receiver.Type).IndexersList[0]);
+    }
+
+    [Fact]
+    public void AnIndexAccessRecordsTheIndexerItsArgumentSelects_NotTheFirstDeclared()
+    {
+        var read = InitializerOf<IndexExpression>("var read = table[\"a\"];");
+
+        Assert.Same(((ClassType)read.Receiver.Type).IndexersList[1], read.Indexer);
+        Assert.Equal("Standard.String", read.ParameterType?.FullyQualifiedName);
+        Assert.Equal("Standard.String", read.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void AnIndexIntoAConstructedReceiverRecordsTheSelectedSlotSubstituted()
+    {
+        var read = InitializerOf<IndexExpression>("var read = keyed[\"a\"];");
+        var definition = (ClassType)((ConstructedType)read.Receiver.Type).Definition;
+
+        Assert.Same(definition.IndexersList[1], read.Indexer);
+        Assert.Equal("Standard.String", read.ParameterType?.FullyQualifiedName);
+        Assert.Equal("Standard.String", read.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void AFromEndIndexRecordsThePositionalIndexerAndNoSlot()
+    {
+        var read = InitializerOf<IndexExpression>("var read = ledger[^1];");
+
+        Assert.Same(((ClassType)read.Receiver.Type).IndexersList[1], read.Indexer);
+        Assert.Null(read.ParameterType);
     }
 
     [Fact]

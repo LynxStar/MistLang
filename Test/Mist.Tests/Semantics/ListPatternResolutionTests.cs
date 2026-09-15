@@ -24,11 +24,21 @@ public sealed class ListPatternResolutionTests : ProgramModelProbe
         {
             public string Name { get; set; }
         }
+
+        public class Ledger
+        {
+            public int Count { get { return 2; } }
+
+            public string this[string key] { get { return key; } }
+
+            public int this[int i] { get { return i; } }
+        }
         """;
 
     protected override string Preamble { get; } = """
         int[] numbers = [10, 20, 30, 40, 50];
         Greeter g = new Greeter();
+        Ledger ledger = new Ledger();
         unknown u = 42;
         """;
 
@@ -46,6 +56,16 @@ public sealed class ListPatternResolutionTests : ProgramModelProbe
     public void EachPositionalElementIsTypedByTheScrutineesElement()
     {
         var pattern = Assert.IsType<ListPattern>(PatternOf("var ok = numbers is [var a, var b];"));
+
+        Assert.Equal(
+            ["Standard.Int32", "Standard.Int32"],
+            pattern.Elements.Select(element => element.Subpattern!.NarrowedType.FullyQualifiedName));
+    }
+
+    [Fact]
+    public void APositionalElementIsTypedByTheIndexerAPositionSelects_NotTheFirstDeclared()
+    {
+        var pattern = Assert.IsType<ListPattern>(PatternOf("var ok = ledger is [var a, var b];"));
 
         Assert.Equal(
             ["Standard.Int32", "Standard.Int32"],

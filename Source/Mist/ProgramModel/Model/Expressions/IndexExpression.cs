@@ -18,15 +18,16 @@ internal sealed class IndexExpression(
     public Expression Index { get; } = index;
 
     /// <summary>
-    /// The user indexer the access resolved to, or null for an element access the target supplies --
-    /// an array's or a span's, whose intrinsic indexer has no accessor a rule could judge.
+    /// The user indexer the index selected among the receiver's, or null for an element access the
+    /// target supplies -- an array's or a span's, whose intrinsic indexer has no accessor a rule could
+    /// judge.
     /// </summary>
     public Indexer? Indexer { get; init; }
 
     /// <summary>
-    /// The type the index was bound against: <see cref="Indexer"/>'s one parameter read through the
-    /// receiver's type arguments. Null for a from-end index, which reaches the element through the
-    /// receiver's Count or Length rather than through the parameter.
+    /// The type the index was bound against: the parameter of the selected <see cref="Indexer"/>, read
+    /// through the receiver's type arguments. Null for a from-end index, which reaches the element
+    /// through the receiver's Count or Length rather than through the parameter.
     /// </summary>
     public IMistType? ParameterType { get; init; }
 

@@ -3058,6 +3058,19 @@ capabilities:
       (Properties, Attributes, AdhocRefinementConstraints, ArrayBoundsFlowAnalysis,
       TypeArgumentInference) are all outside AllFeaturesV2, each blocked on properties or on
       generics rather than on indexers.
+
+      THE MODEL NOW HOLDS WHICH INDEXER AN INDEX REACHES (2026-09-15). Every index named the receiver's
+      first indexer, so over `int this[int i]` and `string this[string s]` the model could not represent
+      `string s = t["x"]`: it typed the access int, and v2 refused the program as
+      MIST_PA_NO_IMPLICIT_CONVERSION, as classic refuses it as MIST_TC_0001. Emission never noticed,
+      because it re-spells `t["x"]` and Roslyn selects again. The binder now selects the indexer by the
+      index's type through OverloadResolution, the selector calls use, and records it as
+      IndexExpression.Indexer with its parameter as IndexExpression.ParameterType, so a type declaring
+      several indexers is typed and judged against the one selected, and UnsafeReach, which reads
+      IndexExpression.Indexer, reads that one too. Measured on v2 on scratch programs: the string read, a
+      string-keyed write, `var v = t["x"]; v.Length`, and an int read beside them now run and print the
+      selected indexer's results, where each was refused on both pipelines before. The refusals this adds
+      and the rows proving it are recorded on analysis order 5.
     unlocks: []
 
   - id: generic-indexers
@@ -3083,6 +3096,14 @@ capabilities:
 
       Still weakly exercised, on one indexer with one parameter, whose body ignores the index. See
       the sample's own untested notes.
+
+      AN OVERLOADED INDEXER ON A GENERIC TYPE (2026-09-15). The slot a selected indexer is recorded
+      against is its parameter read through the receiver's type arguments, the substitution selection
+      closed it under. Over `Keyed<K>` declaring `this[K key]` and `this[int i]`, `int n = a[3]` on
+      `Keyed<string>` was refused on both pipelines, the first indexer typing it string, and now runs on
+      v2; `keyed["a"]` records its slot as string, which SelectionRecordingTests pins. At `Keyed<int>` the
+      two close to one signature and the index is refused as ambiguous, recorded as a decision on
+      analysis order 5.
     unlocks: [TypeArgumentInference]
 
   - id: object-initializer-blocks

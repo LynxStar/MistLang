@@ -730,12 +730,10 @@ rules:
       rather than through the parameter.
 
       NOT JUDGED, for the reason a CLR-projected call's argument is not: the indexer the model names may not
-      be the one Roslyn chooses. That covers an index into a type that declares more than one indexer,
-      since the binder names the first (`t["x"]` over `this[int]` and `this[string]` runs on both pipelines
-      and prints the string indexer's result; the mistyping it causes is recorded on
-      program-model-body-tasks postfix.IndexSuffix). It also covers an index into a CLR-projected indexer:
-      `d[1]` over `Dictionary<string, int>` still reaches Roslyn. An intrinsic indexer has no Indexer
-      recorded and is not judged either (task below).
+      be the one Roslyn chooses. That covered an index into a type declaring more than one indexer until
+      the binder selected among them by the index, as a call selects (the 2026-09-15 paragraph below). It
+      still covers an index into a CLR-projected indexer: `d[1]` over `Dictionary<string, int>` still
+      reaches Roslyn. An intrinsic indexer has no Indexer recorded and is not judged either (task below).
 
       THE PROVER READS THE SAME SLOT. RefinementAnalyzer.NeedIndex looked the indexer up for itself,
       unsubstituted, and asked its predicate of any integral index. It now asks Need of the recorded slot,
@@ -761,6 +759,71 @@ rules:
       unexpected CONSTRAINT_VIOLATED, and the named refinement worded as a constraint). The full suite --
       6229, 664 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure and no rerun,
       and the build and `dotnet format` were clean.
+
+      AN INDEX SELECTS ITS INDEXER BY ITS ARGUMENT (2026-09-15), as a call selects its method, and this
+      order judges the index against whichever indexer was selected. MEASURED at 60e5b8b2 on both
+      pipelines, one project per probe. BOTH NAMED THE FIRST INDEXER, classic included, which the
+      paragraph above measured only where nothing asserted the type: over `int this[int i]` and `string
+      this[string s]`, `string s = t["x"]` was MIST_PA_NO_IMPLICIT_CONVERSION on v2 and MIST_TC_0001 on
+      classic; `t["a"] = "b"` was refused on both the same way; `var v = t["x"]; int n = v.Length;` was
+      MIST_PM_UNRESOLVED_MEMBER on v2 and MIST_UNDEFINED_MEMBER on classic; and `int n = a[3]` over
+      `Keyed<string>`'s `this[K key]` and `this[int i]` was refused on both. `Console.WriteLine(t["x"])`
+      ran on either, printing the string indexer's result, only because Roslyn selected again. Each now
+      runs on v2 and prints the selected indexer's result, and so, measured after only, do `int last =
+      c[^1]` and a list pattern `c is [_, _, int third]` over a type with a Count whose string indexer is
+      declared first, which classic refuses at the from-end index as TC_0001. That is v2 more permissive
+      than classic, on purpose: properties Requirement 11.6 refuses two indexers only when their parameter
+      types agree, 11.4 resolves an access to the indexer and checks its argument, and C# compiles every
+      one of them. `t[small]` with a byte over `this[short s]` and `this[uint u]` printed `short` on both
+      pipelines, C#'s signed preference choosing; it is now MIST_PM_AMBIGUOUS_OVERLOAD, as
+      `Sink.Take(small)` over the same pair is (method-overloading Requirement 3.3), and classic's admit
+      is a divergence in the stricter direction, the call rule's. `t[1.5]` over int and string indexers,
+      and `g[1]` over a lone `this[int row, int column]`, reached Roslyn as MIST_CS_ERROR on both and are
+      now MIST_PM_UNRESOLVABLE_OVERLOAD and MIST_PM_NO_APPLICABLE_OVERLOAD, naming `indexer
+      'Table.this[]'`. `t[-1]` over `string this[string key]` declared before `int this[int index] where
+      index >= 0` printed -1 on both, v2 having judged the string indexer, and is now CONSTRAINT_VIOLATED
+      once. `t[-1]` over `this[long l] where l >= 0` declared before `this[int i]` was CONSTRAINT_VIOLATED
+      on v2, judged against the long indexer, and classic prints `int`; it now prints `int`, a false
+      refusal closed. Unchanged on both: `numbers[1]`, `numbers[1..3]`, `span[2]`, `word[1..3]`, and
+      `c[^1]` over a lone `this[int i]` with a Count.
+
+      WHAT CHANGED. Method, and so Constructor, and Indexer implement IOverload -- the parameters, the
+      type parameters and the declaring type, which is all selection reads -- and OverloadResolution,
+      OverloadChoice and OverloadFailure are generic over it, so arity, applicability, betterness and the
+      signed-over-unsigned tie keep one home; an indexer's type-parameter list is empty.
+      Indexability.Select hands the receiver definition's IndexersList to that selector. A from-end index
+      no indexer takes as it is selects again as an int position, which is C#'s lowering onto Count and an
+      int indexer, and a list pattern's positional element selects as that position. IndexBinder, moved
+      out of PostfixBinder, records the selected indexer as IndexExpression.Indexer and its parameter read
+      through the receiver's substitution as ParameterType (still null for a from-end index, and both
+      still null for an intrinsic indexer), and refuses a failed selection through OverloadFailure, whose
+      suppression of an argument that already failed covers the index. PairsWithIndex keeps only the
+      CLR-projected condition, and RefinementAnalyzer.NeedIndex reads the recorded slot as it did. A
+      single indexer surviving arity is returned without consulting the relation, as a call's single
+      candidate is, so the type check at the index stays this order's: `shelf[300]` over `this[byte slot]`
+      beside `this[int row, int column]` is NO_IMPLICIT_CONVERSION at the index. Beside a string indexer
+      the same constant is refused by selection instead, as unresolvable, because `Take(300)` over
+      Take(byte) and Take(string) has no applicable candidate (method-overloading Requirement 3.7).
+
+      PROVED BY five corpus cases and seven rows. The cases are
+      index-overload-ambiguous-between-signed-and-unsigned, index-overload-unresolvable and
+      index-overload-arity-mismatch in binding, index-into-selected-indexer here, and
+      indexer-constraint-violated-on-the-selected-overload in refinement-proving. The rows:
+      SelectionRecordingTests records the second-declared indexer and a string slot for a string argument,
+      the same on `Keyed<string>` with the slot substituted from K, and the int indexer with a null slot
+      for `ledger[^1]` over a string-first pair; ListPatternResolutionTests types a positional element by
+      the int indexer of a string-first pair; AssignabilityDecisionTests moves the Overloaded row from not
+      judged to judged and admitted, beside a Differing fixture whose int and string indexers return their
+      own types, read and written; and RefinementDecisionTests holds `pick[-1]` silent over the long-first
+      pair. Four mutations on a confirmed build, each caught by the rows named for it: the selector handed
+      the first indexer alone failed eight tests -- four corpus cases, the three recording rows, the list
+      pattern row, both index admits and the prover row; selection kept but the first indexer recorded
+      with its slot failed seven -- two corpus cases, the three recording rows, both admits and the prover
+      row; the slot recorded unsubstituted failed the Keyed<string> recording row and the existing
+      Keyed<byte> admit; and PairsWithIndex restored to a sole indexer failed index-into-selected-indexer
+      alone, which reached Roslyn as MIST_CS_ERROR. The full suite -- 6235, 664 and 68 tests,
+      AllFeaturesV2's baseline among them -- passed with no failure and no rerun, and the build and
+      `dotnet format` were clean.
     tasks:
       - >
         A value that could enter a union through two constituents neither containing the other is emitted
@@ -776,6 +839,26 @@ rules:
         until they are, no argument to a CLR-projected member is judged, and the `UseNpgsql` call in
         samples/CSharpInteropV2 is the case to prove it on. An index into a CLR-projected indexer is not
         judged either: `d[1]` over `Dictionary<string, int>` reaches Roslyn (measured 2026-09-15).
+      - >
+        An index a receiver's type argument makes identical to a sibling indexer is refused as ambiguous,
+        and whether it should be is a decision. Measured 2026-09-15 over `Keyed<K>` declaring `this[K key]`
+        and `this[int i]`, closed at `Keyed<int>`: `var r = b[3]` prints 3 on classic, Roslyn preferring
+        the parameter not written as a type parameter; on v2 it reached Roslyn as MIST_CS_ERROR while the
+        first indexer typed `r` as string, and is MIST_PM_AMBIGUOUS_OVERLOAD now that the index selects.
+        `b.Get(3)` over `Get(K)` and `Get(int)` is refused the same way on v2 and printed 3 on classic
+        already. OverloadResolution's generic tiebreak prefers a candidate declaring no type parameters of
+        its OWN; neither here does, and no spec states a preference between a receiver's type parameter and
+        a written type, so the pipelines' disagreement leaves it refused for both members.
+      - >
+        Two indexers with the same parameter types are not refused at the declaration (properties
+        Requirement 11.6). Measured 2026-09-15: `this[int i]` and `this[int j]` on one class is MIST_TC_0029
+        at each declaration on classic and MIST_CS_ERROR from Roslyn on v2, and two methods of one signature
+        split the same way, MIST_SM_0020 on classic and MIST_CS_ERROR on v2. No v2 home refuses a duplicate
+        member signature -- the MIST_PM_DUPLICATE_TYPE refusal in TypeBuilder covers type names, which is
+        what order 6 measured as SB_0061/0063 -- so it belongs with order 6 rather than here. Until then a
+        use of the pair binds the first, OverloadResolution binding a tie whose candidates render alike:
+        `string s = t[1]` over `int this[int i]` and `string this[int j]` is NO_IMPLICIT_CONVERSION on v2,
+        beside classic's two TC_0029 and a TC_0001.
       - >
         A collection-initializer element is not judged against the Add overload the binder selected.
       - >

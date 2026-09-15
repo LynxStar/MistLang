@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        var cells = [1, 2, 3];
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        cells[1u] = 5;
+        Console.WriteLine("unreachable");
+    }
+}

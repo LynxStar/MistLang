@@ -28,16 +28,11 @@ internal static class IndexBinder
             return new IndexExpression(node, receiver, index, SliceType(receiver.Type, node, context));
         }
 
-        if(Indexability.ArrayElement(receiver.Type) is { } element)
-        {
-            return new IndexExpression(node, receiver, index, element);
-        }
-
         var indexers = Indexability.Indexers(receiver.Type);
 
         if(indexers.Count == 0)
         {
-            return new IndexExpression(node, receiver, index, ErrorType.Instance);
+            return new IndexExpression(node, receiver, index, Indexability.ArrayElement(receiver.Type) ?? ErrorType.Instance);
         }
 
         var choice = Indexability.Select(indexers, receiver.Type, index, context);
@@ -51,18 +46,12 @@ internal static class IndexBinder
             return new ErrorExpression(node);
         }
 
-        var type = Indexability.IndexerType(selected, choice.Substitution, context);
-
-        if(selected.Modifiers.IsIntrinsic)
-        {
-            return new IndexExpression(node, receiver, index, type);
-        }
-
+        var type = Indexability.ArrayElement(receiver.Type) ?? Indexability.IndexerType(selected, choice.Substitution, context);
         var interner = context.ProgramModel.TypeInterner;
         var parameterTypes = selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner));
         CountedIndexer? fromEnd = null;
 
-        if(Indexability.IsIndex(index.Type) && parameterTypes is [var position] && !Indexability.IsIndex(position))
+        if(!selected.Modifiers.IsIntrinsic && Indexability.IsIndex(index.Type) && parameterTypes is [var position] && !Indexability.IsIndex(position))
         {
             if(Indexability.Count(receiver.Type) is { } count)
             {
@@ -78,7 +67,7 @@ internal static class IndexBinder
         return new IndexExpression(
             node, receiver, ImplicitConversions.AtParameters([index], method: null, parameterTypes, interner)[0], type)
         {
-            Indexer = selected,
+            Indexer = selected.Modifiers.IsIntrinsic ? null : selected,
             ParameterType = parameterTypes is [var slot] && !Indexability.IsIndex(index.Type) ? slot : null,
             FromEnd = fromEnd,
         };

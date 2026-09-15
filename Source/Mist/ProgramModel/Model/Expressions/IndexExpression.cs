@@ -25,9 +25,10 @@ internal sealed class IndexExpression(
     public Indexer? Indexer { get; init; }
 
     /// <summary>
-    /// The type the index was bound against: the parameter of the selected <see cref="Indexer"/>, read
-    /// through the receiver's type arguments. Null for a from-end index, which reaches the element
-    /// through the receiver's Count or Length rather than through the parameter.
+    /// The type the index was bound against: the parameter of the indexer it selected, read through the
+    /// receiver's type arguments, and recorded for an intrinsic indexer too, where <see cref="Indexer"/> is
+    /// not. Null for a from-end index, which reaches the element through the receiver's Count or Length
+    /// rather than through the parameter.
     /// </summary>
     public IMistType? ParameterType { get; init; }
 

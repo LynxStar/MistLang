@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static int At(int[] cells, long slot)
+    {
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        return cells[slot];
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(At([1, 2, 3], 1));
+        Console.WriteLine("unreachable");
+    }
+}

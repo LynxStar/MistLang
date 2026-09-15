@@ -257,11 +257,6 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return;
             }
 
-            if(!Requirement.IsIntegral(Requirement.Unrefined(index.Index.Type)))
-            {
-                return;
-            }
-
             if(index is { ParameterType: { } slot, Indexer.ParametersList: [var parameter] })
             {
                 Need(state, index.Index, slot, index.Index, onConstraint: parameter.Name);
@@ -271,12 +266,12 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         // What is known of the value that meets an array's or a span's slot. `^k` names the position
         // `Length - k`, so its knowledge is the length less every k it may be, and below Length by
         // construction whenever every k is at least one -- the prover then asks of it what it asks of
-        // any other index, and never learns what `^` means. Null for an index no integral value reaches.
+        // any other index, and never learns what `^` means. Null for an index the slot's type refuses.
         private Knowledge? Reaching(ImmutableDictionary<object, Knowledge> state, IndexExpression index, Admitted? length)
         {
             if(index.Index is not UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset })
             {
-                return Requirement.IsIntegral(Requirement.Unrefined(index.Index.Type)) ? Known(state, index.Index) : null;
+                return EntersBounds(index) ? Known(state, index.Index) : null;
             }
 
             var back = Known(state, offset).Values;
@@ -291,6 +286,13 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 : ImmutableHashSet<Bound>.Empty;
 
             return new Knowledge(Lengths.Exact(back) is { } exact ? length.Shifted(-exact) : length.Minus(back), below);
+        }
+
+        private static bool EntersBounds(IndexExpression index)
+        {
+            return index.ParameterType is { } bounds
+                ? Accepts(bounds, index.Index.Type) || ConstantConversion.Fits(index.Index, bounds)
+                : Requirement.IsIntegral(Requirement.Unrefined(index.Index.Type));
         }
 
         private void Need(

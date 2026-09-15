@@ -1,0 +1,154 @@
+using Standard;
+
+namespace OverloadedIndexers;
+
+// An index reaches the indexer its argument selects, as a call reaches its overload. Every read and write
+// below goes through the indexer its type declares SECOND, typed where the first would be refused, so a
+// line reaching the first would prove nothing. Classic types an index by the first indexer, so this sample
+// is banked on AllFeaturesV2 alone.
+public class Roster
+{
+    private string captain = "none";
+    private string mate = "none";
+
+    public int this[int seat]
+    {
+        get
+        {
+            return seat * 100;
+        }
+    }
+
+    public string this[string role]
+    {
+        get
+        {
+            if (role == "captain")
+            {
+                return captain;
+            }
+
+            return mate;
+        }
+        set
+        {
+            if (role == "captain")
+            {
+                captain = value;
+            }
+            else
+            {
+                mate = value;
+            }
+        }
+    }
+}
+
+public class Ledger
+{
+    private int[3] entries = new int[3];
+
+    public int Count
+    {
+        get
+        {
+            return entries.Length;
+        }
+    }
+
+    public string this[string account]
+    {
+        get
+        {
+            return "ledger:" + account;
+        }
+    }
+
+    public int this[int entry] where entry >= 0 and < 3
+    {
+        get
+        {
+            return entries[entry];
+        }
+        set
+        {
+            entries[entry] = value;
+        }
+    }
+}
+
+public class Keyed<K>
+{
+    private K held;
+
+    public Keyed(K held)
+    {
+        this.held = held;
+    }
+
+    public int this[int slot]
+    {
+        get
+        {
+            return slot;
+        }
+    }
+
+    public K this[K key]
+    {
+        get
+        {
+            return held;
+        }
+        set
+        {
+            held = value;
+        }
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Overloaded Indexers ===");
+
+        Console.WriteLine("--- String index, int indexer declared first ---");
+        var roster = new Roster();
+        roster["captain"] = "Ada";
+        roster["mate"] = "Grace";
+        string captain = roster["captain"];
+        var mate = roster["mate"];
+        Console.WriteLine($"captain={captain} mate={mate} mate-length={mate.Length}");
+
+        Console.WriteLine("--- Int index, string indexer declared first ---");
+        var ledger = new Ledger();
+        ledger[0] = 120;
+        ledger[1] = 45;
+        ledger[2] = 300;
+        int opening = ledger[0];
+        int net = ledger[2] - ledger[0];
+        Console.WriteLine($"opening={opening} net={net}");
+
+        Console.WriteLine("--- From-end index ---");
+        int closing = ledger[^1];
+        Console.WriteLine($"closing={closing}");
+
+        Console.WriteLine("--- List pattern ---");
+        if (ledger is [var first, var second, _])
+        {
+            Console.WriteLine($"first={first} second={second} drop={first - second}");
+        }
+
+        Console.WriteLine("--- Generic receiver ---");
+        var keyed = new Keyed<string>("draft");
+        keyed["title"] = "Mist";
+        var title = keyed["title"];
+        Console.WriteLine($"title={title} upper={title.ToUpper()}");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

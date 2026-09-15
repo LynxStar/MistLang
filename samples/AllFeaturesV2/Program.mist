@@ -100,5 +100,6 @@ public class Program
         GenericAbstractMembers.Program.RunDemo();
         NestedGenericTypes.Program.RunDemo();
         NewtypeClones.Program.RunDemo();
+        OverloadedIndexers.Program.RunDemo();
     }
 }

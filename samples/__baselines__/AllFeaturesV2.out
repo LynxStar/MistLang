@@ -1971,3 +1971,14 @@ cellBack=3 fresh#2#1 made=1 cell=3 fresh made=1
 --- Members a Clone reaches ---
 lynx=spots=4 spare=7 ocelot=spots=139 spare=5 lynxBack=spots=409 spare=5
 === Newtype Clones Done ===
+=== Overloaded Indexers ===
+--- String index, int indexer declared first ---
+captain=Ada mate=Grace mate-length=5
+--- Int index, string indexer declared first ---
+opening=120 net=180
+--- From-end index ---
+closing=300
+--- List pattern ---
+first=120 second=45 drop=75
+--- Generic receiver ---
+title=Mist upper=MIST

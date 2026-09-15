@@ -234,7 +234,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }:
                     if(Requirement.IsAnonymous(assignment.Target.Type) && Requirement.OfType(assignment.Target.Type) is { } constrained)
                     {
-                        Need(state, assignment.Value, constrained, assignment.Value, onConstraint: Display(assignment.Target));
+                        Need(state, assignment.Value, constrained, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target));
                     }
                     else
                     {
@@ -295,7 +295,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
                 if(Requirement.IsAnonymous(parameterTypes[i]) && Requirement.OfType(parameterTypes[i]) is { } demanded)
                 {
-                    Need(state, arguments[i], demanded, arguments[i], onConstraint: parameter?.Name ?? Display(arguments[i]));
+                    Need(state, arguments[i], demanded, arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]));
                 }
                 else
                 {
@@ -369,7 +369,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 }
             }
 
-            Report(known, value, Requirement.OfType(considered[0])!, TypeDisplay.Mist(target), at, onConstraint: null);
+            RefinementFindings.Report(context, known.Values, value, Requirement.OfType(considered[0])!, TypeDisplay.Mist(target), at, onConstraint: null);
         }
 
         private void Need(
@@ -386,7 +386,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             if(!Satisfied(known, required, onIndex, constant: Requirement.Constant(value) is not null))
             {
 
-                Report(known, value, required, onIndex is { } receiver ? Display(receiver) : "", at, onConstraint, onIndex);
+                RefinementFindings.Report(context, known.Values, value, required, onIndex is { } receiver ? RefinementFindings.Display(receiver) : "", at, onConstraint, onIndex);
             }
         }
 
@@ -406,46 +406,6 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             }
 
             return true;
-        }
-
-        private void Report(Knowledge known, Expression value, Requirement required, string target, Expression at, string? onConstraint, Expression? onIndex = null)
-        {
-            var predicate = Describe(required);
-
-            if(onIndex is not null)
-            {
-                if(Requirement.Constant(value) is { } index)
-                {
-                    context.Report(ProgramAnalysisDiagnostics.IndexOutOfBounds, at.Node, [value, onIndex], index, target, predicate);
-                }
-                else
-                {
-                    context.Report(ProgramAnalysisDiagnostics.IndexUnproven, at.Node, [value, onIndex], Display(value), target, predicate);
-                }
-            }
-            else if(onConstraint is not null)
-            {
-                if(Requirement.Constant(value) is { } constant)
-                {
-                    context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at.Node, [value], constant, predicate, onConstraint);
-                }
-                else
-                {
-                    context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value], Display(value), predicate, onConstraint);
-                }
-            }
-            else if(Requirement.Constant(value) is { } constant)
-            {
-                context.Report(ProgramAnalysisDiagnostics.RefinementViolated, at.Node, [value], constant, predicate, target);
-            }
-            else if(Requirement.Refined(value.Type) is not null)
-            {
-                context.Report(ProgramAnalysisDiagnostics.RefinementNotImplied, at.Node, [value], TypeDisplay.Mist(value.Type), target, known.Values, predicate);
-            }
-            else
-            {
-                context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value], TypeDisplay.Mist(value.Type), target, predicate);
-            }
         }
 
         private static Knowledge Known(ImmutableDictionary<LocalVariable, Knowledge> state, Expression value)
@@ -653,47 +613,6 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 ComparisonKind.LessThanOrEqual => ComparisonKind.GreaterThan,
                 ComparisonKind.GreaterThanOrEqual => ComparisonKind.LessThan,
                 _ => kind,
-            };
-        }
-
-        private static string Describe(Requirement required)
-        {
-            var parts = new List<string>();
-
-            if(!required.Values.IsEverything)
-            {
-                parts.Add(required.Values.ToString());
-            }
-
-            foreach(var bound in required.Bounds)
-            {
-                parts.Add($"{Symbol(bound.Kind)} {bound.Name}");
-            }
-
-            return parts.Count == 0 ? "anything" : string.Join(" and ", parts);
-        }
-
-        private static string Symbol(ComparisonKind kind)
-        {
-            return kind switch
-            {
-                ComparisonKind.LessThan => "<",
-                ComparisonKind.LessThanOrEqual => "<=",
-                ComparisonKind.GreaterThan => ">",
-                ComparisonKind.GreaterThanOrEqual => ">=",
-                _ => "==",
-            };
-        }
-
-        private static string Display(Expression expression)
-        {
-            return expression switch
-            {
-                LocalReferenceExpression local => local.Local.Name,
-                FieldReferenceExpression field => field.Field.Name,
-                ThisExpression => "this",
-                MemberAccessExpression access => $"{Display(access.Receiver)}.{access.MemberName}",
-                _ => TypeDisplay.Mist(expression.Type),
             };
         }
     }

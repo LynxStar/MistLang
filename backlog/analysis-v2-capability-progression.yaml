@@ -124,6 +124,64 @@ rules:
       COST: ~0.7s per case through the real pipeline, measured at three cases. Worth re-measuring around
       30; a shells-only ambient provider is the lever if it becomes a problem, at the price of a rule
       that mis-fires on a CLR type passing anyway.
+      
+      A LOCAL BOUND FROM A VALUE THAT ALREADY FAILED ADDS NO SECOND COMPLAINT (2026-09-15). The
+      suppression above keyed on the argument itself, so a failure that reached a call through a local
+      was reported again. MEASURED at 7f3f6bb4 on v2, one project per probe: `var r = Signs.Take(small);
+      Console.WriteLine(r);` over an ambiguous Take reported MIST_PM_AMBIGUOUS_OVERLOAD and then
+      MIST_PM_UNRESOLVABLE_OVERLOAD at WriteLine, naming (string), (unknown). So did 47 more of the 84 rows
+      that bound a `var` local from an ambiguous call, an ambiguous index, an unresolvable call or an
+      unresolved identifier and then used it as an argument, a receiver, an operand or an indexed
+      receiver; the other 36 reached no overload selection. So did `Console.WriteLine(nothing[0])` and
+      `(nothing + 1)` with no local at all, `-r`, `r(1)`, a local copied from a failed one, and the `for`,
+      `with` and `foreach` bindings -- `foreach (var e in 5)` included, which the foreach itself refuses.
+      A typed local was already silent wherever its declared type fits the use. Classic, gated on an
+      unresolved identifier, reported it alone, and over an ambiguous or unresolvable call cascaded the
+      same way at an overloaded user method or constructor (MIST_TC_0031), silent only at WriteLine.
+      
+      STAGE 5 ADDED NOTHING to any of those rows. AnalysisContext.Report already says nothing about an
+      ErrorType expression, and a reference to such a local is one, so the analysis half needed no change.
+      Its ErrorType key is sound there for a reason the binder's is not: analysis drops no node, so an
+      UnresolvedExpression it stays silent about still reaches emission's MIST_BE_UNSUPPORTED_EXPRESSION
+      once nothing else is refused, which measured unchanged. A refused call instead becomes an
+      ErrorExpression and takes the unfinished argument with it, which is why the binder cannot key on
+      ErrorType.
+      
+      WHAT CHANGED. OverloadFailure's predicate moved to Construction/Binding/PriorFailure.Of, which also
+      looks through an index, a unary and a binary, and accepts a LocalReferenceExpression whose
+      LocalVariable.IsFailed the binder set. The binder sets it where the bound value is in hand -- `var`,
+      `for (var ...)`, `with var`, and `foreach (var ...)` over a collection that failed or whose element
+      the foreach refused itself. A FLAG, NOT THE DECLARATION'S INITIALIZER: a LocalVariable does not reach
+      its declaration, and a `with` binding and a foreach variable have no initializer to reach. POSITIVE,
+      NOT A MARK ON THE UNFINISHED CASE: a site that forgets the flag leaves a second complaint the corpus
+      can see, where a site that forgot to mark an UnresolvedExpression would silence it. After the change
+      all 60 rows that had cascaded report their first complaint alone, and nothing else among the 199 v2
+      probes moved: `u is (0, 0)` over unknown, which parks without a diagnostic, still reaches
+      MIST_PM_UNRESOLVABLE_OVERLOAD passed directly, through a local, through a copy of that local, and as
+      a foreach collection.
+      
+      PROVED BY two corpus cases in binding, local-from-an-ambiguous-call-passed-on and
+      local-from-an-ambiguous-index-passed-on, over the signed/unsigned pair whose ambiguity is decided
+      rather than `Keyed<int>`, whose tie is still an open question; and nineteen rows in
+      OverloadSelectionTests -- fifteen holding a failure passed on to its one complaint, four holding an
+      unfinished value still reported. ELEVEN MUTATIONS on a confirmed build, each caught by the rows named
+      for it: the local arm dropped from PriorFailure failed both corpus cases and the thirteen rows that
+      pass through a local; the flag never set on `var` failed both corpus cases and the nine rows whose
+      first local is a `var`; a local judged by its ErrorType instead of its flag failed the three
+      unfinished rows that pass through a local; the index, binary and unary arms dropped failed
+      `neverDeclared[0]`, the two `+ 1` rows and `-r`; the `with` and `for` flags never set failed their
+      own rows; and the foreach flag keyed on ErrorType, blind to its own refusal and blind to a failed
+      collection failed the unfinished foreach row, `foreach (var e in 5)` and `foreach (var e in
+      neverDeclared)`, one each. The full suite -- 6254, 664 and 68 tests, AllFeaturesV2's baseline among
+      them -- passed with no failure and no rerun, and the build and `dotnet format` were clean.
+      
+      NOT CLOSED, each measured the same day and recorded with its output against the error-expression
+      sentinel entry in program-model-body-tasks: a member access the binder refused
+      (`Console.WriteLine(k.Lenght)` is still two complaints, and is probably the commonest cascade left);
+      a pattern binding over a failed scrutinee; an inferred deconstruction that declares no locals; a
+      declared type that failed; and a value the binder types ErrorType for Stage 5 to refuse, which
+      through a local is still two and passed directly is one complaint and the wrong one, because the
+      refused call drops its arguments before Stage 5 walks them.
     tasks:
       - >
         Keep the 72 banked samples as the FALSE-POSITIVE half. A new analyzer that refuses OR WARNS on a

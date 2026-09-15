@@ -100,6 +100,13 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
                 tmp[0] = 1;
                 return tmp[0];
             }
+
+            public readonly int Fallback()
+            {
+                int? spare = void;
+                spare ??= v;
+                return spare ?? 0;
+            }
         }
 
         public class Ledger
@@ -176,6 +183,7 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
     [InlineData("var r = new Box(1).Reader();")]
     [InlineData("var c = new Box(1).Copy();")]
     [InlineData("var s2 = new Box(1).Scratch();")]
+    [InlineData("var fb = new Box(1).Fallback();")]
     [InlineData("var l = new Ledger().First();")]
     [InlineData("var d = new Vec(1).Doubled();")]
     [InlineData("var t = Gauge.Through(new Gauge());")]
@@ -208,6 +216,41 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
             """;
 
         Assert.Equal(2, Analyse("var c = new Counter();", extraTypes).Count);
+    }
+
+    [Fact]
+    public void AWriteIsJudgedAsASetterOnlyEvenWhereTheGetterMutates()
+    {
+        var extraTypes = """
+            public class Meter
+            {
+                public int reads;
+                public int stored;
+
+                public int Level
+                {
+                    get { reads = reads + 1; return stored; }
+                    set { stored = value; }
+                }
+
+                public int this[int slot]
+                {
+                    get { reads = reads + 1; return stored; }
+                    set { stored = value; }
+                }
+
+                public readonly void Reset()
+                {
+                    Level = 0;
+                    this.Level = 0;
+                    this[0] = 1;
+                }
+            }
+            """;
+
+        Assert.Equal(
+            ["MIST_PA_READONLY_CONTEXT_SETS_PROPERTY", "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY", "MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_INDEX"],
+            Analyse("var m = new Meter();", extraTypes).Select(d => d.Id.Value).Order());
     }
 
     private List<Diagnostic> Analyse(string statement, string extraTypes)

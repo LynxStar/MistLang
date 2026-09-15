@@ -127,10 +127,30 @@ public sealed class CloneConversionEmissionTests
             }
         }
 
+        public class Serval : IClonable<Serval>
+        {
+            public int marks;
+
+            private int this[int index]
+            {
+                set { marks = value + index; }
+            }
+
+            public Serval(int marks) { this.marks = marks; }
+
+            public owned Serval Clone()
+            {
+                var copy = new Serval(marks);
+                copy[1] = 2;
+                return copy;
+            }
+        }
+
         public type Jaguar = new Tiger;
         public type Puma = new Lion;
         public type IntCell = new Cell<int>;
         public type Ocelot = new Lynx;
+        public type Caracal = new Serval;
         """;
 
     private const string Casts = """
@@ -140,6 +160,8 @@ public sealed class CloneConversionEmissionTests
         var cell = (Cell<int>)intCell;
         var ocelot = (Ocelot)new Lynx(1);
         var lynx = (Lynx)ocelot;
+        var caracal = (Caracal)new Serval(1);
+        var serval = (Serval)caracal;
         """;
 
     [Fact]
@@ -228,6 +250,15 @@ public sealed class CloneConversionEmissionTests
         Assert.Contains("copy[1] = __In_Probe_Lynx_get_Item(@this, 1) + 10;", emitted);
         Assert.Contains("__Out_Probe_Lynx_set_Item(copy, 1, (@this[1] + 10));", emitted);
         Assert.Contains("private static extern void __Out_Probe_Lynx_set_Item(Probe.Lynx __target, int index, int value);", emitted);
+    }
+
+    [Fact]
+    public void AWriteThroughASetOnlyIndexer_DeclaresNoGetter()
+    {
+        var emitted = EmitDeclaration("Caracal");
+
+        Assert.Contains("__Out_Probe_Serval_set_Item(copy, 1, 2);", emitted);
+        Assert.DoesNotContain("get_Item", emitted);
     }
 
     [Fact]

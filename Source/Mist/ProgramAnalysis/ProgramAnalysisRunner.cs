@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
@@ -23,6 +24,7 @@ internal static class ProgramAnalysisRunner
         new PatternAnalyzer(),
         new OperatorAnalyzer(),
         new PositionAnalyzer(),
+        new AccessorAnalyzer(),
         new DefiniteAssignmentAnalyzer(),
         new StampabilityAnalyzer(),
         new OwnershipAnalyzer(),
@@ -75,6 +77,7 @@ internal static class ProgramAnalysisRunner
     {
         var nodes = new List<object>();
         var roots = new Dictionary<object, SourceRoot>(ReferenceEqualityComparer.Instance);
+        var assignedBy = new Dictionary<object, AssignmentExpression>(ReferenceEqualityComparer.Instance);
 
         foreach(var root in scope.Bodies)
         {
@@ -82,12 +85,17 @@ internal static class ProgramAnalysisRunner
             {
                 nodes.Add(node);
                 roots[node] = root;
+
+                if(node is AssignmentExpression assignment)
+                {
+                    assignedBy[assignment.Target] = assignment;
+                }
             }
         }
 
         foreach(var analyzer in Analyzers)
         {
-            analyzer.Analyze(new AnalysisContext(model, scope, nodes, roots, sourcePaths, diagnostics, analyzer.Id, refusals));
+            analyzer.Analyze(new AnalysisContext(model, scope, nodes, roots, assignedBy, sourcePaths, diagnostics, analyzer.Id, refusals));
         }
     }
 

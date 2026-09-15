@@ -1,0 +1,30 @@
+using Standard;
+
+namespace Refusal;
+
+public class Sink
+{
+    public int last;
+    public int? spare;
+
+    public int Level
+    {
+        set { last = value; }
+    }
+
+    public int? Spare
+    {
+        set { spare = value; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var sink = new Sink();
+        // REFUSE: MIST_PA_NO_GET_ACCESSOR
+        int read = sink.Level;
+        Console.WriteLine("unreachable");
+    }
+}

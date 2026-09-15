@@ -32,33 +32,30 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
 
         foreach(var root in context.Bodies)
         {
-            Walk(root.Root, Frame.For(root), new HashSet<object>(ReferenceEqualityComparer.Instance), context, inference);
+            Walk(root.Root, Frame.For(root), context, inference);
         }
     }
 
-    private static void Walk(
-        object node, Frame frame, HashSet<object> targets, AnalysisContext context, ReadonlyInference inference)
+    private static void Walk(object node, Frame frame, AnalysisContext context, ReadonlyInference inference)
     {
         if(node is Block { IsReadonly: true })
         {
             frame = frame.InsideReadonlyBlock();
         }
 
-        Judge(node, frame, targets, context, inference);
+        Judge(node, frame, context, inference);
 
         foreach(var child in BodyWalker.ChildrenOf(node))
         {
-            Walk(child, frame, targets, context, inference);
+            Walk(child, frame, context, inference);
         }
     }
 
-    private static void Judge(
-        object node, Frame frame, HashSet<object> targets, AnalysisContext context, ReadonlyInference inference)
+    private static void Judge(object node, Frame frame, AnalysisContext context, ReadonlyInference inference)
     {
         switch(node)
         {
-            case AssignmentExpression { IsCoalescing: false } assignment:
-                _ = targets.Add(assignment.Target);
+            case AssignmentExpression assignment:
                 JudgeAssignment(assignment, frame, context, inference);
                 break;
 
@@ -79,7 +76,7 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
                     reached.Name, through.Local.Name);
                 break;
 
-            case IndexExpression { Indexer: { } indexer } read when frame.IsReadonly && !targets.Contains(node):
+            case IndexExpression { Indexer: { } indexer } read when frame.IsReadonly && context.DirectionOf(node).HasFlag(AccessDirection.Read):
                 if(!inference.IsReadonlyGetter(indexer))
                 {
                     context.Report(
@@ -113,12 +110,12 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
 
                 break;
 
-            case PropertyReferenceExpression read when frame.IsReadonly && !targets.Contains(node):
+            case PropertyReferenceExpression read when frame.IsReadonly && context.DirectionOf(node).HasFlag(AccessDirection.Read):
                 JudgeGetter(read.Property, read, frame, context, inference);
                 break;
 
             case MemberAccessExpression { Member: PropertyResult { Property: { } accessed } } access
-                when frame.IsReadonly && !targets.Contains(node):
+                when frame.IsReadonly && context.DirectionOf(node).HasFlag(AccessDirection.Read):
                 JudgeGetter(accessed, access, frame, context, inference);
                 break;
         }

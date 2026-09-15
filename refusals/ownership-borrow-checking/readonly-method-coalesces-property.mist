@@ -1,0 +1,28 @@
+using Standard;
+
+namespace Refusal;
+
+public class Cache
+{
+    public int? stored;
+
+    public int? Entry
+    {
+        get { return stored; }
+        set { stored = value; }
+    }
+
+    public readonly void Touch()
+    {
+        // REFUSE: MIST_PA_READONLY_CONTEXT_SETS_PROPERTY
+        Entry ??= 5;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

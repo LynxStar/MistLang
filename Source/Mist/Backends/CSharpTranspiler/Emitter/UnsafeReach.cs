@@ -197,12 +197,16 @@ internal sealed class UnsafeReach : IDisposable
             && !reach.Reaches(Narrowest(indexer), false, indexer.DeclaringType, index.Receiver.Type))
         {
             var owner = ClosedOwner(indexer.DeclaringType!, index.Receiver.Type, reach.result);
-            var get = reach.accessors.Indexer(indexer, owner, isSetter: false);
             var set = reach.accessors.Indexer(indexer, owner, isSetter: true);
 
-            return assignment.IsCoalescing
-                ? reach.Coalesced(render(index.Receiver), render(index.Index), $"(__t, __k) => {get}(__t, __k)", $"(__t, __k, __v) => {set}(__t, __k, __v)", render(assignment.Value))
-                : $"{set}({render(index.Receiver)}, {render(index.Index)}, {render(assignment.Value)})";
+            if(!assignment.IsCoalescing)
+            {
+                return $"{set}({render(index.Receiver)}, {render(index.Index)}, {render(assignment.Value)})";
+            }
+
+            var get = reach.accessors.Indexer(indexer, owner, isSetter: false);
+
+            return reach.Coalesced(render(index.Receiver), render(index.Index), $"(__t, __k) => {get}(__t, __k)", $"(__t, __k, __v) => {set}(__t, __k, __v)", render(assignment.Value));
         }
 
         var (property, receiverType, renderReceiver) = assignment.Target switch

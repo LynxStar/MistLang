@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public class Ledger
+{
+    public int last;
+
+    public int this[int slot]
+    {
+        set { last = value + slot; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var ledger = new Ledger();
+        // REFUSE: MIST_PA_NO_GET_ACCESSOR
+        int read = ledger[0];
+        Console.WriteLine("unreachable");
+    }
+}

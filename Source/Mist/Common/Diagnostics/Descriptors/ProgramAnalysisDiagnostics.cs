@@ -310,6 +310,18 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "The optional suffix '?' cannot be applied to '{0}', which already contains 'void'.");
 
+    public static readonly DiagnosticDescriptor NoGetAccessor = new(
+        new DiagnosticId("MIST_PA_NO_GET_ACCESSOR"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot read '{0}': it has no 'get' accessor.");
+
+    public static readonly DiagnosticDescriptor NoSetAccessor = new(
+        new DiagnosticId("MIST_PA_NO_SET_ACCESSOR"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot assign to '{0}': it has no 'set' or 'init' accessor.");
+
     public static readonly DiagnosticDescriptor LocalReadBeforeAssignment = new(
         new DiagnosticId("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT"),
         DiagnosticSeverity.Error,

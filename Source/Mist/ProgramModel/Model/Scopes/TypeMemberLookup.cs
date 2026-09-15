@@ -250,7 +250,14 @@ internal static class TypeMemberLookup
             if(ProjectedElement(property.Type, property.Name, request.Name) is { } element)
             {
                 candidates.Add(
-                    new PropertyResult(new Property(request.Name, element, property.Modifiers), type, path),
+                    new PropertyResult(
+                        new Property(request.Name, element, property.Modifiers)
+                        {
+                            DeclaringType = property.DeclaringType,
+                            Getter = property.Getter,
+                            Setter = property.Setter,
+                        },
+                        type, path),
                     depth);
             }
         }

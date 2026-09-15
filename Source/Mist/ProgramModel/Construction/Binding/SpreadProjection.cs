@@ -39,7 +39,13 @@ internal static class SpreadProjection
             if(Element(receiver, property.Name, property.Type, memberName, context) is { } type)
             {
                 return new PropertyResult(
-                    new Property(memberName, type, property.Modifiers), declaring, []);
+                    new Property(memberName, type, property.Modifiers)
+                    {
+                        DeclaringType = property.DeclaringType,
+                        Getter = property.Getter,
+                        Setter = property.Setter,
+                    },
+                    declaring, []);
             }
         }
 

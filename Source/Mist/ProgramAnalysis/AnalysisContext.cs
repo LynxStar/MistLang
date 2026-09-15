@@ -13,6 +13,7 @@ internal sealed class AnalysisContext(
     AnalysisScope scope,
     IReadOnlyList<object> nodes,
     IReadOnlyDictionary<object, SourceRoot> roots,
+    IReadOnlyDictionary<object, AssignmentExpression> assignedBy,
     IReadOnlySet<string> sourcePaths,
     DiagnosticBag diagnostics,
     string analyzerId,
@@ -49,6 +50,22 @@ internal sealed class AnalysisContext(
     public MistAssembly? AssemblyOf(object node)
     {
         return roots.TryGetValue(node, out var root) ? root.Assembly : null;
+    }
+
+    /// <summary>
+    /// Answered from the assignment holding the node as its target, and read for everything else. The
+    /// model records no direction on an expression that can be a target -- see
+    /// <see cref="PropertyReferenceExpression"/> -- so this is the one place it is derived, and a
+    /// <c>??=</c> target is both, since it is read before it is written.
+    /// </summary>
+    public AccessDirection DirectionOf(object node)
+    {
+        if(!assignedBy.TryGetValue(node, out var assignment))
+        {
+            return AccessDirection.Read;
+        }
+
+        return assignment.IsCoalescing ? AccessDirection.ReadWrite : AccessDirection.Write;
     }
 
     public bool IsInSource(SyntaxNode node)

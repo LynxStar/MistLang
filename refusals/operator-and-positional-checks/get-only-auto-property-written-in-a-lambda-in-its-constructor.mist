@@ -1,0 +1,26 @@
+using Standard;
+
+namespace Refusal;
+
+public class Seeded
+{
+    public int Count { get; }
+
+    public Seeded()
+    {
+        func<int> seed = () =>
+        {
+            // REFUSE: MIST_PA_NO_SET_ACCESSOR
+            Count = 3;
+            return 1;
+        };
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

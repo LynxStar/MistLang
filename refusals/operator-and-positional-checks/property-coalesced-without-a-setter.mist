@@ -1,0 +1,27 @@
+using Standard;
+
+namespace Refusal;
+
+public class Gauge
+{
+    public int Level
+    {
+        get { return 7; }
+    }
+
+    public int? Spare
+    {
+        get { int? none = void; return none; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var gauge = new Gauge();
+        // REFUSE: MIST_PA_NO_SET_ACCESSOR
+        gauge.Spare ??= 5;
+        Console.WriteLine("unreachable");
+    }
+}

@@ -1,0 +1,26 @@
+using Standard;
+
+namespace Refusal;
+
+public class Seeded
+{
+    public int Count { get; }
+
+    public Seeded()
+    {
+    }
+
+    public Seeded(Seeded other)
+    {
+        // REFUSE: MIST_PA_NO_SET_ACCESSOR
+        other.Count = 3;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

@@ -557,6 +557,16 @@ rules:
         on classic. Reading the spec found it written for a different model, so the newtypes spec was
         REVISED on 2026-09-13 (a renamed clone, implicit out of a copyable source, a cast in as a call) and
         this is its task 15, staged after the clone itself (tasks 13 and 14).
+      - >
+        A cast into a union with a refined constituent, from that constituent's base, has no conversion:
+        over `type AgeOrName = AdultAge | string`, `(AgeOrName)k` for an int k and `(AgeOrName)20` are
+        CAST_HAS_NO_CONVERSION on v2 (measured 2026-09-14), where `(AdultAge)k` classifies as explicit and
+        `AgeOrName u = k;` is admitted and left to the refinement prover. ConversionClassifier's
+        ExplicitByDeclaration reaches a refinement from its base but not a union through such a
+        constituent, and ConstantConversion.Fits holds only narrower integral types. Classic admits both.
+        Since order 12 judges a cast's operand against a union's refined constituents, admitting these would
+        leave the predicate to the prover as the assignment does; which casts reach a union is this order's
+        decision.
 
   - id: assignability-core
     name: Assignability at every position that has a target type
@@ -1556,16 +1566,45 @@ rules:
       already evaluated its target as a read. Two corpus cases and six decision rows, over a
       local and a field holder. The sweep found one more site, Attributes' indexer SETTER, guarded
       now as its getter is, with the spec proof code following.
+
+      A CAST INTO A REFINEMENT IS AN ARGUMENT, since 2026-09-14. Measured first, on both pipelines:
+      `(AdultAge)10`, `int n = 10; (AdultAge)n`, an unproven `(AdultAge)n` and `(Meters)10` through
+      `explicit operator Meters(AdultAge)` all compiled and printed, and so did `(SmallAdult)5` over
+      `byte >= 18` on v2, classic refusing every constant cast to it as MIST_TC_0042. The call rule never
+      saw a cast, whose operand is an argument all the same. Asked whether a cast is judged as an argument
+      or is the one sanctioned unchecked narrowing into a refinement, the language's owner chose the first:
+      a cast is sugar for a conversion-function call, CastAnalyzer's contract is that no cast can fail at
+      runtime, and refinement-types 6.1 and 6.5 leave pattern matching the only way in for a value nothing
+      proved (recorded as refinement-types 6.6, with a pointer from cast-operators Requirement 8).
+      So the flow walk judges a cast's operand against the called operator's parameter, or against the
+      written type where no operator is called, with an assignment's three verdicts, at the cast.
+      Refinement to base and a cast into anything unrefined owe nothing. Only a cast whose conversion exists
+      is judged -- CastAnalyzer.Converts, the predicate CastAnalyzer itself refuses on, so the two cannot
+      disagree -- because `(Small)300` over `byte <= 10` and `(SmallOrName)-5` are CAST_HAS_NO_CONVERSION
+      already and a violated predicate on top would be a second complaint about one mistake. A local the
+      flow knows is 10 is UNPROVEN, not VIOLATED, as the same local assigned is.
+
+      AFTER: the admit probe prints `30` and `21 70 21 20` unchanged; each refusal probe reports exactly
+      one finding, at the cast; `AdultAge a = (AdultAge)10;` reports once, the declaration being satisfied
+      by the cast's own type. Four corpus cases -- a literal, an unproven parameter and a literal through a
+      refined operator parameter here, and a constant outside a refined byte's base in
+      total-conversion-classification, pinning the guard. Eight decision rows replace the one that pinned
+      the hole: a satisfying constant, a narrowed local, refinement to base, an implication, a byte
+      refinement, a constant-carrying local, a union reached by subsumption and by a fitting constant, and
+      the operator path; plus a per-site row and an already-failed row. Three mutations on a confirmed
+      build, each caught by the case written for it: no cast arm (the three corpus cases and the per-site
+      row), the written type instead of the operator's parameter (the operator case), and no Converts guard
+      (the refined-byte case). The full suite with the rule live -- 6211, 664 and 68 tests, AllFeaturesV2's
+      baseline among them -- passed with no failure and no rerun, and the build and `dotnet format` were
+      clean. RefinementAnalyzer stood at 699 lines, so how a finding is worded moved to RefinementFindings
+      first.
     tasks:
       - >
-        A cast INTO a refinement is proven by nothing: the prover lists no cast among the places a value
-        meets a refinement. Measured 2026-09-14 on v2 and classic alike: `(AdultAge)10` prints 10, and so
-        does `int n = 10; AdultAge a = (AdultAge)n;`, where `AdultAge a = 10;` is
-        MIST_PA_REFINEMENT_VIOLATED (classic MIST_TC_0097). `(SmallAdult)20` over `byte >= 18` joined them
-        when order 4 admitted fitting constants. If a cast is a call whose
-        argument meets the target's type, the operand owes the predicate there as an argument does; that
-        reading, and whether a cast into a refinement is instead the one sanctioned unchecked narrowing, is a
-        decision for the language owner before it is built.
+        An integer constant into a refinement whose base cannot hold it is two complaints: `SmallAdult a =
+        -5;` over `byte >= 18` is MIST_PA_NO_IMPLICIT_CONVERSION and MIST_PA_REFINEMENT_VIOLATED (measured
+        2026-09-14), and `SmallAdult a = 300;` is one only because 300 satisfies `>= 18`. Need considers a
+        constant for any integral constituent without asking whether that constituent's base holds it. The
+        cast of the same constant is one complaint, behind CastAnalyzer.Converts.
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
         f = Process` -- needs contravariance judged, since the func promises any int. Moot until v2

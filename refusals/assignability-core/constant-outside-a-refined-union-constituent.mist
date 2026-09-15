@@ -1,0 +1,17 @@
+using Standard;
+
+namespace Refusal;
+
+type SmallAdult = byte >= 18;
+type SmallOrName = SmallAdult | string;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        SmallOrName s = -5;
+        Console.WriteLine(s);
+        Console.WriteLine("unreachable");
+    }
+}

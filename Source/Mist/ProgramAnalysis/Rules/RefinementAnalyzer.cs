@@ -233,14 +233,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }:
-                    if(Requirement.IsAnonymous(assignment.Target.Type) && Requirement.OfType(assignment.Target.Type) is { } constrained)
-                    {
-                        Need(state, assignment.Value, constrained, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target));
-                    }
-                    else
-                    {
-                        Need(state, assignment.Value, assignment.Target.Type, assignment.Value);
-                    }
+                    Need(state, assignment.Value, assignment.Target.Type, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target));
 
                     if(assignment.Target is IndexExpression written)
                     {
@@ -298,14 +291,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     continue;
                 }
 
-                if(Requirement.IsAnonymous(parameterTypes[i]) && Requirement.OfType(parameterTypes[i]) is { } demanded)
-                {
-                    Need(state, arguments[i], demanded, arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]));
-                }
-                else
-                {
-                    Need(state, arguments[i], parameterTypes[i], arguments[i]);
-                }
+                Need(state, arguments[i], parameterTypes[i], arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]));
             }
         }
 
@@ -340,7 +326,8 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             }
         }
 
-        private void Need(ImmutableDictionary<LocalVariable, Knowledge> state, Expression value, IMistType target, Expression at)
+        private void Need(
+            ImmutableDictionary<LocalVariable, Knowledge> state, Expression value, IMistType target, Expression at, string? onConstraint = null)
         {
             if(value.Type is ErrorType)
             {
@@ -348,23 +335,23 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             }
 
             var constituents = target is UnionType union ? union.Constituents : [target];
-            var refined = constituents.Where(constituent => Requirement.Refined(constituent) is not null).ToList();
-
-            if(refined.Count == 0)
-            {
-                return;
-            }
-
-            var known = Known(state, value);
-            var constant = Requirement.Constant(value) is not null;
-            var considered = refined
-                .Where(constituent => Accepts(constituent, value.Type) || (constant && IsIntegral(Unrefined(constituent)) && IsIntegral(Unrefined(value.Type))))
+            var considered = constituents
+                .Where(constituent => Requirement.Refined(constituent) is not null
+                    && (Accepts(constituent, value.Type) || ConstantConversion.Fits(value, constituent)))
                 .ToList();
 
             if(considered.Count == 0)
             {
                 return;
             }
+
+            if(onConstraint is not null && Requirement.IsAnonymous(target) && Requirement.OfType(target) is { } constrained)
+            {
+                Need(state, value, constrained, at, onConstraint);
+                return;
+            }
+
+            var known = Known(state, value);
 
             foreach(var constituent in considered)
             {

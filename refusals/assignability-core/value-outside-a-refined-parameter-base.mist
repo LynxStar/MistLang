@@ -1,0 +1,26 @@
+using Standard;
+
+namespace Refusal;
+
+public class Helpers
+{
+    public static int Where(byte b) where b >= 18
+    {
+        return b;
+    }
+
+    public static int Forward(int n)
+    {
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        return Where(n);
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine(Helpers.Forward(20));
+        Console.WriteLine("unreachable");
+    }
+}

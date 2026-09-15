@@ -314,6 +314,23 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
         AssertSilent(statement);
     }
 
+    [Theory]
+    [InlineData("Upper u = 5;", "")]
+    [InlineData("AdultAge a = 5L;", "")]
+    [InlineData("Small s = 10; s = 300;", "")]
+    [InlineData("SmallOrName n = 300;", "")]
+    [InlineData("int r = Taker.Take(300);", "public class Taker { public static int Take(Small s) { return s; } }")]
+    [InlineData("int r = Taker.Take(300);", "public class Taker { public static int Take(byte b) where b <= 10 { return b; } }")]
+    [InlineData("int r = Taker.Take(x);", "public class Taker { public static int Take(byte b) where b <= 10 { return b; } }")]
+    [InlineData("int k = Keeper.Reset(1);", "public class Keeper { public static int Reset(byte b) where b <= 10 { b = 300; return b; } }")]
+    [InlineData("Small g = Giver.Give();", "public class Giver { public static Small Give() { return 300; } }")]
+    [InlineData("var c = new Crate(300);", "public class Crate { public Crate(Small s) { } }")]
+    [InlineData("var c = new Crate();", "public class Crate { public Crate(Small s) { } public Crate() : this(300) { } }")]
+    public void AValueAssignabilityRefuses_IsLeftToAssignability(string statement, string extraTypes)
+    {
+        AssertSilent(statement, extraTypes);
+    }
+
     // ── Harness ─────────────────────────────────────────────────────────
 
     private void AssertSilent(string statement, string extraTypes = "")

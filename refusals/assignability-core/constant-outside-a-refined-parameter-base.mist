@@ -1,0 +1,21 @@
+using Standard;
+
+namespace Refusal;
+
+public class Helpers
+{
+    public static int Where(byte b) where b >= 18
+    {
+        return b;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        Console.WriteLine(Helpers.Where(-5));
+        Console.WriteLine("unreachable");
+    }
+}

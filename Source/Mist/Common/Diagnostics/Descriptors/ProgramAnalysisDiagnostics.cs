@@ -142,6 +142,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Operator '{0}' must take '{1}', the type declaring it, as a parameter; an operator is found only through its operands' types.");
 
+    public static readonly DiagnosticDescriptor RefinementNotComparable = new(
+        new DiagnosticId("MIST_PA_REFINEMENT_NOT_COMPARABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "A relational refinement predicate cannot constrain '{0}': its type '{1}' supports no comparison operators.");
+
     public static readonly DiagnosticDescriptor ConstraintNotSatisfied = new(
         new DiagnosticId("MIST_PA_CONSTRAINT_NOT_SATISFIED"),
         DiagnosticSeverity.Error,

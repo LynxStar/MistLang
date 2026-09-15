@@ -23,6 +23,9 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
             case null:
                 return null;
 
+            case ComparisonPattern comparison when Comparability.Misordered(comparison) is not null:
+                return null;
+
             case ComparisonPattern { Kind: var kind, Bound: var bound }:
                 if(Constant(bound) is { } constant)
                 {

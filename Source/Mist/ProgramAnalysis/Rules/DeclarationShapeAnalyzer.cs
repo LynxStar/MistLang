@@ -5,6 +5,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -14,10 +15,11 @@ namespace Mist.ProgramAnalysis.Rules;
 /// Refusals decidable from a declaration alone: a base or a newtype source that is sealed, `sealed` on
 /// an alias, an enum base that is not readonly, two variants sharing a value, a default block
 /// naming something that is not a field, and an operator that is not public, is declared without its
-/// pair, is a logical operator off Boolean, or takes no parameter of the type declaring it. Order 6 of
-/// the analysis register; each shape is classic's verdict, measured, or the spec's where classic
-/// dropped the declaration unread, and the enum and sealed rules are the full-accessibility-model and
-/// enum-readonly-restriction specs' own.
+/// pair, is a logical operator off Boolean, or takes no parameter of the type declaring it, and a
+/// refinement predicate -- an alias's, a parameter's `where` or a dependent parameter's -- that orders
+/// a type <see cref="Comparability"/> gives no order. Order 6 of the analysis register; each shape is
+/// classic's verdict, measured, or the spec's where classic dropped the declaration unread, and the
+/// enum and sealed rules are the full-accessibility-model and enum-readonly-restriction specs' own.
 /// </summary>
 internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 {
@@ -27,6 +29,8 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
     {
         foreach(var type in context.Types)
         {
+            CheckRefinements(context, type);
+
             switch(type)
             {
                 case ConcreteType { CloneSource: { } source, NewtypeDeclaration: { } newtypeDeclaration }:
@@ -182,6 +186,67 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                     context, op.DeclarationNode, ProgramAnalysisDiagnostics.OperatorUnpaired,
                     op.Symbol, TypeDisplay.Mist(type), Operator.SymbolOf(complement));
             }
+        }
+    }
+
+    private static void CheckRefinements(AnalysisContext context, MistType type)
+    {
+        if(type is TypeAlias { AliasedType: { } aliased } alias)
+        {
+            foreach(var constituent in aliased is UnionType union ? union.Constituents : [aliased])
+            {
+                CheckPredicate(context, (constituent as RefinedType)?.Predicate, TypeDisplay.Mist(alias));
+            }
+        }
+
+        if(type is IHasTypeParameters generic)
+        {
+            CheckTypeParameters(context, generic.TypeParametersList);
+        }
+
+        if(type is not MemberType member)
+        {
+            return;
+        }
+
+        foreach(var method in member.EnumerateDelegates())
+        {
+            CheckTypeParameters(context, method.TypeParametersList);
+            CheckParameters(context, method.ParametersList);
+        }
+
+        foreach(var indexer in member.IndexersList)
+        {
+            CheckParameters(context, indexer.ParametersList);
+        }
+    }
+
+    private static void CheckTypeParameters(AnalysisContext context, IEnumerable<TypeParameter> parameters)
+    {
+        foreach(var parameter in parameters)
+        {
+            CheckPredicate(context, parameter.Refinement, parameter.Name);
+        }
+    }
+
+    private static void CheckParameters(AnalysisContext context, IEnumerable<Parameter> parameters)
+    {
+        foreach(var parameter in parameters)
+        {
+            if(parameter.Type is RefinedType { IsAnonymous: true } refined)
+            {
+                CheckPredicate(context, refined.Predicate, parameter.Name);
+            }
+        }
+    }
+
+    private static void CheckPredicate(AnalysisContext context, Pattern? predicate, string constrained)
+    {
+        if(Comparability.Misordered(predicate) is { } comparison)
+        {
+            Report(
+                context, comparison.Node, ProgramAnalysisDiagnostics.RefinementNotComparable,
+                constrained, TypeDisplay.Mist(comparison.NarrowedType));
         }
     }
 

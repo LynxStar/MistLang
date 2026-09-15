@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+// REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+public class Box<Flag:bool> where Flag > true
+{
+    public int Get()
+    {
+        return 1;
+    }
+}
+
+// The closing below meets the refused parameter and owes nothing further.
+public class Probe
+{
+    public static void Main()
+    {
+        var box = new Box<true>();
+        Console.WriteLine(box.Get());
+    }
+}

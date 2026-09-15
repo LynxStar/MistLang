@@ -1,0 +1,23 @@
+using Standard;
+
+namespace Refusal;
+
+// An ordering inside a disjunction is still an ordering, and the calls below owe nothing further.
+public class Sink
+{
+    // REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+    public static int Take(bool b) where b (> 1 or < 0)
+    {
+        return 1;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        bool f = true;
+        Console.WriteLine(Sink.Take(f));
+        Console.WriteLine(Sink.Take(true));
+    }
+}

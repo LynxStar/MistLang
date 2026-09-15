@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+// An ordering under a negation is still an ordering, and the call below owes nothing further.
+public class Sink
+{
+    // REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+    public static int Take(string s) where s not >= 3
+    {
+        return 1;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        string s = "a";
+        Console.WriteLine(Sink.Take(s));
+    }
+}

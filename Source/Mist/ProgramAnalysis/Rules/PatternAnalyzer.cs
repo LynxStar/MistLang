@@ -51,7 +51,7 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
             case TypeTestPattern test:
                 JudgeTypeTest(context, test, input, about);
 
-                if(test.Refinement is { } refinement)
+                if(test.Refinement is { } refinement && Comparability.Misordered(refinement) is null)
                 {
                     Walk(context, refinement, test.NarrowedType, about);
                 }
@@ -154,13 +154,13 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
             return;
         }
 
-        if(!IsComparable(input))
+        if(!Comparability.Supports(input))
         {
             context.Report(
                 ProgramAnalysisDiagnostics.PatternNotComparable, comparison.Node, [about],
                 TypeDisplay.Mist(input));
         }
-        else if(!IsComparable(comparison.Bound.Type))
+        else if(!Comparability.Supports(comparison.Bound.Type))
         {
             context.Report(
                 ProgramAnalysisDiagnostics.PatternConstantMismatch, comparison.Node, [about, comparison.Bound],
@@ -244,27 +244,7 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
 
     private static bool Fits(Expression bound, IMistType input)
     {
-        return bound.Type.FullyQualifiedName == WellKnownTypes.Int32.FullyQualifiedName && IsComparable(input);
-    }
-
-    private static readonly string[] ComparableNames =
-    [
-        WellKnownTypes.Byte.FullyQualifiedName, WellKnownTypes.SByte.FullyQualifiedName,
-        WellKnownTypes.Int16.FullyQualifiedName, WellKnownTypes.UInt16.FullyQualifiedName,
-        WellKnownTypes.Int32.FullyQualifiedName, WellKnownTypes.UInt32.FullyQualifiedName,
-        WellKnownTypes.Int64.FullyQualifiedName, WellKnownTypes.UInt64.FullyQualifiedName,
-        WellKnownTypes.Char.FullyQualifiedName, WellKnownTypes.Single.FullyQualifiedName,
-        WellKnownTypes.Double.FullyQualifiedName, WellKnownTypes.Decimal.FullyQualifiedName,
-    ];
-
-    private static bool IsComparable(IMistType type)
-    {
-        return type switch
-        {
-            RefinedType refined => IsComparable(refined.BaseType),
-            EnumType { UnderlyingType: { } underlying } => IsComparable(underlying),
-            _ => Array.IndexOf(ComparableNames, type.FullyQualifiedName) >= 0,
-        };
+        return bound.Type.FullyQualifiedName == WellKnownTypes.Int32.FullyQualifiedName && Comparability.Supports(input);
     }
 
     private static IReadOnlyList<IMistType>? Elements(IMistType type)

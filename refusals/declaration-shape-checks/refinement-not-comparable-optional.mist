@@ -1,0 +1,23 @@
+using Standard;
+
+namespace Refusal;
+
+// The calls below meet the refused parameter and owe nothing further, the negative constant included.
+public class Sink
+{
+    // REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+    public static int Take(int? x) where x >= 0
+    {
+        return 1;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        int? v = 3;
+        Console.WriteLine(Sink.Take(v));
+        Console.WriteLine(Sink.Take(-1));
+    }
+}

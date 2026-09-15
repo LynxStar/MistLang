@@ -1,0 +1,31 @@
+using Standard;
+
+namespace Refusal;
+
+// REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+type Flag = bool > true;
+
+// Each use meets the refused alias -- a constant, a local, a type test, a parameter typed by it -- and
+// owes nothing further.
+public class Sink
+{
+    public static int Take(Flag f)
+    {
+        return 1;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Flag f = true;
+        bool g = false;
+        Flag h = g;
+        if(g is Flag)
+        {
+            Console.WriteLine(Sink.Take(f));
+        }
+        Console.WriteLine("unreachable");
+    }
+}

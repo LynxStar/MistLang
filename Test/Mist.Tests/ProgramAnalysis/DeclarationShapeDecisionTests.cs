@@ -20,7 +20,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         "MIST_PA_ENUM_DUPLICATE_VALUE", "MIST_PA_DEFAULT_ENTRY_NOT_A_FIELD", "MIST_PA_CONSTRAINT_NOT_SATISFIED",
         "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED", "MIST_PA_NOT_DEFAULTABLE",
         "MIST_PA_OPERATOR_NOT_PUBLIC", "MIST_PA_OPERATOR_UNPAIRED", "MIST_PA_LOGICAL_OPERATOR_DECLARED",
-        "MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE",
+        "MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE", "MIST_PA_REFINEMENT_NOT_COMPARABLE",
     ];
 
     public DeclarationShapeDecisionTests()
@@ -172,6 +172,47 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
             public static Ordered operator *(int k, Ordered o) { return o; }
             public static Ordered operator -(Ordered o) { return o; }
         }
+
+        public enum Tone : int { Low = 1, High = 2 }
+
+        type Adult = int >= 18;
+        type Senior = Adult >= 65;
+        type Letter = char >= 'a' and <= 'z';
+        type Ratio = double >= 0.0;
+        type Warm = Tone >= Tone.High;
+        type Yes = bool true;
+        type NonEmpty = string not "";
+
+        public readonly struct Tagged
+        {
+            public readonly string Name;
+            public Tagged(string name) { Name = name; }
+        }
+
+        type Late = Tagged { Name: > "m" };
+
+        public class Bounded
+        {
+            public int Small(byte b) where b < 10 { return 1; }
+            public int Wide(ulong u) where u <= 100 { return 1; }
+            public int Money(decimal d) where d >= 0 { return 1; }
+            public int Half(double d) where d > 0.5 { return 1; }
+            public int Lower(char c) where c >= 'a' { return 1; }
+            public int Loud(Tone t) where t >= Tone.High { return 1; }
+            public int Aged(Adult a) where a >= 30 { return 1; }
+            public int Truth(bool b) where b true { return 1; }
+            public int Text(string s) where s not "" { return 1; }
+            public int this[int i] where i >= 0 { get { return i; } }
+        }
+
+        public class Ranged<K>
+        {
+            public int Same(K key) where key 18 { return 1; }
+            public int Other(K key) where key not 18 { return 2; }
+        }
+
+        public class Sized<N:int> where N >= 0 { }
+        public class Flagged<F:bool> where F true { }
         """;
 
     protected override string Preamble { get; } = """
@@ -232,6 +273,28 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("Senior s = 70;")]
+    [InlineData("Letter l = 'q';")]
+    [InlineData("Warm w = Tone.High;")]
+    [InlineData("Yes y = true;")]
+    [InlineData("NonEmpty n = \"x\";")]
+    [InlineData("int loud = new Bounded().Loud(Tone.High);")]
+    [InlineData("int aged = new Bounded().Aged(40);")]
+    [InlineData("var ranged = new Ranged<int>();")]
+    [InlineData("var sized = new Sized<3>();")]
+    [InlineData("var flagged = new Flagged<true>();")]
+    public void ARefinementThatOrdersAnOrderedTypeOrOnlyComparesForEquality_IsAdmitted(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Fact]
+    public void ARefinementOverATypeThatDidNotResolve_IsNotReportedAgain()
+    {
+        Assert.Empty(Analyse("int n = 1;", "public class Unresolved { public int Take(Nothing n) where n >= 3 { return 1; } }"));
+    }
+
+    [Theory]
     [InlineData("int z = nothing.secret;")]
     [InlineData("var q = new NeedsReadonly<Nothing>();")]
     public void AUseThatAlreadyFailed_IsNotReportedAgain(string statement)
@@ -254,9 +317,9 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         Assert.Empty(Analyse(statement));
     }
 
-    private List<Diagnostic> Analyse(string statement)
+    private List<Diagnostic> Analyse(string statement, string extraTypes = "")
     {
-        var model = BuildModel(statement, extraTypes: "", extraPreamble: "", out _);
+        var model = BuildModel(statement, extraTypes, extraPreamble: "", out _);
         var findings = new DiagnosticBag();
 
         ProgramAnalysisRunner.Run(model, findings);

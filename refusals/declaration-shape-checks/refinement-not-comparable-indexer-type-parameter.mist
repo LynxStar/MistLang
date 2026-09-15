@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+// The indexes below meet the refused parameter and owe nothing further.
+public class Keyed<K>
+{
+    // REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+    public int this[K key] where key >= 18
+    {
+        get { return 1; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var bytes = new Keyed<byte>();
+        byte b = 20;
+        Console.WriteLine(bytes[b]);
+        var ints = new Keyed<int>();
+        Console.WriteLine(ints[5]);
+    }
+}

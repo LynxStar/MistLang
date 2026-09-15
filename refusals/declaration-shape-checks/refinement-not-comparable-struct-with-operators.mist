@@ -1,0 +1,52 @@
+using Standard;
+
+namespace Refusal;
+
+// Declared comparison operators do not make a relational pattern apply: it is not a call to one.
+public struct Meters
+{
+    public int Value;
+
+    public Meters(int value)
+    {
+        Value = value;
+    }
+
+    public static bool operator <(Meters a, Meters b)
+    {
+        return a.Value < b.Value;
+    }
+
+    public static bool operator >(Meters a, Meters b)
+    {
+        return a.Value > b.Value;
+    }
+
+    public static bool operator <=(Meters a, Meters b)
+    {
+        return a.Value <= b.Value;
+    }
+
+    public static bool operator >=(Meters a, Meters b)
+    {
+        return a.Value >= b.Value;
+    }
+}
+
+public class Sink
+{
+    // REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+    public static int Take(Meters m) where m >= 18
+    {
+        return 1;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var m = new Meters(1);
+        Console.WriteLine(Sink.Take(m));
+    }
+}

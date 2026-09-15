@@ -1,0 +1,17 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract Validator
+{
+    // REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+    int Check(bool flag) where flag > true;
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

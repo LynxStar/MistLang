@@ -1,0 +1,32 @@
+using Standard;
+
+namespace Refusal;
+
+public struct Point
+{
+    public int X;
+
+    public Point(int x)
+    {
+        X = x;
+    }
+}
+
+// An ordering inside a conjunction is still an ordering, and the call below owes nothing further.
+public class Sink
+{
+    // REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+    public static int Take(Point p) where p >= 18 and <= 30
+    {
+        return 1;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var p = new Point(1);
+        Console.WriteLine(Sink.Take(p));
+    }
+}

@@ -1,0 +1,16 @@
+using Standard;
+
+namespace Refusal;
+
+// One constituent refused is enough, and the int constituent still admits what it holds.
+// REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+type Mixed = int >= 0 | string > "a";
+
+public class Probe
+{
+    public static void Main()
+    {
+        Mixed m = 5;
+        Console.WriteLine("unreachable");
+    }
+}

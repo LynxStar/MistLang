@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -14,12 +15,13 @@ namespace Mist.ProgramAnalysis.Rules;
 /// <summary>
 /// Refusals decidable from a declaration alone: a base or a newtype source that is sealed, `sealed` on
 /// an alias, an enum base that is not readonly, two variants sharing a value, a default block
-/// naming something that is not a field, and an operator that is not public, is declared without its
-/// pair, is a logical operator off Boolean, or takes no parameter of the type declaring it, and a
+/// naming something that is not a field, an operator that is not public, is declared without its
+/// pair, is a logical operator off Boolean, or takes no parameter of the type declaring it, a
 /// refinement predicate -- an alias's, a parameter's `where` or a dependent parameter's -- that orders
-/// a type <see cref="Comparability"/> gives no order. Order 6 of the analysis register; each shape is
-/// classic's verdict, measured, or the spec's where classic dropped the declaration unread, and the
-/// enum and sealed rules are the full-accessibility-model and enum-readonly-restriction specs' own.
+/// a type <see cref="Comparability"/> gives no order, and a method, constructor or indexer repeating an
+/// earlier one's signature on its type. Order 6 of the analysis register; each shape is classic's
+/// verdict, measured, or the spec's where classic dropped the declaration unread, and the enum and
+/// sealed rules are the full-accessibility-model and enum-readonly-restriction specs' own.
 /// </summary>
 internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 {
@@ -49,11 +51,17 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
                     CheckDefaults(context, concrete);
                     CheckOperators(context, concrete);
+                    CheckSignatures(context, concrete);
                     break;
 
                 case ConcreteType concrete:
                     CheckDefaults(context, concrete);
                     CheckOperators(context, concrete);
+                    CheckSignatures(context, concrete);
+                    break;
+
+                case AbstractType abstractType:
+                    CheckSignatures(context, abstractType);
                     break;
 
                 case Newtype { SourceType: { } source } newtype when Declarations.IsSealed(source):
@@ -247,6 +255,39 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             Report(
                 context, comparison.Node, ProgramAnalysisDiagnostics.RefinementNotComparable,
                 constrained, TypeDisplay.Mist(comparison.NarrowedType));
+        }
+    }
+
+    private static void CheckSignatures(AnalysisContext context, MemberType type)
+    {
+        foreach(var methods in type.MethodsList.GroupBy(method => method.Name))
+        {
+            CheckRepeats(context, type, [.. methods], $"method '{methods.Key}'");
+        }
+
+        if(type is ConcreteType concrete)
+        {
+            CheckRepeats(context, type, concrete.ConstructorsList, "a constructor");
+        }
+
+        CheckRepeats(context, type, type.IndexersList, "an indexer");
+    }
+
+    private static void CheckRepeats<T>(AnalysisContext context, MemberType type, List<T> members, string description)
+        where T : class, IOverload
+    {
+        for(var i = 1; i < members.Count; i++)
+        {
+            var later = members[i];
+
+            if(!members.Take(i).Any(earlier => OverloadSignature.Repeats(later, earlier)))
+            {
+                continue;
+            }
+
+            Report(
+                context, later.DeclarationNode, ProgramAnalysisDiagnostics.DuplicateSignature,
+                TypeDisplay.Mist(type), description, OverloadFailure.DescribeSignatures([later]));
         }
     }
 

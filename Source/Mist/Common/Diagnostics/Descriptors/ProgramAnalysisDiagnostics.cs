@@ -148,6 +148,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "A relational refinement predicate cannot constrain '{0}': its type '{1}' supports no comparison operators.");
 
+    public static readonly DiagnosticDescriptor DuplicateSignature = new(
+        new DiagnosticId("MIST_PA_DUPLICATE_SIGNATURE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Type '{0}' already declares {1} with parameter types {2}; neither the return type nor a parameter's name tells two declarations apart.");
+
     public static readonly DiagnosticDescriptor ConstraintNotSatisfied = new(
         new DiagnosticId("MIST_PA_CONSTRAINT_NOT_SATISFIED"),
         DiagnosticSeverity.Error,

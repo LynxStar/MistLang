@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public class Holder
+{
+    public int V = 1;
+}
+
+public class Sink
+{
+    public static int Take(Holder first) { return 1; }
+
+    // REFUSE: MIST_PA_DUPLICATE_SIGNATURE
+    public static int Take(owned Holder second) { return 2; }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+public class Sink
+{
+    public static int Take<T>(T first) { return 1; }
+
+    // REFUSE: MIST_PA_DUPLICATE_SIGNATURE
+    public static int Take<U>(U second) { return 2; }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

@@ -152,7 +152,9 @@ internal static class OverloadResolution
     /// A signature declared on a more derived type hides the same signature inherited from a base or
     /// an abstract -- C#'s rule, and what makes a conformer's `Transform(Widget)` the one answer
     /// beside the slot it implements, `Transform(T)` at T = Widget. Judged on the CLOSED signatures,
-    /// since the two coincide only once the base's parameters are substituted.
+    /// since the two coincide only once the base's parameters are substituted. A later declaration
+    /// repeating an earlier one's signature on the same type is hidden by it as well, so a use binds
+    /// the first; the repeat is refused where it is declared, by analysis order 6.
     /// </summary>
     private static List<Applicant<T>> WithoutHidden<T>(List<Applicant<T>> closed, TypeInterner interner)
         where T : class, IOverload
@@ -162,7 +164,7 @@ internal static class OverloadResolution
             return closed;
         }
 
-        var keys = closed.ConvertAll(applicant => ClosedSignature(applicant, interner));
+        var keys = closed.ConvertAll(applicant => OverloadSignature.Of(applicant.Method, applicant.Substitution, interner));
         var kept = new List<Applicant<T>>();
 
         for(var i = 0; i < closed.Count; i++)
@@ -173,7 +175,8 @@ internal static class OverloadResolution
             {
                 hidden = i != j
                     && keys[i] == keys[j]
-                    && Derives(closed[j].Method.DeclaringType, closed[i].Method.DeclaringType);
+                    && (Derives(closed[j].Method.DeclaringType, closed[i].Method.DeclaringType)
+                        || (j < i && OverloadSignature.Repeats(closed[i].Method, closed[j].Method)));
             }
 
             if(!hidden)
@@ -183,15 +186,6 @@ internal static class OverloadResolution
         }
 
         return kept;
-    }
-
-    private static string ClosedSignature<T>(Applicant<T> applicant, TypeInterner interner)
-        where T : class, IOverload
-    {
-        var parameters = applicant.Method.ParametersList
-            .Select(parameter => TypeDisplay.Mist(applicant.Substitution.Apply(parameter.Type, interner)));
-
-        return $"{applicant.Method.TypeParametersList.Count}({string.Join(", ", parameters)})";
     }
 
     private static bool Derives(MemberType? derived, MemberType? ancestor)

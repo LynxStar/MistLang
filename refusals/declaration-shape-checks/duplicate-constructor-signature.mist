@@ -1,0 +1,21 @@
+using Standard;
+
+namespace Refusal;
+
+public class Box
+{
+    public int V;
+
+    public Box(int first) { V = first; }
+
+    // REFUSE: MIST_PA_DUPLICATE_SIGNATURE
+    public Box(int second) { V = second + 1; }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

@@ -21,6 +21,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED", "MIST_PA_NOT_DEFAULTABLE",
         "MIST_PA_OPERATOR_NOT_PUBLIC", "MIST_PA_OPERATOR_UNPAIRED", "MIST_PA_LOGICAL_OPERATOR_DECLARED",
         "MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE", "MIST_PA_REFINEMENT_NOT_COMPARABLE",
+        "MIST_PA_DUPLICATE_SIGNATURE",
     ];
 
     public DeclarationShapeDecisionTests()
@@ -295,11 +296,48 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("int z = nothing.secret;")]
-    [InlineData("var q = new NeedsReadonly<Nothing>();")]
-    public void AUseThatAlreadyFailed_IsNotReportedAgain(string statement)
+    [InlineData("public class Sink { public static int Take(int a) { return 1; } public static int Take(int a, int b) { return 2; } }")]
+    [InlineData("public class Sink { public static int Take(int a) { return 1; } public static int Give(int a) { return 2; } }")]
+    [InlineData("public class Sink { public static int Take(ref int a) { return 1; } public static int Take(int a) { return 2; } }")]
+    [InlineData("public class Sink { public static int Take<T>(int a) { return 1; } public static int Take(int a) { return 2; } }")]
+    [InlineData("public class Sink { public static int Take<T, U>(T a, U b) { return 1; } public static int Take<T, U>(U a, T b) { return 2; } }")]
+    [InlineData("public class Pair<A, B> { public int Take(A a) { return 1; } public int Take(B b) { return 2; } }")]
+    [InlineData("public class Shadow<T> { public int Take<T>(T a) { return 1; } public int Take<U>(T a) { return 2; } }")]
+    [InlineData("public type Meters = new int; public class Sink { public static int Take(Meters a) { return 1; } public static int Take(int a) { return 2; } }")]
+    [InlineData("public class Sink { public static int Take(int? a) { return 1; } public static int Take(int a) { return 2; } }")]
+    [InlineData("public class Left { public class Widget { } } public class Right { public class Widget { } } public class Sink { public static int Take(Left.Widget w) { return 1; } public static int Take(Right.Widget w) { return 2; } }")]
+    [InlineData("public class Left { public class Widget { } } public class Right { public class Widget { } } public class Box<T> { } public class Sink { public static int Take(Box<Left.Widget> b) { return 1; } public static int Take(Box<Right.Widget> b) { return 2; } }")]
+    [InlineData("public class Table { public int this[int i] { get { return 1; } } public int this[string s] { get { return 2; } } }")]
+    [InlineData("public class Crate { public Crate(int a) { } public Crate(ref int a) { } }")]
+    public void OverloadsWhoseSignaturesDiffer_AreNotDuplicates(string extraTypes)
     {
-        AssertSilent(statement);
+        AssertSilent("int unused = 1;", extraTypes);
+    }
+
+    [Fact]
+    public void AGenericThatCollidesOnlyAfterSubstitution_IsNotADuplicate()
+    {
+        AssertSilent(
+            "var keyed = new Keyed<int>();",
+            "public class Keyed<K> { public int Take(K key) { return 1; } public int Take(int i) { return 2; } }");
+    }
+
+    [Fact]
+    public void ARedeclarationOfAnInheritedSignature_HidesRatherThanDuplicates()
+    {
+        AssertSilent(
+            "int r = new Derived().Take(1);",
+            "public class Base { public int Take(int a) { return 1; } } public class Derived : Base { public int Take(int b) { return 2; } }");
+    }
+
+    [Theory]
+    [InlineData("int z = nothing.secret;", "")]
+    [InlineData("var q = new NeedsReadonly<Nothing>();", "")]
+    [InlineData("int unused = 1;", "public class Sink { public static int Take(Nothing a) { return 1; } public static int Take(Nothing b) { return 2; } }")]
+    [InlineData("int unused = 1;", "public class Box<T> { } public class Sink { public static int Take(Box<Nothing> a) { return 1; } public static int Take(Box<Nothing> b) { return 2; } }")]
+    public void AUseThatAlreadyFailed_IsNotReportedAgain(string statement, string extraTypes)
+    {
+        AssertSilent(statement, extraTypes);
     }
 
     [Theory]
@@ -312,9 +350,9 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
 
     // ── Harness ─────────────────────────────────────────────────────────
 
-    private void AssertSilent(string statement)
+    private void AssertSilent(string statement, string extraTypes = "")
     {
-        Assert.Empty(Analyse(statement));
+        Assert.Empty(Analyse(statement, extraTypes));
     }
 
     private List<Diagnostic> Analyse(string statement, string extraTypes = "")

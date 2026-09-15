@@ -14,4 +14,6 @@ internal interface IOverload
     List<TypeParameter> TypeParametersList { get; }
 
     MemberType? DeclaringType { get; }
+
+    Storm.Runtime.SyntaxNode? DeclarationNode { get; }
 }

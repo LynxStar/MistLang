@@ -718,6 +718,49 @@ rules:
       `byte >= 18` parameter was refused by the prover alone, and would have reached Roslyn once the prover
       stopped judging a value this rule refuses. One corpus case, constructor-chain-argument. With the chain
       check removed on a confirmed build, that case fails, reaching Roslyn as MIST_CS_ERROR again.
+
+      AN INDEX IS JUDGED AGAINST ITS INDEXER'S PARAMETER (2026-09-15). MEASURED on v2 at 1a886d10. Over
+      `public int this[byte index]`, `b[300]`, `b["x"]`, `b[n]` with `int n`, and the write `b[300] = 1`
+      each reached Roslyn as MIST_CS_ERROR, and so did `k[1]` over `Keyed<string>`'s `this[K key]`. On
+      classic `b[300]` fails in Roslyn too. Each is now MIST_PA_NO_IMPLICIT_CONVERSION at the index. The
+      binder already read the parameter through the receiver's type arguments to place an implicit
+      conversion, and then dropped it. IndexExpression.ParameterType now records it, as
+      InvocationExpression.ParameterTypes records a call's. It is null for a from-end index: `c[^1]` over
+      `this[int i]` on a type with a Count runs on both pipelines, reaching the element through Count
+      rather than through the parameter.
+
+      NOT JUDGED, for the reason a CLR-projected call's argument is not: the indexer the model names may not
+      be the one Roslyn chooses. That covers an index into a type that declares more than one indexer,
+      since the binder names the first (`t["x"]` over `this[int]` and `this[string]` runs on both pipelines
+      and prints the string indexer's result; the mistyping it causes is recorded on
+      program-model-body-tasks postfix.IndexSuffix). It also covers an index into a CLR-projected indexer:
+      `d[1]` over `Dictionary<string, int>` still reaches Roslyn. An intrinsic indexer has no Indexer
+      recorded and is not judged either (task below).
+
+      THE PROVER READS THE SAME SLOT. RefinementAnalyzer.NeedIndex looked the indexer up for itself,
+      unsubstituted, and asked its predicate of any integral index. It now asks Need of the recorded slot,
+      with the parameter's name, so the entry test a call argument passes applies to an index too. `b[-5]`
+      over `this[byte index] where index >= 18` was CONSTRAINT_VIOLATED alone and would have become two
+      complaints; it is NO_IMPLICIT_CONVERSION alone. So is `b[n]` for an int n, which the flow knew was
+      20 and the constraint had admitted, so it reached Roslyn before. A named refined parameter now words
+      its finding as a call's does: `b[5]` over `this[SmallAdult index]` was CONSTRAINT_VIOLATED and is
+      REFINEMENT_VIOLATED. Unchanged: `b[5]` over the `where` indexer (CONSTRAINT_VIOLATED), `b[20]`
+      (runs), `b[5]` into an aliased receiver (CONSTRAINT_VIOLATED), and `t[-1]` over an overloaded
+      indexer whose first takes `int i where i >= 0` (CONSTRAINT_VIOLATED, judged against the first as
+      before).
+
+      PROVED BY three corpus cases and seven decision rows. The corpus cases are index-argument and
+      constant-outside-a-refined-indexer-base here, and indexer-literal-violates-refined-parameter in
+      refinement-proving. The rows are: a byte indexer read and written with fitting constants, a generic
+      indexer over byte, a from-end index, an overloaded indexer, the index mismatch reported once, and
+      two RefinementDecisionTests rows leaving a constant and a local outside a `where` indexer's base to
+      this rule. Five mutations on a confirmed build, each caught by the case written for it: the index
+      case disabled (both corpus cases and the reported-once row), the sole-indexer condition dropped (the
+      overloaded row), a from-end index given the slot (the Count row), the slot recorded unsubstituted
+      (the generic row), and NeedIndex's own lookup restored (both prover rows, the where-base case as an
+      unexpected CONSTRAINT_VIOLATED, and the named refinement worded as a constraint). The full suite --
+      6229, 664 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure and no rerun,
+      and the build and `dotnet format` were clean.
     tasks:
       - >
         A value that could enter a union through two constituents neither containing the other is emitted
@@ -731,17 +774,17 @@ rules:
       - >
         CLR optional parameters are not representable, so arity can select an overload Roslyn will not;
         until they are, no argument to a CLR-projected member is judged, and the `UseNpgsql` call in
-        samples/CSharpInteropV2 is the case to prove it on.
+        samples/CSharpInteropV2 is the case to prove it on. An index into a CLR-projected indexer is not
+        judged either: `d[1]` over `Dictionary<string, int>` reaches Roslyn (measured 2026-09-15).
       - >
         A collection-initializer element is not judged against the Add overload the binder selected.
       - >
-        An index argument is not judged against the indexer's parameter. Measured 2026-09-15: `b[300]` and
-        `b["x"]` over `public int this[byte index]` reach Roslyn as MIST_CS_ERROR on v2, and `b[300]` does
-        on classic too. The model records no parameter type on an IndexExpression, and RefinementAnalyzer's
-        NeedIndex reads the indexer's parameter for itself. When this position is judged, NeedIndex's
-        indexer path must first ask whether the index can enter the parameter's base, as a call argument
-        does, or `b[-5]` over `this[byte index] where index >= 18` becomes two complaints. Today it is one,
-        CONSTRAINT_VIOLATED.
+        An index into an intrinsic indexer is not judged, since the model records no Indexer or slot for
+        one. Measured 2026-09-15: `a["x"]` over `int[]`, and `s["x"]` or `s[n]` with a long n over string,
+        reach Roslyn as MIST_CS_ERROR on v2. String's `this[Int32 index]` is a plain position. The array's
+        and span's take ArrayBounds and SpanBounds, which the prover's Length path already judges, and C#
+        admits a long, uint or ulong array index where the declared parameter is an int refinement. Judging
+        those is a question of what an array index may be, not only a position to add.
       - >
         Arithmetic whose operands are not both primitives keeps the left operand's type, so `int x = money
         * 2` with a user operator returning something else is a false negative, never a false positive.
@@ -885,6 +928,14 @@ rules:
         A top-level type declared `private` or `protected` is not refused here; since emitter order 40
         spells every level, Roslyn refuses it as CS1527, which is what classic does with it too. The
         frontend owning the rule is a decision.
+      - >
+        A relational `where` over a parameter whose type does not support comparison is not refused.
+        Measured 2026-09-15 over `class Keyed<K>`, with K unconstrained: classic reports
+        MIST_REFINEMENT_0007 for `public int this[K key] where key >= 18` and for `public int At(K key)
+        where key >= 18`. v2 reports nothing at either declaration. Every use then reports
+        MIST_PA_NO_IMPLICIT_CONVERSION ("Cannot implicitly convert type 'int' to 'K'"), even
+        `Keyed<byte>` given a byte local, because substitution does not reach a refinement whose base is
+        the type parameter. Refusing the declaration makes that second complaint unreachable.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance

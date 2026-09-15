@@ -29,24 +29,24 @@ internal static class RefinementFindings
         {
             if(Requirement.Constant(value) is { } constant)
             {
-                context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at.Node, [value], constant, predicate, onConstraint);
+                context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at.Node, [value, at], constant, predicate, onConstraint);
             }
             else
             {
-                context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value], Display(value), predicate, onConstraint);
+                context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], Display(value), predicate, onConstraint);
             }
         }
         else if(Requirement.Constant(value) is { } constant)
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementViolated, at.Node, [value], constant, predicate, target);
+            context.Report(ProgramAnalysisDiagnostics.RefinementViolated, at.Node, [value, at], constant, predicate, target);
         }
         else if(Requirement.Refined(value.Type) is not null)
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementNotImplied, at.Node, [value], TypeDisplay.Mist(value.Type), target, known, predicate);
+            context.Report(ProgramAnalysisDiagnostics.RefinementNotImplied, at.Node, [value, at], TypeDisplay.Mist(value.Type), target, known, predicate);
         }
         else
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value], TypeDisplay.Mist(value.Type), target, predicate);
+            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], TypeDisplay.Mist(value.Type), target, predicate);
         }
     }
 

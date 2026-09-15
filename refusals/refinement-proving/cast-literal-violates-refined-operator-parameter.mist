@@ -1,0 +1,31 @@
+using Standard;
+
+namespace Refusal;
+
+type AdultAge = int >= 18;
+
+public class Voter
+{
+    public int Age;
+
+    public Voter(int age)
+    {
+        Age = age;
+    }
+
+    public static explicit operator Voter(AdultAge age)
+    {
+        return new Voter(age);
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        Voter voter = (Voter)7;
+        Console.WriteLine(voter.Age);
+        Console.WriteLine("unreachable");
+    }
+}

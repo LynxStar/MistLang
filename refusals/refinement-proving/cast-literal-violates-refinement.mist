@@ -1,0 +1,16 @@
+using Standard;
+
+namespace Refusal;
+
+type AdultAge = int >= 18;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        AdultAge age = (AdultAge)7;
+        Console.WriteLine(age);
+        Console.WriteLine("unreachable");
+    }
+}

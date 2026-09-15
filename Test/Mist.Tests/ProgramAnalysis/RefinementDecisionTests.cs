@@ -37,6 +37,8 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
         type Small = byte <= 10;
         type AgeRange = int >= 3 and <= 8 | byte >= 0 and < 64;
         type Named = string "x";
+        type AgeOrName = AdultAge | string;
+        type SmallOrName = Small | string;
 
         public class Buffer
         {
@@ -118,6 +120,21 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
             public Person(AdultAge age)
             {
                 Age = age;
+            }
+        }
+
+        public class Voter
+        {
+            public int Age;
+
+            public Voter(int age)
+            {
+                Age = age;
+            }
+
+            public static explicit operator Voter(AdultAge age)
+            {
+                return new Voter(age);
             }
         }
 
@@ -264,8 +281,15 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("var a = (AdultAge)7; var b = (AdultAge)x;")]
-    public void ACastToARefinement_IsNotJudged(string statement)
+    [InlineData("var a = (AdultAge)21;")]
+    [InlineData("if(x >= 18) { var a = (AdultAge)x; }")]
+    [InlineData("int i = (int)adult;")]
+    [InlineData("var a = (AdultAge)drinking;")]
+    [InlineData("var s = (Small)10;")]
+    [InlineData("int y = 40; var a = (AdultAge)y;")]
+    [InlineData("var u = (AgeOrName)adult; var v = (SmallOrName)10;")]
+    [InlineData("var v = (Voter)25; var w = (Voter)drinking; if(x >= 18) { var z = (Voter)x; }")]
+    public void ACastTheProverDischarges_IsAdmitted(string statement)
     {
         AssertSilent(statement);
     }
@@ -274,6 +298,7 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("AdultAge a = 7; AdultAge b = 7;")]
     [InlineData("var a = new int[3]; Console.WriteLine(a[5] + a[5]);")]
     [InlineData("Console.WriteLine(Helpers.Twice(3) + Helpers.Twice(3));")]
+    [InlineData("AdultAge a = (AdultAge)7; AdultAge b = (AdultAge)7;")]
     public void AFindingIsReportedPerSite(string statement)
     {
         Assert.Equal(2, Analyse(statement).Count);
@@ -283,6 +308,7 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("AdultAge a = nothing;")]
     [InlineData("var a = new int[3]; Console.WriteLine(a[nothing]);")]
     [InlineData("Console.WriteLine(Helpers.Twice(nothing));")]
+    [InlineData("var a = (AdultAge)nothing;")]
     public void AValueThatAlreadyFailed_IsNotReportedAgain(string statement)
     {
         AssertSilent(statement);

@@ -27,12 +27,13 @@ namespace Mist.ProgramAnalysis.Rules;
 /// that holder is reassigned and, for a field that is not readonly, at any call, object creation or
 /// await, since code the flow cannot see may reassign it then. What cannot be proven is refused where
 /// the value meets the refinement -- a declaration, an assignment, a return, an index into an array
-/// whose length is known or that a local or a field holds, and an argument at a call, a construction
-/// or a constructor chain. A parameter's `where` IS the parameter's type, an anonymous refinement of
-/// the declared one, so the model has one way to say a value is narrowed and this rule one way to
-/// read it, and nothing is left to a runtime guard at the callee: refinement is type checking, and a
-/// call is where the type is met. What the prover cannot read -- a property pattern, a real, an
-/// expression that is neither a constant nor a local -- is not refused either.
+/// whose length is known or that a local or a field holds, an argument at a call, a construction or a
+/// constructor chain, and the operand of a cast, which is an argument to its conversion function. A
+/// parameter's `where` IS the parameter's type, an anonymous refinement of the declared one, so the
+/// model has one way to say a value is narrowed and this rule one way to read it, and nothing is left
+/// to a runtime guard at the callee: refinement is type checking, and a call is where the type is
+/// met. What the prover cannot read -- a property pattern, a real, an expression that is neither a
+/// constant nor a local -- is not refused either.
 /// </summary>
 internal sealed class RefinementAnalyzer : IProgramAnalyzer
 {
@@ -262,6 +263,10 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
                 case { Kind: FlowStepKind.Evaluate, Node: NewExpression construction }:
                     NeedArguments(state, construction.Arguments, construction.ParameterTypes, construction.Constructor?.ParametersList);
+                    break;
+
+                case { Kind: FlowStepKind.Evaluate, Node: CastExpression cast } when CastAnalyzer.Converts(context, cast):
+                    Need(state, cast.Operand, cast.ParameterType ?? cast.TargetType, cast);
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):

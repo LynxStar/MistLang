@@ -22,93 +22,107 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
-        var interner = context.Model.TypeInterner;
-
         foreach(var node in context.Nodes)
         {
-            if(node is not CastExpression cast)
+            if(node is CastExpression cast && !Converts(context, cast))
             {
-                continue;
+                Refuse(context, cast);
             }
+        }
+    }
 
-            if(cast.AmbiguousOperators.Count > 0)
+    internal static bool Converts(AnalysisContext context, CastExpression cast)
+    {
+        var interner = context.Model.TypeInterner;
+
+        if(cast.AmbiguousOperators.Count > 0)
+        {
+            return false;
+        }
+
+        if(cast.ParameterType is { } parameter)
+        {
+            return Assignability.Judge(cast.Operand, parameter, interner) is null && CloneRefusal(context, cast) is null;
+        }
+
+        return ConversionClassifier.Classify(cast.Operand.Type, cast.TargetType, interner) != ConversionKind.None
+            || ConstantConversion.Fits(cast.Operand, cast.TargetType);
+    }
+
+    private static void Refuse(AnalysisContext context, CastExpression cast)
+    {
+        if(cast.AmbiguousOperators.Count > 0)
+        {
+            context.Report(
+                ProgramAnalysisDiagnostics.AmbiguousCast,
+                cast.Node,
+                [cast, cast.Operand],
+                TypeDisplay.Mist(cast.Operand.Type),
+                TypeDisplay.Mist(cast.TargetType),
+                string.Join(", ", cast.AmbiguousOperators.Select(Signature)));
+        }
+        else if(cast.ParameterType is { } parameter)
+        {
+            if(Assignability.Judge(cast.Operand, parameter, context.Model.TypeInterner) is null
+                && CloneRefusal(context, cast) is { } refusal && cast.Operator is { ClonesThrough: { } body })
             {
                 context.Report(
-                    ProgramAnalysisDiagnostics.AmbiguousCast,
+                    ProgramAnalysisDiagnostics.CloneConversionDoesNotHold,
                     cast.Node,
                     [cast, cast.Operand],
                     TypeDisplay.Mist(cast.Operand.Type),
                     TypeDisplay.Mist(cast.TargetType),
-                    string.Join(", ", cast.AmbiguousOperators.Select(Signature)));
+                    $"{TypeDisplay.Mist(body.DeclaringType!)}.{body.Name}",
+                    TypeDisplay.Mist(parameter),
+                    refusal.Member,
+                    refusal.Failure.Message);
             }
-            else if(cast.ParameterType is { } parameter)
-            {
-                if(Assignability.Judge(cast.Operand, parameter, interner) is null)
-                {
-                    if(cast.Operator is { ClonesThrough: { } body } through && context.ConversionRefusals.TryGetValue(through, out var refusal))
-                    {
-                        context.Report(
-                            ProgramAnalysisDiagnostics.CloneConversionDoesNotHold,
-                            cast.Node,
-                            [cast, cast.Operand],
-                            TypeDisplay.Mist(cast.Operand.Type),
-                            TypeDisplay.Mist(cast.TargetType),
-                            $"{TypeDisplay.Mist(body.DeclaringType!)}.{body.Name}",
-                            TypeDisplay.Mist(parameter),
-                            refusal.Member,
-                            refusal.Failure.Message);
-                    }
-
-                    continue;
-                }
-
-                if(cast.Operator is { } called)
-                {
-                    context.Report(
-                        ProgramAnalysisDiagnostics.CastArgumentMismatch,
-                        cast.Node,
-                        [cast, cast.Operand],
-                        TypeDisplay.Mist(cast.Operand.Type),
-                        TypeDisplay.Mist(cast.TargetType),
-                        Signature(called),
-                        TypeDisplay.Mist(parameter));
-                }
-                else
-                {
-                    context.Report(
-                        ProgramAnalysisDiagnostics.EnumCastArgumentMismatch,
-                        cast.Node,
-                        [cast, cast.Operand],
-                        TypeDisplay.Mist(cast.Operand.Type),
-                        TypeDisplay.Mist(cast.TargetType),
-                        TypeDisplay.Mist(parameter));
-                }
-            }
-            else if(ConversionClassifier.Classify(cast.Operand.Type, cast.TargetType, interner) != ConversionKind.None
-                || ConstantConversion.Fits(cast.Operand, cast.TargetType))
-            {
-                continue;
-            }
-            else if(UncopiedSource(cast.Operand.Type, cast.TargetType) is { } source)
+            else if(cast.Operator is { } called)
             {
                 context.Report(
-                    ProgramAnalysisDiagnostics.NewtypeSourceDefinesNoCopy,
+                    ProgramAnalysisDiagnostics.CastArgumentMismatch,
                     cast.Node,
                     [cast, cast.Operand],
                     TypeDisplay.Mist(cast.Operand.Type),
                     TypeDisplay.Mist(cast.TargetType),
-                    TypeDisplay.Mist(source));
+                    Signature(called),
+                    TypeDisplay.Mist(parameter));
             }
             else
             {
                 context.Report(
-                    ProgramAnalysisDiagnostics.CastHasNoConversion,
+                    ProgramAnalysisDiagnostics.EnumCastArgumentMismatch,
                     cast.Node,
                     [cast, cast.Operand],
                     TypeDisplay.Mist(cast.Operand.Type),
-                    TypeDisplay.Mist(cast.TargetType));
+                    TypeDisplay.Mist(cast.TargetType),
+                    TypeDisplay.Mist(parameter));
             }
         }
+        else if(UncopiedSource(cast.Operand.Type, cast.TargetType) is { } source)
+        {
+            context.Report(
+                ProgramAnalysisDiagnostics.NewtypeSourceDefinesNoCopy,
+                cast.Node,
+                [cast, cast.Operand],
+                TypeDisplay.Mist(cast.Operand.Type),
+                TypeDisplay.Mist(cast.TargetType),
+                TypeDisplay.Mist(source));
+        }
+        else
+        {
+            context.Report(
+                ProgramAnalysisDiagnostics.CastHasNoConversion,
+                cast.Node,
+                [cast, cast.Operand],
+                TypeDisplay.Mist(cast.Operand.Type),
+                TypeDisplay.Mist(cast.TargetType));
+        }
+    }
+
+    private static ConversionRefusal? CloneRefusal(AnalysisContext context, CastExpression cast)
+    {
+        return cast.Operator is { ClonesThrough: not null } through && context.ConversionRefusals.TryGetValue(through, out var refusal) ? refusal : null;
     }
 
     private static IMistType? UncopiedSource(IMistType from, IMistType to)

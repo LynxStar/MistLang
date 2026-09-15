@@ -1,0 +1,16 @@
+using Standard;
+
+namespace Refusal;
+
+type Small = byte <= 10;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CAST_HAS_NO_CONVERSION
+        Small small = (Small)300;
+        Console.WriteLine(small);
+        Console.WriteLine("unreachable");
+    }
+}

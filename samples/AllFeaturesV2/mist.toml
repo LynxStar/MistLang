@@ -84,3 +84,4 @@ NestedGenericTypes = { path = "../NestedGenericTypes" }
 NewtypeClones = { path = "../NewtypeClones" }
 OverloadedIndexers = { path = "../OverloadedIndexers" }
 OptionalTypeParameters = { path = "../OptionalTypeParameters" }
+GenericOptionals = { path = "../GenericOptionals" }

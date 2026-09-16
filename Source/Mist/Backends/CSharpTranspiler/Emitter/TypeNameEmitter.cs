@@ -3,6 +3,7 @@ using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -152,8 +153,20 @@ internal static class TypeNameEmitter
             NamedTupleType => true,
             RefinedType refined => IsValueKind(refined.BaseType),
             ConstructedType constructed => IsValueKind(constructed.Definition),
+            TypeParameter parameter => HasStructConstraint(parameter),
             _ => false,
         };
+    }
+
+    // The `struct` KEYWORD alone, never a type constraint that happens to name a struct: C# reads
+    // `K?` as Nullable of K only under the keyword, and spells the same `?` as a reference
+    // annotation otherwise -- so a parameter constrained to a struct BY TYPE would take this
+    // spelling and not the meaning. An unconstrained parameter has no C# type for "a K, or absent"
+    // at all and is the case a carrier would be for.
+    private static bool HasStructConstraint(TypeParameter parameter)
+    {
+        return parameter.ConstraintsList.Exists(
+            constraint => constraint is KeywordConstraint { Kind: TypeParameterConstraintKind.Struct });
     }
 
     /// <summary>

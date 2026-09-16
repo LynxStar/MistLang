@@ -102,5 +102,6 @@ public class Program
         NewtypeClones.Program.RunDemo();
         OverloadedIndexers.Program.RunDemo();
         OptionalTypeParameters.Program.RunDemo();
+        GenericOptionals.Program.RunDemo();
     }
 }

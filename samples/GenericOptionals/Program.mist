@@ -1,0 +1,121 @@
+// GenericOptionals -- An optional whose inner type is a TYPE PARAMETER, `K?` inside `Holder<K>`.
+//
+// `K?` is `K | void`, and which CLR shape that takes depends on what K turns out to be: Nullable
+// of K for a value kind, the bare reference with null for absence otherwise. The emitter answers
+// that from the parameter's CONSTRAINT, so a `where K : struct` holder really does hold absence at
+// a value instantiation. Without it the declaration lowers to a bare `K`, which cannot: on v2 the
+// class contradicts itself and fails to compile, and on classic it compiles and reports a fresh
+// `Holder<int>` as PRESENT, because the field is `default(int)` and `is K` matches a 0.
+//
+// V2-ONLY, and classic refuses it twice over (measured 2026-09-16). `v.Field = void;` is
+// MIST_TC_0070 there, the `void` literal reaching a field assignment where a local declaration
+// takes it; with that line removed it emits the bare `K` for both spellings and Roslyn refuses
+// the result, cannot convert 'int?' to 'int'.
+//
+// LIMIT: an UNCONSTRAINED `K?` is still lowered bare and is still wrong. It has no C# type to
+// lower to -- Nullable needs the struct constraint and C#'s unconstrained `T?` is an annotation,
+// not a carrier of absence -- so it waits on a carrier of Mist's own.
+
+using Standard;
+
+namespace GenericOptionals;
+
+// PROOF: a value-kind instantiation really holds absence, which is the whole of the fix.
+public class ValueHolder<K> where K : struct
+{
+    public K? Field;
+
+    public ValueHolder() { }
+
+    public string Describe()
+    {
+        if (this.Field is K present)
+        {
+            return $"present {present}";
+        }
+
+        return "absent";
+    }
+
+    public void Put(K? value)
+    {
+        this.Field = value;
+    }
+
+    public K? Get()
+    {
+        return this.Field;
+    }
+}
+
+// A reference kind carries absence as null, so the bare name already IS the whole optional. These
+// rows show that behaving; they do NOT guard the spelling, because `K?` under a class constraint
+// also compiles, warns about nothing and runs the same -- measured. Only
+// OptionalOverTypeParameterEmissionTests can hold that claim.
+public class RefHolder<K> where K : class
+{
+    public K? Field;
+
+    public RefHolder() { }
+
+    public string Describe()
+    {
+        if (this.Field is K present)
+        {
+            return $"present {present}";
+        }
+
+        return "absent";
+    }
+
+    public void Put(K? value)
+    {
+        this.Field = value;
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Generic Optionals ===");
+
+        var v = new ValueHolder<int>();
+
+        Console.WriteLine($"fresh:     {v.Describe()}");
+
+        int? given = 7;
+        v.Put(given);
+        Console.WriteLine($"put 7:     {v.Describe()}");
+
+        int? nothing = void;
+        v.Put(nothing);
+        Console.WriteLine($"put void:  {v.Describe()}");
+
+        v.Field = 3;
+        int? readField = v.Field;
+        int? readGet = v.Get();
+        Console.WriteLine($"read:      field={readField} get={readGet}");
+
+        Console.WriteLine($"coalesce:  {v.Field ?? 99}");
+        v.Field = void;
+        Console.WriteLine($"coalesced: {v.Field ?? 99}");
+        Console.WriteLine($"interp:    {v.Field}");
+
+        var r = new RefHolder<string>();
+        Console.WriteLine($"ref fresh: {r.Describe()}");
+
+        string? word = "hi";
+        r.Put(word);
+        Console.WriteLine($"ref put:   {r.Describe()}");
+
+        string? blank = void;
+        r.Put(blank);
+        Console.WriteLine($"ref void:  {r.Describe()}");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

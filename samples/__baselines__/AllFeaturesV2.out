@@ -1989,3 +1989,14 @@ Spelled(11) = present 11
 Nested(Box("inner")) = present inner
 Echo(13) = 13
 Echo("abc").Length = 3
+=== Generic Optionals ===
+fresh:     absent
+put 7:     present 7
+put void:  absent
+read:      field=3 get=3
+coalesce:  3
+coalesced: 99
+interp:    Void
+ref fresh: absent
+ref put:   present hi
+ref void:  absent

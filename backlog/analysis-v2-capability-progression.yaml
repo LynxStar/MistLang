@@ -1272,41 +1272,60 @@ rules:
       own case. The union case was added when that mutation survived the first run, since no case reached a
       union ordered by its type parameter's name.
 
-      A METHOD MAY NOT REDECLARE ONE IT INHERITS (2026-09-15), as MIST_PA_MEMBER_REDECLARATION at the
-      derived declaration, carrying classic's message. Arthur's decision -- "I don't support redeclaration
-      of methods" -- and method-overloading Requirement 5.2, which the task above had left open because C#
-      hides instead. MEASURED on both pipelines: a derived `Take(int j)` over a base `Take(int i)` was
-      MIST_MEMBER_REDECLARATION on classic and printed `derived` on v2, and is now refused; so are a derived
-      `Take<U>(U)` over a base `Take<T>(T)` and a derived `Take(Positive)` over a base `Take(int)`, which
-      classic admits and then refuses their CALLS as ambiguous (TC_0032). SILENT, running on both: a derived
-      `Take(string)` beside an inherited `Take(int)`, which is a new overload (Requirement 5.1); and
-      `IntHolder : Holder<int>` declaring `Take(int)` over the base's `Take(T)`, which classic runs and C#
-      hides with `new`.
+      NOTHING MAY HIDE AN INHERITED MEMBER (2026-09-15), as MIST_PA_MEMBER_REDECLARATION at the derived
+      declaration, carrying classic's message. Arthur's decision -- "overloads in derived types against
+      inherited members are allowed, hiding and overriding aren't" -- which is method-overloading
+      Requirements 5.1 and 5.2 and class-inheritance's additive-only model, the one that "cannot override
+      base class behavior". Class-inheritance Requirement 4.4 refuses a shared NAME outright, and 5.1
+      already amended it to admit an overload.
 
-      THE COMPARISON IS OF DECLARED SIGNATURES, which is what separates those two: `Take(T)` closed to
-      `Take(int)` is not the declaration `Take(int)`, so a type closing a generic base may still declare the
-      closed signature, and a conformer's `Transform(Widget)` beside the slot's `Transform(TValue)` is
-      untouched for the same reason. Hiding keeps asking the CLOSED question, so both still hide what they
-      close over; only a declaration repeating what it inherits is refused. Every ancestor up the base chain
-      is asked, through a constructed base and a grandparent alike, and only a Mist-declared member repeats
-      one, so a projected CLR base is not consulted.
+      THE RULE: a declared member is refused when its type inherits a member of the same name, unless both
+      are members a use site selects among -- a method or an indexer -- whose signatures differ, which is
+      the overload 5.1 admits. An inherited signature is read THROUGH the substitution that reaches it,
+      since what a deriving type hides is what it sees, so closing a generic base does not license
+      declaring what the closing produces. Every ancestor up the base chain is asked, through a constructed
+      base and a grandparent alike, and only a Mist-declared member counts, so a projected CLR base is not
+      consulted -- a class declaring `ToString` still runs.
 
-      NOT REFUSED, and measured: a derived indexer or property repeating an inherited one, which classic
-      admits as well; a derived field repeating one, which classic refuses (task below). A use of a
-      redeclared member is still bound to it and judged, so `d.Take(-5)` over a refused derived
-      `Take(Positive)` reports REFINEMENT_VIOLATED beside the redeclaration -- a second complaint about a
-      declaration already refused (task below).
+      MEASURED on both pipelines, one project per probe. Refused now, classic agreeing: a derived
+      `Take(int j)` over a base `Take(int i)` (MIST_MEMBER_REDECLARATION; v2 printed `derived`), and a
+      derived field `size` over an inherited one (the same id; v2 printed 2). Refused now where classic
+      refuses the USE instead: a derived `Take<U>(U)` over a base `Take<T>(T)` and a derived
+      `Take(Positive)` over a base `Take(int)`, both TC_0032 at the call on classic; and a derived field
+      `Size` over an inherited method `Size()`, where v2's binder reported MIST_PM_AMBIGUOUS_MEMBER at the
+      use. FOUR DIVERGENCES, stricter than classic and each of them hiding: `IntHolder : Holder<int>`
+      declaring `Take(int)` over the base's `Take(T)`, and the same shape for an indexer; a derived
+      `this[int j]` over a base `this[int i]`; and a derived property `Size` over an inherited one. Classic
+      runs all four, C# hides with `new`, and the spec does not.
 
-      PROVED BY five more corpus cases -- a plain redeclaration, one with renamed type parameters, one over
-      a refinement of the inherited parameter, one from a grandparent and one through a constructed base --
-      and five silence rows: a differing signature, a closed generic base, a derived indexer, a derived
-      property, and a different name over the same signature. SignatureHidingTests' inheritance fixture is
-      now a program this order admits, its `Closed` row pinning that a type closing a generic base still
-      hides. Seven mutations on a confirmed build, each caught by the case or row named for it: the rule
-      silenced and the report moved to the type, every redeclaration case; the inherited name not compared,
-      the different-name row; the signature not compared, the differing-signature and closed-base rows; only
-      the immediate base walked, the grandparent case; a constructed base not walked, the constructed-base
-      case; and the inherited signature read closed rather than declared, the closed-base row.
+      SILENT, running on both: a derived `Take(string)` beside an inherited `Take(int)`, the overload 5.1
+      names; and a conformer answering an abstract's slot, `IBox<int>.Wrap(int)` over `Wrap(T)` and
+      `ISized.Size` alike -- an abstract declares the requirement and no body, so nothing is hidden, which
+      is also why hiding across a derivation stays in selection for exactly that case.
+
+      NOT THIS ORDER'S, and measured: a derived INDEXER OVERLOAD is refused by v2 for another reason
+      entirely -- `this[int]` on a base with `this[string]` on the derived runs on classic, while on v2
+      every index binds the derived indexer, since Indexability hands selection the receiver definition's
+      IndexersList alone and an inherited indexer is never a candidate (task below). A use of a hidden
+      member is still bound to it and judged, so the complaint at the declaration can be joined by one at
+      the use: MIST_PM_AMBIGUOUS_MEMBER for a field over a method, REFINEMENT_VIOLATED for `d.Take(-5)`
+      over a refused `Take(Positive)` (task below).
+
+      PROVED BY twelve more corpus cases: a plain redeclaration, one with renamed type parameters, one over a
+      refinement of the inherited parameter, one from a grandparent, one through a constructed base, one by
+      closing a generic base, one through two levels of generic base, an indexer redeclared and an indexer
+      closing a generic base, a property, a field, and a field over an inherited method. Five silence rows:
+      a differing signature, a conformer's method slot, a conformer's property slot, a derived indexer of
+      another signature, and a different name over the same signature. SignatureHidingTests' inheritance
+      fixture is now a program this order admits, its conformer row pinning the hiding that remains.
+      Twelve mutations on a confirmed build, each caught by the case or row named for it: the rule silenced
+      and the report moved to the type, all twelve cases; the inherited name not compared, the five silence
+      rows and thirty-odd rows over the shared fixtures besides; an overload not exempted, the
+      differing-signature method and indexer rows; the inherited signature read as declared, the two
+      closing cases and the two-level one; the substitution not composed along the chain, the two-level
+      case; only the immediate base walked, the grandparent and two-level cases; a constructed base not
+      walked, the four cases that have one; and methods, indexers, properties and fields each dropped from
+      what a type declares, their own cases.
 
       MEASURED: the full suite -- 6263, 664 and 68 tests, passing with no failure and no rerun -- with
       AllFeaturesV2's baseline among them, so no banked sample or Standard declaration reports a duplicate
@@ -1348,21 +1367,18 @@ rules:
         declaration would silence every use through Comparability.IsRefused, as the relational form
         already is.
       - >
-        A derived indexer or property repeating an inherited one is admitted, where a derived METHOD is
-        refused. Measured 2026-09-15: `this[int j]` over an inherited `this[int i]`, and `Size` over an
-        inherited `Size`, each print the derived member's answer on both pipelines. Whether the
-        redeclaration rule should read them too is a decision; classic admits both.
+        An inherited indexer is not a candidate at an index, so a derived indexer of another signature --
+        the overload Requirement 5.1 admits -- is unusable. Measured 2026-09-15 over a base `this[int i]`
+        and a derived `this[string s]`: classic prints both answers; on v2 every index binds the derived
+        indexer and `d[0]` is MIST_PA_NO_IMPLICIT_CONVERSION. Indexability.Select is handed the receiver
+        definition's IndexersList alone, where a call's candidates walk the chain. A binder gap, not this
+        order's.
       - >
-        A derived field repeating an inherited one is admitted, where classic reports
-        MIST_MEMBER_REDECLARATION (measured 2026-09-15: `public int size` over an inherited one prints 2 on
-        v2). Class-inheritance Requirement 4.3 and struct-inheritance 3 both refuse it. A field carries no
-        signature, so it is a rule of its own rather than a reach of the one above.
-      - >
-        A use of a redeclared method is bound to it and judged, so a second complaint can follow a
-        declaration already refused: `d.Take(-5)` over a derived `Take(Positive)` that redeclares a base's
-        `Take(int)` reports MIST_PA_REFINEMENT_VIOLATED beside MIST_PA_MEMBER_REDECLARATION. Silencing it
-        means selection preferring the inherited member once the derived one is refused, which is a
-        cross-stage dependency rather than a rendering fix.
+        A use of a hidden member is bound to it and judged, so a second complaint can follow a declaration
+        already refused: `d.Take(-5)` over a derived `Take(Positive)` reports MIST_PA_REFINEMENT_VIOLATED
+        beside MIST_PA_MEMBER_REDECLARATION, and a field over an inherited method reports
+        MIST_PM_AMBIGUOUS_MEMBER at every read. Silencing them means selection preferring the inherited
+        member once the derived one is refused, a cross-stage dependency rather than a rendering fix.
       - >
         Two operators of one signature, and two conversions between one pair of types, are not refused.
         Measured 2026-09-15 on a struct Money: `operator +(Money a, Money b)` declared twice is MIST_SM_0020

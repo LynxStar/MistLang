@@ -4112,6 +4112,38 @@ capabilities:
       classic reports MIST_TC_0045; construction stays coherent and the diagnostic is
       recorded below. OptionalTypes is banked in AllFeaturesV2, line-identical to classic.
 
+      THE TYPE-PARAMETER INNER MEASURED IN FULL, 2026-09-15, and it is worse than "a gap shared
+      with classic" recorded it. CLASSIC IS NOT A REFERENCE HERE: `Holder<K>` with a `K? Field`
+      compiles on classic and ANSWERS WRONG at a value instantiation -- fresh `Holder<int>`
+      reports its field PRESENT, because the field is `default(int)` and `is K` matches a 0, where
+      `Holder<string>` reports absent correctly. Classic emits the same bare `K` v2 does and only
+      avoids v2's self-contradiction by never writing the absent value into the field. So there is
+      no observable behaviour to match: the target has to be argued from the spec.
+
+      THE REPRESENTATION DEPENDS ON THE INSTANTIATION, which is the whole of the difficulty. A
+      generic class is emitted ONCE while its uses are closed, so a `Holder<int>.Field` spelled
+      from the open declaration and an `int?` local spelled from the closed use site are two
+      different C# types wherever they meet. Measured over eight crossings at `Holder<int>`: FOUR
+      are Roslyn errors -- an argument, a field assignment, a `??`, and the default-init
+      constructor's null -- and FOUR COMPILE AND ARE SILENTLY WRONG, which is the half that
+      matters: a read into an `int?` local (through a method and through the field) can never be
+      absent, `h.Field is int` is always true, and an interpolation hole prints 0 rather than Void.
+
+      A CONSTRAINED PARAMETER NEEDS NO CARRIER AND NO CONVERSION. Verified in plain C#: under
+      `where K : struct`, `public K? Field` makes `Holder<int>.Field` exactly
+      `System.Nullable<System.Int32>` -- the same CLR type the closed `int?` lowers to, assigning
+      both ways with no conversion and reporting absence correctly -- and under `where K : class`
+      the bare spelling is already right. IsValueKind never consults constraints, so both are
+      lowered bare today and both are wrong. Only the UNCONSTRAINED parameter has no C# type to
+      lower to, and it alone is what a carrier would be for.
+
+      WHERE A CONVERSION WOULD BE RECORDED, if a carrier lands: ImplicitConversions.At and
+      .AtParameters are already the one binder-side home for a value meeting a target -- argument,
+      return, local initializer, foreach element, lambda body, object-initializer entry and index
+      all route through them -- so the carrier-to-Nullable direction is recorded once there rather
+      than at each emission site. It cannot be a C# conversion operator in either direction, since
+      one over Nullable of T cannot be declared without a struct constraint the parameter lacks.
+
   - id: optional-operators
     name: Conditional access, coalescing and coalescing assignment
     order: 79

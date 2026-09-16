@@ -51,6 +51,18 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
             }
         }
 
+        public class Ledger
+        {
+            int[3] entries = new int[3];
+
+            public int Count { get { return entries.Length; } }
+
+            public int this[int entry] where entry >= 0 and < 3
+            {
+                get { return entries[entry]; }
+            }
+        }
+
         public class FixedArray<TValue, Size:int> where Size >= 0
         {
             public int Count()
@@ -232,6 +244,10 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("var b = new Buffer(); Console.WriteLine(b[4]); b[0] = 1;")]
     [InlineData("var b = new Buffer(); if(x >= 0 && x < 5) { Console.WriteLine(b[x]); }")]
     [InlineData("Console.WriteLine(items[^1]);")]
+    [InlineData("var a = new int[3]; Console.WriteLine(a[^1] + a[^3]);")]
+    [InlineData("var a = new int[3]; a[^1] = 1;")]
+    [InlineData("var a = new int[3]; var k = 9; Console.WriteLine(a[^k]);")]
+    [InlineData("var l = new Ledger(); Console.WriteLine(l[^1]);")]
     [InlineData("var a = new int[3]; if(x >= 0) { if(x < 3) { Console.WriteLine(a[x]); } }")]
     [InlineData("var d = [[1, 2], [3, 4]]; for(int i = 0; i < d.Length; i = i + 1) { Console.WriteLine(d[i][0]); }")]
     [InlineData("var d = [[1, 2], [3, 4]]; int s = 0; for(int i = 0; i < d.Length; i = i + 1) { for(int j = 0; j < d[i].Length; j = j + 1) { s = s + d[i][j]; } }")]

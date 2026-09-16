@@ -297,7 +297,9 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private void NeedIndex(ImmutableDictionary<LocalVariable, Knowledge> state, IndexExpression index)
         {
-            if(!IsIntegral(Unrefined(index.Index.Type)))
+            var value = Reaching(index);
+
+            if(!IsIntegral(Unrefined(value.Type)))
             {
                 return;
             }
@@ -308,11 +310,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             {
                 if(KnownLength(receiverType) is { } length)
                 {
-                    Need(state, index.Index, new Requirement(Admitted.Between(0, length - 1), []), index.Index, onIndex: index.Receiver);
+                    Need(state, value, new Requirement(Admitted.Between(0, length - 1), []), index.Index, onIndex: index.Receiver);
                 }
                 else if(Holder(index.Receiver) is not null)
                 {
-                    Need(state, index.Index, new Requirement(Admitted.AtLeast(0), [new SymbolicBound("Length", ComparisonKind.LessThan)]), index.Index, onIndex: index.Receiver);
+                    Need(state, value, new Requirement(Admitted.AtLeast(0), [new SymbolicBound("Length", ComparisonKind.LessThan)]), index.Index, onIndex: index.Receiver);
                 }
 
                 return;
@@ -320,8 +322,22 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             if(index is { ParameterType: { } slot, Indexer.ParametersList: [var parameter] })
             {
-                Need(state, index.Index, slot, index.Index, onConstraint: parameter.Name);
+                Need(state, value, slot, index.Index, onConstraint: parameter.Name);
             }
+        }
+
+        // `^k` names the position `Length - k`, so the value that meets the slot is that position rather
+        // than the offset written, and it is proven as any other value entering a slot is. A length that
+        // is not statically known leaves nothing to substitute, which leaves the index exactly as unproven
+        // as every other index into a receiver whose length the type does not carry.
+        private static Expression Reaching(IndexExpression index)
+        {
+            return index.Index is UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset }
+                && KnownLength(index.Receiver.Type) is { } length
+                && Requirement.Constant(offset) is { } fromEnd
+                ? new LiteralExpression(index.Index.Node, length - fromEnd, offset.Type)
+                : index.Index
+                ;
         }
 
         private void Need(

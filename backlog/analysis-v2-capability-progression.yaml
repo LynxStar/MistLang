@@ -824,6 +824,54 @@ rules:
       alone, which reached Roslyn as MIST_CS_ERROR. The full suite -- 6235, 664 and 68 tests,
       AllFeaturesV2's baseline among them -- passed with no failure and no rerun, and the build and
       `dotnet format` were clean.
+
+      A WRITTEN PARAMETER BEATS ONE A RECEIVER'S TYPE ARGUMENT MADE IDENTICAL (2026-09-15), answering the
+      question this order carried as a task, which it closes. MEASURED at 7f3f6bb4 on both pipelines, one
+      project per probe, over 22 programs, with four more emitted for their lowered signatures alone.
+      CLASSIC GIVES NO SINGLE ANSWER: where Roslyn chooses, it runs the call -- `b.Get(3)` and `b[3]` on
+      `Keyed<int>` declaring `Get(K)` beside `Get(int)` and `this[K key]` beside `this[int i]`, a static
+      `Util<int>.Get(3)`, and a type parameter nested in `Wrap<K>`, `List<K>`, `K[]`, `(K, int)` or
+      `func<K, int>`, each printing the written form's answer -- and where its own check runs, it refuses:
+      `new Box<int>(3)` over `Box(T)` and `Box(int)` is MIST_TC_0032, and so is `Get<U>(U, U)` beside
+      `Get<T>(T, int)`. Every one of them was MIST_PM_AMBIGUOUS_OVERLOAD on v2 and now selects the written
+      form, the constructor and the two generic methods included -- v2 more permissive than classic, and
+      what C# does. `IntKeyed : Keyed<int>` selects through the path too, where classic reports
+      UNDEFINED_MEMBER and cannot run it at all. THE REFUSAL HAD NO ANSWER: a cast cannot separate the
+      pair, since `b.Get((int)3)` names the type they already share, so at `Keyed<int>` neither overload
+      was callable.
+
+      THE RULE IS C#'S, in IsBetter's one home, so a call, a construction and an index share it: a
+      candidate declaring no type parameters of its OWN wins first, then, per parameter, a written type
+      beats one written as a type parameter, recursing through constructed types, arrays, tuples and
+      function types. ONLY ON IDENTICAL CLOSED PARAMETER TYPES, which is what keeps it a tiebreak rather
+      than a second ranking. Without that gate the genericity of one position settles a tie in another,
+      which is what the existing tiebreak did, looser than the "otherwise-exact tie" its own comment
+      claimed: `Take(small, 1)` with a byte over `Take<T>(uint, T)` and `Take(short, int)` printed
+      short,int on v2, though a byte over short and uint is ambiguous by method-overloading Requirement
+      3.3 and the non-generic pair of that shape is refused on both pipelines. It is now ambiguous -- v2
+      stricter than classic, the divergence `t[small]` records above. INSTRUMENTED BEFORE THE CHANGE, the
+      ungated tiebreak fired once in all of AllFeaturesV2 and Standard, on Interlocked, with identical
+      closed types, so no banked program stood on it.
+
+      STILL AMBIGUOUS, stated with the rule in method-overloading Requirements 3.8 to 3.10:
+      `Pair<A, B>.Take(A)` beside `Take(B)` at `Pair<int, int>`, one type parameter being no more specific
+      than another; `Take(K, int)` against `Take(int, K)`, each more specific in one position; and
+      `Take(K?)` against `Take(int?)`, whose constituents are deliberately not compared, because v2 emits
+      an unconstrained `K?` parameter as `K` and a model preferring int? would record one overload and run
+      the other. Classic prints K? there. A union over a type parameter emits on neither pipeline, which
+      the emitter register already holds.
+
+      PROVED BY 17 rows in OverloadSelectionTests, the wanted overload declared SECOND in every fixture:
+      seven for a written parameter beating a closed one (instance, inherited and static receivers, and
+      the four nested shapes), one each for the constructor, the indexer, and a signature written in one
+      position of two, two for a method's own type parameter losing to a written type, one for the
+      ordering between those two steps, three for the ambiguities kept, and one for the gate. Five
+      mutations on a confirmed build, each caught by the row written for it: the gate dropped (the gate
+      row alone), the own-type-parameter step dropped (the ordering row alone), the per-parameter
+      comparison dropped and type parameters made equally specific (eleven rows each), and the comparison
+      recursed into unions (the `Take(K?)` row alone). The full suite -- 6252, 664 and 68 tests,
+      AllFeaturesV2's baseline among them -- passed with no failure and no rerun, and the build and
+      `dotnet format` were clean.
     tasks:
       - >
         A value that could enter a union through two constituents neither containing the other is emitted
@@ -839,16 +887,6 @@ rules:
         until they are, no argument to a CLR-projected member is judged, and the `UseNpgsql` call in
         samples/CSharpInteropV2 is the case to prove it on. An index into a CLR-projected indexer is not
         judged either: `d[1]` over `Dictionary<string, int>` reaches Roslyn (measured 2026-09-15).
-      - >
-        An index a receiver's type argument makes identical to a sibling indexer is refused as ambiguous,
-        and whether it should be is a decision. Measured 2026-09-15 over `Keyed<K>` declaring `this[K key]`
-        and `this[int i]`, closed at `Keyed<int>`: `var r = b[3]` prints 3 on classic, Roslyn preferring
-        the parameter not written as a type parameter; on v2 it reached Roslyn as MIST_CS_ERROR while the
-        first indexer typed `r` as string, and is MIST_PM_AMBIGUOUS_OVERLOAD now that the index selects.
-        `b.Get(3)` over `Get(K)` and `Get(int)` is refused the same way on v2 and printed 3 on classic
-        already. OverloadResolution's generic tiebreak prefers a candidate declaring no type parameters of
-        its OWN; neither here does, and no spec states a preference between a receiver's type parameter and
-        a written type, so the pipelines' disagreement leaves it refused for both members.
       - >
         Two indexers with the same parameter types are not refused at the declaration (properties
         Requirement 11.6). Measured 2026-09-15: `this[int i]` and `this[int j]` on one class is MIST_TC_0029

@@ -2701,13 +2701,24 @@ capabilities:
         nothing lowers the call. Orders 76 to 78 own unions.
       - >
         FOUND 2026-09-15, not this entry's, and the same gap one step earlier: an OPTIONAL over an open
-        type parameter does not survive emission either. `Take(K? key)` on `Keyed<K>` emits as
-        `Take(K key)`, the optionality dropped, so at `Keyed<int>` the parameter is a plain int and cannot
-        hold the absent value: a lone such method given `int? nothing = void;` fails in Roslyn on BOTH
-        pipelines, cannot convert int? to int. `K?` is `K | Void`, so it wants the carrier an open union
-        has no way to build. Until it lands, method-overloading Requirement 3.11 refuses `Take(K?)` beside
-        `Take(int?)` as ambiguous rather than select the preference the rule states, since the emitted
-        program would run the other one.
+        type parameter does not survive emission. A GENERIC TYPE CANNOT HOLD ONE AT ALL. Measured on v2
+        over `Holder<K>`: `K? Field` emits as `public K Field;` beside `this.Field = null;` in the
+        constructor -- the declaration drops the optionality while the initializer still writes the absent
+        value, one class contradicting itself -- so it does not compile untouched, as cannot convert null
+        to type parameter 'K'. `Optional<K> Field` fails identically, Standard declaring `public type
+        Optional<T> = T | void`, which places this on the open union above rather than on the `?` sugar.
+        A PARAMETER IS THE QUIETER HALF: `Take(K? key)` emits `Take(K key)`, which declares and takes a
+        present value and refuses only the absent one, so a lone such method given `int? nothing = void;`
+        fails in Roslyn as cannot convert int? to int. Every failure measured is a compile error, Mist's
+        or Roslyn's; none reached a running program. Classic declares all of these and runs the parameter
+        case, and is not a clean reference either: `h.Field = void;` is MIST_TC_0070 there, the `void`
+        literal reaching a field assignment where a local declaration takes it. NOTHING IN STANDARD OR THE
+        SAMPLES holds an optional over a type parameter -- every `?` in the suite is on a concrete type --
+        so no baseline can see any of it. Until the carrier lands, method-overloading Requirement 3.11
+        refuses `Take(K?)` beside `Take(int?)` as ambiguous rather than select the preference the rule
+        states, since the emitted program would run the other one. The binder's own half of this is NOT
+        here: `Take<T>(T? value)` cannot infer T from an argument, which is recorded on
+        program-model-body-tasks postfix.MethodCallSuffix.
       - >
         COST OF THE RULE, recorded with the decision. A call mixing unrelated types needs its type
         argument stated, as in C#. The union rule's cost was the opposite: `F<T>(T, T)` accepting two

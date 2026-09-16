@@ -1,0 +1,98 @@
+// OptionalTypeParameters -- Type argument inference through an OPTIONAL parameter.
+//
+// `T?` is `T | void`, so a generic method whose only mention of T is an optional slot has to read
+// the argument against that slot's PRESENT constituent to learn anything. T appears nowhere else in
+// any signature below, so every call here is MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED without that rule
+// and the sample fails to compile rather than printing something wrong.
+//
+// LIMIT: every argument is present. Passing an ABSENT one needs the carrier that makes an optional
+// over an open type parameter representable, which is not built -- `Take(K?)` still reaches the
+// backend as `Take(K)`, which cannot hold absence at a value instantiation.
+
+using Standard;
+
+namespace OptionalTypeParameters;
+
+public class Box<T>
+{
+    public T Value;
+
+    public Box(T value)
+    {
+        this.Value = value;
+    }
+}
+
+public class Api
+{
+    // PROOF: the `?` sugar. Printing the narrowed value shows T was fixed to the argument's own
+    // type, not to the union it was read through.
+    public static string Bare<T>(T? value)
+    {
+        if (value is T present)
+        {
+            return $"present {present}";
+        }
+
+        return "absent";
+    }
+
+    // PROOF: Standard's `Optional<T>` alias expands to the same `T | void` and infers identically.
+    public static string Spelled<T>(Optional<T> value)
+    {
+        if (value is T present)
+        {
+            return $"present {present}";
+        }
+
+        return "absent";
+    }
+
+    // PROOF: a construction INSIDE the optional, so T is found two levels down.
+    public static string Nested<T>(Box<T>? value)
+    {
+        if (value is Box<T> present)
+        {
+            return $"present {present.Value}";
+        }
+
+        return "absent";
+    }
+
+    // PROOF: the inferred T reaches the RETURN type, so the caller gets a T? back.
+    public static T? Echo<T>(T? value)
+    {
+        return value;
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Optional Type Parameters ===");
+
+        Console.WriteLine($"Bare(7) = {Api.Bare(7)}");
+        Console.WriteLine($"Bare(\"seven\") = {Api.Bare("seven")}");
+        Console.WriteLine($"Spelled(11) = {Api.Spelled(11)}");
+        Console.WriteLine($"Nested(Box(\"inner\")) = {Api.Nested(new Box<string>("inner"))}");
+
+        int? echoed = Api.Echo(13);
+        if (echoed is int got)
+        {
+            Console.WriteLine($"Echo(13) = {got}");
+        }
+
+        // The result really is a string, so it carries string's own members forward.
+        string? word = Api.Echo("abc");
+        if (word is string text)
+        {
+            Console.WriteLine($"Echo(\"abc\").Length = {text.Length}");
+        }
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

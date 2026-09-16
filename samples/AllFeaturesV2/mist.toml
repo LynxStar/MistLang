@@ -83,3 +83,4 @@ GenericAbstractMembers = { path = "../GenericAbstractMembers" }
 NestedGenericTypes = { path = "../NestedGenericTypes" }
 NewtypeClones = { path = "../NewtypeClones" }
 OverloadedIndexers = { path = "../OverloadedIndexers" }
+OptionalTypeParameters = { path = "../OptionalTypeParameters" }

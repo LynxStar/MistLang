@@ -101,5 +101,6 @@ public class Program
         NestedGenericTypes.Program.RunDemo();
         NewtypeClones.Program.RunDemo();
         OverloadedIndexers.Program.RunDemo();
+        OptionalTypeParameters.Program.RunDemo();
     }
 }

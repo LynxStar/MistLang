@@ -1982,3 +1982,10 @@ closing=300
 first=120 second=45 drop=75
 --- Generic receiver ---
 title=Mist upper=MIST
+=== Optional Type Parameters ===
+Bare(7) = present 7
+Bare("seven") = present seven
+Spelled(11) = present 11
+Nested(Box("inner")) = present inner
+Echo(13) = 13
+Echo("abc").Length = 3

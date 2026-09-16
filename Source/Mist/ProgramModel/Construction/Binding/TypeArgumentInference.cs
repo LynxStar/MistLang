@@ -36,7 +36,7 @@ internal static class TypeArgumentInference
 
         for(var i = 0; i < slots; i++)
         {
-            Match(receiver.Apply(method.ParametersList[i].Type, interner), arguments[i].Type,
+            MatchArgument(receiver.Apply(method.ParametersList[i].Type, interner), arguments[i],
                 method.TypeParametersList, bounds);
         }
 
@@ -88,7 +88,7 @@ internal static class TypeArgumentInference
 
         for(var i = 0; i < flattened && i < arguments.Count; i++)
         {
-            Match(receiver.Apply(parameters[i].Type, interner), arguments[i].Type,
+            MatchArgument(receiver.Apply(parameters[i].Type, interner), arguments[i],
                 method.TypeParametersList, bounds);
         }
 
@@ -96,7 +96,7 @@ internal static class TypeArgumentInference
         {
             var parameter = parameters[parameters.Count - 1 - i];
             var argument = arguments[arguments.Count - 1 - i];
-            Match(receiver.Apply(parameter.Type, interner), argument.Type,
+            MatchArgument(receiver.Apply(parameter.Type, interner), argument,
                 method.TypeParametersList, bounds);
         }
 
@@ -111,6 +111,22 @@ internal static class TypeArgumentInference
         var domain = pack.Domain ?? pack;
         Record(pack, interner.LiftPack(domain, new TypePackValue(absorbed)),
             method.TypeParametersList, bounds);
+    }
+
+    // An argument teaches a type parameter through the PRESENT constituent of an optional slot --
+    // `Take<T>(T? value)` learns int from a 3 -- and a `void` teaches nothing, having taken its own
+    // type FROM that slot: matching it would fix T to itself and emit it unbound at the call. Only
+    // the optional is peeled; reading a general union's constituents is a wider question the caller
+    // settles by stating the argument (type-argument-inference Requirement 3).
+    private static void MatchArgument(
+        IMistType declared, Expression argument, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds)
+    {
+        if(argument is VoidLiteralExpression)
+        {
+            return;
+        }
+
+        Match(declared, argument.Type, parameters, bounds);
     }
 
     /// <summary>
@@ -132,6 +148,18 @@ internal static class TypeArgumentInference
         if(declared is RefinedType refined)
         {
             Match(refined.BaseType, actual, parameters, bounds);
+            return;
+        }
+
+        if(OptionalUnion.InnerType(declared) is { } present)
+        {
+            var given = OptionalUnion.InnerType(actual) ?? actual;
+
+            if(!OptionalUnion.IsVoid(given))
+            {
+                Match(present, given, parameters, bounds);
+            }
+
             return;
         }
 

@@ -2716,9 +2716,12 @@ capabilities:
         SAMPLES holds an optional over a type parameter -- every `?` in the suite is on a concrete type --
         so no baseline can see any of it. Until the carrier lands, method-overloading Requirement 3.11
         refuses `Take(K?)` beside `Take(int?)` as ambiguous rather than select the preference the rule
-        states, since the emitted program would run the other one. The binder's own half of this is NOT
-        here: `Take<T>(T? value)` cannot infer T from an argument, which is recorded on
-        program-model-body-tasks postfix.MethodCallSuffix.
+        states, since the emitted program would run the other one. THE BINDER'S OWN HALF LANDED
+        SEPARATELY, 2026-09-15 and independently of the carrier: `Take<T>(T? value)` now infers T from
+        a PRESENT argument, recorded on program-model-body-tasks postfix.MethodCallSuffix and banked by
+        samples/OptionalTypeParameters. It does not touch this entry -- inference reaching a method the
+        emitter still spells `Take(T)` only means an ABSENT argument now fails in Roslyn where it used
+        to fail in the binder.
       - >
         COST OF THE RULE, recorded with the decision. A call mixing unrelated types needs its type
         argument stated, as in C#. The union rule's cost was the opposite: `F<T>(T, T)` accepting two
@@ -11169,6 +11172,34 @@ samples:
         Only `Keyed<string>` is reached. At `Keyed<int>` its two indexers close to one signature and the
         index is refused as ambiguous, a decision recorded on analysis order 5. Keyed's `this[K key]` ignores
         its key, so the right indexer reached with the wrong argument prints the same.
+  - name: OptionalTypeParameters
+    intro_order: 95
+    threshold: type-argument-inference
+    requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
+               var-type-inference, instance-fields, type-parameters-and-constructed-types,
+               generic-arity-keyed-lookup, generic-methods, type-argument-substitution,
+               type-argument-inference, type-alias-declarations, optional-union-representation,
+               pattern-matching-core]
+    untested:
+      - >
+        EVERY ARGUMENT HERE IS PRESENT, and that is the sample's boundary rather than an oversight. An
+        ABSENT argument to the same methods does not compile: `T?` reaches the backend as `T`, so an
+        `int?` meets an `int` parameter and Roslyn refuses it (measured 2026-09-15). The sample can bank
+        inference through an optional slot because inference is the binder's, and cannot bank absence
+        through one until the carrier at order 55 lands. Nothing in the suite holds an optional over a
+        type parameter at runtime.
+      - >
+        THE TWO REFUSALS CANNOT BE BANKED AT ALL, a sample being a valid program: that a general union
+        parameter is NOT read constituent by constituent, and that a `void` argument infers nothing
+        rather than fixing T to itself. Both are the shape this register warns about -- removing either
+        guard leaves every line below unchanged -- and InferenceThroughOptionalsTests holds them.
+      - >
+        The sample runs byte-identical on BOTH pipelines and is referenced from AllFeaturesV2 alone,
+        which is where v2 progress is recorded; it is not V2-ONLY, classic having inferred through an
+        optional all along. What classic does NOT do is the recursive case: `Opt<T>(T? value, int depth)`
+        calling itself refuses as MIST_TC_0072, naming `T | Void | Void`, where v2 binds and runs it.
+        Kept out of the sample so every line here stays cross-checked against classic.
 
 # =====================================================================
 

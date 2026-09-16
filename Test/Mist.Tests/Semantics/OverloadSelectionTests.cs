@@ -532,7 +532,231 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Contains("(B)", reported.Message, StringComparison.Ordinal);
     }
 
-    // ── Harness ──────────────────────────────────────────────────────────
+    /// <summary>
+    /// A receiver's type argument can close a parameter written as a type parameter onto a sibling's
+    /// written type, leaving two candidates no argument separates. The written one wins -- see
+    /// <c>OverloadResolution.BeatsOnSignature</c> for why refusing them left neither callable.
+    /// </summary>
+    [Theory]
+    [InlineData("var chosen = keyed.Get(3);", "int")]
+    [InlineData("var chosen = inherited.Get(3);", "int")]
+    [InlineData("var chosen = Util<int>.Get(3);", "int")]
+    [InlineData("var chosen = nested.Take(wrapped);", "Wrap<int>")]
+    [InlineData("var chosen = nested.Take(items);", "int[]")]
+    [InlineData("var chosen = nested.Take(pair);", "(int, int)")]
+    [InlineData("var chosen = nested.Take(fn);", "func<int, int>")]
+    public void AWrittenParameter_BeatsOneAReceiversTypeArgumentMadeIdentical(
+        string statement, string expectedParameterType)
+    {
+        var invocation = SingleInvocation(statement, ClosedTypes, ClosedPreamble);
+
+        Assert.NotNull(invocation.Method);
+        var parameter = Assert.Single(invocation.Method.ParametersList);
+        Assert.Equal(expectedParameterType, TypeDisplay.Mist(parameter.Type));
+    }
+
+    [Fact]
+    public void ASignatureWrittenInOnePosition_BeatsOneGenericInBoth()
+    {
+        var invocation = SingleInvocation("var chosen = partly.Take(1, 2);", ClosedTypes, ClosedPreamble);
+
+        Assert.NotNull(invocation.Method);
+        Assert.Equal("K", TypeDisplay.Mist(invocation.Method.ParametersList[0].Type));
+        Assert.Equal("int", TypeDisplay.Mist(invocation.Method.ParametersList[1].Type));
+    }
+
+    [Fact]
+    public void AConstructorsWrittenParameter_BeatsTheOneItsTypeArgumentMadeIdentical()
+    {
+        var creation = SingleNew("var made = new Box<int>(3);", ClosedTypes);
+
+        Assert.NotNull(creation.Constructor);
+        var parameter = Assert.Single(creation.Constructor.ParametersList);
+        Assert.Equal("int", TypeDisplay.Mist(parameter.Type));
+    }
+
+    [Fact]
+    public void AnIndexersWrittenParameter_BeatsTheOneItsTypeArgumentMadeIdentical()
+    {
+        var read = InitializerOf<IndexExpression>("var read = keyed[3];", ClosedTypes, ClosedPreamble);
+        var definition = (ClassType)((ConstructedType)read.Receiver.Type).Definition;
+
+        Assert.Same(definition.IndexersList[1], read.Indexer);
+        Assert.Equal("Standard.Int32", read.ParameterType?.FullyQualifiedName);
+    }
+
+    [Theory]
+    [InlineData("var chosen = own.Get(3);", "int")]
+    [InlineData("var chosen = both.Get(1, 2);", "int")]
+    public void AMethodsOwnTypeParameter_LosesToAWrittenType(string statement, string expectedLastParameter)
+    {
+        var invocation = SingleInvocation(statement, ClosedTypes, ClosedPreamble);
+
+        Assert.NotNull(invocation.Method);
+        Assert.Equal(expectedLastParameter, TypeDisplay.Mist(invocation.Method.ParametersList[^1].Type));
+    }
+
+    [Fact]
+    public void ACandidateWithNoTypeParametersOfItsOwn_WinsBeforeParametersAreCompared()
+    {
+        var invocation = SingleInvocation("var chosen = ordered.Get(1, 2);", ClosedTypes, ClosedPreamble);
+
+        Assert.NotNull(invocation.Method);
+        Assert.Empty(invocation.Method.TypeParametersList);
+        Assert.Equal("K", TypeDisplay.Mist(invocation.Method.ParametersList[0].Type));
+    }
+
+    [Theory]
+    [InlineData("var chosen = pairs.Take(3);")]
+    [InlineData("var chosen = crossed.Take(1, 2);")]
+    [InlineData("var chosen = lifted.Take(3);")]
+    public void CandidatesNoWrittenPositionSeparates_StayAmbiguous(string statement)
+    {
+        _ = Assert.Single(Errors(BuildRun(statement, ClosedTypes, ClosedPreamble), AmbiguousId));
+    }
+
+    [Fact]
+    public void ATieInOnePosition_IsNotSettledByGenericityInAnother()
+    {
+        var diagnostics = BuildRun("var chosen = signed.Take(small, 1);", ClosedTypes, ClosedPreamble);
+
+        var reported = Assert.Single(Errors(diagnostics, AmbiguousId));
+        Assert.Contains("(uint, T)", reported.Message, StringComparison.Ordinal);
+        Assert.Contains("(short, int)", reported.Message, StringComparison.Ordinal);
+    }
+
+    // ── Harness ──────────────────────────────────────────────────
+
+    private const string ClosedPreamble = """
+        var keyed = new Keyed<int>();
+        var inherited = new IntKeyed();
+        var nested = new Nested<int>();
+        var partly = new Partly<int>();
+        var pairs = new Pair<int, int>();
+        var crossed = new Crossed<int>();
+        var lifted = new Lifted<int>();
+        var own = new OwnAndWritten();
+        var both = new BothGeneric();
+        var signed = new Signed();
+        var ordered = new Ordered<int>();
+        var wrapped = new Wrap<int>();
+        int[] items = [1, 2];
+        (int, int) pair = (1, 2);
+        func<int, int> fn = Plain.Once;
+        byte small = 2;
+        """;
+
+    private const string ClosedTypes = """
+        public class Wrap<T>
+        {
+            public Wrap() { }
+        }
+
+        public class Keyed<K>
+        {
+            public string Get(K key) { return "K"; }
+
+            public string Get(int i) { return "int"; }
+
+            public string this[K key] { get { return "K"; } }
+
+            public string this[int i] { get { return "int"; } }
+        }
+
+        public class IntKeyed : Keyed<int>
+        {
+            public IntKeyed() { }
+        }
+
+        public class Util<K>
+        {
+            public static string Get(K key) { return "K"; }
+
+            public static string Get(int i) { return "int"; }
+        }
+
+        public class Box<T>
+        {
+            public Box(T item) { }
+
+            public Box(int item) { }
+        }
+
+        public class Nested<K>
+        {
+            public string Take(Wrap<K> wrapped) { return "Wrap<K>"; }
+
+            public string Take(Wrap<int> wrapped) { return "Wrap<int>"; }
+
+            public string Take(K[] items) { return "K[]"; }
+
+            public string Take(int[] items) { return "int[]"; }
+
+            public string Take((K, int) pair) { return "(K, int)"; }
+
+            public string Take((int, int) pair) { return "(int, int)"; }
+
+            public string Take(func<K, int> f) { return "func<K, int>"; }
+
+            public string Take(func<int, int> f) { return "func<int, int>"; }
+        }
+
+        public class Partly<K>
+        {
+            public string Take(K first, K second) { return "K,K"; }
+
+            public string Take(K first, int second) { return "K,int"; }
+        }
+
+        public class Pair<A, B>
+        {
+            public string Take(A a) { return "A"; }
+
+            public string Take(B b) { return "B"; }
+        }
+
+        public class Crossed<K>
+        {
+            public string Take(K first, int second) { return "K,int"; }
+
+            public string Take(int first, K second) { return "int,K"; }
+        }
+
+        public class Lifted<K>
+        {
+            public string Take(K? key) { return "K?"; }
+
+            public string Take(int? i) { return "int?"; }
+        }
+
+        public class OwnAndWritten
+        {
+            public string Get<T>(T value) { return "T"; }
+
+            public string Get(int i) { return "int"; }
+        }
+
+        public class BothGeneric
+        {
+            public string Get<U>(U first, U second) { return "U,U"; }
+
+            public string Get<T>(T first, int second) { return "T,int"; }
+        }
+
+        public class Ordered<K>
+        {
+            public string Get<T>(int first, T second) { return "int,T"; }
+
+            public string Get(K first, int second) { return "K,int"; }
+        }
+
+        public class Signed
+        {
+            public string Take<T>(uint first, T second) { return "uint,T"; }
+
+            public string Take(short first, int second) { return "short,int"; }
+        }
+        """;
 
     /// <summary>
     /// S2 reaches both A and B, and is neither. A reaches B, so a relation that ranked on user-defined

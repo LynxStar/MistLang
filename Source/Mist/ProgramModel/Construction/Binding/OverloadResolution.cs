@@ -411,9 +411,7 @@ internal static class OverloadResolution
     /// Whether <paramref name="left"/> beats <paramref name="right"/>: no argument converts worse to
     /// it, and at least one converts better. Both are already applicable, so this only orders them.
     /// <para>
-    /// A non-generic candidate wins an otherwise-exact tie: closing a generic candidate can make its
-    /// parameter types identical to a non-generic sibling's, and the call would then be refused as
-    /// ambiguous between a method and its own specialisation.
+    /// A tie no argument separates is settled by <see cref="BeatsOnSignature"/>.
     /// </para>
     /// </summary>
     private static bool IsBetter<T>(
@@ -438,9 +436,126 @@ internal static class OverloadResolution
             }
         }
 
-        return strictlyBetterSomewhere
-            || (left.Method.TypeParametersList.Count == 0 && right.Method.TypeParametersList.Count > 0)
-            ;
+        return strictlyBetterSomewhere || BeatsOnSignature(left, right, arguments.Count, interner);
+    }
+
+    /// <summary>
+    /// The tiebreak between candidates no argument separates: the less generic signature wins, first on
+    /// the candidate's own type parameters, then per parameter, where a written type beats a type
+    /// parameter the receiver closed. ONLY ON IDENTICAL CLOSED PARAMETER TYPES, which is what keeps this
+    /// a tiebreak rather than a second ranking: without that gate the genericity of one position would
+    /// settle a tie in another, and `Take(short, int)` would beat a generic `Take(uint, T)` for a byte
+    /// argument, though method-overloading Requirement 3.3 gives a signed and an unsigned target no
+    /// preference. Candidates identical but for genericity are what a receiver's type argument makes of
+    /// `this[K key]` beside `this[int i]` at K = int, and refusing those left neither callable: no cast
+    /// tells them apart, since the cast's own type is what they already share.
+    /// </summary>
+    private static bool BeatsOnSignature<T>(
+        Applicant<T> left, Applicant<T> right, int count, TypeInterner interner)
+        where T : class, IOverload
+    {
+        for(var i = 0; i < count; i++)
+        {
+            if(!ConversionRelation.IsIdentity(ParameterType(left, i, interner), ParameterType(right, i, interner)))
+            {
+                return false;
+            }
+        }
+
+        var leftIsGeneric = left.Method.TypeParametersList.Count > 0;
+        var rightIsGeneric = right.Method.TypeParametersList.Count > 0;
+
+        if(leftIsGeneric != rightIsGeneric)
+        {
+            return rightIsGeneric;
+        }
+
+        var moreSpecificSomewhere = false;
+
+        for(var i = 0; i < count; i++)
+        {
+            var comparison = CompareSpecificity(
+                left.Method.ParametersList[i].Type, right.Method.ParametersList[i].Type);
+
+            if(comparison > 0)
+            {
+                return false;
+            }
+
+            if(comparison < 0)
+            {
+                moreSpecificSomewhere = true;
+            }
+        }
+
+        return moreSpecificSomewhere;
+    }
+
+    private static int CompareSpecificity(IMistType left, IMistType right)
+    {
+        var leftIsOpen = left is ITypeParameter;
+        var rightIsOpen = right is ITypeParameter;
+
+        if(leftIsOpen != rightIsOpen)
+        {
+            return leftIsOpen ? 1 : -1;
+        }
+
+        if(leftIsOpen)
+        {
+            return 0;
+        }
+
+        if(left is IConstructedType leftConstructed
+            && right is IConstructedType rightConstructed
+            && ConversionRelation.IsIdentity(leftConstructed.Definition, rightConstructed.Definition))
+        {
+            return CompareParts(leftConstructed.TypeArguments, rightConstructed.TypeArguments);
+        }
+
+        if(left is ITupleType leftTuple && right is ITupleType rightTuple)
+        {
+            return CompareParts(leftTuple.ElementTypes, rightTuple.ElementTypes);
+        }
+
+        if(left is IFunctionType leftFunction && right is IFunctionType rightFunction)
+        {
+            return CompareParts(WithResult(leftFunction), WithResult(rightFunction));
+        }
+
+        return 0;
+    }
+
+    private static List<IMistType> WithResult(IFunctionType function)
+    {
+        var parts = new List<IMistType>(function.ParameterTypes) { function.ReturnType };
+
+        return parts;
+    }
+
+    private static int CompareParts(IReadOnlyList<IMistType> left, IReadOnlyList<IMistType> right)
+    {
+        if(left.Count != right.Count)
+        {
+            return 0;
+        }
+
+        var leftIsMoreSpecific = false;
+        var rightIsMoreSpecific = false;
+
+        for(var i = 0; i < left.Count; i++)
+        {
+            var comparison = CompareSpecificity(left[i], right[i]);
+            leftIsMoreSpecific |= comparison < 0;
+            rightIsMoreSpecific |= comparison > 0;
+        }
+
+        if(leftIsMoreSpecific == rightIsMoreSpecific)
+        {
+            return 0;
+        }
+
+        return leftIsMoreSpecific ? -1 : 1;
     }
 
     /// <summary>

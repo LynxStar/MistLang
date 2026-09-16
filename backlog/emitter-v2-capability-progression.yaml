@@ -4129,13 +4129,28 @@ capabilities:
       matters: a read into an `int?` local (through a method and through the field) can never be
       absent, `h.Field is int` is always true, and an interpolation hole prints 0 rather than Void.
 
-      A CONSTRAINED PARAMETER NEEDS NO CARRIER AND NO CONVERSION. Verified in plain C#: under
-      `where K : struct`, `public K? Field` makes `Holder<int>.Field` exactly
-      `System.Nullable<System.Int32>` -- the same CLR type the closed `int?` lowers to, assigning
-      both ways with no conversion and reporting absence correctly -- and under `where K : class`
-      the bare spelling is already right. IsValueKind never consults constraints, so both are
-      lowered bare today and both are wrong. Only the UNCONSTRAINED parameter has no C# type to
-      lower to, and it alone is what a carrier would be for.
+      A CONSTRAINED PARAMETER NEEDS NO CARRIER AND NO CONVERSION, and this is now DONE (2026-09-16).
+      Verified in plain C# first: under `where K : struct`, `public K? Field` makes
+      `Holder<int>.Field` exactly `System.Nullable<System.Int32>` -- the same CLR type the closed
+      `int?` lowers to, assigning both ways with no conversion and reporting absence correctly --
+      and under `where K : class` the bare spelling is already right. IsValueKind consulted no
+      constraint, so both were lowered bare and both were wrong. It now answers a TypeParameter by
+      the `struct` KEYWORD alone: a type constraint that merely names a struct must not take the
+      spelling, because C# reads `K?` as Nullable of K only under the keyword and as a reference
+      annotation otherwise. samples/GenericOptionals banks it V2-ONLY, running absence through a
+      field, a `K?` parameter, a `K?` return, a pattern, `??` and an interpolation hole.
+
+      THE SPELLING NEEDED A TEST OF ITS OWN and the sample cannot be it, which was measured rather
+      than assumed: an emitter that answered "value kind" for EVERY type parameter still ran
+      GenericOptionals byte-identically and emitted `public K? Field;` under a `where K : class`
+      with no warning at all -- C# accepts `K?` there as a reference annotation. So the class and
+      unconstrained rows are invisible to stdout, and OptionalOverTypeParameterEmissionTests pins
+      all three on the emitted text. Two mutations, each caught by the rows that own it: ignoring
+      the constraint fails the two negative rows, dropping the arm fails the three positive ones.
+
+      ONLY THE UNCONSTRAINED PARAMETER IS LEFT, and it alone is what a carrier would be for. It has
+      no C# type to lower to: Nullable needs the struct constraint, and C#'s unconstrained `T?` is
+      an annotation rather than a thing that can hold absence for a value type.
 
       WHERE A CONVERSION WOULD BE RECORDED, if a carrier lands: ImplicitConversions.At and
       .AtParameters are already the one binder-side home for a value meeting a target -- argument,
@@ -11232,6 +11247,32 @@ samples:
         optional all along. What classic does NOT do is the recursive case: `Opt<T>(T? value, int depth)`
         calling itself refuses as MIST_TC_0072, naming `T | Void | Void`, where v2 binds and runs it.
         Kept out of the sample so every line here stays cross-checked against classic.
+
+  - name: GenericOptionals
+    intro_order: 96
+    threshold: optional-union-representation
+    requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
+               var-type-inference, instance-fields, type-parameters-and-constructed-types,
+               generic-arity-keyed-lookup, generic-constraints-nominal, optional-union-representation,
+               optional-operators, pattern-matching-core]
+    untested:
+      - >
+        V2-ONLY, and classic refuses it twice over (measured 2026-09-16). `v.Field = void;` is
+        MIST_TC_0070 there, the `void` literal reaching a field assignment where a local declaration
+        takes it; with that line removed classic emits the bare `K` for both spellings and Roslyn
+        refuses the result, cannot convert 'int?' to 'int'. Referenced from AllFeaturesV2 alone, with
+        its lines captured from v2 and read against the program by hand.
+      - >
+        THE SPELLING ITSELF IS INVISIBLE HERE, which is why this sample is only one third of the
+        claim. Measured: an emitter answering "value kind" for EVERY type parameter runs this sample
+        byte-identically, because `K?` under a `where K : class` is a reference annotation C# accepts
+        silently. The class-constrained and unconstrained rows can only be pinned on emitted text, and
+        OptionalOverTypeParameterEmissionTests pins all three.
+      - >
+        AN UNCONSTRAINED `K?` IS ABSENT FROM THIS SAMPLE BECAUSE IT DOES NOT WORK. It is lowered bare
+        and cannot hold absence at a value instantiation; the sample's own header says so, and order 78
+        holds the gap. Nothing in the suite exercises one at runtime.
 
 # =====================================================================
 

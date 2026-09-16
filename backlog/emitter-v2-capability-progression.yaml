@@ -11161,6 +11161,8 @@ samples:
         are not proven against it at all: measured 2026-09-15 on a scratch Ledger whose Count is 9,
         `ledger[^1]` and a nine-element list pattern each reached position 8 over `where entry >= 0 and < 3`
         with no diagnostic. Ledger's Count is its array's Length, which is why this sample's run is sound.
+        Whether such a position must be proven at all is a decision, recorded as a task on analysis order 12
+        with the array shapes that throw beside it.
       - >
         Only `Keyed<string>` is reached. At `Keyed<int>` its two indexers close to one signature and the
         index is refused as ambiguous, a decision recorded on analysis order 5. Keyed's `this[K key]` ignores

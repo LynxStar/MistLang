@@ -2215,6 +2215,32 @@ rules:
       lines. The full suite -- 6222, 664 and 68 tests, AllFeaturesV2's baseline among them, over both this
       fix and order 5's chain -- passed with no failure and no rerun, and the build and `dotnet format` were
       clean.
+
+      A FROM-END INDEX IS PROVEN BY NOTHING, which defeats the bounds discharge this entry already claims.
+      MEASURED 2026-09-15 at 0931374e, one project per shape, on both pipelines. `var a = new int[3]; int x
+      = a[7];` is MIST_PA_INDEX_OUT_OF_BOUNDS on v2 and MIST_REFINEMENT_0005 on classic, as above -- but
+      `a[^9]`, the same array with the same known length and the same decidable question, compiles on both
+      and throws IndexOutOfRangeException, and so does the write `a[^9] = 10;` that the write-side paragraph
+      closed for a constant. An indexer's `where` goes the same way and more quietly, there being no guard
+      to throw: over `this[int entry] where entry >= 0 and < 3` on a Ledger whose Count is 9, `ledger[^1]`
+      prints 8 on both pipelines with no diagnostic, where `ledger[5]` is CONSTRAINT_VIOLATED and `var local
+      = 5; ledger[local]` is CONSTRAINT_UNPROVEN (classic reports MIST_REFINEMENT_0005 for both, naming the
+      parameter 'index' where v2 names 'entry' and the interval it read). A LIST PATTERN'S POSITIONS ARE THE
+      SAME HOLE BY ANOTHER ROUTE: `ledger is [_, _, _, _, _, _, _, _, var last]` prints 8 on both, C#'s own
+      length test admitting it because Count is 9. samples/OverloadedIndexers banks `ledger[^1]` and that
+      pattern shape, sound there because its Count IS its `int[3]`'s Length; its untested note carries this
+      measurement rather than repeating it.
+
+      THE CAUSE IS TWO, read off the model. NeedIndex asks nothing of an index whose type is not integral,
+      and a from-end index is Standard.Index; independently, IndexBinder records ParameterType only when the
+      index is NOT an Index, so the slot NeedIndex would read is null by construction (order 5). The
+      position finally reached -- `Count - k`, which Indexability.Select re-selects as an int position,
+      C#'s lowering onto Count and an int indexer -- is never an expression in the model, so there is no
+      node to carry the obligation. A list pattern's positional element is not an IndexExpression at all:
+      PatternBinder asks Indexability.ElementType for a TYPE and nothing else, so the shared walk never sees
+      an index there. NOTHING DOWNSTREAM COVERS EITHER, a refinement having no C# equivalent; the one
+      from-end shape C# does refuse is a type error, `shelf[^1]` over `this[byte slot]` beside a Count
+      reaching Roslyn as MIST_CS_ERROR on both pipelines.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -2243,4 +2269,15 @@ rules:
         prints 1 on both pipelines, and `Wide(bool other) where other >= 3` is MIST_REFINEMENT_0007 on
         classic and silent on v2. PredicateBinder finds predicates by walking types, and an extension block
         is not one, so its predicate is never bound for order 6 or this order to read.
+      - >
+        Whether a from-end index and a list pattern's positions must be proven is a DECISION, and the
+        measurement above is not acted on. Three readings, in rising cost. Refuse every from-end index into
+        a refined or length-known receiver as UNPROVEN, which is what "nothing is left to a guard" says
+        literally, and which refuses samples/OverloadedIndexers' own sound `ledger[^1]`. Or prove `Count -
+        k` where the length is a number -- a sized array's is, to KnownLength, which reaches the two array
+        shapes that throw today -- and refuse it where Count is a property body. Or prove it only where the
+        length is known and stay silent otherwise, closing the array half and leaving the `where` half
+        open. The array half throws at runtime and is decidable, so it need not take the same answer as the
+        `where` half, which is silent. A list pattern needs an obligation the model does not hold before any
+        of the three can reach it: its positional element must become something the walk can see.
 

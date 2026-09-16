@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -42,12 +43,13 @@ public sealed class TypeMemberLookupTests
     /// A method whose signature is distinguished by its parameter count, which is all the shadowing
     /// rule needs to tell one overload from another.
     /// </summary>
-    private static Method NewMethod(string name, int arity, bool isStatic = false, Accessibility access = Accessibility.Public)
+    private static Method NewMethod(
+        string name, int arity, bool isStatic = false, Accessibility access = Accessibility.Public, IMistType? parameterType = null)
     {
         var parameters = new List<Parameter>();
         for(var i = 0; i < arity; i++)
         {
-            parameters.Add(new Parameter($"p{i}", ErrorType.Instance));
+            parameters.Add(new Parameter($"p{i}", parameterType ?? ErrorType.Instance));
         }
 
         return new Method(name, ErrorType.Instance, parameters, Mods(isStatic, access));
@@ -126,22 +128,23 @@ public sealed class TypeMemberLookupTests
     }
 
     /// <summary>
-    /// Different kinds do NOT shadow each other, even across depths. A base method and a derived
-    /// field of one name is a genuine conflict here, where C# would let the field win for a bare
-    /// read and still reach the method for a call.
+    /// Across depths the nearest kind answers, rather than conflicting with a farther one: the pair is
+    /// refused where it is declared, since a derived member may not hide what its type inherits, and
+    /// reporting it again at every read would be a second complaint about that one mistake.
     /// </summary>
     [Fact]
-    public void DerivedField_AndBaseMethod_SameName_IsAmbiguous()
+    public void DerivedField_AndBaseMethod_SameName_ResolvesToTheNearest()
     {
         var baseType = NewClass("Base");
         baseType.MethodsList.Add(NewMethod("Foo", arity: 0));
 
         var derived = NewClass("Derived");
-        derived.FieldsList.Add(NewField("Foo"));
+        var own = NewField("Foo");
+        derived.FieldsList.Add(own);
         derived.BaseType = baseType;
 
-        var ambiguous = Assert.IsType<AmbiguousResult>(Find(derived, "Foo"));
-        Assert.Equal(2, ambiguous.Candidates.Count);
+        var field = Assert.IsType<FieldResult>(Find(derived, "Foo"));
+        Assert.Same(own, field.Field);
     }
 
     /// <summary>
@@ -185,23 +188,28 @@ public sealed class TypeMemberLookupTests
     }
 
     /// <summary>
-    /// The nearer declaration wins when the signature is identical, and the further one does not
-    /// also appear -- otherwise every override would look like an ambiguous pair.
+    /// One identical signature resolves to ONE declaration, and between two classes it is the
+    /// INHERITED one: Mist has no override and no hiding, so the deriving declaration -- refused where
+    /// it is written -- answers nothing, and a use keeps the meaning it has once that line is deleted.
+    /// The parameter is a real type because a signature naming an unresolved one has no identity to
+    /// coincide with.
     /// </summary>
     [Fact]
-    public void SameSignatureAtGreaterDepth_IsShadowed()
+    public void SameSignatureAtGreaterDepth_KeepsTheInheritedDeclaration()
     {
+        var argument = NewClass("Arg");
+
         var baseType = NewClass("Base");
-        baseType.MethodsList.Add(NewMethod("Bar", arity: 1));
+        var inherited = NewMethod("Bar", arity: 1, parameterType: argument);
+        baseType.MethodsList.Add(inherited);
 
         var derived = NewClass("Derived");
-        var overriding = NewMethod("Bar", arity: 1);
-        derived.MethodsList.Add(overriding);
+        derived.MethodsList.Add(NewMethod("Bar", arity: 1, parameterType: argument));
         derived.BaseType = baseType;
 
         var group = Assert.IsType<MethodGroupResult>(Find(derived, "Bar"));
 
-        Assert.Same(overriding, Assert.Single(group.Methods));
+        Assert.Same(inherited, Assert.Single(group.Methods));
     }
 
     /// <summary>

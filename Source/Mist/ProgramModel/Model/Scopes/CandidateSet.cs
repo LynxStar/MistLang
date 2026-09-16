@@ -1,4 +1,4 @@
-using System.Text;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -12,10 +12,10 @@ namespace Mist.ProgramModel.Model.Scopes;
 /// <para>
 /// Candidates carry the depth they were found at: 0 for the type itself, 1 for its immediate bases,
 /// and so on. Depth decides shadowing, and the two kinds of member shadow differently. A field,
-/// property or type name is shadowed wholesale by a nearer one of the same kind, so a derived
-/// declaration hides the base's and that is not a conflict. Methods do not shadow by name at all --
-/// they accumulate into one overload set spanning every depth, and only an identical signature is
-/// hidden by a nearer one.
+/// property or type name is answered by the nearest of its kind, and a name answered at one depth is
+/// not in conflict with another kind's at a greater one. Methods do not shadow by name at all -- they
+/// accumulate into one overload set spanning every depth, and only an identical signature resolves to
+/// a single declaration, the one <see cref="MergeMethods"/> keeps.
 /// </para>
 /// </summary>
 internal sealed class CandidateSet
@@ -102,11 +102,11 @@ internal sealed class CandidateSet
         }
 
         var (methods, paths) = MergeMethods();
-        var survivors = new List<LookupResult>();
+        var survivors = new List<(LookupResult Result, int Depth)>();
 
         if(methods.Count > 0)
         {
-            survivors.Add(new MethodGroupResult(methods, paths));
+            survivors.Add((new MethodGroupResult(methods, paths), DepthOf(CandidateKind.Method)));
         }
 
         foreach(var kind in new[] { CandidateKind.Type, CandidateKind.Field, CandidateKind.Property, CandidateKind.Other })
@@ -114,7 +114,7 @@ internal sealed class CandidateSet
             var nearest = NearestOfKind(kind);
             if(nearest.Count == 1)
             {
-                survivors.Add(nearest[0]);
+                survivors.Add((nearest[0], DepthOf(kind)));
             }
             else if(nearest.Count > 1)
             {
@@ -122,25 +122,36 @@ internal sealed class CandidateSet
             }
         }
 
-        return survivors.Count switch
+        if(survivors.Count == 0)
         {
-            1 => survivors[0],
-            0 => new NotFoundResult(),
-            _ => new AmbiguousResult(survivors),
-        };
+            return new NotFoundResult();
+        }
+
+        var closest = new List<LookupResult>();
+        var nearestDepth = survivors.Min(survivor => survivor.Depth);
+
+        foreach(var survivor in survivors.Where(survivor => survivor.Depth == nearestDepth))
+        {
+            closest.Add(survivor.Result);
+        }
+
+        return closest.Count == 1 ? closest[0] : new AmbiguousResult(closest);
     }
 
     /// <summary>
-    /// Every method candidate as one overload set, nearest first, dropping any whose signature a
-    /// nearer declaration already provides. That drop is the whole of method shadowing: same name and
-    /// signature at a greater depth is overridden, same name and a different signature is another
-    /// overload.
+    /// Every method candidate as one overload set, and one declaration per signature. WHICH one it
+    /// keeps is the language's: a conformer's implementation answers an abstract's slot, so a nearer
+    /// declaration wins there; between two CLASSES nothing may hide, so the inherited declaration is
+    /// the one that stands and the nearer one, which analysis order 6 refuses where it is written,
+    /// answers nothing. Same name and a different signature is another overload and both are kept, as is
+    /// a signature naming a type that did not resolve, which has no identity to coincide with -- dropping
+    /// one would answer a call with "no such member" on top of the unresolved type already reported.
     /// </summary>
     private (List<Method> Methods, Dictionary<Method, IReadOnlyList<ConstructedType>>? Paths) MergeMethods()
     {
-        var merged = new List<Method>();
-        var paths = new Dictionary<Method, IReadOnlyList<ConstructedType>>(ReferenceEqualityComparer.Instance);
-        var seenSignatures = new HashSet<string>(StringComparer.Ordinal);
+        var standing = new Dictionary<string, (Method Method, int Depth, IReadOnlyList<ConstructedType>? Path)>(StringComparer.Ordinal);
+        var order = new List<string>();
+        var unresolved = 0;
 
         foreach(var candidate in Ordered(CandidateKind.Method))
         {
@@ -151,17 +162,34 @@ internal sealed class CandidateSet
 
             foreach(var method in group.Methods)
             {
-                if(!seenSignatures.Add(SignatureKey(method)))
+                var key = OverloadSignature.Of(method, TypeSubstitution.Empty, null) ?? $"#{unresolved++}";
+                var path = group.Paths?.GetValueOrDefault(method);
+
+                if(!standing.TryGetValue(key, out var kept))
                 {
+                    order.Add(key);
+                    standing[key] = (method, candidate.Depth, path);
                     continue;
                 }
 
-                merged.Add(method);
-
-                if(group.Paths is { } reached && reached.TryGetValue(method, out var path))
+                if(candidate.Depth > kept.Depth && method.DeclaringType is not AbstractType && kept.Method.DeclaringType is not AbstractType)
                 {
-                    paths[method] = path;
+                    standing[key] = (method, candidate.Depth, path);
                 }
+            }
+        }
+
+        var merged = new List<Method>(order.Count);
+        var paths = new Dictionary<Method, IReadOnlyList<ConstructedType>>(ReferenceEqualityComparer.Instance);
+
+        foreach(var key in order)
+        {
+            var (method, _, path) = standing[key];
+            merged.Add(method);
+
+            if(path is not null)
+            {
+                paths[method] = path;
             }
         }
 
@@ -195,6 +223,18 @@ internal sealed class CandidateSet
         return nearest;
     }
 
+    private int DepthOf(CandidateKind kind)
+    {
+        var nearest = int.MaxValue;
+
+        foreach(var candidate in candidates.Where(candidate => KindOf(candidate.Result) == kind))
+        {
+            nearest = Math.Min(nearest, candidate.Depth);
+        }
+
+        return nearest;
+    }
+
     private List<Candidate> Ordered(CandidateKind kind)
     {
         var ofKind = new List<Candidate>();
@@ -222,34 +262,4 @@ internal sealed class CandidateSet
         };
     }
 
-    /// <summary>
-    /// Identifies an overload for shadowing purposes: generic arity, then each parameter's passing
-    /// mode and type. The name is not part of it because every candidate here already matched the
-    /// same name.
-    /// <para>
-    /// PASSING MODE BELONGS IN THE KEY. Both Mist and C# let a by-ref and a by-value parameter of the
-    /// same type overload one another, so keying on types alone collapsed <c>M(int)</c> and
-    /// <c>M(ref int)</c> into one entry and silently discarded whichever was ordered second. Overload
-    /// resolution then had a single candidate, returned it without consulting applicability, and every
-    /// call to either printed the survivor's answer with no diagnostic.
-    /// </para>
-    /// </summary>
-    private static string SignatureKey(Method method)
-    {
-        var key = new StringBuilder();
-        _ = key.Append(method.TypeParametersList.Count).Append('(');
-
-        for(var i = 0; i < method.ParametersList.Count; i++)
-        {
-            if(i > 0)
-            {
-                _ = key.Append(',');
-            }
-
-            var parameter = method.ParametersList[i];
-            _ = key.Append(parameter.Modifier.IsRef ? "ref " : "").Append(parameter.Type.FullyQualifiedName);
-        }
-
-        return key.Append(')').ToString();
-    }
 }

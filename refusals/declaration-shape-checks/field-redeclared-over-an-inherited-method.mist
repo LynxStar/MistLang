@@ -17,6 +17,6 @@ public class Probe
 {
     public static void Main()
     {
-        Console.WriteLine("unreachable");
+        Console.WriteLine(new Derived().Size);
     }
 }

@@ -149,12 +149,13 @@ internal static class OverloadResolution
         where T : class, IOverload;
 
     /// <summary>
-    /// A signature declared on a more derived type hides the same signature inherited from a base or
-    /// an abstract -- C#'s rule, and what makes a conformer's `Transform(Widget)` the one answer
-    /// beside the slot it implements, `Transform(T)` at T = Widget. Judged on the CLOSED signatures,
-    /// since the two coincide only once the base's parameters are substituted. A later declaration
-    /// repeating an earlier one's signature on the same type is hidden by it as well, so a use binds
-    /// the first; the repeat is refused where it is declared, by analysis order 6.
+    /// One declaration per closed signature, and WHICH one is the language's rule rather than C#'s: a
+    /// conformer's `Transform(Widget)` answers the slot it implements, `Transform(T)` at T = Widget, so
+    /// a declaration beats an ABSTRACT's; but nothing may hide a class's member, so between two classes
+    /// the INHERITED declaration stands and the deriving one -- which analysis order 6 refuses where it
+    /// is written -- answers nothing. Judged on the closed signatures, since two coincide only once the
+    /// base's parameters are substituted. A later declaration repeating an earlier one's signature on
+    /// the same type is likewise answered by the first.
     /// </summary>
     private static List<Applicant<T>> WithoutHidden<T>(List<Applicant<T>> closed, TypeInterner interner)
         where T : class, IOverload
@@ -175,7 +176,8 @@ internal static class OverloadResolution
             {
                 hidden = i != j
                     && keys[i] == keys[j]
-                    && (Derives(closed[j].Method.DeclaringType, closed[i].Method.DeclaringType)
+                    && ((closed[i].Method.DeclaringType is AbstractType && Derives(closed[j].Method.DeclaringType, closed[i].Method.DeclaringType))
+                        || (closed[j].Method.DeclaringType is not AbstractType && Derives(closed[i].Method.DeclaringType, closed[j].Method.DeclaringType))
                         || (j < i
                             && ReferenceEquals(closed[i].Method.DeclaringType, closed[j].Method.DeclaringType)
                             && OverloadSignature.Repeats(closed[i].Method, closed[j].Method)));

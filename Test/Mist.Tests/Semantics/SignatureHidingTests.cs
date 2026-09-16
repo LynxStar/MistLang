@@ -1,8 +1,9 @@
 // Tier 3 (Component): which declaration a call reaches when two share a closed signature -- a derived
 // type's hiding a base's, or a later declaration repeating an earlier one on the same type -- asserted on
 // the recorded method, since emission lets Roslyn resolve the call again. Every INHERITANCE fixture here
-// is a program order 6 admits: a member that repeats what its type inherits from a CLASS is refused
-// instead, so what still hides is a conformer answering an abstract's slot, which has no body to hide.
+// is a program order 6 admits, bar the one row that names a refused hide to pin what its use still binds:
+// what a class inherits cannot be hidden, so the inherited declaration answers, and a conformer answering
+// an abstract's slot is the one declaration that does beat what it comes from.
 // Why each verdict is the right one is recorded on order 6 of
 // backlog/analysis-v2-capability-progression.yaml.
 
@@ -36,6 +37,8 @@ public sealed class SignatureHidingTests : ProgramModelProbe
             public string ByRef(int a) { return "base"; }
 
             public string Nested(Left.Widget w) { return "base"; }
+
+            public string this[int i] { get { return "base"; } }
         }
 
         public class Derived : Base
@@ -43,6 +46,41 @@ public sealed class SignatureHidingTests : ProgramModelProbe
             public string ByRef(ref int a) { return "derived"; }
 
             public string Nested(Right.Widget w) { return "derived"; }
+
+            public string this[string s] { get { return "derived"; } }
+        }
+
+        public class Slots<T>
+        {
+            public string this[T key] { get { return "base"; } }
+        }
+
+        public class IntSlots : Slots<int>
+        {
+        }
+
+        abstract IIndexed
+        {
+            string this[int i] { get; }
+        }
+
+        abstract IReadable : IIndexed
+        {
+        }
+
+        public class Row : IReadable
+        {
+            public string this[int i] { get { return "row"; } }
+        }
+
+        abstract IShape
+        {
+            string Sides(int a);
+        }
+
+        public class Square : IShape
+        {
+            public string Sides(int a) { return "square"; }
         }
 
         abstract IBox<T>
@@ -78,6 +116,7 @@ public sealed class SignatureHidingTests : ProgramModelProbe
 
     [Theory]
     [InlineData("var chosen = holder.Closed(x);", "IntBox")]
+    [InlineData("var chosen = new Square().Sides(x);", "Square")]
     [InlineData("var chosen = derived.ByRef(x);", "Base")]
     [InlineData("var chosen = derived.ByRef(ref x);", "Derived")]
     [InlineData("var chosen = derived.Nested(new Left.Widget());", "Base")]
@@ -87,6 +126,42 @@ public sealed class SignatureHidingTests : ProgramModelProbe
         var invocation = InitializerOf<InvocationExpression>(statement);
 
         Assert.Equal(expectedOwner, invocation.Method?.DeclaringType?.Name);
+    }
+
+    [Theory]
+    [InlineData("var chosen = derived[1];", "Base")]
+    [InlineData("var chosen = derived[\"x\"];", "Derived")]
+    public void AnInheritedIndexer_IsACandidateBesideTheDerivedOne(string statement, string expectedOwner)
+    {
+        var index = InitializerOf<IndexExpression>(statement);
+
+        Assert.Equal(expectedOwner, index.Indexer?.DeclaringType?.Name);
+    }
+
+    [Fact]
+    public void AnIndexerInheritedFromAGenericBase_TakesTheSlotItsClosingProduces()
+    {
+        var index = InitializerOf<IndexExpression>("var chosen = new IntSlots()[1];");
+
+        Assert.Equal("Standard.Int32", index.ParameterType?.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void AnIndexerReachedThroughAnAbstract_IsACandidate()
+    {
+        var index = InitializerOf<IndexExpression>("IReadable readable = new Row(); var chosen = readable[1];");
+
+        Assert.Equal("IIndexed", index.Indexer?.DeclaringType?.Name);
+    }
+
+    [Fact]
+    public void AMemberThatWouldHideAnInheritedOne_LeavesTheUseBoundToTheInherited()
+    {
+        var invocation = InitializerOf<InvocationExpression>(
+            "var chosen = new Leaf().Take(1);",
+            "public class Root { public int Take(int a) { return 1; } } public class Leaf : Root { public int Take(int b) { return 2; } }");
+
+        Assert.Equal("Root", invocation.Method?.DeclaringType?.Name);
     }
 
     [Fact]

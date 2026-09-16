@@ -76,11 +76,58 @@ internal static class Indexability
             : null;
     }
 
+    /// <summary>
+    /// Every indexer the receiver answers, its own and each one it inherits, paired with the
+    /// constructed bases it was reached through so a generic base's slot closes as the receiver sees
+    /// it. A call's candidates walk the chain through the scope tree; an index has no name to look up,
+    /// so the walk is here.
+    /// </summary>
     public static IReadOnlyList<Indexer> Indexers(IMistType receiverType)
     {
-        var lookupType = (receiverType as ConstructedType)?.Definition ?? receiverType;
+        return Reachable(receiverType).ConvertAll(reached => reached.Indexer);
+    }
 
-        return lookupType is MemberType memberType ? memberType.IndexersList : [];
+    private static List<(Indexer Indexer, IReadOnlyList<ConstructedType> Path)> Reachable(IMistType receiverType)
+    {
+        var found = new List<(Indexer, IReadOnlyList<ConstructedType>)>();
+        var seen = new HashSet<MemberType>();
+        var pending = new Queue<(IMistType Type, IReadOnlyList<ConstructedType> Path)>();
+        pending.Enqueue((receiverType, []));
+
+        while(pending.Count > 0)
+        {
+            var (type, path) = pending.Dequeue();
+
+            if(((type as ConstructedType)?.Definition ?? type) is not MemberType member || !seen.Add(member))
+            {
+                continue;
+            }
+
+            foreach(var indexer in member.IndexersList)
+            {
+                found.Add((indexer, path));
+            }
+
+            foreach(var inherited in Bases(member))
+            {
+                pending.Enqueue((inherited, inherited is ConstructedType constructed ? [.. path, constructed] : path));
+            }
+        }
+
+        return found;
+    }
+
+    private static IEnumerable<IMistType> Bases(MemberType member)
+    {
+        if(member is ConcreteType { BaseType: { } baseType })
+        {
+            yield return baseType;
+        }
+
+        foreach(var abstractBase in member.BaseAbstractTypes)
+        {
+            yield return abstractBase;
+        }
     }
 
     /// <summary>
@@ -93,12 +140,25 @@ internal static class Indexability
     {
         var constructed = receiverType as ConstructedType;
         var interner = context.ProgramModel.TypeInterner;
-        var choice = OverloadResolution.Select(indexers, [index], constructed, null, interner);
+        var paths = Paths(receiverType);
+        var choice = OverloadResolution.Select(indexers, [index], constructed, null, interner, null, paths);
 
         return choice.Selected is null && IsIndex(index.Type)
-            ? OverloadResolution.Select(indexers, [Position(index.Node, context)], constructed, null, interner)
+            ? OverloadResolution.Select(indexers, [Position(index.Node, context)], constructed, null, interner, null, paths)
             : choice
             ;
+    }
+
+    private static IReadOnlyDictionary<Indexer, IReadOnlyList<ConstructedType>>? Paths(IMistType receiverType)
+    {
+        var paths = new Dictionary<Indexer, IReadOnlyList<ConstructedType>>(ReferenceEqualityComparer.Instance);
+
+        foreach(var (indexer, path) in Reachable(receiverType).Where(reached => reached.Path.Count > 0))
+        {
+            paths[indexer] = path;
+        }
+
+        return paths.Count == 0 ? null : paths;
     }
 
     public static Expression Position(Storm.Runtime.SyntaxNode node, BuilderContext context)

@@ -2700,6 +2700,15 @@ capabilities:
         'Union_Int32_T' could not be found, since EmitUnionCarriers skips an open union by design and
         nothing lowers the call. Orders 76 to 78 own unions.
       - >
+        FOUND 2026-09-15, not this entry's, and the same gap one step earlier: an OPTIONAL over an open
+        type parameter does not survive emission either. `Take(K? key)` on `Keyed<K>` emits as
+        `Take(K key)`, the optionality dropped, so at `Keyed<int>` the parameter is a plain int and cannot
+        hold the absent value: a lone such method given `int? nothing = void;` fails in Roslyn on BOTH
+        pipelines, cannot convert int? to int. `K?` is `K | Void`, so it wants the carrier an open union
+        has no way to build. Until it lands, method-overloading Requirement 3.11 refuses `Take(K?)` beside
+        `Take(int?)` as ambiguous rather than select the preference the rule states, since the emitted
+        program would run the other one.
+      - >
         COST OF THE RULE, recorded with the decision. A call mixing unrelated types needs its type
         argument stated, as in C#. The union rule's cost was the opposite: `F<T>(T, T)` accepting two
         different things without a word, most visibly where T never reaches the caller.

@@ -440,15 +440,21 @@ internal static class OverloadResolution
     }
 
     /// <summary>
-    /// The tiebreak between candidates no argument separates: the less generic signature wins, first on
-    /// the candidate's own type parameters, then per parameter, where a written type beats a type
-    /// parameter the receiver closed. ONLY ON IDENTICAL CLOSED PARAMETER TYPES, which is what keeps this
-    /// a tiebreak rather than a second ranking: without that gate the genericity of one position would
-    /// settle a tie in another, and `Take(short, int)` would beat a generic `Take(uint, T)` for a byte
-    /// argument, though method-overloading Requirement 3.3 gives a signed and an unsigned target no
-    /// preference. Candidates identical but for genericity are what a receiver's type argument makes of
-    /// `this[K key]` beside `this[int i]` at K = int, and refusing those left neither callable: no cast
-    /// tells them apart, since the cast's own type is what they already share.
+    /// The tiebreak between candidates no argument separates: A PARAMETER FIXED AT THE DECLARATION BEATS
+    /// ONE THE RECEIVER'S TYPE ARGUMENT SUPPLIES. `this[int i]` takes an int in every instantiation,
+    /// where `this[K key]` takes whatever that instantiation gives K, so at K = int the two coincide and
+    /// the fixed one is the narrower intent. Fixed all the way down, so `Take(int[])` beats `Take(K[])`;
+    /// and a candidate declaring no type parameters of its own is settled first, before the parameters
+    /// are compared at all. Neither side is fixed in `Take(A)` beside `Take(B)`, nor in `Take(K, int)`
+    /// beside `Take(int, K)`, which stay ambiguous.
+    /// <para>
+    /// ONLY ON IDENTICAL CLOSED PARAMETER TYPES, which is what keeps this a tiebreak rather than a second
+    /// ranking: without that gate one position's genericity would settle a tie in another, and
+    /// `Take(short, int)` would beat a generic `Take(uint, T)` for a byte argument, though
+    /// method-overloading Requirement 3.3 gives a signed and an unsigned target no preference. Refusing
+    /// the coinciding pair instead left neither callable, no cast telling them apart, since the cast's
+    /// own type is what they already share.
+    /// </para>
     /// </summary>
     private static bool BeatsOnSignature<T>(
         Applicant<T> left, Applicant<T> right, int count, TypeInterner interner)

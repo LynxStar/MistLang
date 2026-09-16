@@ -841,8 +841,10 @@ rules:
       was callable.
 
       THE RULE IS C#'S, in IsBetter's one home, so a call, a construction and an index share it: a
-      candidate declaring no type parameters of its OWN wins first, then, per parameter, a written type
-      beats one written as a type parameter, recursing through constructed types, arrays, tuples and
+      candidate declaring no type parameters of its OWN wins first, then, per parameter, A PARAMETER FIXED
+      AT THE DECLARATION BEATS ONE THE RECEIVER'S TYPE ARGUMENT SUPPLIES -- `Get(int)` takes an int in
+      every instantiation where `Get(K)` takes whatever that one gives K, so the fixed one is the narrower
+      intent where they coincide -- fixed all the way down, through constructed types, arrays, tuples and
       function types. ONLY ON IDENTICAL CLOSED PARAMETER TYPES, which is what keeps it a tiebreak rather
       than a second ranking. Without that gate the genericity of one position settles a tie in another,
       which is what the existing tiebreak did, looser than the "otherwise-exact tie" its own comment
@@ -856,10 +858,13 @@ rules:
       STILL AMBIGUOUS, stated with the rule in method-overloading Requirements 3.8 to 3.10:
       `Pair<A, B>.Take(A)` beside `Take(B)` at `Pair<int, int>`, one type parameter being no more specific
       than another; `Take(K, int)` against `Take(int, K)`, each more specific in one position; and
-      `Take(K?)` against `Take(int?)`, whose constituents are deliberately not compared, because v2 emits
-      an unconstrained `K?` parameter as `K` and a model preferring int? would record one overload and run
-      the other. Classic prints K? there. A union over a type parameter emits on neither pipeline, which
-      the emitter register already holds.
+      `Take(K?)` against `Take(int?)`, which is NOT a tie on the rule -- `int?` is fixed where `K?`
+      follows the instantiation, so it should win -- but is refused while the preference cannot be
+      honoured: an unconstrained `K?` parameter reaches the backend as `K` on BOTH pipelines, dropping the
+      absent case entirely, so selecting `Take(int?)` would run `Take(K?)`. MEASURED 2026-09-15 with no
+      overloading in sight: a lone `Take(K? key)` on `Keyed<int>` given `int? nothing = void;` fails in
+      Roslyn on classic and v2 alike, cannot convert int? to int. Requirement 3.11 states the preference
+      and why it waits; the emitter register holds the representation gap under orders 76 to 78.
 
       PROVED BY 17 rows in OverloadSelectionTests, the wanted overload declared SECOND in every fixture:
       seven for a written parameter beating a closed one (instance, inherited and static receivers, and

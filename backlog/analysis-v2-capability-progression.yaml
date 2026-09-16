@@ -2241,6 +2241,43 @@ rules:
       an index there. NOTHING DOWNSTREAM COVERS EITHER, a refinement having no C# equivalent; the one
       from-end shape C# does refuse is a type error, `shelf[^1]` over `this[byte slot]` beside a Count
       reaching Roslyn as MIST_CS_ERROR on both pipelines.
+
+      CLOSED WHERE THE LENGTH IS A NUMBER, the same day, by giving the prover the value that reaches the
+      slot instead of a rule about indices. `^k` names the position `Length - k`, so NeedIndex substitutes
+      that position for the written offset (Reaching) and proves it as it proves any other value entering a
+      slot; nothing in the rule knows what `^` means. `var a = new int[3]; a[^9]` and the write `a[^9] = 10`
+      are MIST_PA_INDEX_OUT_OF_BOUNDS, worded as `a[7]` already was -- "Index -6 is outside the bounds of
+      'a', which needs >= 0 and <= 2" -- and `a[^1]`, `a[^3]` and `a[^1] = 1` stay silent. Where the length
+      is not a number there is nothing to substitute, and the index stays exactly as unproven as every other
+      index into a receiver whose type carries no length: `ledger[^1]` over a property Count, and
+      RangesAndIndices' `trimmed[^1]` over a slice, are unchanged. Two corpus cases here, four decision rows
+      in RefinementDecisionTests, and two mutations on a confirmed build -- no substitution fails both
+      corpus cases; the offset judged instead of the position fails the `a[^1] + a[^3]` admit row and the
+      `^0` write case.
+
+      WHAT THE STRICT READING WOULD COST, MEASURED rather than argued (2026-09-15). With the Holder
+      fallback made unconditional AND the constant waiver in Satisfied removed, AllFeaturesV2 reports 64
+      unproven indices across nine banked samples: RangesAndIndices, StackOnlyTypes, RefStructs,
+      StandardSurface, Iterators, FirstClassFunctions, NewtypeClones, TopLevelStatements and
+      OverloadedIndexers. Not one is an index whose length is known and wrong. Every one is a receiver whose
+      TYPE carries no length: a slice (`numbers[1..3]`, whose length is a constant the slice type erases), a
+      Span, an array declared `int[]` where `var` would have kept `int[3]` (`int[] numbers = new int[3];
+      numbers[0] = 10;` in Iterators), or an array returned from a method (`int[] evens =
+      nums.Filter(...)`, genuinely unknown). So the residue is not the prover's: it is that a length is
+      erased in three places, and the rule cannot be made total until the types carry it.
+
+      A CONSTANT INDEX IS WAIVED FROM THE SYMBOLIC BOUND, which is a live hole this measurement found.
+      Satisfied skips a required bound when the value is constant, so an index into an unknown-length array
+      need only be `>= 0`: `int[] numbers = [1, 2, 3]; numbers[5]` compiles on both pipelines and throws.
+      Removing the waiver is what produced the 64 above, so it cannot be removed until the lengths are
+      carried.
+
+      THE SLOT IS ALREADY DECLARED, which is the shape the residue should be closed into. Array.mist
+      declares `public type ArrayBounds = ZeroOrPositiveInt and < Length;` and `intrinsic public TValue
+      this[ArrayBounds index]`, so an array's bound IS a refinement type on slot 1, and the Between and
+      symbolic requirements NeedIndex builds are a re-derivation of it. The model drops that slot twice:
+      IndexBinder returns before selection for an array element access, and records no ParameterType for an
+      intrinsic indexer. Recording it would let the array arms of this rule delete rather than grow.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -2270,14 +2307,22 @@ rules:
         classic and silent on v2. PredicateBinder finds predicates by walking types, and an extension block
         is not one, so its predicate is never bound for order 6 or this order to read.
       - >
-        Whether a from-end index and a list pattern's positions must be proven is a DECISION, and the
-        measurement above is not acted on. Three readings, in rising cost. Refuse every from-end index into
-        a refined or length-known receiver as UNPROVEN, which is what "nothing is left to a guard" says
-        literally, and which refuses samples/OverloadedIndexers' own sound `ledger[^1]`. Or prove `Count -
-        k` where the length is a number -- a sized array's is, to KnownLength, which reaches the two array
-        shapes that throw today -- and refuse it where Count is a property body. Or prove it only where the
-        length is known and stay silent otherwise, closing the array half and leaving the `where` half
-        open. The array half throws at runtime and is decidable, so it need not take the same answer as the
-        `where` half, which is silent. A list pattern needs an obligation the model does not hold before any
-        of the three can reach it: its positional element must become something the walk can see.
+        A LENGTH IS ERASED IN THREE PLACES, and until it is carried no index rule can be total: a slice's
+        result type (`numbers[1..3]` has a constant length and ConstructArray is given none), Span, and an
+        array whose declared type drops the size where `var` keeps it. Carrying them is what lets the
+        constant waiver in Satisfied go, closing `int[] numbers = [1, 2, 3]; numbers[5]`, and what lets the
+        array arms here be replaced by the slot Array.mist already declares. The 64 sites the strict
+        reading refuses today are all of this kind, and an array returned from a method is the one family
+        that stays genuinely unprovable and wants a guard at the call site, as Iterators and Attributes
+        took one.
+      - >
+        A list pattern's positional element is judged by nothing, because it is not an expression: the
+        binder asks Indexability.ElementType for a TYPE and builds no IndexExpression, so the shared walk
+        sees no index to prove. Over a Count of 9 and `where entry >= 0 and < 3`, `ledger is [_, _, _, _,
+        _, _, _, _, var last]` is silent. The element must become something the walk can see before the one
+        rule can reach it.
+      - >
+        A non-constant from-end offset is not proven: `var k = 9; a[^k]` substitutes nothing, where the
+        flow knows k. Its silence is pinned by a decision row only, a row asserting silence being unable to
+        catch a mutation that produces silence.
 

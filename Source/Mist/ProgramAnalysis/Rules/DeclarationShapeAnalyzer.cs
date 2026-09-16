@@ -18,10 +18,11 @@ namespace Mist.ProgramAnalysis.Rules;
 /// naming something that is not a field, an operator that is not public, is declared without its
 /// pair, is a logical operator off Boolean, or takes no parameter of the type declaring it, a
 /// refinement predicate -- an alias's, a parameter's `where` or a dependent parameter's -- that orders
-/// a type <see cref="Comparability"/> gives no order, and a method, constructor or indexer repeating an
-/// earlier one's signature on its type. Order 6 of the analysis register; each shape is classic's
-/// verdict, measured, or the spec's where classic dropped the declaration unread, and the enum and
-/// sealed rules are the full-accessibility-model and enum-readonly-restriction specs' own.
+/// a type <see cref="Comparability"/> gives no order, a method, constructor or indexer repeating an
+/// earlier one's signature on its type, and a method repeating the signature of one it inherits, which Mist has no way to override. Order 6 of the analysis
+/// register; each shape is classic's verdict, measured, or the spec's where classic dropped the
+/// declaration unread, and the enum and sealed rules are the full-accessibility-model and
+/// enum-readonly-restriction specs' own.
 /// </summary>
 internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 {
@@ -52,6 +53,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                     CheckDefaults(context, concrete);
                     CheckOperators(context, concrete);
                     CheckSignatures(context, concrete);
+                    CheckRedeclarations(context, concrete);
                     break;
 
                 case ConcreteType concrete:
@@ -271,6 +273,36 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         }
 
         CheckRepeats(context, type, type.IndexersList, "an indexer");
+    }
+
+    private static void CheckRedeclarations(AnalysisContext context, ConcreteType type)
+    {
+        var seen = new HashSet<ConcreteType>();
+
+        for(var ancestor = Inherits(type.BaseType); ancestor is not null && seen.Add(ancestor); ancestor = Inherits(ancestor.BaseType))
+        {
+            foreach(var method in type.MethodsList)
+            {
+                if(!ancestor.MethodsList.Exists(inherited => inherited.Name == method.Name && OverloadSignature.Repeats(method, inherited)))
+                {
+                    continue;
+                }
+
+                Report(
+                    context, method.DeclarationNode, ProgramAnalysisDiagnostics.MemberRedeclaration,
+                    TypeDisplay.Mist(type), method.Name, TypeDisplay.Mist(ancestor));
+            }
+        }
+    }
+
+    private static ConcreteType? Inherits(MistType? baseType)
+    {
+        return baseType switch
+        {
+            ConstructedType { Definition: ConcreteType constructed } => constructed,
+            ConcreteType concrete => concrete,
+            _ => null,
+        };
     }
 
     private static void CheckRepeats<T>(AnalysisContext context, MemberType type, List<T> members, string description)

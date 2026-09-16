@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+public class Base
+{
+    public int Take<T>(T first) { return 1; }
+}
+
+public class Derived : Base
+{
+    // REFUSE: MIST_PA_MEMBER_REDECLARATION
+    public int Take<U>(U second) { return 2; }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

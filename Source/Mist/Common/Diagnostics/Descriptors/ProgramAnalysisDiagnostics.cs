@@ -154,6 +154,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Type '{0}' already declares {1} with parameter types {2}; neither the return type nor a parameter's name tells two declarations apart.");
 
+    public static readonly DiagnosticDescriptor MemberRedeclaration = new(
+        new DiagnosticId("MIST_PA_MEMBER_REDECLARATION"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' cannot redeclare member '{1}' already defined in '{2}'.");
+
     public static readonly DiagnosticDescriptor ConstraintNotSatisfied = new(
         new DiagnosticId("MIST_PA_CONSTRAINT_NOT_SATISFIED"),
         DiagnosticSeverity.Error,

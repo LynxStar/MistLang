@@ -6,16 +6,18 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// Whether two overloads have the same signature: as many type parameters of their own, and position by
-/// position the same passing and the same parameter type. Hiding across a derivation and a duplicate
-/// within one type are both this question, so both ask it here. A refinement reads as its base, as
-/// applicability reads it; a member's own type parameter reads as its position, so a Take over its own
-/// T repeats a Take over its own U while a parameter of the declaring type stays itself; and passing is
-/// only by reference or by value, since `ref` against `readonly ref` is one signature to C#. The type
-/// is walked rather than read as one qualified name, because a construction spells its arguments by
-/// simple name, and <see cref="OverloadFailure.DescribeSignatures"/> spells every type that way. A
-/// signature naming a type that did not resolve is null, and so repeats nothing: that mistake was
-/// reported where the type was written.
+/// Whether two overloads have the same signature: as many type parameters of their own, and position
+/// by position the same passing and the same parameter type. A duplicate within one type, a
+/// redeclaration of an inherited member and hiding across a derivation are all this question, so all
+/// three ask it here; WHICH two members are compared belongs to each caller, and only hiding asks it
+/// of closed signatures. A refinement reads as its base, as applicability reads it; a member's own
+/// type parameter reads as its position, so a Take over its own T repeats a Take over its own U while
+/// a parameter of the declaring type stays itself; and passing is only by reference or by value, since
+/// `ref` against `readonly ref` is one signature to C#. The type is walked rather than read as one
+/// qualified name, because a construction spells its arguments by simple name, and
+/// <see cref="OverloadFailure.DescribeSignatures"/> spells every type that way. A signature naming a
+/// type that did not resolve is null, and so repeats nothing: that mistake was reported where the type
+/// was written.
 /// </summary>
 internal static class OverloadSignature
 {
@@ -35,9 +37,7 @@ internal static class OverloadSignature
 
     public static bool Repeats(IOverload later, IOverload earlier)
     {
-        return later.DeclaringType is not null
-            && ReferenceEquals(later.DeclaringType, earlier.DeclaringType)
-            && later.DeclarationNode is not null
+        return later.DeclarationNode is not null
             && earlier.DeclarationNode is not null
             && Of(later, TypeSubstitution.Empty, null) is { } signature
             && signature == Of(earlier, TypeSubstitution.Empty, null);

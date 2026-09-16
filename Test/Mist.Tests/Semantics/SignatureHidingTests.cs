@@ -1,8 +1,9 @@
-// Tier 3 (Component): which declaration a call reaches when two share a signature -- a derived type's
-// hiding its base's, or a later declaration repeating an earlier one on the same type -- asserted on the
-// recorded method, since emission lets Roslyn resolve the call again. Each fixture pairs overloads that
-// only OverloadSignature tells apart or together; why each verdict is the right one is recorded on order
-// 6 of backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): which declaration a call reaches when two share a closed signature -- a derived
+// type's hiding a base's, or a later declaration repeating an earlier one on the same type -- asserted on
+// the recorded method, since emission lets Roslyn resolve the call again. Every INHERITANCE fixture here
+// is a program order 6 admits: a derived member whose own declaration repeats an inherited one is refused
+// instead, so only one that closes a base's can hide it. Why each verdict is the right one is recorded on
+// order 6 of backlog/analysis-v2-capability-progression.yaml.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.Tests.Helpers;
@@ -19,8 +20,6 @@ public sealed class SignatureHidingTests : ProgramModelProbe
     }
 
     protected override string Fixtures { get; } = """
-        public type Positive = int > 0;
-
         public class Left
         {
             public class Widget { }
@@ -33,24 +32,26 @@ public sealed class SignatureHidingTests : ProgramModelProbe
 
         public class Base
         {
-            public string Same(int a) { return "base"; }
-
             public string ByRef(int a) { return "base"; }
 
             public string Nested(Left.Widget w) { return "base"; }
-
-            public string Refined(int a) { return "base"; }
         }
 
         public class Derived : Base
         {
-            public string Same(int a) { return "derived"; }
-
             public string ByRef(ref int a) { return "derived"; }
 
             public string Nested(Right.Widget w) { return "derived"; }
+        }
 
-            public string Refined(Positive a) { return "derived"; }
+        public class Holder<T>
+        {
+            public string Closed(T a) { return "base"; }
+        }
+
+        public class IntHolder : Holder<int>
+        {
+            public string Closed(int a) { return "derived"; }
         }
 
         public class Repeated
@@ -71,11 +72,11 @@ public sealed class SignatureHidingTests : ProgramModelProbe
     protected override string Preamble { get; } = """
         int x = 1;
         var derived = new Derived();
+        var holder = new IntHolder();
         """;
 
     [Theory]
-    [InlineData("var chosen = derived.Same(x);", "Derived")]
-    [InlineData("var chosen = derived.Refined(5);", "Derived")]
+    [InlineData("var chosen = holder.Closed(x);", "IntHolder")]
     [InlineData("var chosen = derived.ByRef(x);", "Base")]
     [InlineData("var chosen = derived.ByRef(ref x);", "Derived")]
     [InlineData("var chosen = derived.Nested(new Left.Widget());", "Base")]

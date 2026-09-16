@@ -20,8 +20,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         "MIST_PA_ENUM_DUPLICATE_VALUE", "MIST_PA_DEFAULT_ENTRY_NOT_A_FIELD", "MIST_PA_CONSTRAINT_NOT_SATISFIED",
         "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED", "MIST_PA_NOT_DEFAULTABLE",
         "MIST_PA_OPERATOR_NOT_PUBLIC", "MIST_PA_OPERATOR_UNPAIRED", "MIST_PA_LOGICAL_OPERATOR_DECLARED",
-        "MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE", "MIST_PA_REFINEMENT_NOT_COMPARABLE",
-        "MIST_PA_DUPLICATE_SIGNATURE",
+        "MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE", "MIST_PA_REFINEMENT_NOT_COMPARABLE", "MIST_PA_DUPLICATE_SIGNATURE", "MIST_PA_MEMBER_REDECLARATION",
     ];
 
     public DeclarationShapeDecisionTests()
@@ -322,12 +321,15 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
             "public class Keyed<K> { public int Take(K key) { return 1; } public int Take(int i) { return 2; } }");
     }
 
-    [Fact]
-    public void ARedeclarationOfAnInheritedSignature_HidesRatherThanDuplicates()
+    [Theory]
+    [InlineData("public class Root { public int Take(int a) { return 1; } } public class Leaf : Root { public int Take(string s) { return 2; } }")]
+    [InlineData("public class Holder<T> { public int Take(T a) { return 1; } } public class IntHolder : Holder<int> { public int Take(int a) { return 2; } }")]
+    [InlineData("public class Root { public int this[int i] { get { return 1; } } } public class Leaf : Root { public int this[int j] { get { return 2; } } }")]
+    [InlineData("public class Root { public int Size { get { return 1; } } } public class Leaf : Root { public int Size { get { return 2; } } }")]
+    [InlineData("public class Root { public int Give(int a) { return 1; } } public class Leaf : Root { public int Take(int a) { return 2; } }")]
+    public void AMemberThatDoesNotRepeatAnInheritedSignature_IsNotARedeclaration(string extraTypes)
     {
-        AssertSilent(
-            "int r = new Derived().Take(1);",
-            "public class Base { public int Take(int a) { return 1; } } public class Derived : Base { public int Take(int b) { return 2; } }");
+        AssertSilent("int unused = 1;", extraTypes);
     }
 
     [Theory]

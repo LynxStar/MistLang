@@ -176,7 +176,9 @@ internal static class OverloadResolution
                 hidden = i != j
                     && keys[i] == keys[j]
                     && (Derives(closed[j].Method.DeclaringType, closed[i].Method.DeclaringType)
-                        || (j < i && OverloadSignature.Repeats(closed[i].Method, closed[j].Method)));
+                        || (j < i
+                            && ReferenceEquals(closed[i].Method.DeclaringType, closed[j].Method.DeclaringType)
+                            && OverloadSignature.Repeats(closed[i].Method, closed[j].Method)));
             }
 
             if(!hidden)

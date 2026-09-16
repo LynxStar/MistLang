@@ -1327,6 +1327,51 @@ rules:
       walked, the four cases that have one; and methods, indexers, properties and fields each dropped from
       what a type declares, their own cases.
 
+      THE TWO GAPS THIS LEFT ARE NOW CLOSED (2026-09-15), both of them defects in what the rule had just
+      shipped rather than notes for later. AN INHERITED INDEXER IS A CANDIDATE: Indexability was handed
+      the receiver definition's IndexersList alone, so a derived `this[string s]` beside a base
+      `this[int i]` -- the overload Requirement 5.1 admits -- answered every index, and `d[0]` was
+      MIST_PA_NO_IMPLICIT_CONVERSION where classic prints both answers. The walk now climbs the base chain
+      and the abstract bases, carrying the constructed bases it passed through as the paths selection
+      substitutes with, so an indexer inherited from `Slots<int>` takes an int and one reached through an
+      abstract is found at all. Measured: `d[0]` and `d["x"]` print 1 and 2, as on classic.
+
+      AND A REFUSED DECLARATION ANSWERS NOTHING. Lookup's MergeMethods kept the nearest declaration per
+      signature, which is C#'s hiding; it now keeps the INHERITED one between two classes, and the nearer
+      one only where an abstract declares the other, which is a conformer answering a slot.
+      OverloadResolution's WithoutHidden makes the same choice for the coincidence only a closing
+      produces, and lookup's cross-kind resolution takes the nearest depth where it used to report a
+      conflict. MEASURED, each now reporting the redeclaration alone: `d.Take(-5)` over a derived
+      `Take(Positive)` reported MIST_PA_REFINEMENT_VIOLATED beside it; a field over an inherited method,
+      and a property over an inherited field, reported MIST_PM_AMBIGUOUS_MEMBER at every read. The three
+      corpus cases carry those uses now, so the corpus's second claim -- that nothing else is reported --
+      is what pins it.
+
+      ONE REGRESSION, FOUND BY THE SWEEP AND FIXED: keying the merge on OverloadSignature dropped a method
+      whose parameter type had not resolved, since such a signature is deliberately null, and lookup then
+      answered "no such member" on top of the unresolved type already reported. It is kept as itself now,
+      coinciding with nothing. TypeMemberLookupTests' rows caught it, and two of those rows changed with
+      the language: a derived field beside a base method of one name was an ambiguity and is now the
+      field, and one signature at two depths was the nearer declaration and is now the inherited one.
+      Both had encoded C#'s hiding.
+
+      PROVED BY five more rows in SignatureHidingTests -- the base's indexer for an int index and the
+      derived's for a string, an inherited generic indexer's slot closed to int, an indexer reached
+      through an abstract, the inherited method standing at a use, and a conformer answering a non-generic
+      slot -- and by the three corpus cases carrying uses. Eight mutations on a confirmed build, each
+      caught by the case or row named for it: the chain walk removed, the two inherited-indexer rows; the
+      paths not handed to selection, the generic base's slot row; an abstract base not walked, the
+      indexer-through-an-abstract row; the nearest method standing over the inherited, the refinement and
+      field-over-method cases with the inherited-stands row; a farther kind conflicting with a nearer one,
+      the field-over-method case; and an unresolved signature dropped from the group, the lookup rows that
+      found the regression. TWO SURVIVED THE FIRST RUN and were answered with coverage rather than
+      argument: an abstract's slot standing over its implementation, which only a NON-generic conformer
+      can show, since a generic slot's declared signature differs from the implementation's -- a Square
+      answering IShape now pins it; and selection letting a deriving member hide a class's, which the
+      closing-a-generic-base case had stopped showing when its use was written over a refinement, since
+      betterness prefers the exact inherited parameter anyway -- the case carries a plain use again, and
+      the mutation now reaches MIST_PM_AMBIGUOUS_OVERLOAD there.
+
       MEASURED: the full suite -- 6263, 664 and 68 tests, passing with no failure and no rerun -- with
       AllFeaturesV2's baseline among them, so no banked sample or Standard declaration reports a duplicate
       or a redeclaration and no banked program's output moved, and the build and `dotnet format` were clean.
@@ -1366,19 +1411,6 @@ rules:
         types a constant pattern is accepted on; refusing the constant against the base at the
         declaration would silence every use through Comparability.IsRefused, as the relational form
         already is.
-      - >
-        An inherited indexer is not a candidate at an index, so a derived indexer of another signature --
-        the overload Requirement 5.1 admits -- is unusable. Measured 2026-09-15 over a base `this[int i]`
-        and a derived `this[string s]`: classic prints both answers; on v2 every index binds the derived
-        indexer and `d[0]` is MIST_PA_NO_IMPLICIT_CONVERSION. Indexability.Select is handed the receiver
-        definition's IndexersList alone, where a call's candidates walk the chain. A binder gap, not this
-        order's.
-      - >
-        A use of a hidden member is bound to it and judged, so a second complaint can follow a declaration
-        already refused: `d.Take(-5)` over a derived `Take(Positive)` reports MIST_PA_REFINEMENT_VIOLATED
-        beside MIST_PA_MEMBER_REDECLARATION, and a field over an inherited method reports
-        MIST_PM_AMBIGUOUS_MEMBER at every read. Silencing them means selection preferring the inherited
-        member once the derived one is refused, a cross-stage dependency rather than a rendering fix.
       - >
         Two operators of one signature, and two conversions between one pair of types, are not refused.
         Measured 2026-09-15 on a struct Money: `operator +(Money a, Money b)` declared twice is MIST_SM_0020

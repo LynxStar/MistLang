@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -14,15 +15,15 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// Refusals decidable from a declaration alone: a base or a newtype source that is sealed, `sealed` on
-/// an alias, an enum base that is not readonly, two variants sharing a value, a default block
-/// naming something that is not a field, an operator that is not public, is declared without its
-/// pair, is a logical operator off Boolean, or takes no parameter of the type declaring it, a
-/// refinement predicate -- an alias's, a parameter's `where` or a dependent parameter's -- that orders
-/// a type <see cref="Comparability"/> gives no order, a method, constructor or indexer repeating an
-/// earlier one's signature on its type, and a method repeating the signature of one it inherits, which Mist has no way to override. Order 6 of the analysis
-/// register; each shape is classic's verdict, measured, or the spec's where classic dropped the
-/// declaration unread, and the enum and sealed rules are the full-accessibility-model and
-/// enum-readonly-restriction specs' own.
+/// an alias, an enum base that is not readonly, two variants sharing a value, a default block naming
+/// something that is not a field, an operator that is not public, is declared without its pair, is a
+/// logical operator off Boolean, or takes no parameter of the type declaring it, a refinement predicate
+/// -- an alias's, a parameter's `where` or a dependent parameter's -- that orders a type
+/// <see cref="Comparability"/> gives no order, a method, constructor or indexer repeating an earlier
+/// one's signature on its type, and a member hiding one its type inherits, which Mist admits only as an
+/// overload. Order 6 of the analysis register; each shape is classic's verdict, measured, or the spec's
+/// where classic dropped the declaration unread, and the enum and sealed rules are the
+/// full-accessibility-model and enum-readonly-restriction specs' own.
 /// </summary>
 internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 {
@@ -277,20 +278,61 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
     private static void CheckRedeclarations(AnalysisContext context, ConcreteType type)
     {
+        var interner = context.Model.TypeInterner;
+        var path = new List<ConstructedType>();
         var seen = new HashSet<ConcreteType>();
 
-        for(var ancestor = Inherits(type.BaseType); ancestor is not null && seen.Add(ancestor); ancestor = Inherits(ancestor.BaseType))
+        for(var baseType = type.BaseType; Inherits(baseType) is { } ancestor && seen.Add(ancestor); baseType = ancestor.BaseType)
         {
-            foreach(var method in type.MethodsList)
+            if(baseType is ConstructedType constructed)
             {
-                if(!ancestor.MethodsList.Exists(inherited => inherited.Name == method.Name && OverloadSignature.Repeats(method, inherited)))
+                path.Add(constructed);
+            }
+
+            var inheritance = TypeSubstitution.ForPath(null, path, interner);
+
+            foreach(var member in Members(type).Where(member => member.Node is not null))
+            {
+                if(!Members(ancestor).Any(other => other.Name == member.Name && Hides(member, other, inheritance, interner)))
                 {
                     continue;
                 }
 
                 Report(
-                    context, method.DeclarationNode, ProgramAnalysisDiagnostics.MemberRedeclaration,
-                    TypeDisplay.Mist(type), method.Name, TypeDisplay.Mist(ancestor));
+                    context, member.Node, ProgramAnalysisDiagnostics.MemberRedeclaration,
+                    TypeDisplay.Mist(type), member.Name, TypeDisplay.Mist(ancestor));
+            }
+        }
+    }
+
+    private static bool Hides(Member member, Member inherited, TypeSubstitution inheritance, TypeInterner interner)
+    {
+        return member.Overload is not { } later || inherited.Overload is not { } earlier
+            || OverloadSignature.Repeats(later, earlier, inheritance, interner);
+    }
+
+    private static IEnumerable<Member> Members(MemberType type)
+    {
+        foreach(var method in type.MethodsList)
+        {
+            yield return new Member(method.Name, method.DeclarationNode, method);
+        }
+
+        foreach(var indexer in type.IndexersList)
+        {
+            yield return new Member("this[]", indexer.DeclarationNode, indexer);
+        }
+
+        foreach(var property in type.PropertiesList)
+        {
+            yield return new Member(property.Name, property.DeclarationNode, null);
+        }
+
+        if(type is ConcreteType concrete)
+        {
+            foreach(var field in concrete.FieldsList)
+            {
+                yield return new Member(field.Name, field.DeclarationNode, null);
             }
         }
     }
@@ -341,6 +383,8 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             && left.ParametersList.Select(parameter => parameter.Type.FullyQualifiedName)
                 .SequenceEqual(right.ParametersList.Select(parameter => parameter.Type.FullyQualifiedName));
     }
+
+    private readonly record struct Member(string Name, SyntaxNode? Node, IOverload? Overload);
 
     private static void Report(AnalysisContext context, SyntaxNode? at, DiagnosticDescriptor descriptor, params object?[] args)
     {

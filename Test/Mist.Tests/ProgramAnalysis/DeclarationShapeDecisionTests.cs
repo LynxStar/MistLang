@@ -323,9 +323,9 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
 
     [Theory]
     [InlineData("public class Root { public int Take(int a) { return 1; } } public class Leaf : Root { public int Take(string s) { return 2; } }")]
-    [InlineData("public class Holder<T> { public int Take(T a) { return 1; } } public class IntHolder : Holder<int> { public int Take(int a) { return 2; } }")]
-    [InlineData("public class Root { public int this[int i] { get { return 1; } } } public class Leaf : Root { public int this[int j] { get { return 2; } } }")]
-    [InlineData("public class Root { public int Size { get { return 1; } } } public class Leaf : Root { public int Size { get { return 2; } } }")]
+    [InlineData("abstract IBox<T> { T Wrap(T value); } public class IntBox : IBox<int> { public int Wrap(int value) { return value; } }")]
+    [InlineData("abstract ISized { int Size { get; } } public class Boxed : ISized { public int Size { get { return 3; } } }")]
+    [InlineData("public class Root { public int this[int i] { get { return 1; } } } public class Leaf : Root { public int this[string s] { get { return 2; } } }")]
     [InlineData("public class Root { public int Give(int a) { return 1; } } public class Leaf : Root { public int Take(int a) { return 2; } }")]
     public void AMemberThatDoesNotRepeatAnInheritedSignature_IsNotARedeclaration(string extraTypes)
     {

@@ -1,9 +1,10 @@
 // Tier 3 (Component): which declaration a call reaches when two share a closed signature -- a derived
 // type's hiding a base's, or a later declaration repeating an earlier one on the same type -- asserted on
 // the recorded method, since emission lets Roslyn resolve the call again. Every INHERITANCE fixture here
-// is a program order 6 admits: a derived member whose own declaration repeats an inherited one is refused
-// instead, so only one that closes a base's can hide it. Why each verdict is the right one is recorded on
-// order 6 of backlog/analysis-v2-capability-progression.yaml.
+// is a program order 6 admits: a member that repeats what its type inherits from a CLASS is refused
+// instead, so what still hides is a conformer answering an abstract's slot, which has no body to hide.
+// Why each verdict is the right one is recorded on order 6 of
+// backlog/analysis-v2-capability-progression.yaml.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.Tests.Helpers;
@@ -44,14 +45,14 @@ public sealed class SignatureHidingTests : ProgramModelProbe
             public string Nested(Right.Widget w) { return "derived"; }
         }
 
-        public class Holder<T>
+        abstract IBox<T>
         {
-            public string Closed(T a) { return "base"; }
+            string Closed(T a);
         }
 
-        public class IntHolder : Holder<int>
+        public class IntBox : IBox<int>
         {
-            public string Closed(int a) { return "derived"; }
+            public string Closed(int a) { return "conformer"; }
         }
 
         public class Repeated
@@ -72,11 +73,11 @@ public sealed class SignatureHidingTests : ProgramModelProbe
     protected override string Preamble { get; } = """
         int x = 1;
         var derived = new Derived();
-        var holder = new IntHolder();
+        var holder = new IntBox();
         """;
 
     [Theory]
-    [InlineData("var chosen = holder.Closed(x);", "IntHolder")]
+    [InlineData("var chosen = holder.Closed(x);", "IntBox")]
     [InlineData("var chosen = derived.ByRef(x);", "Base")]
     [InlineData("var chosen = derived.ByRef(ref x);", "Derived")]
     [InlineData("var chosen = derived.Nested(new Left.Widget());", "Base")]

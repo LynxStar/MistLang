@@ -1,0 +1,27 @@
+using Standard;
+
+namespace Refusal;
+
+public class Holder<T>
+{
+    public int Take(T first) { return 1; }
+}
+
+public class Middle<U> : Holder<U>
+{
+    public int Give(U second) { return 2; }
+}
+
+public class IntLeaf : Middle<int>
+{
+    // REFUSE: MIST_PA_MEMBER_REDECLARATION
+    public int Take(int third) { return 3; }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

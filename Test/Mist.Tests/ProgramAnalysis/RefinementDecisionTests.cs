@@ -138,6 +138,21 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
             }
         }
 
+        public class Keyed<K>
+        {
+            public int Ne(K key) where key not 18 { return 2; }
+        }
+
+        public class Any
+        {
+            public static int Ne<T>(T key) where key not 18 { return 2; }
+        }
+
+        public class Ordered<K>
+        {
+            public int Ge(K key) where key >= 18 { return 2; }
+        }
+
         public class Helpers
         {
             public static int Twice(AdultAge a) { return a + a; }
@@ -276,6 +291,26 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("IValidator v = new Same(); Console.WriteLine(v.Validate(0));")]
     [InlineData("var f = new FixedArray<int, 3>(); var w = new Wrapper<2>(); Console.WriteLine(f.Count() + w.Count());")]
     public void AnArgumentTheProverDischarges_IsAdmitted(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Theory]
+    [InlineData("var keyed = new Keyed<int>(); Console.WriteLine(keyed.Ne(3));")]
+    [InlineData("var keyed = new Keyed<int>(); int y = 3; Console.WriteLine(keyed.Ne(y));")]
+    [InlineData("var keyed = new Keyed<int>(); if(x != 18) { Console.WriteLine(keyed.Ne(x)); }")]
+    [InlineData("var keyed = new Keyed<long>(); Console.WriteLine(keyed.Ne(3L));")]
+    [InlineData("Console.WriteLine(Any.Ne(3));")]
+    [InlineData("Console.WriteLine(Any.Ne<int>(3));")]
+    public void AWhereOverATypeParameterTheReceiverClosed_IsProvenAgainstTheArgument(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Theory]
+    [InlineData("var ordered = new Ordered<int>(); Console.WriteLine(ordered.Ge(3));")]
+    [InlineData("var ordered = new Ordered<string>(); Console.WriteLine(ordered.Ge(\"x\"));")]
+    public void AWhereRefusedAtItsDeclaration_IsNotProvenAgainAtTheClosedReceiver(string statement)
     {
         AssertSilent(statement);
     }

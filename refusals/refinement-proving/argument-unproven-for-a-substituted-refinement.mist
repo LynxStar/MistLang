@@ -1,0 +1,27 @@
+using Standard;
+
+namespace Refusal;
+
+public class Keyed<K>
+{
+    public int Ne(K key) where key not 18
+    {
+        return 2;
+    }
+}
+
+public class Probe
+{
+    public static int Accept(int key)
+    {
+        var keyed = new Keyed<int>();
+        // REFUSE: MIST_PA_CONSTRAINT_UNPROVEN
+        return keyed.Ne(key);
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(Probe.Accept(3));
+        Console.WriteLine("unreachable");
+    }
+}

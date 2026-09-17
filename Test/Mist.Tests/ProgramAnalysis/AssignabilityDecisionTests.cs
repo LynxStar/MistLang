@@ -73,7 +73,11 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
         public class Keyed<K>
         {
             public string this[K key] { get { return "keyed"; } }
+
+            public int Ne(K key) where key not 18 { return 2; }
         }
+
+        type Ne<K> = K not 18;
 
         public class Overloaded
         {
@@ -258,6 +262,11 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
     [InlineData("AdultAge | void maybe = 20;")]
     [InlineData("int back = adult;")]
     [InlineData("AdultAge fromDrinking = drinking;")]
+    [InlineData("var keyed = new Keyed<int>(); int within = keyed.Ne(3);")]
+    [InlineData("var keyed = new Keyed<int>(); int violating = keyed.Ne(18);")]
+    [InlineData("var keyed = new Keyed<byte>(); int narrower = keyed.Ne(2);")]
+    [InlineData("Ne<int> counted = 3;")]
+    [InlineData("Ne<int> counted = 3; Ne<long> wider = counted;")]
     public void ATargetThatOnlyARefinementStandsBetween_IsLeftToTheProver(string statement)
     {
         AssertSilent(statement);
@@ -315,6 +324,14 @@ public sealed class AssignabilityDecisionTests : ProgramModelProbe
     public void AMismatchIsReportedOnceWhereverItSits(string statement)
     {
         _ = Assert.Single(Analyse(statement));
+    }
+
+    [Fact]
+    public void ASubstitutedRefinement_IsNamedByItsBaseRatherThanByTheAliasEveryInstantiationShares()
+    {
+        var refusal = Assert.Single(Analyse("Ne<int> counted = 3; Ne<string> named = counted;"));
+
+        Assert.Contains("'int' to 'string'", refusal.Message);
     }
 
     // ── Harness ─────────────────────────────────────────────────────────

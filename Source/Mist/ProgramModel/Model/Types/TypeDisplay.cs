@@ -31,7 +31,7 @@ internal static class TypeDisplay
 
             // A dependent argument shows its domain, since its value is the thing not known.
             UnknownValueType unknownValue => Mist(unknownValue.Domain),
-            RefinedType { IsAnonymous: true } refined => Mist(refined.BaseType),
+            RefinedType refined when refined.IsAnonymous || refined.IsSubstituted => Mist(refined.BaseType),
             _ => MistType.StripArity(Keyword(type)),
         };
     }

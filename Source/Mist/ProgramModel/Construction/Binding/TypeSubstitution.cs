@@ -150,8 +150,7 @@ internal sealed class TypeSubstitution
 
     /// <summary>
     /// An array needs no arm of its own, being a construction of <c>Standard.Array</c>. Constructions,
-    /// unions, tuples and function types are descended into, so a parameter reachable solely through a
-    /// refinement is the remaining case that survives untouched and unreported.
+    /// unions, tuples, function types and a refinement's base are descended into.
     /// </summary>
     /// <param name="interner">
     /// Null from the emitter's struct flattening, which has none: the interner belongs to construction
@@ -187,6 +186,13 @@ internal sealed class TypeSubstitution
         if(type is UnionType union)
         {
             return ApplyToUnion(union, interner);
+        }
+
+        if(type is RefinedType refined)
+        {
+            var refinedBase = Apply(refined.BaseType, interner);
+
+            return ReferenceEquals(refinedBase, refined.BaseType) ? refined : new RefinedType(refined, refinedBase);
         }
 
         if(type is FunctionType function)

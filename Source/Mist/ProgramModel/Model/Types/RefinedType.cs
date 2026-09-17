@@ -14,15 +14,36 @@ namespace Mist.ProgramModel.Model.Types;
 /// </summary>
 internal sealed class RefinedType : MistType, IRefinedType
 {
+    private readonly RefinedType root;
+
+    private Pattern? boundPredicate;
+
     public RefinedType(IMistType baseType, SyntaxNode predicateNode, string? name = null)
         : base(name ?? Anonymous(baseType, predicateNode), new Scope(null), declaringType: null)
     {
         BaseType = baseType;
         PredicateNode = predicateNode;
         IsAnonymous = name is null;
+        root = this;
+    }
+
+    /// <summary>
+    /// The same refinement over a substituted base, which is what a closed receiver makes of one
+    /// written over a type parameter. It SHARES the declaration's predicate cell rather than copying
+    /// it: the predicate is bound once, in the scope it was written in and against the base declared
+    /// there, so a copy taken before <c>PredicateBinder</c> runs would be empty forever, and a copy
+    /// taken after would let the declaration's verdict and this one's disagree.
+    /// </summary>
+    public RefinedType(RefinedType declared, IMistType baseType)
+        : this(baseType, declared.PredicateNode, declared.IsAnonymous ? null : declared.Name)
+    {
+        IsSubstituted = true;
+        root = declared.root;
     }
 
     public bool IsAnonymous { get; }
+
+    public bool IsSubstituted { get; }
 
     /// <summary>
     /// The underlying type being refined (e.g., <c>Int32</c> for <c>int >= 0</c>).
@@ -37,7 +58,11 @@ internal sealed class RefinedType : MistType, IRefinedType
     /// </summary>
     public SyntaxNode PredicateNode { get; }
 
-    public Pattern? Predicate { get; internal set; }
+    public Pattern? Predicate
+    {
+        get => root.boundPredicate;
+        internal set => root.boundPredicate = value;
+    }
 
     IMistType IRefinedType.BaseType => BaseType;
 

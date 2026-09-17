@@ -126,6 +126,15 @@ internal static class TypeArgumentInference
             return;
         }
 
+        // A refinement stands for its base here, as it does under substitution: a `where` clause is
+        // the only mention of T in `Ne<T>(T key) where key not 18`, and the predicate says nothing
+        // about which type argument to learn.
+        if(declared is RefinedType refined)
+        {
+            Match(refined.BaseType, actual, parameters, bounds);
+            return;
+        }
+
         // A function argument carries bindings in both directions: its RESULT names a parameter that
         // nothing else in the signature mentions -- `Apply(Func<TArgs..., TResult> f, params TArgs)`
         // has no other way to learn TResult -- and its own parameters match position for position

@@ -1,0 +1,17 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static int Last(int[] xs)
+    {
+        // REFUSE: MIST_PA_INDEX_UNPROVEN
+        return xs[^1];
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(Last([1]));
+    }
+}

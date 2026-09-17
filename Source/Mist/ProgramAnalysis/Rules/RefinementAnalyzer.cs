@@ -142,7 +142,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
     private sealed record Bound(object Holder, ComparisonKind Kind);
 
-    private sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0)
+    private sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0, Admitted? Length = null)
     {
         public static readonly Knowledge Unknown = new(Admitted.Everything, ImmutableHashSet<Bound>.Empty);
     }
@@ -173,7 +173,9 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     values = changes > 2 ? values.WidenedAgainst(mine.Values) : values;
                 }
 
-                joined = joined.Add(local, new Knowledge(values, mine.Bounds.Intersect(theirs.Bounds), changes));
+                var length = mine.Length is { } left2 && theirs.Length is { } right2 ? left2.Or(right2) : null;
+
+                joined = joined.Add(local, new Knowledge(values, mine.Bounds.Intersect(theirs.Bounds), changes, length));
             }
 
             return joined;
@@ -183,7 +185,8 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         {
             return left.Count == right.Count
                 && left.All(entry => right.TryGetValue(entry.Key, out var other)
-                    && entry.Value.Values.Equals(other.Values) && entry.Value.Bounds.SetEquals(other.Bounds));
+                    && entry.Value.Values.Equals(other.Values) && entry.Value.Bounds.SetEquals(other.Bounds)
+                    && Equals(entry.Value.Length, other.Length));
         }
 
         public ImmutableDictionary<LocalVariable, Knowledge> Transfer(ImmutableDictionary<LocalVariable, Knowledge> state, FlowStep step)
@@ -297,47 +300,61 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private void NeedIndex(ImmutableDictionary<LocalVariable, Knowledge> state, IndexExpression index)
         {
-            var value = Reaching(index);
+            var receiverType = index.Receiver.Type is TypeAlias { AliasedType: { } aliased } ? aliased : index.Receiver.Type;
 
-            if(!IsIntegral(Unrefined(value.Type)))
+            if(receiverType is ConstructedType { Definition: var definition, TypeArguments.Count: 2 } && Lengths.IsIndexable(definition))
             {
+                var length = Lengths.Typed(receiverType) ?? Held(state, index.Receiver);
+                var known = Reaching(state, index, length);
+
+                if(known is null)
+                {
+                    return;
+                }
+
+                var symbolic = new Requirement(Admitted.AtLeast(0), [new SymbolicBound("Length", ComparisonKind.LessThan)]);
+                var required = Lengths.Shortest(length) is { } shortest ? new Requirement(Admitted.Between(0, shortest - 1), []) : symbolic;
+
+                if(!Satisfied(known, symbolic, index.Receiver))
+                {
+                    Need(known, index.Index, Lengths.Exact(length) is null ? symbolic : required, onIndex: index.Receiver, alsoSatisfies: required);
+                }
+
                 return;
             }
 
-            var receiverType = index.Receiver.Type is TypeAlias { AliasedType: { } aliased } ? aliased : index.Receiver.Type;
-
-            if(receiverType is ConstructedType { Definition: var definition, TypeArguments.Count: 2 } && IsIndexable(definition))
+            if(!IsIntegral(Unrefined(index.Index.Type)))
             {
-                if(KnownLength(receiverType) is { } length)
-                {
-                    Need(state, value, new Requirement(Admitted.Between(0, length - 1), []), index.Index, onIndex: index.Receiver);
-                }
-                else if(Holder(index.Receiver) is not null)
-                {
-                    Need(state, value, new Requirement(Admitted.AtLeast(0), [new SymbolicBound("Length", ComparisonKind.LessThan)]), index.Index, onIndex: index.Receiver);
-                }
-
                 return;
             }
 
             if(index is { ParameterType: { } slot, Indexer.ParametersList: [var parameter] })
             {
-                Need(state, value, slot, index.Index, onConstraint: parameter.Name);
+                Need(state, index.Index, slot, index.Index, onConstraint: parameter.Name);
             }
         }
 
-        // `^k` names the position `Length - k`, so the value that meets the slot is that position rather
-        // than the offset written, and it is proven as any other value entering a slot is. A length that
-        // is not statically known leaves nothing to substitute, which leaves the index exactly as unproven
-        // as every other index into a receiver whose length the type does not carry.
-        private static Expression Reaching(IndexExpression index)
+        // What is known of the value that meets an array's or a span's slot. `^k` names the position
+        // `Length - k`, so its knowledge is the length shifted by k, and below Length by construction
+        // whenever k is at least one -- the prover then asks of it what it asks of any other index, and
+        // never learns what `^` means. Null for an index no integral value reaches.
+        private static Knowledge? Reaching(ImmutableDictionary<LocalVariable, Knowledge> state, IndexExpression index, Admitted? length)
         {
-            return index.Index is UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset }
-                && KnownLength(index.Receiver.Type) is { } length
-                && Requirement.Constant(offset) is { } fromEnd
-                ? new LiteralExpression(index.Index.Node, length - fromEnd, offset.Type)
-                : index.Index
-                ;
+            if(index.Index is not UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset })
+            {
+                return IsIntegral(Unrefined(index.Index.Type)) ? Known(state, index.Index) : null;
+            }
+
+            if(Lengths.Exact(Known(state, offset).Values) is not { } back || length is null)
+            {
+                return Knowledge.Unknown;
+            }
+
+            var below = back >= 1 && Holder(index.Receiver) is { } holder
+                ? ImmutableHashSet.Create(new Bound(holder, ComparisonKind.LessThan))
+                : ImmutableHashSet<Bound>.Empty;
+
+            return new Knowledge(length.Shifted(-back), below);
         }
 
         private void Need(
@@ -389,14 +406,23 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             var known = Known(state, value);
 
-            if(!Satisfied(known, required, onIndex, constant: Requirement.Constant(value) is not null))
+            if(!Satisfied(known, required, onIndex))
             {
-
                 RefinementFindings.Report(context, known.Values, value, required, onIndex is { } receiver ? RefinementFindings.Display(receiver) : "", at, onConstraint, onIndex);
             }
         }
 
-        private static bool Satisfied(Knowledge known, Requirement required, Expression? onIndex, bool constant = false)
+        private void Need(Knowledge known, Expression value, Requirement required, Expression onIndex, Requirement alsoSatisfies)
+        {
+            if(value.Type is ErrorType || Satisfied(known, required, onIndex) || Satisfied(known, alsoSatisfies, onIndex))
+            {
+                return;
+            }
+
+            RefinementFindings.Report(context, known.Values, value, required, RefinementFindings.Display(onIndex), value, onConstraint: null, onIndex);
+        }
+
+        private static bool Satisfied(Knowledge known, Requirement required, Expression? onIndex)
         {
             if(!known.Values.IsSubsetOf(required.Values))
             {
@@ -405,7 +431,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             foreach(var bound in required.Bounds)
             {
-                if(!constant && (Holder(onIndex) is not { } holder || !known.Bounds.Contains(new Bound(holder, bound.Kind))))
+                if(Holder(onIndex) is not { } holder || !known.Bounds.Contains(new Bound(holder, bound.Kind)))
                 {
                     return false;
                 }
@@ -438,6 +464,14 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         {
             switch(condition)
             {
+                case BinaryExpression { Left: MemberAccessExpression { MemberName: "Length", Receiver: LocalReferenceExpression sizedOne }, Right: var limit2 } sized
+                    when Comparison(sized.OperatorKind) is { } sizedKind && Requirement.Constant(limit2) is { } sizedBound:
+                    return Sized(state, sizedOne.Local, Requirement.Interval(sizedKind, sizedBound), holds);
+
+                case BinaryExpression { Left: var limit3, Right: MemberAccessExpression { MemberName: "Length", Receiver: LocalReferenceExpression sizedTwo } } sizedFlip
+                    when Comparison(sizedFlip.OperatorKind) is { } flipKind && Requirement.Constant(limit3) is { } flipBound:
+                    return Sized(state, sizedTwo.Local, Requirement.Interval(Mirrored(flipKind), flipBound), holds);
+
                 case BinaryExpression { Left: LocalReferenceExpression subject, Right: var bound } comparison when Comparison(comparison.OperatorKind) is { } kind:
                     if(Requirement.Constant(bound) is { } constant)
                     {
@@ -449,7 +483,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     if(bound is MemberAccessExpression { MemberName: "Length", Receiver: var measured }
                         && upper is ComparisonKind.LessThan or ComparisonKind.LessThanOrEqual)
                     {
-                        if(KnownLength(measured.Type) is { } length)
+                        if(Lengths.Exact(Lengths.Typed(measured.Type)) is { } length)
                         {
                             return Narrow(state, subject.Local, Requirement.Interval(upper, length));
                         }
@@ -466,6 +500,9 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 case BinaryExpression { Left: var limit, Right: LocalReferenceExpression mirrored } flipped
                     when Comparison(flipped.OperatorKind) is { } mirroredKind && Requirement.Constant(limit) is { } value:
                     return Narrow(state, mirrored.Local, holds ? Requirement.Interval(Mirrored(mirroredKind), value) : Requirement.Interval(Mirrored(mirroredKind), value).Not());
+
+                case IsPatternExpression { Scrutinee: LocalReferenceExpression listed, Pattern: ListPattern list } when holds:
+                    return Sliced(state, listed, list);
 
                 case IsPatternExpression { Scrutinee: LocalReferenceExpression subject, Pattern: var pattern }
                     when Requirement.Of(pattern) is { Bounds.Length: 0 } matched:
@@ -501,7 +538,10 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return state.SetItem(local, copied);
             }
 
-            return state.Remove(local);
+            return Lengths.Of(value, held => Held(state, held)) is { } length
+                ? state.SetItem(local, Knowledge.Unknown with { Length = length })
+                : state.Remove(local)
+                ;
         }
 
         private static ImmutableDictionary<LocalVariable, Knowledge> Forget(ImmutableDictionary<LocalVariable, Knowledge> state, Func<object, bool> lost)
@@ -515,6 +555,41 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             }
 
             return state;
+        }
+
+        private static ImmutableDictionary<LocalVariable, Knowledge> Sliced(
+            ImmutableDictionary<LocalVariable, Knowledge> state, LocalReferenceExpression scrutinee, ListPattern list)
+        {
+            var fixedCount = list.Elements.Count(element => !element.IsSlice);
+            var sliced = list.Elements.Any(element => element.IsSlice);
+            var length = (Held(state, scrutinee) ?? Lengths.Typed(scrutinee.Type) ?? Admitted.Everything)
+                .And(sliced ? Admitted.AtLeast(fixedCount) : Admitted.Exactly(fixedCount));
+
+            state = Sized(state, scrutinee.Local, length, holds: true);
+
+            if(list.Elements.FirstOrDefault(element => element.IsSlice)?.Subpattern?.Binding is { } middle)
+            {
+                state = state.SetItem(middle, Knowledge.Unknown with { Length = length.Shifted(-fixedCount) });
+            }
+
+            return state;
+        }
+
+        private static ImmutableDictionary<LocalVariable, Knowledge> Sized(
+            ImmutableDictionary<LocalVariable, Knowledge> state, LocalVariable measured, Admitted admitted, bool holds)
+        {
+            var known = state.TryGetValue(measured, out var existing) ? existing : Knowledge.Unknown;
+            var learned = holds ? admitted : admitted.Not();
+
+            return state.SetItem(measured, known with { Length = known.Length is { } already ? already.And(learned) : learned });
+        }
+
+        private static Admitted? Held(ImmutableDictionary<LocalVariable, Knowledge> state, Expression? receiver)
+        {
+            return receiver is LocalReferenceExpression local && state.TryGetValue(local.Local, out var known)
+                ? known.Length
+                : null
+                ;
         }
 
         private static object? Holder(Expression? array)
@@ -553,23 +628,6 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             };
         }
 
-        private static long? KnownLength(IMistType type)
-        {
-            var unaliased = type is TypeAlias { AliasedType: { } aliased } ? aliased : type;
-
-            if(unaliased is not ConstructedType { Definition: var definition, TypeArguments: [_, LiftedType { Value: var length }] } || !IsIndexable(definition))
-            {
-                return null;
-            }
-
-            return length switch
-            {
-                long known => known,
-                int known => known,
-                _ => null,
-            };
-        }
-
         private static bool IsIntegral(IMistType type)
         {
             return type.FullyQualifiedName is var name
@@ -578,11 +636,6 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     || name == WellKnownTypes.UInt64.FullyQualifiedName || name == WellKnownTypes.UInt16.FullyQualifiedName
                     || name == WellKnownTypes.Byte.FullyQualifiedName || name == WellKnownTypes.SByte.FullyQualifiedName
                     || name == WellKnownTypes.Char.FullyQualifiedName);
-        }
-
-        private static bool IsIndexable(IMistType definition)
-        {
-            return definition.FullyQualifiedName is "Standard.Array<,>" or "Standard.Span<,>" or "Standard.ReadOnlySpan<,>";
         }
 
         private static ComparisonKind? Comparison(BinaryOperatorKind kind)

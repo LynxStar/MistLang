@@ -16,9 +16,9 @@ internal static class RefinementFindings
 
         if(onIndex is not null)
         {
-            if(Requirement.Constant(value) is { } index)
+            if(known.Intervals is [var only] && only.Low == only.High && !required.Values.Contains(only.Low))
             {
-                context.Report(ProgramAnalysisDiagnostics.IndexOutOfBounds, at.Node, [value, onIndex], index, target, predicate);
+                context.Report(ProgramAnalysisDiagnostics.IndexOutOfBounds, at.Node, [value, onIndex], only.Low, target, predicate);
             }
             else
             {
@@ -58,6 +58,8 @@ internal static class RefinementFindings
             FieldReferenceExpression field => field.Field.Name,
             ThisExpression => "this",
             MemberAccessExpression access => $"{Display(access.Receiver)}.{access.MemberName}",
+            LiteralExpression { Value: { } constant } => constant.ToString() ?? "",
+            UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset } => $"^{Display(offset)}",
             _ => TypeDisplay.Mist(expression.Type),
         };
     }

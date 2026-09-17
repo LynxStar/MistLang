@@ -146,8 +146,11 @@ public class Program
         int[] nums = [1, 2, 3, 4, 5];
         int[] evens = nums.Filter(x => x % 2 == 0);
         Console.WriteLine($"evens.Length={evens.Length}");
-        Console.WriteLine($"evens[0]={evens[0]}");
-        Console.WriteLine($"evens[1]={evens[1]}");
+        if (evens.Length > 1)
+        {
+            Console.WriteLine($"evens[0]={evens[0]}");
+            Console.WriteLine($"evens[1]={evens[1]}");
+        }
 
         // PROOF: Lambda passed to a C# ambient extension method (List<T>.ForEach)
         Console.WriteLine("--- C# Extension Method ---");

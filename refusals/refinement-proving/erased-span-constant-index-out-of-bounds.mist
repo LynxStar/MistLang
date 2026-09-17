@@ -1,0 +1,13 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        Span<int> b = stackalloc int[4];
+        // REFUSE: MIST_PA_INDEX_OUT_OF_BOUNDS
+        Console.WriteLine(b[9]);
+    }
+}

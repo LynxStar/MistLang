@@ -55,6 +55,11 @@ public class Program
     {
         Task<int>[] pending = [Compute(), Compute()];
         var values = await Task<int>.WhenAll(pending);
+        if (values.Length < 2)
+        {
+            return 0;
+        }
+
         return values[0] + values[1];
     }
 

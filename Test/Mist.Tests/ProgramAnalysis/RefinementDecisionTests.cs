@@ -246,8 +246,14 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("Console.WriteLine(items[^1]);")]
     [InlineData("var a = new int[3]; Console.WriteLine(a[^1] + a[^3]);")]
     [InlineData("var a = new int[3]; a[^1] = 1;")]
-    [InlineData("var a = new int[3]; var k = 9; Console.WriteLine(a[^k]);")]
+    [InlineData("var a = new int[3]; var k = 2; Console.WriteLine(a[^k]);")]
     [InlineData("var l = new Ledger(); Console.WriteLine(l[^1]);")]
+    [InlineData("Console.WriteLine(items[2]);")]
+    [InlineData("int[] a = new int[3]; a[2] = 1; Console.WriteLine(a[0]);")]
+    [InlineData("Standard.Span<int> b = stackalloc int[4]; b[3] = 1;")]
+    [InlineData("var a = [1, 2, 3, 4, 5]; var m = a[1..3]; Console.WriteLine(m[1]);")]
+    [InlineData("var a = [1, 2, 3, 4, 5]; if(a is [var f, .. var mid, var l]) { Console.WriteLine(mid[2]); }")]
+    [InlineData("Standard.Span<int> s = stackalloc int[4]; var t = s.Slice(1, 2); Console.WriteLine(t[1]);")]
     [InlineData("var a = new int[3]; if(x >= 0) { if(x < 3) { Console.WriteLine(a[x]); } }")]
     [InlineData("var d = [[1, 2], [3, 4]]; for(int i = 0; i < d.Length; i = i + 1) { Console.WriteLine(d[i][0]); }")]
     [InlineData("var d = [[1, 2], [3, 4]]; int s = 0; for(int i = 0; i < d.Length; i = i + 1) { for(int j = 0; j < d[i].Length; j = j + 1) { s = s + d[i][j]; } }")]
@@ -265,6 +271,16 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("readonly int[] items = new int[3]; public int Run() { int s = 0; for(int i = 0; i < items.Length; i = i + 1) { Log(); s = s + items[i]; } return s; } static void Log() { }")]
     [InlineData("readonly int[] items = new int[3]; public int Run(int i) { if(i >= 0 && i < items.Length) { var other = new Held(); return items[i]; } return 0; }")]
     public void AnIndexIntoAFieldHeldArrayTheFlowProves_IsAdmitted(string members)
+    {
+        AssertSilent("var held = new Held();", $"public class Held {{ {members} }}");
+    }
+
+    [Theory]
+    [InlineData("public static int First(int[] xs) { if(xs.Length > 0) { return xs[0]; } return 0; }")]
+    [InlineData("public static int Last(int[] xs) { if(xs.Length > 0) { return xs[^1]; } return 0; }")]
+    [InlineData("public static int Second(int[] xs) { if(xs.Length < 2) { return 0; } return xs[1]; }")]
+    [InlineData("public static int Pair(int[] xs) { if(2 <= xs.Length) { return xs[0] + xs[1]; } return 0; }")]
+    public void AnIndexALengthGuardProves_IsAdmitted(string members)
     {
         AssertSilent("var held = new Held();", $"public class Held {{ {members} }}");
     }

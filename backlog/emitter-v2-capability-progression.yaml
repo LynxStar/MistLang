@@ -4565,7 +4565,10 @@ capabilities:
       fail lookup -- pack folding at alias use sites belongs to the variadics layer, and no
       banked sample uses Func or Action at a use site. ExpandAlias substitutes only through
       constructions and unions (TypeSubstitution's arms), so a parameter reachable solely
-      through a tuple or refinement survives unsubstituted, as before.
+      through a tuple or refinement survives unsubstituted, as before. THE REFINEMENT HALF IS
+      CLOSED (2026-09-16): Apply descends into a RefinedType's base, and a generic refinement
+      alias expands through this same path -- the analysis register's order 5 holds what was
+      measured and what the prover then owes.
     unlocks: [TypeAliases]
 
   - id: newtype-declarations

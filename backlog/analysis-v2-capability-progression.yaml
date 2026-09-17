@@ -877,6 +877,75 @@ rules:
       recursed into unions (the `Take(K?)` row alone). The full suite -- 6252, 664 and 68 tests,
       AllFeaturesV2's baseline among them -- passed with no failure and no rerun, and the build and
       `dotnet format` were clean.
+
+      SUBSTITUTION REACHES A REFINEMENT'S BASE (2026-09-16), closing the task this order carried and the
+      false refusal it named. MEASURED at 5459049b on both pipelines, one project per probe, over 28
+      programs. Over `Keyed<K>` declaring `Ne(K key) where key not 18`, EVERY USE THROUGH A CLOSED
+      RECEIVER WAS MIST_PA_NO_IMPLICIT_CONVERSION ("'int' to 'K'") -- the method, the same `where` on an
+      indexer and on a constructor, a static `Keyed<int>.Ne`, an inherited `IntKeyed : Keyed<int>`, and a
+      named generic alias `type Ne<K> = K not 18` at `Ne<int> x = 3` -- where classic prints each, except
+      the alias, which classic refuses outright as MIST_NOT_GENERIC, and the inherited call, which it
+      cannot find at all. Each now runs. TypeSubstitution.Apply descends into a RefinedType as it does a
+      union or a tuple, which is also the residue emitter order 85 recorded for ExpandAlias, and the
+      alias path is the same Apply.
+
+      THE COPY SHARES THE DECLARATION'S PREDICATE CELL rather than copying it. The predicate is bound
+      once, by PredicateBinder, in the scope the refinement was written in and against the base declared
+      there, and PredicateBinder runs at Phase 3 while a substituted copy can be made earlier; a copy
+      taken before it would be empty forever. Reading the declaration's cell is also what keeps ONE
+      complaint about one mistake: `Comparability.Misordered` reads the predicate's NarrowedType, so a
+      relational `where` over K stays REFINEMENT_NOT_COMPARABLE at the declaration and silent at every
+      closed use -- `Ordered<int>().Ge(3)` and `Ordered<string>().Ge("x")` report nothing, where before
+      the silence was accidental, the unsubstituted parameter type simply not matching the argument.
+      The copy is NOT renamed: ConversionRelation.IsIdentity holds every RefinedType indeterminate, so
+      no rule compares refinements by qualified name and a name carrying the substituted base would have
+      been a branch nothing could prove. TypeDisplay shows a substituted refinement as its base, which
+      is what makes `Ne<string> named = counted;` read "'int' to 'string'" rather than "'Ne' to 'Ne'".
+
+      INFERENCE LOOKS THROUGH ONE TOO, the same rule at the other end: `Any.Ne(18)` over
+      `Ne<T>(T key) where key not 18` was MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED, the `where` being T's only
+      mention in the signature, and a refinement has exactly one base so the argument to learn is not in
+      doubt. It is now MIST_PA_CONSTRAINT_VIOLATED, which is classic's verdict (MIST_REFINEMENT_0005) on
+      the same program. Unions and tuples are still not matched there, having no single base to descend
+      to.
+
+      WHAT THE PROVER NOW OWES, and the one place this is stricter than classic. With `int{not 18}` in
+      hand, `Keyed<int>().Ne(18)` is CONSTRAINT_VIOLATED and an unproven local is CONSTRAINT_UNPROVEN,
+      where classic prints 2 for both -- but those are exactly classic's OWN verdicts on the written
+      `Ne(int key) where key not 18` (MIST_REFINEMENT_0005 for each), so the divergence is classic
+      failing to substitute, not a rule v2 invented. NO PROGRAM THAT COMPILED STOPS COMPILING: every
+      shape the gap touched was refused on v2 before, so the change only turns refusals into admits or
+      into a different refusal. This order still judges the substituted base first --
+      `Keyed<byte>().Ne(300)` is NO_IMPLICIT_CONVERSION, not a constraint finding.
+
+      UNCHANGED AND CHECKED: inside `Keyed<K>`'s own body the receiver is open, so the map binds K to
+      itself and Apply returns the parameter type by reference -- `Inner(K key) { return Ne(key); }` is
+      CONSTRAINT_UNPROVEN as it was, and as the written `Forward(int x) { return Twice(x); }` is on both
+      pipelines. Conformance is unaffected, SlotSignatures unwrapping a refinement before it compares;
+      `IKeyed<K>` with `int Ne(K key) where key not 18`, filled by `IntKeyed : IKeyed<int>`, runs on
+      both.
+
+      PROVED BY five corpus cases and eight rows. The cases are argument-violates-a-substituted-refinement,
+      argument-unproven-for-a-substituted-refinement and argument-violates-an-inferred-refinement in
+      refinement-proving, and constant-outside-a-substituted-refinement-base and
+      value-across-two-instantiations-of-a-refinement-alias here. The rows are five
+      AssignabilityDecisionTests rows leaving a substituted refinement to the prover (a call admitted, a
+      call the prover then refuses, a narrower base, and both halves of a generic alias), the fact that a
+      substituted refinement is named by its base in the message, six RefinementDecisionTests rows for
+      what the prover discharges through a closed receiver (a constant, a proven local, a narrowing, a
+      long instantiation, and inference with and without explicit type arguments), and two for the
+      relational `where` that stays silent at the closed receiver. Five mutations on a confirmed build,
+      each caught by what was written for it: Apply's arm removed (four corpus cases and five
+      assignability rows); the copy given its own predicate cell (the three prover cases, each reporting
+      NOTHING, which is the failure mode a sample cannot see); inference's arm removed
+      (argument-violates-an-inferred-refinement -- the admit row for the same call does NOT catch it,
+      MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED falling outside that file's id filter); the display arm
+      reverted (the naming fact alone); and Requirement.Of's Misordered guard removed (the two
+      suppression rows alone). A sixth, naming the copy after its substituted base, SURVIVED and was
+      dropped rather than kept unproven: it is IsIdentity's indeterminacy that separates two
+      instantiations, not the name. The full suite -- 6277, 664 and 68 tests, AllFeaturesV2's and
+      AllFeatures' baselines among them -- passed with no failure and no rerun, and the build and
+      `dotnet format` were clean.
     tasks:
       - >
         A value that could enter a union through two constituents neither containing the other is emitted
@@ -902,14 +971,6 @@ rules:
         use of the pair binds the first, OverloadResolution binding a tie whose candidates render alike:
         `string s = t[1]` over `int this[int i]` and `string this[int j]` is NO_IMPLICIT_CONVERSION on v2,
         beside classic's two TC_0029 and a TC_0001.
-      - >
-        A refinement whose base is a type parameter is not substituted, so a valid call through a closed
-        receiver is refused. Measured 2026-09-15 over `Keyed<K>` declaring `Ne(K key) where key not 18`:
-        `new Keyed<int>().Ne(3)` is MIST_PA_NO_IMPLICIT_CONVERSION ("'int' to 'K'") on v2 and prints 2 on
-        classic. TypeSubstitution descends through constructions, unions, tuples and function types but not
-        a RefinedType, which is emitter order 85's residue. Order 6 refuses the relational form of the same
-        declaration (MIST_PA_REFINEMENT_NOT_COMPARABLE) and silences its uses; an equality predicate is valid
-        and still reaches this.
       - >
         A collection-initializer element is not judged against the Add overload the binder selected.
       - >
@@ -1146,6 +1207,19 @@ rules:
         A top-level type declared `private` or `protected` is not refused here; since emitter order 40
         spells every level, Roslyn refuses it as CS1527, which is what classic does with it too. The
         frontend owning the rule is a decision.
+      - >
+        An equality refinement predicate whose constant cannot belong to the base is admitted at the
+        declaration and can then be discharged by nobody, so every use is refused instead -- the sibling
+        of the relational rule this order already holds, missing its half. Measured 2026-09-16 on both
+        pipelines: `Ne(string key) where key not 18` is admitted at the declaration on v2 and on classic,
+        and `Ne("x")` is MIST_PA_CONSTRAINT_UNPROVEN on v2 where classic prints. The same shape reached
+        through substitution behaves identically -- `Keyed<string>().Ne("x")` over `Ne(K key) where key
+        not 18` -- so this is one gap at the declaration, not two at the uses. Requirement.Of reads the
+        constant and Known reads nothing integral off a string, so Everything is not a subset of the
+        admitted set and the prover reports. Adhoc-refinement-constraints Requirement 11.6 names the
+        types a constant pattern is accepted on; refusing the constant against the base at the
+        declaration would silence every use through Comparability.IsRefused, as the relational form
+        already is.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance

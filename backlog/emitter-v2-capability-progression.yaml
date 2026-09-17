@@ -11162,9 +11162,9 @@ samples:
         `ledger[^1]` and a nine-element list pattern each reached position 8 over `where entry >= 0 and < 3`
         with no diagnostic. Ledger's Count is its array's Length, which is why this sample's run is sound.
         A from-end index into a receiver whose length IS a number is proven since 2026-09-15 (analysis order
-        12): `a[^9]` over `new int[3]` is refused. Ledger's Count is a property body, so `ledger[^1]` is
-        unproven for the same reason every index into a length-erased receiver is, which is that order's
-        remaining task.
+        12): `a[^9]` over `new int[3]` is refused. An index into a USER indexer through `^` is not judged at
+        all -- Ledger's Count is a property body the flow cannot relate to the `where` -- which is that
+        order's task.
       - >
         Only `Keyed<string>` is reached. At `Keyed<int>` its two indexers close to one signature and the
         index is refused as ambiguous, a decision recorded on analysis order 5. Keyed's `this[K key]` ignores

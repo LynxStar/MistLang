@@ -2278,6 +2278,55 @@ rules:
       symbolic requirements NeedIndex builds are a re-derivation of it. The model drops that slot twice:
       IndexBinder returns before selection for an array element access, and records no ParameterType for an
       intrinsic indexer. Recording it would let the array arms of this rule delete rather than grow.
+
+      THE WAIVER IS GONE AND THE FLOW CARRIES LENGTHS (2026-09-16). The waiver was a soundness bug, not a
+      trade-off: Satisfied skipped every symbolic bound for a constant, so `ArrayBounds`'s `< Length` was
+      never asked of `numbers[5]`. It is deleted. What it had been hiding was measured before anything else
+      changed: 62 unproven indices in AllFeaturesV2. The fix for those is the flow, because the TYPE of each
+      receiver had dropped a length its origin states and nothing since has changed. Knowledge carries a
+      Length interval per local. Given sets it from what the initializer says (Lengths.Of): a sized
+      creation, a stackalloc, an array literal, a string literal, a slice by constant bounds, `Slice`,
+      `AsSpan`, `ToArray`, `ToCharArray`, a one-argument `new Span`, and a copy. A comparison on `x.Length`
+      narrows it on each path (Sized), and a list pattern narrows its scrutinee and gives its slice binding
+      the length less the fixed elements (Sliced). NeedIndex proves against the typed length, else the
+      flow's: an exact length asks an interval, a range of lengths asks what its shortest admits, and the symbolic
+      `< Length` bound still counts beside either. A from-end index enters as knowledge -- the length
+      shifted by k, and below Length whenever k is at least one (Reaching) -- so `if (xs.Length > 0)
+      { xs[^1] }` proves and nothing in the rule learns what `^` means. An index into an unknown length
+      with no holder was not asked at all; it is now unproven. A finding says OUT_OF_BOUNDS only for a
+      single value outside the interval, and INDEX_UNPROVEN otherwise: with the waiver gone a constant can
+      be merely unproven, and "Index 0 is outside the bounds of 'xs'" was false.
+
+      MEASURED, in order: flow lengths took the 62 to 8, the Length guard to 7 (TopLevelStatements'
+      guarded `args[0]`), string length to 5 (RefStructs' `chars`), and the slice binding to 4
+      (RangesAndIndices' `middle`). The 4 left were genuinely unproven, and the samples were guarded with
+      their owner's agreement, stdout unchanged: FirstClassFunctions' `evens[0]` and `evens[1]` after
+      `nums.Filter(...)`, and StandardSurface's `values[0] + values[1]` after `Task<int>.WhenAll(...)`.
+      AllFeaturesV2 then reports nothing and is byte-identical, and so is AllFeatures on classic. Classic
+      admits `int[] a = new int[3]; a[5]` and `Span<int> b = stackalloc int[4]; b[9]`, both of which throw;
+      v2 refuses both, stricter than classic by this entry's own rule. One corpus case for another rule had
+      the same defect in its fixture: ownership-borrow-checking/readonly-method-writes-through-index wrote
+      `cells[0]` into a field of unknown length, and now writes under a loop bound so it holds one
+      complaint.
+
+      PROVED BY six corpus cases -- erased-array-constant-index-out-of-bounds,
+      erased-span-constant-index-out-of-bounds, slice-constant-index-out-of-bounds,
+      unguarded-constant-index-into-parameter, unguarded-from-end-index-into-parameter and
+      index-past-a-length-guard -- six statement rows and a Length-guard theory of four member rows in
+      RefinementDecisionTests, and the `var k` row moved from 9, which is now refused, to 2, which the
+      flow proves. The probe shell registers Standard shells only, so `ToCharArray` is held by
+      RefStructs in AllFeaturesV2 rather than by a row, and `Span` is written qualified or it binds to
+      an error type and the row passes for nothing. Five mutations on a confirmed build, each caught:
+      the waiver restored fails the two cases written for it and, since the symbolic check now runs
+      first, the exact-length cases beside them; no flow length fails ten rows and three cases; no
+      Length guard fails the four guard rows; no slice length fails the slice binding row; and a
+      from-end index never below Length fails the guarded `xs[^1]` row. RefinementAnalyzer reached 709
+      lines, so what is known of a length moved to Lengths with the helpers the analyzer had
+      duplicated (KnownLength, IsIndexable, Single, Shortest); that also stopped Typed reading a
+      length off a user type whose second argument is a dependent value. The spec proof code in
+      first-class-functions follows the guarded sample. The full suite -- 6249, 664 and 68 tests, both
+      orchestrator baselines among them -- passed on the second run; the first failed only
+      SpecProofCodeMatchesSampleTest, consistently, before the spec followed.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -2307,22 +2356,25 @@ rules:
         classic and silent on v2. PredicateBinder finds predicates by walking types, and an extension block
         is not one, so its predicate is never bound for order 6 or this order to read.
       - >
-        A LENGTH IS ERASED IN THREE PLACES, and until it is carried no index rule can be total: a slice's
-        result type (`numbers[1..3]` has a constant length and ConstructArray is given none), Span, and an
-        array whose declared type drops the size where `var` keeps it. Carrying them is what lets the
-        constant waiver in Satisfied go, closing `int[] numbers = [1, 2, 3]; numbers[5]`, and what lets the
-        array arms here be replaced by the slot Array.mist already declares. The 64 sites the strict
-        reading refuses today are all of this kind, and an array returned from a method is the one family
-        that stays genuinely unprovable and wants a guard at the call site, as Iterators and Attributes
-        took one.
+        A length is known only for a LOCAL. The lattice is keyed by local, so `if (cells.Length > 0)
+        { cells[0] }` over a field is unproven (the readonly corpus fixture moved to a loop bound for this
+        reason), and a field would need forgetting across calls as the field bounds above already have. An
+        array returned from a method is unknown by design and wants a guard, as FirstClassFunctions and
+        StandardSurface took one. Lengths.Of names the CLR members it follows (`AsSpan`, `ToArray`,
+        `ToCharArray`, `Slice`); any other member's result is unknown.
       - >
         A list pattern's positional element is judged by nothing, because it is not an expression: the
         binder asks Indexability.ElementType for a TYPE and builds no IndexExpression, so the shared walk
-        sees no index to prove. Over a Count of 9 and `where entry >= 0 and < 3`, `ledger is [_, _, _, _,
-        _, _, _, _, var last]` is silent. The element must become something the walk can see before the one
-        rule can reach it.
+        sees no index to prove. For an array or a span the pattern's own length test guards it at runtime;
+        for a user type whose indexer carries a `where`, over a Count of 9 and `where entry >= 0 and < 3`,
+        `ledger is [_, _, _, _, _, _, _, _, var last]` is silent. The element must become something the
+        walk can see before the one rule can reach it.
       - >
-        A non-constant from-end offset is not proven: `var k = 9; a[^k]` substitutes nothing, where the
-        flow knows k. Its silence is pinned by a decision row only, a row asserting silence being unable to
-        catch a mutation that produces silence.
+        A from-end index into a USER indexer is not judged: IndexBinder records no ParameterType for an
+        Index, and a user type's Count is a property body the flow cannot relate to the indexer's `where`.
+        `ledger[^1]` in samples/OverloadedIndexers is silent for this reason, sound only because its Count
+        is its array's Length.
+      - >
+        A from-end offset the flow knows only as a range, not a single value, is unproven; an interval
+        offset would need interval subtraction the prover does not have.
 

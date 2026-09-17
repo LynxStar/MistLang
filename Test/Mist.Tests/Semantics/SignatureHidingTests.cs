@@ -174,8 +174,10 @@ public sealed class SignatureHidingTests : ProgramModelProbe
     }
 
     [Fact]
-    public void OverloadsAReceiversArgumentMakesIdentical_StayAmbiguous()
+    public void OverloadsAReceiversArgumentMakesIdentical_AreNotRepeats()
     {
-        _ = Assert.Single(Errors(BuildRun("var chosen = new Keyed<int>().Take(3);"), AmbiguousId));
+        var invocation = InitializerOf<InvocationExpression>("var chosen = new Keyed<int>().Take(3);");
+
+        Assert.Equal("i", invocation.Method?.ParametersList[0].Name);
     }
 }

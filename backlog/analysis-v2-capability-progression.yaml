@@ -1196,16 +1196,16 @@ rules:
       and fails in Roslyn on v2 with the rule silenced. Its constituents are sorted by qualified name,
       which puts M after A and before Z.
 
-      NOT DUPLICATES, running on both pipelines: `ref int` beside `int`; `Take<T, U>(T, U)` beside
-      `Take<T, U>(U, T)`; `Pair<A, B>` declaring `Take(A)` and `Take(B)`; `Box<T>` declaring `Take(T)` and
+      NOT DUPLICATES, running on both pipelines: `ref int` beside `int`; `Take<T, U>(T, U)` beside `Take<T,
+      U>(U, T)`; `Pair<A, B>` declaring `Take(A)` and `Take(B)`; `Box<T>` declaring `Take(T)` and
       `Take<U>(U)`; `Keyed<K>` declaring `Take(K)` and `Take(int)`, which collide only as Keyed<int>, where
-      a call is order 5's ambiguity; a newtype beside its source; `int?` beside `int`. THREE DIVERGENCES,
-      each more permissive than classic and each compiling in C#: `Take<T>(int)` beside `Take(int)` is
-      SM_0020 on classic, but the count of a member's own type parameters is part of its signature;
-      `Box<T>` declaring `Take<T>(T)` and `Take<U>(T)` is SM_0020 on classic, but the method's T is not the
-      type's; and `Take(Left.Widget)` beside `Take(Right.Widget)`, or `Box<Left.Widget>` beside
-      `Box<Right.Widget>`, with the Widgets nested or in two namespaces, which classic cannot resolve and v2
-      runs.
+      a call selects the written `Take(int)` by order 5's tiebreak (deab94d1); a newtype beside its source;
+      `int?` beside `int`. THREE DIVERGENCES, each more permissive than classic and each compiling in C#:
+      `Take<T>(int)` beside `Take(int)` is SM_0020 on classic, but the count of a member's own type
+      parameters is part of its signature; `Box<T>` declaring `Take<T>(T)` and `Take<U>(T)` is SM_0020 on
+      classic, but the method's T is not the type's; and `Take(Left.Widget)` beside `Take(Right.Widget)`, or
+      `Box<Left.Widget>` beside `Box<Right.Widget>`, with the Widgets nested or in two namespaces, which
+      classic cannot resolve and v2 runs.
 
       THE HOME IS THIS ORDER, not the binder. Both declarations are representable and emittable, so refusing
       them judges a finished model, which is Stage 5's however early classic reports it;
@@ -1235,42 +1235,44 @@ rules:
       `Take(ref int)`, `d.Take(x)` bound the by-ref member and printed `derived-ref` where classic prints
       `base`, a wrong answer with no diagnostic; over a base's `Take(Left.Widget)` and a derived
       `Take(Right.Widget)`, `d.Take(new Left.Widget())` was refused as MIST_PA_NO_IMPLICIT_CONVERSION
-      ("'Widget' to 'Widget'"); and over a base's `Take(int)` and a derived `Take(Positive)` with
-      `Positive = int > 0`, `d.Take(-5)` printed `derived`, the refinement never judged, where classic refuses
-      the call as ambiguous (TC_0032). The first two now print `base` and `derived-ref`, and `left` and
-      `right`; classic runs the first and cannot resolve the second's qualified types, and refuses a
-      same-signature redeclaration outright as MIST_MEMBER_REDECLARATION. The third is now refused at its
-      declaration by the redeclaration rule below, a refinement reading as its base. A LATER REPEAT ON ONE TYPE IS HIDDEN BY
-      THE FIRST, so a use binds the declaration this order leaves standing: `Sink.Take(1)` over `Take<T>(T)`
-      and `Take<U>(U)` was MIST_PM_AMBIGUOUS_OVERLOAD, and nothing at the declarations, which is classic's
-      TC_0032; it is now the duplicate alone. A use is judged against that first declaration, so `string s =
-      t[1]` over `int this[int i]` and `string this[int j]` is still NO_IMPLICIT_CONVERSION beside the
-      duplicate: the verdict the use keeps once the refused declaration is deleted, and classic's TC_0001
-      beside its two TC_0029. Only a member declared in Mist source repeats one, so no pair of projected CLR
-      overloads is hidden this way.
+      ("'Widget' to 'Widget'"); and over a base's `Take(int)` and a derived `Take(Positive)` with `Positive
+      = int > 0`, `d.Take(-5)` printed `derived`, the refinement never judged, where classic refuses the
+      call as ambiguous (TC_0032). The first two now print `base` and `derived-ref`, and `left` and `right`;
+      classic runs the first and cannot resolve the second's qualified types, and refuses a same-signature
+      redeclaration outright as MIST_MEMBER_REDECLARATION. The third is now refused at its declaration by
+      the redeclaration rule below, a refinement reading as its base. A LATER REPEAT ON ONE TYPE IS HIDDEN
+      BY THE FIRST, so a use binds the declaration this order leaves standing: `Sink.Take(1)` over
+      `Take<T>(T)` and `Take<U>(U)` was MIST_PM_AMBIGUOUS_OVERLOAD, and nothing at the declarations, which
+      is classic's TC_0032; it is now the duplicate alone. A use is judged against that first declaration,
+      so `string s = t[1]` over `int this[int i]` and `string this[int j]` is still NO_IMPLICIT_CONVERSION
+      beside the duplicate: the verdict the use keeps once the refused declaration is deleted, and classic's
+      TC_0001 beside its two TC_0029. Only a member declared in Mist source repeats one, so no pair of
+      projected CLR overloads is hidden this way.
 
       PROVED BY 15 corpus cases, one per refused shape: a method's signature, return type only, static
-      against instance, three declarations, a generic, a generic over a union its type parameter sorts
-      into, a refinement beside its base, `readonly ref` beside `ref`, ownership, `params`, tuple element
-      names, two spellings of an optional, an abstract's method, a constructor and an indexer. DeclarationShapeDecisionTests holds 13 differing pairs silent, and
-      Keyed<int>'s collision, a redeclared inherited signature, and pairs over `Nothing` and `Box<Nothing>`.
-      SignatureHidingTests holds the six hiding verdicts, the repeat binding its first, and Keyed<int>'s
-      call staying ambiguous. Twenty mutations on a confirmed build, each caught by the case or row named
-      for it: the rule silenced, every corpus case, each then reaching Roslyn; the return type made part of
-      the signature, the return-type case; passing dropped, the ref and constructor-ref rows and
-      `derived.ByRef(x)`; the type-parameter count dropped, the `Take<T>(int)` row; a member's own type
-      parameter read by its qualified name, which is its declaring type's, the two generic cases, the
-      Shadow row and the repeat binding its first;
-      every type parameter read by its ordinal, the Shadow row; the refinement kept, the refinement case and
-      `derived.Refined(5)`; a declared type read by its simple name, the Widget rows and
-      `derived.Nested(new Left.Widget())`; a construction read by its qualified name whole, the
-      `Box<Widget>` and `Box<Nothing>` rows; the report moved to the first declaration, every corpus case;
-      hiding keyed on TypeDisplay again, three hiding rows; the repeat on one type not hidden, the repeat
-      row; the repeat judged on the closed signature, Keyed<int>'s ambiguity; an unresolved type given an
-      identity, both `Nothing` rows; methods not grouped by name, 45 rows over the shared fixtures; and
-      constructors, indexers, abstracts, the union's re-sort and a tuple's names each dropped in turn, their
-      own case. The union case was added when that mutation survived the first run, since no case reached a
-      union ordered by its type parameter's name.
+      against instance, three declarations, a generic, a generic over a union its type parameter sorts into,
+      a refinement beside its base, `readonly ref` beside `ref`, ownership, `params`, tuple element names,
+      two spellings of an optional, an abstract's method, a constructor and an indexer.
+      DeclarationShapeDecisionTests holds 13 differing pairs silent, and Keyed<int>'s collision and pairs
+      over `Nothing` and `Box<Nothing>`. SignatureHidingTests holds the six hiding verdicts, the repeat
+      binding its first, and Keyed<int>'s call selecting its written `Take(int)` -- a repeat is judged on
+      DECLARED signatures, and that pair only coincides once closed. Twenty mutations on a confirmed build,
+      each caught by the case or row named for it: the rule silenced, every corpus case, each then reaching
+      Roslyn; the return type made part of the signature, the return-type case; passing dropped, the ref and
+      constructor-ref rows and `derived.ByRef(x)`; the type-parameter count dropped, the `Take<T>(int)` row;
+      a member's own type parameter read by its qualified name, which is its declaring type's, the two
+      generic cases, the Shadow row and the repeat binding its first; every type parameter read by its
+      ordinal, the Shadow row; the refinement kept, the refinement case and `derived.Refined(5)`; a declared
+      type read by its simple name, the Widget rows and `derived.Nested(new Left.Widget())`; a construction
+      read by its qualified name whole, the `Box<Widget>` and `Box<Nothing>` rows; the report moved to the
+      first declaration, every corpus case; hiding keyed on TypeDisplay again, three hiding rows; the repeat
+      on one type not hidden, the repeat row; the repeat judged on the closed signature, the Keyed<int> row,
+      which asserted an ambiguity until the rebase onto order 5's written-parameter tiebreak and now asserts
+      the written overload, re-run and caught again; an unresolved type given an identity, both `Nothing`
+      rows; methods not grouped by name, 45 rows over the shared fixtures; and constructors, indexers,
+      abstracts, the union's re-sort and a tuple's names each dropped in turn, their own case. The union
+      case was added when that mutation survived the first run, since no case reached a union ordered by its
+      type parameter's name.
 
       NOTHING MAY HIDE AN INHERITED MEMBER (2026-09-15), as MIST_PA_MEMBER_REDECLARATION at the derived
       declaration, carrying classic's message. Arthur's decision -- "overloads in derived types against

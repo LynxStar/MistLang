@@ -72,6 +72,12 @@ internal static class PatternBinder
             return BindUnary(node.Left, scrutineeType, bindingsPermitted, ctx, context);
         }
 
+        return BindConjunction(node, GrammarRepetition.LeadAndRepeated(node.Left, node.UnaryPatterns), scrutineeType, bindingsPermitted, ctx, context);
+    }
+
+    private static Pattern? BindConjunction(
+        SyntaxNode node, List<UnaryPatternNode> unaryPatterns, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context)
+    {
         var operands = new List<Pattern>();
         var narrowed = scrutineeType;
 
@@ -79,7 +85,7 @@ internal static class PatternBinder
         // binds d as Dog. C# narrows a conjunction's input the same way, and emission hands the pattern
         // straight to it -- typing d against the wider type here would put the model at odds with the C#
         // it produced.
-        foreach(var operand in GrammarRepetition.LeadAndRepeated(node.Left, node.UnaryPatterns))
+        foreach(var operand in unaryPatterns)
         {
             if(BindUnary(operand, narrowed, bindingsPermitted, ctx, context) is not { } bound)
             {
@@ -237,16 +243,14 @@ internal static class PatternBinder
             return bound;
         }
 
-        var predicate = refined.PredicateNode switch
+        return refined.PredicateNode switch
         {
-            SimpleRefinementPredicateRefinementPredicateNode simple => simple.Predicate,
-            AndPatternNode adhoc => adhoc,
+            SimpleRefinementPredicateRefinementPredicateNode simple => BindAnd(simple.Predicate, refined.BaseType, bindingsPermitted: false, ctx, context),
+            AndPatternNode adhoc => BindAnd(adhoc, refined.BaseType, bindingsPermitted: false, ctx, context),
+            CompoundRefinementPredicateRefinementPredicateNode compound => BindConjunction(
+                compound, GrammarRepetition.LeadAndRepeated(compound.First, compound.UnaryPatterns), refined.BaseType, bindingsPermitted: false, ctx, context),
             _ => null,
         };
-
-        return predicate is null
-            ? null
-            : BindAnd(predicate, refined.BaseType, bindingsPermitted: false, ctx, context);
     }
 
     internal static Pattern? BindPredicate(AndPatternNode predicate, IMistType baseType, BindingContext ctx, BuilderContext context)

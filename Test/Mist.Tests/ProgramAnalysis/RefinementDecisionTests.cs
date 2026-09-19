@@ -395,6 +395,14 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("Senior s = 70;", "type Adult = int >= 18; type Senior = Adult and >= 65;")]
+    [InlineData("int Half(int n) where n >= 0 and <= 10 { return n / 2; } var h = Half(8);", "")]
+    public void APredicateTheBinderUsedToDrop_IsProvenWhereItHolds(string statement, string extraTypes)
+    {
+        AssertSilent(statement, extraTypes);
+    }
+
+    [Theory]
     [InlineData("AdultAge a = 7; AdultAge b = 7;")]
     [InlineData("var a = new int[3]; Console.WriteLine(a[5] + a[5]);")]
     [InlineData("Console.WriteLine(Helpers.Twice(3) + Helpers.Twice(3));")]

@@ -68,7 +68,7 @@ internal static class RefinementFindings
 
     private static long? Violating(Expression value, Admitted known, Requirement required)
     {
-        return Requirement.Constant(value) ?? (Lengths.Exact(known) is { } only && !required.Values.Contains(only) ? only : null);
+        return (Requirement.Constant(value) ?? Lengths.Exact(known)) is { } only && !required.Values.Contains(only) ? only : null;
     }
 
     public static string Display(Expression expression)

@@ -1,0 +1,29 @@
+using Standard;
+
+namespace Refusal;
+
+public class Ledger
+{
+    private int[3] entries = new int[3];
+
+    public int Count
+    {
+        get { return entries.Length; }
+    }
+
+    public int this[int entry] where entry >= 0 and < this.Count
+    {
+        get { return entries[0]; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var ledger = new Ledger();
+        // REFUSE: MIST_PA_CONSTRAINT_UNPROVEN
+        int first = ledger[1];
+        Console.WriteLine(first);
+    }
+}

@@ -69,7 +69,7 @@ internal static class PredicateBinder
         }
     }
 
-    private static void BindParameters(IEnumerable<Parameter> parameters, Scope scope, BuilderContext context)
+    public static void BindParameters(IEnumerable<Parameter> parameters, Scope scope, BuilderContext context)
     {
         foreach(var parameter in parameters)
         {

@@ -176,7 +176,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression call }:
-                    NeedArguments(state, call.Arguments, call.ParameterTypes, call.Method?.ParametersList);
+                    NeedArguments(state, call.Arguments, call.ParameterTypes, call.Method?.ParametersList, (call.Receiver as MemberAccessExpression)?.Receiver);
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: NewExpression construction }:
@@ -195,7 +195,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         public void NeedArguments(
             ImmutableDictionary<object, Knowledge> state, IReadOnlyList<Expression> arguments,
-            IReadOnlyList<IMistType>? parameterTypes, IReadOnlyList<Parameter>? parameters)
+            IReadOnlyList<IMistType>? parameterTypes, IReadOnlyList<Parameter>? parameters, Expression? receiver = null)
         {
             if(parameterTypes is null)
             {
@@ -216,7 +216,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     continue;
                 }
 
-                Need(state, arguments[i], parameterTypes[i], arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]));
+                Need(state, arguments[i], parameterTypes[i], arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]), measured: Measured(receiver));
             }
         }
 
@@ -293,7 +293,8 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         }
 
         private void Need(
-            ImmutableDictionary<object, Knowledge> state, Expression value, IMistType target, Expression at, string? onConstraint = null)
+            ImmutableDictionary<object, Knowledge> state, Expression value, IMistType target, Expression at, string? onConstraint = null,
+            Expression? measured = null)
         {
             if(value.Type is ErrorType)
             {
@@ -309,15 +310,16 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             if(onConstraint is not null && Requirement.IsAnonymous(target) && Requirement.OfType(target) is { } constrained)
             {
-                Need(state, value, constrained, at, onConstraint);
+                Need(state, value, constrained, at, onConstraint, measured: measured);
                 return;
             }
 
             var known = Known(state, value);
 
-            if(!AnySatisfied(known, considered))
+            if(!AnySatisfied(known, considered, measured, Length(state, measured)))
             {
-                RefinementFindings.Report(context, known.Values, value, Requirement.OfType(considered[0])!, TypeDisplay.Mist(target), at, onConstraint: null);
+                RefinementFindings.Report(
+                    context, known.Values, value, Stated(Requirement.OfType(considered[0])!, Length(state, measured)), TypeDisplay.Mist(target), at, onConstraint: null);
             }
         }
 
@@ -377,14 +379,14 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 .ToList();
         }
 
-        private static bool AnySatisfied(Knowledge known, List<IMistType> considered)
+        private static bool AnySatisfied(Knowledge known, List<IMistType> considered, Expression? measured = null, Admitted? length = null)
         {
-            return considered.Any(constituent => Requirement.OfType(constituent) is not { } required || Satisfied(known, required, onIndex: null));
+            return considered.Any(constituent => Requirement.OfType(constituent) is not { } required || Satisfied(known, required, measured, length));
         }
 
         private void Need(
             ImmutableDictionary<object, Knowledge> state, Expression value, Requirement required, Expression at,
-            string? onConstraint = null, Expression? onIndex = null)
+            string? onConstraint = null, Expression? onIndex = null, Expression? measured = null)
         {
             if(value.Type is ErrorType)
             {
@@ -393,9 +395,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             var known = Known(state, value);
 
-            if(!Satisfied(known, required, onIndex))
+            if(!Satisfied(known, required, onIndex ?? measured, Length(state, measured)))
             {
-                RefinementFindings.Report(context, known.Values, value, required, onIndex is { } receiver ? RefinementFindings.Display(receiver) : "", at, onConstraint, onIndex);
+                RefinementFindings.Report(
+                    context, known.Values, value, Stated(required, Length(state, measured)), onIndex is { } receiver ? RefinementFindings.Display(receiver) : "", at,
+                    onConstraint, onIndex);
             }
         }
 
@@ -409,7 +413,30 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             RefinementFindings.Report(context, known.Values, value, required, RefinementFindings.Display(onIndex), value, onConstraint: null, onIndex);
         }
 
-        private static bool Satisfied(Knowledge known, Requirement required, Expression? onIndex)
+        private static Expression? Measured(Expression? receiver)
+        {
+            var receiverType = receiver?.Type is TypeAlias { AliasedType: { } aliased } ? aliased : receiver?.Type;
+
+            return receiverType is ConstructedType { Definition: var definition, TypeArguments.Count: 2 } && Lengths.IsIndexable(definition)
+                ? receiver
+                : null
+                ;
+        }
+
+        private static Admitted? Length(ImmutableDictionary<object, Knowledge> state, Expression? measured)
+        {
+            return measured is null ? null : Lengths.Typed(measured.Type) ?? RefinementFlow.Held(state, measured);
+        }
+
+        private static Requirement Stated(Requirement required, Admitted? length)
+        {
+            return Lengths.Exact(length) is { } exact && required.Bounds.Any(bound => bound is { Name: "Length", Kind: ComparisonKind.LessThan })
+                ? new Requirement(required.Values.And(Admitted.Below(exact)), [.. required.Bounds.Where(bound => bound is not { Name: "Length", Kind: ComparisonKind.LessThan })])
+                : required
+                ;
+        }
+
+        private static bool Satisfied(Knowledge known, Requirement required, Expression? onIndex, Admitted? length = null)
         {
             if(!known.Values.IsSubsetOf(required.Values))
             {
@@ -418,6 +445,12 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             foreach(var bound in required.Bounds)
             {
+                if(bound is { Name: "Length", Kind: ComparisonKind.LessThan } && Lengths.Shortest(length) is { } shortest
+                    && known.Values.IsSubsetOf(Admitted.Below(shortest)))
+                {
+                    continue;
+                }
+
                 if(RefinementFlow.Holder(onIndex) is not { } holder || !known.Bounds.Contains(new Bound(holder, bound.Kind)))
                 {
                     return false;

@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        Span<int> buffer = stackalloc int[4];
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        var tail = buffer.Slice(9, 1);
+        Console.WriteLine(tail.Length);
+    }
+}

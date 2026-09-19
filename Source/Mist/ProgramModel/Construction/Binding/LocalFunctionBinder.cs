@@ -68,6 +68,7 @@ internal static class LocalFunctionBinder
         {
             new ConstraintResolver(context, context.Resolver)
                 .Resolve(node.Constraints, function.TypeParametersList, function.ParametersList, ctx.Scope);
+            PredicateBinder.BindParameters(function.ParametersList, ctx.Scope, context);
         }
 
         return function;

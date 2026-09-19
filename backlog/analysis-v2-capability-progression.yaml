@@ -1076,35 +1076,6 @@ rules:
       - >
         A CLR `System.Object` parameter or local is not a top type to the classifier; invisible today
         only because every CLR-projected callee is skipped.
-    tasks:
-      - >
-        A value that could enter a union through two constituents neither containing the other is emitted
-        and left to Roslyn. Measured 2026-09-14: `byte small = 2; short | ushort u = small;` fails in Roslyn
-        on v2 and on classic (ambiguous user-defined conversions on Union_Int16_UInt16). `byte | sbyte u = 2;`
-        fails the same way on both, and `sbyte | byte | void u = 2;` on v2 (classic cannot emit a void
-        constituent there); v2 refused both as NO_IMPLICIT_CONVERSION, for the wrong reason, until a constant
-        could reach a constituent. `byte | short u = 2;` enters byte on both, byte being within short. By the rule calls and conversions share -- between integral types neither containing
-        the other there is no preference -- this is an ambiguity at the Mist source, and it wants a
-        diagnostic of its own; which, and whether union entry follows the call rule at all, is a decision.
-      - >
-        CLR optional parameters are not representable, so arity can select an overload Roslyn will not;
-        until they are, no argument to a CLR-projected member is judged, and the `UseNpgsql` call in
-        samples/CSharpInteropV2 is the case to prove it on. An index into a CLR-projected indexer is not
-        judged either: `d[1]` over `Dictionary<string, int>` reaches Roslyn (measured 2026-09-15).
-      - >
-        A collection-initializer element is not judged against the Add overload the binder selected.
-      - >
-        Arithmetic whose operands are not both primitives keeps the left operand's type, so `int x = money
-        * 2` with a user operator returning something else is a false negative, never a false positive.
-      - >
-        A return with a value in a void method, and a top-level `return 0`, carry a void target and are
-        skipped here; order 6 owns the declaration-shape refusal.
-      - >
-        `int c = opt ?? o3` is refused at the local, since the link is now optional; classic blamed the
-        right operand. Same verdict, different line.
-      - >
-        A CLR `System.Object` parameter or local is not a top type to the classifier; invisible today
-        only because every CLR-projected callee is skipped.
 
 # ===================================================================
 # Orders 6 onward -- the typechecker proper, expanded when reached.
@@ -1500,7 +1471,54 @@ rules:
       MEASURED: the full suite -- 6263, 664 and 68 tests, passing with no failure and no rerun -- with
       AllFeaturesV2's baseline among them, so no banked sample or Standard declaration reports a duplicate
       or a redeclaration and no banked program's output moved, and the build and `dotnet format` were clean.
+
+      A REFINEMENT PREDICATE READS ONLY READONLY MEMBERS (2026-09-19; refinement-types Requirement 3).
+      MEASURED at 84f70426 on both pipelines, declarations probed apart from their uses, classic gating its
+      checker on a member it cannot resolve through the refined local. `type Low = Jar { Size: < 3 }` over
+      `Size { get; set; }` was declared without complaint on v2, and `if (jar is Low low) { low.Size = 9; }`
+      then printed 9 through a value typed `< 3`; the same over a mutable field, a `private set`, and a
+      member one level down (`{ Top: { Width: < 3 } }`). CLASSIC refuses each at the member's name
+      (MIST_TC_0100) -- any setter, `init` included, and any field not `readonly`; at any depth; in a union
+      constituent, a conjunction and a negation -- and admits a get-only property and a readonly field. v2
+      now gives the same verdict at the same line and column, as MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER,
+      once per member. PropertySubpattern records the member its name resolved to, and the node, because the
+      rule cannot re-derive either; CheckPredicate, which every predicate already passes through, walks
+      them.
+
+      STRICTER THAN CLASSIC TWICE, both by the letter of Requirement 3. A parameter's
+      `where jar { Size: < 3 }` is refused, a `where` being an anonymous refinement and the rule one rule;
+      classic declares it. And a parenthesized disjunction -- `Jar ({ Size: < 3 } or { Weight: > 10 })`, the
+      only form of `or` the grammar takes there -- is walked, where classic declares it over two settable
+      properties. AS CLASSIC, AND DELIBERATELY: `init` is a setter and refuses, though nothing can call it
+      after construction, so admitting it would be sound -- the simpler rule until someone wants it. A use
+      of the refused type is still judged, being a second mistake and not an echo: `Low l = new Jar(1)` is
+      UNPROVEN whether or not `Size` can be written.
+
+      PROVED BY nine corpus cases -- refinement-over-a-settable-property (which narrows and writes, and
+      reports once), -a-mutable-field, -an-init-only-property, -a-nested-mutable-member,
+      -a-mutable-member-in-a-union-constituent, -in-a-conjunction, -in-a-disjunction and -in-a-negation (the
+      compound ones over one readonly and one mutable member, so the second operand is what is found), and
+      where-pattern-over-a-mutable-member -- and five rows: a get-only property, a readonly field, a nested
+      readonly member beside a settable one the predicate never reads, a primitive `where` beside a settable
+      property, and a getter computed from mutable state (the task below). Each row was first shown to judge
+      something, by a twin that makes the member writable and fails. Eight mutations on a confirmed build,
+      each caught by exactly the cases written for it: a settable property read as readonly (eight cases), a
+      mutable field so (one), nesting, conjunction, disjunction and negation each left unwalked (one each),
+      `init` read as readonly (one), and the member left unrecorded by the binder (all nine). The full suite
+      -- 6451, 664 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure and no rerun,
+      AllFeaturesV2 run by hand was byte-identical and reported nothing, and the build and `dotnet format`
+      were clean.
     tasks:
+      - >
+        A refinement predicate over a getter COMPUTED from mutable state is declared, as classic declares
+        it, and is unsound. Measured 2026-09-19 on v2: over
+        `int size; public int Size { get { return size; } }` and `Grow() { size = size + 10; }`,
+        `if (jar is Low low) { low.Grow(); Console.WriteLine(low.Size); }` prints 11 through a value typed
+        `{ Size: < 3 }`. Requirement 3 asks that the member be "declared as readonly", which a get-only
+        property is by classic's reading, and a getter's body is the member boundary the flow does not
+        cross. What would make it sound is a decision: refuse any getter with a body, admit one whose R18
+        lift is a single value, or admit one that reads only readonly state (which nothing computes yet).
+        APredicateOverAGetterComputedFromMutableState pins today's silence.
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
         the method not to mutate `this` and wants enforcing, or it is invalid and wants a diagnostic.
@@ -2669,6 +2687,46 @@ rules:
       number, proof taken against the member's far end, and a bare property left unnamed. The own-type rows
       first passed for nothing: the fixtures already declare `Small`, so a second `type Small` was a
       duplicate and the rows judged nothing until renamed.
+
+      AN EXTENSION METHOD'S `where` IS BOUND (2026-09-19), closing the task this order carried. MEASURED at
+      84f70426 on both pipelines, one project per probe: `"s".Wide(1)` over `extension(string self)`'s
+      `Wide(int other) where other >= 3` ran on both, as did an argument nothing was known of, the same
+      `where` through a generic block (`<T> extension(Box<T> self)` declaring
+      `Same(T key) where key not 18`, called as `box.Same(18)` on v2; classic cannot resolve the member) and
+      a dependent parameter on the method (`Sized<N:int>() where N >= 3` called as `Sized<1>()`).
+      PredicateBinder walks types and an extension block is not one -- the third predicate lost to the shape
+      of that walk, after the compound form and the local function. It now walks every namespace's blocks,
+      as MemberBinder.BindExtensions does, binding each method's parameters and dependent parameters in the
+      method's scope. A block has no `where` of its own in the grammar, so its type parameters are not
+      walked: a line no case could catch. A generic block needs nothing more, ExtensionSpecialization
+      closing the method through TypeSubstitution.Apply, whose copy shares the declaration's predicate cell.
+      `Wide(1)` and `box.Same(18)` are CONSTRAINT_VIOLATED, the unknown argument CONSTRAINT_UNPROVEN,
+      `Sized<1>()` DEPENDENT_ARGUMENT_VIOLATED, and `Wide(5)`, an argument the flow proves and `Sized<5>()`
+      are silent. No adhoc `where` sits in an extension block anywhere in samples, Standard or the book (568
+      files), so no banked verdict moved.
+
+      ORDER 6 WALKED THE SAME WAY, so binding alone would have traded one silence for another:
+      DeclarationShapeAnalyzer.CheckRefinements found predicates by type too, and Requirement.Of holds a
+      misordered predicate to owe nothing at its uses, so `Beside(Jar other) where other >= 3` in a block
+      was silent at its declaration AND at the call and printed 1, where classic is MIST_REFINEMENT_0007. A
+      local function's misordered `where` had been silent the same way since 5ddf96a8 bound it (classic
+      cannot parse one). Both are MIST_PA_REFINEMENT_NOT_COMPARABLE, once, at the declaration; a local
+      function declares no type parameters (MIST_PM_LOCAL_FUNCTION_GENERIC), so only its parameters are
+      read.
+
+      PROVED BY seven corpus cases -- extension-method-where-violated, extension-method-where-unproven,
+      generic-extension-method-where-violated and dependent-argument-violates-an-extension-method-constraint
+      here, and refinement-not-comparable-extension-method,
+      refinement-not-comparable-extension-method-dependent-bool and refinement-not-comparable-local-function
+      on order 6 -- and four rows under APredicateTheBinderUsedToDrop: a constant that holds, two arguments
+      the flow proves, a closed generic block, and a dependent argument that holds. Each row was first shown
+      to judge something, by a twin that violates it and fails. Five mutations on a confirmed build, each
+      caught by the cases written for it: a block's parameters left unbound (the three `where` cases
+      running, and the not-comparable case with them, an unbound predicate having nothing to misorder), its
+      dependent parameters left unbound (the dependent case and its not-comparable twin), and order 6's
+      three reaches removed one at a time (one case each). The full suite -- 6451, 664 and 68 tests,
+      AllFeaturesV2's baseline among them -- passed with no failure and no rerun, AllFeaturesV2 run by hand
+      was byte-identical and reported nothing, and the build and `dotnet format` were clean.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -2694,11 +2752,26 @@ rules:
         (MIST_TC_0072, MIST_REFINEMENT_0007); v2 declares them because Comparability orders an enum, as
         order 8's patterns and C# do (order 6's 2026-09-15 paragraph).
       - >
-        An extension method's `where` is neither judged at its declaration nor proven at a call. Measured
-        2026-09-15: `"s".Wide(1)` over `extension(string self)`'s `Wide(int other) where other >= 3`
-        prints 1 on both pipelines, and `Wide(bool other) where other >= 3` is MIST_REFINEMENT_0007 on
-        classic and silent on v2. PredicateBinder finds predicates by walking types, and an extension block
-        is not one, so its predicate is never bound for order 6 or this order to read.
+        A bound naming the RECEIVER's member in an extension method's `where` is unproven at every call.
+        Measured 2026-09-19: over `extension(Tally self)` declaring
+        `Pick(int n) where n >= 0 and < self.Count`, and a Count that lifts to 3, `t.Pick(2)` and
+        `t.Pick(7)` are both MIST_PA_CONSTRAINT_UNPROVEN, where the same bound written `< this.Count` on
+        Tally itself proves the first and VIOLATES the second (R13.8). Requirement.Symbol reads a member
+        only off `this` or a bare name. The signature is every instance's, so reading it through the block's
+        receiver is as sound; what it needs is a way to know a local IS that receiver, a captured local in a
+        local function's `where` and another parameter being the shapes that must stay unread. Sound,
+        imprecise, and nothing banked writes one. Classic runs both calls.
+      - >
+        FOUND WHILE PROVING THE EXTENSION `where`, none of it this rule's (measured 2026-09-19). A VALID
+        dependent argument on an extension method does not emit: `jar.Sized<5>()` over
+        `Sized<N:int>() where N >= 3` in a block is MIST_CS_ERROR ("The name 'TN' does not exist"), where
+        the same method declared on the class prints 5 -- an emitter gap, and classic cannot name N in a
+        block at all. A `using` naming no namespace reaches Roslyn on v2 (MIST_CS_ERROR) where classic is
+        MIST_UNDEFINED_NAMESPACE. A generic local function that USES its type parameter is four complaints
+        for one mistake: MIST_PM_LOCAL_FUNCTION_GENERIC, then MIST_PM_UNRESOLVED_TYPE twice for
+        `T Same<T>(T x)` and MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH at `Same<int>(2)`; the banked case uses
+        neither. A static extension member cannot be called on either pipeline (program-model-body-tasks
+        already carries it).
       - >
         An array returned from a method is unknown by design and wants a guard, as FirstClassFunctions and
         StandardSurface took one. Lengths.Of names the CLR members it follows (`AsSpan`, `ToArray`,
@@ -2718,9 +2791,8 @@ rules:
         where classic evaluates the constant and accepts it (and refuses a violating one as MIST_TC_0097).
         Evaluating a regex against a string literal, a real comparison against a real literal and a string
         constant pattern against a string literal would admit them; nothing in AllFeaturesV2 assigns one.
-        A refinement pattern over a MUTABLE member (`type Low = Jar { Size: < 3 }` over `Size { get; set; }`)
-        is still declared without complaint on v2; classic refuses it as MIST_TC_0100 (spec R3). A readonly
-        field states no value either, so `< limit` over `readonly int limit = 3` is unproven at every use.
+        A readonly field states no value either, so `< limit` over `readonly int limit = 3` is unproven at
+        every use.
       - >
         A symbolic bound naming neither a member nor an array's or a span's Length has nothing to read it
         through. A `where` naming another parameter (`where lo < hi`) does not bind on v2

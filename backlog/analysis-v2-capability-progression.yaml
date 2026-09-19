@@ -2727,6 +2727,54 @@ rules:
       three reaches removed one at a time (one case each). The full suite -- 6451, 664 and 68 tests,
       AllFeaturesV2's baseline among them -- passed with no failure and no rerun, AllFeaturesV2 run by hand
       was byte-identical and reported nothing, and the build and `dotnet format` were clean.
+
+      A LOCAL WRITTEN WHERE THE FLOW DOES NOT LOOK KEEPS NOTHING (2026-09-19). UNSOUND, and found by reading
+      RefinementFlow.Given for the task below rather than by a probe aimed at it. MEASURED on v2 at
+      84f70426, one project per shape: `int n = 30; var lower = () => { n = 1; }; lower(); AdultAge a = n;`
+      PRINTED 1, the flow still holding 30 for `n`; so did the same write from a local function and from an
+      async block, `Sink.Reset(ref n)`, `new Resetter(ref n)`, `ages.TryGetValue("kid", ref n)` into a CLR
+      out parameter, and `ref int alias = n; alias = 1;`; and `cells[slot]` after a lambda set `slot` to 7
+      threw IndexOutOfRangeException. Classic refuses each, keeping no value for a local at all
+      (MIST_TC_0098, MIST_REFINEMENT_0005). Compound assignment, `--` and a deconstruction into an existing
+      local do not parse, so these are the forms there are. UnseenWrites collects, once per body, the locals
+      a closure assigns but does not declare, those handed to a `ref` or `out` parameter of a call or a
+      construction, and a ref local with the local it aliases; RefinementFlow drops such a local, and every
+      bound held against it, after every step, in the body and in the closures nested in it. It is then
+      known by its declared type alone, which every write is still judged against. Deliberately whole-body
+      rather than from-the-write-on: a closure runs whenever it is called, and a simple rule here is worth
+      more than the precision. A local a closure only reads, one a closure declares itself, one passed by
+      value or by `readonly ref`, and every other local of the body keep what the flow learned.
+
+      PROVED BY ten corpus cases -- local-written-by-a-lambda-unproven, -by-a-local-function-,
+      -by-an-async-block-, local-passed-by-ref-unproven, local-passed-by-ref-to-a-constructor-unproven,
+      local-passed-to-a-clr-out-parameter-unproven, local-aliased-by-a-ref-local-unproven,
+      local-read-through-a-ref-local-unproven, index-written-by-a-lambda-unproven and
+      index-bound-against-an-array-a-lambda-reassigns-unproven -- and the five rows of
+      ALocalEveryWriteToWhichTheFlowSees, each first shown to judge something by a twin that violates it.
+      Thirteen mutations on a confirmed build, each caught by what was written for it: each of the six
+      collections removed (its own case or cases), `out` not read as a write (the CLR case alone), a
+      closure's own locals read as captured (the own-local row), `readonly ref` read as a write (its row),
+      the set never applied (all), only bounds dropped (every case but the bound one), only the local
+      dropped (the bound case alone), and the ref local itself left out. THAT LAST ONE SURVIVED FIRST: an
+      alias never inherits from a referent that is already unseen, so the case needed the alias written
+      before the referent, and was re-aimed.
+
+      A LOCAL KEEPS WHAT ITS INITIALIZER'S SIGNATURE SAYS (2026-09-19), closing the task this order carried.
+      Given recorded a constant, a copied local or a length, and nothing for any other value, so
+      `var a = ledger.Age; AdultAge copied = a;` was UNPROVEN over an `Age` that lifts to 30, and
+      `int plain = l.grown;` over a field typed AdultAge lost the type with the lift. It now records what
+      LiftedReturns.Produced answers -- the value's own refinement and its R18 lift, through a lossless
+      integral conversion -- which is the signature and never the flow of the member, so the boundary holds.
+      `var s = ledger.Small; AdultAge bad = s;` over a Small that lifts to 3 is REFINEMENT_VIOLATED, as the
+      direct `AdultAge bad = ledger.Small` is, and a member that lifts nothing leaves the local UNPROVEN as
+      before. PROVED BY lifted-value-copied-into-a-local-violates-refinement and three rows under
+      AValueAMembersReturnsLift (a lifted property through `var`, a refined field through a plain `int`, a
+      byte result widened into an int local). Three mutations, each caught: nothing recorded (the case,
+      reading UNPROVEN, and the rows), the lift alone recorded (the refined-field row), and the record kept
+      for a local written unseen (local-written-by-a-lambda-unproven, printing 1 again). The full suite --
+      6459, 664 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure and no rerun,
+      AllFeaturesV2 run by hand was byte-identical and reported nothing, and the build and `dotnet format`
+      were clean.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -2782,15 +2830,22 @@ rules:
         `if (x > 3) { return x; }` leave the member at its declared type. The natural next step is to lift
         from what RefinementFlow knows at each return rather than from the returned expression's type.
       - >
-        A lifted value copied into a local keeps only its declared type: `var a = ledger.Age; AdultAge
-        copied = a;` is UNPROVEN over an `Age` that lifts to 30, because Given records nothing for an
-        initializer that is neither a constant, a local nor a length. Sound, imprecise.
-      - >
         A predicate the prover cannot read is refused even when a constant plainly meets it: `Email e =
         "a@b.co"`, `Positive p = 2.5` over `double > 0.0` and `Named n = "x"` over `string "x"` are UNPROVEN,
         where classic evaluates the constant and accepts it (and refuses a violating one as MIST_TC_0097).
         Evaluating a regex against a string literal, a real comparison against a real literal and a string
         constant pattern against a string literal would admit them; nothing in AllFeaturesV2 assigns one.
+        CLASSIC IS AN ORACLE FOR THE REGEX ALONE (measured 2026-09-19, one project per shape): `Email e =
+        "a@b.co"` runs and `"nope"` is MIST_TC_0097, but every real constant is TC_0097, valid or not --
+        `Positive p = 2.5`, `= 3`, `Unit u = 0.5` over `double >= 0.0 and <= 1.0`, the message reading
+        `'> ?'` and naming 2.5 for -2.5 -- as is every string constant, `Named n = "x"` included, while
+        `string not "x"` admits both "y" and "x". So the real and string verdicts are the spec's
+        (Requirements 5.1 and 5.2) and no pipeline's. THE EVALUATOR IS THE WHOLE PROOF, there being no
+        runtime guard behind it, so it must agree with the emitted `is` exactly or stay UNPROVEN: a string
+        LiteralExpression holds the source body with its escapes unread (LiteralBinder strips the quotes
+        and nothing else); a `float` base compares its literal at another precision than the predicate's
+        double bound (`0.1f <= 0.1` is false); and a regex is matched in full by the BACKEND's wrapping
+        (RegexLowering.FullMatchPattern, `^(?:...)$`), by an engine that can backtrack without bound.
         A readonly field states no value either, so `< limit` over `readonly int limit = 3` is unproven at
         every use.
       - >

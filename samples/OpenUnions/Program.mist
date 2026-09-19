@@ -173,6 +173,11 @@ public readonly class Keep<K>
         this.item = start;
     }
 
+    public bool IsEmpty()
+    {
+        return this.item is void;
+    }
+
     public string Describe()
     {
         if (this.item is K present)
@@ -346,6 +351,15 @@ public class Program
         var heldWord = (Helded<string>)new Held<string>(word);
         var heldWordBack = (Held<string>)heldWord;
         Console.WriteLine($"generic clones: {keptWord.Describe()} | {leftWord.Describe()} | {heldNone.Describe()} | {heldWord.Describe()} | {heldWordBack.Describe()}");
+
+        int | string | void nothing = void;
+        var which = nothing switch
+        {
+            void => "void",
+            int => "int",
+            string => "string",
+        };
+        Console.WriteLine($"absent: {none is void} {word is not void} | {new Keep<int>(none).IsEmpty()} {new Keep<string>(word).IsEmpty()} | {nothing is void} {which}");
     }
 
     public static void Main(string[] args)

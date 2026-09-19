@@ -1192,7 +1192,9 @@ internal static class BodyEmitter
 
             case VoidLiteralExpression voidLiteral:
                 writer.Append(
-                    voidLiteral.Reading == VoidReading.Absence ? "null" : "Standard.Void.Instance");
+                    voidLiteral.Reading == VoidReading.Absence && OptionalUnion.IsOptional(TypeNameEmitter.Closed(voidLiteral.Type))
+                        ? "null"
+                        : "Standard.Void.Instance");
                 break;
 
             case RegexLiteralExpression regexLiteral:
@@ -1898,6 +1900,18 @@ internal static class BodyEmitter
             diagnostics.ReportAtNode(
                 BackendDiagnostics.UnboundRefinementPredicate, typeTest.Node, null,
                 unbound.Name, unbound.BaseType.Name);
+        }
+
+        if(typeTest.TestsAbsence)
+        {
+            writer.Append("null");
+            return;
+        }
+
+        if(typeTest is { Constituent: null, Binding: null } && OptionalUnion.IsVoid(typeTest.NarrowedType))
+        {
+            writer.Append("(null or Standard.Void)");
+            return;
         }
 
         writer.Append(TypeNameEmitter.EmitAsPatternType(typeTest.NarrowedType));

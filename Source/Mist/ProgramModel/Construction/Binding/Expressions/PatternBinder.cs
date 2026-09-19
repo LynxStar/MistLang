@@ -302,7 +302,10 @@ internal static class PatternBinder
 
         if(scrutineeType is not UnionType union || OptionalUnion.IsOptional(union))
         {
-            return new TypeTestPattern(node, tested, binding, constituent: null, refinement);
+            return new TypeTestPattern(node, tested, binding, constituent: null, refinement)
+            {
+                TestsAbsence = OptionalUnion.IsOptional(scrutineeType) && OptionalUnion.IsVoid(tested),
+            };
         }
 
         if(MatchConstituent(union, tested) is { } constituent)

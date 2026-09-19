@@ -29,6 +29,14 @@ internal sealed class TypeTestPattern(
     /// </summary>
     public IMistType? Constituent { get; } = constituent;
 
+    /// <summary>
+    /// Whether this is <c>void</c> tested against an OPTIONAL, which asks whether the value is absent rather
+    /// than whether it holds the unit value -- the reading <see cref="Expressions.VoidReading.Absence"/>
+    /// gives the literal there. Decided where the scrutinee's type is in hand, a pattern carrying none of
+    /// its own, and an optional having no value of type Void for a type test to find.
+    /// </summary>
+    public bool TestsAbsence { get; init; }
+
     public override IMistType NarrowedType { get; } = testedType;
 
     public override LocalVariable? Binding { get; } = binding;

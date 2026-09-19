@@ -1,0 +1,21 @@
+using Standard;
+using System.Collections.Generic;
+
+namespace Refusal;
+
+type AdultAge = int >= 18;
+
+public class Probe
+{
+    public static void Main()
+    {
+        var ages = new Dictionary<string, int>();
+        ages.Add("kid", 1);
+        int age = 30;
+        bool found = ages.TryGetValue("kid", ref age);
+
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        AdultAge adult = age;
+        Console.WriteLine(adult);
+    }
+}

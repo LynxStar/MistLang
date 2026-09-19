@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+type AdultAge = int >= 18;
+
+public class Probe
+{
+    public static void Main()
+    {
+        int age = 30;
+
+        void Lower()
+        {
+            age = 1;
+        }
+
+        Lower();
+
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        AdultAge adult = age;
+        Console.WriteLine(adult);
+    }
+}

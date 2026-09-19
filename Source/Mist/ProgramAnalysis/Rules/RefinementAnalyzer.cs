@@ -4,6 +4,7 @@ using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -37,14 +38,14 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         foreach(var root in context.Bodies)
         {
-            new Proving(context, lifted).Judge(FlowGraphBuilder.Build(root.Root), RefinementFlow.Nothing);
+            new Proving(context, lifted, UnseenWrites.Of(root.Root)).Judge(FlowGraphBuilder.Build(root.Root), RefinementFlow.Nothing);
         }
 
         foreach(var list in context.Nodes.OfType<ListPattern>())
         {
             if(list.Reads is { } reads)
             {
-                new Proving(context, lifted).NeedElements(list, reads);
+                new Proving(context, lifted, UnseenWrites.None).NeedElements(list, reads);
             }
         }
 
@@ -64,7 +65,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             {
                 if(constructor is { ChainedConstructor: { } chained, DeclarationNode: { } declared } && context.IsInSource(declared))
                 {
-                    new Proving(context, lifted).NeedArguments(
+                    new Proving(context, lifted, UnseenWrites.None).NeedArguments(
                         RefinementFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList);
                 }
             }
@@ -142,11 +143,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         };
     }
 
-    private sealed class Proving(AnalysisContext context, LiftedReturns lifted)
+    private sealed class Proving(AnalysisContext context, LiftedReturns lifted, IReadOnlySet<LocalVariable> unseenWrites)
     {
         public void Judge(FlowGraph graph, ImmutableDictionary<object, Knowledge> entry)
         {
-            var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(graph, new RefinementFlow(), entry);
+            var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(graph, new RefinementFlow(unseenWrites), entry);
             solution.Replay((state, step) => Judge(graph, state, step));
         }
 
@@ -189,7 +190,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Proving(context, lifted).Judge(nested, RefinementFlow.Nothing);
+                    new Proving(context, lifted, unseenWrites).Judge(nested, RefinementFlow.Nothing);
                     break;
             }
         }

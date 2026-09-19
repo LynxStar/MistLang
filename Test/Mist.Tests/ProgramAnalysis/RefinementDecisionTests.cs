@@ -425,6 +425,17 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("int n = 30; var read = () => n + 1; AdultAge a = n;", "")]
+    [InlineData("int n = 30; int m = 40; var lower = () => { m = 1; }; lower(); AdultAge a = n;", "")]
+    [InlineData("var make = () => { int m = 30; m = 40; AdultAge a = m; return a; };", "")]
+    [InlineData("int n = 30; int t = Helpers.Twice(n); AdultAge a = n;", "")]
+    [InlineData("int n = 30; int p = Peeker.Peek(ref n); AdultAge a = n;", "public class Peeker { public static int Peek(readonly ref int v) { return v; } }")]
+    public void ALocalEveryWriteToWhichTheFlowSees_KeepsWhatTheFlowLearned(string statement, string extraTypes)
+    {
+        AssertSilent(statement, extraTypes);
+    }
+
+    [Theory]
     [InlineData("AdultAge a = 7; AdultAge b = 7;")]
     [InlineData("var a = new int[3]; Console.WriteLine(a[5] + a[5]);")]
     [InlineData("Console.WriteLine(Helpers.Twice(3) + Helpers.Twice(3));")]

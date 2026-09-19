@@ -24,9 +24,10 @@ internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds
 /// remembered against the array itself, which is what indexing an array of unknown length needs. The
 /// array may be a local or a field of this instance; the bound is forgotten when that holder is
 /// reassigned and, for a field that is not readonly, at any call, object creation or await, since code
-/// the flow cannot see may reassign it then.
+/// the flow cannot see may reassign it then. A local keeps nothing at all when
+/// <see cref="UnseenWrites"/> names it.
 /// </summary>
-internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<object, Knowledge>>
+internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites) : IFlowLattice<ImmutableDictionary<object, Knowledge>>
 {
     public static readonly ImmutableDictionary<object, Knowledge> Nothing =
         ImmutableDictionary.Create<object, Knowledge>(ReferenceEqualityComparer.Instance);
@@ -69,6 +70,18 @@ internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<object, 
     }
 
     public ImmutableDictionary<object, Knowledge> Transfer(ImmutableDictionary<object, Knowledge> state, FlowStep step)
+    {
+        var next = Step(state, step);
+
+        return unseenWrites.Count == 0 ? next : Forget(next, IsWrittenUnseen, andTheHolder: true);
+    }
+
+    private bool IsWrittenUnseen(object holder)
+    {
+        return holder is LocalVariable local && unseenWrites.Contains(local);
+    }
+
+    private static ImmutableDictionary<object, Knowledge> Step(ImmutableDictionary<object, Knowledge> state, FlowStep step)
     {
         switch(step)
         {
@@ -199,11 +212,12 @@ internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<object, 
             ;
     }
 
-    private static ImmutableDictionary<object, Knowledge> Forget(ImmutableDictionary<object, Knowledge> state, Func<object, bool> lost)
+    private static ImmutableDictionary<object, Knowledge> Forget(
+        ImmutableDictionary<object, Knowledge> state, Func<object, bool> lost, bool andTheHolder = false)
     {
         foreach(var (other, known) in state)
         {
-            if(other is Field && lost(other))
+            if((other is Field || andTheHolder) && lost(other))
             {
                 state = state.Remove(other);
             }

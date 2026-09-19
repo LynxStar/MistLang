@@ -23,6 +23,11 @@ internal class Cash
 
     public static implicit operator Snippet.Money(Snippet.Cash value)
     {
+        if(value is null)
+        {
+            return null!;
+        }
+
         var copy = (Snippet.Money)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.Money));
         __Snippet_Money_Amount_BackingField(copy) = __Snippet_Cash_Amount_BackingField(value);
         return copy;
@@ -35,6 +40,11 @@ internal class Cash
 
     public static explicit operator Snippet.Cash(Snippet.Money value)
     {
+        if(value is null)
+        {
+            return null!;
+        }
+
         var copy = (Snippet.Cash)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.Cash));
         __Snippet_Cash_Amount_BackingField(copy) = __Snippet_Money_Amount_BackingField(value);
         return copy;

@@ -24,13 +24,27 @@ internal static class CloneCopyEmitter
         var to = conversion.TargetType;
         var target = TypeNameEmitter.Emit(to);
 
+        if(Definition(to) is not StructType)
+        {
+            writer.WriteLine($"if({conversion.SourceParameter.Name} is null)");
+
+            using(writer.Block())
+            {
+                writer.WriteLine("return null!;");
+            }
+
+            writer.WriteBlankLine();
+        }
+
         writer.WriteLine(Definition(to) is StructType
             ? $"var copy = default({target});"
             : $"var copy = ({target})System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof({target}));");
 
+        var clone = (ConcreteType)conversion.DeclaringType!;
+
         foreach(var (write, read) in Slots(to, diagnostics).Zip(Slots(from, diagnostics)))
         {
-            writer.WriteLine($"{Call(write, "copy")} = {Call(read, conversion.SourceParameter.Name)};");
+            writer.WriteLine($"{Call(clone, write, "copy")} = {Call(clone, read, conversion.SourceParameter.Name)};");
         }
 
         writer.WriteLine("return copy;");
@@ -38,28 +52,29 @@ internal static class CloneCopyEmitter
 
     public static void EmitAccessors(ConcreteType clone, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var slots = Slots(clone, diagnostics)
+        var slots = Slots(Itself(clone), diagnostics)
             .Concat(Slots(clone.CloneSourceType!, diagnostics))
-            .DistinctBy(slot => (Stem(slot), slot.Storage));
+            .DistinctBy(slot => (slot.Definition, Stem(slot), slot.Storage));
 
         var owners = slots.GroupBy(slot => slot.Definition).ToList();
 
-        EmitDeclarations(owners.Where(owner => IsFlat(owner.Key)).SelectMany(owner => owner), "private", AccessorName, writer);
-
-        foreach(var owner in owners.Where(owner => !IsFlat(owner.Key)))
+        foreach(var line in owners.Where(owner => IsFlat(clone, owner.Key)).SelectMany(owner => Declarations(owner, "private", AccessorName)))
         {
-            writer.WriteBlankLine();
-            writer.WriteLine($"private static class {Holder(owner.Key)}<{string.Join(", ", owner.Key.TypeParametersList.Select(TypeNameEmitter.Emit))}>");
+            writer.WriteLine(line);
+        }
 
-            using(writer.Block())
-            {
-                EmitDeclarations(owner, "public", slot => $"__{Sanitized(slot.Storage)}", writer);
-            }
+        foreach(var owner in owners.Where(owner => !IsFlat(clone, owner.Key)))
+        {
+            var members = Declarations(owner, "public", slot => $"__{Sanitized(slot.Storage)}");
+
+            new AccessorHolder(Holder(clone, owner.Key), owner.Key, [.. members]).Place(clone, writer);
         }
     }
 
-    private static void EmitDeclarations(IEnumerable<Slot> slots, string accessibility, Func<Slot, string> name, CSharpWriter writer)
+    private static List<string> Declarations(IEnumerable<Slot> slots, string accessibility, Func<Slot, string> name)
     {
+        var lines = new List<string>();
+
         foreach(var slot in slots)
         {
             using var closing = Instance(slot) is { } instance
@@ -68,16 +83,18 @@ internal static class CloneCopyEmitter
             var owner = TypeNameEmitter.Emit(Itself(slot.Definition));
             var receiver = slot.Definition is StructType ? $"ref {owner}" : owner;
 
-            writer.WriteLine(
+            lines.Add(
                 $"[System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = \"{slot.Storage}\")]");
-            writer.WriteLine($"{accessibility} static extern ref {TypeNameEmitter.Emit(slot.Type)} {name(slot)}({receiver} target);");
+            lines.Add($"{accessibility} static extern ref {TypeNameEmitter.Emit(slot.Type)} {name(slot)}({receiver} target);");
         }
+
+        return lines;
     }
 
-    private static string Call(Slot slot, string variable)
+    private static string Call(ConcreteType clone, Slot slot, string variable)
     {
-        var accessor = slot.Owner is ConstructedType { TypeArguments: var arguments } && !IsFlat(slot.Definition)
-            ? $"{Holder(slot.Definition)}<{string.Join(", ", arguments.Select(TypeNameEmitter.Emit))}>.__{Sanitized(slot.Storage)}"
+        var accessor = slot.Owner is ConstructedType { TypeArguments: var arguments } && !IsFlat(clone, slot.Definition)
+            ? $"{Holder(clone, slot.Definition)}<{string.Join(", ", arguments.Select(TypeNameEmitter.Emit))}>.__{Sanitized(slot.Storage)}"
             : AccessorName(slot);
 
         return slot.Definition is StructType
@@ -92,12 +109,12 @@ internal static class CloneCopyEmitter
 
     private static string Stem(Slot slot)
     {
-        return Instance(slot) is { } instance ? Flat(instance) : slot.Definition.FullyQualifiedName.Replace('.', '_');
+        return AccessorHolder.Flat(Instance(slot) ?? (IMistType)slot.Definition);
     }
 
-    private static bool IsFlat(ConcreteType definition)
+    private static bool IsFlat(ConcreteType clone, ConcreteType definition)
     {
-        return definition.TypeParametersList.Count == 0 || UnionSpecialization.Specializes(definition);
+        return definition.TypeParametersList.Count == 0 || UnionSpecialization.Specializes(definition) || ReferenceEquals(definition, clone);
     }
 
     private static ConstructedType? Instance(Slot slot)
@@ -108,16 +125,9 @@ internal static class CloneCopyEmitter
             ;
     }
 
-    private static string Holder(ConcreteType definition)
+    private static string Holder(ConcreteType clone, ConcreteType definition)
     {
-        return $"__{Flat(definition)}_Access";
-    }
-
-    private static string Flat(IMistType type)
-    {
-        var stem = type.FullyQualifiedName.Where(character => character is not ('<' or '>' or ',' or ' '));
-
-        return new string([.. stem.Select(character => char.IsLetterOrDigit(character) ? character : '_')]);
+        return AccessorHolder.NameFor(clone, $"__{AccessorHolder.Flat(definition)}_Access");
     }
 
     private static string Sanitized(string storage)
@@ -127,6 +137,8 @@ internal static class CloneCopyEmitter
 
     private static IEnumerable<Slot> Slots(IMistType type, DiagnosticBag diagnostics)
     {
+        type = TypeNameEmitter.Closed(type);
+
         if(Definition(type) is StructType structType)
         {
             var flattened = new StructFlattener(diagnostics).Flatten(structType);

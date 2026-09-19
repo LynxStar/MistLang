@@ -219,6 +219,8 @@ public class Held<K> : IClonable<Held<K>>
 }
 
 public type IntHeld = new Held<int>;
+public type Kept<K> = new Keep<K>;
+public type Helded<K> = new Held<K>;
 
 public class Api
 {
@@ -337,6 +339,13 @@ public class Program
         var held = (IntHeld)new Held<int>(none);
         Held<int> heldBack = (Held<int>)held;
         Console.WriteLine($"clones: {keep.Describe()} | {kept.Describe()} | {held.Describe()} | {heldBack.Describe()}");
+
+        var keptWord = (Kept<string>)new Keep<string>(word);
+        Keep<string> leftWord = keptWord;
+        var heldNone = (Helded<int>)new Held<int>(none);
+        var heldWord = (Helded<string>)new Held<string>(word);
+        var heldWordBack = (Held<string>)heldWord;
+        Console.WriteLine($"generic clones: {keptWord.Describe()} | {leftWord.Describe()} | {heldNone.Describe()} | {heldWord.Describe()} | {heldWordBack.Describe()}");
     }
 
     public static void Main(string[] args)

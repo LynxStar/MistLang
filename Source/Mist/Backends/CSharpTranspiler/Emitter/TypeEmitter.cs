@@ -105,6 +105,11 @@ internal static class TypeEmitter
     {
         var closedConstraints = closures.For(type);
 
+        if(type.DeclaringType is null)
+        {
+            AccessorHolder.Forget();
+        }
+
         var typeKeyword = type switch
         {
             AbstractType => "interface",
@@ -327,11 +332,18 @@ internal static class TypeEmitter
             {
                 Emit(nested, closures, uses, writer, diagnostics, ref anyEmitted);
             }
+
+            AccessorHolder.WritePending(type, writer);
         }
 
         if(declaresEquality)
         {
             writer.WriteLine("#pragma warning restore CS0660, CS0661");
+        }
+
+        if(type.DeclaringType is null)
+        {
+            AccessorHolder.WritePending(home: null, writer);
         }
     }
 

@@ -3,9 +3,11 @@
 // and nothing either way for a mutable class that defines no copy. The corpus holds the refusals that have a
 // line to mark.
 
+using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -16,7 +18,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [
         "MIST_PA_CAST_HAS_NO_CONVERSION", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY", "MIST_PA_NO_IMPLICIT_CONVERSION", "MIST_PA_CAST_REQUIRED",
         "MIST_PA_CAST_ARGUMENT_MISMATCH", "MIST_PA_AMBIGUOUS_CAST", "MIST_PM_UNRESOLVABLE_OVERLOAD",
-        "MIST_PM_AMBIGUOUS_OVERLOAD",
+        "MIST_PM_AMBIGUOUS_OVERLOAD", "MIST_PM_UNRESOLVED_MEMBER",
     ];
 
     public NewtypeConversionDecisionTests()
@@ -90,8 +92,72 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
             }
         }
 
+        public readonly class Held<T>
+        {
+            public T Item { get; }
+
+            public Held(T item)
+            {
+                this.Item = item;
+            }
+        }
+
+        public class Crate<T>
+        {
+            public T Item;
+
+            public Crate(T item)
+            {
+                this.Item = item;
+            }
+        }
+
+        public class Wrapper
+        {
+            public Wrapper() { }
+
+            public static implicit operator Wrapper(Held<int> held) { return new Wrapper(); }
+        }
+
+        extension(Point self)
+        {
+            public int Doubled() { return self.X + self.X; }
+        }
+
+        extension(Held<int> self)
+        {
+            public int Doubled() { return self.Item + self.Item; }
+        }
+
+        public readonly class Node<T>
+        {
+            public T Item { get; }
+            public Node<T>? Next { get; }
+
+            public Node(T item)
+            {
+                this.Item = item;
+            }
+        }
+
+        public struct Tagged<T, params TRest>
+        {
+            public T First;
+
+            public Tagged(T first)
+            {
+                this.First = first;
+            }
+        }
+
         type Position = new Point;
         type Coord = new Point;
+        type Chain<T> = new Node<T>;
+        type IntChain = new Node<int>;
+        type Packed<T, params TRest> = new Tagged<T, TRest...>;
+        type Kept<K> = new Held<K>;
+        type Swapped<X, Y> = new Pair<Y, X>;
+        type Crated<C> = new Crate<C>;
         type IntPair = new Pair<int, string>;
         type Cash = new Money;
         type Actor = new Entity;
@@ -107,6 +173,10 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
         var reading = new Reading();
         var pair = new Pair<int, string>(1, "a");
         var intPair = new IntPair(2, "b");
+        var kept = new Kept<int>(9);
+        var swapped = new Swapped<int, string>("c", 3);
+        var keptInATuple = (kept, 1);
+        Kept<int> | Entity keptOrEntity = kept;
         """;
 
     [Theory]
@@ -120,6 +190,13 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [InlineData("Point leavesFreeAfterADeclaredImplicit = new Gauge();")]
     [InlineData("Pair<int, string> leavesAConstructedSource = intPair;")]
     [InlineData("IntPair entersAConstructedSourceByCast = (IntPair)pair;")]
+    [InlineData("Held<int> leavesAGenericClone = kept;")]
+    [InlineData("Kept<int> entersAGenericCloneByCast = (Kept<int>)new Held<int>(4);")]
+    [InlineData("Kept<string> entersAtAnotherInstance = (Kept<string>)new Held<string>(\"s\");")]
+    [InlineData("Pair<string, int> leavesAPermutedStruct = swapped;")]
+    [InlineData("Swapped<int, string> entersAPermutedStructByCast = (Swapped<int, string>)new Pair<string, int>(\"d\", 4);")]
+    [InlineData("Wrapper leavesAGenericCloneFreeBeforeADeclaredImplicit = kept;")]
+    [InlineData("(Held<int>, int) leavesAGenericCloneElementwise = keptInATuple;")]
     public void AConversionOfACopyableSource_IsAdmitted(string statement)
     {
         Assert.Empty(Analyse(statement));
@@ -131,6 +208,16 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [InlineData("Entity leavesAMutableClass = actor;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
     [InlineData("Actor entersAMutableClassByCast = (Actor)entity;", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
     [InlineData("Pair<string, int> leavesOnlyForItsOwnArguments = intPair;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("Held<string> leavesOnlyForItsOwnInstance = kept;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("Pair<int, string> leavesOnlyAsItsSourcePermutes = swapped;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("Kept<int> entersAGenericCloneWithoutACast = new Held<int>(4);", "MIST_PA_CAST_REQUIRED")]
+    [InlineData("Kept<int> entersFromAnotherInstance = (Kept<int>)new Held<string>(\"s\");", "MIST_PA_CAST_ARGUMENT_MISMATCH")]
+    [InlineData("Crated<int> entersAMutableGenericClassByCast = (Crated<int>)new Crate<int>(1);", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
+    [InlineData("Crate<int> leavesAMutableGenericClassByCast = (Crate<int>)new Crated<int>(1);", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
+    [InlineData("Held<int> | Entity aUnionLeavesOnlyAsItsConstituentsAre = keptOrEntity;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("Chain<int> aSelfTypedSlotCopiesNothing = (Chain<int>)new Node<int>(1);", "MIST_PA_CAST_HAS_NO_CONVERSION")]
+    [InlineData("IntChain aSelfTypedSlotCopiesNothingWhenClosed = (IntChain)new Node<int>(1);", "MIST_PA_CAST_HAS_NO_CONVERSION")]
+    [InlineData("Packed<int, string> aPackConvertsNothing = (Packed<int, string>)new Tagged<int, string>(1);", "MIST_PA_CAST_HAS_NO_CONVERSION")]
     public void AConversionTheSourceDoesNotAdmit_IsRefused(string statement, string expected)
     {
         Assert.Equal(expected, Assert.Single(Analyse(statement)).Id.Value);
@@ -144,6 +231,100 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
         Assert.True(cast.Operator?.CopiesClone);
         Assert.Equal("Probe.Point", cast.ParameterType?.FullyQualifiedName);
         Assert.Equal("Probe.Position", cast.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void ACastToAnInstanceOfAGenericNewtype_CallsItsConversionAtThatInstance()
+    {
+        var cast = InitializerOf<CastExpression>("var entered = (Swapped<int, string>)new Pair<string, int>(\"d\", 4);");
+
+        Assert.True(cast.Operator?.CopiesClone);
+        Assert.Equal("Probe.Pair<String, Int32>", cast.ParameterType?.FullyQualifiedName);
+        Assert.Equal("Probe.Swapped<Int32, String>", cast.Type.FullyQualifiedName);
+    }
+
+    [Theory]
+    [InlineData("Point | Entity intoACarrier = position;", "Probe.Point")]
+    [InlineData("Held<int> | Entity anInstanceIntoACarrier = kept;", "Probe.Held<Int32>")]
+    public void ALeaveIntoAUnion_IsRecordedAsTheCopyItCalls(string statement, string result)
+    {
+        var conversion = InitializerOf<ImplicitConversionExpression>(statement);
+
+        Assert.True(conversion.Operator?.CopiesClone);
+        Assert.Equal(result, conversion.Type.FullyQualifiedName);
+    }
+
+    [Theory]
+    [InlineData("Point? intoAnOptional = position;")]
+    [InlineData("Held<int>? anInstanceIntoAnOptional = kept;")]
+    public void ALeaveCSharpCarriesUnaided_StaysContainment(string statement)
+    {
+        Assert.Empty(Analyse(statement));
+        Assert.IsNotType<ImplicitConversionExpression>(DeclarationIn(statement, "", "").Initializer);
+    }
+
+    [Theory]
+    [InlineData("var onAClosedNewtype = position.Doubled();")]
+    [InlineData("var onAnInstanceOfAGenericNewtype = kept.Doubled();")]
+    public void AnExtensionDeclaredForTheSource_IsNotTheNewtypes(string statement)
+    {
+        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", Assert.Single(Analyse(statement)).Id.Value);
+    }
+
+    [Fact]
+    public void AnExtensionDeclaredForTheSource_StillReachesTheSource()
+    {
+        var invocation = InitializerOf<InvocationExpression>("var onTheSource = point.Doubled();");
+
+        Assert.Equal("Doubled", invocation.Method?.Name);
+    }
+
+    [Fact]
+    public void ALeaveIntoAUnion_EmitsAsItsCarrierSoCSharpCannotChooseAgain()
+    {
+        var writer = new CSharpWriter();
+
+        BodyEmitter.EmitExpression(DeclarationIn("Point | Entity intoACarrier = position;", "", "").Initializer!, writer, new DiagnosticBag());
+
+        Assert.Equal("((Union_Entity_Point)(((Probe.Point)(position))))", writer.ToString());
+    }
+
+    [Theory]
+    [InlineData("Plain", 2)]
+    [InlineData("Open<>", 0)]
+    public void ACloneInsideAGenericOverASourceTheNamespaceCannotName_ConvertsNothing(string encloser, int conversions)
+    {
+        var model = BuildModel(
+            statement: "",
+            extraTypes: """
+                public class Vault
+                {
+                    protected readonly class Src<T>
+                    {
+                        public T Item { get; }
+
+                        public Src(T item) { this.Item = item; }
+                    }
+                }
+
+                public class Plain : Vault
+                {
+                    private type W<V> = new Vault.Src<V>;
+                }
+
+                public class Open<U> : Vault
+                {
+                    private type W<V> = new Vault.Src<V>;
+                }
+                """,
+            extraPreamble: "",
+            out var diagnostics);
+
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+
+        var clone = Assert.IsAssignableFrom<ConcreteType>(Assert.Single(model.TypesByFQN[$"Probe.{encloser}"].NestedTypes));
+
+        Assert.Equal(conversions, clone.CastOperatorsList.Count);
     }
 
     [Fact]

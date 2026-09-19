@@ -69,6 +69,12 @@ public sealed class IntrinsicCloneEmissionTests
     }
 
     [Fact]
+    public void AClassWrappersCopyOut_LeavesAnAbsentValueAbsent()
+    {
+        Assert.Contains("=> value is null ? null! : value.Value;", EmitDeclaration("Label"));
+    }
+
+    [Fact]
     public void TheCopyConversions_UnwrapAndWrap()
     {
         var emitted = EmitDeclaration("Age");

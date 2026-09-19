@@ -156,7 +156,7 @@ internal static class ExtensionLookup
     {
         return blockReceiver is UnknownType
             || ConversionRelation.IsIdentity(receiver, blockReceiver)
-            || ConversionRelation.IsWithin(receiver, blockReceiver)
+            || ConversionRelation.IsWithinAsItself(receiver, blockReceiver)
             || Closed(blockReceiver, receiver, block, interner) is not null;
     }
 

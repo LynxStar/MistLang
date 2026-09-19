@@ -14,8 +14,9 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// The members a body reaches that C# refuses from where the body is written. A conversion running a
 /// <c>Clone</c> body is declared on the newtype, while the body is its source's own code and reaches the
 /// private members of either type (newtypes spec Requirement 10.2), so each member C# would refuse there is
-/// called through an UnsafeAccessor declared beside the conversion. Nothing the program's own code may touch
-/// is widened, and a member C# already admits is written as it always is.
+/// called through an UnsafeAccessor declared beside the conversion, or where <see cref="AccessorHolder"/> places
+/// a generic definition's. Nothing the program's own code may touch is widened, and a member C# already admits
+/// is written as it always is.
 /// </summary>
 internal sealed class UnsafeReach : IDisposable
 {
@@ -33,10 +34,12 @@ internal sealed class UnsafeReach : IDisposable
         this.home = home;
         this.receiver = receiver;
         this.result = result;
-        accessors = new UnsafeAccessors(prefix, diagnostics);
+        accessors = new UnsafeAccessors(home, prefix, diagnostics);
     }
 
     public IReadOnlyList<IReadOnlyList<string>> Declarations => accessors.Declarations;
+
+    public IEnumerable<AccessorHolder> Holders => accessors.Holders;
 
     public static UnsafeReach Enter(ConcreteType home, CastOperator conversion, string prefix, DiagnosticBag diagnostics)
     {
@@ -156,7 +159,7 @@ internal sealed class UnsafeReach : IDisposable
 
         var helper = reach.accessors.Helper("Initialized", name =>
         [
-            $"private static T {name}<T>(T target, System.Action<T> initialize)",
+            $"private static __T {name}<__T>(__T target, System.Action<__T> initialize)",
             "{",
             "    initialize(target);",
             "    return target;",
@@ -278,7 +281,7 @@ internal sealed class UnsafeReach : IDisposable
 
         var helper = reach.accessors.Helper("Bound", name =>
         [
-            $"private static TResult {name}<TTarget, TResult>(TTarget target, System.Func<TTarget, TResult> bind)",
+            $"private static __TResult {name}<__TTarget, __TResult>(__TTarget target, System.Func<__TTarget, __TResult> bind)",
             "{",
             "    return bind(target);",
             "}",
@@ -291,7 +294,7 @@ internal sealed class UnsafeReach : IDisposable
     {
         return accessors.Helper("When", name =>
         [
-            $"private static void {name}<T>(T target, System.Action<T> act)",
+            $"private static void {name}<__T>(__T target, System.Action<__T> act)",
             "{",
             "    if(target is not null)",
             "    {",
@@ -305,7 +308,7 @@ internal sealed class UnsafeReach : IDisposable
     {
         var helper = accessors.Helper("Coalesced", name =>
         [
-            $"private static T {name}<TTarget, TKey, T>(TTarget target, TKey key, System.Func<TTarget, TKey, T> get, System.Action<TTarget, TKey, T> set, System.Func<T> value)",
+            $"private static __T {name}<__TTarget, __TKey, __T>(__TTarget target, __TKey key, System.Func<__TTarget, __TKey, __T> get, System.Action<__TTarget, __TKey, __T> set, System.Func<__T> value)",
             "{",
             "    var existing = get(target, key);",
             "    if(existing is not null)",
@@ -378,7 +381,7 @@ internal sealed class UnsafeReach : IDisposable
 
         foreach(var start in starts)
         {
-            for(var type = (IMistType?)start; type is not null; type = BaseOf(type))
+            for(var type = (IMistType?)(OptionalUnion.InnerType(start) ?? start); type is not null; type = BaseOf(type))
             {
                 if(type is ConstructedType construction && ReferenceEquals(construction.Definition, declaring))
                 {

@@ -4,6 +4,7 @@ using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
@@ -39,6 +40,11 @@ internal static class CastLowering
         var result = ReadsPattern(called, parameter)
             ? Pattern(argument)
             : $"(({TypeNameEmitter.Emit(conversion.Type)})({argument}))";
+
+        if(conversion.TargetType is UnionType carrier && !OptionalUnion.IsOptional(carrier) && !ConversionRelation.IsIdentity(conversion.Type, carrier))
+        {
+            result = $"(({TypeNameEmitter.Emit(carrier)})({result}))";
+        }
 
         return RegexLowering.Is(conversion.Type) && !ConversionClassifier.IsFree(conversion.Type, conversion.TargetType, interner: null)
             ? Pattern(result)

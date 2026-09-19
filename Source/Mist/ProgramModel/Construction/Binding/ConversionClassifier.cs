@@ -126,7 +126,9 @@ internal static class ConversionClassifier
             return true;
         }
 
-        if(to is UnionType union && union.Constituents.Any(constituent => Reaches(from, constituent, visited)))
+        if(to is UnionType union
+            && ConversionRelation.CloneSourceOf(from) is null
+            && union.Constituents.Any(constituent => Reaches(from, constituent, visited)))
         {
             return true;
         }

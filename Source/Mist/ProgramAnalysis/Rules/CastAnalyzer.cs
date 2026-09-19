@@ -127,14 +127,19 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
 
     private static IMistType? UncopiedSource(IMistType from, IMistType to)
     {
-        return (from, to) switch
-        {
-            (ConcreteType { CloneSource: { } source, CloneSourceType: { } sourceType }, _)
-                when ConversionRelation.IsIdentity(to, sourceType) && !NewtypeConversions.IsCopyable(source) => sourceType,
-            (_, ConcreteType { CloneSource: { } source, CloneSourceType: { } sourceType })
-                when ConversionRelation.IsIdentity(from, sourceType) && !NewtypeConversions.IsCopyable(source) => sourceType,
-            _ => null,
-        };
+        return Uncopied(from, to) ?? Uncopied(to, from);
+    }
+
+    private static IMistType? Uncopied(IMistType clone, IMistType other)
+    {
+        var definition = clone is ConstructedType constructed ? constructed.Definition : clone;
+
+        return definition is ConcreteType { CloneSource: { } source }
+            && !NewtypeConversions.IsCopyable(source)
+            && ConversionRelation.CloneSourceOf(clone) is { } sourceType
+            && ConversionRelation.IsIdentity(other, sourceType)
+            ? sourceType
+            : null;
     }
 
     internal static string Signature(CastOperator castOperator)

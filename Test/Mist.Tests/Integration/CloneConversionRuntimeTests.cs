@@ -319,6 +319,236 @@ public sealed class CloneConversionRuntimeTests : IDisposable
         }
         """;
 
+    private const string ConvertsEachKindOfGenericNewtype = """
+        using Standard;
+
+        namespace Probe;
+
+        public readonly class Held<T>
+        {
+            public T Item { get; }
+            private string label;
+
+            public Held(T item, string label)
+            {
+                this.Item = item;
+                this.label = label;
+            }
+
+            public string Describe()
+            {
+                return $"{label}={Item}";
+            }
+        }
+
+        public struct Pair<A, B>
+        {
+            private A first;
+            public B Second { get; set; }
+
+            public Pair(A first, B second)
+            {
+                this.first = first;
+                this.Second = second;
+            }
+
+            public string Describe()
+            {
+                return $"({first}, {Second})";
+            }
+        }
+
+        public abstract IShow
+        {
+            string Show();
+        }
+
+        public class Word : IShow
+        {
+            private string text;
+
+            public Word(string text)
+            {
+                this.text = text;
+            }
+
+            public string Show()
+            {
+                return text;
+            }
+        }
+
+        public class Cell<T> : IClonable<Cell<T>> where T : IShow
+        {
+            private static int made = 0;
+            private T content;
+            private int reads;
+
+            public Cell(T content)
+            {
+                this.content = content;
+                this.reads = 0;
+            }
+
+            private Cell(T content, int reads)
+            {
+                this.content = content;
+                this.reads = reads;
+            }
+
+            public owned Cell<T> Clone()
+            {
+                made = made + 1;
+                var copy = new Cell<T>(content, reads);
+                Cell<T>? maybe = copy;
+                int? read = maybe?.reads;
+                copy.reads = (read ?? 0) + 1;
+                return copy;
+            }
+
+            public string Describe()
+            {
+                return $"{content.Show()} reads={reads} made={made}";
+            }
+        }
+
+        public readonly class Keep<K>
+        {
+            private K? item;
+
+            public Keep(K? start)
+            {
+                this.item = start;
+            }
+
+            public string Describe()
+            {
+                if (this.item is K present)
+                {
+                    return $"kept {present}";
+                }
+
+                return "kept nothing";
+            }
+        }
+
+        public class Slot<K> : IClonable<Slot<K>>
+        {
+            private K? item;
+            private int copies { get; set; }
+
+            public Slot(K? start)
+            {
+                this.item = start;
+                this.copies = 0;
+            }
+
+            private Slot(K? start, int copies)
+            {
+                this.item = start;
+                this.copies = copies;
+            }
+
+            public owned Slot<K> Clone()
+            {
+                return new Slot<K>(this.item, copies + 1);
+            }
+
+            public string Describe()
+            {
+                if (this.item is K present)
+                {
+                    return $"slot {present} copies {copies}";
+                }
+
+                return $"empty slot copies {copies}";
+            }
+        }
+
+        public class Shelf<U>
+        {
+            public type Own = new Held<U>;
+            public type Kept<V> = new Pair<V, U>;
+
+            public static string Both(U item)
+            {
+                var own = (Own)new Held<U>(item, "own");
+                Held<U> back = own;
+                var kept = (Kept<int>)new Pair<int, U>(1, item);
+                Pair<int, U> pair = kept;
+                return $"{own.Describe()} {back.Describe()} {kept.Describe()} {pair.Describe()}";
+            }
+        }
+
+        public class Rack
+        {
+            private type Own<K> = new Pair<K, int>;
+
+            public class Beside
+            {
+            }
+
+            public static string Both()
+            {
+                var own = (Own<string>)new Pair<string, int>("r", 2);
+                Pair<string, int> back = own;
+                return $"{own.Describe()} {back.Describe()}";
+            }
+        }
+
+        public type Kept<X> = new Held<X>;
+        public type Swapped<X, Y> = new Pair<Y, X>;
+        public type Celled<C> = new Cell<C>;
+        public type Kept2<X> = new Keep<X>;
+        public type Slotted<Y> = new Slot<Y>;
+
+        public class Program
+        {
+            public static void Main(string[] args)
+            {
+                var numbers = (Kept<int>)new Held<int>(4, "n");
+                var words = (Kept<string>)new Held<string>("w", "s");
+                Held<int> backNumbers = numbers;
+                var backWords = (Held<string>)words;
+                Console.WriteLine($"{numbers.Describe()} {words.Describe()} {backNumbers.Describe()} {backWords.Describe()}");
+
+                var swapped = (Swapped<int, string>)new Pair<string, int>("one", 1);
+                var flipped = (Swapped<string, int>)new Pair<int, string>(2, "two");
+                Pair<string, int> backSwapped = swapped;
+                Pair<int, string> backFlipped = flipped;
+                Console.WriteLine($"{swapped.Describe()} {flipped.Describe()} {backSwapped.Describe()} {backFlipped.Describe()}");
+
+                var celled = (Celled<Word>)new Cell<Word>(new Word("a"));
+                var again = (Celled<Word>)new Cell<Word>(new Word("b"));
+                var uncelled = (Cell<Word>)again;
+                Console.WriteLine($"{celled.Describe()} | {again.Describe()} | {uncelled.Describe()}");
+
+                int? none = void;
+                string? word = "k";
+                var keptNone = (Kept2<int>)new Keep<int>(none);
+                var keptWord = (Kept2<string>)new Keep<string>(word);
+                Keep<string> backKept = keptWord;
+                var slottedNone = (Slotted<int>)new Slot<int>(none);
+                var slottedWord = (Slotted<string>)new Slot<string>(word);
+                var backSlot = (Slot<string>)slottedWord;
+                Console.WriteLine($"{keptNone.Describe()} | {keptWord.Describe()} | {backKept.Describe()} | {slottedNone.Describe()} | {slottedWord.Describe()} | {backSlot.Describe()}");
+
+                Console.WriteLine($"{Shelf<string>.Both("u")} | {Shelf<int>.Both(7)}");
+
+        Kept<int>? absent = void;
+        Held<int>? stillAbsent = absent;
+        var shown = "absent";
+
+        if (stillAbsent is Held<int> present)
+        {
+            shown = present.Describe();
+        }
+
+        Console.WriteLine($"{Rack.Both()} | {shown}");
+            }
+        }
+        """;
+
     private readonly string scratchDir;
 
     public CloneConversionRuntimeTests()
@@ -359,6 +589,19 @@ public sealed class CloneConversionRuntimeTests : IDisposable
         Assert.Equal(
             "present 7 | present 7 | absent copies 1 | absent copies 2",
             CompileAndRun(ReachesASourceEmittedPerInstantiation));
+    }
+
+    [Fact]
+    public void EveryConversionOfAGenericNewtype_ReachesItsSourceAtEachInstance()
+    {
+        Assert.Equal(
+            "n=4 s=w n=4 s=w\n"
+            + "(one, 1) (2, two) (one, 1) (2, two)\n"
+            + "a reads=1 made=2 | b reads=1 made=2 | b reads=2 made=1\n"
+            + "kept nothing | kept k | kept k | empty slot copies 1 | slot k copies 1 | slot k copies 2\n"
+            + "own=u own=u (1, u) (1, u) | own=7 own=7 (1, 7) (1, 7)\n"
+            + "(r, 2) (r, 2) | absent",
+            CompileAndRun(ConvertsEachKindOfGenericNewtype).ReplaceLineEndings("\n"));
     }
 
     private string CompileAndRun(string source)

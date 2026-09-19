@@ -268,6 +268,77 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
         Assert.Contains(expected, EmitType(model, clone), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("Kept", "private static extern ref string __Probe_KeptString_item(Probe.Kept__Standard_String target);")]
+    [InlineData("Kept", "private static extern ref string __Probe_KeepString_item(Probe.Keep__Standard_String target);")]
+    [InlineData("Helded", "private static extern ref string __In_Probe_HeldString_item(Probe.Held__Standard_String __target);")]
+    [InlineData("Helded", "private static extern Probe.Held__Standard_String __Out_Probe_HeldString_new(string start, int tag);")]
+    [InlineData("Helded", "private static extern int __In_Probe_HeldString_get_Tag(Probe.Held__Standard_String __target);")]
+    [InlineData("Helded", "private static extern void __Out_Probe_HeldString_set_Tag(Probe.Held__Standard_String __target, int value);")]
+    [InlineData("Helded", "UnsafeAccessorKind.Method, Name = \"Take__o0\")]")]
+    public void AGenericNewtypeEmittedPerInstance_ReachesItsSourceAtThatInstance(string clone, string expected)
+    {
+        var model = StandardModelProbe.Build(
+            "var kept = (Kept<string>)new Keep<string>(\"k\"); var helded = (Helded<string>)new Held<string>(\"h\"); var back = (Held<string>)helded;",
+            out var diagnostics,
+            extraTypes: """
+                public readonly class Keep<K>
+                {
+                    private K? item;
+
+                    public Keep(K? start) { this.item = start; }
+                }
+
+                public type Kept<X> = new Keep<X>;
+
+                public class Held<K> : IClonable<Held<K>>
+                {
+                    private K? item;
+                    private int spare;
+
+                    private int Tag
+                    {
+                        get { return spare; }
+                        set { spare = value; }
+                    }
+
+                    public Held(K? start) { this.item = start; }
+
+                    private Held(K? start, int tag) { this.item = start; }
+
+                    private int Take(K? value) { return 1; }
+
+                    private int Take(string? value) { return 2; }
+
+                    public owned Held<K> Clone()
+                    {
+                        var copy = new Held<K>(this.item, 1);
+                        copy.Tag = Tag + Take(this.item);
+                        return copy;
+                    }
+                }
+
+                public type Helded<Y> = new Held<Y>;
+                """);
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+
+        var emitDiagnostics = new DiagnosticBag();
+        using var specialization = UnionSpecialization.Enter(model, emitDiagnostics);
+        var instance = Assert.Single(UnionSpecialization.InstancesOf(Definition(model, clone)));
+        var writer = new CSharpWriter();
+
+        using(TypeEmitter.Specializing(instance))
+        {
+            TypeEmitter.EmitTypeBody(
+                (MemberType)instance.Definition, ConstraintClosureMap.Build(model, emitDiagnostics), model.VariadicUses, writer, emitDiagnostics);
+        }
+
+        var emitted = writer.ToString();
+
+        Assert.Contains(expected, emitted, StringComparison.Ordinal);
+        Assert.DoesNotContain("static class", emitted, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void AnInstanceIsDeclaredUnderItsOwnNameWithNoTypeParameters()
     {

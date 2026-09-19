@@ -9,12 +9,12 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
 /// The declarations <see cref="UnsafeReach"/> calls through, each declared once per conversion however often
-/// the body reaches it. The runtime matches an accessor against a generic type's member only in that type's
-/// own parameters, so a member of a generic type is declared in a holder class over those parameters and
-/// called on the construction the body reaches -- unless that type is emitted per instantiation
-/// (<see cref="UnionSpecialization"/>), when the construction is a closed C# type and is named directly.
+/// the body reaches it. A member of a generic type is declared in an <see cref="AccessorHolder"/> over that
+/// type's own parameters, for the reason given there, and called on the construction the body reaches --
+/// unless that type is emitted per instantiation (<see cref="UnionSpecialization"/>), when the construction
+/// is a closed C# type and is named directly.
 /// </summary>
-internal sealed class UnsafeAccessors(string prefix, DiagnosticBag diagnostics)
+internal sealed class UnsafeAccessors(MemberType home, string prefix, DiagnosticBag diagnostics)
 {
     private const string Attribute = "[System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind";
 
@@ -22,7 +22,10 @@ internal sealed class UnsafeAccessors(string prefix, DiagnosticBag diagnostics)
     private readonly List<IReadOnlyList<string>> declarations = [];
     private readonly Dictionary<MemberType, List<(string Name, string[] Lines)>> holders = [];
 
-    public IReadOnlyList<IReadOnlyList<string>> Declarations => [.. declarations, .. holders.Select(Holder)];
+    public IReadOnlyList<IReadOnlyList<string>> Declarations => declarations;
+
+    public IEnumerable<AccessorHolder> Holders => holders.Select(
+        holder => new AccessorHolder(HolderName(holder.Key), holder.Key, [.. holder.Value.SelectMany(member => member.Lines)]));
 
     public string Field(Field field, IMistType owner)
     {
@@ -39,15 +42,14 @@ internal sealed class UnsafeAccessors(string prefix, DiagnosticBag diagnostics)
     {
         var declaring = property.DeclaringType!;
         var accessor = $"{(isSetter ? "set" : "get")}_{property.Name}";
-        var target = Target(declaring, property.Modifiers.IsStatic);
         var kind = property.Modifiers.IsStatic ? "StaticMethod" : "Method";
 
         return Declare((property, isSetter), declaring, owner, accessor, (accessibility, name) =>
         [
             $"{Attribute}.{kind}, Name = \"{accessor}\")]",
             isSetter
-                ? $"{accessibility} static extern void {name}({target}, {TypeNameEmitter.Emit(property.Type)} value);"
-                : $"{accessibility} static extern {TypeNameEmitter.Emit(property.Type)} {name}({target});",
+                ? $"{accessibility} static extern void {name}({Target(declaring, property.Modifiers.IsStatic)}, {TypeNameEmitter.Emit(property.Type)} value);"
+                : $"{accessibility} static extern {TypeNameEmitter.Emit(property.Type)} {name}({Target(declaring, property.Modifiers.IsStatic)});",
         ]);
     }
 
@@ -80,7 +82,7 @@ internal sealed class UnsafeAccessors(string prefix, DiagnosticBag diagnostics)
 
             string[] lines =
             [
-                $"{Attribute}.{kind}, Name = \"{method.Name}\")]",
+                $"{Attribute}.{kind}, Name = \"{UnionSpecialization.CollidingName(method, TypeNameEmitter.Closed(owner)) ?? method.Name}\")]",
                 $"{accessibility} static extern {MethodEmitter.EmitReturnType(method)} {name}{typeParameters}({Target(declaring, method.Modifiers.IsStatic)}{parameters})",
                 .. constraints.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.TrimEnd()),
             ];
@@ -125,15 +127,17 @@ internal sealed class UnsafeAccessors(string prefix, DiagnosticBag diagnostics)
 
     private string Declare(object member, MemberType declaring, IMistType owner, string stem, Func<string, string, string[]> declaration)
     {
+        owner = TypeNameEmitter.Closed(owner);
+
         if(declaring.TypeParametersList.Count == 0)
         {
-            return Declare(member, $"{Flat(declaring)}_{stem}", name => declaration("private", name));
+            return Declare(member, $"{AccessorHolder.Flat(declaring)}_{stem}", name => declaration("private", name));
         }
 
         if(owner is ConstructedType instance && UnionSpecialization.NameOf(instance) is not null)
         {
             using var closing = TypeNameEmitter.Substituting(TypeSubstitution.ForReceiver(instance));
-            return Declare((member, instance.FullyQualifiedName), $"{Flat(instance)}_{stem}", name => declaration("private", name));
+            return Declare((member, instance.FullyQualifiedName), $"{AccessorHolder.Flat(instance)}_{stem}", name => declaration("private", name));
         }
 
         if(!holders.TryGetValue(declaring, out var members))
@@ -180,26 +184,8 @@ internal sealed class UnsafeAccessors(string prefix, DiagnosticBag diagnostics)
         return name;
     }
 
-    private string[] Holder(KeyValuePair<MemberType, List<(string Name, string[] Lines)>> holder)
-    {
-        return
-        [
-            $"private static class {HolderName(holder.Key)}<{string.Join(", ", holder.Key.TypeParametersList.Select(TypeNameEmitter.Emit))}>",
-            "{",
-            .. holder.Value.SelectMany(member => member.Lines).Select(line => $"    {line}"),
-            "}",
-        ];
-    }
-
     private string HolderName(MemberType declaring)
     {
-        return $"__{prefix}_{Flat(declaring)}_Access";
-    }
-
-    private static string Flat(MistType owner)
-    {
-        var stem = owner.FullyQualifiedName.Where(character => character is not ('<' or '>' or ',' or ' '));
-
-        return new string([.. stem.Select(character => char.IsLetterOrDigit(character) ? character : '_')]);
+        return AccessorHolder.NameFor(home, $"__{prefix}_{AccessorHolder.Flat(declaring)}_Access");
     }
 }

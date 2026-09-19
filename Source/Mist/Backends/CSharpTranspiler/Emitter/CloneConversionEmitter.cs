@@ -14,7 +14,8 @@ internal static class CloneConversionEmitter
     {
         var clone = (ConcreteType)conversion.DeclaringType!;
         var receiver = conversion.SourceParameter.Type;
-        var direction = ReferenceEquals(conversion.TargetType, clone) ? "In" : "Out";
+        var target = conversion.TargetType is ConstructedType constructed ? constructed.Definition : conversion.TargetType;
+        var direction = ReferenceEquals(target, clone) ? "In" : "Out";
 
         writer.WriteLine(
             $"public static explicit operator {TypeNameEmitter.Emit(conversion.TargetType)}({TypeNameEmitter.Emit(receiver)} {ReceiverSpelling.Carrier})");
@@ -35,6 +36,11 @@ internal static class CloneConversionEmitter
             {
                 writer.WriteLine(line);
             }
+        }
+
+        foreach(var holder in reach.Holders)
+        {
+            holder.Place(clone, writer);
         }
     }
 }

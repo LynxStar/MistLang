@@ -302,6 +302,9 @@ public type Boxed<T> = new Box<T>;
 public type IntPair = new Pair<int, string>;
 public type AliasedPair = new Slot;
 public type IntCell = new Cell<int>;
+public type Twin<T> = new Pair<T, T>;
+public type Swap<A, B> = new Pair<B, A>;
+public type Celled<T> = new Cell<T>;
 public type Ocelot = new Lynx;
 
 public class Person
@@ -424,6 +427,19 @@ public class Program
         var cellBack = (Cell<int>)secondCell;
         Console.WriteLine($"firstCell={firstCell.Describe()} secondCell={secondCell.Describe()}");
         Console.WriteLine($"cellBack={cellBack.Describe()} cell={cell.Describe()}");
+
+        Console.WriteLine("--- Generic newtype conversions ---");
+        var twinPair = (Twin<int>)new Pair<int, int>(4, 5);
+        Pair<int, int> leftTwin = twinPair;
+        var swap = (Swap<int, string>)new Pair<string, int>("six", 6);
+        Pair<string, int> leftSwap = swap;
+        Console.WriteLine($"twinPair={twinPair.First()},{twinPair.Second} leftTwin={leftTwin.First()},{leftTwin.Second} swap={swap.First()},{swap.Second} leftSwap={leftSwap.First()},{leftSwap.Second}");
+        var word = new Cell<string>("w");
+        var firstWord = (Celled<string>)word;
+        var secondWord = (Celled<string>)word;
+        var wordBack = (Cell<string>)secondWord;
+        Console.WriteLine($"firstWord={firstWord.Describe()} secondWord={secondWord.Describe()}");
+        Console.WriteLine($"wordBack={wordBack.Describe()} word={word.Describe()}");
 
         Console.WriteLine("--- Members a Clone reaches ---");
         var lynx = new Lynx(4);

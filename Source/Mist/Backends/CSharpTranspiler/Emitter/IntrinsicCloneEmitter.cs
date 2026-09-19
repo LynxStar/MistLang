@@ -124,7 +124,12 @@ internal static class IntrinsicCloneEmitter
         var parameters = ParameterEmitter.Emit(castOperator.ParametersList, diagnostics);
 
         writer.WriteLine($"{MemberModifierEmitter.Emit(castOperator.Modifiers, emitReadonly: false)}{kind} operator {TypeNameEmitter.Emit(castOperator.TargetType)}({parameters})");
-        writer.WriteLine($"    => {Wrap(castOperator.TargetType, clone, converted)};");
+        var result = Wrap(castOperator.TargetType, clone, converted);
+        var absentStaysAbsent = clone is ClassType && castOperator is { CopiesClone: true, IsImplicit: true };
+
+        writer.WriteLine(absentStaysAbsent
+            ? $"    => {castOperator.SourceParameter.Name} is null ? null! : {result};"
+            : $"    => {result};");
     }
 
     private static string Convert(string operand, IMistType from, IMistType to)

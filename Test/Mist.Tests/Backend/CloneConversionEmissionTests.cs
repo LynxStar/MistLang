@@ -146,9 +146,37 @@ public sealed class CloneConversionEmissionTests
             }
         }
 
+        public class Spot<T> : IClonable<Spot<T>>
+        {
+            private T mark;
+            private int spots;
+
+            public Spot(T mark) { this.mark = mark; }
+
+            public owned Spot<T> Clone()
+            {
+                var copy = new Spot<T>(mark);
+                Spot<T>? maybe = copy;
+                int? read = maybe?.spots;
+                return copy;
+            }
+        }
+
+        public class Sorted<T> : IClonable<Sorted<T>> where T : IShow
+        {
+            private T top;
+
+            public Sorted(T top) { this.top = top; }
+
+            public owned Sorted<T> Clone() { return new Sorted<T>(top); }
+        }
+
         public type Jaguar = new Tiger;
         public type Puma = new Lion;
         public type IntCell = new Cell<int>;
+        public type Celled<C> = new Cell<C>;
+        public type IntSpot = new Spot<int>;
+        public type WordSorted = new Sorted<Word>;
         public type Ocelot = new Lynx;
         public type Caracal = new Serval;
         """;
@@ -162,6 +190,12 @@ public sealed class CloneConversionEmissionTests
         var lynx = (Lynx)ocelot;
         var caracal = (Caracal)new Serval(1);
         var serval = (Serval)caracal;
+        var celled = (Celled<string>)new Cell<string>("s");
+        var uncelled = (Cell<string>)celled;
+        var intSpot = (IntSpot)new Spot<int>(1);
+        var spot = (Spot<int>)intSpot;
+        var wordSorted = (WordSorted)new Sorted<Word>(new Word());
+        var sorted = (Sorted<Word>)wordSorted;
         """;
 
     [Fact]
@@ -209,6 +243,39 @@ public sealed class CloneConversionEmissionTests
         Assert.Contains("__Out_Probe_Cell_Access<int>.__made(null) = __Out_Probe_Cell_Access<int>.__made(null) + 1;", emitted);
         Assert.Contains("return __Out_Probe_Cell_Access<int>.__new(@this.content, __Out_Probe_Cell_Access<int>.__made(null));", emitted);
         Assert.Contains("public static extern Probe.Cell<T> __new(T content, int serial);", emitted);
+    }
+
+    [Fact]
+    public void AGenericNewtype_NamesEachDirectionsHolderApartAndDeclaresBothOutsideItself()
+    {
+        var emitted = EmitDeclaration("Celled<>");
+        var clone = emitted[..emitted.IndexOf("file static class", StringComparison.Ordinal)];
+
+        Assert.Contains("public static explicit operator Probe.Celled<C>(Probe.Cell<C> @this)", clone);
+        Assert.Contains("new Probe.Celled<C>(__Probe_Celled_1__In_Probe_Cell_Access<C>.__content(@this), Probe.Celled<C>.made)", clone);
+        Assert.Contains("return __Probe_Celled_1__Out_Probe_Cell_Access<C>.__new(@this.content, __Probe_Celled_1__Out_Probe_Cell_Access<C>.__made(null));", clone);
+        Assert.DoesNotContain("static class", clone);
+        Assert.Contains("file static class __Probe_Celled_1__In_Probe_Cell_Access<T>", emitted);
+        Assert.Contains("file static class __Probe_Celled_1__Out_Probe_Cell_Access<T>", emitted);
+        Assert.Contains("public static extern Probe.Cell<T> __new(T content, int serial);", emitted);
+    }
+
+    [Fact]
+    public void AConditionalAccessThroughAnOptionalConstruction_CallsTheHolderAtItsArguments()
+    {
+        var emitted = EmitDeclaration("IntSpot");
+
+        Assert.Contains("(int?)__Out_Probe_Spot_Access<int>.__spots(", emitted);
+        Assert.DoesNotContain("Access<T>.__spots", emitted);
+    }
+
+    [Fact]
+    public void AHolderOverAConstrainedDefinition_RepeatsItsConstraints()
+    {
+        var emitted = EmitDeclaration("WordSorted");
+        var holder = emitted[emitted.IndexOf("private static class __In_Probe_Sorted_Access<T>", StringComparison.Ordinal)..];
+
+        Assert.StartsWith("where T : Probe.IShow", holder[(holder.IndexOf('\n') + 1)..].TrimStart());
     }
 
     [Fact]

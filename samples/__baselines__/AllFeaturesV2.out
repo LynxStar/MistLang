@@ -1968,6 +1968,10 @@ leftPair=1,one enteredPair=2,two slot=3,three
 --- Clonable constructed source ---
 firstCell=3 fresh#1 made=2 secondCell=3 fresh#2 made=2
 cellBack=3 fresh#2#1 made=1 cell=3 fresh made=1
+--- Generic newtype conversions ---
+twinPair=4,5 leftTwin=4,5 swap=six,6 leftSwap=six,6
+firstWord=w fresh#1 made=2 secondWord=w fresh#2 made=2
+wordBack=w fresh#2#1 made=1 word=w fresh made=1
 --- Members a Clone reaches ---
 lynx=spots=4 spare=7 ocelot=spots=139 spare=5 lynxBack=spots=409 spare=5
 === Newtype Clones Done ===
@@ -2023,3 +2027,4 @@ derived<int>: int? | int? | K? | narrow int?
 via abstract: K? | K?
 values: int? | K? | K?
 clones: present 7 | present 7 | absent copies 1 | absent copies 2
+generic clones: present w | present w | absent copies 1 | present w copies 1 | present w copies 2

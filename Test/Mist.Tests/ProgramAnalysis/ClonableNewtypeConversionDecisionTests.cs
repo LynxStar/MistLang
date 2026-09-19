@@ -91,6 +91,7 @@ public sealed class ClonableNewtypeConversionDecisionTests
         }
 
         public type IntCell = new Cell<int>;
+        public type Celled<C> = new Cell<C>;
         public type Jaguar = new Tiger;
         public type Puma = new Lion;
         public type Margay = new Ocelot;
@@ -106,6 +107,7 @@ public sealed class ClonableNewtypeConversionDecisionTests
         var entity = new Entity();
         var cell = new Cell<int>(1);
         var intCell = new IntCell(2);
+        var celled = new Celled<string>("c");
         """;
 
     [Theory]
@@ -113,6 +115,9 @@ public sealed class ClonableNewtypeConversionDecisionTests
     [InlineData("var left = (Tiger)jaguar;")]
     [InlineData("var enteredFromAConstruction = (IntCell)cell;")]
     [InlineData("var leftForAConstruction = (Cell<int>)intCell;")]
+    [InlineData("var enteredAGenericNewtype = (Celled<int>)cell;")]
+    [InlineData("var enteredAtAnotherInstance = (Celled<string>)new Cell<string>(\"s\");")]
+    [InlineData("var leftAGenericNewtype = (Cell<string>)celled;")]
     public void ACastRunningAClonableSourcesClone_IsAdmittedEitherWay(string statement)
     {
         Assert.Empty(Errors(Analyse(statement)));
@@ -123,6 +128,9 @@ public sealed class ClonableNewtypeConversionDecisionTests
     [InlineData("var noCopy = (Actor)entity;", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
     [InlineData("var noCopyBack = (Entity)new Actor();", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
     [InlineData("var inheritedCopyOnly = (Margay)ocelot;", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
+    [InlineData("Celled<int> genericWithoutACast = cell;", "MIST_PA_CAST_REQUIRED")]
+    [InlineData("var fromAnotherInstance = (Celled<string>)cell;", "MIST_PA_CAST_ARGUMENT_MISMATCH")]
+    [InlineData("var toAnotherInstance = (Cell<int>)celled;", "MIST_PA_CAST_HAS_NO_CONVERSION")]
     [InlineData("var renamedField = (Puma)lion;", "MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD")]
     [InlineData("var renamedFieldBack = (Lion)puma;", "MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD")]
     public void ACastWithNoCopyThatHolds_IsRefused(string statement, string expected)
@@ -159,6 +167,19 @@ public sealed class ClonableNewtypeConversionDecisionTests
 
         Assert.Equal("Probe.Cell<Int32>", conversion.TargetType.FullyQualifiedName);
         Assert.Equal("Probe.Cell<Int32>", copy.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void ACastToAnInstanceOfAGenericNewtype_RunsTheNewtypesCloneTypedAtThatInstance()
+    {
+        var cast = Assert.IsType<CastExpression>(LastLocal(Build("var entered = (Celled<int>)cell;", out _)).Initializer);
+        var conversion = Assert.IsType<CastOperator>(cast.Operator);
+
+        Assert.Equal("Probe.Celled<>", conversion.ClonesThrough?.DeclaringType?.FullyQualifiedName);
+        Assert.Equal("Probe.Celled<C>", conversion.TargetType.FullyQualifiedName);
+        Assert.Equal("Probe.Cell<C>", conversion.SourceParameter.Type.FullyQualifiedName);
+        Assert.Equal("Probe.Celled<Int32>", cast.Type.FullyQualifiedName);
+        Assert.True(conversion.IsCalled);
     }
 
     [Fact]

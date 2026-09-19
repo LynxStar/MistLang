@@ -21,6 +21,7 @@ public sealed class NewtypeLiteralDecisionTests
         public type Meters = new double;
         public type Label = new string;
         public type Small = new byte;
+        public type Id<T> = new int;
 
         public class Person
         {
@@ -49,6 +50,8 @@ public sealed class NewtypeLiteralDecisionTests
     [InlineData("Meters widened = 2;")]
     [InlineData("Label text = \"x\";")]
     [InlineData("var initialized = new Person { Name = \"Arthur\" };")]
+    [InlineData("Id<string> generic = 5;")]
+    [InlineData("Id<string>[] genericElements = [6, 7];")]
     public void ALiteralInASlotWhoseNewtypeIsInSight_IsAdmitted(string statement)
     {
         Assert.Empty(Errors(Analyse(statement)));
@@ -73,6 +76,16 @@ public sealed class NewtypeLiteralDecisionTests
 
         Assert.True(cast.Operator?.CopiesClone);
         Assert.Equal("Probe.Age", cast.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void ALiteralAdmittedIntoAGenericNewtype_IsTheCastToThatInstance()
+    {
+        var model = Build("Id<string> generic = 5;", out _);
+        var cast = Assert.IsType<CastExpression>(LastLocal(model).Initializer);
+
+        Assert.True(cast.Operator?.CopiesClone);
+        Assert.Equal("Probe.Id<String>", cast.Type.FullyQualifiedName);
     }
 
     [Fact]

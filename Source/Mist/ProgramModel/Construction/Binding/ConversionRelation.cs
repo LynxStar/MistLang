@@ -57,6 +57,16 @@ internal static class ConversionRelation
     /// </summary>
     public static bool IsWithin(IMistType from, IMistType to)
     {
+        return IsWithin(from, to, copying: true);
+    }
+
+    public static bool IsWithinAsItself(IMistType from, IMistType to)
+    {
+        return IsWithin(from, to, copying: false);
+    }
+
+    private static bool IsWithin(IMistType from, IMistType to, bool copying)
+    {
         from = Structural(from);
         to = Structural(to);
 
@@ -77,15 +87,34 @@ internal static class ConversionRelation
             || WidensElementwise(from, to)
             || WidensToUnknownArguments(from, to)
             || WidensToBaseDelegate(from, to)
-            || LeavesClone(from, to)
+            || (copying && LeavesClone(from, to))
             ;
     }
 
+    /// <summary>
+    /// A copyable newtype's copy out, read as containment (newtypes spec Requirement 2.4) only as far as C#
+    /// carries its implicit operator unaided: on to a standard conversion -- a widening, a base, a nullable --
+    /// and never into a union's carrier, a second user-defined conversion C# refuses to chain. There the
+    /// copy is left for selection to record as the conversion it is.
+    /// </summary>
     private static bool LeavesClone(IMistType from, IMistType to)
     {
-        return from is ConcreteType { CloneSourceType: { } source } clone
+        return (from is ConstructedType instance ? instance.Definition : from) is ConcreteType clone
             && clone.CastOperatorsList.Exists(castOperator => castOperator is { CopiesClone: true, IsImplicit: true })
+            && CloneSourceOf(from) is { } source
+            && (to is not UnionType || OptionalUnion.IsOptional(to))
             && IsWithin(source, to);
+    }
+
+    public static IMistType? CloneSourceOf(IMistType type)
+    {
+        return type switch
+        {
+            ConcreteType { CloneSourceType: { } source } => source,
+            ConstructedType { Definition: ConcreteType { CloneSourceType: { } source } } instance
+                => TypeSubstitution.ForReceiver(instance).Apply(source, interner: null),
+            _ => null,
+        };
     }
 
     /// <summary>
@@ -282,11 +311,13 @@ internal static class ConversionRelation
 
         if(from is UnionType fromUnion)
         {
+            var copying = OptionalUnion.IsOptional(toUnion);
+
             return fromUnion.Constituents.All(
-                constituent => toUnion.Constituents.Any(target => IsWithin(constituent, target)));
+                constituent => toUnion.Constituents.Any(target => IsWithin(constituent, target, copying)));
         }
 
-        return toUnion.Constituents.Any(constituent => IsWithin(from, constituent));
+        return toUnion.Constituents.Any(constituent => IsWithin(from, constituent, copying: false));
     }
 
     /// <summary>

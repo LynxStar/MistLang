@@ -7,10 +7,4 @@ namespace Mist.ProgramModel.Model.Members;
 /// type parameters, so the parameter a call's argument must reach and the result it produces are the
 /// declaration's, substituted through the arguments of the constructed type the operator was found on.
 /// </summary>
-internal sealed record ConversionFunction(CastOperator Operator, IMistType Parameter, IMistType Result)
-{
-    public static ConversionFunction Unsubstituted(CastOperator castOperator)
-    {
-        return new ConversionFunction(castOperator, castOperator.SourceParameter.Type, castOperator.TargetType);
-    }
-}
+internal sealed record ConversionFunction(CastOperator Operator, IMistType Parameter, IMistType Result);

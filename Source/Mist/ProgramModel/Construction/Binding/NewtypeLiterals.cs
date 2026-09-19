@@ -1,8 +1,6 @@
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Members;
-using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
@@ -17,22 +15,23 @@ internal static class NewtypeLiterals
 {
     public static Expression? Admit(Expression? value, IMistType? target, TypeInterner interner)
     {
-        if(value is ArrayLiteralExpression { ElementType: ConcreteType { CloneSource: not null } element } array)
+        if(value is ArrayLiteralExpression { ElementType: { } element } array && ConversionRelation.CloneSourceOf(element) is not null)
         {
             return new ArrayLiteralExpression(
                 array.Node, element, [.. array.Elements.Select(item => Admit(item, element, interner)!)], array.Type);
         }
 
         if(value is null
-            || target is not ConcreteType { CloneSourceType: { } source } clone
+            || target is null
+            || ConversionRelation.CloneSourceOf(target) is not { } source
             || !IsLiteral(value)
             || !Fits(value, source, interner)
-            || clone.CastOperatorsList.Find(castOperator => castOperator is { CopiesClone: true, IsImplicit: false }) is not { } conversion)
+            || ConversionRelation.DeclaredOn(target).FirstOrDefault(function => function.Operator is { CopiesClone: true, IsImplicit: false }) is not { } conversion)
         {
             return value;
         }
 
-        return new CastExpression(value.Node, value, clone, [ConversionFunction.Unsubstituted(conversion)], clone);
+        return new CastExpression(value.Node, value, target, [conversion], target);
     }
 
     private static bool IsLiteral(Expression value)

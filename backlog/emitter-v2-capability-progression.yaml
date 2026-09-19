@@ -4133,11 +4133,26 @@ capabilities:
       and the FunctionReferenceExpression case names the choice (`lifted.Take__o1`); the pair the
       generic body itself resolved stays `Take__o0`. samples/OpenUnions prints `values:`.
 
-      STILL NOT COVERED, both outside the specialization: a generic method with STATED type arguments
-      used as a value (`Api.Pick<int, string>` with no call) does not parse, the grammar admitting a
+      A GENERIC NEWTYPE OVER A SPECIALIZED SOURCE CONVERTS (2026-09-19), the second of the two shapes
+      left outside: `type Slotted<K> = new Slot<K>` synthesized no conversion at all, three
+      MIST_PA_CAST_HAS_NO_CONVERSION on v2 and no contract on classic, which cannot resolve a generic
+      newtype. The gate is lifted under order 86, where the whole change is recorded; what belongs here
+      is that clone and source are both emitted per instantiation, so the conversion's accessors are
+      judged under the instance being emitted -- CloneCopyEmitter and UnsafeAccessors close each owner
+      through TypeNameEmitter.Closed before asking UnionSpecialization for its name -- and spell
+      `__In_Probe_HeldString_item(Probe.Held__Standard_String __target)`, flat, where the open
+      `Held<K>` had leaked. An accessor of a method an instance renames apart names the renamed one
+      (`Name = "Take__o0"`), having compiled and thrown MissingMethodException when called, and a
+      property accessor spells its target inside the instance's substitution. samples/OpenUnions
+      prints `generic clones:` over `Kept<K>` and `Helded<K>` at two instantiations.
+
+      STILL NOT COVERED, outside the specialization: a generic method with STATED type arguments used
+      as a value (`Api.Pick<int, string>` with no call) does not parse, the grammar admitting a
       type-argument list in four contexts only (generics-type-arguments Requirement 4.5), on both
-      pipelines; and a GENERIC newtype over a specialized source (`type Slotted<K> = new Slot<K>`)
-      synthesizes no conversion at all, the generic-clone gate recorded under newtypes.
+      pipelines. PROBED AGAIN 2026-09-19, one project each: the plain `Api.Same<int>` fails the same
+      way, `x => Api.Pick<int, string>(x)` prints `T 5 | R` on v2, and a BARE generic group
+      (`func<int, int> same = Api.Same;`) is MIST_PM_METHOD_GROUP_NOT_CONVERTED on v2 and MIST_TC_0084
+      on classic, the conversion declining any candidate with type parameters of its own.
     unlocks: []
 
   - id: union-widening-at-use-sites
@@ -4953,12 +4968,12 @@ capabilities:
       counts Tiger and Jaguar give; an alias, a generic alias, Boxes<string>, Swap, a constrained Ranked<Score>, a
       newtype over IntBox, a variadic Bundle, `new Outer<string>.Inner`, `new (Point)`, `type Id<T> = new int` and
       `type Tagged<T> = new Point`. NewtypeClones unchanged against its baseline.
-      STILL OPEN, each a refusal at the Mist source rather than generated C# that fails: a conversion or operator on
-      an INSTANCE of a generic newtype -- `Pair<int, int> p = twin` over `type Twin<T> = new Pair<T, T>`, `(Id<User>)5`
-      -- waits on order 46's constructed-generic cast operator task, the gap `new Tagged<string>(2) + new
-      Tagged<string>(3)` meets on any generic struct, so a generic clone synthesizes conversions only where an
-      intrinsic wrapper forwards through them; and a source reached through an enclosing instantiation gets no
-      copy conversion. The placeholder is NOT RETIRED: it still carries a tuple source (variadics spec 22.3), a
+      STILL OPEN, each a refusal at the Mist source rather than generated C# that fails: an OPERATOR on an
+      INSTANCE of a generic newtype -- `new Tagged<string>(2) + new Tagged<string>(3)`, the gap any generic
+      struct meets, a declared operator never being matched on a constructed receiver; and a source reached
+      through an enclosing instantiation gets no copy conversion. The CONVERSIONS of such an instance, which
+      this sentence also held open, are recorded under A GENERIC NEWTYPE'S INSTANCES CONVERT below. The
+      placeholder is NOT RETIRED: it still carries a tuple source (variadics spec 22.3), a
       source the newtype builder refuses or cannot resolve, and an alias whose target is its own type parameter
       (`type Same<X> = X; type B = new Same<Tiger>`), which the registration-time walk over syntax cannot see through.
       PROVED BY NewtypeCloneTests (a constructed source's members, the renaming for the clone's arguments only and
@@ -5024,6 +5039,106 @@ capabilities:
       A NEWTYPE OVER A NARROW INTEGRAL COMPILES (2026-09-14). `type Tiny = new byte;` failed in Roslyn even
       unused, and over short, sbyte and ushort alike, while classic ran it; its cloned arithmetic now spells
       the backing result back into the source before wrapping it. Recorded in full under order 9.
+
+      A GENERIC NEWTYPE'S INSTANCES CONVERT (2026-09-19), closing the conversion half of the STILL OPEN above.
+      MEASURED FIRST, one project per probe at two instantiations: `type Kept<T> = new Held<T>` over a readonly
+      class, the same over a source with a `K?` field, `type Couple<A, B> = new Pair<A, B>` over a struct, and
+      `type Celled<T> = new Cell<T>` over an IClonable class with and without a `K?` field were each
+      MIST_PA_CAST_HAS_NO_CONVERSION at every cast and NO_IMPLICIT_CONVERSION at the leave; classic cannot
+      resolve a generic newtype at all (MIST_UNDEFINED_TYPE_ARGUMENT, then MIST_NOT_GENERIC), so this is V2-ONLY
+      ground. NewtypeConversions.Synthesize returned early for a generic clone over a non-intrinsic source,
+      waiting on order 46's constructed-generic cast operators, which landed the same day the wait was written.
+      With the clause gone and SynthesizeClonable typing both operators by the clone constructed over its own
+      parameters, the frontend admitted all five and the C# backend failed three ways, each fixed:
+      IN AND OUT were told apart by ReferenceEquals(target, clone), false for a constructed target, so both
+      operators' holders were `__Out_` and collided; the target's definition is compared.
+      A HOLDER NESTED IN A GENERIC CLONE compiled and threw MissingFieldException when called. MEASURED in a C#
+      scratch on .NET 10.0.3, 9378 rows each checking the value read: the runtime matches an accessor by the
+      POSITION of each type parameter in the accessor's DECLARING type, a nested type counting its enclosing
+      types' first, so a generic holder inside `Kept<T>` fails for every member whose signature mentions T, a
+      plain nested holder works only where the target is constructed over exactly the clone's parameters in
+      order, and a holder outside every generic type reaches a permuted, repeated or partly closed construction
+      alike. AccessorHolder therefore hands a holder of a clone that is a C# generic, or sits inside one, to
+      the nearest enclosing type no generic encloses (private there) or else to the namespace as a `file
+      static class` after the top-level type closes, named for the clone and the arity of each level
+      (`__Probe_Swapped_2__Probe_Pair_Access<A, B>`); each waits for the type it is bound for, a sibling nested
+      beside the clone closing first. The clone's OWN slots are declared flat in its body, where the declaring
+      type is the target. A probe whose private state never mentions a parameter passes under the wrong
+      placement, so every row copies a member typed by one.
+      A CLONE EMITTED PER INSTANTIATION judged its owners as the model holds them, open over the clone's
+      parameter; recorded under order 76.
+      THE FRONTEND SITES that knew a clone only as a bare ConcreteType read an instance through
+      ConversionRelation.CloneSourceOf: LeavesClone, so the leave is lossless before a declared operator
+      (Requirement 2.4), elementwise in a tuple value and in overload ranking as its closed twin's was;
+      NewtypeLiterals.Admit, so `Id<User> id = 5;` and `Id<User>[] ids = [6, 7];` enter (Requirement 9.2), both
+      MIST_PA_CAST_REQUIRED before; and CastAnalyzer, recorded under analysis order 4.
+      FOUND ON THE WAY by an adversarial review that ran each claim on both binaries, and fixed because the
+      change reaches them. A COPY OUT INTO A UNION CARRIER was containment, so `int | string e = age;` recorded
+      nothing and failed in C#, a user-defined conversion C# will not chain into the carrier's -- for a closed
+      clone on main as well: LeavesClone now holds only as far as C# carries the operator unaided, an optional
+      included, WidensIntoUnion and the classifier's union step reach a constituent only as the value itself,
+      and the recorded copy is cast on to its carrier so C# cannot choose an overload again (`Take(Money |
+      string)` beside `Take(Asset | string)` had bound the one Mist did not select). A union holding a clone into
+      a union holding its source is MIST_PA_NO_IMPLICIT_CONVERSION, a C# error before. AN EXTENSION BLOCK
+      DECLARED FOR THE SOURCE applied to its newtype and failed in C#, or ran where the member was a property;
+      ExtensionLookup asks ConversionRelation.IsWithinAsItself and it is MIST_PM_UNRESOLVED_MEMBER (Requirement
+      3.5). AN ABSENT OPTIONAL CLASS CLONE leaving to its optional source threw NullReferenceException inside
+      the operator, C# lifting a user-defined conversion over Nullable only; a class copy and an intrinsic
+      class wrapper's leave answer null for null. A CLONE NAMED LIKE ITS GENERIC SOURCE (`type Pair = new
+      Pair<int, string>`), a CONDITIONAL ACCESS through an optional construction (`maybe?.spots` spelled the
+      holder over the definition's own `<T>`), a holder over a CONSTRAINED definition (CS0314, the where
+      clause not repeated), a newtype declared INSIDE A GENERIC CLASS (`Shelf<>` written into an identifier),
+      and the reach helpers' `T` shadowing a generic clone's (CS0693) each failed in C# and each compile and
+      run.
+      LEFT UNSYNTHESIZED, a cast refused at the Mist source and a program that never converts compiling again:
+      a clone or source declaring a PACK, whose operators and holders need a spelling per width (the closed
+      `new Tagged<int, string, bool>` failed in C# on main too); a copyable source with a SELF-TYPED SLOT
+      (`Node<T>? next` is `Chain<T>? next` in the clone, so no slot-for-slot copy types -- `type IntChain = new
+      Node<int>` failed in C# unused on main, and whether such a copy recurses or is refused naming the member,
+      as Requirement 10 refuses, is undecided); and a clone inside a generic type over a source the namespace
+      cannot name, a protected nested one, where its holder would have to be written.
+      MEASURED on v2 after, each line derived by hand first: the five probes print `readonly generic copy: held
+      4 | held w | back held w | cast held 4`, `readonly open copy: empty | held w | back held w | cast empty`,
+      `struct generic copy: (1, one) | (two, 2) | back (1, one) | cast (two, 2)`, `plain generic clone: 4 fresh+
+      | w fresh+ | back w fresh++` and `generic clone: absent | present w | back present w`; 35 adjacent shapes
+      and 25 closed-against-generic twins agree with their expectations or refuse as they should, a source with
+      no copy and a cast from another instantiation among the refusals. samples/NewtypeClones prints four lines
+      under `--- Generic newtype conversions ---` -- Twin<int> and Swap<int, string> copied both ways,
+      Celled<string> cast in twice and out once with `made=2` in the newtype's statics and `made=1` in the
+      source's -- and AllFeaturesV2 matches the extended baseline with no other line moved.
+      STILL OPEN beside the operator gap above, each measured: a newtype over a newtype converts with its ROOT
+      source only (`Kept<string> k = again;` is CAST_REQUIRED); `as` and a union pattern against the source are
+      admitted and answer false where Requirement 2.1 has them fail; `long | string wide = age;` is
+      MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION between the copy and int's cloned widening, a C# error before; a
+      source's extension still applies to a newtype's OPTIONAL or TUPLE, IsWithinAsItself judging the outer
+      type only; a copy out into an abstract only the source conforms to (`with Money : IPriced`) is
+      containment C# refuses; an `owned` local initialised from a clone conversion clones a second time; and a
+      parameterless constructor of a class over a constructed generic base emits no base call.
+      PROVED BY NewtypeConversionDecisionTests and ClonableNewtypeConversionDecisionTests (both directions at
+      two instantiations, a permuted struct, the leave before a declared operator and in a tuple, each refusal
+      by id, the operator recorded at the instance, the union leave recorded and cast to its carrier, the
+      optional staying containment, the extension refused for clone and instance and kept for the source, the
+      three unsynthesized shapes), NewtypeLiteralDecisionTests, CloneCopyEmissionTests and
+      CloneConversionEmissionTests (the flat own slot, the `file` holder and its name, the private holder past
+      a nested sibling, a clone inside a generic class, the same-named clone, the null guard, In and Out named
+      apart, the optional receiver, the repeated constraint), IntrinsicCloneEmissionTests (the wrapper's guard),
+      UnionSpecializationTests (six per-instance rows, the renamed overload and both property accessors among
+      them) and one Tier 4 fact in CloneConversionRuntimeTests whose program runs a readonly class, a permuted
+      struct, a constrained clonable source with a conditional access, both per-instantiation sources, newtypes
+      nested in a generic and in a plain class, and an absent optional, six lines.
+      Thirty-seven mutations on confirmed builds, each caught by name: the gate restored fails twenty-five rows and
+      the runtime fact; the operators typed by the bare definition, ten; direction by reference, the holder never
+      leaving, only the clone's own parameters judged, the home always the namespace, a flush wherever a type
+      closes, the name without its arities or without its clone, the constraints dropped, either flush removed,
+      the owner or the slots not closed, the property's target or the overload's name spelled outside the
+      instance, the clone's own slots sent to a holder, slots told apart by stem alone, the arity marker kept in
+      a stem, either absent guard removed, the optional receiver not unwrapped, the leave missing an instance or
+      contained in a carrier, union widening or union-to-union through a copy, the classifier reaching a
+      constituent through one, the source's extension applying, the literal or its array arm not unwrapped, the
+      no-copy diagnostic missing an instance or judged one way only, the carrier cast dropped, and each of the
+      three unsynthesized shapes converting anyway each fail between one and five. The un-nameable source's gate
+      SURVIVED the first pass, nothing pinning it; ACloneInsideAGenericOverASourceTheNamespaceCannotName_ConvertsNothing
+      was added and catches it.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across
@@ -11274,8 +11389,8 @@ samples:
         conditional access and call, a `??=` through a computed property, an indexer, a constrained
         generic method and two method groups in one direction or both, but stdout cannot tell an accessor
         from a widened member; CloneConversionEmissionTests and CloneConversionRuntimeTests hold the
-        spelling and the runtime binding. A generic newtype's conversions are refused (order 46), so
-        Boxed<T> shows its renamed members only.
+        spelling and the runtime binding. Boxed<T> is over a Box<T> that defines no copy, so it shows
+        its renamed members only; Twin<T>, Swap<A, B> and Celled<T> are the generic newtypes that convert.
 
   - name: OverloadedIndexers
     intro_order: 95

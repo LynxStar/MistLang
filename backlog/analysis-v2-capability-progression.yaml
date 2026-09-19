@@ -489,7 +489,10 @@ rules:
       the cast calls an operator running a Clone body with the operand as this, and the rule reports
       MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD when that body does not type: the runner judges each such body
       first, every rule over it alone with its findings withheld, and hands the reasons to the rule through
-      AnalysisContext.ConversionRefusals.
+      AnalysisContext.ConversionRefusals. AN INSTANCE OF A GENERIC NEWTYPE IS JUDGED THE SAME (2026-09-19):
+      `(Crated<int>)new Crate<int>(1)` over a mutable `Crate<C>` was CAST_HAS_NO_CONVERSION where the closed
+      twin named the missing copy, CastAnalyzer matching a bare ConcreteType only; it reads the instance's
+      source through ConversionRelation.CloneSourceOf in both directions.
 
       THE CLASSIFIER'S IMPLICIT ANSWER ASKS CastOperatorSelection.Implicit (2026-09-13, emitter order 46), the
       selection that records the conversion at every implicit position, in place of ConversionRelation.FindOperator,

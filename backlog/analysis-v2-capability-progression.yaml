@@ -2531,11 +2531,33 @@ rules:
         copied = a;` is UNPROVEN over an `Age` that lifts to 30, because Given records nothing for an
         initializer that is neither a constant, a local nor a length. Sound, imprecise.
       - >
-        A slot `where` that names a property reads as no requirement at all, so every value is admitted:
-        over `where entry >= 0 and < Count`, `ledger[7]` is silent on v2 (measured 2026-09-19). Requirement
-        reads a bare `Count` as a PropertyReferenceExpression, which Symbol does not name, and a conjunction
-        with an unreadable operand is null. Under the one rule a predicate the prover cannot read should be
-        refused rather than admitted; this predates the four items and is left for Arthur to decide.
+        A predicate the prover cannot read is admitted as satisfied: Requirement.Of answers null for it, and
+        AnySatisfied counts a null requirement as met. Measured 2026-09-19, one project per shape, v2 against
+        classic. A `where` naming a member admits on BOTH pipelines: over Count 3, `ledger[7]` into `where
+        entry >= 0 and < Count` prints 0, `shelf[7]` into `< size` and `rack[7]` into a readonly `< limit`
+        print 7, and `box.Take(7)` into `where n >= 0 and < Count` prints 7; classic refuses only a
+        non-constant (`ledger[i]`, MIST_REFINEMENT_0005). A bare `Count` binds as a
+        PropertyReferenceExpression and a bare field as a FieldReferenceExpression, neither of which Symbol
+        names. v2 is LOOSER than classic on every other unreadable predicate: `Small s = new Box(5)` over
+        `type Small = Box { Size: < 3 }`, an unknown Box, a readonly-field pattern, a regex (`Email e =
+        "not-an-email"`) and a real (`Positive p = -1.5` over `double > 0.0`) are all admitted, where classic
+        refuses a constant as MIST_TC_0097 and anything else as MIST_TC_0098; a `Small` argument compiles on
+        classic and throws at its entry guard. A refinement pattern over a MUTABLE property is declared
+        without complaint on v2 and is MIST_TC_0100 on classic (spec R3). Refinement-types R13.6 already
+        says an undeterminable refinement requires pattern matching rather than silent acceptance. No
+        obligation in AllFeaturesV2 meets a predicate of this kind (instrumented run): ValidInterval and
+        Email are declared and only ever tested with `is`. The options put to Arthur: (a) UNPROVEN at the
+        use, (b) refused at the declaration, (c) a member bound read through the receiver's signature --
+        its type or R18 lift, never flow -- so `where entry < Count` proves exactly when Count says its
+        value.
+      - >
+        A symbolic bound the prover CAN read is refused at every use of a user slot, and a constant is
+        misreported: `ledger[1]` into `where entry >= 0 and < this.Count` is MIST_PA_CONSTRAINT_VIOLATED,
+        "Value '1' violates", over a Count of 3; classic admits it. The value is judged with no holder, so
+        Satisfied fails every symbolic bound, and a constant that fails is reported as violating whatever
+        failed. A `where` naming another parameter (`where lo < hi`) does not bind on v2
+        (MIST_PM_UNRESOLVED_IDENTIFIER at the declaration); classic accepts it and never checks it, so
+        `Take(5, 3)` prints -2.
       - >
         A property or indexer accessor with a Mist body forgets every non-readonly field fact, whether or
         not it writes one; ReadonlyInference already answers whether a getter writes, and consulting it

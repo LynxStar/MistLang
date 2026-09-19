@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    int[] items = new int[5];
+
+    public int Last()
+    {
+        items = new int[3];
+        // REFUSE: MIST_PA_INDEX_OUT_OF_BOUNDS
+        return items[3];
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(new Probe().Last());
+    }
+}

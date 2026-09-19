@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Refinements;
@@ -45,7 +46,7 @@ internal static class Lengths
             StackallocExpression stack => Constant(stack.Size),
             ArrayLiteralExpression literal => Admitted.Exactly(literal.Elements.Count),
             LiteralExpression { Value: string text } => Admitted.Exactly(text.Length),
-            LocalReferenceExpression or FieldReferenceExpression => tracked(expression) ?? Typed(expression.Type),
+            LocalReferenceExpression or FieldReferenceExpression or MemberAccessExpression { Member: FieldResult } => tracked(expression) ?? Typed(expression.Type),
             NewExpression { Arguments: [var source] } => Of(source, tracked),
             InvocationExpression invocation => OfCall(invocation, tracked),
             IndexExpression { Index: RangeExpression range } slice => OfSlice(range, Of(slice.Receiver, tracked)),

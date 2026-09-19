@@ -4,7 +4,6 @@ using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -144,13 +143,13 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
     private sealed class Proving(AnalysisContext context, LiftedReturns lifted)
     {
-        public void Judge(FlowGraph graph, ImmutableDictionary<LocalVariable, Knowledge> entry)
+        public void Judge(FlowGraph graph, ImmutableDictionary<object, Knowledge> entry)
         {
-            var solution = FlowSolution<ImmutableDictionary<LocalVariable, Knowledge>>.Solve(graph, new RefinementFlow(), entry);
+            var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(graph, new RefinementFlow(), entry);
             solution.Replay((state, step) => Judge(graph, state, step));
         }
 
-        private void Judge(FlowGraph graph, ImmutableDictionary<LocalVariable, Knowledge> state, FlowStep step)
+        private void Judge(FlowGraph graph, ImmutableDictionary<object, Knowledge> state, FlowStep step)
         {
             switch(step)
             {
@@ -195,7 +194,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         }
 
         public void NeedArguments(
-            ImmutableDictionary<LocalVariable, Knowledge> state, IReadOnlyList<Expression> arguments,
+            ImmutableDictionary<object, Knowledge> state, IReadOnlyList<Expression> arguments,
             IReadOnlyList<IMistType>? parameterTypes, IReadOnlyList<Parameter>? parameters)
         {
             if(parameterTypes is null)
@@ -221,7 +220,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             }
         }
 
-        private void NeedIndex(ImmutableDictionary<LocalVariable, Knowledge> state, IndexExpression index)
+        private void NeedIndex(ImmutableDictionary<object, Knowledge> state, IndexExpression index)
         {
             var receiverType = index.Receiver.Type is TypeAlias { AliasedType: { } aliased } ? aliased : index.Receiver.Type;
 
@@ -269,30 +268,32 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         }
 
         // What is known of the value that meets an array's or a span's slot. `^k` names the position
-        // `Length - k`, so its knowledge is the length shifted by k, and below Length by construction
-        // whenever k is at least one -- the prover then asks of it what it asks of any other index, and
-        // never learns what `^` means. Null for an index no integral value reaches.
-        private Knowledge? Reaching(ImmutableDictionary<LocalVariable, Knowledge> state, IndexExpression index, Admitted? length)
+        // `Length - k`, so its knowledge is the length less every k it may be, and below Length by
+        // construction whenever every k is at least one -- the prover then asks of it what it asks of
+        // any other index, and never learns what `^` means. Null for an index no integral value reaches.
+        private Knowledge? Reaching(ImmutableDictionary<object, Knowledge> state, IndexExpression index, Admitted? length)
         {
             if(index.Index is not UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset })
             {
                 return Requirement.IsIntegral(Requirement.Unrefined(index.Index.Type)) ? Known(state, index.Index) : null;
             }
 
-            if(Lengths.Exact(Known(state, offset).Values) is not { } back || length is null)
+            var back = Known(state, offset).Values;
+
+            if(length is null || back.Low is not { } nearest)
             {
                 return Knowledge.Unknown;
             }
 
-            var below = back >= 1 && RefinementFlow.Holder(index.Receiver) is { } holder
+            var below = nearest >= 1 && RefinementFlow.Holder(index.Receiver) is { } holder
                 ? ImmutableHashSet.Create(new Bound(holder, ComparisonKind.LessThan))
                 : ImmutableHashSet<Bound>.Empty;
 
-            return new Knowledge(length.Shifted(-back), below);
+            return new Knowledge(Lengths.Exact(back) is { } exact ? length.Shifted(-exact) : length.Minus(back), below);
         }
 
         private void Need(
-            ImmutableDictionary<LocalVariable, Knowledge> state, Expression value, IMistType target, Expression at, string? onConstraint = null)
+            ImmutableDictionary<object, Knowledge> state, Expression value, IMistType target, Expression at, string? onConstraint = null)
         {
             if(value.Type is ErrorType)
             {
@@ -382,7 +383,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         }
 
         private void Need(
-            ImmutableDictionary<LocalVariable, Knowledge> state, Expression value, Requirement required, Expression at,
+            ImmutableDictionary<object, Knowledge> state, Expression value, Requirement required, Expression at,
             string? onConstraint = null, Expression? onIndex = null)
         {
             if(value.Type is ErrorType)
@@ -426,7 +427,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             return true;
         }
 
-        private Knowledge Known(ImmutableDictionary<LocalVariable, Knowledge> state, Expression value)
+        private Knowledge Known(ImmutableDictionary<object, Knowledge> state, Expression value)
         {
             if(Requirement.Constant(value) is { } constant)
             {

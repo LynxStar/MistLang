@@ -26,13 +26,13 @@ internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds
 /// reassigned and, for a field that is not readonly, at any call, object creation or await, since code
 /// the flow cannot see may reassign it then.
 /// </summary>
-internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<LocalVariable, Knowledge>>
+internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<object, Knowledge>>
 {
-    public static readonly ImmutableDictionary<LocalVariable, Knowledge> Nothing =
-        ImmutableDictionary.Create<LocalVariable, Knowledge>(ReferenceEqualityComparer.Instance);
+    public static readonly ImmutableDictionary<object, Knowledge> Nothing =
+        ImmutableDictionary.Create<object, Knowledge>(ReferenceEqualityComparer.Instance);
 
-    public ImmutableDictionary<LocalVariable, Knowledge> Join(
-        ImmutableDictionary<LocalVariable, Knowledge> left, ImmutableDictionary<LocalVariable, Knowledge> right)
+    public ImmutableDictionary<object, Knowledge> Join(
+        ImmutableDictionary<object, Knowledge> left, ImmutableDictionary<object, Knowledge> right)
     {
         var joined = Nothing;
 
@@ -60,7 +60,7 @@ internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<LocalVar
         return joined;
     }
 
-    public bool Same(ImmutableDictionary<LocalVariable, Knowledge> left, ImmutableDictionary<LocalVariable, Knowledge> right)
+    public bool Same(ImmutableDictionary<object, Knowledge> left, ImmutableDictionary<object, Knowledge> right)
     {
         return left.Count == right.Count
             && left.All(entry => right.TryGetValue(entry.Key, out var other)
@@ -68,7 +68,7 @@ internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<LocalVar
                 && Equals(entry.Value.Length, other.Length));
     }
 
-    public ImmutableDictionary<LocalVariable, Knowledge> Transfer(ImmutableDictionary<LocalVariable, Knowledge> state, FlowStep step)
+    public ImmutableDictionary<object, Knowledge> Transfer(ImmutableDictionary<object, Knowledge> state, FlowStep step)
     {
         switch(step)
         {
@@ -89,29 +89,43 @@ internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<LocalVar
 
                 return Given(state, target.Local, assignment.Value);
 
-            case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: var target } } when Assigned(target) is { } field:
-                return Forget(state, holder => ReferenceEquals(holder, field));
+            case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: var target } assignment } when Assigned(target) is { } field:
+                {
+                    var length = Lengths.Of(assignment.Value, held => Held(state, held));
+                    state = Forget(state, holder => ReferenceEquals(holder, field));
+
+                    return Holder(target) is Field owned && length is not null ? state.SetItem(owned, Knowledge.Unknown with { Length = length }) : state;
+                }
+
+            case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: ThisExpression } }:
+                return Forget(state, holder => holder is Field);
 
             case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression or NewExpression }:
-                return Forget(state, holder => holder is Field { Modifiers.IsReadonly: false });
+                return Forget(state, IsMutableField);
+
+            case { Kind: FlowStepKind.Evaluate, Node: Expression accessed } when RunsAccessor(accessed):
+                return Forget(state, IsMutableField);
+
+            case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: var written } } when RunsAccessor(written):
+                return Forget(state, IsMutableField);
 
             default:
                 return state;
         }
     }
 
-    private static ImmutableDictionary<LocalVariable, Knowledge> Learn(
-        ImmutableDictionary<LocalVariable, Knowledge> state, Expression condition, bool holds)
+    private static ImmutableDictionary<object, Knowledge> Learn(
+        ImmutableDictionary<object, Knowledge> state, Expression condition, bool holds)
     {
         switch(condition)
         {
-            case BinaryExpression { Left: MemberAccessExpression { MemberName: "Length", Receiver: LocalReferenceExpression sizedOne }, Right: var limit2 } sized
-                when Comparison(sized.OperatorKind) is { } sizedKind && Requirement.Constant(limit2) is { } sizedBound:
-                return Sized(state, sizedOne.Local, Requirement.Interval(sizedKind, sizedBound), holds);
+            case BinaryExpression { Left: MemberAccessExpression { MemberName: "Length", Receiver: var sizedOne }, Right: var limit2 } sized
+                when Holder(sizedOne) is { } oneHolder && Comparison(sized.OperatorKind) is { } sizedKind && Requirement.Constant(limit2) is { } sizedBound:
+                return Sized(state, oneHolder, Requirement.Interval(sizedKind, sizedBound), holds);
 
-            case BinaryExpression { Left: var limit3, Right: MemberAccessExpression { MemberName: "Length", Receiver: LocalReferenceExpression sizedTwo } } sizedFlip
-                when Comparison(sizedFlip.OperatorKind) is { } flipKind && Requirement.Constant(limit3) is { } flipBound:
-                return Sized(state, sizedTwo.Local, Requirement.Interval(Mirrored(flipKind), flipBound), holds);
+            case BinaryExpression { Left: var limit3, Right: MemberAccessExpression { MemberName: "Length", Receiver: var sizedTwo } } sizedFlip
+                when Holder(sizedTwo) is { } twoHolder && Comparison(sizedFlip.OperatorKind) is { } flipKind && Requirement.Constant(limit3) is { } flipBound:
+                return Sized(state, twoHolder, Requirement.Interval(Mirrored(flipKind), flipBound), holds);
 
             case BinaryExpression { Left: LocalReferenceExpression subject, Right: var bound } comparison when Comparison(comparison.OperatorKind) is { } kind:
                 if(Requirement.Constant(bound) is { } constant)
@@ -154,15 +168,15 @@ internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<LocalVar
         }
     }
 
-    private static ImmutableDictionary<LocalVariable, Knowledge> Narrow(
-        ImmutableDictionary<LocalVariable, Knowledge> state, LocalVariable local, Admitted values)
+    private static ImmutableDictionary<object, Knowledge> Narrow(
+        ImmutableDictionary<object, Knowledge> state, LocalVariable local, Admitted values)
     {
         var known = state.TryGetValue(local, out var existing) ? existing : Knowledge.Unknown;
         return state.SetItem(local, known with { Values = known.Values.And(values) });
     }
 
-    private static ImmutableDictionary<LocalVariable, Knowledge> Given(
-        ImmutableDictionary<LocalVariable, Knowledge> state, LocalVariable local, Expression? value)
+    private static ImmutableDictionary<object, Knowledge> Given(
+        ImmutableDictionary<object, Knowledge> state, LocalVariable local, Expression? value)
     {
         if(value is null)
         {
@@ -185,11 +199,15 @@ internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<LocalVar
             ;
     }
 
-    private static ImmutableDictionary<LocalVariable, Knowledge> Forget(ImmutableDictionary<LocalVariable, Knowledge> state, Func<object, bool> lost)
+    private static ImmutableDictionary<object, Knowledge> Forget(ImmutableDictionary<object, Knowledge> state, Func<object, bool> lost)
     {
         foreach(var (other, known) in state)
         {
-            if(known.Bounds.Any(bound => lost(bound.Holder)))
+            if(other is Field && lost(other))
+            {
+                state = state.Remove(other);
+            }
+            else if(known.Bounds.Any(bound => lost(bound.Holder)))
             {
                 state = state.SetItem(other, known with { Bounds = known.Bounds.Where(bound => !lost(bound.Holder)).ToImmutableHashSet() });
             }
@@ -198,8 +216,8 @@ internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<LocalVar
         return state;
     }
 
-    private static ImmutableDictionary<LocalVariable, Knowledge> Sliced(
-        ImmutableDictionary<LocalVariable, Knowledge> state, LocalReferenceExpression scrutinee, ListPattern list)
+    private static ImmutableDictionary<object, Knowledge> Sliced(
+        ImmutableDictionary<object, Knowledge> state, LocalReferenceExpression scrutinee, ListPattern list)
     {
         var fixedCount = list.Elements.Count(element => !element.IsSlice);
         var sliced = list.Elements.Any(element => element.IsSlice);
@@ -216,8 +234,8 @@ internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<LocalVar
         return state;
     }
 
-    private static ImmutableDictionary<LocalVariable, Knowledge> Sized(
-        ImmutableDictionary<LocalVariable, Knowledge> state, LocalVariable measured, Admitted admitted, bool holds)
+    private static ImmutableDictionary<object, Knowledge> Sized(
+        ImmutableDictionary<object, Knowledge> state, object measured, Admitted admitted, bool holds)
     {
         var known = state.TryGetValue(measured, out var existing) ? existing : Knowledge.Unknown;
         var learned = holds ? admitted : admitted.Not();
@@ -225,12 +243,33 @@ internal sealed class RefinementFlow : IFlowLattice<ImmutableDictionary<LocalVar
         return state.SetItem(measured, known with { Length = known.Length is { } already ? already.And(learned) : learned });
     }
 
-    public static Admitted? Held(ImmutableDictionary<LocalVariable, Knowledge> state, Expression? receiver)
+    public static Admitted? Held(ImmutableDictionary<object, Knowledge> state, Expression? receiver)
     {
-        return receiver is LocalReferenceExpression local && state.TryGetValue(local.Local, out var known)
+        return Holder(receiver) is { } holder && state.TryGetValue(holder, out var known)
             ? known.Length
             : null
             ;
+    }
+
+    private static bool IsMutableField(object holder)
+    {
+        return holder is Field { Modifiers.IsReadonly: false };
+    }
+
+    private static bool RunsAccessor(Expression accessed)
+    {
+        return accessed switch
+        {
+            MemberAccessExpression { Member: PropertyResult { Property: var property } } => HasBody(property.Getter) || HasBody(property.Setter),
+            PropertyReferenceExpression { Property: var property } => HasBody(property.Getter) || HasBody(property.Setter),
+            IndexExpression { Indexer: { } indexer } => HasBody(indexer.Getter) || HasBody(indexer.Setter),
+            _ => false,
+        };
+    }
+
+    private static bool HasBody(PropertyAccessor? accessor)
+    {
+        return accessor is { IsAuto: false } && (accessor.Body is not null || accessor.ExpressionBody is not null);
     }
 
     public static object? Holder(Expression? array)

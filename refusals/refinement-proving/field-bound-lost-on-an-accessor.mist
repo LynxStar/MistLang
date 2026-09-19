@@ -1,0 +1,34 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    int[] items = new int[3];
+
+    public int Shrunk
+    {
+        get
+        {
+            items = new int[1];
+            return 1;
+        }
+    }
+
+    public int At(int i)
+    {
+        if(i >= 0 && i < items.Length)
+        {
+            var shrunk = Shrunk;
+            // REFUSE: MIST_PA_INDEX_UNPROVEN
+            return items[i];
+        }
+
+        return 0;
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(new Probe().At(2));
+    }
+}

@@ -280,6 +280,13 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("public static int Last(int[] xs) { if(xs.Length > 0) { return xs[^1]; } return 0; }")]
     [InlineData("public static int Second(int[] xs) { if(xs.Length < 2) { return 0; } return xs[1]; }")]
     [InlineData("public static int Pair(int[] xs) { if(2 <= xs.Length) { return xs[0] + xs[1]; } return 0; }")]
+    [InlineData("public static int Tail(int[] xs, int k) { if(k >= 1 && k <= 2 && xs.Length >= 2) { return xs[^k]; } return 0; }")]
+    [InlineData("int[] cells = new int[2]; public int First() { if(cells.Length > 0) { return cells[0]; } return 0; }")]
+    [InlineData("int[] cells = new int[2]; public int Second() { if(this.cells.Length > 1) { return this.cells[1]; } return 0; }")]
+    [InlineData("int[] cells = new int[2]; public int Last() { if(cells.Length >= 2) { return cells[^2]; } return 0; }")]
+    [InlineData("readonly int[] cells = new int[2]; public int Kept() { if(cells.Length > 1) { Held.Log(); return cells[1]; } return 0; } static void Log() { }")]
+    [InlineData("int[] cells = new int[2]; public int Fresh() { cells = new int[3]; return cells[2]; }")]
+    [InlineData("int[] cells = new int[2]; public int Plain { get; set; } public int First() { if(cells.Length > 0) { var p = Plain; Plain = 2; return cells[0]; } return 0; }")]
     public void AnIndexALengthGuardProves_IsAdmitted(string members)
     {
         AssertSilent("var held = new Held();", $"public class Held {{ {members} }}");
@@ -381,6 +388,7 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("var s = new Counted(); if(s is [.., var y]) { int v = y; }", "int[3] cells = new int[3]; public int Count { get { return cells.Length; } } public int this[int e] where e >= 0 and < 3 { get { return e; } }")]
     [InlineData("var s = new Counted(); if(s is [var a, var b, var c]) { int v = a + b + c; }", "int count = 9; public int Count { get { return count; } } public int this[int e] where e >= 0 and < 3 { get { return e; } }")]
     [InlineData("var s = new Counted(); if(s is [_, _, _, _, _, _, _, _, _]) { int v = 1; }", "int count = 9; public int Count { get { return count; } } public int this[int e] where e >= 0 and < 3 { get { return e; } }")]
+    [InlineData("var s = new Counted(); if(s is [var a, ..]) { int v = a; }", "int count = 9; public int Count { get { return count; } } public int this[int e] where e >= 0 and < 3 { get { return e; } }")]
     public void APositionTheCountProves_IsAdmitted(string statement, string members)
     {
         AssertSilent(statement, $"public class Counted {{ {members} }}");

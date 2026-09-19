@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static int Tail(int[] xs, int k)
+    {
+        if(k >= 1 && k <= 2 && xs.Length >= 1)
+        {
+            // REFUSE: MIST_PA_INDEX_UNPROVEN
+            return xs[^k];
+        }
+
+        return 0;
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(Tail([1], 2));
+    }
+}

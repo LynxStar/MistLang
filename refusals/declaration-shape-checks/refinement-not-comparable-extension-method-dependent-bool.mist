@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public class Jar
+{
+}
+
+extension(Jar self)
+{
+    // REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+    public int Take<Flag:bool>() where Flag > true
+    {
+        return 1;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

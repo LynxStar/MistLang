@@ -1,0 +1,21 @@
+using Standard;
+
+namespace Refusal;
+
+public class Jar
+{
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_NOT_COMPARABLE
+        int Beside(Jar other) where other >= 3
+        {
+            return 1;
+        }
+
+        Console.WriteLine(Beside(new Jar()));
+    }
+}

@@ -396,6 +396,10 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [Theory]
     [InlineData("Senior s = 70;", "type Adult = int >= 18; type Senior = Adult and >= 65;")]
     [InlineData("int Half(int n) where n >= 0 and <= 10 { return n / 2; } var h = Half(8);", "")]
+    [InlineData("var crock = new Crock(); int v = crock.Wide(5);", "public class Crock { } extension(Crock self) { public int Wide(int other) where other >= 3 { return other; } }")]
+    [InlineData("var crock = new Crock(); int v = crock.Wide(x) + crock.Wide(adult);", "public class Crock { } extension(Crock self) { public int Wide(int other) where other >= 3 { return other; } }")]
+    [InlineData("var keyed = new Keyed<int>(); int v = keyed.Echo(3) + keyed.Echo(x);", "<K> extension(Keyed<K> self) { public K Echo(K key) where key not 18 { return key; } }")]
+    [InlineData("var crock = new Crock(); int v = crock.Sized<5>();", "public class Crock { } extension(Crock self) { public int Sized<N:int>() where N >= 3 { return N; } }")]
     public void APredicateTheBinderUsedToDrop_IsProvenWhereItHolds(string statement, string extraTypes)
     {
         AssertSilent(statement, extraTypes);

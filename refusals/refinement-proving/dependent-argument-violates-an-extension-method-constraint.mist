@@ -1,0 +1,26 @@
+using Standard;
+
+namespace Refusal;
+
+public class Jar
+{
+}
+
+extension(Jar self)
+{
+    public int Sized<N:int>() where N >= 3
+    {
+        return N;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var jar = new Jar();
+
+        // REFUSE: MIST_PA_DEPENDENT_ARGUMENT_VIOLATED
+        Console.WriteLine(jar.Sized<1>());
+    }
+}

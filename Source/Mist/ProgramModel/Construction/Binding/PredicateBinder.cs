@@ -55,6 +55,15 @@ internal static class PredicateBinder
                 }
             }
         }
+
+        foreach(var block in programModel.Namespaces.Values.SelectMany(ns => ns.Extensions.Values).SelectMany(blocks => blocks))
+        {
+            foreach(var method in block.MethodsList)
+            {
+                BindTypeParameters(method.TypeParametersList, method.Scope, context);
+                BindParameters(method.ParametersList, method.Scope, context);
+            }
+        }
     }
 
     private static void BindTypeParameters(IEnumerable<TypeParameter> parameters, Scope scope, BuilderContext context)

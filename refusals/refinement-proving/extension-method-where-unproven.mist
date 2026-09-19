@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+extension(string self)
+{
+    public int Wide(int other) where other >= 3
+    {
+        return self.Length + other;
+    }
+}
+
+public class Probe
+{
+    public static int Measure(int given)
+    {
+        // REFUSE: MIST_PA_CONSTRAINT_UNPROVEN
+        return "s".Wide(given);
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(Probe.Measure(1));
+    }
+}

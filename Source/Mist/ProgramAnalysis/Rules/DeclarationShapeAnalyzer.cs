@@ -8,6 +8,7 @@ using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -18,12 +19,12 @@ namespace Mist.ProgramAnalysis.Rules;
 /// an alias, an enum base that is not readonly, two variants sharing a value, a default block naming
 /// something that is not a field, an operator that is not public, is declared without its pair, is a
 /// logical operator off Boolean, or takes no parameter of the type declaring it, a refinement predicate
-/// -- an alias's, a parameter's `where` or a dependent parameter's -- that orders a type
-/// <see cref="Comparability"/> gives no order, a method, constructor or indexer repeating an earlier
-/// one's signature on its type, and a member hiding one its type inherits, which Mist admits only as an
-/// overload. Order 6 of the analysis register; each shape is classic's verdict, measured, or the spec's
-/// where classic dropped the declaration unread, and the enum and sealed rules are the
-/// full-accessibility-model and enum-readonly-restriction specs' own.
+/// -- an alias's, a parameter's `where` or a dependent parameter's, on a type, in an extension block or
+/// on a local function -- that orders a type <see cref="Comparability"/> gives no order, a method,
+/// constructor or indexer repeating an earlier one's signature on its type, and a member hiding one its
+/// type inherits, which Mist admits only as an overload. Order 6 of the analysis register; each shape
+/// is classic's verdict, measured, or the spec's where classic dropped the declaration unread, and the
+/// enum and sealed rules are the full-accessibility-model and enum-readonly-restriction specs' own.
 /// </summary>
 internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 {
@@ -79,6 +80,20 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                     CheckEnum(context, enumType);
                     break;
             }
+        }
+
+        foreach(var block in context.Extensions)
+        {
+            foreach(var method in block.MethodsList)
+            {
+                CheckTypeParameters(context, method.TypeParametersList);
+                CheckParameters(context, method.ParametersList);
+            }
+        }
+
+        foreach(var local in context.Nodes.OfType<LocalFunctionStatement>())
+        {
+            CheckParameters(context, local.Function.ParametersList);
         }
     }
 

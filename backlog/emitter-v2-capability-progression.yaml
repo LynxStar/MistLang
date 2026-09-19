@@ -4254,6 +4254,40 @@ capabilities:
       and the binder correctly records nothing between them -- the two differed only in what the
       emitter wrote.
 
+      `VOID` TESTED AGAINST AN OPTIONAL ASKS WHETHER THE VALUE IS ABSENT (2026-09-19). MEASURED FIRST, one
+      project per probe, on main at 84f70426: the test was spelled `none is Standard.Void`, so inside an
+      interpolation `int? none = void; none is void` printed False, and everywhere C# could see the operand's
+      type -- `is not void`, a `string?` or a class optional, a switch arm `void => ...`, a nested `{ Next:
+      void }` -- it was MIST_CS_ERROR "An expression of type 'int?' cannot be handled by a pattern of type
+      'Void'". `K?` inside a generic and `T?` under `where T : struct` printed False. Classic runs none of it
+      ("Keyword 'void' cannot be used in this context"), so the contract is the language's: void is the absent
+      value of an optional. An optional holds no value of type Void for a type test to find, whichever way it
+      is represented, so PatternBinder marks the test TypeTestPattern.TestsAbsence where the scrutinee's type is
+      in hand -- the reading VoidReading.Absence already gives the literal there -- and the emitter writes
+      `null`, which is right for Nullable, the bare reference and a `K?` at every instance alike.
+      FOUND ON THE WAY, fixed because the probe for a three-way union threw SwitchExpressionException: the
+      LITERAL entering a carrier union was emitted `null`, which C# bound to the carrier's conversion from its
+      first reference constituent, so `int | string | void none = void;` held a string tag over nothing. A void
+      literal whose closed type is a carrier is `Standard.Void.Instance`; the carrier's own tag test was already
+      right. And `void` tested against a value of no union -- an absent optional widened into `unknown` -- is
+      `(null or Standard.Void)`, False before.
+      MEASURED after, each line derived by hand first: `True False False True`, `True False False True | True
+      False` over string and a class, `True False` over a struct, `absent | 3 | absent | s` through switch
+      arms, `absent present 4`, `end more | True False` through nested patterns, `True False True False | True
+      False` through `K?` and `T?`, and `True False False | void int string` over the carrier.
+      NOT A DEFECT: `unknown nothing = void;` holds the TYPE Void, the third of the token's three readings.
+      STILL OPEN, measured: a carrier union boxed into `unknown` is not unwrapped, so no type test finds its
+      payload -- `fromCarrier is void` and `fromCarried is int` are both False. Mist has no switch statement,
+      so the arm of a switch expression is the only other position.
+      PROVED BY VoidPatternEmissionTests (the value, reference, struct and class optionals, the negation, the
+      switch arm, the nested pattern, the optional over a type parameter, the carrier's literal and tag test,
+      the optional's literal still `null`, and the widened value). samples/OpenUnions prints `absent:`.
+      Five mutations on confirmed builds, each caught by name: the binder never marking the test, or the emitter
+      ignoring the mark, fails the seven optional rows and the type-parameter fact; the literal `null` again
+      fails the carrier row; and the no-union spelling removed, or the mark given to any void test, fails the
+      widened-value fact. Full suite green, 7221 of 7221, with the change in place; AllFeaturesV2 matches the
+      baseline extended by that one line.
+
   - id: optional-operators
     name: Conditional access, coalescing and coalescing assignment
     order: 79
@@ -11513,8 +11547,10 @@ samples:
         exercised, by `Lifted<K>`: a direct call, one through `Derived<K>` and `Narrow`, one through
         `ITaker<int>` and the group as a function value, whose lines were captured from v2 and read
         against the program; so are
-        the newtypes `IntKeep` and `IntHeld` over specialized sources, which
-        CloneConversionRuntimeTests also runs.
+        the newtypes `IntKeep` and `IntHeld` over specialized sources and the generic `Kept<K>` and
+        `Helded<K>` over the same two at `<int>` and `<string>`, which CloneConversionRuntimeTests also
+        runs, and `void` tested against a value optional, a reference one, a `K?` inside `Keep<K>` and a
+        three-way carrier, whose `absent:` line a test spelled `is Standard.Void` would print False for.
 
 # =====================================================================
 

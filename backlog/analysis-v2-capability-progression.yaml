@@ -2520,6 +2520,39 @@ rules:
       caught: the compound arm removed (four cases), the local function left unbound, the constant always
       reported as violating, and the exact length left unstated by their cases; a `< Length` bound left
       unmet and the receiver left unmeasured only by AllFeaturesV2, which then refuses all four Slice calls.
+
+      A PREDICATE THE PROVER CANNOT READ IS NO LONGER MET BY DEFAULT (Arthur chose (a) and (c), 2026-09-19;
+      refinement-types R13.7 and R13.8). (a): a property pattern, a regex, a comparison over a real and a
+      string constant have no interval, and a value meets one only when its own type is that refinement --
+      `Small s = new Box(1)` is UNPROVEN, `if (box is Small small) { Small t = small; }` is valid, and a
+      parameter of that type passes on as itself. A predicate refused at its declaration still owes nothing,
+      so `Flag h = g` under refinement-not-comparable-alias-bool stays one complaint. The finding names the
+      predicate (`'{ Size: < 3 }'`, the regex as written). (c): a bound naming a property or a field --
+      `< Count`, `< this.Count`, `< size` -- now reads as a SymbolicBound carrying the member, and each use
+      reads that member through its type or R18 lift, which every instance shares, never the flow: proving
+      against the end of the member's interval every value it may take clears, and reporting a number only
+      once the member is one value. Over a Count that returns 3, `ledger[7]` is VIOLATED and `ledger[1]`,
+      `ledger[^1]` and `[var a, var b, var c]` are proven; over one that returns 3 or 5, `ledger[4]` is
+      UNPROVEN rather than violating; over a plain field or a Count over a mutable field, every use is
+      UNPROVEN. Measured before: all of these admitted on v2 (the member bounds on classic too). No
+      obligation in AllFeaturesV2 met such a predicate, and it is byte-identical and reports nothing. The
+      decision row that admitted `Named n = "anything"` over `type Named = string "x"` pinned the old
+      silence; it is a corpus case now.
+
+      PROVED BY ten corpus cases -- unreadable-property-pattern-unproven, unreadable-argument-unproven,
+      unreadable-regex-unproven, unreadable-real-unproven, unreadable-string-constant-unproven,
+      member-bound-violated-through-a-lift, member-bound-unproven-over-a-field,
+      member-bound-unproven-where-the-member-may-exceed-the-value,
+      list-pattern-position-unproven-against-a-member-bound, and constant-unproven-against-a-symbolic-bound
+      re-aimed at a Count over a mutable field, since its lifted Count now proves it -- and seven rows: a
+      value of the unreadable refinement's own type, by `is` and as a parameter passed on; a union whose
+      readable constituent holds; and four member bounds read through a lift. Seven mutations, each caught:
+      unreadable predicates met again (five cases), a value of the refinement's own type refused (two rows),
+      a refused predicate owed at its uses (refinement-not-comparable-alias-bool and both
+      AWhereRefusedAtItsDeclaration rows), the member bound left unread, a member's range reported as a
+      number, proof taken against the member's far end, and a bare property left unnamed. The own-type rows
+      first passed for nothing: the fixtures already declare `Small`, so a second `type Small` was a
+      duplicate and the rows judged nothing until renamed.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -2562,25 +2595,14 @@ rules:
         copied = a;` is UNPROVEN over an `Age` that lifts to 30, because Given records nothing for an
         initializer that is neither a constant, a local nor a length. Sound, imprecise.
       - >
-        A predicate the prover cannot read is admitted as satisfied: Requirement.Of answers null for it, and
-        AnySatisfied counts a null requirement as met. Measured 2026-09-19, one project per shape, v2 against
-        classic. A `where` naming a member admits on BOTH pipelines: over Count 3, `ledger[7]` into `where
-        entry >= 0 and < Count` prints 0, `shelf[7]` into `< size` and `rack[7]` into a readonly `< limit`
-        print 7, and `box.Take(7)` into `where n >= 0 and < Count` prints 7; classic refuses only a
-        non-constant (`ledger[i]`, MIST_REFINEMENT_0005). A bare `Count` binds as a
-        PropertyReferenceExpression and a bare field as a FieldReferenceExpression, neither of which Symbol
-        names. v2 is LOOSER than classic on every other unreadable predicate: `Small s = new Box(5)` over
-        `type Small = Box { Size: < 3 }`, an unknown Box, a readonly-field pattern, a regex (`Email e =
-        "not-an-email"`) and a real (`Positive p = -1.5` over `double > 0.0`) are all admitted, where classic
-        refuses a constant as MIST_TC_0097 and anything else as MIST_TC_0098; a `Small` argument compiles on
-        classic and throws at its entry guard. A refinement pattern over a MUTABLE property is declared
-        without complaint on v2 and is MIST_TC_0100 on classic (spec R3). Refinement-types R13.6 already
-        says an undeterminable refinement requires pattern matching rather than silent acceptance. No
-        obligation in AllFeaturesV2 meets a predicate of this kind (instrumented run): ValidInterval and
-        Email are declared and only ever tested with `is`. The options put to Arthur: (a) UNPROVEN at the
-        use, (b) refused at the declaration, (c) a member bound read through the receiver's signature --
-        its type or R18 lift, never flow -- so `where entry < Count` proves exactly when Count says its
-        value.
+        A predicate the prover cannot read is refused even when a constant plainly meets it: `Email e =
+        "a@b.co"`, `Positive p = 2.5` over `double > 0.0` and `Named n = "x"` over `string "x"` are UNPROVEN,
+        where classic evaluates the constant and accepts it (and refuses a violating one as MIST_TC_0097).
+        Evaluating a regex against a string literal, a real comparison against a real literal and a string
+        constant pattern against a string literal would admit them; nothing in AllFeaturesV2 assigns one.
+        A refinement pattern over a MUTABLE member (`type Low = Jar { Size: < 3 }` over `Size { get; set; }`)
+        is still declared without complaint on v2; classic refuses it as MIST_TC_0100 (spec R3). A readonly
+        field states no value either, so `< limit` over `readonly int limit = 3` is unproven at every use.
       - >
         A symbolic bound the prover CAN read is refused at every use of a user slot: `ledger[1]` into `where
         entry >= 0 and < this.Count` is MIST_PA_CONSTRAINT_UNPROVEN over a Count of 3, and classic admits

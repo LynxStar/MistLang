@@ -1,0 +1,21 @@
+using Standard;
+
+namespace Refusal;
+
+public class Jar
+{
+    public int Size { get; }
+
+    public int Weight { get; set; }
+}
+
+// REFUSE: MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER
+type Odd = Jar ({ Size: < 3 } or { Weight: > 10 });
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

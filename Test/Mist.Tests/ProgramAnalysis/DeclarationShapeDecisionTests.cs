@@ -21,7 +21,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED", "MIST_PA_NOT_DEFAULTABLE",
         "MIST_PA_OPERATOR_NOT_PUBLIC", "MIST_PA_OPERATOR_UNPAIRED", "MIST_PA_LOGICAL_OPERATOR_DECLARED",
         "MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE", "MIST_PA_REFINEMENT_NOT_COMPARABLE",
-        "MIST_PA_DUPLICATE_SIGNATURE", "MIST_PA_MEMBER_REDECLARATION",
+        "MIST_PA_DUPLICATE_SIGNATURE", "MIST_PA_MEMBER_REDECLARATION", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER",
     ];
 
     public DeclarationShapeDecisionTests()
@@ -331,6 +331,24 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     public void AMemberThatDoesNotRepeatAnInheritedSignature_IsNotARedeclaration(string extraTypes)
     {
         AssertSilent("int unused = 1;", extraTypes);
+    }
+
+    [Theory]
+    [InlineData("public class Crock { public int Size { get; } } type Petite = Crock { Size: < 3 };")]
+    [InlineData("public class Crock { public readonly int Size = 1; } type Petite = Crock { Size: < 3 };")]
+    [InlineData("public class Cork { public int Width { get; } } public class Crock { public Cork Top { get; } public int Size { get; set; } } type Petite = Crock { Top: { Width: < 3 } };")]
+    [InlineData("public class Crock { public int Size { get; set; } } type Petite = Crock; type Tiny = int < 3; public class Sink { public static int Take(Crock crock, int size) where size < 3 { crock.Size = size; return size; } }")]
+    public void APredicateOverMembersNothingCanWrite_IsDeclared(string extraTypes)
+    {
+        AssertSilent("int unused = 1;", extraTypes);
+    }
+
+    [Fact]
+    public void APredicateOverAGetterComputedFromMutableState_IsDeclaredAsClassicDeclaresIt()
+    {
+        AssertSilent(
+            "int unused = 1;",
+            "public class Crock { int size = 1; public int Size { get { return size; } } public void Grow() { size = size + 10; } } type Petite = Crock { Size: < 3 };");
     }
 
     [Theory]

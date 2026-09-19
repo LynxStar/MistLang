@@ -8,6 +8,7 @@ using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
@@ -20,11 +21,12 @@ namespace Mist.ProgramAnalysis.Rules;
 /// something that is not a field, an operator that is not public, is declared without its pair, is a
 /// logical operator off Boolean, or takes no parameter of the type declaring it, a refinement predicate
 /// -- an alias's, a parameter's `where` or a dependent parameter's, on a type, in an extension block or
-/// on a local function -- that orders a type <see cref="Comparability"/> gives no order, a method,
-/// constructor or indexer repeating an earlier one's signature on its type, and a member hiding one its
-/// type inherits, which Mist admits only as an overload. Order 6 of the analysis register; each shape
-/// is classic's verdict, measured, or the spec's where classic dropped the declaration unread, and the
-/// enum and sealed rules are the full-accessibility-model and enum-readonly-restriction specs' own.
+/// on a local function -- that orders a type <see cref="Comparability"/> gives no order or reads a
+/// member that can be written, a method, constructor or indexer repeating an earlier one's signature on
+/// its type, and a member hiding one its type inherits, which Mist admits only as an overload. Order 6
+/// of the analysis register; each shape is classic's verdict, measured, or the spec's where classic
+/// dropped the declaration unread, and the enum and sealed rules are the full-accessibility-model and
+/// enum-readonly-restriction specs' own.
 /// </summary>
 internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 {
@@ -274,6 +276,50 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                 context, comparison.Node, ProgramAnalysisDiagnostics.RefinementNotComparable,
                 constrained, TypeDisplay.Mist(comparison.NarrowedType));
         }
+
+        foreach(var mutable in MutableMembers(predicate))
+        {
+            Report(context, mutable.Node, ProgramAnalysisDiagnostics.RefinementOverMutableMember, constrained, mutable.MemberName);
+        }
+    }
+
+    private static IEnumerable<PropertySubpattern> MutableMembers(Pattern? predicate)
+    {
+        var operands = predicate switch
+        {
+            ConjunctionPattern conjunction => conjunction.Operands,
+            DisjunctionPattern disjunction => disjunction.Operands,
+            NegatedPattern negated => [negated.Operand],
+            _ => [],
+        };
+
+        foreach(var found in operands.SelectMany(MutableMembers))
+        {
+            yield return found;
+        }
+
+        foreach(var subpattern in (predicate as PropertyPattern)?.Subpatterns ?? [])
+        {
+            if(IsMutable(subpattern.Member))
+            {
+                yield return subpattern;
+            }
+
+            foreach(var nested in MutableMembers(subpattern.Pattern))
+            {
+                yield return nested;
+            }
+        }
+    }
+
+    private static bool IsMutable(LookupResult member)
+    {
+        return member switch
+        {
+            PropertyResult { Property.Setter: not null } => true,
+            FieldResult { Field.Modifiers.IsReadonly: false } => true,
+            _ => false,
+        };
     }
 
     private static void CheckSignatures(AnalysisContext context, MemberType type)

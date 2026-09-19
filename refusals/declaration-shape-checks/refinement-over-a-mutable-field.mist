@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+public class Jar
+{
+    public int Size;
+}
+
+// REFUSE: MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER
+type Low = Jar { Size: < 3 };
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

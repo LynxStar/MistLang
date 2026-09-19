@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+public class Jar
+{
+    public int Size { get; set; }
+}
+
+public class Sink
+{
+    // REFUSE: MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER
+    public static int Take(Jar jar) where jar { Size: < 3 }
+    {
+        return jar.Size;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

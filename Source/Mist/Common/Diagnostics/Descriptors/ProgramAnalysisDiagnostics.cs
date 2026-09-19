@@ -148,6 +148,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "A relational refinement predicate cannot constrain '{0}': its type '{1}' supports no comparison operators.");
 
+    public static readonly DiagnosticDescriptor RefinementOverMutableMember = new(
+        new DiagnosticId("MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The refinement predicate on '{0}' reads the mutable member '{1}'. Every member a refinement predicate reads must be readonly.");
+
     public static readonly DiagnosticDescriptor DuplicateSignature = new(
         new DiagnosticId("MIST_PA_DUPLICATE_SIGNATURE"),
         DiagnosticSeverity.Error,

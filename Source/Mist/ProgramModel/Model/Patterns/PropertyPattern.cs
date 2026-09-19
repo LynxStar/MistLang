@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Patterns;
@@ -25,4 +26,4 @@ internal sealed class PropertyPattern(
     public override LocalVariable? Binding => null;
 }
 
-internal sealed record PropertySubpattern(string MemberName, Pattern Pattern, IMistType MemberType);
+internal sealed record PropertySubpattern(SyntaxNode Node, string MemberName, Pattern Pattern, IMistType MemberType, LookupResult Member);

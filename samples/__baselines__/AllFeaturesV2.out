@@ -2000,3 +2000,20 @@ interp:    Void
 ref fresh: absent
 ref put:   present hi
 ref void:  absent
+=== Open Unions ===
+sides: T 1 | R | T 3 | merged 3
+nested merged: 3
+switch: T 1 | other | T 3
+flipped: R
+slot fresh: absent
+slot put 7: present 7 or 7
+slot put void: absent or 99
+slot get: 5 item 5
+slot cleared: absent item Void
+slot<string> fresh: absent
+slot<string> put: present hi
+box<int>: cell Void func Void tuple Void
+box<string>: cell w
+methods: T 5 | R | T 9
+generic caller: T 7
+use slot: absent | present hi

@@ -103,5 +103,6 @@ public class Program
         OverloadedIndexers.Program.RunDemo();
         OptionalTypeParameters.Program.RunDemo();
         GenericOptionals.Program.RunDemo();
+        OpenUnions.Program.RunDemo();
     }
 }

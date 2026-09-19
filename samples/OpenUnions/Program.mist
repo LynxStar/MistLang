@@ -1,0 +1,218 @@
+// OpenUnions -- A union over a generic's OWN type parameters: `T | R` inside `Pair<T, R>`, `K?` inside
+// `Slot<K>` and `Box<K>`, and the same inside generic methods.
+//
+// Mist sorts a union and merges duplicates once its type arguments are filled in, so `T | R` is
+// `int | string` at both `Pair<int, string>` and `Pair<string, int>`, and plain `int` at `Pair<int, int>`.
+// A C# generic fills its parameters in by position and can do neither, so each declaration below is
+// emitted once per instantiation the program uses. Without that, none of this compiles: the open union
+// has no C# type, and an unconstrained `K?` lowered to a bare `K` cannot hold absence at `int`.
+//
+// V2-ONLY. Classic refuses this program in its own checker (measured 2026-09-19): it does not merge
+// `int | int` into `int` (MIST_TC_0071, and MIST_TC_0001 for the nested `Cell`), refuses `void` assigned
+// to a field (MIST_TC_0070), and cannot pass `K?` where `int?` is expected (MIST_TC_0072).
+
+using Standard;
+
+namespace OpenUnions;
+
+public class Cell<V>
+{
+    public V Value;
+
+    public Cell(V value)
+    {
+        this.Value = value;
+    }
+}
+
+// PROOF: a general union over two parameters, read in both orders and where the two coincide.
+public class Pair<T, R>
+{
+    public T | R Held;
+    public Cell<T | R> Boxed;
+
+    public Pair(T | R start)
+    {
+        this.Held = start;
+        this.Boxed = new Cell<T | R>(start);
+    }
+
+    public string Side()
+    {
+        if (this.Held is T left)
+        {
+            return $"T {left}";
+        }
+
+        return "R";
+    }
+
+    public string Which()
+    {
+        return this.Held switch
+        {
+            T left => $"T {left}",
+            _ => "other",
+        };
+    }
+
+    public Pair<R, T> Flip()
+    {
+        return new Pair<R, T>(this.Held);
+    }
+}
+
+// PROOF: an optional over a parameter constrained to nothing, which C# has no type for.
+public class Slot<K>
+{
+    public K? Item;
+
+    public Slot() { }
+
+    public void Put(K? value)
+    {
+        this.Item = value;
+    }
+
+    public K? Get()
+    {
+        return this.Item;
+    }
+
+    public K Or(K fallback)
+    {
+        return this.Item ?? fallback;
+    }
+
+    public string Describe()
+    {
+        if (this.Item is K present)
+        {
+            return $"present {present}";
+        }
+
+        return "absent";
+    }
+}
+
+// PROOF: the optional NESTED in other types -- a class, a tuple and a function -- reaching closed code.
+public class Box<K>
+{
+    public Cell<K?> Inner;
+
+    public Box(K? start)
+    {
+        this.Inner = new Cell<K?>(start);
+    }
+
+    public (K?, string) Tupled()
+    {
+        return (this.Inner.Value, "t");
+    }
+
+    public func<K?> Reader()
+    {
+        return () => this.Inner.Value;
+    }
+}
+
+public class Api
+{
+    public static string Pick<T, R>(T | R value)
+    {
+        if (value is T left)
+        {
+            return $"T {left}";
+        }
+
+        return "R";
+    }
+
+    public static string Forward<T>(T value)
+    {
+        return Pick<T, bool>(value);
+    }
+
+    public static string UseSlot<T>(Slot<T> slot)
+    {
+        var item = slot.Item;
+
+        if (item is T present)
+        {
+            return $"present {present}";
+        }
+
+        return "absent";
+    }
+}
+
+public class Caller<K>
+{
+    public string Use(K value)
+    {
+        return Api.Pick<K, string>(value);
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Open Unions ===");
+
+        var a = new Pair<int, string>(1);
+        var b = new Pair<string, int>(2);
+        var c = new Pair<int, int>(3);
+
+        int | string fromA = a.Held;
+        int | string fromB = b.Held;
+        int fromC = c.Held;
+        Console.WriteLine($"sides: {a.Side()} | {b.Side()} | {c.Side()} | merged {fromC}");
+
+        Cell<int | string> nested = b.Boxed;
+        Cell<int> nestedMerged = c.Boxed;
+        Console.WriteLine($"nested merged: {nestedMerged.Value}");
+        Console.WriteLine($"switch: {a.Which()} | {b.Which()} | {c.Which()}");
+        Console.WriteLine($"flipped: {a.Flip().Side()}");
+
+        var s = new Slot<int>();
+        Console.WriteLine($"slot fresh: {s.Describe()}");
+        s.Put(7);
+        Console.WriteLine($"slot put 7: {s.Describe()} or {s.Or(99)}");
+        int? none = void;
+        s.Put(none);
+        Console.WriteLine($"slot put void: {s.Describe()} or {s.Or(99)}");
+        s.Item = 5;
+        int? got = s.Get();
+        Console.WriteLine($"slot get: {got} item {s.Item}");
+        s.Item = void;
+        Console.WriteLine($"slot cleared: {s.Describe()} item {s.Item}");
+
+        var w = new Slot<string>();
+        Console.WriteLine($"slot<string> fresh: {w.Describe()}");
+        w.Put("hi");
+        Console.WriteLine($"slot<string> put: {w.Describe()}");
+
+        var box = new Box<int>(none);
+        Cell<int?> inner = box.Inner;
+        var reader = box.Reader();
+        int? read = reader();
+        var tupled = box.Tupled();
+        int? first = tupled.Item1;
+        Console.WriteLine($"box<int>: cell {inner.Value} func {read} tuple {first}");
+
+        string? word = "w";
+        var named = new Box<string>(word);
+        Cell<string?> namedInner = named.Inner;
+        Console.WriteLine($"box<string>: cell {namedInner.Value}");
+
+        Console.WriteLine($"methods: {Api.Pick<int, string>(5)} | {Api.Pick<string, int>(6)} | {Api.Forward(9)}");
+        Console.WriteLine($"generic caller: {new Caller<int>().Use(7)}");
+        Console.WriteLine($"use slot: {Api.UseSlot(s)} | {Api.UseSlot(w)}");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

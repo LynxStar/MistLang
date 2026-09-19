@@ -85,3 +85,4 @@ NewtypeClones = { path = "../NewtypeClones" }
 OverloadedIndexers = { path = "../OverloadedIndexers" }
 OptionalTypeParameters = { path = "../OptionalTypeParameters" }
 GenericOptionals = { path = "../GenericOptionals" }
+OpenUnions = { path = "../OpenUnions" }

@@ -92,6 +92,11 @@ internal static class MethodEmitter
             declared = [.. monomorph.Parameters(method.TypeParametersList)];
             name = MonomorphSet.SpecializedName(method.Name, monomorph.Widths);
         }
+        else if(UnionSpecialization.CurrentMethod() is { } instance && ReferenceEquals(instance.Method, method))
+        {
+            declared = [];
+            name = UnionSpecialization.Name(method.Name, instance.Arguments);
+        }
 
         var spelled = declared.Select(DependentCarrierNames.Parameter)
             .Concat(SlotLift.Synthesized(declared).Select(slot => slot.Name))

@@ -37,7 +37,7 @@ internal static class TypeNameEmitter
     /// </para>
     /// </summary>
     [ThreadStatic]
-    private static TypeSubstitution? substituting;
+    private static Frame? substituting;
 
     /// <summary>
     /// Spells every type parameter bound by <paramref name="substitution"/> as its argument for the
@@ -47,16 +47,40 @@ internal static class TypeNameEmitter
     public static IDisposable Substituting(TypeSubstitution substitution)
     {
         var enclosing = substituting;
-        substituting = substitution;
+        substituting = new Frame(substitution, enclosing);
         return new SubstitutionScope(enclosing);
+    }
+
+    /// <summary>
+    /// A type as the enclosing scopes close it, innermost first: a generic method emitted inside a
+    /// specialized type binds its own parameters and leaves the type's to the scope around it.
+    /// </summary>
+    public static IMistType Closed(IMistType type)
+    {
+        for(var frame = substituting; frame is not null; frame = frame.Outer)
+        {
+            type = frame.Substitution.Apply(type, interner: null);
+        }
+
+        return type;
+    }
+
+    internal static string? SpecializedCallName(
+        IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter>? parameters)
+    {
+        if(UnionSpecialization.MethodDeclaring(parameters) is not { } method)
+        {
+            return null;
+        }
+
+        var closed = typeArguments.Select(Closed).ToList();
+
+        return UnionSpecialization.IsClosed(closed) ? UnionSpecialization.Name(method.Name, closed) : null;
     }
 
     public static string Emit(IMistType type)
     {
-        if(substituting is { } active)
-        {
-            type = active.Apply(type, interner: null);
-        }
+        type = Closed(type);
 
         return type switch
         {
@@ -301,20 +325,30 @@ internal static class TypeNameEmitter
             return specialized;
         }
 
+        if(UnionSpecialization.NameOf(constructed) is { } specializedName)
+        {
+            return Qualify(constructed.Definition, specializedName);
+        }
+
         // Generic types: Definition<Arg1, Arg2, ...>
         var baseName = MistType.StripArity(constructed.Definition.Name);
         var args = string.Join(", ", constructed.TypeArguments.Select(
             (argument, ordinal) => EmitArgument(constructed.Definition, ordinal, argument)));
 
-        if(constructed.Definition is MemberType { DeclaringType: MemberType declaring })
+        return Qualify(constructed.Definition, $"{baseName}<{args}>");
+    }
+
+    private static string Qualify(IMistType definition, string name)
+    {
+        if(definition is MemberType { DeclaringType: MemberType declaring })
         {
-            return $"{Qualified(declaring)}.{baseName}<{args}>";
+            return $"{Qualified(declaring)}.{name}";
         }
 
         // Qualified for the reason ShouldQualify gives.
-        return constructed.Definition is DeclaredType { NamespaceName: { Length: > 0 } namespaceName }
-            ? $"{namespaceName}.{baseName}<{args}>"
-            : $"{baseName}<{args}>"
+        return definition is DeclaredType { NamespaceName: { Length: > 0 } namespaceName }
+            ? $"{namespaceName}.{name}"
+            : name
             ;
     }
 
@@ -441,7 +475,9 @@ internal static class TypeNameEmitter
         return !memberType.Name.Contains('<');
     }
 
-    private sealed class SubstitutionScope(TypeSubstitution? enclosing) : IDisposable
+    private sealed record Frame(TypeSubstitution Substitution, Frame? Outer);
+
+    private sealed class SubstitutionScope(Frame? enclosing) : IDisposable
     {
         public void Dispose()
         {

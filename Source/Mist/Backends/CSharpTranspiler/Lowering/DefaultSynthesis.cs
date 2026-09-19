@@ -41,6 +41,8 @@ internal static class DefaultSynthesis
     /// </summary>
     public static string? Expression(IMistType type)
     {
+        type = TypeNameEmitter.Closed(type);
+
         if(BodyEmitter.EmitTypeDefault(type) is { } literal)
         {
             return literal;

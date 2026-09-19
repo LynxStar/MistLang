@@ -5,9 +5,8 @@
 // any signature below, so every call here is MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED without that rule
 // and the sample fails to compile rather than printing something wrong.
 //
-// LIMIT: every argument is present. Passing an ABSENT one needs the carrier that makes an optional
-// over an open type parameter representable, which is not built -- `Take(K?)` still reaches the
-// backend as `Take(K)`, which cannot hold absence at a value instantiation.
+// Every argument is present, which keeps each line cross-checked against classic: classic refuses an
+// ABSENT one (MIST_TC_0072). samples/OpenUnions passes absent ones.
 
 using Standard;
 

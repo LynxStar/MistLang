@@ -1083,7 +1083,7 @@ internal static class BodyEmitter
 
                             // An optional's absence lowers to null, which interpolation prints
                             // as the empty string; Mist prints it as the unit value's name.
-                            if(OptionalUnion.IsOptional(hole.Expression.Type))
+                            if(OptionalUnion.IsOptional(TypeNameEmitter.Closed(hole.Expression.Type)))
                             {
                                 writer.Append("(object?)");
                                 EmitExpression(hole.Expression, writer, diagnostics);
@@ -1150,7 +1150,9 @@ internal static class BodyEmitter
             case LocalReferenceExpression localRef:
                 writer.Append(LocalNames.Of(localRef.Local));
 
-                if(localRef.IsNarrowed && OptionalUnion.IsOptional(localRef.Local.Type) && TypeNameEmitter.IsValueKind(localRef.Type))
+                if(localRef.IsNarrowed
+                    && OptionalUnion.IsOptional(TypeNameEmitter.Closed(localRef.Local.Type))
+                    && TypeNameEmitter.IsValueKind(TypeNameEmitter.Closed(localRef.Type)))
                 {
                     writer.Append(".Value");
                 }
@@ -1367,7 +1369,7 @@ internal static class BodyEmitter
     private static void EmitIsPattern(
         IsPatternExpression isPattern, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        if(isPattern.Scrutinee.Type is UnionType union && !OptionalUnion.IsOptional(union))
+        if(TypeNameEmitter.Closed(isPattern.Scrutinee.Type) is UnionType union && !OptionalUnion.IsOptional(union))
         {
             EmitUnionNarrowing(isPattern, union, writer, diagnostics);
             return;
@@ -1389,7 +1391,7 @@ internal static class BodyEmitter
             writer.Append("(");
         }
 
-        EmitSubExpression(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
+        EmitScrutinee(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
         writer.Append($" is {patternText}");
 
         if(hoisted.Count > 0)
@@ -1478,7 +1480,7 @@ internal static class BodyEmitter
         }
 
         EmitSubExpression(isPattern.Scrutinee, PrefixPrecedence, writer, diagnostics);
-        writer.Append($".{UnionCarrierNames.NarrowingAccessor(constituent)} is ");
+        writer.Append($".{UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent))} is ");
         EmitPattern(isPattern.Pattern, 0, hoisted: null, writer, diagnostics);
     }
 
@@ -1488,15 +1490,28 @@ internal static class BodyEmitter
     /// <c>(a or b) and c</c> arrives as a conjunction OF a disjunction and written bare would be C# for
     /// <c>a or (b and c)</c>. Mist and C# rank these identically -- or, then and, then not.
     /// </summary>
+    private static void EmitScrutinee(Expression scrutinee, int precedence, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(scrutinee.Type is UnionType && TypeNameEmitter.Closed(scrutinee.Type) is not UnionType)
+        {
+            writer.Append("((object)");
+            EmitSubExpression(scrutinee, PrefixPrecedence, writer, diagnostics);
+            writer.Append(")");
+            return;
+        }
+
+        EmitSubExpression(scrutinee, precedence, writer, diagnostics);
+    }
+
     private static void EmitSwitch(
         SwitchExpression switchExpression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var narrowed = switchExpression.Scrutinee.Type is UnionType union && !OptionalUnion.IsOptional(union)
+        var narrowed = TypeNameEmitter.Closed(switchExpression.Scrutinee.Type) is UnionType union && !OptionalUnion.IsOptional(union)
             ? union
             : null
             ;
 
-        EmitSubExpression(switchExpression.Scrutinee, SwitchPrecedence + 1, writer, diagnostics);
+        EmitScrutinee(switchExpression.Scrutinee, SwitchPrecedence + 1, writer, diagnostics);
         writer.Append(" switch { ");
 
         EmitList.Separated(switchExpression.Arms, ", ", writer, arm =>
@@ -1577,7 +1592,7 @@ internal static class BodyEmitter
             return;
         }
 
-        writer.Append($"{{ {UnionCarrierNames.NarrowingAccessor(constituent)}: ");
+        writer.Append($"{{ {UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent))}: ");
         EmitPattern(pattern, 0, hoisted: null, writer, diagnostics);
         writer.Append(" }");
     }
@@ -1614,12 +1629,13 @@ internal static class BodyEmitter
         }
 
         var accessor = asExpression.Constituent is { } constituent
-            ? $".{UnionCarrierNames.NarrowingAccessor(constituent)}"
+            ? $".{UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent))}"
             : null
             ;
 
         var checkedAtRuntime = accessor is null
-            || asExpression.Constituent?.FullyQualifiedName != asExpression.TargetType.FullyQualifiedName
+            || (asExpression.Constituent is { } narrowedTo ? TypeNameEmitter.Closed(narrowedTo).FullyQualifiedName : null)
+                != TypeNameEmitter.Closed(asExpression.TargetType).FullyQualifiedName
             ;
 
         if(checkedAtRuntime)
@@ -1643,7 +1659,7 @@ internal static class BodyEmitter
             return;
         }
 
-        if(!TypeNameEmitter.IsValueKind(asExpression.TargetType))
+        if(!TypeNameEmitter.IsValueKind(TypeNameEmitter.Closed(asExpression.TargetType)))
         {
             writer.Append($" as {target})");
             return;
@@ -2410,6 +2426,11 @@ internal static class BodyEmitter
     private static string CalleeName(
         string declaredName, IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter>? parameters)
     {
+        if(TypeNameEmitter.SpecializedCallName(typeArguments, parameters) is { } specialized)
+        {
+            return specialized;
+        }
+
         return MonomorphReference.MethodWidths(typeArguments, parameters) is { } widths
             ? MonomorphSet.SpecializedName(declaredName, widths)
             : declaredName;
@@ -2418,7 +2439,7 @@ internal static class BodyEmitter
     private static string EmitTypeArguments(
         IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter>? parameters = null)
     {
-        if(typeArguments.Count == 0)
+        if(typeArguments.Count == 0 || TypeNameEmitter.SpecializedCallName(typeArguments, parameters) is not null)
         {
             return "";
         }

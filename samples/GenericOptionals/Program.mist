@@ -12,9 +12,9 @@
 // takes it; with that line removed it emits the bare `K` for both spellings and Roslyn refuses
 // the result, cannot convert 'int?' to 'int'.
 //
-// LIMIT: an UNCONSTRAINED `K?` is still lowered bare and is still wrong. It has no C# type to
-// lower to -- Nullable needs the struct constraint and C#'s unconstrained `T?` is an annotation,
-// not a carrier of absence -- so it waits on a carrier of Mist's own.
+// An UNCONSTRAINED `K?` has no C# type at all -- Nullable needs the struct constraint, and C#'s own
+// unconstrained `T?` is an annotation -- so a generic writing one is emitted once per instantiation
+// instead. samples/OpenUnions holds that case.
 
 using Standard;
 

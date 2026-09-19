@@ -72,6 +72,8 @@ public sealed class ProgramModel : IProgramModel
 
     internal VariadicUseRegistry VariadicUses { get; } = new();
 
+    internal GenericCallRegistry GenericCalls { get; } = new();
+
     internal TaskDropRegistry TaskDrops { get; } = new();
 
     internal OptionalApplicationRegistry OptionalApplications { get; } = new();

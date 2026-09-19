@@ -151,7 +151,7 @@ internal static class UnitHoisting
 
     private static Operand Receiver(Expression receiver)
     {
-        return new Operand(receiver, Spillable: !TypeNameEmitter.IsValueKind(receiver.Type));
+        return new Operand(receiver, Spillable: !TypeNameEmitter.IsValueKind(TypeNameEmitter.Closed(receiver.Type)));
     }
 
     private static bool IsStable(Expression expression)

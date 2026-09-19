@@ -310,6 +310,7 @@ internal static class PostfixBinder
 
         context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected, methodTypeArguments, node);
         context.ProgramModel.VariadicUses.Record(selected, methodTypeArguments);
+        context.ProgramModel.GenericCalls.Record(selected, methodTypeArguments);
 
         if(TaskResult.IsDrop(selected))
         {

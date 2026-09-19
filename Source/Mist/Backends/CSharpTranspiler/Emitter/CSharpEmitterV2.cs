@@ -101,6 +101,7 @@ internal sealed class CSharpEmitterV2
         var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var promotion = AsyncPromotion.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var supply = IntrinsicSupply.Enter((ProgramModel.Model.ProgramModel)programModel, clrType);
+        using var specialization = UnionSpecialization.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
 
         ReportForeignConformances();
 
@@ -849,6 +850,17 @@ internal sealed class CSharpEmitterV2
         var anyEmitted = false;
         foreach(var type in types)
         {
+            if(type is MemberType member && UnionSpecialization.Specializes(member))
+            {
+                foreach(var instance in UnionSpecialization.InstancesOf(member))
+                {
+                    using var specializing = TypeEmitter.Specializing(instance);
+                    TypeEmitter.Emit(type, closures, VariadicUses, writer, diagnostics, ref anyEmitted);
+                }
+
+                continue;
+            }
+
             TypeEmitter.Emit(type, closures, VariadicUses, writer, diagnostics, ref anyEmitted);
         }
 

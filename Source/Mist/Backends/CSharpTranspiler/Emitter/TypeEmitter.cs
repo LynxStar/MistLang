@@ -247,6 +247,18 @@ internal static class TypeEmitter
             {
                 using var inherited = Substituting(flattened?.MethodPaths.GetValueOrDefault(method));
 
+                if(UnionSpecialization.Specializes(method))
+                {
+                    foreach(var arguments in UnionSpecialization.InstancesOf(method))
+                    {
+                        using var specializing = Specializing(method, arguments);
+                        SeparateMember(writer, ref anyEmitted);
+                        EmitMethod(method, type, readonlyMembers.OnMethod(method), writer, diagnostics);
+                    }
+
+                    continue;
+                }
+
                 // A method declaring its OWN pack is emitted once per width it was called at, for
                 // the same reason its declaring type is: C# has no pack to write it once with. The
                 // widths come from the call sites, since neither the declaration nor an inferred
@@ -510,7 +522,7 @@ internal static class TypeEmitter
         // it a C# generic of a definite width.
         var declared = Monomorph.InScope() is { } monomorph && monomorph.Owns(type.TypeParametersList)
             ? monomorph.Parameters(type.TypeParametersList)
-            : type.TypeParametersList;
+            : IsSpecializing(type) ? [] : type.TypeParametersList;
 
         return lifted.Count == 0 ? declared : [.. declared, .. lifted];
     }
@@ -532,6 +544,37 @@ internal static class TypeEmitter
             return MonomorphSet.SpecializedName(type.Name, monomorph.Widths);
         }
 
+        if(IsSpecializing(type))
+        {
+            return UnionSpecialization.Name(UnionSpecialization.Current()!);
+        }
+
         return MistType.StripArity(type.Name);
+    }
+
+    internal static IDisposable Specializing(ConstructedType instance)
+    {
+        return new Both(UnionSpecialization.For(instance), TypeNameEmitter.Substituting(TypeSubstitution.ForReceiver(instance)));
+    }
+
+    private static IDisposable Specializing(Method method, IReadOnlyList<IMistType> arguments)
+    {
+        return new Both(
+            UnionSpecialization.For(method, arguments),
+            TypeNameEmitter.Substituting(TypeSubstitution.ForMethod(method, arguments)));
+    }
+
+    private static bool IsSpecializing(MemberType type)
+    {
+        return ReferenceEquals(UnionSpecialization.Current()?.Definition, type);
+    }
+
+    private sealed class Both(IDisposable first, IDisposable second) : IDisposable
+    {
+        public void Dispose()
+        {
+            second.Dispose();
+            first.Dispose();
+        }
     }
 }

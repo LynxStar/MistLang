@@ -358,4 +358,10 @@ public static class BackendDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
         "'{0}' mentions the pack '{1}' where no arity is fixed, so no C# signature can be written for it.");
+
+    public static readonly DiagnosticDescriptor UnboundedSpecialization = new(
+        new DiagnosticId("MIST_BE_UNBOUNDED_SPECIALIZATION"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "'{0}' writes a union over its own type parameters, so it is emitted once per instantiation, and its instantiations keep producing new ones past {1}: an instantiation that needs a larger one of itself never finishes.");
 }

@@ -857,14 +857,20 @@ rules:
 
       STILL AMBIGUOUS, stated with the rule in method-overloading Requirements 3.8 to 3.10:
       `Pair<A, B>.Take(A)` beside `Take(B)` at `Pair<int, int>`, one type parameter being no more specific
-      than another; `Take(K, int)` against `Take(int, K)`, each more specific in one position; and
-      `Take(K?)` against `Take(int?)`, which is NOT a tie on the rule -- `int?` is fixed where `K?`
-      follows the instantiation, so it should win -- but is refused while the preference cannot be
-      honoured: an unconstrained `K?` parameter reaches the backend as `K` on BOTH pipelines, dropping the
-      absent case entirely, so selecting `Take(int?)` would run `Take(K?)`. MEASURED 2026-09-15 with no
-      overloading in sight: a lone `Take(K? key)` on `Keyed<int>` given `int? nothing = void;` fails in
-      Roslyn on classic and v2 alike, cannot convert int? to int. Requirement 3.11 states the preference
-      and why it waits; the emitter register holds the representation gap under orders 76 to 78.
+      than another; and `Take(K, int)` against `Take(int, K)`, each more specific in one position.
+
+      `Take(K?)` AGAINST `Take(int?)` IS NO LONGER AMBIGUOUS, 2026-09-19. It was never a tie on the rule
+      -- `int?` is fixed where `K?` follows the instantiation -- and was refused only while an
+      unconstrained `K?` reached the backend as `K`, so a selection of `Take(int?)` would have run the
+      other. With the declaration emitted per instantiation (emitter register order 76) the preference
+      is honoured: CompareSpecificity compares two optionals by their present constituents, and
+      Requirement 3.11 now states the preference rather than the refusal. At `Lifted<int>` the two
+      overloads are one C# signature, so the specialization names them apart and each call is named
+      for Mist's choice; a call the generic body resolved to `Take(K?)` keeps that choice. Measured on
+      the emitted program, not only on the selection: samples/OpenUnions prints `int?` for a present
+      and an absent argument and `K?` for the call made inside. OverloadSelectionTests moved the
+      `lifted.Take(3)` row from the ambiguous theory to the written-beats-closed one and added an absent
+      argument; removing the optional comparison fails exactly those rows.
 
       PROVED BY 17 rows in OverloadSelectionTests, the wanted overload declared SECOND in every fixture:
       seven for a written parameter beating a closed one (instance, inherited and static receivers, and

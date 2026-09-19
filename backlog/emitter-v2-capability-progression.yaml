@@ -4096,12 +4096,19 @@ capabilities:
       removed, substituted instances never admitted, the unbounded report dropped. Every banked sample
       prints what it printed before, OptionalTypeParameters' generic methods now being instances.
 
+      OVERLOADS AN INSTANCE MAKES IDENTICAL, 2026-09-19. `Take(K?)` beside `Take(int?)` is one C#
+      signature twice in `Lifted<int>`, which Roslyn refused as CS0111. The specialization now names
+      every member of such a group apart (`Take__o0`, `Take__o1`, by declaration position) in that
+      instance only, and names each call for the overload Mist selected -- a bare call through the
+      instance being emitted, a member call through its receiver's closed type, a receiver typed as the
+      declaration itself standing for the instance. This is what lets method-overloading Requirement
+      3.11 prefer `Take(int?)` and have the emitted program run it. UnionSpecializationTests pins the
+      names; disabling them fails those rows and leaves samples/OpenUnions with four Roslyn errors.
+
       NOT COVERED: a generic method used as a VALUE (a method group) records no call, so a specialized
-      one referenced that way names nothing emitted; overloads that coincide once an instance
-      substitutes them (`Take(K?)` beside `Take(int?)` at `<int>`) are two C# members with one
-      signature, refused by Roslyn (CS0111), and are the next step with method-overloading Requirement
-      3.11; a specialized ABSTRACT's conformers and a specialized type reached through an UnsafeAccessor
-      are unmeasured.
+      one referenced that way names nothing emitted; a renamed overload that implements an abstract's
+      member, an inherited one reached through a derived receiver, a specialized ABSTRACT's conformers
+      and a specialized type reached through an UnsafeAccessor are unmeasured.
     unlocks: []
 
   - id: union-widening-at-use-sites
@@ -11336,8 +11343,9 @@ samples:
         compile would print the same lines. UnionSpecializationTests pins the decisions and the
         emitted spellings.
       - >
-        A generic method used as a VALUE, overloads that coincide at an instance, a specialized
-        abstract with conformers, and runaway specialization are not exercised; order 76 lists them.
+        A generic method used as a VALUE, a specialized abstract with conformers, and runaway
+        specialization are not exercised; order 76 lists them. Overloads that coincide at an instance
+        ARE exercised, by `Lifted<K>`, whose lines were captured from v2 and read against the program.
 
 # =====================================================================
 

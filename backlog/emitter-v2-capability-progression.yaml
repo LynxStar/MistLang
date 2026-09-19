@@ -2695,12 +2695,14 @@ capabilities:
         OPEN, cosmetic. A conflict between an enclosing method's own `T` and another type reads "the
         arguments give 'T' the types 'T', 'int'", the two T being different parameters.
       - >
-        FOUND 2026-09-13, not this entry's. A STATED union over an open type parameter does not emit:
-        inside `Mixed<T>(T a, int b)`, `Sink.Pair<T | int>(a, b)` binds, and Roslyn reports that
-        'Union_Int32_T' could not be found, since EmitUnionCarriers skips an open union by design and
-        nothing lowers the call. Orders 76 to 78 own unions.
+        FOUND 2026-09-13, not this entry's, and RESOLVED 2026-09-19. A STATED union over an open type
+        parameter did not emit: inside `Mixed<T>(T a, int b)`, `Sink.Pair<T | int>(a, b)` bound, and
+        Roslyn reported that 'Union_Int32_T' could not be found. `Mixed` is now emitted per call
+        (order 76), and the call compiles and runs. What `Pair` then prints for each value is the
+        carrier's name -- a union value interpolates as `Union_Int32_String` on v2 whether or not a
+        generic is involved, as RefinementTypes' banked `Union_Byte_Int32` lines already show.
       - >
-        FOUND 2026-09-15, not this entry's, and the same gap one step earlier: an OPTIONAL over an open
+        RESOLVED 2026-09-19 by order 76's per-instantiation emission. FOUND 2026-09-15, not this entry's, and the same gap one step earlier: an OPTIONAL over an open
         type parameter does not survive emission. A GENERIC TYPE CANNOT HOLD ONE AT ALL. Measured on v2
         over `Holder<K>`: `K? Field` emits as `public K Field;` beside `this.Field = null;` in the
         constructor -- the declaration drops the optionality while the initializer still writes the absent
@@ -4055,6 +4057,51 @@ capabilities:
       are runtime types, and each is interned and carried on its own, so a union with a type parameter
       anywhere in it is skipped. A union over an open parameter inside a generic body has no carrier
       either and is a gap. Verified by the type-unions generics snippet.
+
+      THE OPEN UNION IS EMITTED PER INSTANTIATION, DONE 2026-09-19 -- and no carrier could have done
+      it, which was measured before it was built. Mist sorts a union and merges duplicates AFTER
+      substitution: `T | R` in `Pair<T, R>` is `int | string` at both `<int, string>` and
+      `<string, int>`, and plain `int` at `<int, int>`. A C# generic fills its parameters into one
+      declaration by position, so any carrier written once in terms of T and R -- a generic
+      `Union<T, R>` included -- disagrees with two of those three; a conversion can bridge a lone value
+      but not one nested in another type, a `Cell<...>` being an object that converting would copy.
+      A carrier written for the optional alone, `MistOptional<T>`, was built and measured the same way:
+      it fixed every top-level position and broke `Cell<K?>`, `func<K?>` and a returned `(K?, string)`
+      at a reference instantiation, which the bare lowering had compiled by accident. It is not in the
+      tree.
+
+      Lowering/UnionSpecialization decides which declarations are emitted once per instantiation: a
+      TYPE or generic METHOD whose own type parameters appear in a union no C# generic can spell -- any
+      open general union, or an optional over a parameter the `struct` or `class` keyword does not
+      constrain (those coincide with every closed spelling already, order 78) -- and, to a fixpoint,
+      any declaration that names one of those over its own parameters. Instances are read off the
+      program as the variadic widths are: closed constructions from the interner, method type
+      arguments from Model/GenericCallRegistry (recorded where PostfixBinder records the variadic
+      widths), and whatever substituting those through an instance reaches, each instance's closed
+      unions INTERNED so the carrier file holds them. An instance is emitted under its own name
+      (`Pair__Standard_String__Standard_Int32`), inside a TypeNameEmitter substitution scope that now
+      composes, innermost first, so a generic method of a specialized type binds both. The emission
+      decisions that read a type -- a union pattern's accessor, an optional read or default, `as` --
+      read it closed. A union that an instance collapses to a single type is boxed as a pattern's
+      scrutinee, C# otherwise refusing the generic's catch-all arm as unreachable (CS8510). An
+      instantiation that keeps needing a larger one of itself stops at 256 per declaration and is
+      MIST_BE_UNBOUNDED_SPECIALIZATION.
+
+      samples/OpenUnions banks it V2-ONLY: both orders, the merged instance, a nested
+      `Cell<T | R>`, a `switch` over the union, an unconstrained `K?` through every position including
+      absence, `Cell<K?>`, `func<K?>` and `(K?, string)` at `int` and `string`, and generic methods
+      called directly, from another generic method and from a generic class. It does not compile with
+      specialization disabled. UnionSpecializationTests pins the decisions and the spellings; five
+      mutations, each caught -- the kind constraint ignored, optionals never specialized, the fixpoint
+      removed, substituted instances never admitted, the unbounded report dropped. Every banked sample
+      prints what it printed before, OptionalTypeParameters' generic methods now being instances.
+
+      NOT COVERED: a generic method used as a VALUE (a method group) records no call, so a specialized
+      one referenced that way names nothing emitted; overloads that coincide once an instance
+      substitutes them (`Take(K?)` beside `Take(int?)` at `<int>`) are two C# members with one
+      signature, refused by Roslyn (CS0111), and are the next step with method-overloading Requirement
+      3.11; a specialized ABSTRACT's conformers and a specialized type reached through an UnsafeAccessor
+      are unmeasured.
     unlocks: []
 
   - id: union-widening-at-use-sites
@@ -4148,16 +4195,13 @@ capabilities:
       all three on the emitted text. Two mutations, each caught by the rows that own it: ignoring
       the constraint fails the two negative rows, dropping the arm fails the three positive ones.
 
-      ONLY THE UNCONSTRAINED PARAMETER IS LEFT, and it alone is what a carrier would be for. It has
-      no C# type to lower to: Nullable needs the struct constraint, and C#'s unconstrained `T?` is
-      an annotation rather than a thing that can hold absence for a value type.
-
-      WHERE A CONVERSION WOULD BE RECORDED, if a carrier lands: ImplicitConversions.At and
-      .AtParameters are already the one binder-side home for a value meeting a target -- argument,
-      return, local initializer, foreach element, lambda body, object-initializer entry and index
-      all route through them -- so the carrier-to-Nullable direction is recorded once there rather
-      than at each emission site. It cannot be a C# conversion operator in either direction, since
-      one over Nullable of T cannot be declared without a struct constraint the parameter lacks.
+      THE UNCONSTRAINED PARAMETER IS DONE, 2026-09-19, by emitting its declaration once per
+      instantiation (order 76), where `K?` at `int` is plain `int?` and at `string` the bare
+      reference. No carrier is involved, so nothing converts anywhere. WHAT THIS ENTRY SAID EARLIER
+      ABOUT IMPLICITCONVERSIONS WAS WRONG: it is not the home of a carrier conversion, because at
+      `Holder<int>` the field declared `K?` and an `int?` local are the SAME model type, `int | void`,
+      and the binder correctly records nothing between them -- the two differed only in what the
+      emitter wrote.
 
   - id: optional-operators
     name: Conditional access, coalescing and coalescing assignment
@@ -11230,12 +11274,9 @@ samples:
                pattern-matching-core]
     untested:
       - >
-        EVERY ARGUMENT HERE IS PRESENT, and that is the sample's boundary rather than an oversight. An
-        ABSENT argument to the same methods does not compile: `T?` reaches the backend as `T`, so an
-        `int?` meets an `int` parameter and Roslyn refuses it (measured 2026-09-15). The sample can bank
-        inference through an optional slot because inference is the binder's, and cannot bank absence
-        through one until the carrier at order 55 lands. Nothing in the suite holds an optional over a
-        type parameter at runtime.
+        EVERY ARGUMENT HERE IS PRESENT, which keeps each line cross-checked against classic, since classic
+        refuses an absent one (MIST_TC_0072). v2 has passed absent ones since 2026-09-19, the methods
+        being emitted per call (order 76); samples/OpenUnions banks that.
       - >
         THE TWO REFUSALS CANNOT BE BANKED AT ALL, a sample being a valid program: that a general union
         parameter is NOT read constituent by constituent, and that a `void` argument infers nothing
@@ -11270,9 +11311,33 @@ samples:
         silently. The class-constrained and unconstrained rows can only be pinned on emitted text, and
         OptionalOverTypeParameterEmissionTests pins all three.
       - >
-        AN UNCONSTRAINED `K?` IS ABSENT FROM THIS SAMPLE BECAUSE IT DOES NOT WORK. It is lowered bare
-        and cannot hold absence at a value instantiation; the sample's own header says so, and order 78
-        holds the gap. Nothing in the suite exercises one at runtime.
+        AN UNCONSTRAINED `K?` IS ABSENT FROM THIS SAMPLE, being order 76's case rather than order 78's:
+        samples/OpenUnions banks it.
+
+  - name: OpenUnions
+    intro_order: 97
+    threshold: union-types-and-carriers
+    requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
+               var-type-inference, instance-fields, type-parameters-and-constructed-types,
+               generic-arity-keyed-lookup, generic-methods, type-argument-substitution,
+               type-argument-inference, union-types-and-carriers, union-widening-at-use-sites,
+               optional-union-representation, optional-operators, pattern-matching-core,
+               func-structural-function-types]
+    untested:
+      - >
+        V2-ONLY. Classic refuses this program in its own checker (measured 2026-09-19): it does not
+        merge `int | int` into `int` (MIST_TC_0071, MIST_TC_0001 for the nested `Cell`), refuses `void`
+        assigned to a field (MIST_TC_0070), and cannot pass `K?` where `int?` is expected
+        (MIST_TC_0072). Referenced from AllFeaturesV2 alone, its lines captured from v2 and read against
+        the program by hand.
+      - >
+        WHICH declarations are specialized is invisible here: a generic emitted once that happened to
+        compile would print the same lines. UnionSpecializationTests pins the decisions and the
+        emitted spellings.
+      - >
+        A generic method used as a VALUE, overloads that coincide at an instance, a specialized
+        abstract with conformers, and runaway specialization are not exercised; order 76 lists them.
 
 # =====================================================================
 

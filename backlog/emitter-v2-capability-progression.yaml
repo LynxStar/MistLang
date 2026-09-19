@@ -11271,7 +11271,7 @@ samples:
         index is refused as ambiguous, a decision recorded on analysis order 5. Keyed's `this[K key]` ignores
         its key, so the right indexer reached with the wrong argument prints the same.
   - name: OptionalTypeParameters
-    intro_order: 95
+    intro_order: 96
     threshold: type-argument-inference
     requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
                namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
@@ -11297,7 +11297,7 @@ samples:
         Kept out of the sample so every line here stays cross-checked against classic.
 
   - name: GenericOptionals
-    intro_order: 96
+    intro_order: 97
     threshold: optional-union-representation
     requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
                namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
@@ -11322,7 +11322,7 @@ samples:
         samples/OpenUnions banks it.
 
   - name: OpenUnions
-    intro_order: 97
+    intro_order: 98
     threshold: union-types-and-carriers
     requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
                namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,

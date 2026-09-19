@@ -8,7 +8,6 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
-using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -16,15 +15,9 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// Discharges a refinement where a value meets one: a constant against the predicate, a refined value
-/// against another refinement by implication, and anything else against what the flow has established
-/// about the local it is -- a condition assumed on the path, a constant it was given, an increment it
-/// took, a parameter's own `where`. The knowledge is an interval set per local on the flow framework,
-/// widened to infinity the third time a join moves it, so a counting loop settles while an inner loop
-/// revisited by an outer one keeps the bound the outer condition gave, and a symbolic upper bound
-/// `i &lt; a.Length` remembered against the array itself, which is what indexing an array of unknown
-/// length needs. The array may be a local or a field of this instance; the bound is forgotten when
-/// that holder is reassigned and, for a field that is not readonly, at any call, object creation or
-/// await, since code the flow cannot see may reassign it then. What cannot be proven is refused where
+/// against another refinement by implication, and anything else against what <see cref="RefinementFlow"/>
+/// has established about the local it is -- a condition assumed on the path, a constant it was given, an
+/// increment it took, a parameter's own `where`. What cannot be proven is refused where
 /// the value meets the refinement -- a declaration, an assignment, a return, an index into an array
 /// whose length is known or that a local or a field holds, an argument at a call, a construction or a
 /// constructor chain, and the operand of a cast, which is an argument to its conversion function. A
@@ -44,7 +37,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         foreach(var root in context.Bodies)
         {
-            new Proving(context, lifted).Judge(FlowGraphBuilder.Build(root.Root), Proving.Nothing);
+            new Proving(context, lifted).Judge(FlowGraphBuilder.Build(root.Root), RefinementFlow.Nothing);
         }
 
         foreach(var closing in context.Model.ConstructorConstraintClosures.Closings)
@@ -64,7 +57,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 if(constructor is { ChainedConstructor: { } chained, DeclarationNode: { } declared } && context.IsInSource(declared))
                 {
                     new Proving(context, lifted).NeedArguments(
-                        Proving.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList);
+                        RefinementFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList);
                 }
             }
         }
@@ -141,90 +134,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         };
     }
 
-    private sealed record Bound(object Holder, ComparisonKind Kind);
-
-    private sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0, Admitted? Length = null)
+    private sealed class Proving(AnalysisContext context, LiftedReturns lifted)
     {
-        public static readonly Knowledge Unknown = new(Admitted.Everything, ImmutableHashSet<Bound>.Empty);
-    }
-
-    private sealed class Proving(AnalysisContext context, LiftedReturns lifted) : IFlowLattice<ImmutableDictionary<LocalVariable, Knowledge>>
-    {
-        public static readonly ImmutableDictionary<LocalVariable, Knowledge> Nothing =
-            ImmutableDictionary.Create<LocalVariable, Knowledge>(ReferenceEqualityComparer.Instance);
-
-        public ImmutableDictionary<LocalVariable, Knowledge> Join(
-            ImmutableDictionary<LocalVariable, Knowledge> left, ImmutableDictionary<LocalVariable, Knowledge> right)
-        {
-            var joined = Nothing;
-
-            foreach(var (local, mine) in left)
-            {
-                if(!right.TryGetValue(local, out var theirs))
-                {
-                    continue;
-                }
-
-                var values = mine.Values.Or(theirs.Values);
-                var changes = mine.Changes;
-
-                if(!values.Equals(mine.Values))
-                {
-                    changes++;
-                    values = changes > 2 ? values.WidenedAgainst(mine.Values) : values;
-                }
-
-                var length = mine.Length is { } left2 && theirs.Length is { } right2 ? left2.Or(right2) : null;
-
-                joined = joined.Add(local, new Knowledge(values, mine.Bounds.Intersect(theirs.Bounds), changes, length));
-            }
-
-            return joined;
-        }
-
-        public bool Same(ImmutableDictionary<LocalVariable, Knowledge> left, ImmutableDictionary<LocalVariable, Knowledge> right)
-        {
-            return left.Count == right.Count
-                && left.All(entry => right.TryGetValue(entry.Key, out var other)
-                    && entry.Value.Values.Equals(other.Values) && entry.Value.Bounds.SetEquals(other.Bounds)
-                    && Equals(entry.Value.Length, other.Length));
-        }
-
-        public ImmutableDictionary<LocalVariable, Knowledge> Transfer(ImmutableDictionary<LocalVariable, Knowledge> state, FlowStep step)
-        {
-            switch(step)
-            {
-                case { Kind: FlowStepKind.Assume, Node: Expression condition }:
-                    return Learn(state, condition, step.Holds);
-
-                case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement declaration }:
-                    return Given(state, declaration.Local, declaration.Initializer);
-
-                case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false, Target: LocalReferenceExpression target } assignment }:
-                    state = Forget(state, holder => ReferenceEquals(holder, target.Local));
-
-                    if(assignment.Value is BinaryExpression { Left: LocalReferenceExpression { Local: var same }, OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract } step2
-                        && ReferenceEquals(same, target.Local) && Requirement.Constant(step2.Right) is { } by && state.TryGetValue(target.Local, out var before))
-                    {
-                        return state.SetItem(target.Local, new Knowledge(before.Values.Shifted(step2.OperatorKind == BinaryOperatorKind.Add ? by : -by), ImmutableHashSet<Bound>.Empty));
-                    }
-
-                    return Given(state, target.Local, assignment.Value);
-
-                case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: var target } } when Assigned(target) is { } field:
-                    return Forget(state, holder => ReferenceEquals(holder, field));
-
-                case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression or NewExpression }:
-                    return Forget(state, holder => holder is Field { Modifiers.IsReadonly: false });
-
-                default:
-                    return state;
-            }
-        }
-
         public void Judge(FlowGraph graph, ImmutableDictionary<LocalVariable, Knowledge> entry)
         {
-            var solution = FlowSolution<ImmutableDictionary<LocalVariable, Knowledge>>.Solve(graph, this, entry);
+            var solution = FlowSolution<ImmutableDictionary<LocalVariable, Knowledge>>.Solve(graph, new RefinementFlow(), entry);
             solution.Replay((state, step) => Judge(graph, state, step));
         }
 
@@ -267,7 +181,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Proving(context, lifted).Judge(nested, Nothing);
+                    new Proving(context, lifted).Judge(nested, RefinementFlow.Nothing);
                     break;
             }
         }
@@ -305,7 +219,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             if(receiverType is ConstructedType { Definition: var definition, TypeArguments.Count: 2 } && Lengths.IsIndexable(definition))
             {
-                var length = Lengths.Typed(receiverType) ?? Held(state, index.Receiver);
+                var length = Lengths.Typed(receiverType) ?? RefinementFlow.Held(state, index.Receiver);
                 var known = Reaching(state, index, length);
 
                 if(known is null)
@@ -351,7 +265,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return Knowledge.Unknown;
             }
 
-            var below = back >= 1 && Holder(index.Receiver) is { } holder
+            var below = back >= 1 && RefinementFlow.Holder(index.Receiver) is { } holder
                 ? ImmutableHashSet.Create(new Bound(holder, ComparisonKind.LessThan))
                 : ImmutableHashSet<Bound>.Empty;
 
@@ -432,7 +346,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             foreach(var bound in required.Bounds)
             {
-                if(Holder(onIndex) is not { } holder || !known.Bounds.Contains(new Bound(holder, bound.Kind)))
+                if(RefinementFlow.Holder(onIndex) is not { } holder || !known.Bounds.Contains(new Bound(holder, bound.Kind)))
                 {
                     return false;
                 }
@@ -460,200 +374,9 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             return new Knowledge(flow.Values.And(typed), flow.Bounds);
         }
 
-        private static ImmutableDictionary<LocalVariable, Knowledge> Learn(
-            ImmutableDictionary<LocalVariable, Knowledge> state, Expression condition, bool holds)
-        {
-            switch(condition)
-            {
-                case BinaryExpression { Left: MemberAccessExpression { MemberName: "Length", Receiver: LocalReferenceExpression sizedOne }, Right: var limit2 } sized
-                    when Comparison(sized.OperatorKind) is { } sizedKind && Requirement.Constant(limit2) is { } sizedBound:
-                    return Sized(state, sizedOne.Local, Requirement.Interval(sizedKind, sizedBound), holds);
-
-                case BinaryExpression { Left: var limit3, Right: MemberAccessExpression { MemberName: "Length", Receiver: LocalReferenceExpression sizedTwo } } sizedFlip
-                    when Comparison(sizedFlip.OperatorKind) is { } flipKind && Requirement.Constant(limit3) is { } flipBound:
-                    return Sized(state, sizedTwo.Local, Requirement.Interval(Mirrored(flipKind), flipBound), holds);
-
-                case BinaryExpression { Left: LocalReferenceExpression subject, Right: var bound } comparison when Comparison(comparison.OperatorKind) is { } kind:
-                    if(Requirement.Constant(bound) is { } constant)
-                    {
-                        return Narrow(state, subject.Local, holds ? Requirement.Interval(kind, constant) : Requirement.Interval(kind, constant).Not());
-                    }
-
-                    var upper = holds ? kind : Flipped(kind);
-
-                    if(bound is MemberAccessExpression { MemberName: "Length", Receiver: var measured }
-                        && upper is ComparisonKind.LessThan or ComparisonKind.LessThanOrEqual)
-                    {
-                        if(Lengths.Exact(Lengths.Typed(measured.Type)) is { } length)
-                        {
-                            return Narrow(state, subject.Local, Requirement.Interval(upper, length));
-                        }
-
-                        if(Holder(measured) is { } holder)
-                        {
-                            var known = state.TryGetValue(subject.Local, out var existing) ? existing : Knowledge.Unknown;
-                            return state.SetItem(subject.Local, known with { Bounds = known.Bounds.Add(new Bound(holder, upper)) });
-                        }
-                    }
-
-                    return state;
-
-                case BinaryExpression { Left: var limit, Right: LocalReferenceExpression mirrored } flipped
-                    when Comparison(flipped.OperatorKind) is { } mirroredKind && Requirement.Constant(limit) is { } value:
-                    return Narrow(state, mirrored.Local, holds ? Requirement.Interval(Mirrored(mirroredKind), value) : Requirement.Interval(Mirrored(mirroredKind), value).Not());
-
-                case IsPatternExpression { Scrutinee: LocalReferenceExpression listed, Pattern: ListPattern list } when holds:
-                    return Sliced(state, listed, list);
-
-                case IsPatternExpression { Scrutinee: LocalReferenceExpression subject, Pattern: var pattern }
-                    when Requirement.Of(pattern) is { Bounds.Length: 0 } matched:
-                    return Narrow(state, subject.Local, holds ? matched.Values : matched.Values.Not());
-
-                default:
-                    return state;
-            }
-        }
-
-        private static ImmutableDictionary<LocalVariable, Knowledge> Narrow(
-            ImmutableDictionary<LocalVariable, Knowledge> state, LocalVariable local, Admitted values)
-        {
-            var known = state.TryGetValue(local, out var existing) ? existing : Knowledge.Unknown;
-            return state.SetItem(local, known with { Values = known.Values.And(values) });
-        }
-
-        private static ImmutableDictionary<LocalVariable, Knowledge> Given(
-            ImmutableDictionary<LocalVariable, Knowledge> state, LocalVariable local, Expression? value)
-        {
-            if(value is null)
-            {
-                return state.Remove(local);
-            }
-
-            if(Requirement.Constant(value) is { } constant)
-            {
-                return state.SetItem(local, new Knowledge(Admitted.Exactly(constant), ImmutableHashSet<Bound>.Empty));
-            }
-
-            if(value is LocalReferenceExpression source && state.TryGetValue(source.Local, out var copied))
-            {
-                return state.SetItem(local, copied);
-            }
-
-            return Lengths.Of(value, held => Held(state, held)) is { } length
-                ? state.SetItem(local, Knowledge.Unknown with { Length = length })
-                : state.Remove(local)
-                ;
-        }
-
-        private static ImmutableDictionary<LocalVariable, Knowledge> Forget(ImmutableDictionary<LocalVariable, Knowledge> state, Func<object, bool> lost)
-        {
-            foreach(var (other, known) in state)
-            {
-                if(known.Bounds.Any(bound => lost(bound.Holder)))
-                {
-                    state = state.SetItem(other, known with { Bounds = known.Bounds.Where(bound => !lost(bound.Holder)).ToImmutableHashSet() });
-                }
-            }
-
-            return state;
-        }
-
-        private static ImmutableDictionary<LocalVariable, Knowledge> Sliced(
-            ImmutableDictionary<LocalVariable, Knowledge> state, LocalReferenceExpression scrutinee, ListPattern list)
-        {
-            var fixedCount = list.Elements.Count(element => !element.IsSlice);
-            var sliced = list.Elements.Any(element => element.IsSlice);
-            var length = (Held(state, scrutinee) ?? Lengths.Typed(scrutinee.Type) ?? Admitted.Everything)
-                .And(sliced ? Admitted.AtLeast(fixedCount) : Admitted.Exactly(fixedCount));
-
-            state = Sized(state, scrutinee.Local, length, holds: true);
-
-            if(list.Elements.FirstOrDefault(element => element.IsSlice)?.Subpattern?.Binding is { } middle)
-            {
-                state = state.SetItem(middle, Knowledge.Unknown with { Length = length.Shifted(-fixedCount) });
-            }
-
-            return state;
-        }
-
-        private static ImmutableDictionary<LocalVariable, Knowledge> Sized(
-            ImmutableDictionary<LocalVariable, Knowledge> state, LocalVariable measured, Admitted admitted, bool holds)
-        {
-            var known = state.TryGetValue(measured, out var existing) ? existing : Knowledge.Unknown;
-            var learned = holds ? admitted : admitted.Not();
-
-            return state.SetItem(measured, known with { Length = known.Length is { } already ? already.And(learned) : learned });
-        }
-
-        private static Admitted? Held(ImmutableDictionary<LocalVariable, Knowledge> state, Expression? receiver)
-        {
-            return receiver is LocalReferenceExpression local && state.TryGetValue(local.Local, out var known)
-                ? known.Length
-                : null
-                ;
-        }
-
-        private static object? Holder(Expression? array)
-        {
-            return array switch
-            {
-                LocalReferenceExpression local => local.Local,
-                FieldReferenceExpression field => field.Field,
-                MemberAccessExpression { Receiver: ThisExpression, Member: FieldResult { Field: var field } } => field,
-                _ => null,
-            };
-        }
-
-        private static Field? Assigned(Expression target)
-        {
-            return target switch
-            {
-                FieldReferenceExpression field => field.Field,
-                MemberAccessExpression { Member: FieldResult { Field: var field } } => field,
-                _ => null,
-            };
-        }
-
         private static bool Accepts(IMistType constituent, IMistType valueType)
         {
             return ConversionClassifier.Classify(Requirement.Unrefined(valueType), Requirement.Unrefined(constituent)) is ConversionKind.Identity or ConversionKind.Implicit;
-        }
-
-        private static ComparisonKind? Comparison(BinaryOperatorKind kind)
-        {
-            return kind switch
-            {
-                BinaryOperatorKind.Equal => ComparisonKind.Equal,
-                BinaryOperatorKind.LessThan => ComparisonKind.LessThan,
-                BinaryOperatorKind.GreaterThan => ComparisonKind.GreaterThan,
-                BinaryOperatorKind.LessThanOrEqual => ComparisonKind.LessThanOrEqual,
-                BinaryOperatorKind.GreaterThanOrEqual => ComparisonKind.GreaterThanOrEqual,
-                _ => null,
-            };
-        }
-
-        private static ComparisonKind Mirrored(ComparisonKind kind)
-        {
-            return kind switch
-            {
-                ComparisonKind.LessThan => ComparisonKind.GreaterThan,
-                ComparisonKind.GreaterThan => ComparisonKind.LessThan,
-                ComparisonKind.LessThanOrEqual => ComparisonKind.GreaterThanOrEqual,
-                ComparisonKind.GreaterThanOrEqual => ComparisonKind.LessThanOrEqual,
-                _ => kind,
-            };
-        }
-
-        private static ComparisonKind Flipped(ComparisonKind kind)
-        {
-            return kind switch
-            {
-                ComparisonKind.LessThan => ComparisonKind.GreaterThanOrEqual,
-                ComparisonKind.GreaterThan => ComparisonKind.LessThanOrEqual,
-                ComparisonKind.LessThanOrEqual => ComparisonKind.GreaterThan,
-                ComparisonKind.GreaterThanOrEqual => ComparisonKind.LessThan,
-                _ => kind,
-            };
         }
     }
 }

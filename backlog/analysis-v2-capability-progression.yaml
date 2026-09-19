@@ -2420,6 +2420,75 @@ rules:
       first-class-functions follows the guarded sample. The full suite -- 6249, 664 and 68 tests, both
       orchestrator baselines among them -- passed on the second run; the first failed only
       SpecProofCodeMatchesSampleTest, consistently, before the spec followed.
+
+      THE FOUR ITEMS THE LENGTH WORK LEFT OPEN, CLOSED (2026-09-19), under the one rule (Arthur,
+      2026-09-16): a value that reaches a slot must satisfy the slot's type, and what cannot be proven is
+      refused. Arthur decided the boundary on the way: flow analysis never crosses a member. A user
+      type's `public int Count` is an unknown int wherever it is read, so `ledger[^1]` into `where entry
+      >= 0 and < 3` is refused whatever the getter returns, and a guard on it teaches nothing -- `if
+      (ledger.Count == 3)` says what one call returned, not what the next returns. An array's Length is
+      different because the type states it. He then specified the lift that lets a signature carry what
+      its body proves (refinement-types R18, with R13.5 reworded so a use still reads only the type):
+      a method, getter or indexer getter whose every return is a constant or a refined pass-through is
+      read as returning their union, the way ReadonlyInference lifts readonly. Mist has no overriding
+      and recompiles the whole program, so a body is the only one a use reaches and no lift is stale.
+      Returns the flow narrowed (`var n = 7; return n;`) are tabled until this closes (task below).
+
+      MEASURED FIRST. A from-end index into a user indexer printed 8 on both pipelines over Count 9 and
+      `< 3` (classic only with the int indexer declared first; declared second it types the index by the
+      string one, MIST_TC_0001). Classic does judge that `where` for an int argument -- `ledger[5]` and an
+      unguarded `ledger[i]` are MIST_REFINEMENT_0005, and so is one inside `if (i >= 0 && i < 3)`, which v2
+      proves -- but not for `^k`. A list pattern over the same Ledger printed 8 on both. Beside them, v2
+      admitted `shelf[^1]` and `shelf is [var a]` over a type with an int indexer and no Length or Count,
+      and Roslyn refused the emitted C# (MIST_CS_ERROR, "cannot convert from 'System.Index' to 'int'" and
+      "No suitable 'Length' or 'Count' property"); classic refuses both (MIST_TC_0184, MIST_TC_0054). C#
+      counts from Length before Count: over Length 5 and Count 9, `^1` read position 4. It reads Count once
+      per list pattern and reads only the elements that are not discards: a noisy indexer under `[_, var
+      b, _]` was read at position 1 alone.
+
+      WHAT CHANGED. The binder records what a position is counted against, as the model's rule for a
+      dropped target asks: CountedIndexer -- the int indexer, its parameter read through the receiver, and
+      the Length or Count property -- on IndexExpression.FromEnd for an Index no indexer takes, and on
+      ListPattern.Reads for a user indexer. A receiver with neither property is
+      MIST_PM_RECEIVER_NOT_COUNTABLE at both sites, with the element still typed so nothing cascades. The
+      prover reads a from-end index's position as the count less the offset (Admitted.Minus), the count
+      known only from its property's type and lift, and judges it against the recorded parameter. A list
+      pattern's positions are constants from the front and the count less k from the back, within the
+      count its own length test admits; a discard owes nothing, and a pattern whose test can never pass
+      reads nothing. The lattice is keyed by holder rather than local, so a field of this carries a length:
+      learned from a guard or a write, forgotten at a write to it and, unless readonly, at a call. A
+      property or indexer accessor with a Mist body now forgets too, and so does a write through one: a
+      getter that reassigned the field was invisible to the field BOUNDS as well, which this closes. An
+      offset known as a range reaches [Llo - khi, Lhi - klo], below Length exactly when klo is at least
+      one. A value the prover knows exactly and outside the refinement is VIOLATED, as an index known
+      exactly was OUT_OF_BOUNDS; argument-refinement-not-implied-by-parameter and
+      narrowing-lost-on-reassignment knew their value exactly and are re-aimed at a parameter, so they
+      still test the paths they are named for.
+
+      samples/OverloadedIndexers IS UNCHANGED: its Count returns `entries.Length` over `int[3]`, which
+      lifts to 3, so `ledger[^1]` is position 2 and proven, and `[var first, var second, _]` reads 0 and 1.
+      AllFeaturesV2 is byte-identical and reports nothing. RefinementAnalyzer reached 730 lines, so the
+      lattice moved to RefinementFlow before the items landed.
+
+      PROVED BY seventeen corpus cases -- five for the lift (lifted-return-violates-refinement,
+      lifted-getter-violates-refinement, getter-over-a-mutable-field-lifts-nothing,
+      return-the-flow-narrowed-lifts-nothing, recursive-return-lifts-nothing), two in binding/ for the
+      count (from-end-index-into-an-uncountable-receiver, list-pattern-over-an-uncountable-receiver), four
+      for the positions (from-end-index-violates-indexer-constraint,
+      from-end-index-unproven-for-indexer-constraint, list-pattern-element-violates-indexer-constraint,
+      list-pattern-element-after-a-slice-unproven) and six for field lengths and offset ranges
+      (field-length-lost-on-call, field-length-lost-on-an-accessor, field-bound-lost-on-an-accessor,
+      field-assigned-then-indexed-past-its-length, from-end-offset-range-reaching-the-length,
+      from-end-offset-range-past-the-start) -- and twenty-one rows in RefinementDecisionTests: eight a lift
+      admits, six positions a count proves (the unrefined Length-and-Count receiver among them), and seven
+      guards on a field or an offset range. Sixteen mutations on a confirmed build, each caught by its named
+      rows or cases: the lift off, a cycle read as nothing rather than its declared type, an exact value
+      reported unproven, the from-end position unjudged, list elements unjudged, discards read, front
+      elements read from the end, either countable refusal unreported, a field guard not learned, a field
+      length kept across a call, an accessor forgetting nothing, a readonly field forgotten, a field write's
+      length unrecorded, an offset range unproven, and an offset of zero taken as below Length. The front
+      elements mutation was equivalent for every row without a slice -- the count is then exactly the
+      element count -- and was caught only after a row put a front element before a slice.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -2449,25 +2518,26 @@ rules:
         classic and silent on v2. PredicateBinder finds predicates by walking types, and an extension block
         is not one, so its predicate is never bound for order 6 or this order to read.
       - >
-        A length is known only for a LOCAL. The lattice is keyed by local, so `if (cells.Length > 0)
-        { cells[0] }` over a field is unproven (the readonly corpus fixture moved to a loop bound for this
-        reason), and a field would need forgetting across calls as the field bounds above already have. An
-        array returned from a method is unknown by design and wants a guard, as FirstClassFunctions and
+        An array returned from a method is unknown by design and wants a guard, as FirstClassFunctions and
         StandardSurface took one. Lengths.Of names the CLR members it follows (`AsSpan`, `ToArray`,
-        `ToCharArray`, `Slice`); any other member's result is unknown.
+        `ToCharArray`, `Slice`); any other member's result is unknown. A method's returned LENGTH is not
+        lifted by refinement-types R18, which lifts integral values only.
       - >
-        A list pattern's positional element is judged by nothing, because it is not an expression: the
-        binder asks Indexability.ElementType for a TYPE and builds no IndexExpression, so the shared walk
-        sees no index to prove. For an array or a span the pattern's own length test guards it at runtime;
-        for a user type whose indexer carries a `where`, over a Count of 9 and `where entry >= 0 and < 3`,
-        `ledger is [_, _, _, _, _, _, _, _, var last]` is silent. The element must become something the
-        walk can see before the one rule can reach it.
+        The lift reads no flow (tabled by Arthur until the four items closed): `var n = 7; return n;` and
+        `if (x > 3) { return x; }` leave the member at its declared type. The natural next step is to lift
+        from what RefinementFlow knows at each return rather than from the returned expression's type.
       - >
-        A from-end index into a USER indexer is not judged: IndexBinder records no ParameterType for an
-        Index, and a user type's Count is a property body the flow cannot relate to the indexer's `where`.
-        `ledger[^1]` in samples/OverloadedIndexers is silent for this reason, sound only because its Count
-        is its array's Length.
+        A lifted value copied into a local keeps only its declared type: `var a = ledger.Age; AdultAge
+        copied = a;` is UNPROVEN over an `Age` that lifts to 30, because Given records nothing for an
+        initializer that is neither a constant, a local nor a length. Sound, imprecise.
       - >
-        A from-end offset the flow knows only as a range, not a single value, is unproven; an interval
-        offset would need interval subtraction the prover does not have.
+        A slot `where` that names a property reads as no requirement at all, so every value is admitted:
+        over `where entry >= 0 and < Count`, `ledger[7]` is silent on v2 (measured 2026-09-19). Requirement
+        reads a bare `Count` as a PropertyReferenceExpression, which Symbol does not name, and a conjunction
+        with an unreadable operand is null. Under the one rule a predicate the prover cannot read should be
+        refused rather than admitted; this predates the four items and is left for Arthur to decide.
+      - >
+        A property or indexer accessor with a Mist body forgets every non-readonly field fact, whether or
+        not it writes one; ReadonlyInference already answers whether a getter writes, and consulting it
+        (for calls too) would keep a guard across a pure accessor. Sound, imprecise.
 

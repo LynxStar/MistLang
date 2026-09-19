@@ -12,7 +12,9 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// holding every field of the operand. The two are unrelated C# types that each keep their state private,
 /// so each field is reached through an UnsafeAccessor rather than by name -- no reflection, and nothing the
 /// program's own code may touch is widened. A class is allocated uninitialized, every field being written
-/// afterwards; a constructor would run the source's code a second time.
+/// afterwards; a constructor would run the source's code a second time. A source emitted per instantiation
+/// (<see cref="UnionSpecialization"/>) is reached as the closed type it is in C#, not through a holder over
+/// parameters it no longer declares.
 /// </summary>
 internal static class CloneCopyEmitter
 {
@@ -38,13 +40,13 @@ internal static class CloneCopyEmitter
     {
         var slots = Slots(clone, diagnostics)
             .Concat(Slots(clone.CloneSourceType!, diagnostics))
-            .DistinctBy(slot => (slot.Definition, slot.Storage));
+            .DistinctBy(slot => (Stem(slot), slot.Storage));
 
         var owners = slots.GroupBy(slot => slot.Definition).ToList();
 
-        EmitDeclarations(owners.Where(owner => owner.Key.TypeParametersList.Count == 0).SelectMany(owner => owner), "private", AccessorName, writer);
+        EmitDeclarations(owners.Where(owner => IsFlat(owner.Key)).SelectMany(owner => owner), "private", AccessorName, writer);
 
-        foreach(var owner in owners.Where(owner => owner.Key.TypeParametersList.Count > 0))
+        foreach(var owner in owners.Where(owner => !IsFlat(owner.Key)))
         {
             writer.WriteBlankLine();
             writer.WriteLine($"private static class {Holder(owner.Key)}<{string.Join(", ", owner.Key.TypeParametersList.Select(TypeNameEmitter.Emit))}>");
@@ -60,6 +62,9 @@ internal static class CloneCopyEmitter
     {
         foreach(var slot in slots)
         {
+            using var closing = Instance(slot) is { } instance
+                ? TypeNameEmitter.Substituting(TypeSubstitution.ForReceiver(instance))
+                : null;
             var owner = TypeNameEmitter.Emit(Itself(slot.Definition));
             var receiver = slot.Definition is StructType ? $"ref {owner}" : owner;
 
@@ -71,7 +76,7 @@ internal static class CloneCopyEmitter
 
     private static string Call(Slot slot, string variable)
     {
-        var accessor = slot.Owner is ConstructedType { TypeArguments: var arguments }
+        var accessor = slot.Owner is ConstructedType { TypeArguments: var arguments } && !IsFlat(slot.Definition)
             ? $"{Holder(slot.Definition)}<{string.Join(", ", arguments.Select(TypeNameEmitter.Emit))}>.__{Sanitized(slot.Storage)}"
             : AccessorName(slot);
 
@@ -82,14 +87,37 @@ internal static class CloneCopyEmitter
 
     private static string AccessorName(Slot slot)
     {
-        return $"__{slot.Definition.FullyQualifiedName.Replace('.', '_')}_{Sanitized(slot.Storage)}";
+        return $"__{Stem(slot)}_{Sanitized(slot.Storage)}";
+    }
+
+    private static string Stem(Slot slot)
+    {
+        return Instance(slot) is { } instance ? Flat(instance) : slot.Definition.FullyQualifiedName.Replace('.', '_');
+    }
+
+    private static bool IsFlat(ConcreteType definition)
+    {
+        return definition.TypeParametersList.Count == 0 || UnionSpecialization.Specializes(definition);
+    }
+
+    private static ConstructedType? Instance(Slot slot)
+    {
+        return slot.Owner is ConstructedType construction && UnionSpecialization.NameOf(construction) is not null
+            ? construction
+            : null
+            ;
     }
 
     private static string Holder(ConcreteType definition)
     {
-        var stem = definition.FullyQualifiedName.Where(character => character is not ('<' or '>' or ',' or ' '));
+        return $"__{Flat(definition)}_Access";
+    }
 
-        return $"__{new string([.. stem.Select(character => char.IsLetterOrDigit(character) ? character : '_')])}_Access";
+    private static string Flat(IMistType type)
+    {
+        var stem = type.FullyQualifiedName.Where(character => character is not ('<' or '>' or ',' or ' '));
+
+        return new string([.. stem.Select(character => char.IsLetterOrDigit(character) ? character : '_')]);
     }
 
     private static string Sanitized(string storage)

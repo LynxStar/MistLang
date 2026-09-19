@@ -1,4 +1,6 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -9,7 +11,8 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// The declarations <see cref="UnsafeReach"/> calls through, each declared once per conversion however often
 /// the body reaches it. The runtime matches an accessor against a generic type's member only in that type's
 /// own parameters, so a member of a generic type is declared in a holder class over those parameters and
-/// called on the construction the body reaches.
+/// called on the construction the body reaches -- unless that type is emitted per instantiation
+/// (<see cref="UnionSpecialization"/>), when the construction is a closed C# type and is named directly.
 /// </summary>
 internal sealed class UnsafeAccessors(string prefix, DiagnosticBag diagnostics)
 {
@@ -52,14 +55,12 @@ internal sealed class UnsafeAccessors(string prefix, DiagnosticBag diagnostics)
     {
         var declaring = indexer.DeclaringType!;
         var accessor = isSetter ? "set_Item" : "get_Item";
-        var parameters = ParameterEmitter.Emit(indexer.ParametersList, diagnostics);
-
         return Declare((indexer, isSetter), declaring, owner, accessor, (accessibility, name) =>
         [
             $"{Attribute}.Method, Name = \"{accessor}\")]",
             isSetter
-                ? $"{accessibility} static extern void {name}({Target(declaring, false)}, {parameters}, {TypeNameEmitter.Emit(indexer.Type)} value);"
-                : $"{accessibility} static extern {TypeNameEmitter.Emit(indexer.Type)} {name}({Target(declaring, false)}, {parameters});",
+                ? $"{accessibility} static extern void {name}({Target(declaring, false)}, {ParameterEmitter.Emit(indexer.ParametersList, diagnostics)}, {TypeNameEmitter.Emit(indexer.Type)} value);"
+                : $"{accessibility} static extern {TypeNameEmitter.Emit(indexer.Type)} {name}({Target(declaring, false)}, {ParameterEmitter.Emit(indexer.ParametersList, diagnostics)});",
         ]);
     }
 
@@ -67,7 +68,6 @@ internal sealed class UnsafeAccessors(string prefix, DiagnosticBag diagnostics)
     {
         var declaring = method.DeclaringType!;
         var kind = method.Modifiers.IsStatic ? "StaticMethod" : "Method";
-        var parameters = method.ParametersList.Count == 0 ? "" : ", " + ParameterEmitter.Emit(method.ParametersList, diagnostics);
         var typeParameters = method.TypeParametersList.Count == 0
             ? ""
             : $"<{string.Join(", ", method.TypeParametersList.Select(TypeNameEmitter.Emit))}>";
@@ -76,6 +76,7 @@ internal sealed class UnsafeAccessors(string prefix, DiagnosticBag diagnostics)
         {
             var constraints = new CSharpWriter();
             ConstraintEmitter.Emit(method.TypeParametersList, constraints, liftSlots: true);
+            var parameters = method.ParametersList.Count == 0 ? "" : ", " + ParameterEmitter.Emit(method.ParametersList, diagnostics);
 
             string[] lines =
             [
@@ -127,6 +128,12 @@ internal sealed class UnsafeAccessors(string prefix, DiagnosticBag diagnostics)
         if(declaring.TypeParametersList.Count == 0)
         {
             return Declare(member, $"{Flat(declaring)}_{stem}", name => declaration("private", name));
+        }
+
+        if(owner is ConstructedType instance && UnionSpecialization.NameOf(instance) is not null)
+        {
+            using var closing = TypeNameEmitter.Substituting(TypeSubstitution.ForReceiver(instance));
+            return Declare((member, instance.FullyQualifiedName), $"{Flat(instance)}_{stem}", name => declaration("private", name));
         }
 
         if(!holders.TryGetValue(declaring, out var members))

@@ -2239,12 +2239,11 @@ internal static class BodyEmitter
     private static string? CollidingName(Method? method, IMistType? receiverType)
     {
         var closed = receiverType is null ? null : TypeNameEmitter.Closed(receiverType);
-        var instance = closed as ConstructedType
-            ?? (closed is null || ReferenceEquals(closed, UnionSpecialization.Current()?.Definition)
-                ? UnionSpecialization.Current()
-                : null);
+        var receiver = closed is null || ReferenceEquals(closed, UnionSpecialization.Current()?.Definition)
+            ? UnionSpecialization.Current()
+            : closed;
 
-        return method is not null && instance is not null ? UnionSpecialization.CollidingName(method, instance) : null;
+        return method is not null && receiver is not null ? UnionSpecialization.CollidingName(method, receiver) : null;
     }
 
     private static void EmitMemberAccess(

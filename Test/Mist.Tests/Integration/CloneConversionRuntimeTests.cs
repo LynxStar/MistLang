@@ -244,6 +244,81 @@ public sealed class CloneConversionRuntimeTests : IDisposable
         }
         """;
 
+    private const string ReachesASourceEmittedPerInstantiation = """
+        using Standard;
+
+        namespace Specialized;
+
+        public readonly class Keep<K>
+        {
+            private K? item;
+
+            public Keep(K? start)
+            {
+                this.item = start;
+            }
+
+            public string Describe()
+            {
+                if (this.item is K present)
+                {
+                    return $"present {present}";
+                }
+
+                return "absent";
+            }
+        }
+
+        public class Held<K> : IClonable<Held<K>>
+        {
+            private K? item;
+            private int copies;
+
+            public Held(K? start)
+            {
+                this.item = start;
+            }
+
+            private Held(K? start, int copies)
+            {
+                this.item = start;
+                this.copies = copies;
+            }
+
+            public owned Held<K> Clone()
+            {
+                return new Held<K>(this.item, this.copies + 1);
+            }
+
+            public string Describe()
+            {
+                if (this.item is K present)
+                {
+                    return $"present {present} copies {copies}";
+                }
+
+                return $"absent copies {copies}";
+            }
+        }
+
+        public type IntKeep = new Keep<int>;
+        public type IntHeld = new Held<int>;
+
+        public class Program
+        {
+            public static void Main()
+            {
+                int? none = void;
+                var keep = (IntKeep)new Keep<int>(7);
+                Keep<int> kept = keep;
+                var held = (IntHeld)new Held<int>(none);
+                Held<int> back = (Held<int>)held;
+
+                Console.WriteLine($"{keep.Describe()} | {kept.Describe()} | {held.Describe()} | {back.Describe()}");
+            }
+        }
+        """;
+
     private readonly string scratchDir;
 
     public CloneConversionRuntimeTests()
@@ -276,6 +351,14 @@ public sealed class CloneConversionRuntimeTests : IDisposable
         Assert.Equal(
             "stripes=105 note=self | stripes=237 note=noted | stripes=400 note=noted",
             CompileAndRun(ReachesEveryKindOfPrivateMember));
+    }
+
+    [Fact]
+    public void ASourceEmittedPerInstantiation_IsReachedAsTheClosedTypeItIs()
+    {
+        Assert.Equal(
+            "present 7 | present 7 | absent copies 1 | absent copies 2",
+            CompileAndRun(ReachesASourceEmittedPerInstantiation));
     }
 
     private string CompileAndRun(string source)

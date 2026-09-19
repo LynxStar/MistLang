@@ -1,6 +1,8 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -39,7 +41,9 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// <para>
 /// OVERLOADS AN INSTANCE MAKES IDENTICAL are emitted under distinct names: `Take(K?)` beside `Take(int?)`
 /// is one C# signature twice in `Lifted<int>`, and Mist has already chosen which one each call means,
-/// so the call is named for its choice rather than left for C# to resolve between two equals.
+/// so the call is named for its choice rather than left for C# to resolve between two equals. The one
+/// that answers a slot of an abstract the type conforms to keeps its name, C# finding an implementation
+/// by name alone; a call through a derived receiver is named at the base construction it reaches.
 /// </para>
 /// </summary>
 internal sealed class UnionSpecialization
@@ -61,12 +65,16 @@ internal sealed class UnionSpecialization
 
     private readonly Dictionary<TypeParameter, Method> methodsByFirstParameter;
 
+    private readonly TypeInterner interner;
+
     private UnionSpecialization(
         Dictionary<MemberType, List<ConstructedType>> types,
-        Dictionary<Method, List<IReadOnlyList<IMistType>>> methods)
+        Dictionary<Method, List<IReadOnlyList<IMistType>>> methods,
+        TypeInterner interner)
     {
         this.types = types;
         this.methods = methods;
+        this.interner = interner;
         methodsByFirstParameter = methods.Keys.ToDictionary(method => method.TypeParametersList[0]);
     }
 
@@ -146,11 +154,11 @@ internal sealed class UnionSpecialization
         return $"{declaredName}__{string.Join("__", parts)}";
     }
 
-    public static string? CollidingName(Method method, ConstructedType instance)
+    public static string? CollidingName(Method method, IMistType receiver)
     {
-        if(instance.Definition is not MemberType type
-            || !ReferenceEquals(method.DeclaringType, type)
-            || !Specializes(type))
+        if(method.DeclaringType is not MemberType type
+            || !Specializes(type)
+            || DeclaringConstruction(receiver, type) is not { } instance)
         {
             return null;
         }
@@ -167,10 +175,69 @@ internal sealed class UnionSpecialization
 
         var own = signature(method);
 
-        return type.MethodsList.Count(candidate => signature(candidate) == own) > 1
+        return type.MethodsList.Count(candidate => signature(candidate) == own) > 1 && !FillsSlot(method, type)
             ? $"{method.Name}__o{type.MethodsList.IndexOf(method)}"
             : null
             ;
+    }
+
+    private static ConstructedType? DeclaringConstruction(IMistType receiver, MemberType declaring)
+    {
+        for(var current = (IMistType?)receiver; current is not null; current = BaseOf(current))
+        {
+            if(current is ConstructedType constructed && ReferenceEquals(constructed.Definition, declaring))
+            {
+                return constructed;
+            }
+        }
+
+        return null;
+    }
+
+    private static IMistType? BaseOf(IMistType type)
+    {
+        return (type, type is ConstructedType constructed ? constructed.Definition : type) switch
+        {
+            (ConstructedType construction, ConcreteType { BaseType: { } baseType })
+                => TypeSubstitution.ForReceiver(construction).Apply(baseType, interner: null),
+            (_, ConcreteType { BaseType: var baseType }) => baseType,
+            _ => null,
+        };
+    }
+
+    private static bool FillsSlot(Method method, MemberType type)
+    {
+        var interner = active!.interner;
+        var pending = new Queue<IMistType>(type.BaseAbstractTypes);
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while(pending.Count > 0)
+        {
+            var reference = pending.Dequeue();
+            var definition = reference is ConstructedType constructed ? constructed.Definition : reference;
+
+            if(definition is not AbstractType abstractType || !visited.Add(abstractType.FullyQualifiedName))
+            {
+                continue;
+            }
+
+            var substitution = TypeSubstitution.ForReceiver(reference as ConstructedType);
+
+            if(abstractType.MethodsList.Exists(slot => slot.Body is null
+                && !slot.Modifiers.IsStatic
+                && slot.Name == method.Name
+                && SlotSignatures.Answers(slot, method, substitution, interner)))
+            {
+                return true;
+            }
+
+            foreach(var baseAbstract in abstractType.BaseAbstractTypes)
+            {
+                pending.Enqueue(substitution.Apply(baseAbstract, interner));
+            }
+        }
+
+        return false;
     }
 
     public static bool IsClosed(IReadOnlyList<IMistType> arguments)
@@ -379,7 +446,7 @@ internal sealed class UnionSpecialization
                 BackendDiagnostics.UnboundedSpecialization, default, string.Empty, declaration, MaximumInstancesPerDeclaration);
         }
 
-        return new UnionSpecialization(types, methods);
+        return new UnionSpecialization(types, methods, interner);
     }
 
     private static bool NeedsSpecialization(UnionType union)

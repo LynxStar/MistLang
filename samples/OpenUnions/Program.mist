@@ -9,7 +9,9 @@
 //
 // V2-ONLY. Classic refuses this program in its own checker (measured 2026-09-19): it does not merge
 // `int | int` into `int` (MIST_TC_0071, and MIST_TC_0001 for the nested `Cell`), refuses `void` assigned
-// to a field (MIST_TC_0070), and cannot pass `K?` where `int?` is expected (MIST_TC_0072).
+// to a field (MIST_TC_0070), cannot pass `K?` where `int?` is expected (MIST_TC_0072), sees no member
+// inherited through a generic derived type (MIST_UNDEFINED_MEMBER), and implements an earlier newtypes
+// revision that gives a newtype none of its source's members.
 
 using Standard;
 
@@ -116,10 +118,16 @@ public class Box<K>
     }
 }
 
+public abstract ITaker<K>
+{
+    string Take(K? key);
+}
+
 // PROOF: two overloads an instance makes identical. At `Lifted<int>` both are `Take(int?)`; Mist prefers
 // the one written as `int?` (method-overloading Requirement 3.11), and a call resolved inside the generic
-// body to `Take(K?)` still reaches that one.
-public class Lifted<K>
+// body to `Take(K?)` still reaches that one. The one answering the abstract's slot is what a call through
+// `ITaker<int>` runs, and a derived receiver reaches the pair through its base.
+public class Lifted<K> : ITaker<K>
 {
     public string Take(K? key)
     {
@@ -137,6 +145,74 @@ public class Lifted<K>
     }
 }
 
+public class Derived<K> : Lifted<K>
+{
+    public string Both(K? key)
+    {
+        return this.Take(key);
+    }
+}
+
+public class Narrow : Lifted<int>
+{
+}
+
+public readonly class Keep<K>
+{
+    private K? item;
+
+    public Keep(K? start)
+    {
+        this.item = start;
+    }
+
+    public string Describe()
+    {
+        if (this.item is K present)
+        {
+            return $"present {present}";
+        }
+
+        return "absent";
+    }
+}
+
+public type IntKeep = new Keep<int>;
+
+public class Held<K> : IClonable<Held<K>>
+{
+    private K? item;
+    private int copies;
+
+    public Held(K? start)
+    {
+        this.item = start;
+    }
+
+    private Held(K? start, int copies)
+    {
+        this.item = start;
+        this.copies = copies;
+    }
+
+    public owned Held<K> Clone()
+    {
+        return new Held<K>(this.item, this.copies + 1);
+    }
+
+    public string Describe()
+    {
+        if (this.item is K present)
+        {
+            return $"present {present} copies {copies}";
+        }
+
+        return $"absent copies {copies}";
+    }
+}
+
+public type IntHeld = new Held<int>;
+
 public class Api
 {
     public static string Pick<T, R>(T | R value)
@@ -152,6 +228,11 @@ public class Api
     public static string Forward<T>(T value)
     {
         return Pick<T, bool>(value);
+    }
+
+    public static string Through<K>(ITaker<K> taker, K? key)
+    {
+        return taker.Take(key);
     }
 
     public static string UseSlot<T>(Slot<T> slot)
@@ -235,6 +316,17 @@ public class Program
         Console.WriteLine($"lifted<int>: {lifted.Take(3)} | {lifted.Take(none)} | inside {lifted.FromInside(4)}");
         var liftedWords = new Lifted<string>();
         Console.WriteLine($"lifted<string>: {liftedWords.Take("x")} | {liftedWords.Take(8)}");
+
+        var derived = new Derived<int>();
+        Console.WriteLine($"derived<int>: {derived.Take(3)} | {derived.Take(none)} | {derived.Both(5)} | narrow {new Narrow().Take(6)}");
+        ITaker<int> taker = lifted;
+        Console.WriteLine($"via abstract: {taker.Take(3)} | {Api.Through(lifted, 4)}");
+
+        var keep = (IntKeep)new Keep<int>(7);
+        Keep<int> kept = keep;
+        var held = (IntHeld)new Held<int>(none);
+        Held<int> heldBack = (Held<int>)held;
+        Console.WriteLine($"clones: {keep.Describe()} | {kept.Describe()} | {held.Describe()} | {heldBack.Describe()}");
     }
 
     public static void Main(string[] args)

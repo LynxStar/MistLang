@@ -89,6 +89,28 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
 
             public int Take(int? number) { return 2; }
         }
+
+        public class Derived<K> : Lifted<K>
+        {
+            public int Both(K? key) { return this.Take(key); }
+        }
+
+        public class Via<K>
+        {
+            public int Go(Derived<K> derived) { return derived.Take(3); }
+        }
+
+        public abstract ITaker<K>
+        {
+            int Take(K? key);
+        }
+
+        public class Filler<K> : ITaker<K>
+        {
+            public int Take(K? key) { return 1; }
+
+            public int Take(int? number) { return 2; }
+        }
         """;
 
     protected override string Preamble { get; } = """
@@ -103,6 +125,9 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
         var caller = new Caller<long>();
         var lifted = new Lifted<int>();
         var liftedWords = new Lifted<string>();
+        var derived = new Derived<int>();
+        var via = new Via<int>();
+        var filler = new Filler<int>();
         """;
 
     [Theory]
@@ -161,6 +186,59 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
     public void OverloadsAnInstanceMakesIdenticalAreNamedApart_AndOnlyThere(string instance, string expected)
     {
         Assert.Contains(expected, EmitInstance(instance), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Derived<int>", "this.Take__o0(key)")]
+    [InlineData("Via<int>", "derived.Take__o1(3)")]
+    public void ACallThroughADerivedReceiverIsNamedAtTheBaseConstructionItReaches(string instance, string expected)
+    {
+        Assert.Contains(expected, EmitInstance(instance), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Filler<int>", "public int Take(int? key)")]
+    [InlineData("Filler<int>", "public int Take__o1(int? number)")]
+    public void TheOverloadAnsweringAnAbstractSlotKeepsItsName_AndOnlyItsSiblingIsRenamed(string instance, string expected)
+    {
+        Assert.Contains(expected, EmitInstance(instance), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("IntKeep", "private static extern ref int? __Probe_KeepInt32_item(Probe.Keep__Standard_Int32 target);")]
+    [InlineData("IntHeld", "private static extern ref int? __In_Probe_HeldInt32_item(Probe.Held__Standard_Int32 __target);")]
+    [InlineData("IntHeld", "private static extern Probe.Held__Standard_Int32 __Out_Probe_HeldInt32_new(int? start, int tag);")]
+    public void ANewtypeReachesASpecializedSourceAsTheClosedTypeItIs_NotThroughAHolder(string clone, string expected)
+    {
+        var model = StandardModelProbe.Build(
+            "var keep = (IntKeep)new Keep<int>(1); var held = (IntHeld)new Held<int>(1); Held<int> back = (Held<int>)held;",
+            out var diagnostics,
+            extraTypes: """
+                public readonly class Keep<K>
+                {
+                    private K? item;
+
+                    public Keep(K? start) { this.item = start; }
+                }
+
+                public type IntKeep = new Keep<int>;
+
+                public class Held<K> : IClonable<Held<K>>
+                {
+                    private K? item;
+
+                    public Held(K? start) { this.item = start; }
+
+                    private Held(K? start, int tag) { this.item = start; }
+
+                    public owned Held<K> Clone() { return new Held<K>(this.item, 1); }
+                }
+
+                public type IntHeld = new Held<int>;
+                """);
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+
+        Assert.Contains(expected, EmitType(model, clone), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -240,6 +318,19 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
             TypeEmitter.EmitTypeBody(
                 (MemberType)instance.Definition, ConstraintClosureMap.Build(model, diagnostics), model.VariadicUses, writer, diagnostics);
         }
+
+        Assert.Empty(diagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
+        return writer.ToString();
+    }
+
+    private static string EmitType(ProgramModelClass model, string name)
+    {
+        var diagnostics = new DiagnosticBag();
+        using var specialization = UnionSpecialization.Enter(model, diagnostics);
+
+        var writer = new CSharpWriter();
+        TypeEmitter.EmitTypeBody(
+            Definition(model, name), ConstraintClosureMap.Build(model, diagnostics), model.VariadicUses, writer, diagnostics);
 
         Assert.Empty(diagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
         return writer.ToString();

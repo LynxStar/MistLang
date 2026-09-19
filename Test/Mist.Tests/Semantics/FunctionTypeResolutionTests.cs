@@ -56,6 +56,37 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
                 return value;
             }
         }
+
+        public abstract ITaker<K>
+        {
+            int Take(K? key);
+        }
+
+        public class Lifted<K> : ITaker<K>
+        {
+            public int Take(K? key)
+            {
+                return 1;
+            }
+
+            public int Take(int? number)
+            {
+                return 2;
+            }
+        }
+
+        public class Pair<A, B>
+        {
+            public int Take(A left)
+            {
+                return 1;
+            }
+
+            public int Take(B right)
+            {
+                return 2;
+            }
+        }
         """;
 
     protected override string Preamble { get; } = "var seed = 1;";
@@ -248,6 +279,36 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
         var diagnostics = BuildRun("func<int, int> f = Overloaded.Echo;");
 
         _ = Assert.Single(Errors(diagnostics, "MIST_PM_METHOD_GROUP_NOT_CONVERTED"));
+    }
+
+    /// <summary>
+    /// The receiver's argument makes both a <c>Take(int?)</c>; the one fixed at the declaration is
+    /// chosen as a call would choose it (method-overloading Requirement 3.12).
+    /// </summary>
+    [Fact]
+    public void AMethodGroupOfACoincidingPairConvertsToTheFixedOverload()
+    {
+        var reference = FunctionReferenceIn(
+            "func<int?, int> f = lifted.Take;", extraPreamble: "var lifted = new Lifted<int>();");
+
+        Assert.Equal("int | void", TypeDisplay.Mist(Assert.Single(reference.Method.ParametersList).Type));
+    }
+
+    [Fact]
+    public void AMethodGroupConvertsToTheFillerAndNotTheSlotItAnswers()
+    {
+        var reference = FunctionReferenceIn(
+            "func<string?, int> f = words.Take;", extraPreamble: "var words = new Lifted<string>();");
+
+        Assert.IsNotType<AbstractType>(reference.Method.DeclaringType);
+    }
+
+    [Fact]
+    public void AMethodGroupNoPositionSeparatesIsAmbiguous()
+    {
+        var diagnostics = BuildRun("func<int, int> f = pair.Take;", extraPreamble: "var pair = new Pair<int, int>();");
+
+        _ = Assert.Single(Errors(diagnostics, "MIST_PM_METHOD_GROUP_AMBIGUOUS"));
     }
 
     [Fact]

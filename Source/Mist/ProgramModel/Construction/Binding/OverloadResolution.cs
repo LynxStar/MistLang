@@ -157,6 +157,14 @@ internal static class OverloadResolution
     /// base's parameters are substituted. A later declaration repeating an earlier one's signature on
     /// the same type is likewise answered by the first.
     /// </summary>
+    internal static List<Method> WithoutHidden(
+        List<Method> candidates, Func<Method, TypeSubstitution> substitutionOf, TypeInterner interner)
+    {
+        var closed = candidates.ConvertAll(method => new Applicant<Method>(method, substitutionOf(method)));
+
+        return WithoutHidden(closed, interner).ConvertAll(applicant => applicant.Method);
+    }
+
     private static List<Applicant<T>> WithoutHidden<T>(List<Applicant<T>> closed, TypeInterner interner)
         where T : class, IOverload
     {
@@ -466,8 +474,13 @@ internal static class OverloadResolution
             }
         }
 
-        var leftIsGeneric = left.Method.TypeParametersList.Count > 0;
-        var rightIsGeneric = right.Method.TypeParametersList.Count > 0;
+        return MoreSpecificSignature(left.Method, right.Method, count);
+    }
+
+    internal static bool MoreSpecificSignature(IOverload left, IOverload right, int count)
+    {
+        var leftIsGeneric = left.TypeParametersList.Count > 0;
+        var rightIsGeneric = right.TypeParametersList.Count > 0;
 
         if(leftIsGeneric != rightIsGeneric)
         {
@@ -478,8 +491,7 @@ internal static class OverloadResolution
 
         for(var i = 0; i < count; i++)
         {
-            var comparison = CompareSpecificity(
-                left.Method.ParametersList[i].Type, right.Method.ParametersList[i].Type);
+            var comparison = CompareSpecificity(left.ParametersList[i].Type, right.ParametersList[i].Type);
 
             if(comparison > 0)
             {

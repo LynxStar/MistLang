@@ -795,6 +795,12 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'{0}' names a method group, which is only valid where it is invoked or converted to a function type. Conversion to a function type is not yet supported by the experimental pipeline.");
 
+    public static readonly DiagnosticDescriptor MethodGroupAmbiguous = new(
+        new DiagnosticId("MIST_PM_METHOD_GROUP_AMBIGUOUS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' names more than one overload with the target function type, and none is more specific than the rest.");
+
     /// <summary>
     /// Several overloads take the right number of arguments and no conversion could be established
     /// to any of them.

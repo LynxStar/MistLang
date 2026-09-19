@@ -126,7 +126,8 @@ public abstract ITaker<K>
 // PROOF: two overloads an instance makes identical. At `Lifted<int>` both are `Take(int?)`; Mist prefers
 // the one written as `int?` (method-overloading Requirement 3.11), and a call resolved inside the generic
 // body to `Take(K?)` still reaches that one. The one answering the abstract's slot is what a call through
-// `ITaker<int>` runs, and a derived receiver reaches the pair through its base.
+// `ITaker<int>` runs, a derived receiver reaches the pair through its base, and the group converted to a
+// function type is settled the same way (Requirement 3.12).
 public class Lifted<K> : ITaker<K>
 {
     public string Take(K? key)
@@ -142,6 +143,12 @@ public class Lifted<K> : ITaker<K>
     public string FromInside(K? key)
     {
         return this.Take(key);
+    }
+
+    public string AsValue(K? key)
+    {
+        func<K?, string> take = this.Take;
+        return take(key);
     }
 }
 
@@ -321,6 +328,9 @@ public class Program
         Console.WriteLine($"derived<int>: {derived.Take(3)} | {derived.Take(none)} | {derived.Both(5)} | narrow {new Narrow().Take(6)}");
         ITaker<int> taker = lifted;
         Console.WriteLine($"via abstract: {taker.Take(3)} | {Api.Through(lifted, 4)}");
+        func<int?, string> take = lifted.Take;
+        func<string?, string> takeWord = liftedWords.Take;
+        Console.WriteLine($"values: {take(3)} | {takeWord("y")} | {lifted.AsValue(5)}");
 
         var keep = (IntKeep)new Keep<int>(7);
         Keep<int> kept = keep;

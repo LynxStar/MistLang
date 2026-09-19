@@ -32,38 +32,49 @@ internal static class MethodGroupConversion
     /// Identity per position rather than assignability, matching how the CLR binds a delegate: a method
     /// taking an <c>int</c> does not convert to a <c>func&lt;long, ...&gt;</c> even though the argument
     /// would widen at a call. A GENERIC method is declined, its type arguments being inferable only from
-    /// the target, which is inference this does not do.
+    /// the target, which is inference this does not do. Two overloads the receiver's arguments make one
+    /// signature are ordered as a call orders them, by <see cref="OverloadResolution.MoreSpecificSignature"/>
+    /// (method-overloading Requirement 3.12); a pair no position separates is ambiguous.
     /// </para>
     /// </summary>
     internal static Expression? Convert(
         MethodGroupExpression group, IMistType? targetType, TypeInterner interner)
     {
+        return Convert(group, targetType, interner, out _);
+    }
+
+    internal static Expression? Convert(
+        MethodGroupExpression group, IMistType? targetType, TypeInterner interner, out bool ambiguous)
+    {
+        ambiguous = false;
+
         if(targetType is not IFunctionType target)
         {
             return null;
         }
 
-        Method? match = null;
-
-        foreach(var candidate in group.Candidates)
+        TypeSubstitution substitutionOf(Method candidate)
         {
-            var substitution = TypeSubstitution.ForPath(
-                group.ReceiverConstructed, group.Paths?.GetValueOrDefault(candidate), interner);
-
-            if(!SignatureIs(candidate, target, substitution, interner))
-            {
-                continue;
-            }
-
-            if(match is not null)
-            {
-                return null;
-            }
-
-            match = candidate;
+            return TypeSubstitution.ForPath(group.ReceiverConstructed, group.Paths?.GetValueOrDefault(candidate), interner);
         }
 
-        return match is null ? null : new FunctionReferenceExpression(group.Node, group.Receiver, match, target);
+        var matches = OverloadResolution.WithoutHidden(
+            group.Candidates.Where(candidate => SignatureIs(candidate, target, substitutionOf(candidate), interner)).ToList(),
+            substitutionOf,
+            interner);
+
+        var preferred = matches
+            .Where(candidate => !matches.Exists(other => !ReferenceEquals(other, candidate)
+                && OverloadResolution.MoreSpecificSignature(other, candidate, target.ParameterTypes.Count)))
+            .ToList();
+
+        if(preferred is not [var match])
+        {
+            ambiguous = preferred.Count > 1;
+            return null;
+        }
+
+        return new FunctionReferenceExpression(group.Node, group.Receiver, match, target);
     }
 
     internal static bool Accepts(MethodGroupExpression group, IMistType parameterType, TypeInterner interner)
@@ -97,18 +108,19 @@ internal static class MethodGroupConversion
                 ? substitution.Apply(parameters[i].Type, interner)
                 : null;
 
-            settled.Add(Convert(group, target, interner) ?? Refuse(group, target, context));
+            settled.Add(Convert(group, target, interner, out var ambiguous) ?? Refuse(group, target, ambiguous, context));
         }
 
         return settled;
     }
 
-    private static Expression Refuse(MethodGroupExpression group, IMistType? target, BuilderContext context)
+    private static Expression Refuse(MethodGroupExpression group, IMistType? target, bool ambiguous, BuilderContext context)
     {
         if(target is not null)
         {
             context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.MethodGroupNotConverted, group.Node, null, group.MemberName);
+                ambiguous ? ProgramModelDiagnostics.MethodGroupAmbiguous : ProgramModelDiagnostics.MethodGroupNotConverted,
+                group.Node, null, group.MemberName);
         }
 
         return new ErrorExpression(group.Node);

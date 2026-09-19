@@ -2021,4 +2021,5 @@ lifted<int>: int? | int? | inside K?
 lifted<string>: K? | int?
 derived<int>: int? | int? | K? | narrow int?
 via abstract: K? | K?
+values: int? | K? | K?
 clones: present 7 | present 7 | absent copies 1 | absent copies 2

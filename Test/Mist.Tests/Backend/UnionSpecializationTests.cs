@@ -111,6 +111,25 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
 
             public int Take(int? number) { return 2; }
         }
+
+        public class Chooser
+        {
+            public int Go()
+            {
+                var lifted = new Lifted<int>();
+                func<int?, int> take = lifted.Take;
+                return take(3);
+            }
+        }
+
+        public class Valued<K>
+        {
+            public int Go(Lifted<K> lifted, K? key)
+            {
+                func<K?, int> take = lifted.Take;
+                return take(key);
+            }
+        }
         """;
 
     protected override string Preamble { get; } = """
@@ -128,6 +147,7 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
         var derived = new Derived<int>();
         var via = new Via<int>();
         var filler = new Filler<int>();
+        var valued = new Valued<int>();
         """;
 
     [Theory]
@@ -194,6 +214,13 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
     public void ACallThroughADerivedReceiverIsNamedAtTheBaseConstructionItReaches(string instance, string expected)
     {
         Assert.Contains(expected, EmitInstance(instance), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AMethodGroupOfACoincidingPairIsNamedForTheOverloadMistChose_WhereverItWasChosen()
+    {
+        Assert.Contains("lifted.Take__o1;", EmitType(Model(), "Chooser"), StringComparison.Ordinal);
+        Assert.Contains("lifted.Take__o0;", EmitInstance("Valued<int>"), StringComparison.Ordinal);
     }
 
     [Theory]

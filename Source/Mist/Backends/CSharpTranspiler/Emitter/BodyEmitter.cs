@@ -1143,7 +1143,7 @@ internal static class BodyEmitter
                     writer.Append(ReceiverSpelling.Qualifier(functionRef.Method.DeclaringType, functionRef.Method.Modifiers.IsStatic));
                 }
 
-                writer.Append(LocalNames.Of(functionRef.Method));
+                writer.Append(CollidingName(functionRef.Method, functionRef.Receiver?.Type) ?? LocalNames.Of(functionRef.Method));
                 break;
 
             case MethodGroupExpression methodGroup:

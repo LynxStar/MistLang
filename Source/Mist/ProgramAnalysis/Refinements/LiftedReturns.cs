@@ -87,7 +87,7 @@ internal sealed class LiftedReturns
 
         foreach(var value in values)
         {
-            if(Returned(value) is not { } admitted)
+            if(Produced(value) is not { } admitted)
             {
                 return null;
             }
@@ -99,7 +99,7 @@ internal sealed class LiftedReturns
         return lifted.IsEverything ? null : lifted;
     }
 
-    private Admitted? Returned(Expression value)
+    public Admitted? Produced(Expression value)
     {
         if(Requirement.Constant(value) is { } constant)
         {
@@ -108,7 +108,7 @@ internal sealed class LiftedReturns
 
         if(value is ImplicitConversionExpression { Operator: null } conversion && Requirement.IsIntegral(Requirement.Unrefined(conversion.Type)))
         {
-            return Returned(conversion.Operand);
+            return Produced(conversion.Operand);
         }
 
         var typed = Requirement.ValuesOf(value.Type);

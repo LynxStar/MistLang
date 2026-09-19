@@ -27,7 +27,8 @@ internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds
 /// the flow cannot see may reassign it then. A local keeps nothing at all when
 /// <see cref="UnseenWrites"/> names it.
 /// </summary>
-internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites) : IFlowLattice<ImmutableDictionary<object, Knowledge>>
+internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, LiftedReturns lifted)
+    : IFlowLattice<ImmutableDictionary<object, Knowledge>>
 {
     public static readonly ImmutableDictionary<object, Knowledge> Nothing =
         ImmutableDictionary.Create<object, Knowledge>(ReferenceEqualityComparer.Instance);
@@ -81,7 +82,7 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites) :
         return holder is LocalVariable local && unseenWrites.Contains(local);
     }
 
-    private static ImmutableDictionary<object, Knowledge> Step(ImmutableDictionary<object, Knowledge> state, FlowStep step)
+    private ImmutableDictionary<object, Knowledge> Step(ImmutableDictionary<object, Knowledge> state, FlowStep step)
     {
         switch(step)
         {
@@ -188,7 +189,7 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites) :
         return state.SetItem(local, known with { Values = known.Values.And(values) });
     }
 
-    private static ImmutableDictionary<object, Knowledge> Given(
+    private ImmutableDictionary<object, Knowledge> Given(
         ImmutableDictionary<object, Knowledge> state, LocalVariable local, Expression? value)
     {
         if(value is null)
@@ -204,6 +205,11 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites) :
         if(value is LocalReferenceExpression source && state.TryGetValue(source.Local, out var copied))
         {
             return state.SetItem(local, copied);
+        }
+
+        if(lifted.Produced(value) is { } produced)
+        {
+            return state.SetItem(local, new Knowledge(produced, ImmutableHashSet<Bound>.Empty));
         }
 
         return Lengths.Of(value, held => Held(state, held)) is { } length

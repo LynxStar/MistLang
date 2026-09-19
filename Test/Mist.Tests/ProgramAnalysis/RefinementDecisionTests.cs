@@ -375,6 +375,9 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("AdultAge a = Lifts.Returned();", "public static int Returned() { var g = () => 5; return 21; }")]
     [InlineData("var l = new Lifts(); AdultAge a = l.Age;", "public int Age { get { return 40; } }")]
     [InlineData("var l = new Lifts(); AdultAge a = l[0];", "public int this[int i] { get { return 25; } }")]
+    [InlineData("var l = new Lifts(); var copy = l.Age; AdultAge a = copy;", "public int Age { get { return 40; } }")]
+    [InlineData("var l = new Lifts(); int plain = l.grown; AdultAge a = plain;", "public AdultAge grown = 40;")]
+    [InlineData("int wide = Lifts.Tiny(); Digit d = wide;", "public static byte Tiny() { return 5; }")]
     [InlineData("var l = new Lifts(); var a = new int[4]; var v = a[l.Three];", "int[3] cells = new int[3]; public int Three { get { return cells.Length; } }")]
     public void AValueAMembersReturnsLift_IsAdmitted(string statement, string members)
     {

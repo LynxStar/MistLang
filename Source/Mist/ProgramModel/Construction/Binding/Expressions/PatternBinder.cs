@@ -4,6 +4,7 @@ using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -464,6 +465,25 @@ internal static class PatternBinder
             return new ListPattern(node, [], ErrorType.Instance);
         }
 
+        CountedIndexer? reads = null;
+
+        if(Indexability.ArrayElement(matched) is null
+            && Indexability.Select(Indexability.Indexers(matched), matched, Indexability.Position(node, context), context)
+                is { Selected: { Modifiers.IsIntrinsic: false } selected } choice)
+        {
+            var position = choice.Substitution.Apply(selected.ParametersList[0].Type, context.ProgramModel.TypeInterner);
+
+            if(Indexability.Count(matched) is not { } count)
+            {
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.ReceiverNotCountable, node, null, TypeDisplay.Mist(matched));
+            }
+            else if(!Indexability.IsIndex(position))
+            {
+                reads = new CountedIndexer(selected, position, count);
+            }
+        }
+
         var elements = new List<ListPatternElement>();
         var sliceSeen = false;
 
@@ -515,7 +535,7 @@ internal static class PatternBinder
             elements.Add(new ListPatternElement(bound, IsSlice: false));
         }
 
-        return new ListPattern(node, elements, matched);
+        return new ListPattern(node, elements, matched) { Reads = reads };
     }
 
     /// <summary>

@@ -526,6 +526,18 @@ public static class ProgramModelDiagnostics
         "'{0}' cannot be sliced by a range. Only an array or a string yields a sub-sequence.");
 
     /// <summary>
+    /// An Index reaches an int indexer, and a list pattern reads its elements, only at positions counted
+    /// against the receiver's int Length or Count, as C#'s implicit Index support and list patterns
+    /// require. A receiver with neither has no count to position against, and admitting it would hand
+    /// the program to Roslyn to refuse.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ReceiverNotCountable = new(
+        new DiagnosticId("MIST_PM_RECEIVER_NOT_COUNTABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' has no int Length or Count, so it cannot be indexed from its end or matched by a list pattern.");
+
+    /// <summary>
     /// A list pattern matches against a scrutinee that yields no elements. Mist has no user-declared
     /// deconstruction, so unlike a C# positional pattern there is nothing for the element positions to
     /// be read out of, and the pattern's own arity would have nothing to constrain.

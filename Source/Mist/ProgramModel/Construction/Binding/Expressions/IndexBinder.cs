@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
@@ -59,12 +60,27 @@ internal static class IndexBinder
 
         var interner = context.ProgramModel.TypeInterner;
         var parameterTypes = selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner));
+        CountedIndexer? fromEnd = null;
+
+        if(Indexability.IsIndex(index.Type) && parameterTypes is [var position] && !Indexability.IsIndex(position))
+        {
+            if(Indexability.Count(receiver.Type) is { } count)
+            {
+                fromEnd = new CountedIndexer(selected, position, count);
+            }
+            else
+            {
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.ReceiverNotCountable, node, null, TypeDisplay.Mist(receiver.Type));
+            }
+        }
 
         return new IndexExpression(
             node, receiver, ImplicitConversions.AtParameters([index], method: null, parameterTypes, interner)[0], type)
         {
             Indexer = selected,
             ParameterType = parameterTypes is [var slot] && !Indexability.IsIndex(index.Type) ? slot : null,
+            FromEnd = fromEnd,
         };
     }
 

@@ -1,6 +1,7 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -159,6 +160,40 @@ internal static class Indexability
         }
 
         return paths.Count == 0 ? null : paths;
+    }
+
+    public static Property? Count(IMistType receiverType)
+    {
+        var unaliased = receiverType is TypeAlias { AliasedType: { } aliased } ? aliased : receiverType;
+        var receiver = unaliased is RefinedType refined ? refined.BaseType : unaliased;
+
+        if(((receiver as ConstructedType)?.Definition ?? receiver) is not MistType declaring)
+        {
+            return null;
+        }
+
+        foreach(var name in CountNames)
+        {
+            if(TypeMemberLookup.Find(declaring, LookupRequest.Member(name, MemberVisibility.InstanceOnly, null)) is PropertyResult { Property: var property }
+                && IsInt(property.Type))
+            {
+                return property;
+            }
+        }
+
+        return null;
+    }
+
+    private static readonly string[] CountNames = ["Length", "Count"];
+
+    private static bool IsInt(IMistType type)
+    {
+        return type switch
+        {
+            RefinedType refined => IsInt(refined.BaseType),
+            TypeAlias { AliasedType: { } aliased } => IsInt(aliased),
+            _ => type.FullyQualifiedName == WellKnownTypes.Int32.FullyQualifiedName,
+        };
     }
 
     public static Expression Position(Storm.Runtime.SyntaxNode node, BuilderContext context)

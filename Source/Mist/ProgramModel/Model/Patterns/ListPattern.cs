@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Patterns;
@@ -22,6 +23,8 @@ internal sealed class ListPattern(
     public IReadOnlyList<ListPatternElement> Elements { get; } = elements;
 
     public override IMistType NarrowedType { get; } = narrowedType;
+
+    public CountedIndexer? Reads { get; init; }
 
     public override LocalVariable? Binding => null;
 }

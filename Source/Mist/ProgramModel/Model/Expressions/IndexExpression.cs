@@ -31,5 +31,7 @@ internal sealed class IndexExpression(
     /// </summary>
     public IMistType? ParameterType { get; init; }
 
+    public CountedIndexer? FromEnd { get; init; }
+
     public override IMistType Type { get; } = type;
 }

@@ -2489,6 +2489,37 @@ rules:
       length unrecorded, an offset range unproven, and an offset of zero taken as below Length. The front
       elements mutation was equivalent for every row without a slice -- the count is then exactly the
       element count -- and was caught only after a row put a front element before a slice.
+
+      TWO PREDICATES THE BINDER DROPPED, NOW BOUND (2026-09-19). Measuring the predicates the prover cannot
+      read found two it was never given: a null predicate reads as no requirement, so both admitted
+      everything. BindRefinement had no arm for the compound form `Base and <pattern>`, so `type Senior =
+      Adult and >= 65; Senior s = 5;` ran on v2 -- losing Adult's `>= 18` with its own -- where classic
+      refuses both 5 and 30 (MIST_TC_0097). Standard declares its bounds that way, so ArrayBounds and
+      SpanBounds carried only ZeroOrPositiveInt: an array index was unaffected, because NeedIndex builds
+      its own bound, but `span.Slice(9, 1)` over four elements compiled and threw on both pipelines. And a
+      local function's `where` was resolved but never bound, since PredicateBinder walks declared members
+      only: `Half(50)` into `where n >= 0 and <= 10` printed 25, beneath a LocalFunctions header that says
+      that shape is proven at the call. Binding SpanBounds gave four sample `Slice(0|1, ...)` calls
+      (RefStructs, StackOnlyTypes, StandardSurface twice) an obligation against `< Length`, which a call
+      argument could not meet: an argument is judged with no holder. The call's receiver is now measured
+      when it is an array or a span, and a `< Length` bound is met by what its type or the flow knows of
+      that receiver's length, as an index already was; an exact length is stated as `<= Length - 1` when
+      refused, so `Slice(9, 1)` over four is VIOLATED and a start into a span of unknown length is
+      UNPROVEN. A constant that fails only a symbolic bound is no longer reported as violating it:
+      `ledger[1]` into `< this.Count` said "Value '1' violates" over a Count of 3, and is now UNPROVEN.
+      Standard's `< Length` is stricter than C# here: C# accepts `Slice(4, 0)` over four elements, and v2
+      refuses it as SpanBounds declares. AllFeaturesV2 is byte-identical and reports nothing.
+
+      PROVED BY six corpus cases (compound-refinement-violates-its-own-predicate,
+      compound-refinement-violates-its-base, local-function-where-violated, span-slice-start-past-its-length,
+      span-slice-start-unproven, constant-unproven-against-a-symbolic-bound) and two rows (a compound that
+      holds, a local function's `where` that holds). A span's Slice cannot be pinned by a row: the probe
+      shell registers Standard's types without their members, so `s.Slice(...)` never resolves and a row
+      over it passes for nothing -- which is also true of the older `s.Slice(1, 2)` row under
+      AnIndexTheFlowProves. The four sample calls in AllFeaturesV2 hold it instead. Six mutations, each
+      caught: the compound arm removed (four cases), the local function left unbound, the constant always
+      reported as violating, and the exact length left unstated by their cases; a `< Length` bound left
+      unmet and the receiver left unmeasured only by AllFeaturesV2, which then refuses all four Slice calls.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -2551,13 +2582,17 @@ rules:
         its type or R18 lift, never flow -- so `where entry < Count` proves exactly when Count says its
         value.
       - >
-        A symbolic bound the prover CAN read is refused at every use of a user slot, and a constant is
-        misreported: `ledger[1]` into `where entry >= 0 and < this.Count` is MIST_PA_CONSTRAINT_VIOLATED,
-        "Value '1' violates", over a Count of 3; classic admits it. The value is judged with no holder, so
-        Satisfied fails every symbolic bound, and a constant that fails is reported as violating whatever
-        failed. A `where` naming another parameter (`where lo < hi`) does not bind on v2
+        A symbolic bound the prover CAN read is refused at every use of a user slot: `ledger[1]` into `where
+        entry >= 0 and < this.Count` is MIST_PA_CONSTRAINT_UNPROVEN over a Count of 3, and classic admits
+        it. Only an array's or a span's `< Length` is met, against the measured receiver; any other symbol
+        has no holder. A `where` naming another parameter (`where lo < hi`) does not bind on v2
         (MIST_PM_UNRESOLVED_IDENTIFIER at the declaration); classic accepts it and never checks it, so
         `Take(5, 3)` prints -2.
+      - >
+        An erased span's Length is typed `unknown` on v2, so `if (i < s.Length) { s.Slice(i, 0) }` over a
+        `Span<int>` parameter is refused as MIST_PA_UNKNOWN_HAS_NO_OPERATORS before the prover sees it, and
+        a `Span<int>` does not convert to a `ReadOnlySpan<int>` (MIST_PA_NO_IMPLICIT_CONVERSION). Both
+        measured 2026-09-19 while probing Slice; neither is this rule's.
       - >
         A property or indexer accessor with a Mist body forgets every non-readonly field fact, whether or
         not it writes one; ReadonlyInference already answers whether a getter writes, and consulting it

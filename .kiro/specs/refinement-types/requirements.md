@@ -199,7 +199,7 @@ Type unions with refinements are supported: each constituent of a union can carr
 2. THE Type_Checker SHALL prove simple relational subset relationships (e.g., `>= 21` implies `>= 18`, `<= 5` implies `<= 10`).
 3. THE Type_Checker SHALL prove compound subset relationships using logical implication for `and` combinators (e.g., `>= 5 and <= 10` implies `>= 0 and <= 100`).
 4. THE Type_Checker SHALL NOT attempt to prove relationships involving arithmetic expressions (e.g., the compiler will not prove that `x + 1 >= 18` when `x >= 17`).
-5. THE Type_Checker SHALL NOT attempt to prove relationships across method boundaries (e.g., the compiler will not track that a method always returns a value satisfying a refinement).
+5. THE Type_Checker SHALL NOT read a member's body where the member is used. What a member's value admits reaches the use site through the member's type alone, declared or lifted from its own returns by Requirement 18, so `ledger.Count` over `public int Count { get { return count; } }` with a mutable `int count` is an unknown int wherever it is read.
 6. WHEN the Type_Checker cannot statically determine whether a value satisfies a refinement, THE Type_Checker SHALL require pattern matching validation rather than silently accepting or rejecting the assignment.
 
 ### Requirement 14: Pattern Match Integration
@@ -259,3 +259,20 @@ Type unions with refinements are supported: each constituent of a union can carr
 18. `samples/AllFeatures/Program.mist` SHALL call `RefinementTypes.Program.RunDemo()` to include the feature in the full-suite sample run.
 19. `samples/AllFeatures/mist.toml` SHALL be updated to add a `[[references]]` entry pointing to the RefinementTypes sample project.
 20. The sample SHALL compile and run without errors using the Mist compiler.
+
+### Requirement 18: A Member's Return Type Lifted to the Refinement Its Returns Prove
+
+**User Story:** As a Mist developer, I want a member that always returns a known value, or a value of a refined type, to be read by its callers as returning that refinement, so that a declared `int` still lets the compiler prove what the member produces, and a later change to the body is caught at every use it breaks.
+
+The lift is inference, as readonly inference is (readonly-contexts Requirement 10): the member proves its own signature from its body, and a use site reads the signature and never the body (Requirement 13.5). It is sound because Mist has no overriding, so a member's body is the only one a use can reach, and because every build recompiles the whole program, so no use can hold a lift that is out of date.
+
+#### Acceptance Criteria
+
+1. WHEN a method, a property getter or an indexer getter has a Mist body AND every `return` in it that carries a value returns a constant or a pass-through, THE Type_Checker SHALL read a value the member produces as the union of what those returns admit, intersected with the declared return type's own refinement. `int Count { get { return 9; } }` produces `int 9`, and `int Pick(Percentage p) { return p; }` produces `int >= 0 and <= 100`.
+2. A constant is a value Requirement 5.4 evaluates: an integer, character or boolean literal, or its negation. A value whose type IS one value counts as that constant, so `return entries.Length;` over a field of type `int[3]` returns 3.
+3. A pass-through is a value whose type is refined -- a Refinement_Type, a parameter's `where`, or a member's own lifted return type -- and admits what that refinement admits. A built-in implicit conversion between integral types preserves the value and is looked through.
+4. A `return` inside a lambda or a local function belongs to that function, and SHALL NOT take part in the enclosing member's lift.
+5. WHEN any `return` in the body is neither a constant nor a pass-through -- a local the flow has narrowed, an arithmetic result, a call to a member that does not lift -- THE Type_Checker SHALL read the member at its declared return type. A member with no Mist body (abstract, interface, intrinsic, CLR-projected), an async member, and a member whose declared return type is not integral, character or boolean SHALL likewise lift nothing.
+6. WHEN computing a member's lift reaches the same member again, THE Type_Checker SHALL read that inner use at the declared return type, so that recursion settles rather than assuming its own answer.
+7. The lift SHALL NOT be written into the program: emission and every rule other than refinement proving read the declared return type.
+8. WHEN a change to a member's body changes its lift, THE Type_Checker SHALL judge each use of the member against the new lift, reporting at the use as it would for a declared refinement -- `ledger[^1]` becomes an error at `ledger[^1]` when `Count` starts returning 9 into an indexer whose parameter admits `< 3`.

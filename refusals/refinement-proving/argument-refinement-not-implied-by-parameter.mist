@@ -12,11 +12,15 @@ public class Probe
         return "served";
     }
 
+    public static string Relay(AdultAge adult)
+    {
+        // REFUSE: MIST_PA_REFINEMENT_NOT_IMPLIED
+        return Serve(adult);
+    }
+
     public static void Main()
     {
-        AdultAge adult = 19;
-        // REFUSE: MIST_PA_REFINEMENT_NOT_IMPLIED
-        Console.WriteLine(Serve(adult));
+        Console.WriteLine(Relay(19));
         Console.WriteLine("unreachable");
     }
 }

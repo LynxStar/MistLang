@@ -27,7 +27,7 @@ internal static class RefinementFindings
         }
         else if(onConstraint is not null)
         {
-            if(Requirement.Constant(value) is { } constant)
+            if(Violating(value, known, required) is { } constant)
             {
                 context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at.Node, [value, at], constant, predicate, onConstraint);
             }
@@ -36,7 +36,7 @@ internal static class RefinementFindings
                 context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], Display(value), predicate, onConstraint);
             }
         }
-        else if(Requirement.Constant(value) is { } constant)
+        else if(Violating(value, known, required) is { } constant)
         {
             context.Report(ProgramAnalysisDiagnostics.RefinementViolated, at.Node, [value, at], constant, predicate, target);
         }
@@ -48,6 +48,11 @@ internal static class RefinementFindings
         {
             context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], TypeDisplay.Mist(value.Type), target, predicate);
         }
+    }
+
+    private static long? Violating(Expression value, Admitted known, Requirement required)
+    {
+        return Requirement.Constant(value) ?? (Lengths.Exact(known) is { } only && !required.Values.Contains(only) ? only : null);
     }
 
     public static string Display(Expression expression)

@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
-using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -41,9 +40,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
+        var lifted = new LiftedReturns();
+
         foreach(var root in context.Bodies)
         {
-            new Proving(context).Judge(FlowGraphBuilder.Build(root.Root), Proving.Nothing);
+            new Proving(context, lifted).Judge(FlowGraphBuilder.Build(root.Root), Proving.Nothing);
         }
 
         foreach(var closing in context.Model.ConstructorConstraintClosures.Closings)
@@ -62,7 +63,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             {
                 if(constructor is { ChainedConstructor: { } chained, DeclarationNode: { } declared } && context.IsInSource(declared))
                 {
-                    new Proving(context).NeedArguments(
+                    new Proving(context, lifted).NeedArguments(
                         Proving.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList);
                 }
             }
@@ -147,7 +148,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         public static readonly Knowledge Unknown = new(Admitted.Everything, ImmutableHashSet<Bound>.Empty);
     }
 
-    private sealed class Proving(AnalysisContext context) : IFlowLattice<ImmutableDictionary<LocalVariable, Knowledge>>
+    private sealed class Proving(AnalysisContext context, LiftedReturns lifted) : IFlowLattice<ImmutableDictionary<LocalVariable, Knowledge>>
     {
         public static readonly ImmutableDictionary<LocalVariable, Knowledge> Nothing =
             ImmutableDictionary.Create<LocalVariable, Knowledge>(ReferenceEqualityComparer.Instance);
@@ -266,7 +267,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Proving(context).Judge(nested, Nothing);
+                    new Proving(context, lifted).Judge(nested, Nothing);
                     break;
             }
         }
@@ -323,7 +324,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return;
             }
 
-            if(!IsIntegral(Unrefined(index.Index.Type)))
+            if(!Requirement.IsIntegral(Requirement.Unrefined(index.Index.Type)))
             {
                 return;
             }
@@ -338,11 +339,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         // `Length - k`, so its knowledge is the length shifted by k, and below Length by construction
         // whenever k is at least one -- the prover then asks of it what it asks of any other index, and
         // never learns what `^` means. Null for an index no integral value reaches.
-        private static Knowledge? Reaching(ImmutableDictionary<LocalVariable, Knowledge> state, IndexExpression index, Admitted? length)
+        private Knowledge? Reaching(ImmutableDictionary<LocalVariable, Knowledge> state, IndexExpression index, Admitted? length)
         {
             if(index.Index is not UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset })
             {
-                return IsIntegral(Unrefined(index.Index.Type)) ? Known(state, index.Index) : null;
+                return Requirement.IsIntegral(Requirement.Unrefined(index.Index.Type)) ? Known(state, index.Index) : null;
             }
 
             if(Lengths.Exact(Known(state, offset).Values) is not { } back || length is null)
@@ -440,14 +441,14 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             return true;
         }
 
-        private static Knowledge Known(ImmutableDictionary<LocalVariable, Knowledge> state, Expression value)
+        private Knowledge Known(ImmutableDictionary<LocalVariable, Knowledge> state, Expression value)
         {
             if(Requirement.Constant(value) is { } constant)
             {
                 return new Knowledge(Admitted.Exactly(constant), ImmutableHashSet<Bound>.Empty);
             }
 
-            var typed = Requirement.OfType(value.Type)?.Values ?? Admitted.Everything;
+            var typed = (Requirement.ValuesOf(value.Type) ?? Admitted.Everything).And(lifted.Of(value) ?? Admitted.Everything);
 
             if(value is not LocalReferenceExpression local)
             {
@@ -615,27 +616,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private static bool Accepts(IMistType constituent, IMistType valueType)
         {
-            return ConversionClassifier.Classify(Unrefined(valueType), Unrefined(constituent)) is ConversionKind.Identity or ConversionKind.Implicit;
-        }
-
-        private static IMistType Unrefined(IMistType type)
-        {
-            return type switch
-            {
-                RefinedType refined => Unrefined(refined.BaseType),
-                TypeAlias { AliasedType: { } aliased } => Unrefined(aliased),
-                _ => type,
-            };
-        }
-
-        private static bool IsIntegral(IMistType type)
-        {
-            return type.FullyQualifiedName is var name
-                && (name == WellKnownTypes.Int32.FullyQualifiedName || name == WellKnownTypes.Int64.FullyQualifiedName
-                    || name == WellKnownTypes.Int16.FullyQualifiedName || name == WellKnownTypes.UInt32.FullyQualifiedName
-                    || name == WellKnownTypes.UInt64.FullyQualifiedName || name == WellKnownTypes.UInt16.FullyQualifiedName
-                    || name == WellKnownTypes.Byte.FullyQualifiedName || name == WellKnownTypes.SByte.FullyQualifiedName
-                    || name == WellKnownTypes.Char.FullyQualifiedName);
+            return ConversionClassifier.Classify(Requirement.Unrefined(valueType), Requirement.Unrefined(constituent)) is ConversionKind.Identity or ConversionKind.Implicit;
         }
 
         private static ComparisonKind? Comparison(BinaryOperatorKind kind)

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
@@ -106,6 +107,38 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
             default:
                 return null;
         }
+    }
+
+    public static Admitted? ValuesOf(IMistType type)
+    {
+        return type switch
+        {
+            LiftedType { Value: long value } => Admitted.Exactly(value),
+            LiftedType { Value: int value } => Admitted.Exactly(value),
+            LiftedType { Value: char value } => Admitted.Exactly(value),
+            LiftedType { Value: bool value } => Admitted.Exactly(value ? 1 : 0),
+            _ => OfType(type)?.Values,
+        };
+    }
+
+    public static IMistType Unrefined(IMistType type)
+    {
+        return type switch
+        {
+            RefinedType refined => Unrefined(refined.BaseType),
+            TypeAlias { AliasedType: { } aliased } => Unrefined(aliased),
+            _ => type,
+        };
+    }
+
+    public static bool IsIntegral(IMistType type)
+    {
+        return type.FullyQualifiedName is var name
+            && (name == WellKnownTypes.Int32.FullyQualifiedName || name == WellKnownTypes.Int64.FullyQualifiedName
+                || name == WellKnownTypes.Int16.FullyQualifiedName || name == WellKnownTypes.UInt32.FullyQualifiedName
+                || name == WellKnownTypes.UInt64.FullyQualifiedName || name == WellKnownTypes.UInt16.FullyQualifiedName
+                || name == WellKnownTypes.Byte.FullyQualifiedName || name == WellKnownTypes.SByte.FullyQualifiedName
+                || name == WellKnownTypes.Char.FullyQualifiedName);
     }
 
     public static bool IsAnonymous(IMistType type)

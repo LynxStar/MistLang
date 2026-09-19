@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+type AdultAge = int >= 18;
+
+public class Probe
+{
+    public static int Settle(int n)
+    {
+        if (n == 0)
+        {
+            return 20;
+        }
+
+        return Settle(n - 1);
+    }
+
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        AdultAge age = Settle(3);
+        Console.WriteLine(age);
+    }
+}

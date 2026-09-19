@@ -362,6 +362,20 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("AdultAge a = Lifts.Twenty();", "public static int Twenty() { return 20; }")]
+    [InlineData("Percentage p = Lifts.Pick(50);", "public static int Pick(Percentage p) { return p; }")]
+    [InlineData("AdultAge a = Lifts.Either(flag);", "public static int Either(bool b) { if(b) { return 18; } return 30; }")]
+    [InlineData("AdultAge a = Lifts.Outer();", "public static int Inner() { return 19; } public static int Outer() { return Lifts.Inner(); }")]
+    [InlineData("AdultAge a = Lifts.Returned();", "public static int Returned() { var g = () => 5; return 21; }")]
+    [InlineData("var l = new Lifts(); AdultAge a = l.Age;", "public int Age { get { return 40; } }")]
+    [InlineData("var l = new Lifts(); AdultAge a = l[0];", "public int this[int i] { get { return 25; } }")]
+    [InlineData("var l = new Lifts(); var a = new int[4]; var v = a[l.Three];", "int[3] cells = new int[3]; public int Three { get { return cells.Length; } }")]
+    public void AValueAMembersReturnsLift_IsAdmitted(string statement, string members)
+    {
+        AssertSilent(statement, $"public class Lifts {{ {members} }}");
+    }
+
+    [Theory]
     [InlineData("AdultAge a = 7; AdultAge b = 7;")]
     [InlineData("var a = new int[3]; Console.WriteLine(a[5] + a[5]);")]
     [InlineData("Console.WriteLine(Helpers.Twice(3) + Helpers.Twice(3));")]

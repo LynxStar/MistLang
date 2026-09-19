@@ -6,11 +6,11 @@ type AdultAge = int >= 18;
 
 public class Probe
 {
-    public static int Accept(int x)
+    public static int Accept(int x, int y)
     {
         if(x >= 18)
         {
-            x = 5;
+            x = y;
             // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
             AdultAge a = x;
             return a;
@@ -21,7 +21,7 @@ public class Probe
 
     public static void Main()
     {
-        Console.WriteLine(Accept(20));
+        Console.WriteLine(Accept(20, 5));
         Console.WriteLine("unreachable");
     }
 }

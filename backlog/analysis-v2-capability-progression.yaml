@@ -2570,11 +2570,13 @@ rules:
         A refined return through a lambda, an `async` result, or a `switch` arm is judged where the
         binder recorded a target; a refined field initialiser is judged as a declaration is.
       - >
-        An enum refinement is admitted and never proven. Measured 2026-09-15 over `type Warm = Color >=
-        Color.Green` and `Take(Color c) where c >= Color.Green`: `Warm w = Color.Red` and `Take(Color.Red)`
-        both run on v2, because Requirement reads an enum variant bound as nothing it can decide. Classic
-        refuses both declarations (MIST_TC_0072, MIST_REFINEMENT_0007). v2 admits them because Comparability
-        orders an enum, as order 8's patterns and C# do (order 6's 2026-09-15 paragraph).
+        An enum refinement is never proven. Requirement reads an enum variant bound as nothing it can
+        decide, so since the unreadable predicates were refused (2026-09-19) every use is UNPROVEN, the valid
+        ones too: over `type Warm = Color >= Color.Green`, `Warm a = Color.Red` and `Warm b = Color.Blue`
+        are both MIST_PA_REFINEMENT_UNPROVEN (measured 2026-09-15 they both ran). Reading a variant bound
+        as its underlying value would prove them. Classic refuses the declarations themselves
+        (MIST_TC_0072, MIST_REFINEMENT_0007); v2 declares them because Comparability orders an enum, as
+        order 8's patterns and C# do (order 6's 2026-09-15 paragraph).
       - >
         An extension method's `where` is neither judged at its declaration nor proven at a call. Measured
         2026-09-15: `"s".Wide(1)` over `extension(string self)`'s `Wide(int other) where other >= 3`

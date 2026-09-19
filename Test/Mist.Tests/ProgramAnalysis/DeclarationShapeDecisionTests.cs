@@ -338,17 +338,17 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     [InlineData("public class Crock { public readonly int Size = 1; } type Petite = Crock { Size: < 3 };")]
     [InlineData("public class Cork { public int Width { get; } } public class Crock { public Cork Top { get; } public int Size { get; set; } } type Petite = Crock { Top: { Width: < 3 } };")]
     [InlineData("public class Crock { public int Size { get; set; } } type Petite = Crock; type Tiny = int < 3; public class Sink { public static int Take(Crock crock, int size) where size < 3 { crock.Size = size; return size; } }")]
+    [InlineData("public class Crock { public int Size { get; init; } } type Petite = Crock { Size: < 3 };")]
+    [InlineData("public class Crock { readonly int size = 1; public int Size { get { return size; } init { } } } type Petite = Crock { Size: < 3 };")]
+    [InlineData("public class Crock { readonly int size = 1; public int Size { get { return size; } } public int Twice { get { return Size + this.size; } } } type Petite = Crock { Twice: < 6 };")]
+    [InlineData("public class Crock { readonly int size = 1; public int Size => size; } type Petite = Crock { Size: < 3 };")]
+    [InlineData("public class Cork { public int Width { get; } } public class Crock { readonly Cork top = new Cork(); public int Size { get { return top.Width; } } } type Petite = Crock { Size: < 3 };")]
+    [InlineData("public class Crock { readonly int[3] cells = new int[3]; public int Size { get { return cells.Length; } } } type Petite = Crock { Size: < 9 };")]
+    [InlineData("public class Crock { readonly int size = 1; public bool Big { get { if(size > 2) { return true; } return false; } } } type Petite = Crock { Big: false };")]
+    [InlineData("intrinsic public readonly class Word { public int Length { get; } } type Long = Word { Length: > 3 };")]
     public void APredicateOverMembersNothingCanWrite_IsDeclared(string extraTypes)
     {
         AssertSilent("int unused = 1;", extraTypes);
-    }
-
-    [Fact]
-    public void APredicateOverAGetterComputedFromMutableState_IsDeclaredAsClassicDeclaresIt()
-    {
-        AssertSilent(
-            "int unused = 1;",
-            "public class Crock { int size = 1; public int Size { get { return size; } } public void Grow() { size = size + 10; } } type Petite = Crock { Size: < 3 };");
     }
 
     [Theory]

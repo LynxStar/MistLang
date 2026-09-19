@@ -8,7 +8,6 @@ using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
-using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
@@ -22,11 +21,11 @@ namespace Mist.ProgramAnalysis.Rules;
 /// logical operator off Boolean, or takes no parameter of the type declaring it, a refinement predicate
 /// -- an alias's, a parameter's `where` or a dependent parameter's, on a type, in an extension block or
 /// on a local function -- that orders a type <see cref="Comparability"/> gives no order or reads a
-/// member that can be written, a method, constructor or indexer repeating an earlier one's signature on
-/// its type, and a member hiding one its type inherits, which Mist admits only as an overload. Order 6
-/// of the analysis register; each shape is classic's verdict, measured, or the spec's where classic
-/// dropped the declaration unread, and the enum and sealed rules are the full-accessibility-model and
-/// enum-readonly-restriction specs' own.
+/// member <see cref="StableMembers"/> does not vouch for, a method, constructor or indexer repeating an
+/// earlier one's signature on its type, and a member hiding one its type inherits, which Mist admits
+/// only as an overload. Order 6 of the analysis register; each shape is classic's verdict, measured, or
+/// the spec's where classic dropped the declaration unread, and the enum and sealed rules are the
+/// full-accessibility-model and enum-readonly-restriction specs' own.
 /// </summary>
 internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 {
@@ -277,13 +276,13 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                 constrained, TypeDisplay.Mist(comparison.NarrowedType));
         }
 
-        foreach(var mutable in MutableMembers(predicate))
+        foreach(var unstable in UnstableMembers(predicate))
         {
-            Report(context, mutable.Node, ProgramAnalysisDiagnostics.RefinementOverMutableMember, constrained, mutable.MemberName);
+            Report(context, unstable.Node, ProgramAnalysisDiagnostics.RefinementOverMutableMember, constrained, unstable.MemberName);
         }
     }
 
-    private static IEnumerable<PropertySubpattern> MutableMembers(Pattern? predicate)
+    private static IEnumerable<PropertySubpattern> UnstableMembers(Pattern? predicate)
     {
         var operands = predicate switch
         {
@@ -293,33 +292,23 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             _ => [],
         };
 
-        foreach(var found in operands.SelectMany(MutableMembers))
+        foreach(var found in operands.SelectMany(UnstableMembers))
         {
             yield return found;
         }
 
         foreach(var subpattern in (predicate as PropertyPattern)?.Subpatterns ?? [])
         {
-            if(IsMutable(subpattern.Member))
+            if(!StableMembers.IsStable(subpattern.Member))
             {
                 yield return subpattern;
             }
 
-            foreach(var nested in MutableMembers(subpattern.Pattern))
+            foreach(var nested in UnstableMembers(subpattern.Pattern))
             {
                 yield return nested;
             }
         }
-    }
-
-    private static bool IsMutable(LookupResult member)
-    {
-        return member switch
-        {
-            PropertyResult { Property.Setter: not null } => true,
-            FieldResult { Field.Modifiers.IsReadonly: false } => true,
-            _ => false,
-        };
     }
 
     private static void CheckSignatures(AnalysisContext context, MemberType type)

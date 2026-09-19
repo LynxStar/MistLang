@@ -1,0 +1,32 @@
+using Standard;
+
+namespace Refusal;
+
+public class Jar
+{
+    public int Weight { get; set; }
+
+    public int Size
+    {
+        get
+        {
+            if (this is { Weight: > 2 })
+            {
+                return 3;
+            }
+
+            return 1;
+        }
+    }
+}
+
+// REFUSE: MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER
+type Low = Jar { Size: < 3 };
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

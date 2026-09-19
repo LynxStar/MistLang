@@ -1,0 +1,36 @@
+using Standard;
+
+namespace Refusal;
+
+public class Jar
+{
+    int size = 1;
+
+    public int Size
+    {
+        get { return size; }
+    }
+
+    public void Grow()
+    {
+        size = size + 10;
+    }
+}
+
+// The test below narrows to the refused type and owes nothing further.
+// REFUSE: MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER
+type Low = Jar { Size: < 3 };
+
+public class Probe
+{
+    public static void Main()
+    {
+        var jar = new Jar();
+
+        if (jar is Low low)
+        {
+            low.Grow();
+            Console.WriteLine(low.Size);
+        }
+    }
+}

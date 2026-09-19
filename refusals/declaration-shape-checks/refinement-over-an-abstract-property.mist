@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract ISized
+{
+    int Size { get; }
+}
+
+public class Jar : ISized
+{
+    public int Size { get; }
+}
+
+// REFUSE: MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER
+type Low = ISized { Size: < 3 };
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

@@ -152,7 +152,7 @@ public static class ProgramAnalysisDiagnostics
         new DiagnosticId("MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
-        "The refinement predicate on '{0}' reads the mutable member '{1}'. Every member a refinement predicate reads must be readonly.");
+        "The refinement predicate on '{0}' reads '{1}', which can answer differently after a value was proven. A predicate reads only a readonly field, or a property with no 'set' accessor whose getter reads only such members.");
 
     public static readonly DiagnosticDescriptor DuplicateSignature = new(
         new DiagnosticId("MIST_PA_DUPLICATE_SIGNATURE"),

@@ -1,0 +1,40 @@
+using Standard;
+
+namespace Refusal;
+
+public struct Coin
+{
+    public readonly int Worth;
+
+    public Coin(int worth)
+    {
+        Worth = worth;
+    }
+
+    public static Coin operator +(Coin a, Coin b)
+    {
+        return new Coin(a.Worth + b.Worth);
+    }
+}
+
+public class Jar
+{
+    readonly Coin first = new Coin(1);
+    readonly Coin second = new Coin(1);
+
+    public Coin Both
+    {
+        get { return first + second; }
+    }
+}
+
+// REFUSE: MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER
+type Rich = Jar { Both: { Worth: > 1 } };
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

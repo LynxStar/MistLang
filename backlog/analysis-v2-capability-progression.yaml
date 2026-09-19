@@ -2606,12 +2606,12 @@ rules:
         is still declared without complaint on v2; classic refuses it as MIST_TC_0100 (spec R3). A readonly
         field states no value either, so `< limit` over `readonly int limit = 3` is unproven at every use.
       - >
-        A symbolic bound the prover CAN read is refused at every use of a user slot: `ledger[1]` into `where
-        entry >= 0 and < this.Count` is MIST_PA_CONSTRAINT_UNPROVEN over a Count of 3, and classic admits
-        it. Only an array's or a span's `< Length` is met, against the measured receiver; any other symbol
-        has no holder. A `where` naming another parameter (`where lo < hi`) does not bind on v2
+        A symbolic bound naming neither a member nor an array's or a span's Length has nothing to read it
+        through. A `where` naming another parameter (`where lo < hi`) does not bind on v2
         (MIST_PM_UNRESOLVED_IDENTIFIER at the declaration); classic accepts it and never checks it, so
-        `Take(5, 3)` prints -2.
+        `Take(5, 3)` prints -2. Bound, it would want the other argument's knowledge at each call. A dependent
+        type parameter of a user generic (`where i < N`) is likewise unproven at a call, though the
+        receiver's type argument states N.
       - >
         An erased span's Length is typed `unknown` on v2, so `if (i < s.Length) { s.Slice(i, 0) }` over a
         `Span<int>` parameter is refused as MIST_PA_UNKNOWN_HAS_NO_OPERATORS before the prover sees it, and

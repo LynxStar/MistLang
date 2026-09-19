@@ -522,6 +522,11 @@ internal static class OverloadResolution
             return CompareParts(leftTuple.ElementTypes, rightTuple.ElementTypes);
         }
 
+        if(OptionalUnion.InnerType(left) is { } leftInner && OptionalUnion.InnerType(right) is { } rightInner)
+        {
+            return CompareSpecificity(leftInner, rightInner);
+        }
+
         if(left is IFunctionType leftFunction && right is IFunctionType rightFunction)
         {
             return CompareParts(WithResult(leftFunction), WithResult(rightFunction));

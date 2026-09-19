@@ -36,6 +36,11 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// parameters are specialized, and so are a generic METHOD's, from the type arguments each call was bound
 /// with; a method is emitted once per instance of its declaring type where that type is specialized too.
 /// </para>
+/// <para>
+/// OVERLOADS AN INSTANCE MAKES IDENTICAL are emitted under distinct names: `Take(K?)` beside `Take(int?)`
+/// is one C# signature twice in `Lifted<int>`, and Mist has already chosen which one each call means,
+/// so the call is named for its choice rather than left for C# to resolve between two equals.
+/// </para>
 /// </summary>
 internal sealed class UnionSpecialization
 {
@@ -139,6 +144,33 @@ internal sealed class UnionSpecialization
         var parts = arguments.Select(argument => Identifier(argument.FullyQualifiedName));
 
         return $"{declaredName}__{string.Join("__", parts)}";
+    }
+
+    public static string? CollidingName(Method method, ConstructedType instance)
+    {
+        if(instance.Definition is not MemberType type
+            || !ReferenceEquals(method.DeclaringType, type)
+            || !Specializes(type))
+        {
+            return null;
+        }
+
+        var substitution = TypeSubstitution.ForReceiver(instance);
+
+        string signature(Method candidate)
+        {
+            var parameters = candidate.ParametersList.Select(
+                parameter => substitution.Apply(parameter.Type, interner: null).FullyQualifiedName);
+
+            return $"{candidate.Name}`{candidate.TypeParametersList.Count}({string.Join(",", parameters)})";
+        }
+
+        var own = signature(method);
+
+        return type.MethodsList.Count(candidate => signature(candidate) == own) > 1
+            ? $"{method.Name}__o{type.MethodsList.IndexOf(method)}"
+            : null
+            ;
     }
 
     public static bool IsClosed(IReadOnlyList<IMistType> arguments)

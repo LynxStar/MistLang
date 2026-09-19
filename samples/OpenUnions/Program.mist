@@ -116,6 +116,27 @@ public class Box<K>
     }
 }
 
+// PROOF: two overloads an instance makes identical. At `Lifted<int>` both are `Take(int?)`; Mist prefers
+// the one written as `int?` (method-overloading Requirement 3.11), and a call resolved inside the generic
+// body to `Take(K?)` still reaches that one.
+public class Lifted<K>
+{
+    public string Take(K? key)
+    {
+        return "K?";
+    }
+
+    public string Take(int? number)
+    {
+        return "int?";
+    }
+
+    public string FromInside(K? key)
+    {
+        return this.Take(key);
+    }
+}
+
 public class Api
 {
     public static string Pick<T, R>(T | R value)
@@ -209,6 +230,11 @@ public class Program
         Console.WriteLine($"methods: {Api.Pick<int, string>(5)} | {Api.Pick<string, int>(6)} | {Api.Forward(9)}");
         Console.WriteLine($"generic caller: {new Caller<int>().Use(7)}");
         Console.WriteLine($"use slot: {Api.UseSlot(s)} | {Api.UseSlot(w)}");
+
+        var lifted = new Lifted<int>();
+        Console.WriteLine($"lifted<int>: {lifted.Take(3)} | {lifted.Take(none)} | inside {lifted.FromInside(4)}");
+        var liftedWords = new Lifted<string>();
+        Console.WriteLine($"lifted<string>: {liftedWords.Take("x")} | {liftedWords.Take(8)}");
     }
 
     public static void Main(string[] args)

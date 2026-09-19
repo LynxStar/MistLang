@@ -82,6 +82,13 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
         {
             public int Use(K value) { return Api.Pick<K, string>(value); }
         }
+
+        public class Lifted<K>
+        {
+            public int Take(K? key) { return 1; }
+
+            public int Take(int? number) { return 2; }
+        }
         """;
 
     protected override string Preamble { get; } = """
@@ -94,6 +101,8 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
         var picked = Api.Pick<bool, int>(true);
         var used = Api.UseSlot(slot);
         var caller = new Caller<long>();
+        var lifted = new Lifted<int>();
+        var liftedWords = new Lifted<string>();
         """;
 
     [Theory]
@@ -140,6 +149,16 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
     [InlineData("Slot<int>", "public int? Item;")]
     [InlineData("Slot<string>", "public string Item;")]
     public void AnInstanceSpellsItsUnionsExactlyAsClosedCodeDoes(string instance, string expected)
+    {
+        Assert.Contains(expected, EmitInstance(instance), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Lifted<int>", "Take__o0(int? key)")]
+    [InlineData("Lifted<int>", "Take__o1(int? number)")]
+    [InlineData("Lifted<string>", "Take(string key)")]
+    [InlineData("Lifted<string>", "Take(int? number)")]
+    public void OverloadsAnInstanceMakesIdenticalAreNamedApart_AndOnlyThere(string instance, string expected)
     {
         Assert.Contains(expected, EmitInstance(instance), StringComparison.Ordinal);
     }

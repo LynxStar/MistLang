@@ -2017,3 +2017,5 @@ box<string>: cell w
 methods: T 5 | R | T 9
 generic caller: T 7
 use slot: absent | present hi
+lifted<int>: int? | int? | inside K?
+lifted<string>: K? | int?

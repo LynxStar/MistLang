@@ -879,9 +879,11 @@ internal static class BodyEmitter
                 // only the invocation knows which overload they fill -- and a dependent slot is
                 // spelled by its carrier rather than by its domain.
                 if(invocation.Receiver is MemberAccessExpression callee
-                    && callee.TypeArguments is { Count: > 0 })
+                    && (callee.TypeArguments is { Count: > 0 } || CollidingName(invocation.Method, callee.Receiver.Type) is not null))
                 {
-                    EmitMemberAccess(callee, invocation.Method?.TypeParametersList, writer, diagnostics);
+                    EmitMemberAccess(
+                        callee, invocation.Method?.TypeParametersList, writer, diagnostics,
+                        CollidingName(invocation.Method, callee.Receiver.Type));
                 }
                 else
                 {
@@ -1118,7 +1120,10 @@ internal static class BodyEmitter
             case MethodReferenceExpression methodRef:
                 writer.Append(
                     ReceiverSpelling.Qualifier(methodRef.Method.DeclaringType, methodRef.Method.Modifiers.IsStatic)
-                    + CalleeName(LocalNames.Of(methodRef.Method), methodRef.TypeArguments, methodRef.Method.TypeParametersList)
+                    + CalleeName(
+                        CollidingName(methodRef.Method, receiverType: null) ?? LocalNames.Of(methodRef.Method),
+                        methodRef.TypeArguments,
+                        methodRef.Method.TypeParametersList)
                     + EmitTypeArguments(methodRef.TypeArguments, methodRef.Method.TypeParametersList));
                 break;
 
@@ -2231,11 +2236,23 @@ internal static class BodyEmitter
         writer.Append(" }");
     }
 
+    private static string? CollidingName(Method? method, IMistType? receiverType)
+    {
+        var closed = receiverType is null ? null : TypeNameEmitter.Closed(receiverType);
+        var instance = closed as ConstructedType
+            ?? (closed is null || ReferenceEquals(closed, UnionSpecialization.Current()?.Definition)
+                ? UnionSpecialization.Current()
+                : null);
+
+        return method is not null && instance is not null ? UnionSpecialization.CollidingName(method, instance) : null;
+    }
+
     private static void EmitMemberAccess(
         MemberAccessExpression memberAccess,
         IReadOnlyList<TypeParameter>? parameters,
         CSharpWriter writer,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        string? memberName = null)
     {
         // A size-agnostic read of the pack, answered by the specialization rather than emitted: at
         // this width the arity is a constant, and there is no C# value standing for the pack to
@@ -2268,7 +2285,7 @@ internal static class BodyEmitter
         UnitHoisting.Refuse(memberAccess.Receiver, diagnostics);
         EmitSubExpression(memberAccess.Receiver, PostfixPrecedence, writer, diagnostics);
         writer.Append(memberAccess.IsConditional ? "?." : ".");
-        writer.Append(CalleeName(memberAccess.MemberName, memberAccess.TypeArguments, parameters));
+        writer.Append(CalleeName(memberName ?? memberAccess.MemberName, memberAccess.TypeArguments, parameters));
         writer.Append(EmitTypeArguments(memberAccess.TypeArguments, parameters));
     }
 

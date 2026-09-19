@@ -545,6 +545,8 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     [InlineData("var chosen = nested.Take(items);", "int[]")]
     [InlineData("var chosen = nested.Take(pair);", "(int, int)")]
     [InlineData("var chosen = nested.Take(fn);", "func<int, int>")]
+    [InlineData("var chosen = lifted.Take(3);", "int | void")]
+    [InlineData("var chosen = lifted.Take(maybe);", "int | void")]
     public void AWrittenParameter_BeatsOneAReceiversTypeArgumentMadeIdentical(
         string statement, string expectedParameterType)
     {
@@ -609,7 +611,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     [Theory]
     [InlineData("var chosen = pairs.Take(3);")]
     [InlineData("var chosen = crossed.Take(1, 2);")]
-    [InlineData("var chosen = lifted.Take(3);")]
     public void CandidatesNoWrittenPositionSeparates_StayAmbiguous(string statement)
     {
         _ = Assert.Single(Errors(BuildRun(statement, ClosedTypes, ClosedPreamble), AmbiguousId));
@@ -644,6 +645,7 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         (int, int) pair = (1, 2);
         func<int, int> fn = Plain.Once;
         byte small = 2;
+        int? maybe = void;
         """;
 
     private const string ClosedTypes = """

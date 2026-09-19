@@ -97,6 +97,10 @@ internal static class MethodEmitter
             declared = [];
             name = UnionSpecialization.Name(method.Name, instance.Arguments);
         }
+        else if(UnionSpecialization.Current() is { } enclosing && UnionSpecialization.CollidingName(method, enclosing) is { } renamed)
+        {
+            name = renamed;
+        }
 
         var spelled = declared.Select(DependentCarrierNames.Parameter)
             .Concat(SlotLift.Synthesized(declared).Select(slot => slot.Name))

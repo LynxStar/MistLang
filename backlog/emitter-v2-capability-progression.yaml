@@ -4105,10 +4105,38 @@ capabilities:
       3.11 prefer `Take(int?)` and have the emitted program run it. UnionSpecializationTests pins the
       names; disabling them fails those rows and leaves samples/OpenUnions with four Roslyn errors.
 
-      NOT COVERED: a generic method used as a VALUE (a method group) records no call, so a specialized
-      one referenced that way names nothing emitted; a renamed overload that implements an abstract's
-      member, an inherited one reached through a derived receiver, a specialized ABSTRACT's conformers
-      and a specialized type reached through an UnsafeAccessor are unmeasured.
+      THE FOUR UNMEASURED SHAPES, PROBED 2026-09-19, one project each. A method of a specialized type
+      used as a VALUE through its receiver (`func<int?, string> show = slot.Show`) already emitted and
+      ran; a specialized ABSTRACT's conformers (`Holder<T>` with `T | string`, conformed by a plain
+      class and by a generic one at `<bool>` and at `<string>`, where the union merges) already emitted
+      and ran. Three failed under Roslyn and are fixed: a renamed pair reached through a DERIVED
+      receiver (`Derived<int> : Lifted<int>`, and a non-generic `Narrow : Lifted<int>`) named the bare
+      `Take`, so CollidingName now walks the receiver's base chain to the construction of the declaring
+      type and judges the collision there; the renamed overload that ANSWERS AN ABSTRACT'S SLOT
+      (`ITaker<K> { string Take(K? key); }`) left `Lifted__Standard_Int32` with no member named `Take`
+      (CS0535), so the member SlotSignatures.Answers matches keeps its name -- C# finds an
+      implementation by name alone -- and only its sibling is renamed, which is what makes a call
+      through `ITaker<int>` run `Take(K?)` while a direct call still runs `Take(int?)`; and a newtype
+      over a specialized source (`type IntKeep = new Keep<int>`, copied; `type IntHeld = new Held<int>`,
+      cloned through IClonable) declared its UnsafeAccessor holder over `Keep<K>`, a C# type that no
+      longer exists, so CloneCopyEmitter and UnsafeAccessors declare a member of a specialized type
+      flat, named for the instance and typed under its substitution. samples/OpenUnions banks all
+      three (three lines); UnionSpecializationTests pins the derived call, the kept and renamed names
+      of the slot filler's pair, and both accessor spellings, and CloneConversionRuntimeTests runs the
+      two newtypes. Three mutations, each caught: the base walk removed fails exactly the two
+      derived-receiver rows; the slot exemption removed fails exactly the row keeping `Take(int? key)`;
+      the flat accessors removed fails the three spelling rows and the runtime row.
+
+      STILL NOT COVERED, all outside the specialization: a COLLIDING pair used as a value
+      (`func<int?, string> take = lifted.Take` at `Lifted<int>`) is refused by
+      MethodGroupConversion.Convert, which declines two identity matches with no tiebreak --
+      first-class-functions Requirement 8 calls that an ambiguity where method-overloading 3.11 orders
+      the same pair at a call, a conflict the specs have to settle before the conversion can prefer
+      one and the FunctionReferenceExpression case can name it; a generic method with STATED type
+      arguments used as a value (`Api.Pick<int, string>` with no call) does not parse, the grammar
+      admitting a type-argument list in four contexts only (generics-type-arguments Requirement 4.5),
+      on both pipelines; and a GENERIC newtype over a specialized source (`type Slotted<K> = new
+      Slot<K>`) synthesizes no conversion at all, the generic-clone gate recorded under newtypes.
     unlocks: []
 
   - id: union-widening-at-use-sites
@@ -11330,22 +11358,30 @@ samples:
                generic-arity-keyed-lookup, generic-methods, type-argument-substitution,
                type-argument-inference, union-types-and-carriers, union-widening-at-use-sites,
                optional-union-representation, optional-operators, pattern-matching-core,
-               func-structural-function-types]
+               func-structural-function-types, base-type-list, base-member-lookup,
+               abstract-type-declaration, nominal-conformance-and-slot-checking, newtype-declarations]
     untested:
       - >
         V2-ONLY. Classic refuses this program in its own checker (measured 2026-09-19): it does not
         merge `int | int` into `int` (MIST_TC_0071, MIST_TC_0001 for the nested `Cell`), refuses `void`
-        assigned to a field (MIST_TC_0070), and cannot pass `K?` where `int?` is expected
-        (MIST_TC_0072). Referenced from AllFeaturesV2 alone, its lines captured from v2 and read against
-        the program by hand.
+        assigned to a field (MIST_TC_0070), cannot pass `K?` where `int?` is expected (MIST_TC_0072),
+        sees no member inherited through a generic derived type (MIST_UNDEFINED_MEMBER on
+        `Derived<int>.Take`), and gives a newtype none of its source's members (its earlier newtypes
+        revision). Referenced from AllFeaturesV2 alone, its lines captured from v2 and read against the
+        program by hand.
       - >
         WHICH declarations are specialized is invisible here: a generic emitted once that happened to
         compile would print the same lines. UnionSpecializationTests pins the decisions and the
         emitted spellings.
       - >
-        A generic method used as a VALUE, a specialized abstract with conformers, and runaway
-        specialization are not exercised; order 76 lists them. Overloads that coincide at an instance
-        ARE exercised, by `Lifted<K>`, whose lines were captured from v2 and read against the program.
+        Runaway specialization is not exercised; UnionSpecializationTests pins its diagnostic. A
+        method of a specialized type used as a VALUE and a specialized abstract's conformers were
+        probed on v2 (2026-09-19) and print what the program says, but are held by no sample; order 76
+        records the probes and what stays uncovered. Overloads that coincide at an instance ARE
+        exercised, by `Lifted<K>`: a direct call, one through `Derived<K>` and `Narrow`, and one
+        through `ITaker<int>`, whose lines were captured from v2 and read against the program; so are
+        the newtypes `IntKeep` and `IntHeld` over specialized sources, which
+        CloneConversionRuntimeTests also runs.
 
 # =====================================================================
 

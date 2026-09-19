@@ -78,6 +78,9 @@ Type unions with refinements are supported: each constituent of a union can carr
 2. IF a Refinement_Predicate references a mutable field or property, THEN THE Type_Checker SHALL emit a diagnostic error of the form: "Refinement predicate on type '{TypeName}' references mutable member '{MemberName}'. All members in a refinement predicate must be readonly."
 3. WHEN the Base_Type is a primitive type (int, bool, char, etc.), THE Type_Checker SHALL allow relational and constant patterns without readonly checks because primitive values are inherently immutable.
 4. THE readonly constraint SHALL apply to all members referenced at any depth in nested property patterns within a refinement predicate.
+5. A member is readonly for this requirement WHEN nothing can change what it answers for one instance, a value being proven once by an `is` and never checked again: a `readonly` field; or a property with no `set` accessor whose getter is auto, or reads only such members, or has no body in Mist source (intrinsic, CLR-projected) and is declared by a `readonly` concrete type. An `init` accessor is not a `set` accessor here, since nothing can call it once the value is built. `type Low = Jar { Size: < 3 }` over `int size; public int Size { get { return size; } }` is refused, as is `List<int> { Count: > 0 }`; `string { Length: > 3 }` and `Size { get; init; }` are valid. (Decided by Arthur, 2026-09-19: "If init is sound then let's do it. And the mutate case needs to be blocked.")
+6. A getter that calls a member, indexes, assigns, loops, or uses a declared operator or conversion SHALL be treated as not readonly, and so SHALL a property of an abstract, `readonly` or not, until conformance holds an implementer to that modifier.
+7. THE readonly constraint SHALL apply to a property pattern in a parameter's `where` as it does to one in a type alias.
 
 ### Requirement 4: Semantic Model for Refinement Types
 

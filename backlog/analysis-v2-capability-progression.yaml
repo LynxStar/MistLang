@@ -1489,8 +1489,8 @@ rules:
       `where jar { Size: < 3 }` is refused, a `where` being an anonymous refinement and the rule one rule;
       classic declares it. And a parenthesized disjunction -- `Jar ({ Size: < 3 } or { Weight: > 10 })`, the
       only form of `or` the grammar takes there -- is walked, where classic declares it over two settable
-      properties. AS CLASSIC, AND DELIBERATELY: `init` is a setter and refuses, though nothing can call it
-      after construction, so admitting it would be sound -- the simpler rule until someone wants it. A use
+      properties. `init` was refused here as classic refuses it, and a getter computed from mutable state
+      declared as classic declares it; both changed the same day, in the paragraph after the proof. A use
       of the refused type is still judged, being a second mistake and not an echo: `Low l = new Jar(1)` is
       UNPROVEN whether or not `Size` can be written.
 
@@ -1508,17 +1508,66 @@ rules:
       -- 6451, 664 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure and no rerun,
       AllFeaturesV2 run by hand was byte-identical and reported nothing, and the build and `dotnet format`
       were clean.
+
+      A MEMBER A PREDICATE READS MUST ANSWER THE SAME FOR AS LONG AS THE VALUE LIVES (Arthur, 2026-09-19:
+      "If init is sound then let's do it. And the mutate case needs to be blocked right?"). A value is
+      proven once, by an `is`, and nothing checks it again, so "has no setter" was the wrong question twice
+      over. MEASURED on v2, each through a value still typed by the predicate: a getter computed from a
+      mutable field printed 11 after `low.Grow()`; `type NonEmpty = List<int> { Count: > 0 }` printed 0
+      after `full.Clear()`; an abstract's `Size { get; }` printed 11 after its implementer grew; and the
+      same through a `readonly abstract`, which nothing holds an implementer to. Classic declares all four.
+      `init` runs the other way: a write to an init-only property outside construction compiles on NEITHER
+      pipeline (Roslyn's refusal on both, where a get-only write is this frontend's MIST_PA_NO_SET_ACCESSOR
+      -- order 9's task), so nothing can call it once the value is built, and classic's MIST_TC_0100 for it
+      refused a sound program.
+
+      THE RULE, in StableMembers, which DeclarationShapeAnalyzer asks of every member a predicate reads: a
+      readonly field; or a property with no setter but `init` whose getter is auto over storage of its own,
+      or has a body that reads only such members, or has no body here to read (intrinsic, CLR-projected) and
+      is declared by a `readonly` CONCRETE type -- so `string { Length: > 3 }` and
+      `DateTime { Year: > 1999 }` are declared, the projection knowing a readonly struct, and
+      `List<int>.Count` and every abstract's property are not. A body is held to a LIST of node kinds rather
+      than refused for the ones known to be trouble, there being no runtime guard behind a wrong answer: a
+      field or property it reads is judged in turn, a cycle of getters answering no; an intrinsic operator
+      is admitted and a declared operator or conversion is not; and a call, an index, an assignment, a loop,
+      an interpolated string and any kind the model gains later are refused until someone decides otherwise.
+      The message no longer says "mutable member", which a get-only `Size` is not. STRICTER THAN CLASSIC on
+      all four shapes above, MORE PERMISSIVE on `init`. No banked program reads a getter under a predicate:
+      samples/RefinementTypes' ValidInterval reads a field of a `readonly class`.
+
+      REFUSED FOR WANT OF ANALYSIS, each sound and each measured: a getter that calls a method which reads
+      only readonly state; one returning `$"{first} {last}"` over two readonly strings (classic declares
+      it); and an abstract's property whose every implementer in the program is stable, which a
+      whole-program build could know.
+
+      PROVED BY fourteen more corpus cases, all refinement-over-: a-getter-computed-from-a-mutable-field
+      (which narrows, grows and reports once), an-expression-bodied-property-reading-a-mutable-field
+      (through `this.`), a-getter-that-calls-a-method, -that-indexes-an-array, -that-assigns,
+      -reading-a-settable-property, -matching-a-mutable-field and -matching-a-settable-property (a property
+      pattern inside the getter), -using-a-declared-operator, -using-a-declared-conversion,
+      getters-that-read-each-other, a-clr-property, an-abstract-property and a-readonly-abstracts-property.
+      refinement-over-an-init-only-property LEFT the corpus, being a valid program now, and the row that
+      pinned the computed getter's silence became the first of those cases. Eight rows under
+      APredicateOverMembersNothingCanWrite: `init` auto and with a body, a getter over a readonly field,
+      over another getter, expression-bodied, through a readonly field's get-only property, over an array's
+      Length, with an `if` and an intrinsic comparison, and an intrinsic readonly class's bodiless property
+      -- each first shown to judge something by a twin that fails. Fourteen mutations on a confirmed build,
+      each caught by what was written for it: `init` read as a setter (the two init rows), a body never read
+      (nine cases), a writable field admitted bare and through a receiver (one case each), a property read
+      in a body not judged (two), a cycle read as stable (one), any bodiless property read as owning its
+      storage (the CLR and abstract cases), the readonly type not consulted (the intrinsic row), an unlisted
+      kind admitted (three), a declared operator and a declared conversion admitted (one each), a subpattern
+      over a field and over a property not judged (one each), and a readonly abstract trusted (one). The
+      full suite -- 6466, 664 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure
+      and no rerun, AllFeaturesV2 run by hand was byte-identical and reported nothing, and the build and
+      `dotnet format` were clean.
     tasks:
       - >
-        A refinement predicate over a getter COMPUTED from mutable state is declared, as classic declares
-        it, and is unsound. Measured 2026-09-19 on v2: over
-        `int size; public int Size { get { return size; } }` and `Grow() { size = size + 10; }`,
-        `if (jar is Low low) { low.Grow(); Console.WriteLine(low.Size); }` prints 11 through a value typed
-        `{ Size: < 3 }`. Requirement 3 asks that the member be "declared as readonly", which a get-only
-        property is by classic's reading, and a getter's body is the member boundary the flow does not
-        cross. What would make it sound is a decision: refuse any getter with a body, admit one whose R18
-        lift is a single value, or admit one that reads only readonly state (which nothing computes yet).
-        APredicateOverAGetterComputedFromMutableState pins today's silence.
+        `readonly` on an abstract holds no implementer to it. Measured 2026-09-19:
+        `public class Jar : ISized` over `public readonly abstract ISized`, with a mutable field, a getter
+        over it and a method that writes it, compiles and runs on v2. StableMembers therefore trusts
+        `readonly` on a concrete type only. If conformance came to require a readonly implementer, an
+        abstract's property could be read by a predicate again.
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
         the method not to mutate `this` and wants enforcing, or it is invalid and wants a diagnostic.
@@ -1851,6 +1900,13 @@ rules:
       findings, the full suite through the ledger at 7113 tests with none failing, zero warnings, and format
       clean.
     tasks:
+      - >
+        A write to an init-only property outside construction is left to Roslyn (CS8852, MIST_CS_ERROR on
+        both pipelines), where a write to a get-only one is MIST_PA_NO_SET_ACCESSOR. Measured 2026-09-19:
+        `jar.Size = 9` after `new Jar { Size = 1 }`, and `Size = Size + 10` in a method of Jar. Order 6 now
+        admits `init` under a refinement predicate on the strength of that refusal, so it wants to be the
+        frontend's: AccessorAnalyzer knows a constructor of the declaring type, and would need to know an
+        object initializer entry and an init accessor's own body as well.
       - >
         A readonly FIELD assigned outside a constructor is left to Roslyn (CS0191): the analysis owner
         of a body is its type, not its member, so a constructor cannot yet be told from a method.

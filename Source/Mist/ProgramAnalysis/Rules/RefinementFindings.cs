@@ -50,6 +50,22 @@ internal static class RefinementFindings
         }
     }
 
+    public static void ReportPosition(
+        AnalysisContext context, Admitted position, Requirement required, Storm.Runtime.SyntaxNode at, string shown, string parameter,
+        IReadOnlyList<Expression> about)
+    {
+        var predicate = Describe(required);
+
+        if(Lengths.Exact(position) is { } only && !required.Values.Contains(only))
+        {
+            context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at, about, only, predicate, parameter);
+        }
+        else
+        {
+            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at, about, shown, predicate, parameter);
+        }
+    }
+
     private static long? Violating(Expression value, Admitted known, Requirement required)
     {
         return Requirement.Constant(value) ?? (Lengths.Exact(known) is { } only && !required.Values.Contains(only) ? only : null);

@@ -376,6 +376,17 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("var s = new Counted(); int v = s[^1];", "public int Length { get { return 5; } } public int Count { get { return 9; } } public int this[int slot] { get { return slot; } }")]
+    [InlineData("var s = new Counted(); int v = s[^3];", "int[3] cells = new int[3]; public int Count { get { return cells.Length; } } public int this[int e] where e >= 0 and < 3 { get { return e; } }")]
+    [InlineData("var s = new Counted(); if(s is [.., var y]) { int v = y; }", "int[3] cells = new int[3]; public int Count { get { return cells.Length; } } public int this[int e] where e >= 0 and < 3 { get { return e; } }")]
+    [InlineData("var s = new Counted(); if(s is [var a, var b, var c]) { int v = a + b + c; }", "int count = 9; public int Count { get { return count; } } public int this[int e] where e >= 0 and < 3 { get { return e; } }")]
+    [InlineData("var s = new Counted(); if(s is [_, _, _, _, _, _, _, _, _]) { int v = 1; }", "int count = 9; public int Count { get { return count; } } public int this[int e] where e >= 0 and < 3 { get { return e; } }")]
+    public void APositionTheCountProves_IsAdmitted(string statement, string members)
+    {
+        AssertSilent(statement, $"public class Counted {{ {members} }}");
+    }
+
+    [Theory]
     [InlineData("AdultAge a = 7; AdultAge b = 7;")]
     [InlineData("var a = new int[3]; Console.WriteLine(a[5] + a[5]);")]
     [InlineData("Console.WriteLine(Helpers.Twice(3) + Helpers.Twice(3));")]

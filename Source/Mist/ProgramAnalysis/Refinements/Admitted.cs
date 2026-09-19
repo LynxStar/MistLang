@@ -128,6 +128,18 @@ internal sealed class Admitted : IEquatable<Admitted>
         return Normalised(Intervals.Select(interval => new Interval(Saturating(interval.Low, by), Saturating(interval.High, by))).ToList());
     }
 
+    public Admitted Minus(Admitted other)
+    {
+        if(Intervals.Length == 0 || other.Intervals.Length == 0)
+        {
+            return Nothing;
+        }
+
+        return Between(
+            Difference(Intervals[0].Low, other.Intervals[^1].High, long.MinValue),
+            Difference(Intervals[^1].High, other.Intervals[0].Low, long.MaxValue));
+    }
+
     public Admitted WidenedAgainst(Admitted previous)
     {
         if(Intervals.Length == 0 || previous.Intervals.Length == 0)
@@ -188,6 +200,17 @@ internal sealed class Admitted : IEquatable<Admitted>
 
         var sum = value + by;
         return by > 0 && sum < value ? long.MaxValue : by < 0 && sum > value ? long.MinValue : sum;
+    }
+
+    private static long Difference(long value, long by, long unbounded)
+    {
+        if(value is long.MinValue or long.MaxValue || by is long.MinValue or long.MaxValue)
+        {
+            return unbounded;
+        }
+
+        var difference = value - by;
+        return (by > 0 && difference > value) || (by < 0 && difference < value) ? unbounded : difference;
     }
 
     private static Admitted Normalised(IReadOnlyList<Interval> intervals)

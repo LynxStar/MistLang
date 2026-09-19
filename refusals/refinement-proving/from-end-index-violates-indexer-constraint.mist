@@ -1,0 +1,27 @@
+using Standard;
+
+namespace Refusal;
+
+public class Ledger
+{
+    public int Count
+    {
+        get { return 9; }
+    }
+
+    public int this[int entry] where entry >= 0 and < 3
+    {
+        get { return entry; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var ledger = new Ledger();
+        // REFUSE: MIST_PA_CONSTRAINT_VIOLATED
+        int closing = ledger[^1];
+        Console.WriteLine(closing);
+    }
+}

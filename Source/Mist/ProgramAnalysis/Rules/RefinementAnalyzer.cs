@@ -40,6 +40,14 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             new Proving(context, lifted).Judge(FlowGraphBuilder.Build(root.Root), RefinementFlow.Nothing);
         }
 
+        foreach(var list in context.Nodes.OfType<ListPattern>())
+        {
+            if(list.Reads is { } reads)
+            {
+                new Proving(context, lifted).NeedElements(list, reads);
+            }
+        }
+
         foreach(var closing in context.Model.ConstructorConstraintClosures.Closings)
         {
             if(closing.Parameter.IsDependent && context.IsInSource(closing.Node))
@@ -238,6 +246,17 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return;
             }
 
+            if(index.FromEnd is { } counted)
+            {
+                var written = index.Index is ImplicitConversionExpression conversion ? conversion.Operand : index.Index;
+                var position = written is UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset }
+                    ? Counted(counted).Minus(Known(state, offset).Values)
+                    : Admitted.Everything;
+
+                NeedPosition(position, counted, written.Node, RefinementFindings.Display(written), [written]);
+                return;
+            }
+
             if(!Requirement.IsIntegral(Requirement.Unrefined(index.Index.Type)))
             {
                 return;
@@ -280,11 +299,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return;
             }
 
-            var constituents = target is UnionType union ? union.Constituents : [target];
-            var considered = constituents
-                .Where(constituent => Requirement.Refined(constituent) is not null
-                    && (Accepts(constituent, value.Type) || ConstantConversion.Fits(value, constituent)))
-                .ToList();
+            var considered = Considered(target, value.Type, value);
 
             if(considered.Count == 0)
             {
@@ -299,15 +314,71 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             var known = Known(state, value);
 
-            foreach(var constituent in considered)
+            if(!AnySatisfied(known, considered))
             {
-                if(Requirement.OfType(constituent) is not { } required || Satisfied(known, required, onIndex: null))
-                {
-                    return;
-                }
+                RefinementFindings.Report(context, known.Values, value, Requirement.OfType(considered[0])!, TypeDisplay.Mist(target), at, onConstraint: null);
+            }
+        }
+
+        public void NeedElements(ListPattern list, CountedIndexer reads)
+        {
+            var elements = list.Elements;
+            var slice = -1;
+
+            for(var i = 0; i < elements.Count && slice < 0; i++)
+            {
+                slice = elements[i].IsSlice ? i : -1;
             }
 
-            RefinementFindings.Report(context, known.Values, value, Requirement.OfType(considered[0])!, TypeDisplay.Mist(target), at, onConstraint: null);
+            var fixedCount = elements.Count - (slice < 0 ? 0 : 1);
+            var count = Counted(reads).And(slice < 0 ? Admitted.Exactly(fixedCount) : Admitted.AtLeast(fixedCount));
+
+            if(count.Intervals.Length == 0)
+            {
+                return;
+            }
+
+            for(var i = 0; i < elements.Count; i++)
+            {
+                if(elements[i] is { IsSlice: false, Subpattern: { } element } && element is not CatchAllPattern { Binding: null })
+                {
+                    var back = elements.Count - i;
+                    var (position, shown) = slice >= 0 && i > slice ? (count.Shifted(-back), $"^{back}") : (Admitted.Exactly(i), $"{i}");
+
+                    NeedPosition(position, reads, element.Node, shown, []);
+                }
+            }
+        }
+
+        private void NeedPosition(Admitted position, CountedIndexer counted, Storm.Runtime.SyntaxNode at, string shown, IReadOnlyList<Expression> about)
+        {
+            var considered = Considered(counted.ParameterType, counted.Count.Type, value: null);
+
+            if(considered.Count > 0 && !AnySatisfied(new Knowledge(position, ImmutableHashSet<Bound>.Empty), considered))
+            {
+                RefinementFindings.ReportPosition(
+                    context, position, Requirement.OfType(considered[0])!, at, shown, counted.Indexer.ParametersList[0].Name, about);
+            }
+        }
+
+        private Admitted Counted(CountedIndexer counted)
+        {
+            return (Requirement.ValuesOf(counted.Count.Type) ?? Admitted.Everything).And(lifted.Of(counted.Count) ?? Admitted.Everything);
+        }
+
+        private static List<IMistType> Considered(IMistType target, IMistType valueType, Expression? value)
+        {
+            var constituents = target is UnionType union ? union.Constituents : [target];
+
+            return constituents
+                .Where(constituent => Requirement.Refined(constituent) is not null
+                    && (Accepts(constituent, valueType) || (value is not null && ConstantConversion.Fits(value, constituent))))
+                .ToList();
+        }
+
+        private static bool AnySatisfied(Knowledge known, List<IMistType> considered)
+        {
+            return considered.Any(constituent => Requirement.OfType(constituent) is not { } required || Satisfied(known, required, onIndex: null));
         }
 
         private void Need(

@@ -4127,16 +4127,17 @@ capabilities:
       derived-receiver rows; the slot exemption removed fails exactly the row keeping `Take(int? key)`;
       the flat accessors removed fails the three spelling rows and the runtime row.
 
-      STILL NOT COVERED, all outside the specialization: a COLLIDING pair used as a value
-      (`func<int?, string> take = lifted.Take` at `Lifted<int>`) is refused by
-      MethodGroupConversion.Convert, which declines two identity matches with no tiebreak --
-      first-class-functions Requirement 8 calls that an ambiguity where method-overloading 3.11 orders
-      the same pair at a call, a conflict the specs have to settle before the conversion can prefer
-      one and the FunctionReferenceExpression case can name it; a generic method with STATED type
-      arguments used as a value (`Api.Pick<int, string>` with no call) does not parse, the grammar
-      admitting a type-argument list in four contexts only (generics-type-arguments Requirement 4.5),
-      on both pipelines; and a GENERIC newtype over a specialized source (`type Slotted<K> = new
-      Slot<K>`) synthesizes no conversion at all, the generic-clone gate recorded under newtypes.
+      A COLLIDING PAIR USED AS A VALUE (`func<int?, string> take = lifted.Take` at `Lifted<int>`) was
+      the fourth failure, in the frontend: the conversion declined two identity matches. Settled the
+      same day at order 108 -- the conversion orders them as a call does (method-overloading 3.12) --
+      and the FunctionReferenceExpression case names the choice (`lifted.Take__o1`); the pair the
+      generic body itself resolved stays `Take__o0`. samples/OpenUnions prints `values:`.
+
+      STILL NOT COVERED, both outside the specialization: a generic method with STATED type arguments
+      used as a value (`Api.Pick<int, string>` with no call) does not parse, the grammar admitting a
+      type-argument list in four contexts only (generics-type-arguments Requirement 4.5), on both
+      pipelines; and a GENERIC newtype over a specialized source (`type Slotted<K> = new Slot<K>`)
+      synthesizes no conversion at all, the generic-clone gate recorded under newtypes.
     unlocks: []
 
   - id: union-widening-at-use-sites
@@ -6235,10 +6236,26 @@ capabilities:
       containment -- exactly the one test asserting that fails, which is what makes the distinction
       recorded rather than incidental.
 
-      SELECTION IS BY THE TARGET AND NOTHING ELSE, there being no arguments to rank on, so two
-      candidates matching one signature is ambiguity and declines rather than picking. A GENERIC method
-      is declined too: its type arguments are inferable only from the target, which is inference this
-      does not do.
+      SELECTION IS BY THE TARGET, there being no arguments to rank on. A GENERIC method is declined:
+      its type arguments are inferable only from the target, which is inference this does not do.
+
+      TWO CANDIDATES THE RECEIVER MAKES ONE SIGNATURE, 2026-09-19. `lifted.Take` at `Lifted<int>`
+      converted to `func<int?, string>` matched both `Take(K?)` and `Take(int?)` and was declined as
+      ambiguous, which first-class-functions 7.8 said and method-overloading 3.8 contradicted for a
+      call. The specs now agree (method-overloading 3.12, first-class-functions 7.8 amended): the
+      conversion keeps the candidates no other beats under OverloadResolution.MoreSpecificSignature,
+      the tail of the call's tiebreak with its identity gate already met, and converts when exactly
+      one remains; a pair no position separates -- `Take(A)` against `Take(B)` at `Pair<int, int>` --
+      is MIST_PM_METHOD_GROUP_AMBIGUOUS, a descriptor of its own since the not-converted text names a
+      different fault. The conversion also drops a slot its filler hides (OverloadResolution's
+      WithoutHidden, now reachable on a candidate list), which a call always did and the conversion
+      never had, so a conformer's `Take(K?)` beside `ITaker<K>`'s no longer ties at `<string>`. The
+      emitter names the chosen one as it names a call (`lifted.Take__o1`, order 76).
+      FunctionTypeResolutionTests pins the fixed choice, the filler over the slot, and the ambiguity;
+      UnionSpecializationTests pins the spelling in a closed body and in a generic one;
+      samples/OpenUnions prints `values: int? | K? | K?`. Two mutations, each caught: the preference
+      removed fails the fixed-choice row, and the specialization fixture's `Chooser` with it; the
+      hiding removed fails exactly the filler-over-slot row.
 
       A converted group is a FunctionReferenceExpression rather than a MethodReferenceExpression,
       because the latter's type is the method's RESULT -- it exists to be an invocation's receiver --
@@ -11378,8 +11395,9 @@ samples:
         method of a specialized type used as a VALUE and a specialized abstract's conformers were
         probed on v2 (2026-09-19) and print what the program says, but are held by no sample; order 76
         records the probes and what stays uncovered. Overloads that coincide at an instance ARE
-        exercised, by `Lifted<K>`: a direct call, one through `Derived<K>` and `Narrow`, and one
-        through `ITaker<int>`, whose lines were captured from v2 and read against the program; so are
+        exercised, by `Lifted<K>`: a direct call, one through `Derived<K>` and `Narrow`, one through
+        `ITaker<int>` and the group as a function value, whose lines were captured from v2 and read
+        against the program; so are
         the newtypes `IntKeep` and `IntHeld` over specialized sources, which
         CloneConversionRuntimeTests also runs.
 

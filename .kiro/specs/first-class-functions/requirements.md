@@ -123,7 +123,7 @@ The `delegate` keyword is deliberately omitted. Since Mist has type aliases and 
 5. THE Type_Checker SHALL permit using `Func` types as generic type arguments (e.g., `List<func<int, string>>`).
 6. WHEN a variable of `Func` type is followed by an invocation suffix (parenthesized argument list), THE Type_Checker SHALL treat the expression as a function invocation, type-checking the arguments against the Func's parameter types and producing the Func's return type.
 7. WHEN a method group (method name without invocation) is used in a context expecting a `Func` type, THE Type_Checker SHALL convert the method group to a delegate value if the method signature is compatible with the target Func type.
-8. IF a method group is ambiguous (multiple overloads match the target Func type), THEN THE Type_Checker SHALL report a diagnostic error indicating the ambiguity.
+8. IF a method group is ambiguous (multiple overloads match the target Func type and method-overloading Requirement 3.8 orders none of them above the rest), THEN THE Type_Checker SHALL report a diagnostic error indicating the ambiguity.
 9. IF a Func-typed variable is invoked with the wrong number of arguments, THEN THE Type_Checker SHALL report a diagnostic error indicating the argument count mismatch.
 10. IF a Func-typed variable is invoked with arguments of incompatible types, THEN THE Type_Checker SHALL report a diagnostic error indicating the type mismatch for each incompatible argument.
 

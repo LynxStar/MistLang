@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public class Shelf
+{
+    private int size = 3;
+
+    public int this[int slot] where slot >= 0 and < size
+    {
+        get { return slot; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var shelf = new Shelf();
+        // REFUSE: MIST_PA_CONSTRAINT_UNPROVEN
+        int first = shelf[0];
+        Console.WriteLine(first);
+    }
+}

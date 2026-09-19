@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+public class Box
+{
+    public Box(int size)
+    {
+        Size = size;
+    }
+
+    public int Size { get; }
+}
+
+type Small = Box { Size: < 3 };
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        Small small = new Box(1);
+        Console.WriteLine("assigned");
+    }
+}

@@ -23,8 +23,9 @@ namespace Mist.ProgramAnalysis.Rules;
 /// parameter's `where` IS the parameter's type, an anonymous refinement of the declared one, so the
 /// model has one way to say a value is narrowed and this rule one way to read it, and nothing is left
 /// to a runtime guard at the callee: refinement is type checking, and a call is where the type is
-/// met. What the prover cannot read -- a property pattern, a real, an expression that is neither a
-/// constant nor a local -- is not refused either.
+/// met. A predicate the prover has no interval for -- a property pattern, a regex, a real -- is met only
+/// by a value already of that refinement, so anything else must pass an `is` first; one refused at its
+/// declaration owes nothing more.
 /// </summary>
 internal sealed class RefinementAnalyzer : IProgramAnalyzer
 {
@@ -316,10 +317,20 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             var known = Known(state, value);
 
-            if(!AnySatisfied(known, considered, measured, Length(state, measured)))
+            if(AnySatisfied(known, considered, value.Type, measured, Length(state, measured)))
+            {
+                return;
+            }
+
+            if(Requirement.OfType(considered[0]) is { } required)
             {
                 RefinementFindings.Report(
-                    context, known.Values, value, Stated(Requirement.OfType(considered[0])!, Length(state, measured)), TypeDisplay.Mist(target), at, onConstraint: null);
+                    context, known.Values, value, Stated(Read(required, proving: false), Length(state, measured)), TypeDisplay.Mist(target), at, onConstraint: null);
+            }
+            else
+            {
+                RefinementFindings.ReportUnreadable(
+                    context, value, considered[0], TypeDisplay.Mist(target), at, Requirement.IsAnonymous(target) ? onConstraint : null);
             }
         }
 
@@ -357,10 +368,20 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         {
             var considered = Considered(counted.ParameterType, counted.Count.Type, value: null);
 
-            if(considered.Count > 0 && !AnySatisfied(new Knowledge(position, ImmutableHashSet<Bound>.Empty), considered))
+            if(considered.Count == 0 || AnySatisfied(new Knowledge(position, ImmutableHashSet<Bound>.Empty), considered, counted.Count.Type))
             {
-                RefinementFindings.ReportPosition(
-                    context, position, Requirement.OfType(considered[0])!, at, shown, counted.Indexer.ParametersList[0].Name, about);
+                return;
+            }
+
+            var parameter = counted.Indexer.ParametersList[0].Name;
+
+            if(Requirement.OfType(considered[0]) is { } required)
+            {
+                RefinementFindings.ReportPosition(context, position, Read(required, proving: false), at, shown, parameter, about);
+            }
+            else
+            {
+                RefinementFindings.ReportPositionUnreadable(context, considered[0], at, shown, parameter, about);
             }
         }
 
@@ -379,9 +400,62 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 .ToList();
         }
 
-        private static bool AnySatisfied(Knowledge known, List<IMistType> considered, Expression? measured = null, Admitted? length = null)
+        private bool AnySatisfied(
+            Knowledge known, List<IMistType> considered, IMistType valueType, Expression? measured = null, Admitted? length = null)
         {
-            return considered.Any(constituent => Requirement.OfType(constituent) is not { } required || Satisfied(known, required, measured, length));
+            return considered.Any(constituent => Requirement.OfType(constituent) is { } required
+                ? Satisfied(known, Read(required, proving: true), measured, length)
+                : !Requirement.IsUnreadable(constituent) || ReferenceEquals(Requirement.Refined(valueType), Requirement.Refined(constituent)));
+        }
+
+        // A bound naming a member is read through that member's type or lift, which every instance shares:
+        // to prove, against the end of the member's interval every value it may take clears; to report,
+        // only once the member is one value, so a value it merely might exceed stays unproven.
+        private Requirement Read(Requirement required, bool proving)
+        {
+            var values = required.Values;
+            var bounds = ImmutableArray.CreateBuilder<SymbolicBound>();
+
+            foreach(var bound in required.Bounds)
+            {
+                if(bound.Member is { } member && Limit(bound.Kind, Signature(member), proving) is { } limit)
+                {
+                    values = values.And(limit);
+                }
+                else
+                {
+                    bounds.Add(bound);
+                }
+            }
+
+            return new Requirement(values, bounds.ToImmutable());
+        }
+
+        private static Admitted? Limit(ComparisonKind kind, Admitted member, bool proving)
+        {
+            if(!proving && Lengths.Exact(member) is null)
+            {
+                return null;
+            }
+
+            return kind switch
+            {
+                ComparisonKind.LessThan when member.Low is { } low && low > long.MinValue => Admitted.Below(low),
+                ComparisonKind.LessThanOrEqual when member.Low is { } low && low > long.MinValue => Admitted.AtMost(low),
+                ComparisonKind.GreaterThan when member.High is { } high && high < long.MaxValue => Admitted.Above(high),
+                ComparisonKind.GreaterThanOrEqual when member.High is { } high && high < long.MaxValue => Admitted.AtLeast(high),
+                _ => null,
+            };
+        }
+
+        private Admitted Signature(object member)
+        {
+            return member switch
+            {
+                Property property => (Requirement.ValuesOf(property.Type) ?? Admitted.Everything).And(lifted.Of(property) ?? Admitted.Everything),
+                Field field => Requirement.ValuesOf(field.Type) ?? Admitted.Everything,
+                _ => Admitted.Everything,
+            };
         }
 
         private void Need(
@@ -395,11 +469,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             var known = Known(state, value);
 
-            if(!Satisfied(known, required, onIndex ?? measured, Length(state, measured)))
+            if(!Satisfied(known, Read(required, proving: true), onIndex ?? measured, Length(state, measured)))
             {
                 RefinementFindings.Report(
-                    context, known.Values, value, Stated(required, Length(state, measured)), onIndex is { } receiver ? RefinementFindings.Display(receiver) : "", at,
-                    onConstraint, onIndex);
+                    context, known.Values, value, Stated(Read(required, proving: false), Length(state, measured)),
+                    onIndex is { } receiver ? RefinementFindings.Display(receiver) : "", at, onConstraint, onIndex);
             }
         }
 
@@ -430,8 +504,9 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private static Requirement Stated(Requirement required, Admitted? length)
         {
-            return Lengths.Exact(length) is { } exact && required.Bounds.Any(bound => bound is { Name: "Length", Kind: ComparisonKind.LessThan })
-                ? new Requirement(required.Values.And(Admitted.Below(exact)), [.. required.Bounds.Where(bound => bound is not { Name: "Length", Kind: ComparisonKind.LessThan })])
+            return Lengths.Exact(length) is { } exact && required.Bounds.Any(bound => bound is { Name: "Length", Kind: ComparisonKind.LessThan, Member: null })
+                ? new Requirement(
+                    required.Values.And(Admitted.Below(exact)), [.. required.Bounds.Where(bound => bound is not { Name: "Length", Kind: ComparisonKind.LessThan, Member: null })])
                 : required
                 ;
         }
@@ -445,7 +520,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             foreach(var bound in required.Bounds)
             {
-                if(bound is { Name: "Length", Kind: ComparisonKind.LessThan } && Lengths.Shortest(length) is { } shortest
+                if(bound is { Name: "Length", Kind: ComparisonKind.LessThan, Member: null } && Lengths.Shortest(length) is { } shortest
                     && known.Values.IsSubsetOf(Admitted.Below(shortest)))
                 {
                     continue;

@@ -3,6 +3,7 @@ using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Refinements;
@@ -33,8 +34,8 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
                     return new Requirement(Interval(kind, constant), []);
                 }
 
-                return Symbol(bound) is { } name && kind != ComparisonKind.Equal
-                    ? new Requirement(Admitted.Everything, [new SymbolicBound(name, kind)])
+                return Symbol(bound) is var (name, member) && kind != ComparisonKind.Equal
+                    ? new Requirement(Admitted.Everything, [new SymbolicBound(name, kind, member)])
                     : null;
 
             case ConjunctionPattern conjunction:
@@ -98,7 +99,7 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
                 {
                     var own = Of(refined.Predicate);
                     var beneath = OfType(refined.BaseType);
-                    return own is null ? null : beneath is null ? own : own.And(beneath);
+                    return own is null || (beneath is null && Refined(refined.BaseType) is not null) ? null : beneath is null ? own : own.And(beneath);
                 }
 
             case TypeAlias { AliasedType: { } aliased }:
@@ -139,6 +140,17 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
                 || name == WellKnownTypes.UInt64.FullyQualifiedName || name == WellKnownTypes.UInt16.FullyQualifiedName
                 || name == WellKnownTypes.Byte.FullyQualifiedName || name == WellKnownTypes.SByte.FullyQualifiedName
                 || name == WellKnownTypes.Char.FullyQualifiedName);
+    }
+
+    public static bool IsUnreadable(IMistType type)
+    {
+        return Refined(type) is not null && Stated(type) && OfType(type) is null;
+    }
+
+    private static bool Stated(IMistType type)
+    {
+        return Refined(type) is not RefinedType refined
+            || (refined.Predicate is not null && !Comparability.IsRefused(refined) && Stated(refined.BaseType));
     }
 
     public static bool IsAnonymous(IMistType type)
@@ -187,16 +199,26 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
         };
     }
 
-    private static string? Symbol(Expression bound)
+    private static (string Name, object? Member)? Symbol(Expression bound)
     {
         return bound switch
         {
-            TypeReferenceExpression { Type: TypeParameter parameter } => parameter.Name,
-            MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name } => name,
-            LocalReferenceExpression local => local.Local.Name,
+            TypeReferenceExpression { Type: TypeParameter parameter } => (parameter.Name, null),
+            MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name, Member: PropertyResult { Property: var property } } => (name, property),
+            MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name, Member: FieldResult { Field: var field } } => (name, field),
+            MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name } => (name, null),
+            PropertyReferenceExpression { Property: var property } => (property.Name, property),
+            FieldReferenceExpression { Field: var field } => (field.Name, field),
+            LocalReferenceExpression local => (local.Local.Name, null),
             _ => null,
         };
     }
 }
 
-internal sealed record SymbolicBound(string Name, ComparisonKind Kind);
+/// <summary>
+/// A bound a predicate names rather than states. <see cref="Member"/> is the property or field it names,
+/// when it names one, so a use can read that member's type or lift (refinement-types R18) -- never the
+/// flow, which does not cross a member -- and a bound with no member is met only by what the flow
+/// relates to it, an array's or a span's `Length`.
+/// </summary>
+internal sealed record SymbolicBound(string Name, ComparisonKind Kind, object? Member = null);

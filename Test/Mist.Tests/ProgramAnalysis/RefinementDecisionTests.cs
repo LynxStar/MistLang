@@ -202,7 +202,6 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("Flag f = true;")]
     [InlineData("Small s = 10;")]
     [InlineData("AgeRange r = 5; AgeRange b = 50;")]
-    [InlineData("Named n = \"anything\";")]
     [InlineData("AdultAge a = adult;")]
     [InlineData("AdultAge a = drinking;")]
     [InlineData("Percentage p = digit;")]
@@ -398,6 +397,25 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("Senior s = 70;", "type Adult = int >= 18; type Senior = Adult and >= 65;")]
     [InlineData("int Half(int n) where n >= 0 and <= 10 { return n / 2; } var h = Half(8);", "")]
     public void APredicateTheBinderUsedToDrop_IsProvenWhereItHolds(string statement, string extraTypes)
+    {
+        AssertSilent(statement, extraTypes);
+    }
+
+    [Theory]
+    [InlineData("var box = new Box(1); if(box is Petite s) { Petite t = s; }", "public class Box { public Box(int size) { Size = size; } public int Size { get; } } type Petite = Box { Size: < 3 };")]
+    [InlineData("var k = 1;", "public class Box { public Box(int size) { Size = size; } public int Size { get; } } type Petite = Box { Size: < 3 }; public class Keeper { public static Petite Keep(Petite s) { return s; } public static string Pass(Petite s) { return Keeper.Name(s); } public static string Name(Petite s) { return \"small\"; } }")]
+    [InlineData("Code c = 5;", "type Code = int >= 0 | string \"x\";")]
+    public void AnUnreadablePredicate_IsMetByAValueOfItsOwnType(string statement, string extraTypes)
+    {
+        AssertSilent(statement, extraTypes);
+    }
+
+    [Theory]
+    [InlineData("var l = new Tally(); int v = l[1] + l[^1];", "public class Tally { public int Count { get { return 3; } } public int this[int e] where e >= 0 and < Count { get { return e; } } public int Take(int n) where n >= 0 and < this.Count { return n; } }")]
+    [InlineData("var l = new Tally(); if(l is [var a, var b, var c]) { int v = a; }", "public class Tally { public int Count { get { return 3; } } public int this[int e] where e >= 0 and < Count { get { return e; } } public int Take(int n) where n >= 0 and < this.Count { return n; } }")]
+    [InlineData("var l = new Tally(); int v = l.Take(2);", "public class Tally { public int Count { get { return 3; } } public int this[int e] where e >= 0 and < Count { get { return e; } } public int Take(int n) where n >= 0 and < this.Count { return n; } }")]
+    [InlineData("var l = new Tally(); int v = l[2];", "public class Tally { bool small = true; public int Count { get { if(small) { return 3; } return 5; } } public int this[int e] where e >= 0 and < Count { get { return e; } } }")]
+    public void AMemberBoundReadThroughItsSignature_IsAdmitted(string statement, string extraTypes)
     {
         AssertSilent(statement, extraTypes);
     }

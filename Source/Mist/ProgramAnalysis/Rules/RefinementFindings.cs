@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Types;
@@ -64,6 +65,56 @@ internal static class RefinementFindings
         {
             context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at, about, shown, predicate, parameter);
         }
+    }
+
+    public static void ReportUnreadable(
+        AnalysisContext context, Expression value, IMistType constituent, string target, Expression at, string? onConstraint)
+    {
+        var predicate = Describe(constituent);
+
+        if(onConstraint is not null)
+        {
+            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], Display(value), predicate, onConstraint);
+        }
+        else
+        {
+            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], TypeDisplay.Mist(value.Type), target, predicate);
+        }
+    }
+
+    public static void ReportPositionUnreadable(
+        AnalysisContext context, IMistType slot, Storm.Runtime.SyntaxNode at, string shown, string parameter, IReadOnlyList<Expression> about)
+    {
+        context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at, about, shown, Describe(slot), parameter);
+    }
+
+    private static string Describe(IMistType constituent)
+    {
+        return Requirement.Refined(constituent) is RefinedType refined
+            ? Requirement.Refined(refined.BaseType) is null ? Describe(refined.Predicate) : $"{Describe(refined.BaseType)} and {Describe(refined.Predicate)}"
+            : TypeDisplay.Mist(constituent);
+    }
+
+    private static string Describe(Pattern? pattern)
+    {
+        return pattern switch
+        {
+            ComparisonPattern { Kind: ComparisonKind.Equal, Bound: var bound } => Shown(bound),
+            ComparisonPattern { Kind: var kind, Bound: var bound } => $"{Symbol(kind)} {Shown(bound)}",
+            ConjunctionPattern conjunction => string.Join(" and ", conjunction.Operands.Select(Describe)),
+            DisjunctionPattern disjunction => $"({string.Join(" or ", disjunction.Operands.Select(Describe))})",
+            NegatedPattern negated => $"not {Describe(negated.Operand)}",
+            PropertyPattern property => $"{{ {string.Join(", ", property.Subpatterns.Select(sub => $"{sub.MemberName}: {Describe(sub.Pattern)}"))} }}",
+            RegexPattern regex => $"`{regex.Pattern.Replace("\\\"", "\"").Replace("\\\\", "\\")}`",
+            TypeTestPattern { Refinement: { } refinement } test => $"{TypeDisplay.Mist(test.NarrowedType)} {Describe(refinement)}",
+            TypeTestPattern test => TypeDisplay.Mist(test.NarrowedType),
+            _ => "_",
+        };
+    }
+
+    private static string Shown(Expression bound)
+    {
+        return bound is LiteralExpression { Value: string text } ? $"\"{text}\"" : Display(bound);
     }
 
     private static long? Violating(Expression value, Admitted known, Requirement required)

@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+type Named = string "x";
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        Named named = "anything";
+        Console.WriteLine(named);
+    }
+}

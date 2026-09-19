@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+type Email = string `^[^@]+@[^@]+\.[^@]+$`;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        Email email = "a@b.co";
+        Console.WriteLine(email);
+    }
+}

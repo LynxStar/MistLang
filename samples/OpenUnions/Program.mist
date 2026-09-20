@@ -272,6 +272,11 @@ public class Caller<K>
 
 public class Program
 {
+    private static string Apply(func<int, string> f, int value)
+    {
+        return f(value);
+    }
+
     public static void RunDemo()
     {
         Console.WriteLine("=== Open Unions ===");
@@ -342,6 +347,9 @@ public class Program
         func<string, string> forwardWord = Api.Forward;
         func<Slot<int>, string> useSlot = Api.UseSlot;
         Console.WriteLine($"inferred values: {forward(6)} | {forwardWord("z")} | {useSlot(s)}");
+        func<int | string, string> pick = Api.Pick<int, string>;
+        func<int | string, string> pickWord = Api.Pick<string, int>;
+        Console.WriteLine($"stated values: {pick(5)} | {pick("w")} | {pickWord(5)} | {pickWord("w")} | {Apply(Api.Forward<int>, 4)}");
 
         var keep = (IntKeep)new Keep<int>(7);
         Keep<int> kept = keep;

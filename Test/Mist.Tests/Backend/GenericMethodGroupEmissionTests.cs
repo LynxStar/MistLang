@@ -45,6 +45,9 @@ public sealed class GenericMethodGroupEmissionTests
     [InlineData("var applied = Api.Apply(Api.Same, 3);", "Probe.Api.Apply(Probe.Api.Same<int>, 3)")]
     [InlineData("var box = new Box(); func<bool, string> show = box.Show;", "= box.Show<bool>;")]
     [InlineData("func<int?, string> lift = Api.Lift;", "= Probe.Api.Lift__Standard_Int32;")]
+    [InlineData("func<long, long> same = Api.Same<long>;", "= Probe.Api.Same<long>;")]
+    [InlineData("func<string?, string> lift = Api.Lift<string>;", "= Probe.Api.Lift__Standard_String;")]
+    [InlineData("var applied = Api.Apply(Api.Same<int>, 3);", "Probe.Api.Apply(Probe.Api.Same<int>, 3)")]
     public void AGenericMethodNamedAsAValue_StatesTheTypeArgumentsTheTargetTaughtIt(string statements, string expected)
     {
         Assert.Contains(expected, Emit("Probe", statements));

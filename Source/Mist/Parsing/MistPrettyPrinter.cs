@@ -2076,6 +2076,8 @@ public sealed class MistPrettyPrinter
                     var args = EmitArgumentList(methodCall.Arguments);
                     return $"{target}.{name}{typeArgs}({args})";
                 }
+            case GenericMethodGroupSuffixPostfixSuffixNode methodGroup:
+                return $"{target}.{methodGroup.Name.Lexeme}{EmitTypeArgumentList(methodGroup.TypeArgs)}";
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
                 {
                     var name = memberAccess.Name.Lexeme;
@@ -2265,6 +2267,8 @@ public sealed class MistPrettyPrinter
                     var args = EmitArgumentList(genInvoke.Arguments);
                     return $"{name}{typeArgs}({args})";
                 }
+            case GenericNameExpressionPrimaryNode genericName:
+                return $"{genericName.Name.Lexeme}{EmitTypeArgumentList(genericName.TypeArgs)}";
             case IdentifierExpressionPrimaryNode ident:
                 return ident.Name.Lexeme;
             case FieldKeywordExpressionPrimaryNode:

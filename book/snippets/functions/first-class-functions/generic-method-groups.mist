@@ -1,0 +1,34 @@
+using Standard;
+
+public class Program
+{
+    public static T Same<T>(T value)
+    {
+        return value;
+    }
+
+    public static string Pick<T, R>(T | R value)
+    {
+        if (value is T left)
+        {
+            return $"T {left}";
+        }
+
+        return "R";
+    }
+
+    public static int Apply(func<int, int> f, int value)
+    {
+        return f(value);
+    }
+
+    public static void Main(string[] args)
+    {
+        func<int, int> same = Same;
+
+        // `int | string` does not say which constituent is T, so the type arguments are stated
+        func<int | string, string> pick = Pick<int, string>;
+
+        Console.WriteLine($"same(7)={same(7)} pick(5)={pick(5)} pick(w)={pick("w")} applied={Apply(Same<int>, 3)}");
+    }
+}

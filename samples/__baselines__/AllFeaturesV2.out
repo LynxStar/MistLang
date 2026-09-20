@@ -2027,6 +2027,7 @@ derived<int>: int? | int? | K? | narrow int?
 via abstract: K? | K?
 values: int? | K? | K?
 inferred values: T 6 | T z | absent
+stated values: T 5 | R | R | T w | T 4
 clones: present 7 | present 7 | absent copies 1 | absent copies 2
 generic clones: present w | present w | absent copies 1 | present w copies 1 | present w copies 2
 absent: True True | True False | True void

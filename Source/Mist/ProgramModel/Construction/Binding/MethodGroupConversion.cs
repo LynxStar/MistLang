@@ -32,10 +32,11 @@ internal static class MethodGroupConversion
     /// <para>
     /// Identity per position rather than assignability, matching how the CLR binds a delegate: a method
     /// taking an <c>int</c> does not convert to a <c>func&lt;long, ...&gt;</c> even though the argument
-    /// would widen at a call. A GENERIC method takes its type arguments from the target's positions
-    /// (<see cref="TypeArgumentInference.FromSignature"/>) and is then held to the same identity; one the
-    /// target leaves open is declined, and yields to a plain overload of the same signature as it does at a
-    /// call. Two overloads the receiver's arguments make one
+    /// would widen at a call. A GENERIC method takes the type arguments stated after its name, or else reads
+    /// them off the target's positions (<see cref="TypeArgumentInference.FromSignature"/>), and is then held
+    /// to the same identity; one the target leaves open is declined, and yields to a plain overload of the
+    /// same signature as it does at a call, unless arguments were stated, which only a method of that arity
+    /// can take. Two overloads the receiver's arguments make one
     /// signature are ordered as a call orders them, by <see cref="OverloadResolution.MoreSpecificSignature"/>
     /// (method-overloading Requirement 3.12); a pair no position separates is ambiguous.
     /// </para>
@@ -62,7 +63,7 @@ internal static class MethodGroupConversion
         }
 
         var closed = group.Candidates
-            .Select(candidate => (Candidate: candidate, Substitution: Closing(candidate, target, substitutionOf(candidate), interner)))
+            .Select(candidate => (Candidate: candidate, Substitution: Closing(candidate, group.StatedTypeArguments, target, substitutionOf(candidate), interner)))
             .Where(candidate => candidate.Substitution is not null)
             .ToDictionary(candidate => candidate.Candidate, candidate => candidate.Substitution!);
 
@@ -150,16 +151,21 @@ internal static class MethodGroupConversion
     }
 
     private static TypeSubstitution? Closing(
-        Method candidate, IFunctionType target, TypeSubstitution substitution, TypeInterner interner)
+        Method candidate, IReadOnlyList<IMistType>? stated, IFunctionType target, TypeSubstitution substitution, TypeInterner interner)
     {
+        if(stated is not null && stated.Count != candidate.TypeParametersList.Count)
+        {
+            return null;
+        }
+
         if(candidate.TypeParametersList.Count > 0)
         {
-            if(TypeArgumentInference.FromSignature(candidate, target) is not { } inferred)
+            if((stated ?? TypeArgumentInference.FromSignature(candidate, target)) is not { } closing)
             {
                 return null;
             }
 
-            substitution = substitution.Extend(TypeSubstitution.ForMethod(candidate, inferred));
+            substitution = substitution.Extend(TypeSubstitution.ForMethod(candidate, closing));
         }
 
         return SignatureIs(candidate, target, substitution, interner) ? substitution : null;

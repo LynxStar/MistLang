@@ -806,6 +806,12 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'{0}' names a method group, which is only valid where it is invoked or where a function type is expected whose signature one of its overloads has.");
 
+    public static readonly DiagnosticDescriptor TypeArgumentsOnANonMethod = new(
+        new DiagnosticId("MIST_PM_TYPE_ARGUMENTS_ON_A_NON_METHOD"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is not a method, so it takes no type arguments.");
+
     public static readonly DiagnosticDescriptor MethodGroupAmbiguous = new(
         new DiagnosticId("MIST_PM_METHOD_GROUP_AMBIGUOUS"),
         DiagnosticSeverity.Error,

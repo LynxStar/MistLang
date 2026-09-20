@@ -86,6 +86,8 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
                 return 0;
             }
 
+            public static int Counter = 0;
+
             public static string Shown(int value)
             {
                 return "plain";
@@ -104,11 +106,23 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
                 return value;
             }
 
+            public U Self<U>(U value)
+            {
+                return value;
+            }
+
+            public int Both<A, B>(A | B value)
+            {
+                return 0;
+            }
+
             public K Through(K value)
             {
                 func<K, K> kept = Kept;
                 func<K, K> echoed = Overloaded.Echo;
-                return echoed(kept(value));
+                func<K, K> own = Self<K>;
+                func<bool | string, int> both = Both<bool, string>;
+                return own(echoed(kept(value)));
             }
 
             public string With<U>(U other)
@@ -363,6 +377,43 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
     public void AGenericMethodGroupYieldsToAPlainOverloadOfTheSameSignature(string statement, int typeParameters)
     {
         Assert.Equal(typeParameters, FunctionReferenceIn(statement).Method.TypeParametersList.Count);
+    }
+
+    [Theory]
+    [InlineData("func<int, int> f = Overloaded.Echo<int>;", "Echo", "Standard.Int32")]
+    [InlineData("func<int | string, int> f = Overloaded.Either<int, string>;", "Either", "Standard.Int32, Standard.String")]
+    [InlineData("func<int | string, int> f = Overloaded.Either<string, int>;", "Either", "Standard.String, Standard.Int32")]
+    [InlineData("func<bool, string> f = keeper.With<bool>;", "With", "Standard.Boolean")]
+    public void AGenericMethodGroupTakesTheTypeArgumentsStatedAfterItsName(string statement, string method, string typeArguments)
+    {
+        var reference = FunctionReferenceIn(statement, extraPreamble: "var keeper = new Keeper<int>();");
+
+        Assert.Equal(method, reference.Method.Name);
+        Assert.Equal(typeArguments, string.Join(", ", reference.TypeArguments.Select(argument => argument.FullyQualifiedName)));
+    }
+
+    [Fact]
+    public void StatedTypeArgumentsChooseTheMethodOfThatArityOverAPlainOneOfTheSameSignature()
+    {
+        _ = Assert.Single(FunctionReferenceIn("func<int, string> f = Overloaded.Shown<int>;").Method.TypeParametersList);
+    }
+
+    [Theory]
+    [InlineData("func<int, int> f = Overloaded.Echo<int, string>;", "MIST_PM_METHOD_GROUP_NOT_CONVERTED")]
+    [InlineData("func<long, long> f = Overloaded.Echo<int>;", "MIST_PM_METHOD_GROUP_NOT_CONVERTED")]
+    [InlineData("func<int, int> f = Overloaded.Pick<int>;", "MIST_PM_METHOD_GROUP_NOT_CONVERTED")]
+    [InlineData("func<int, int> f = Overloaded.Counter<int>;", "MIST_PM_TYPE_ARGUMENTS_ON_A_NON_METHOD")]
+    public void StatedTypeArgumentsNoMethodCanTakeAreRefused(string statement, string expected)
+    {
+        _ = Assert.Single(Errors(BuildRun(statement), expected));
+    }
+
+    [Fact]
+    public void AGenericTypeNamedWithItsArgumentsWhereAnExpressionEndsIsATypeLiteral()
+    {
+        var literal = InitializerOf<TypeLiteralExpression>("var named = Pair<int, string>;");
+
+        Assert.Equal("Probe.Pair<Int32, String>", literal.ReferencedType.FullyQualifiedName);
     }
 
     [Fact]

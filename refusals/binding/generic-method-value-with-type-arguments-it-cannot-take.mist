@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static int Count = 0;
+
+    public static T Same<T>(T value)
+    {
+        return value;
+    }
+
+    public static void Main()
+    {
+        // REFUSE: MIST_PM_METHOD_GROUP_NOT_CONVERTED
+        func<int, int> wrongArity = Probe.Same<int, string>;
+        // REFUSE: MIST_PM_METHOD_GROUP_NOT_CONVERTED
+        func<long, long> wrongTarget = Same<int>;
+        // REFUSE: MIST_PM_TYPE_ARGUMENTS_ON_A_NON_METHOD
+        func<int, int> notAMethod = Probe.Count<int>;
+        func<int, int> stated = Probe.Same<int>;
+        Console.WriteLine($"{stated(1)}");
+    }
+}

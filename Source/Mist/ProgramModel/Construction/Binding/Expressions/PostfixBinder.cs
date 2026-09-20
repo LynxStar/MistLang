@@ -97,10 +97,69 @@ internal static class PostfixBinder
         return BindMemberAccess(node, new TypeReferenceExpression(node, type), node.Member.Lexeme, ctx, context);
     }
 
+    /// <summary>
+    /// A name with type arguments and no call after it, which the grammar admits only where an expression
+    /// ends. A method is the group with its arguments stated, left for the position's function type to
+    /// convert; anything else so written can only be a constructed type named as a value.
+    /// </summary>
+    internal static Expression BindGenericName(
+        GenericNameExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        var name = node.Name.Lexeme;
+
+        if(ctx.Scope.Lookup(new LookupRequest(name, MemberVisibility.InstanceAndStatic, node)) is MethodGroupResult { Methods.Count: > 0 } group)
+        {
+            return new MethodGroupExpression(node, null, name, group.Methods, null)
+            {
+                Paths = group.Paths,
+                StatedTypeArguments = context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope),
+            };
+        }
+
+        var definition = context.Resolver.ResolveGenericDefinition(name, 1 + node.TypeArgs.TypeArguments.Length, ctx.Scope, node);
+
+        if(definition is ErrorType)
+        {
+            return new ErrorExpression(node);
+        }
+
+        var typeArgs = context.Resolver.BindPack(definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
+        var type = definition is TypeAlias alias
+            ? context.Resolver.ExpandAlias(alias, typeArgs)
+            : context.Resolver.Construct(definition, typeArgs, ctx.Scope);
+
+        return new TypeLiteralExpression(node, type, context.Resolver.LookupWellKnown(WellKnownTypes.Type));
+    }
+
+    private static Expression WithStatedTypeArguments(
+        Expression member, TypeArgumentListNode stated, string name, PostfixSuffixNode node, BindingContext ctx, BuilderContext context)
+    {
+        if(member is ErrorExpression)
+        {
+            return member;
+        }
+
+        if(member is not MethodGroupExpression group)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.TypeArgumentsOnANonMethod, node, null, name);
+            return new ErrorExpression(node);
+        }
+
+        return new MethodGroupExpression(group.Node, group.Receiver, group.MemberName, group.Candidates, group.ReceiverConstructed, group.IsConditional)
+        {
+            Paths = group.Paths,
+            StatedTypeArguments = context.Resolver.ResolveTypeArguments(stated, ctx.Scope),
+        };
+    }
+
     private static Expression BindPostfixSuffix(PostfixSuffixNode suffix, Expression receiver, BindingContext ctx, BuilderContext context)
     {
         switch(suffix)
         {
+            case GenericMethodGroupSuffixPostfixSuffixNode stated:
+                return WithStatedTypeArguments(
+                    BindMemberAccess(suffix, receiver, stated.Name.Lexeme, ctx, context), stated.TypeArgs, stated.Name.Lexeme, suffix, ctx, context);
+
             case InvocationSuffixPostfixSuffixNode invocation:
                 return BindInvocation(suffix, receiver, invocation.Arguments, null, ctx, context);
 

@@ -606,6 +606,11 @@ rule PostfixSuffix
     = QUESTION_DOT name:IDENTIFIER typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as OptionalMethodCallSuffix
     | QUESTION_DOT name:IDENTIFIER                                                as OptionalMemberAccessSuffix
     | DOT name:IDENTIFIER typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as MethodCallSuffix
+    // A generic method named as a VALUE with its type arguments stated, `Api.Same<int>` with no call.
+    // Committed to only where `>` is followed by a token that ends an expression, which no comparison
+    // chain can be -- `>` needs a right operand -- so `Use(a.b < c, d > e)` stays two comparisons. `>`
+    // itself is NOT in the set: `Box<Span<T, unknown>> b;` would read its inner list as one of these.
+    | DOT name:IDENTIFIER typeArgs:TypeArgumentList &(SEMICOLON | COMMA | RIGHT_PARENTHESIS | RIGHT_BRACKET | RIGHT_BRACE)  as GenericMethodGroupSuffix
     | DOT name:IDENTIFIER                                                         as MemberAccessSuffix
     | LEFT_BRACKET index:Expression RIGHT_BRACKET                                 as IndexSuffix
     | LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS                       as InvocationSuffix
@@ -660,6 +665,7 @@ rule Primary
     // `>` is followed by `.name`, which no comparison chain can be, so `a < b > .c` is never read as
     // one -- the same token that disambiguates the two readings in C#.
     | type:QualifiedIdentifier typeArgs:TypeArgumentList DOT member:IDENTIFIER   as GenericTypeMemberAccessExpression
+    | name:IDENTIFIER typeArgs:TypeArgumentList &(SEMICOLON | COMMA | RIGHT_PARENTHESIS | RIGHT_BRACKET | RIGHT_BRACE)  as GenericNameExpression
     | name:IDENTIFIER                                                              as IdentifierExpression
     | typeRef:TypeReference                                                        as TypeLiteralExpression
     ;

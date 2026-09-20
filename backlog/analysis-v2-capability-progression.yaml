@@ -2920,6 +2920,38 @@ rules:
       6459, 664 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure and no rerun,
       AllFeaturesV2 run by hand was byte-identical and reported nothing, and the build and `dotnet format`
       were clean.
+
+      A LENGTH IS NEVER NEGATIVE (2026-09-20), found by a book snippet that had stopped regenerating.
+      `if(xs.Length < 2) { return 0; } return xs[1];` already proved, so the early return was never the
+      gap; the negation of an EQUALITY is. `Length == 0` failing leaves the values below zero beside
+      those above it, two intervals where the negation of an inequality leaves one, so `Length >= 1`
+      does not follow and `args[0]` after `if(args.Length == 0) { return 1; }` was UNPROVEN. Sized now
+      intersects whatever it learns with AtLeast(0), which is what every caller reaching it already
+      assumes of the member it read. The same guard's else branch proves, `0 == xs.Length` mirrored
+      proves, and the boundary holds: `if(xs.Length == 1) {} else { xs[0] }` is still UNPROVEN, a length
+      that is not 1 being free to be 0. `xs.Length != 0` is still not learned and is a task below.
+
+      A RANGE IN A LOCAL SIZES ITS SLICE (2026-09-20), the other stalled snippet. Lengths.Of read a
+      RangeExpression only where it was written in the index position, so `numbers[0..2]` sized its slice
+      and `Range w = 0..2; numbers[w]` did not. Knowledge now carries the range a local was given, Join
+      keeps it only where both paths agree and Same compares it so the fixpoint cannot settle on a stale
+      one, and Given sizes a slice whose index is a local holding one. A copied range carries, a
+      reassigned one replaces, and `1..^1` measures from the receiver's length as the written form does.
+
+      PROVED BY five rows in RefinementDecisionTests -- three admits for the equality guard, two refusals
+      for what it leaves open -- samples/RangesAndIndices' `--- Stored range ---` line, and two corpus
+      cases. The Range rows first written beside the others were DELETED rather than kept: the shell probe
+      resolves no slicing indexer, so they reported nothing and the admits passed for nothing, which is why
+      that half is banked on a sample and the corpus instead. Both book snippets regenerate, and
+      SnippetEmitter reports 370 of 370 with none failing.
+
+      FOUR MUTATIONS, each caught by name. The non-negative fact dropped fails the three equality admits
+      and nothing else. The range a local was given forgotten, and the slice sizing dropped, each fail
+      AllFeaturesV2's baseline. THE FOURTH IS THE ONE WORTH RECORDING: a join that keeps one path's range
+      unconditionally -- which is unsound, since the other path may hold a shorter one -- was caught by
+      NOTHING. The second corpus case was written for it and now names it, reporting
+      `index-past-a-range-the-paths-disagree-on.mist: expected MIST_PA_INDEX_UNPROVEN on line 20, reported:
+      nothing`. Sound joining had been argued rather than measured, which is exactly what a mutation is for.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -2930,6 +2962,16 @@ rules:
         A union with refined constituents is judged per constituent by the value's base type, or for
         a constant by any integral constituent it fits; a runtime `is` against a union of refinements
         narrows to a constituent (Req 10.3) and is not judged beyond order 8's pattern rules.
+      - >
+        `xs.Length != 0` teaches the flow nothing, where `xs.Length == 0` failing now does. Comparison
+        maps no NotEqual because ComparisonKind, which the pattern model shares, declares none; giving
+        it one is a language-surface decision, and routing the operator to the equality's negation
+        instead is the smaller alternative.
+      - >
+        A Range a local was given is forgotten at ANY join, because two range expressions are compared
+        as nodes and two spellings of `0..3` are different nodes. Sound, and no worse than before the
+        range was carried at all, but `Range w = 0..3; if(flag) { w = 0..3; }` loses a length it could
+        keep; comparing the bounds structurally is what would keep it.
       - >
         Real-valued refinements (`double > 0.0`) are not proven: the interval set is over long. A
         property-pattern refinement is not proven either, as the comparison engine spec says.

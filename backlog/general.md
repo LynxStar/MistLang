@@ -4,34 +4,6 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
-## 🟡 Two book snippets no longer regenerate, so their C# tabs are stale
-
-**Severity: minor** -- the pages render, but their "Emitted C#" tabs show output from whatever the
-compiler did when each last succeeded, not what it does now. `tools/SnippetEmitter` keeps a failing
-snippet's old `.cs`, so a failure is a silent stale tab rather than a red build. One of the three had gone
-further than stale: `expression-bodied.cs` showed C# that does not compile at all, assigning a get-only
-property in a constructor.
-
-**Measured 2026-09-20.** Three failed; `object-model/properties/expression-bodied.mist` is fixed. There
-`MIST_PA_NO_SET_ACCESSOR` was right -- C# refuses the same assignment as CS0200 -- so the page moved and
-`Width` gained an expression-bodied `init`. The two left are both `MIST_PA_INDEX_UNPROVEN`, and in both the
-page is idiomatic and the prover is what falls short:
-
-- `getting-started/top-level-statements/return-example.mist` -- `args[0]` after
-  `if (args.Length == 0) { ...; return 1; }`. The prover follows a POSITIVE guard into its own branch,
-  `if (args.Length > 0) { args[0] }` proving and running, but does not read an early return as narrowing
-  the rest of the block. Inverting the guard compiles, and stops the page teaching the early return it
-  exists to teach.
-- `basics/indexes-and-ranges/stored-index-range.mist` -- `slice[0]` where `Range window = 0..2;` and
-  `slice = numbers[window]`. Written inline as `numbers[0..2]` the length IS proven and `slice[0]` runs;
-  stored in a local, the Range's value does not reach the slice. Guarding with `if (slice.Length > 1)`
-  compiles, at the cost of noise on a page whose subject is that a range is a first-class value.
-
-Whether the prover learns these two or the pages carry a guard is the rule owner's call. The entry above,
-"Every book snippet regenerates on the experimental pipeline", is the state these left.
-
----
-
 ## 🟡 Classic only: Array (and Span) indexer upper bound is deferred to runtime for unknown-length types
 
 **Severity: critical** — Mist advertises static bounds safety via the `ArrayBounds` refinement (`>= 0 and < Length`), but that guarantee silently degrades to a runtime check whenever the length is not a compile-time constant. A program can compile with zero errors and throw `System.IndexOutOfRangeException` at runtime.
@@ -400,6 +372,16 @@ and a static member reached through a type alias, `Task.Yield()`, in both binder
 Nothing under `book/snippets/` is outside the tool. Later the same day local functions landed
 (`.kiro/specs/local-functions`, emitter order 187), and the ten fragments went back to the shape they
 were written in -- a bare or `public static` function at file top -- and regenerate as such.
+
+**2026-09-20**: three had lapsed, each regenerating a stale C# tab -- and one of the three, the
+expression-bodied property page, was showing C# that does not compile, having assigned a get-only
+property in a constructor. `MIST_PA_NO_SET_ACCESSOR` was right there, C# refusing the same assignment as
+CS0200, so the page moved and `Width` gained an expression-bodied `init`. The other two were
+`MIST_PA_INDEX_UNPROVEN` and the pages were idiomatic, so the prover moved instead: a length is never
+negative, which is what makes the negation of an equality usable, and a `Range` held in a local now sizes
+the slice it takes. Both are recorded on order 12 of the analysis register. The tool then reported 370 of
+370, 0 updated: those two tabs had happened to still match what the compiler emits, since only analysis
+had refused them, so the one tab actually showing the wrong thing was the property page's.
 
 ---
 

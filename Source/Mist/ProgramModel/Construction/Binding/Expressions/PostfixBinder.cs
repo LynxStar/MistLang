@@ -29,8 +29,7 @@ internal static class PostfixBinder
         // MethodGroupReachedEmission, which blames the compiler for what is a gap in the frontend.
         if(result is MethodGroupExpression group)
         {
-            if(MethodGroupConversion.Convert(group, ctx.TargetType, context.ProgramModel.TypeInterner, out var ambiguous)
-                is { } converted)
+            if(MethodGroupConversion.Convert(group, ctx.TargetType, context, out var ambiguous) is { } converted)
             {
                 return converted;
             }

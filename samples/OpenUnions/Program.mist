@@ -338,6 +338,10 @@ public class Program
         func<int?, string> take = lifted.Take;
         func<string?, string> takeWord = liftedWords.Take;
         Console.WriteLine($"values: {take(3)} | {takeWord("y")} | {lifted.AsValue(5)}");
+        func<int, string> forward = Api.Forward;
+        func<string, string> forwardWord = Api.Forward;
+        func<Slot<int>, string> useSlot = Api.UseSlot;
+        Console.WriteLine($"inferred values: {forward(6)} | {forwardWord("z")} | {useSlot(s)}");
 
         var keep = (IntKeep)new Keep<int>(7);
         Keep<int> kept = keep;

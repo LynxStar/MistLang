@@ -55,6 +55,66 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
             {
                 return value;
             }
+
+            public static R Turn<T, R>(T value, R fallback)
+            {
+                return fallback;
+            }
+
+            public static T First<T>(T left, T right)
+            {
+                return left;
+            }
+
+            public static Pair<T, T> Fresh<T>()
+            {
+                return new Pair<T, T>();
+            }
+
+            public static int Apply(func<long, long> f)
+            {
+                return 0;
+            }
+
+            public static int Apply(func<string, string, string> f)
+            {
+                return 1;
+            }
+
+            public static int Either<T, R>(T | R value)
+            {
+                return 0;
+            }
+
+            public static string Shown(int value)
+            {
+                return "plain";
+            }
+
+            public static string Shown<T>(T value)
+            {
+                return "generic";
+            }
+        }
+
+        public class Keeper<K>
+        {
+            public K Kept(K value)
+            {
+                return value;
+            }
+
+            public K Through(K value)
+            {
+                func<K, K> kept = Kept;
+                func<K, K> echoed = Overloaded.Echo;
+                return echoed(kept(value));
+            }
+
+            public string With<U>(U other)
+            {
+                return "with";
+            }
         }
 
         public abstract ITaker<K>
@@ -273,12 +333,55 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
         _ = Assert.Single(Errors(diagnostics, "MIST_PM_METHOD_GROUP_NOT_CONVERTED"));
     }
 
-    [Fact]
-    public void AGenericMethodGroupIsDeclined()
+    [Theory]
+    [InlineData("func<int, int> f = Overloaded.Echo;", "Echo", "Standard.Int32")]
+    [InlineData("func<string, string> f = Overloaded.Echo;", "Echo", "Standard.String")]
+    [InlineData("func<string, int, int> f = Overloaded.Turn;", "Turn", "Standard.String, Standard.Int32")]
+    [InlineData("func<int, int, int> f = Overloaded.First;", "First", "Standard.Int32")]
+    [InlineData("func<bool, string> f = keeper.With;", "With", "Standard.Boolean")]
+    [InlineData("func<Pair<string, string>> f = Overloaded.Fresh;", "Fresh", "Standard.String")]
+    public void AGenericMethodGroupTakesItsTypeArgumentsFromTheTarget(string statement, string method, string typeArguments)
     {
-        var diagnostics = BuildRun("func<int, int> f = Overloaded.Echo;");
+        var reference = FunctionReferenceIn(statement, extraPreamble: "var keeper = new Keeper<int>();");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_METHOD_GROUP_NOT_CONVERTED"));
+        Assert.Equal(method, reference.Method.Name);
+        Assert.Equal(typeArguments, string.Join(", ", reference.TypeArguments.Select(argument => argument.FullyQualifiedName)));
+    }
+
+    [Theory]
+    [InlineData("func<int, long, long> f = Overloaded.First;")]
+    [InlineData("func<int | string, int> f = Overloaded.Either;")]
+    [InlineData("func<int, string, int> f = Overloaded.Echo;")]
+    public void AGenericMethodGroupTheTargetLeavesOpenOrPullsTwoWaysDoesNotConvert(string statement)
+    {
+        _ = Assert.Single(Errors(BuildRun(statement), "MIST_PM_METHOD_GROUP_NOT_CONVERTED"));
+    }
+
+    [Theory]
+    [InlineData("func<int, string> f = Overloaded.Shown;", 0)]
+    [InlineData("func<string, string> f = Overloaded.Shown;", 1)]
+    public void AGenericMethodGroupYieldsToAPlainOverloadOfTheSameSignature(string statement, int typeParameters)
+    {
+        Assert.Equal(typeParameters, FunctionReferenceIn(statement).Method.TypeParametersList.Count);
+    }
+
+    [Fact]
+    public void AMethodGroupMatchesAPositionTypedByTheEnclosingTypesOwnParameter()
+    {
+        Assert.Empty(Errors(BuildRun(""), "MIST_PM_METHOD_GROUP_NOT_CONVERTED"));
+    }
+
+    [Theory]
+    [InlineData("func<long, long> f = Overloaded.Echo;")]
+    [InlineData("var applied = Overloaded.Apply(Overloaded.Echo);")]
+    public void AnInferredMethodGroupIsRecordedAsTheInstantiationItNames(string statement)
+    {
+        var model = BuildModel(statement, extraTypes: "", extraPreamble: "", out _);
+        var echo = Assert.IsAssignableFrom<MemberType>(model.TypesByFQN["Probe.Overloaded"]).MethodsList.Single(method => method.Name == "Echo");
+
+        Assert.Contains(
+            model.GenericCalls.All(),
+            call => ReferenceEquals(call.Method, echo) && call.TypeArguments is [{ FullyQualifiedName: "Standard.Int64" }]);
     }
 
     /// <summary>

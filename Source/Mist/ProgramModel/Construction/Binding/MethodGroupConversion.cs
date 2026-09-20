@@ -3,6 +3,7 @@ using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
@@ -31,8 +32,10 @@ internal static class MethodGroupConversion
     /// <para>
     /// Identity per position rather than assignability, matching how the CLR binds a delegate: a method
     /// taking an <c>int</c> does not convert to a <c>func&lt;long, ...&gt;</c> even though the argument
-    /// would widen at a call. A GENERIC method is declined, its type arguments being inferable only from
-    /// the target, which is inference this does not do. Two overloads the receiver's arguments make one
+    /// would widen at a call. A GENERIC method takes its type arguments from the target's positions
+    /// (<see cref="TypeArgumentInference.FromSignature"/>) and is then held to the same identity; one the
+    /// target leaves open is declined, and yields to a plain overload of the same signature as it does at a
+    /// call. Two overloads the receiver's arguments make one
     /// signature are ordered as a call orders them, by <see cref="OverloadResolution.MoreSpecificSignature"/>
     /// (method-overloading Requirement 3.12); a pair no position separates is ambiguous.
     /// </para>
@@ -58,10 +61,12 @@ internal static class MethodGroupConversion
             return TypeSubstitution.ForPath(group.ReceiverConstructed, group.Paths?.GetValueOrDefault(candidate), interner);
         }
 
-        var matches = OverloadResolution.WithoutHidden(
-            group.Candidates.Where(candidate => SignatureIs(candidate, target, substitutionOf(candidate), interner)).ToList(),
-            substitutionOf,
-            interner);
+        var closed = group.Candidates
+            .Select(candidate => (Candidate: candidate, Substitution: Closing(candidate, target, substitutionOf(candidate), interner)))
+            .Where(candidate => candidate.Substitution is not null)
+            .ToDictionary(candidate => candidate.Candidate, candidate => candidate.Substitution!);
+
+        var matches = OverloadResolution.WithoutHidden([.. closed.Keys], substitutionOf, interner);
 
         var preferred = matches
             .Where(candidate => !matches.Exists(other => !ReferenceEquals(other, candidate)
@@ -74,7 +79,25 @@ internal static class MethodGroupConversion
             return null;
         }
 
-        return new FunctionReferenceExpression(group.Node, group.Receiver, match, target);
+        return new FunctionReferenceExpression(group.Node, group.Receiver, match, target)
+        {
+            TypeArguments = match.TypeParametersList.ConvertAll(parameter => closed[match].Apply(parameter, interner)),
+        };
+    }
+
+    internal static Expression? Convert(
+        MethodGroupExpression group, IMistType? targetType, BuilderContext context, out bool ambiguous)
+    {
+        var converted = Convert(group, targetType, context.ProgramModel.TypeInterner, out ambiguous);
+
+        if(converted is FunctionReferenceExpression { TypeArguments.Count: > 0 } reference)
+        {
+            context.ProgramModel.ConstructorConstraintClosures.RecordMethod(reference.Method, reference.TypeArguments, group.Node);
+            context.ProgramModel.VariadicUses.Record(reference.Method, reference.TypeArguments);
+            context.ProgramModel.GenericCalls.Record(reference.Method, reference.TypeArguments);
+        }
+
+        return converted;
     }
 
     internal static bool Accepts(MethodGroupExpression group, IMistType parameterType, TypeInterner interner)
@@ -108,7 +131,7 @@ internal static class MethodGroupConversion
                 ? substitution.Apply(parameters[i].Type, interner)
                 : null;
 
-            settled.Add(Convert(group, target, interner, out var ambiguous) ?? Refuse(group, target, ambiguous, context));
+            settled.Add(Convert(group, target, context, out var ambiguous) ?? Refuse(group, target, ambiguous, context));
         }
 
         return settled;
@@ -126,11 +149,26 @@ internal static class MethodGroupConversion
         return new ErrorExpression(group.Node);
     }
 
+    private static TypeSubstitution? Closing(
+        Method candidate, IFunctionType target, TypeSubstitution substitution, TypeInterner interner)
+    {
+        if(candidate.TypeParametersList.Count > 0)
+        {
+            if(TypeArgumentInference.FromSignature(candidate, target) is not { } inferred)
+            {
+                return null;
+            }
+
+            substitution = substitution.Extend(TypeSubstitution.ForMethod(candidate, inferred));
+        }
+
+        return SignatureIs(candidate, target, substitution, interner) ? substitution : null;
+    }
+
     private static bool SignatureIs(
         Method candidate, IFunctionType target, TypeSubstitution substitution, TypeInterner interner)
     {
-        if(candidate.ParametersList.Count != target.ParameterTypes.Count
-            || candidate.TypeParametersList.Count > 0)
+        if(candidate.ParametersList.Count != target.ParameterTypes.Count)
         {
             return false;
         }
@@ -139,13 +177,17 @@ internal static class MethodGroupConversion
         {
             var parameter = substitution.Apply(candidate.ParametersList[i].Type, interner);
 
-            if(!ConversionRelation.IsIdentity(parameter, target.ParameterTypes[i]))
+            if(!IsTheSame(parameter, target.ParameterTypes[i]))
             {
                 return false;
             }
         }
 
-        return ConversionRelation.IsIdentity(
-            substitution.Apply(candidate.ReturnType, interner), target.ReturnType);
+        return IsTheSame(substitution.Apply(candidate.ReturnType, interner), target.ReturnType);
+    }
+
+    private static bool IsTheSame(IMistType declared, IMistType expected)
+    {
+        return (declared is TypeParameter && ReferenceEquals(declared, expected)) || ConversionRelation.IsIdentity(declared, expected);
     }
 }

@@ -369,6 +369,16 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         _ = Assert.Single(Analyse(statement));
     }
 
+    [Theory]
+    [InlineData("func<Square, int> named = Shapes.Sides;", 0)]
+    [InlineData("func<Mutable, int> named = Shapes.Sides;", 1)]
+    public void ATypeArgumentAMethodGroupInfers_IsHeldToTheMethodsConstraint(string statement, int findings)
+    {
+        const string shapes = "public class Shapes { public static int Sides<T>(T shape) where T : IShape { return 4; } }";
+
+        Assert.Equal(findings, Analyse(statement, shapes).Count(d => d.Id.Value == "MIST_PA_CONSTRAINT_NOT_SATISFIED"));
+    }
+
     // ── Harness ─────────────────────────────────────────────────────────
 
     private void AssertSilent(string statement, string extraTypes = "")

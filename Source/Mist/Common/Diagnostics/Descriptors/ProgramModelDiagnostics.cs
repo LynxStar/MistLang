@@ -793,19 +793,18 @@ public static class ProgramModelDiagnostics
 
     /// <summary>
     /// A method group reached a position that does not consume it. A group has two consumers, an
-    /// invocation and a conversion to a function type, and only the first is built.
+    /// invocation and a conversion to a function type.
     /// <para>
-    /// One message covers two different situations because separating them needs the target type this
-    /// pipeline does not propagate yet: a group where no function type could have been meant, which
-    /// is an error however much of the compiler gets built, and a group whose conversion is merely
-    /// unimplemented. So it states the rule rather than attributing the fault to either side.
+    /// One message covers two situations -- a position that expects no function type at all, and one
+    /// whose function type no overload has the signature of, a generic overload the target leaves open
+    /// included -- so it states the rule rather than guessing which the program meant.
     /// </para>
     /// </summary>
     public static readonly DiagnosticDescriptor MethodGroupNotConverted = new(
         new DiagnosticId("MIST_PM_METHOD_GROUP_NOT_CONVERTED"),
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
-        "'{0}' names a method group, which is only valid where it is invoked or converted to a function type. Conversion to a function type is not yet supported by the experimental pipeline.");
+        "'{0}' names a method group, which is only valid where it is invoked or where a function type is expected whose signature one of its overloads has.");
 
     public static readonly DiagnosticDescriptor MethodGroupAmbiguous = new(
         new DiagnosticId("MIST_PM_METHOD_GROUP_AMBIGUOUS"),

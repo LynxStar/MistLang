@@ -1,0 +1,23 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IShow
+{
+    string Show();
+}
+
+public class Probe
+{
+    public static string Shown<T>(T value) where T : IShow
+    {
+        return value.Show();
+    }
+
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CONSTRAINT_NOT_SATISFIED
+        func<string, string> shown = Shown;
+        Console.WriteLine(shown("w"));
+    }
+}

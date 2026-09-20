@@ -23,5 +23,7 @@ internal sealed class FunctionReferenceExpression(
 
     public Method Method { get; } = method;
 
+    public IReadOnlyList<IMistType> TypeArguments { get; init; } = [];
+
     public override IMistType Type { get; } = type;
 }

@@ -1,0 +1,26 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static T First<T>(T left, T right)
+    {
+        return left;
+    }
+
+    public static int Either<T, R>(T | R value)
+    {
+        return 0;
+    }
+
+    public static void Main()
+    {
+        // REFUSE: MIST_PM_METHOD_GROUP_NOT_CONVERTED
+        func<int, long, long> pulledTwoWays = First;
+        // REFUSE: MIST_PM_METHOD_GROUP_NOT_CONVERTED
+        func<int | string, int> leftOpen = Either;
+        func<int, int, int> taught = First;
+        Console.WriteLine($"{taught(1, 2)}");
+    }
+}

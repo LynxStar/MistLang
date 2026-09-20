@@ -55,6 +55,38 @@ internal static class TypeArgumentInference
         var bounds = NewBounds(parameters.Count);
         Match(declared, actual, parameters, bounds);
 
+        return Closed(bounds);
+    }
+
+    /// <summary>
+    /// The type arguments that make a generic method's signature a FUNCTION TYPE, or null where a parameter
+    /// stays open or meets two types. A method named as a value has no arguments to learn from, so the
+    /// target's positions teach it, the result included; each parameter takes exactly the type standing
+    /// there, a delegate binding by identity where a call would widen. The receiver's own arguments are
+    /// not applied first: they can mention none of the method's parameters, and the caller holds the
+    /// closed signature to the target afterwards.
+    /// </summary>
+    public static IReadOnlyList<IMistType>? FromSignature(Method method, IFunctionType target)
+    {
+        if(method.ParametersList.Count != target.ParameterTypes.Count)
+        {
+            return null;
+        }
+
+        var bounds = NewBounds(method.TypeParametersList.Count);
+
+        for(var i = 0; i < method.ParametersList.Count; i++)
+        {
+            Match(method.ParametersList[i].Type, target.ParameterTypes[i], method.TypeParametersList, bounds);
+        }
+
+        Match(method.ReturnType, target.ReturnType, method.TypeParametersList, bounds);
+
+        return Closed(bounds);
+    }
+
+    private static IMistType[]? Closed(List<IMistType>[] bounds)
+    {
         var closed = new IMistType[bounds.Length];
 
         for(var i = 0; i < bounds.Length; i++)

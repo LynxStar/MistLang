@@ -221,7 +221,7 @@ internal static class OperatorBinder
             return (AsConversionKind.Identity, null);
         }
 
-        if(ConversionRelation.IsWithin(source, target))
+        if(ConversionRelation.IsWithinAsItself(source, target))
         {
             return (AsConversionKind.Widening, null);
         }
@@ -233,7 +233,7 @@ internal static class OperatorBinder
             return (AsConversionKind.UnionExtraction, constituent);
         }
 
-        if(source is UnknownType || ConversionRelation.IsWithin(target, source))
+        if(source is UnknownType || ConversionRelation.IsWithinAsItself(target, source))
         {
             return (AsConversionKind.Narrowing, null);
         }

@@ -212,6 +212,20 @@ public sealed class ClonableNewtypeConversionDecisionTests
         Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Id.Value);
     }
 
+    [Theory]
+    [InlineData("var aCloneTestedAgainstAMutableSource = jaguar is Tiger;", "MIST_PA_PATTERN_NEVER_MATCHES")]
+    [InlineData("var aCloneTestedAgainstAMutableSourceByAs = jaguar as Tiger;", "MIST_PM_AS_NO_RELATIONSHIP")]
+    public void ATypeTestBetweenACloneAndASourceThatDefinesItsOwnCopy_IsRefused(string statement, string expected)
+    {
+        Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Id.Value);
+    }
+
+    [Fact]
+    public void ACloneTestedAgainstItsRenamedBase_IsAdmitted()
+    {
+        Assert.Empty(Errors(Analyse("var aCloneIsItsRenamedBase = jaguar is Cat;")));
+    }
+
     [Fact]
     public void ARefusedConversion_NamesTheMemberThatBlocksIt()
     {

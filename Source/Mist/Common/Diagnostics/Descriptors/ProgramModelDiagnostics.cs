@@ -955,16 +955,17 @@ public static class ProgramModelDiagnostics
     /// TYPE: an unreachable target leaves nothing to answer with, neither the bare type a provable
     /// conversion yields nor the optional a checked one does.
     /// <para>
-    /// A void end reaches here too, rather than through a message of its own. Nothing converts to or from
-    /// the unit type, so "no relationship" is already the true answer and a second descriptor would only
-    /// word it more specifically.
+    /// A void end reaches here too, and so does a newtype against its source, rather than through a message
+    /// of its own. Nothing converts to or from the unit type, and a newtype converts freely without ever
+    /// being its source, so what both have in common -- neither is ever the other -- is what the message
+    /// states, and a second descriptor would only word it more specifically.
     /// </para>
     /// </summary>
     public static readonly DiagnosticDescriptor AsConversionNoRelationship = new(
         new DiagnosticId("MIST_PM_AS_NO_RELATIONSHIP"),
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
-        "No conversion relates '{0}' to '{1}', so 'as' has no result type to produce. One must contain the other, or the source must be a union or unknown holding it.");
+        "A value of type '{0}' can never be '{1}', so 'as' has no result type to produce. One must contain the other, or the source must be a union or unknown holding it; a conversion is not enough, since 'as' answers the value rather than a copy of it.");
 
     /// <summary>
     /// A type parameter list declares more than one bracket-free pack. Two of them cannot divide a

@@ -113,6 +113,17 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
             return;
         }
 
+        var held = OptionalLifting.NonVoidPortion(input, context.Model.TypeInterner);
+
+        if(ConversionRelation.CopiesAClone(held, tested) || ConversionRelation.CopiesAClone(tested, held))
+        {
+            context.Report(
+                ProgramAnalysisDiagnostics.PatternNeverMatches, test.Node, [about],
+                TypeDisplay.Mist(held), TypeDisplay.Mist(tested));
+
+            return;
+        }
+
         if(OptionalUnion.IsVoid(tested) || input is UnionType || tested is UnionType || IsIndeterminate(input) || IsIndeterminate(tested))
         {
             return;

@@ -65,6 +65,16 @@ internal static class ConversionRelation
         return IsWithin(from, to, copying: false);
     }
 
+    /// <summary>
+    /// Whether the only containment between the two is <see cref="LeavesClone"/>. A test asks what a value
+    /// IS, and the copy that reaches the source is a second value of another type, so a newtype is never
+    /// its source however freely it converts to one (newtypes spec Requirement 2.1).
+    /// </summary>
+    public static bool CopiesAClone(IMistType from, IMistType to)
+    {
+        return IsWithin(from, to) && !IsWithinAsItself(from, to);
+    }
+
     private static bool IsWithin(IMistType from, IMistType to, bool copying)
     {
         from = Structural(from);

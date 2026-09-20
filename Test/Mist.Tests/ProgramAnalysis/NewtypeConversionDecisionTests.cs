@@ -20,6 +20,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
         "MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD",
         "MIST_PA_CAST_ARGUMENT_MISMATCH", "MIST_PA_AMBIGUOUS_CAST", "MIST_PM_UNRESOLVABLE_OVERLOAD",
         "MIST_PM_AMBIGUOUS_OVERLOAD", "MIST_PM_UNRESOLVED_MEMBER",
+        "MIST_PA_PATTERN_NEVER_MATCHES", "MIST_PM_AS_NO_RELATIONSHIP",
     ];
 
     public NewtypeConversionDecisionTests()
@@ -178,6 +179,8 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
         var swapped = new Swapped<int, string>("c", 3);
         var keptInATuple = (kept, 1);
         Kept<int> | Entity keptOrEntity = kept;
+        Position? maybePosition = position;
+        unknown boxedPosition = position;
         """;
 
     [Theory]
@@ -199,6 +202,30 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [InlineData("Wrapper leavesAGenericCloneFreeBeforeADeclaredImplicit = kept;")]
     [InlineData("(Held<int>, int) leavesAGenericCloneElementwise = keptInATuple;")]
     public void AConversionOfACopyableSource_IsAdmitted(string statement)
+    {
+        Assert.Empty(Analyse(statement));
+    }
+
+    [Theory]
+    [InlineData("var aStructCloneTested = position is Point;", "MIST_PA_PATTERN_NEVER_MATCHES")]
+    [InlineData("var aReadonlyCloneTested = cash is Money;", "MIST_PA_PATTERN_NEVER_MATCHES")]
+    [InlineData("var aSourceTestedAgainstItsClone = money is Cash;", "MIST_PA_PATTERN_NEVER_MATCHES")]
+    [InlineData("var aCloneTestedUnderNegation = position is not Point;", "MIST_PA_PATTERN_NEVER_MATCHES")]
+    [InlineData("var aCloneTestedInAnArm = position switch { Point p => 1, _ => 0 };", "MIST_PA_PATTERN_NEVER_MATCHES")]
+    [InlineData("var anOptionalCloneTested = maybePosition is Point;", "MIST_PA_PATTERN_NEVER_MATCHES")]
+    [InlineData("var aGenericCloneTested = kept is Held<int>;", "MIST_PA_PATTERN_NEVER_MATCHES")]
+    [InlineData("var aCloneTestedPastItsSource = position as Point;", "MIST_PM_AS_NO_RELATIONSHIP")]
+    [InlineData("var aSourceTestedAgainstItsCloneByAs = point as Position;", "MIST_PM_AS_NO_RELATIONSHIP")]
+    public void ATypeTestBetweenACloneAndItsSource_IsRefused(string statement, string expected)
+    {
+        Assert.Equal(expected, Assert.Single(Analyse(statement)).Id.Value);
+    }
+
+    [Theory]
+    [InlineData("var atRuntimeTheCloneAnswersItself = boxedPosition is Position;")]
+    [InlineData("var atRuntimeTheSourceAnswersFalse = boxedPosition is Point;")]
+    [InlineData("var aWideningIsStillContainment = point.X is long;")]
+    public void ATestNothingButACopyWouldDecide_IsStillAdmitted(string statement)
     {
         Assert.Empty(Analyse(statement));
     }

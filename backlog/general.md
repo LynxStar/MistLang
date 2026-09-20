@@ -660,3 +660,36 @@ Expected: one `MIST_PA_CONSTRAINT_NOT_SATISFIED` on the `Holder<Plain>` line and
 2. Delete the flag write, since it restores the default, or the flag itself if nothing sets it to `false`.
 
 Recorded during the flaky-tests investigation (2026-09-14), not fixed there, because neither has produced a failure.
+
+---
+
+## 🟡 Two spellings of a function type still do not parse: `new func<T, R>[n]` and `(func<T, R>)?`
+
+**Severity: low** -- both are narrow, and each has a spelling that works today, so nothing is unreachable.
+
+Found while giving the `func<...>` type reference its own array rank and optional suffix (order 104 of
+`backlog/emitter-v2-capability-progression.yaml`, 2026-09-20). Measured on both pipelines, each
+`MIST_PARSE_INCOMPLETE` at the enclosing class:
+
+```mist
+var made = new func<int, int>[2];      // MIST_PARSE_INCOMPLETE
+(func<int, int>)? maybe = step;        // MIST_PARSE_INCOMPLETE
+```
+
+Two separate causes in `Source/Mist/Grammar/Mist.storm`:
+
+1. `ElementTypeRef` -- the element type of an array CREATION -- has a primitive, an unknown and a named
+   alternative and no `func` one, so `new func<int, int>[2]` cannot be written. The array literal
+   `func<int, int>[] fs = [a, b];` is the way to make one, which is why nothing has needed it.
+2. `ParenthesizedTypeRef` carries `arrayRank:ArrayRankSuffix?` but no `optional:QUESTION?`, so the
+   parenthesized spelling admits `[]` and not `?`. The bare `func<int, int>?` now parses and runs on both
+   pipelines, so the parenthesized one is redundant rather than needed.
+
+**Action:**
+1. For (1), add a `FUNC typeArgs:TypeArgumentList` alternative to `ElementTypeRef` and resolve it on the
+   array-creation path. It is the element type only, so it takes no suffix of its own -- the `[n]` after it
+   is the creation's.
+2. For (2), weigh admitting `optional:QUESTION?` on `ParenthesizedTypeRef` against what it costs: `(x)?`
+   in statement position is also the opening of a ternary whose condition is parenthesized, and the
+   uninitialized-declaration alternative would see a type where an expression was written. Measure the
+   corpus before changing it, as order 104's entry did.

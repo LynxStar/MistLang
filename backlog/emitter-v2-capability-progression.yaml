@@ -6279,6 +6279,49 @@ capabilities:
       One interner key serves tuples and functions, both being an ordered list of type identities. They
       key separate dictionaries, so `func<int, int>` and `(int, int)` never collide despite keying
       equal, and a test pins that.
+
+      A RANK AND AN OPTIONAL SUFFIX ARE THE FUNCTION TYPE'S OWN (2026-09-20), closing what order 108
+      found on its way past: `func<int, int>[] fs = [x => x + 1, x => x * 2];` was MIST_PARSE_INCOMPLETE at
+      the enclosing class on both pipelines, and so was every other suffixed spelling -- `func<int, int>[2]`,
+      `func<int, int>?`, `func<int, int>[]?`, `List<func<int, int>[]>`, and `type Stages = func<int, int>[];`,
+      which reached the binder as a list pattern over a function type rather than as an array of one. The
+      func alternative was the ONLY one in SingleTypeRef carrying neither `arrayRank:ArrayRankSuffix?` nor
+      `optional:QUESTION?`: the primitive, named and nested-generic alternatives carry both and the
+      parenthesized one carries the rank, which is why `(func<int, int>)[]` parsed all along. It now carries
+      both, in that order, and the suffixes compose as they do everywhere else -- `[]?` is an OPTIONAL ARRAY
+      and not an array of optionals, which falls out of Resolve wrapping the array before the optional and is
+      written nowhere in this alternative. MEASURED BEFORE BUILDING, over 3858 files: of 705 `func<`
+      occurrences in the repository not one is followed by `[` or `?` across any whitespace, so no program in
+      the tree can change its parse; both orchestrators match their baselines after.
+
+      RESOLUTION WAS TWO ARMS, in GetArrayRank and in HasOptionalToken. The suffixes are applied by the
+      shared tail of Resolve rather than by each form's own arm, so the func form being absent from those two
+      switches meant a suffix the parser kept was dropped in silence -- the grammar alone would have made
+      `func<int, int>[]` mean `func<int, int>`.
+
+      MEASURED AFTER on v2, each line derived by hand first: `4 6` for a local, a `[2]` field, a `[2]`
+      parameter and return (`6 4`, swapped), a `func<int, int>[]` carried through `List<...>` as a type
+      argument, and the same through a `type` alias; `4` for an optional reached through a plain local, and
+      `2` for a `func<int, int>[]?` parameter narrowed by `is`. Emission is `System.Func<int, int>[]` for the
+      array and the same for the optional array, void being absent from a reference type's representation.
+      CLASSIC PARSES THE ARRAY SPELLING AND REFUSES IT, MIST_TC_0001 over `Func<[Int32], Int32>[]` against
+      `Func<[Int32], Int32>`, which is the refusal it already gave the parenthesized spelling (MIST_TC_0116);
+      nothing it used to compile changed. The OPTIONAL spelling it runs: `func<int, int>? f = x => x + 1;`
+      prints 4 on both pipelines.
+
+      NOT PART OF THIS, each measured: `new func<int, int>[2]` is still MIST_PARSE_INCOMPLETE, ElementTypeRef
+      carrying no func alternative, so an array literal is the only way to make one; a lambda assigned
+      DIRECTLY to `func<int, int>?` is MIST_PM_LAMBDA_PARAMETER_NO_TYPE on v2, the target being a union and
+      not a function type; and `(func<int, int>)?` does not parse, ParenthesizedTypeRef carrying no optional.
+
+      PROVED BY FunctionTypeSuffixParseTests at Tier 1 -- twelve positions for the rank and eight for the
+      optional, the sized rank, both suffixes together, the parenthesized spelling keeping the parse it had,
+      a bare `func<int, int>` taking nothing from a `steps[0]` that follows it, and the printer's round trip
+      over all four shapes -- and by five FunctionTypeResolutionTests on the model: the array of functions,
+      its length, the ONE interned type the suffixed and parenthesized spellings both reach, the optional's
+      union with void, and the optional falling on the array and not on its element. Six mutations, each
+      caught by name: either suffix written before the type arguments, either resolver arm removed, and
+      either suffix dropped from the printer.
     unlocks: []
 
   - id: lambda-expressions
@@ -6486,7 +6529,7 @@ capabilities:
       False` for the comparisons left alone; `3 | 2` through nested arguments; four refusals, each the one
       expected -- the wrong arity, a target the stated signature is not, a field, and a constraint broken.
       FOUND ON THE WAY, not part of this: `func<int, int>[]` does not parse as a type on either pipeline,
-      with plain lambdas as its elements too; `(func<int, int>)[]` does.
+      with plain lambdas as its elements too; `(func<int, int>)[]` does. Closed at order 104 on 2026-09-20.
       PROVED BY GenericMethodValueParseTests at Tier 1 (thirteen positions for the suffix, three for the bare
       name, eleven shapes that must keep their parse -- the uninitialized `Box<Span<T, unknown>> b;` among
       them -- the comparisons counted beside a method value, and the printer's round trip),

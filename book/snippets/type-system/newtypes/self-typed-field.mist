@@ -1,0 +1,50 @@
+using Standard;
+
+public class Node : IClonable<Node>
+{
+    public int Item;
+    public Node? Next;
+
+    public Node(int item, Node? next)
+    {
+        this.Item = item;
+        this.Next = next;
+    }
+
+    public owned Node Clone()
+    {
+        return new Node(this.Item, this.Next?.Clone());
+    }
+}
+
+public type Chain = new Node;
+
+public class Program
+{
+    public static string Spell(Chain? head)
+    {
+        var text = "";
+        var cursor = head;
+        while(cursor is Chain here)
+        {
+            text = $"{text} {here.Item}";
+            cursor = here.Next;
+        }
+
+        return text;
+    }
+
+    public static void Main(string[] args)
+    {
+        Node? end = void;
+        var nodes = new Node(1, new Node(2, end));
+        var chain = (Chain)nodes;
+
+        if(nodes.Next is Node second)
+        {
+            second.Item = 99;
+        }
+
+        Console.WriteLine($"chain{Spell(chain)}");
+    }
+}

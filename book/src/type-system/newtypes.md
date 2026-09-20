@@ -98,6 +98,14 @@ A struct, a readonly intrinsic type and a readonly class are **copyable**: a cop
 
 Changing `point.X` leaves `position` untouched: `Point point = position;` copied it. The emitted conversions copy field by field, reaching each field through an `UnsafeAccessor` so neither type's private state is widened, and allocate a class uninitialized so the source's constructor does not run a second time.
 
+One copyable source has no field-by-field copy at all: one with a field whose type names the source. `Node? Next` is `Chain? Next` in the clone, so no field of `Node` stands for the corresponding field of `Chain`, and there is nothing to copy across. Such a source converts only if it says how it is copied, as the next section but one describes; if it does not, both directions are missing and either one is refused, naming the field:
+
+```text
+error MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD: Cannot convert 'Node' to 'Chain'. The copy is field for field, and it does not hold at 'Next': a 'Node | void' in the source is a 'Chain | void' in the newtype. 'Node' implements no 'IClonable<Node>' to say how it is copied.
+```
+
+Declaring the newtype is still fine. Only converting is refused.
+
 Without a cast, any other value is refused where a newtype is expected -- the source, and another newtype over the same source alike:
 
 ```text
@@ -170,11 +178,28 @@ A class with no `IClonable` of itself, including one that only inherits `IClonab
 error MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY: Cannot cast 'Entity' to 'Actor'. 'Entity' defines no copy to convert with; a newtype and its mutable class source convert only when the class implements 'IClonable<Entity>' with a Clone of its own.
 ```
 
-A `Clone` body can also fail to hold with the other type as `this`. A field declared `Tiger? Mate` is `Jaguar? Mate` in the clone, so copying `Mate` across passes a `Tiger` where a `Jaguar` is needed. Fields are never converted recursively; the cast is refused, naming the member:
+A `Clone` body can also fail to hold with the other type as `this`. A field declared `Tiger? Mate` is `Jaguar? Mate` in the clone, so a body that **shares** `Mate` -- copies the reference across rather than cloning it -- passes a `Tiger` where a `Jaguar` is needed, and the cast is refused, naming the member:
 
 ```text
 error MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD: Cannot cast 'Tiger' to 'Jaguar'. The cast runs 'Jaguar.Clone' with a 'Tiger' as this, and it does not hold at 'Mate': Cannot implicitly convert type 'Tiger | void' to 'Jaguar | void'.
 ```
+
+A body that **clones** the field holds, and that is how a source with a field naming itself converts at all. Within a conversion, cloning such a field *is* the conversion: `this.Next?.Clone()` converts `Next` rather than cloning it and then needing a second step, and answers the newtype. A type test naming the result type tests for the operand, so the deep-`Clone` spelling `if(this.Next is Node next) { ... next.Clone() ... }` works too -- without that rule the test would ask whether a `Node` is already a `Chain`, which is never true, and the conversion would quietly copy only the first element.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/newtypes/self-typed-field.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/newtypes/self-typed-field.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`chain 1 2` holds both elements, and mutating `nodes`' second element afterwards does not reach it: the whole chain was copied. In the emitted C#, the operator's body casts where the Mist wrote `Clone()`, calling itself once per element, and an absent `Next` answers null rather than reaching the operator.
 
 ## Generic Sources
 

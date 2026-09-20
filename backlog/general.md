@@ -4,6 +4,26 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
+## 🟡 Three book snippets no longer regenerate, so their C# tabs are stale
+
+**Severity: minor** -- the pages render, but their "Emitted C#" tabs show output from whatever the
+compiler did when each last succeeded, not what it does now. `tools/SnippetEmitter` keeps a failing
+snippet's old `.cs`, so a failure is a silent stale tab rather than a red build.
+
+**Measured 2026-09-20**, `dotnet run --project tools/SnippetEmitter`: 366 unchanged, 1 updated, 3 failed.
+
+- `basics/indexes-and-ranges/stored-index-range.mist` -- `MIST_PA_INDEX_UNPROVEN` for `0` and `1` on a
+  `slice`, the prover not carrying what the slice's length is.
+- `getting-started/top-level-statements/return-example.mist` -- `MIST_PA_INDEX_UNPROVEN` for `args[0]`.
+- `object-model/properties/expression-bodied.mist` -- `MIST_PA_NO_SET_ACCESSOR` assigning
+  `Rectangle.Width`, an expression-bodied property having no setter.
+
+Each is an analysis rule tightening past a page that was written before it, not a snippet bug of its
+own; whether the rule or the page moves is the rule owner's call. The entry above, "Every book snippet
+regenerates on the experimental pipeline", is the state these three left.
+
+---
+
 ## 🟡 Classic only: Array (and Span) indexer upper bound is deferred to runtime for unknown-length types
 
 **Severity: critical** — Mist advertises static bounds safety via the `ArrayBounds` refinement (`>= 0 and < Length`), but that guarantee silently degrades to a runtime check whenever the length is not a compile-time constant. A program can compile with zero errors and throw `System.IndexOutOfRangeException` at runtime.

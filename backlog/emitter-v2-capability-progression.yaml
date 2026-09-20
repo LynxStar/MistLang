@@ -5130,11 +5130,35 @@ capabilities:
       run.
       LEFT UNSYNTHESIZED, a cast refused at the Mist source and a program that never converts compiling again:
       a clone or source declaring a PACK, whose operators and holders need a spelling per width (the closed
-      `new Tagged<int, string, bool>` failed in C# on main too); a copyable source with a SELF-TYPED SLOT
-      (`Node<T>? next` is `Chain<T>? next` in the clone, so no slot-for-slot copy types -- `type IntChain = new
-      Node<int>` failed in C# unused on main, and whether such a copy recurses or is refused naming the member,
-      as Requirement 10 refuses, is undecided); and a clone inside a generic type over a source the namespace
-      cannot name, a protected nested one, where its holder would have to be written.
+      `new Tagged<int, string, bool>` failed in C# on main too); and a clone inside a generic type over a source
+      the namespace cannot name, a protected nested one, where its holder would have to be written.
+      A COPYABLE SOURCE WITH A SELF-TYPED SLOT, undecided here and decided 2026-09-20, is no longer among them.
+      `Node<T>? next` is `Chain<T>? next` in the clone, so no slot-for-slot copy types; the source now routes to
+      SynthesizeClonable, and where it implements `IClonable<Source>` the Requirement 10 conversions run instead.
+      Where it does not, the first differing slot is recorded on the clone and MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD
+      names it at a cast and at an implicit position alike, replacing the CAST_HAS_NO_CONVERSION and
+      NO_IMPLICIT_CONVERSION measured above; recorded under analysis order 4.
+      THE SILENT TRUNCATION this left is closed with it. A conversion re-binds the Clone body in the result's
+      scope, so `this.Next is Node<T> next` read as a test for `Chain<T>` on a `Node<T>?` -- always false --
+      and `(Chain<int>)nodes` compiled and yielded a one-node list, both directions. Measured before the fix on
+      main 0f90bbfd, one probe per body over a three-node list: the pattern body compiled and `chain.Next is
+      void` printed True, where the conversion had held it would be False; `is not` and a switch arm printed one
+      answer run as the method and the other run as the conversion (False then True, `node` then `other`), the
+      divergence measured in one program that did both; the shared body and `this.Next?.Clone()` were refused,
+      at `Next` and at `Clone`. Within a conversion body a `Clone()` on the operand's type is now
+      the conversion itself, `?.` included and answering the optional, and a test naming the result type tests
+      for the operand; `as` stays refused, no conversion relating `Node<T> | Void` to `Chain<T>`, which is a
+      refusal rather than a silence. A shared field is untouched and still refused naming it.
+      A COLLECTION HOLDING THE SLOT needed nothing of its own, probed after the rules were in: a `List<Tree>`
+      field whose Clone loops and calls Clone per element converts, and so does a `Tree[]` one, the per-element
+      call being an ordinary receiver of the operand's type.
+      PROVED BY four admit rows and two emission facts (the conditional guard and the operand-typed test with
+      the cast it binds, the generic holder still outside every generic type), one Tier 4 fact whose program
+      converts a three-node list both ways, generic and closed, mutates the source after and reads both apart,
+      and answers absence for an absent operand, and samples/NewtypeClones' three new lines. Three mutations:
+      the Clone-to-conversion rule off fails five test names; the type-test rule off fails the emission and
+      runtime facts while every decision row still passes, which is the silent truncation measured again; and
+      the conditional emission arm off fails the same two. Full suite green on the branch, 7425 of 7425.
       MEASURED on v2 after, each line derived by hand first: the five probes print `readonly generic copy: held
       4 | held w | back held w | cast held 4`, `readonly open copy: empty | held w | back held w | cast empty`,
       `struct generic copy: (1, one) | (two, 2) | back (1, one) | cast (two, 2)`, `plain generic clone: 4 fresh+

@@ -550,6 +550,22 @@ rules:
       among Take(sbyte) and Take(byte), and three corpus cases: constant-narrowing now `(byte)300`, and new
       negative-constant-to-an-unsigned-type and integral-narrowing-of-a-variable. The admit mutated away on a
       confirmed build fails the five admits. Full suite green on the branch, 6177 of 6177.
+
+      A COPY THAT CANNOT BE FIELD FOR FIELD IS ITS OWN REFUSAL (2026-09-20), newtypes Requirement 2.8 and
+      MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD. A copyable source whose slot names the source answers the
+      newtype in the clone, so no slot of one stands for the slot of the other; NewtypeConversions records
+      that first slot on the clone and synthesizes neither direction. The refusal names the slot and both
+      of its types at the instance, and says the source implements no `IClonable<Source>` to say how it is
+      copied. Reported through one helper, UnheldCopies, from CastAnalyzer at a cast and from
+      AssignabilityAnalyzer at an implicit position, because both directions are missing and a leave asked
+      for one as much as a cast does: on main 0f90bbfd `(Chain<int>)nodes` was CAST_HAS_NO_CONVERSION and
+      `Node<int> back = chain;` NO_IMPLICIT_CONVERSION, neither naming the field that has to change. Where
+      the source DOES implement IClonable the Requirement 10 conversions run instead, which is what makes
+      this rule's silence the interesting half: the corpus case is a readonly class with a `Node? Next`
+      and no IClonable, and NewtypeConversionDecisionTests holds all three positions plus the message.
+      Mutating the record away to null fails the three decision rows and the three message rows; mutating
+      UnheldSlot to find nothing fails those six and the readonly-clonable rows besides; mutating the report
+      out of AssignabilityAnalyzer fails the two leave rows and nothing else.
     tasks:
       - >
         Order 5 is where the classification gets its other customers: assignment, argument, return, arm

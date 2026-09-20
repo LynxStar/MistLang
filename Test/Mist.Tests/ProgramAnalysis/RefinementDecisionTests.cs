@@ -286,9 +286,22 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("readonly int[] cells = new int[2]; public int Kept() { if(cells.Length > 1) { Held.Log(); return cells[1]; } return 0; } static void Log() { }")]
     [InlineData("int[] cells = new int[2]; public int Fresh() { cells = new int[3]; return cells[2]; }")]
     [InlineData("int[] cells = new int[2]; public int Plain { get; set; } public int First() { if(cells.Length > 0) { var p = Plain; Plain = 2; return cells[0]; } return 0; }")]
+    [InlineData("public static int Early(int[] xs) { if(xs.Length == 0) { return 0; } return xs[0]; }")]
+    [InlineData("public static int Otherwise(int[] xs) { if(xs.Length == 0) { return 0; } else { return xs[0]; } }")]
+    [InlineData("public static int Mirrored(int[] xs) { if(0 == xs.Length) { return 0; } return xs[0]; }")]
     public void AnIndexALengthGuardProves_IsAdmitted(string members)
     {
         AssertSilent("var held = new Held();", $"public class Held {{ {members} }}");
+    }
+
+    [Theory]
+    [InlineData("public static int Past(int[] xs) { if(xs.Length == 0) { return 0; } return xs[1]; }")]
+    [InlineData("public static int NotOne(int[] xs) { if(xs.Length == 1) { return 0; } return xs[0]; }")]
+    public void AnIndexALengthGuardLeavesOpen_IsRefused(string members)
+    {
+        Assert.Equal(
+            "MIST_PA_INDEX_UNPROVEN",
+            Assert.Single(Analyse("var held = new Held();", $"public class Held {{ {members} }}")).Id.Value);
     }
 
     [Theory]

@@ -1,0 +1,16 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        var numbers = [10, 20, 30, 40, 50];
+        Range window = 0..2;
+        var slice = numbers[window];
+
+        // REFUSE: MIST_PA_INDEX_OUT_OF_BOUNDS
+        Console.WriteLine(slice[2]);
+    }
+}

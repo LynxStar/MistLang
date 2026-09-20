@@ -12,7 +12,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal sealed record Bound(object Holder, ComparisonKind Kind);
 
-internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0, Admitted? Length = null)
+internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0, Admitted? Length = null, RangeExpression? Slice = null)
 {
     public static readonly Knowledge Unknown = new(Admitted.Everything, ImmutableHashSet<Bound>.Empty);
 }
@@ -56,7 +56,9 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
 
             var length = mine.Length is { } left2 && theirs.Length is { } right2 ? left2.Or(right2) : null;
 
-            joined = joined.Add(local, new Knowledge(values, mine.Bounds.Intersect(theirs.Bounds), changes, length));
+            var slice = Equals(mine.Slice, theirs.Slice) ? mine.Slice : null;
+
+            joined = joined.Add(local, new Knowledge(values, mine.Bounds.Intersect(theirs.Bounds), changes, length, slice));
         }
 
         return joined;
@@ -67,7 +69,7 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
         return left.Count == right.Count
             && left.All(entry => right.TryGetValue(entry.Key, out var other)
                 && entry.Value.Values.Equals(other.Values) && entry.Value.Bounds.SetEquals(other.Bounds)
-                && Equals(entry.Value.Length, other.Length));
+                && Equals(entry.Value.Length, other.Length) && Equals(entry.Value.Slice, other.Slice));
     }
 
     public ImmutableDictionary<object, Knowledge> Transfer(ImmutableDictionary<object, Knowledge> state, FlowStep step)
@@ -212,6 +214,18 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
             return state.SetItem(local, new Knowledge(produced, ImmutableHashSet<Bound>.Empty));
         }
 
+        if(value is RangeExpression written)
+        {
+            return state.SetItem(local, Knowledge.Unknown with { Slice = written });
+        }
+
+        if(value is IndexExpression { Index: LocalReferenceExpression taken } slice
+            && state.TryGetValue(taken.Local, out var holding) && holding.Slice is { } range
+            && Lengths.OfSlice(range, Lengths.Of(slice.Receiver, held => Held(state, held))) is { } sized)
+        {
+            return state.SetItem(local, Knowledge.Unknown with { Length = sized });
+        }
+
         return Lengths.Of(value, held => Held(state, held)) is { } length
             ? state.SetItem(local, Knowledge.Unknown with { Length = length })
             : state.Remove(local)
@@ -254,11 +268,17 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
         return state;
     }
 
+    /// <summary>
+    /// A length learned from a condition, and never negative -- which every caller here already assumes of
+    /// the member it read. Without that, the negation of an EQUALITY carries nothing usable: `Length == 0`
+    /// failing leaves the values below zero beside those above it, so `Length >= 1` does not follow, where
+    /// the negation of an inequality needs no such help.
+    /// </summary>
     private static ImmutableDictionary<object, Knowledge> Sized(
         ImmutableDictionary<object, Knowledge> state, object measured, Admitted admitted, bool holds)
     {
         var known = state.TryGetValue(measured, out var existing) ? existing : Knowledge.Unknown;
-        var learned = holds ? admitted : admitted.Not();
+        var learned = (holds ? admitted : admitted.Not()).And(Admitted.AtLeast(0));
 
         return state.SetItem(measured, known with { Length = known.Length is { } already ? already.And(learned) : learned });
     }

@@ -633,6 +633,8 @@ mid=2:20,30
 head=2:10,20
 tail=3:30
 trimmed=3:20,40
+--- Stored range ---
+stored=3:20,40
 --- List and slice patterns ---
 first=10,last=50
 middle=3:20

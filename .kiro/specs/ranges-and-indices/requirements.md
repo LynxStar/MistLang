@@ -276,6 +276,14 @@ public class Program
         var trimmed = numbers[1..^1];
         Console.WriteLine($"trimmed={trimmed.Length}:{trimmed[0]},{trimmed[^1]}");
 
+        // PROOF (Property 13a): a Range HELD IN A LOCAL sizes the slice it takes, so the
+        // indexes below are proven where the range is written out. Losing that makes the
+        // program refuse rather than print, and a wrong size falsifies the count.
+        Console.WriteLine("--- Stored range ---");
+        Range window = 1..4;
+        var stored = numbers[window];
+        Console.WriteLine($"stored={stored.Length}:{stored[0]},{stored[2]}");
+
         // PROOF (Property 17): list + slice pattern matching. `[var first, .. var middle,
         // var last]` matches a receiver of length >= 2, binding the first/last elements
         // from each end and binding the contiguous middle sub-sequence (a new array) via
@@ -313,6 +321,8 @@ mid=2:20,30
 head=2:10,20
 tail=3:30
 trimmed=3:20,40
+--- Stored range ---
+stored=3:20,40
 --- List and slice patterns ---
 first=10,last=50
 middle=3:20

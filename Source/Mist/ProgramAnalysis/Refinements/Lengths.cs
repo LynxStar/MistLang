@@ -70,7 +70,7 @@ internal static class Lengths
         };
     }
 
-    private static Admitted? OfSlice(RangeExpression range, Admitted? source)
+    public static Admitted? OfSlice(RangeExpression range, Admitted? source)
     {
         var from = range.Start is null ? Admitted.Exactly(0) : Position(range.Start, source);
         var to = range.End is null ? source : Position(range.End, source);

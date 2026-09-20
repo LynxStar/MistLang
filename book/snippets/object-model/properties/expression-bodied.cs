@@ -18,6 +18,7 @@ public class Rectangle
     public int Width
     {
         get => field;
+        init => field = value;
     }
 
     public int Height

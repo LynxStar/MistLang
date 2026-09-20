@@ -4,23 +4,31 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ---
 
-## 🟡 Three book snippets no longer regenerate, so their C# tabs are stale
+## 🟡 Two book snippets no longer regenerate, so their C# tabs are stale
 
 **Severity: minor** -- the pages render, but their "Emitted C#" tabs show output from whatever the
 compiler did when each last succeeded, not what it does now. `tools/SnippetEmitter` keeps a failing
-snippet's old `.cs`, so a failure is a silent stale tab rather than a red build.
+snippet's old `.cs`, so a failure is a silent stale tab rather than a red build. One of the three had gone
+further than stale: `expression-bodied.cs` showed C# that does not compile at all, assigning a get-only
+property in a constructor.
 
-**Measured 2026-09-20**, `dotnet run --project tools/SnippetEmitter`: 366 unchanged, 1 updated, 3 failed.
+**Measured 2026-09-20.** Three failed; `object-model/properties/expression-bodied.mist` is fixed. There
+`MIST_PA_NO_SET_ACCESSOR` was right -- C# refuses the same assignment as CS0200 -- so the page moved and
+`Width` gained an expression-bodied `init`. The two left are both `MIST_PA_INDEX_UNPROVEN`, and in both the
+page is idiomatic and the prover is what falls short:
 
-- `basics/indexes-and-ranges/stored-index-range.mist` -- `MIST_PA_INDEX_UNPROVEN` for `0` and `1` on a
-  `slice`, the prover not carrying what the slice's length is.
-- `getting-started/top-level-statements/return-example.mist` -- `MIST_PA_INDEX_UNPROVEN` for `args[0]`.
-- `object-model/properties/expression-bodied.mist` -- `MIST_PA_NO_SET_ACCESSOR` assigning
-  `Rectangle.Width`, an expression-bodied property having no setter.
+- `getting-started/top-level-statements/return-example.mist` -- `args[0]` after
+  `if (args.Length == 0) { ...; return 1; }`. The prover follows a POSITIVE guard into its own branch,
+  `if (args.Length > 0) { args[0] }` proving and running, but does not read an early return as narrowing
+  the rest of the block. Inverting the guard compiles, and stops the page teaching the early return it
+  exists to teach.
+- `basics/indexes-and-ranges/stored-index-range.mist` -- `slice[0]` where `Range window = 0..2;` and
+  `slice = numbers[window]`. Written inline as `numbers[0..2]` the length IS proven and `slice[0]` runs;
+  stored in a local, the Range's value does not reach the slice. Guarding with `if (slice.Length > 1)`
+  compiles, at the cost of noise on a page whose subject is that a range is a first-class value.
 
-Each is an analysis rule tightening past a page that was written before it, not a snippet bug of its
-own; whether the rule or the page moves is the rule owner's call. The entry above, "Every book snippet
-regenerates on the experimental pipeline", is the state these three left.
+Whether the prover learns these two or the pages carry a guard is the rule owner's call. The entry above,
+"Every book snippet regenerates on the experimental pipeline", is the state these left.
 
 ---
 

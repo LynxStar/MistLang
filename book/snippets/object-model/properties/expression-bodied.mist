@@ -11,10 +11,11 @@ public class Rectangle
     // Read-only computed property (top-level =>)
     public int Area => Width * Height;
 
-    // Expression-bodied get accessor
+    // Expression-bodied get and init accessors
     public int Width
     {
         get => field;
+        init => field = value;
     }
 
     // Expression-bodied get and set accessors

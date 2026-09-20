@@ -139,6 +139,10 @@ public static class LeftRecursionPass
                 CollectLeftmost(groupExpr.Inner, rules, grammar, result);
                 break;
 
+            case StormPredicateExpr predicateExpr:
+                CollectLeftmost(predicateExpr.Inner, rules, grammar, result);
+                break;
+
             case StormLabeledExpr labeledExpr:
                 CollectLeftmost(labeledExpr.Element, rules, grammar, result);
                 break;
@@ -161,7 +165,7 @@ public static class LeftRecursionPass
     {
         return expr switch
         {
-            StormOptionalExpr or StormZeroOrMoreExpr => true,
+            StormOptionalExpr or StormZeroOrMoreExpr or StormPredicateExpr => true,
             StormGroupExpr groupExpr => IsNullable(groupExpr.Inner),
             StormLabeledExpr labeledExpr => IsNullable(labeledExpr.Element),
             StormNamedAlternative namedAlt => IsNullable(namedAlt.Expression),

@@ -76,6 +76,8 @@ public enum StormTokenKind
     RightBrace,
     /// <summary><c>,</c></summary>
     Comma,
+    Ampersand,
+    Bang,
 
     // --- Annotations ---
     /// <summary>An annotation: <c>@</c> followed by an identifier (e.g., <c>@memo</c>).</summary>
@@ -435,6 +437,8 @@ public static class StormLexer
             '{' => (StormTokenKind?)StormTokenKind.LeftBrace,
             '}' => (StormTokenKind?)StormTokenKind.RightBrace,
             ',' => (StormTokenKind?)StormTokenKind.Comma,
+            '&' => (StormTokenKind?)StormTokenKind.Ampersand,
+            '!' => (StormTokenKind?)StormTokenKind.Bang,
             _ => null,
         };
     }

@@ -445,6 +445,10 @@ public static class GrammarIRLowering
                 CollectAnonymousStringLiterals(groupExpr.Inner, syntheticTokens, existingTokens, ref tokenIndex);
                 break;
 
+            case StormPredicateExpr predicateExpr:
+                CollectAnonymousStringLiterals(predicateExpr.Inner, syntheticTokens, existingTokens, ref tokenIndex);
+                break;
+
             case StormLabeledExpr labeledExpr:
                 CollectAnonymousStringLiterals(labeledExpr.Element, syntheticTokens, existingTokens, ref tokenIndex);
                 break;
@@ -704,8 +708,40 @@ public static class GrammarIRLowering
             case StormGroupExpr groupExpr:
                 return LowerRuleExpression(groupExpr.Inner, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics);
 
+            case StormPredicateExpr predicateExpr:
+                var predicateLabels = new List<FieldLabelIR>();
+                var predicateInner = LowerRuleExpression(predicateExpr.Inner, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, predicateLabels, diagnostics);
+                if(predicateLabels.Count > 0)
+                {
+                    diagnostics.Add(new StormDiagnostic(
+                        StormDiagnosticIds.STORM_UNSUPPORTED_CONSTRUCT,
+                        StormDiagnosticSeverity.Error,
+                        $"Label '{predicateLabels[0].Label}' inside a predicate: a predicate yields no AST child",
+                        null, 0, 0));
+                }
+
+                if(predicateInner is not RuleRefIR && !IsFixedWidthTokenExpression(predicateInner))
+                {
+                    diagnostics.Add(new StormDiagnostic(
+                        StormDiagnosticIds.STORM_UNSUPPORTED_CONSTRUCT,
+                        StormDiagnosticSeverity.Error,
+                        "A predicate body must be a rule reference or a fixed-width expression over tokens",
+                        null, 0, 0));
+                }
+
+                return new PredicateIR(predicateInner, predicateExpr.IsNegated);
+
             case StormLabeledExpr labeledExpr:
                 var labeledInner = LowerRuleExpression(labeledExpr.Element, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics);
+                if(HoldsPredicate(labeledInner))
+                {
+                    diagnostics.Add(new StormDiagnostic(
+                        StormDiagnosticIds.STORM_UNSUPPORTED_CONSTRUCT,
+                        StormDiagnosticSeverity.Error,
+                        $"A predicate inside the labelled element '{labeledExpr.Label}': write it beside the element, not within it",
+                        null, 0, 0));
+                }
+
                 fieldLabels.Add(new FieldLabelIR(labeledExpr.Label, labeledInner));
                 return labeledInner;
 
@@ -731,6 +767,72 @@ public static class GrammarIRLowering
                     $"Unsupported expression type in rule expression: {expr.GetType().Name}",
                     null, 0, 0));
                 return new StringLiteralIR("");
+        }
+    }
+
+    /// <summary>
+    /// The parser emitter writes a labelled element through paths of its own -- a labelled sequence, optional
+    /// or list -- which pass over any element kind they do not know and have no channel to say so. A predicate
+    /// dropped there would leave its alternative unguarded, so it is refused here instead.
+    /// </summary>
+    private static bool HoldsPredicate(ExpressionIR expr)
+    {
+        return expr switch
+        {
+            PredicateIR => true,
+            SequenceIR sequence => sequence.Elements.Any(HoldsPredicate),
+            AlternationIR alternation => alternation.Alternatives.Any(HoldsPredicate),
+            OptionalIR optional => HoldsPredicate(optional.Inner),
+            ZeroOrMoreIR zeroOrMore => HoldsPredicate(zeroOrMore.Inner),
+            OneOrMoreIR oneOrMore => HoldsPredicate(oneOrMore.Inner),
+            _ => false,
+        };
+    }
+
+    private static bool IsFixedWidthTokenExpression(ExpressionIR expr)
+    {
+        return TokenWidth(expr) >= 0;
+    }
+
+    private static int TokenWidth(ExpressionIR expr)
+    {
+        switch(expr)
+        {
+            case TokenRefIR:
+                return 1;
+
+            case SequenceIR sequence:
+                var total = 0;
+                foreach(var element in sequence.Elements)
+                {
+                    var width = TokenWidth(element);
+                    if(width < 0)
+                    {
+                        return -1;
+                    }
+
+                    total += width;
+                }
+
+                return total;
+
+            case AlternationIR alternation:
+                var shared = -1;
+                foreach(var alternative in alternation.Alternatives)
+                {
+                    var width = TokenWidth(alternative);
+                    if(width < 0 || (shared >= 0 && width != shared))
+                    {
+                        return -1;
+                    }
+
+                    shared = width;
+                }
+
+                return shared;
+
+            default:
+                return -1;
         }
     }
 

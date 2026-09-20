@@ -205,6 +205,10 @@ public static class MemoizationAnalysisPass
                 CollectRuleRefs(fragment.Body, refs);
                 break;
 
+            case PredicateIR predicate:
+                CollectRuleRefs(predicate.Inner, refs);
+                break;
+
             // TokenRefIR, StringLiteralIR, CharClassIR, RegexLiteralIR: terminals — no edges.
             default:
                 break;

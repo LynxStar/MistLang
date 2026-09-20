@@ -231,6 +231,16 @@ public sealed record StormGroupExpr(
     : StormExpression;
 
 /// <summary>
+/// A syntactic predicate, an ampersand or a bang before one element: the first succeeds where the element
+/// matches and the second where it does not. Neither consumes input nor contributes to the AST, which is what
+/// lets an alternative be chosen by what follows it.
+/// </summary>
+public sealed record StormPredicateExpr(
+    StormExpression Inner,
+    bool IsNegated)
+    : StormExpression;
+
+/// <summary>
 /// A double-quoted string literal: <c>"fn"</c>
 /// </summary>
 public sealed record StormStringLiteralExpr(

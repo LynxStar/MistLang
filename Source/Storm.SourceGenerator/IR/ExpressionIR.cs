@@ -74,6 +74,18 @@ public sealed class OneOrMoreIR : ExpressionIR
     }
 }
 
+public sealed class PredicateIR : ExpressionIR
+{
+    public ExpressionIR Inner { get; }
+    public bool IsNegated { get; }
+
+    public PredicateIR(ExpressionIR inner, bool isNegated)
+    {
+        Inner = inner;
+        IsNegated = isNegated;
+    }
+}
+
 /// <summary>
 /// A string literal: <c>"fn"</c>
 /// </summary>

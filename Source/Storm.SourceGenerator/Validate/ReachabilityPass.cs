@@ -72,7 +72,8 @@ public static class ReachabilityPass
         var unionSoFar = new HashSet<string>();
         for(var i = 0; i < alternatives.Count; i++)
         {
-            if(i > 0 && sequenceSets[i].Count > 0 && sequenceSets[i].IsSubsetOf(unionSoFar))
+            var isGuarded = ContainsPredicate(alternatives[i]);
+            if(i > 0 && !isGuarded && sequenceSets[i].Count > 0 && sequenceSets[i].IsSubsetOf(unionSoFar))
             {
                 diagnostics.Add(new StormDiagnostic(
                     StormDiagnosticIds.STORM_UNREACHABLE_ALTERNATIVE,
@@ -83,9 +84,12 @@ public static class ReachabilityPass
                     rule.Column));
             }
 
-            foreach(var seq in sequenceSets[i])
+            if(!isGuarded)
             {
-                _ = unionSoFar.Add(seq);
+                foreach(var seq in sequenceSets[i])
+                {
+                    _ = unionSoFar.Add(seq);
+                }
             }
 
             // Perform intra-block analysis for inline blocks in top-level alternatives
@@ -582,6 +586,23 @@ public static class ReachabilityPass
         }
     }
 
+    private static bool ContainsPredicate(StormExpression expr)
+    {
+        return expr switch
+        {
+            StormPredicateExpr => true,
+            StormGroupExpr groupExpr => ContainsPredicate(groupExpr.Inner),
+            StormLabeledExpr labeledExpr => ContainsPredicate(labeledExpr.Element),
+            StormNamedAlternative namedAlt => ContainsPredicate(namedAlt.Expression),
+            StormOptionalExpr optExpr => ContainsPredicate(optExpr.Inner),
+            StormZeroOrMoreExpr zomExpr => ContainsPredicate(zomExpr.Inner),
+            StormOneOrMoreExpr oomExpr => ContainsPredicate(oomExpr.Inner),
+            StormSequenceExpr seqExpr => seqExpr.Elements.Any(ContainsPredicate),
+            StormAlternationExpr altExpr => altExpr.Alternatives.Any(ContainsPredicate),
+            _ => false,
+        };
+    }
+
     /// <summary>
     /// Determines if an expression can match the empty string.
     /// </summary>
@@ -589,7 +610,7 @@ public static class ReachabilityPass
     {
         return expr switch
         {
-            StormOptionalExpr or StormZeroOrMoreExpr => true,
+            StormOptionalExpr or StormZeroOrMoreExpr or StormPredicateExpr => true,
             StormGroupExpr groupExpr => IsNullable(groupExpr.Inner),
             StormLabeledExpr labeledExpr => IsNullable(labeledExpr.Element),
             StormNamedAlternative namedAlt => IsNullable(namedAlt.Expression),

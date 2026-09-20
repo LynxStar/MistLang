@@ -814,6 +814,10 @@ public static class ParserEmitter
                     break;
                 }
 
+            case PredicateIR predicate:
+                EmitPredicate(writer, context, predicate, okVar);
+                break;
+
             case OptionalIR opt:
                 {
                     // Unlabeled optional that may contain labeled sub-expressions.
@@ -1457,6 +1461,12 @@ public static class ParserEmitter
     /// </summary>
     private static void EmitConsumeStructuralElement(CodeWriter writer, EmissionContext context, ExpressionIR element, string okFlag)
     {
+        if(element is PredicateIR predicate)
+        {
+            EmitPredicate(writer, context, predicate, okFlag);
+            return;
+        }
+
         string? kind = null;
         switch(element)
         {
@@ -1954,6 +1964,10 @@ public static class ParserEmitter
 
                     break;
                 }
+
+            case PredicateIR predicate:
+                EmitPredicate(writer, context, predicate, okVar);
+                break;
 
             case RuleRefIR ruleRef:
                 {
@@ -2632,6 +2646,92 @@ public static class ParserEmitter
         if(withCheck)
         {
             writer.WriteBlock("if (!_altFound)", () => writer.WriteLine($"{okVar} = false;"));
+        }
+    }
+
+    /// <summary>
+    /// A predicate over tokens is a test of Peek offsets and touches no state. One over a rule runs the rule
+    /// and puts back everything it moved -- position, error flag and diagnostics -- whichever way it answered.
+    /// </summary>
+    private static void EmitPredicate(CodeWriter writer, EmissionContext context, PredicateIR predicate, string? okVar)
+    {
+        var guard = okVar ?? "true";
+        var fail = okVar != null ? $"{okVar} = false;" : "Error(\"Predicate failed\");";
+        var offset = 0;
+        var tokenTest = TryBuildTokenTest(context, predicate.Inner, ref offset);
+        if(tokenTest != null)
+        {
+            var failed = predicate.IsNegated ? tokenTest : $"!({tokenTest})";
+            writer.WriteLine($"if ({guard} && {failed}) {fail}");
+            return;
+        }
+
+        var rule = ((RuleRefIR)predicate.Inner).Rule.Name;
+        writer.WriteBlock($"if ({guard})", () =>
+        {
+            writer.WriteLine("var _predSaved = _pos;");
+            writer.WriteLine("var _predSavedError = _hasError;");
+            writer.WriteLine("var _predSavedDiagCount = _diagnostics?.Count ?? 0;");
+            writer.WriteLine($"var _predMatched = _Parse{rule}() != null && !_hasError;");
+            writer.WriteLine("_pos = _predSaved;");
+            writer.WriteLine("_hasError = _predSavedError;");
+            writer.WriteLine("_diagnostics?.TruncateTo(_predSavedDiagCount);");
+            writer.WriteLine($"if (_predMatched == {(predicate.IsNegated ? "true" : "false")}) {fail}");
+        });
+    }
+
+    private static string? TryBuildTokenTest(EmissionContext context, ExpressionIR expr, ref int offset)
+    {
+        switch(expr)
+        {
+            case TokenRefIR tokenRef:
+                return $"Peek({offset++}) == (int){TokenKindRef(tokenRef.Token.Name)}";
+
+            case StringLiteralIR lit:
+                var token = FindTokenForLiteral(context, lit.Value);
+                return token == null ? null : $"Peek({offset++}) == (int){TokenKindRef(token.Name)}";
+
+            case AlternationIR alternation:
+                {
+                    var start = offset;
+                    var width = -1;
+                    var tests = new List<string>();
+                    foreach(var alternative in alternation.Alternatives)
+                    {
+                        var at = start;
+                        var test = TryBuildTokenTest(context, alternative, ref at);
+                        if(test == null || (width >= 0 && at - start != width))
+                        {
+                            return null;
+                        }
+
+                        width = at - start;
+                        tests.Add(test);
+                    }
+
+                    offset = start + width;
+                    return "(" + string.Join(" || ", tests) + ")";
+                }
+
+            case SequenceIR sequence:
+                {
+                    var tests = new List<string>();
+                    foreach(var element in sequence.Elements)
+                    {
+                        var test = TryBuildTokenTest(context, element, ref offset);
+                        if(test == null)
+                        {
+                            return null;
+                        }
+
+                        tests.Add(test);
+                    }
+
+                    return "(" + string.Join(" && ", tests) + ")";
+                }
+
+            default:
+                return null;
         }
     }
 

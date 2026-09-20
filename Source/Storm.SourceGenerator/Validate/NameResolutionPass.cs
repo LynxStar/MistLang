@@ -123,6 +123,10 @@ public static class NameResolutionPass
                 WalkExpression(groupExpr.Inner, grammar, isRuleContext, containingDecl, diagnostics);
                 break;
 
+            case StormPredicateExpr predicateExpr:
+                WalkExpression(predicateExpr.Inner, grammar, isRuleContext, containingDecl, diagnostics);
+                break;
+
             case StormLabeledExpr labeledExpr:
                 WalkExpression(labeledExpr.Element, grammar, isRuleContext, containingDecl, diagnostics);
                 break;

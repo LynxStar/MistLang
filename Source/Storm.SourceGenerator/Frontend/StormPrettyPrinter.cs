@@ -153,6 +153,7 @@ public static class StormPrettyPrinter
             StormZeroOrMoreExpr zom => $"{PrintPostfix(zom.Inner)}*",
             StormOneOrMoreExpr oom => $"{PrintPostfix(oom.Inner)}+",
             StormGroupExpr group => $"({PrintExpression(group.Inner)})",
+            StormPredicateExpr predicate => $"{(predicate.IsNegated ? "!" : "&")}{PrintPostfix(predicate.Inner)}",
             StormStringLiteralExpr str => $"\"{EscapeString(str.Value)}\"",
             StormCharClassExpr cc => cc.Text,
             StormRegexLiteralExpr regex => $"`{regex.Pattern}`",

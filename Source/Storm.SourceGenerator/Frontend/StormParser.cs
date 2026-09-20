@@ -656,6 +656,17 @@ public static class StormParser
                 return new StormLabeledExpr(labelTok.Lexeme, element);
             }
 
+            return ParsePredicate();
+        }
+
+        private StormExpression ParsePredicate()
+        {
+            if(Check(StormTokenKind.Ampersand) || Check(StormTokenKind.Bang))
+            {
+                var isNegated = Advance().Kind == StormTokenKind.Bang;
+                return new StormPredicateExpr(ParsePostfix(), isNegated);
+            }
+
             return ParsePostfix();
         }
 
@@ -927,7 +938,7 @@ public static class StormParser
         {
             return Current.Kind switch
             {
-                StormTokenKind.StringLiteral or StormTokenKind.CharClass or StormTokenKind.RegexLiteral or StormTokenKind.Identifier or StormTokenKind.LeftParen or StormTokenKind.InlineKeyword => true,
+                StormTokenKind.StringLiteral or StormTokenKind.CharClass or StormTokenKind.RegexLiteral or StormTokenKind.Identifier or StormTokenKind.LeftParen or StormTokenKind.InlineKeyword or StormTokenKind.Ampersand or StormTokenKind.Bang => true,
                 _ => false,
             };
         }

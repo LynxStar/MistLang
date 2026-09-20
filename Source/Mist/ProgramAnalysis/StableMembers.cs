@@ -14,7 +14,8 @@ namespace Mist.ProgramAnalysis;
 /// `init`, which nothing can call once the value is built, and its getter is auto over storage of its own,
 /// or has a body that reads only such members, or has no body here to read -- intrinsic, CLR-projected --
 /// and is declared by a `readonly` concrete type. An abstract's property never does, `readonly` or not:
-/// nothing holds an implementer to the modifier. A body is held to the node kinds listed rather than
+/// that contract holds an implementing getter to writing nothing, not to reading only what stays put, and
+/// the implementer need not be a readonly type. A body is held to the node kinds listed rather than
 /// refused for the ones known to be trouble, so a call, an index, a loop, and any kind added to the model
 /// later all answer no until someone decides otherwise.
 /// </summary>

@@ -1515,7 +1515,13 @@ rules:
       over. MEASURED on v2, each through a value still typed by the predicate: a getter computed from a
       mutable field printed 11 after `low.Grow()`; `type NonEmpty = List<int> { Count: > 0 }` printed 0
       after `full.Clear()`; an abstract's `Size { get; }` printed 11 after its implementer grew; and the
-      same through a `readonly abstract`, which nothing holds an implementer to. Classic declares all four.
+      same through a `readonly abstract`. Classic declares all four. THE REASON FIRST WRITTEN HERE FOR THE
+      LAST WAS WRONG, and Arthur corrected it: a readonly contract IS met member by member, by members that
+      write nothing, on a type that need not be readonly (readonly-contexts Requirement 13.6;
+      samples/ReadonlyContexts section 15 is that shape). What it does not promise is that what a member
+      READS stays put: over that sample's Document, `readable.GetLength()` is 12, then 7 after
+      `doc.Content = "changed"`, both members readonly throughout. So a predicate still cannot read an
+      abstract's property, for that reason and not for want of enforcement.
       `init` runs the other way: a write to an init-only property outside construction compiles on NEITHER
       pipeline (Roslyn's refusal on both, where a get-only write is this frontend's MIST_PA_NO_SET_ACCESSOR
       -- order 9's task), so nothing can call it once the value is built, and classic's MIST_TC_0100 for it
@@ -1562,12 +1568,6 @@ rules:
       and no rerun, AllFeaturesV2 run by hand was byte-identical and reported nothing, and the build and
       `dotnet format` were clean.
     tasks:
-      - >
-        `readonly` on an abstract holds no implementer to it. Measured 2026-09-19:
-        `public class Jar : ISized` over `public readonly abstract ISized`, with a mutable field, a getter
-        over it and a method that writes it, compiles and runs on v2. StableMembers therefore trusts
-        `readonly` on a concrete type only. If conformance came to require a readonly implementer, an
-        abstract's property could be read by a predicate again.
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
         the method not to mutate `this` and wants enforcing, or it is invalid and wants a diagnostic.
@@ -1682,6 +1682,43 @@ rules:
       not judged, mappings judged by name, the abstract's type arguments not applied, refused mappings
       not counted as answered, and slot-typed signatures compared by name. Thirteen of thirteen caught
       on the first pass.
+
+      A READONLY SLOT IS ANSWERED ONLY BY A MEMBER THAT WRITES NOTHING (2026-09-19; readonly-contexts
+      Requirement 13.2 to 13.6). Found by checking a wrong claim: order 6 had said nothing holds an
+      implementer to a `readonly abstract`, Arthur answered "You can't meet a contract for something
+      readonly with a mutable thing", and measuring it showed the type-level reading was the mistake and the
+      MEMBER-level contract unenforced. MEASURED at 84f70426 on both pipelines: over
+      `readonly abstract IReadable { int GetLength(); }`, a `GetLength()` that does `Reads = Reads + 1`
+      compiled on v2 and printed 1 then 2 through the abstract, as did a getter that writes; classic refuses
+      both (MIST_TC_0079) at the member. v2 now reports MIST_PA_READONLY_CONTRACT_NOT_MET at classic's line
+      and column. ConformanceAnalyzer asks ReadonlyInference of whatever answers the slot -- a declared
+      member, an inherited one, a with block's mapped source -- whenever the SLOT is readonly, which the
+      builder already writes onto every slot of a readonly abstract. The conforming type is not asked
+      anything: 13.6 says it need not be readonly, and Document stays valid.
+
+      STRICTER THAN CLASSIC THREE TIMES, each by the requirement's own words: a slot marked `readonly` by
+      itself in an abstract that is not (13.2 says "explicitly or implicitly"; classic declares it); a
+      member that writes nothing itself but calls one that does (13.2 says "explicit or inferred", and
+      inference asks the callee's status; classic looks no further than the body); and a member inherited or
+      mapped by a with block, which classic does not reach.
+
+      PROVED BY six corpus cases -- readonly-contract-method-writes, -getter-writes, -on-one-slot (its other
+      slot, not readonly, answered by a writer and silent), -method-reaches-a-write,
+      -inherited-member-writes and -mapped-member-writes -- and four rows under AMemberThatWritesNothing:
+      readonly members on a mutable type whose other method writes, a member that calls one that only reads,
+      a writer answering an abstract that is not readonly, and an inherited reader. Each row was first shown
+      to judge something by a twin that fails with this id; two first failed for the shell's reasons and not
+      the rule's, one reading `Text.Length`, which has no members there, and one naming its class `Base`
+      beside the fixture's. Nine mutations on a confirmed build. Eight caught: the method check and the
+      getter check removed, only a written modifier counted (the inference rows), a mapped source not
+      consulted, a slot's own modifier ignored while the abstract's was still asked (the one-slot case), the
+      slot's modifier not consulted on a method and on a property, and every abstract read as asking. ONE
+      SURVIVED AND WAS RIGHT: ignoring the abstract's own modifier changed nothing, every slot carrying it
+      already, so that half of the test was deleted rather than defended. A filler excused for belonging to
+      a readonly type was deleted before that for the same reason: no program could be written in which it
+      decided. The full suite -- 6470, 664 and 68 tests, AllFeaturesV2's baseline among them -- passed with
+      no failure and no rerun, AllFeaturesV2 run by hand was byte-identical and reported nothing, and the
+      build and `dotnet format` were clean.
     tasks:
       - >
         A mapping onto a NON-PUBLIC source member is admitted. Classic requires public; C# accepts the

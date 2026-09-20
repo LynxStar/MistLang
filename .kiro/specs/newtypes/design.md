@@ -214,6 +214,16 @@ The clone reuses the Source_Type's syntax, so a mistake in Tiger's body would be
 
 **Conversions (2.4, 2.5).** A newtype over a Copyable_Source is within its source for the conversion relation, the way a numeric widening is: implicit, lossless, and ranked, so `Take(int)` is applicable to an `Age` and `Take(Age)` beats it as the narrower target. A cast to such a newtype calls a conversion function whose parameter is the source, recorded on the cast as an enum's lookup is, so the operand is judged and lowered as an argument. Newtype to newtype over one source is the composition of the two and needs no rule of its own.
 
+**Never its source (2.1).** The copy above is read as containment so that assignability, overload ranking and a
+lossless leave all see it, and that reading is the one thing a type test must not inherit: a test asks what a
+value IS, and the copy is a second value of another type. So `is`, a type pattern, a switch arm and `as` all ask
+the relation WITHOUT the copy, and a newtype against its source -- or a source against its newtype, or either
+against a type only the copy reaches -- is refused where the static type shows it, exactly as a source that
+defines no copy already was. The two spellings refuse in different stages, `as` at construction because the
+classification is what gives the expression its type, the rest at Stage 5, and they say the same thing. A value
+whose static type cannot show it -- one boxed into `unknown` -- is not refused and answers false when the
+program runs (5.3), which is the same rule reaching the same verdict a step later.
+
 **A copy that does not hold (2.8).** A slot whose type names the Source_Type is that slot's Renamed type in the clone -- `Node<T>? next` is `Chain<T>? next` -- so the field-by-field copy has no pair of slots to copy between. Construction compares the clone's slots with the source's, applying the source construction's arguments, and where the first pair disagrees it routes to the clonable path instead: a source implementing `IClonable<Source_Type>` converts through Requirement 10, which is where such a copy belongs, since only the class author knows whether the slot is shared or cloned. A source that does not is left with neither conversion, the disagreeing slot and both its types recorded on the clone, and the refusal is owed at both kinds of position -- a cast and an implicit one -- because both directions are missing; one rule reports it from either analyzer.
 
 **Literals (9).** Assignability is told whether the position it judges is one Requirement 9.2 names, and admits a Newtype_Literal there alone. An argument position never is.

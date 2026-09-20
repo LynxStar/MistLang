@@ -1809,6 +1809,39 @@ rules:
       constant, the unreachable arm and the unknown narrowing not reported, every constant fitting.
       Eleven caught on the first pass; the comparability mutation did not compile and a compiling
       variant was caught. Twelve of twelve.
+
+      A CLONE IS NEVER ITS SOURCE (2026-09-20, newtypes Requirement 2.1). The rule above asks whether either
+      type reaches the other, and a newtype over a COPYABLE source reaches its source by the copy Requirement
+      2.4 admits, so every test between the two was admitted where a mutable source's was already refused.
+      MEASURED on v2 before: `position is Point` and `cash is Money` answered false, `money is Cash` and
+      `maybePosition is Point` answered false, `position switch { Point p => ... }` reached Roslyn as CS8121,
+      and `position as Point` RAN THE COPY and answered a Point -- a silent wrong answer rather than a
+      missing refusal. The union pattern the emitter register listed beside them was already refused by the
+      binder, that clause having gone stale.
+
+      THE RULE. Containment already had the two readings this needs -- IsWithin, which folds in the copy so
+      assignability, overload ranking and a lossless leave all see it, and IsWithinAsItself, which does not.
+      A test asks what a value IS, so it asks the second. ConversionRelation.CopiesAClone is the pair only
+      the copy relates; PatternAnalyzer refuses it in BOTH directions, before the union bail and on an
+      optional's held type so a `Position?` scrutinee is judged too; and `as` classifies by IsWithinAsItself,
+      which leaves its refusal at construction, where the classification is what gives the expression its
+      type. `age is long` and `age as long` go with them, a type only the copy reaches being no closer than
+      the source. Reusing MIST_PA_PATTERN_NEVER_MATCHES is deliberate: the judgement is the one a mutable
+      source already got, so the author reads the same sentence whichever kind of source it is.
+      MIST_PM_AS_NO_RELATIONSHIP kept its id and lost its opening clause, which claimed no conversion
+      related the two and would have been false here.
+
+      UNTOUCHED, each measured: `jaguar is Cat` at the renamed base, `int is long`, `int as long`, and every
+      test on an `unknown` -- `boxed is Position` true, `boxed is Point` false -- which is what keeps
+      Requirement 5.3's runtime half answering false rather than being refused. AllFeaturesV2 matches the
+      baseline with no line moved.
+
+      PROVED BY nine refusal rows and three admit rows in NewtypeConversionDecisionTests, two rows and a
+      renamed-base fact in ClonableNewtypeConversionDecisionTests, and two corpus cases. Four mutations, each
+      caught by name and by no more than its own rows: CopiesAClone always false fails the seven pattern rows
+      and NEITHER `as` row, which is what shows the two halves are held apart; `as` back to IsWithin fails the
+      two `as` rows only; the optional judged as its carrier fails the `Position?` row alone; and dropping the
+      reverse direction fails `money is Cash` alone. Full suite green, 7440 of 7440.
     tasks:
       - >
         The always-true test is not reported, in any severity: classic is silent, samples/DependentTypes

@@ -98,6 +98,15 @@ A struct, a readonly intrinsic type and a readonly class are **copyable**: a cop
 
 Changing `point.X` leaves `position` untouched: `Point point = position;` copied it. The emitted conversions copy field by field, reaching each field through an `UnsafeAccessor` so neither type's private state is widened, and allocate a class uninitialized so the source's constructor does not run a second time.
 
+Converting is not being. However freely the two convert, a newtype is never its source, so a type test between them is refused wherever the static type shows it -- `is`, a type pattern, a switch arm and `as` alike, in either direction, and for a type only the copy reaches such as `long` for a newtype over `int`:
+
+```text
+error MIST_PA_PATTERN_NEVER_MATCHES: A value of type 'Position' can never be 'Point', so this pattern never matches.
+error MIST_PM_AS_NO_RELATIONSHIP: A value of type 'Position' can never be 'Point', so 'as' has no result type to produce. One must contain the other, or the source must be a union or unknown holding it; a conversion is not enough, since 'as' answers the value rather than a copy of it.
+```
+
+Write the conversion you meant instead: `Point point = position;` leaves, and `(Position)point` enters. A value whose static type cannot show the test is doomed -- one widened to `unknown` -- is not refused, and answers false when the program runs, as [A Renamed Clone](#a-renamed-clone) shows.
+
 One copyable source has no field-by-field copy at all: one with a field whose type names the source. `Node? Next` is `Chain? Next` in the clone, so no field of `Node` stands for the corresponding field of `Chain`, and there is nothing to copy across. Such a source converts only if it says how it is copied, as the next section but one describes; if it does not, both directions are missing and either one is refused, naming the field:
 
 ```text

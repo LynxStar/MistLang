@@ -5168,9 +5168,12 @@ capabilities:
       under `--- Generic newtype conversions ---` -- Twin<int> and Swap<int, string> copied both ways,
       Celled<string> cast in twice and out once with `made=2` in the newtype's statics and `made=1` in the
       source's -- and AllFeaturesV2 matches the extended baseline with no other line moved.
+      REQUIREMENT 2.1's STATIC HALF IS CLOSED (2026-09-20), and its rule is recorded in the analysis register's
+      order 8: a test between a clone and its copyable source was admitted where a mutable source's was already
+      refused, because the copy reads as containment. A union pattern against the source was already refused by
+      the binder, the clause claiming otherwise having gone stale; `as` was not, and silently ran the copy.
       STILL OPEN beside the operator gap above, each measured: a newtype over a newtype converts with its ROOT
-      source only (`Kept<string> k = again;` is CAST_REQUIRED); `as` and a union pattern against the source are
-      admitted and answer false where Requirement 2.1 has them fail; `long | string wide = age;` is
+      source only (`Kept<string> k = again;` is CAST_REQUIRED); `long | string wide = age;` is
       MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION between the copy and int's cloned widening, a C# error before; a
       source's extension still applies to a newtype's OPTIONAL or TUPLE, IsWithinAsItself judging the outer
       type only; a copy out into an abstract only the source conforms to (`with Money : IPriced`) is

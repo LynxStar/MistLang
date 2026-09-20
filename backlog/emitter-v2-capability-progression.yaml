@@ -4150,9 +4150,11 @@ capabilities:
       as a value (`Api.Pick<int, string>` with no call) does not parse, the grammar admitting a
       type-argument list in four contexts only (generics-type-arguments Requirement 4.5), on both
       pipelines. PROBED AGAIN 2026-09-19, one project each: the plain `Api.Same<int>` fails the same
-      way, `x => Api.Pick<int, string>(x)` prints `T 5 | R` on v2, and a BARE generic group
-      (`func<int, int> same = Api.Same;`) is MIST_PM_METHOD_GROUP_NOT_CONVERTED on v2 and MIST_TC_0084
-      on classic, the conversion declining any candidate with type parameters of its own.
+      way and `x => Api.Pick<int, string>(x)` prints `T 5 | R` on v2. DECIDED the same day by the
+      language owner: both the stated form and the BARE generic group (`func<int, int> same =
+      Api.Same;`) should work. The bare group converts, recorded under order 108; `Pick<T, R>(T | R)`
+      is not among what it reaches, the target not saying which constituent is T, so that one waits
+      on the stated form and the grammar.
     unlocks: []
 
   - id: union-widening-at-use-sites
@@ -6385,8 +6387,9 @@ capabilities:
       containment -- exactly the one test asserting that fails, which is what makes the distinction
       recorded rather than incidental.
 
-      SELECTION IS BY THE TARGET, there being no arguments to rank on. A GENERIC method is declined:
-      its type arguments are inferable only from the target, which is inference this does not do.
+      SELECTION IS BY THE TARGET, there being no arguments to rank on. A GENERIC method was declined
+      until 2026-09-19, its type arguments being inferable only from the target; the paragraph dated
+      that day below records the inference.
 
       TWO CANDIDATES THE RECEIVER MAKES ONE SIGNATURE, 2026-09-19. `lifted.Take` at `Lifted<int>`
       converted to `func<int?, string>` matched both `Take(K?)` and `Take(int?)` and was declined as
@@ -6410,6 +6413,47 @@ capabilities:
       because the latter's type is the method's RESULT -- it exists to be an invocation's receiver --
       where here the whole function is the value and the type is the function type. An instance group
       keeps its receiver, so `d.Twice` emits as `d.Twice`.
+
+      A GENERIC METHOD NAMED AS A VALUE TAKES ITS TYPE ARGUMENTS FROM THE TARGET (2026-09-19), decided by
+      the language owner the same day: `func<int, int> same = Api.Same;` should work. MEASURED FIRST, one
+      project per probe: it was MIST_PM_METHOD_GROUP_NOT_CONVERTED on v2 and MIST_TC_0084 on classic -- static
+      or instance, a local or an argument or a return -- the conversion declining any candidate with type
+      parameters of its own. TypeArgumentInference.FromSignature matches each declared position against the
+      type standing in the target, the RESULT included, and closes only where every parameter met exactly one
+      type; the closed signature is then held to the same identity as any other candidate, so nothing widens.
+      A method the target leaves open -- `Pick<T, R>(T | R)` against `func<int | string, string>`, which does
+      not say which constituent is T -- or pulls two ways (`First<T>(T, T)` against `func<int, long, long>`)
+      stays NOT_CONVERTED; a plain overload of the same signature is preferred, as at a call; and an inferred
+      argument that breaks the method's `where` is MIST_PA_CONSTRAINT_NOT_SATISFIED, the closing being
+      recorded for the rule as a call's is. FunctionReferenceExpression carries the TypeArguments, the
+      instantiation is recorded in GenericCalls so a method emitted per instantiation (order 76) has its
+      instance, and the emitter states them -- `Probe.Api.Same<int>`, `box.Show<bool>`,
+      `Probe.Api.Lift__Standard_Int32` -- rather than leaving C# to infer from a delegate it may not be
+      looking at.
+      FOUND ON THE WAY, fixed because the first probe inside generic code met it: a position typed by a TYPE
+      PARAMETER never matched, ConversionRelation.IsIdentity answering false for anything indeterminate, so
+      `func<K, K> kept = Kept;` inside `Keeper<K>` was refused for a method that is not generic at all. A
+      position whose two sides are the same parameter is the same. And the not-converted message said the
+      conversion "is not yet supported by the experimental pipeline", false since this order landed; it
+      states the rule.
+      MEASURED after, each line derived by hand first: `7 w | 9`, `8 | u | 3` through an argument and a
+      return, `box 5 | box w | 4` through a receiver and a bare private name, `plain 3 | generic w`, `held 4
+      True | held w 2` on a generic class, `some 5 | none | some w` through a per-instantiation method,
+      `3 | w | 3` inside a generic method and a generic class, and `4 3` as the argument of a generic call
+      whose own type arguments are stated.
+      STILL OPEN, each a clean refusal: a VARIADIC generic method as a value; a group passed to a generic
+      CALL that must learn its own type arguments from the group (`Api.Apply(4, Api.Next)` with `R
+      Apply<T, R>(T, func<T, R>)`), the divergence order 109 records, a group having no type until a target
+      gives it one; and STATED type arguments (`Api.Same<int>`), which the grammar does not yet admit.
+      PROVED BY FunctionTypeResolutionTests (the arguments taken from parameters, from the result alone and
+      on a generic receiver, the three refusals, the plain overload preferred, the type-parameter position,
+      and the instantiation recorded from a local and from a call that settles its group late),
+      GenericMethodGroupEmissionTests (the five spellings and the one inside generic code),
+      DeclarationShapeDecisionTests (the constraint held and satisfied) and two corpus cases under refusals/.
+      samples/OpenUnions prints `inferred values: T 6 | T z | absent` through two per-instantiation methods.
+      Eleven mutations, each caught by name; a twelfth, applying the receiver's arguments before matching,
+      survived as an equivalent -- they can mention none of the method's parameters -- and the code that
+      made it possible is gone.
     unlocks: []
 
   - id: delegate-func-conversion

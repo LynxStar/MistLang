@@ -154,3 +154,49 @@ silently mean "last operand", which would be a live bug rather than dead weight.
 **Related:** the `storm-parser-repetition-bugs` spec fixed `OptionalIR(SequenceIR(...))`
 generating a `Token?` instead of a node property. This is the same family — a labelled
 element in a repetition — and was not covered.
+
+## Syntactic predicates (`&E`, `!E`) -- added 2026-09-19
+
+Storm had no lookahead, so an alternative could only be told from another by its own tokens. That
+is not enough where two readings share every token and differ in what FOLLOWS: an ordered choice
+commits to the first alternative that succeeds locally, and a failure later in the enclosing
+sequence never re-tries the others. `Api.Same<int>` as a value against `Use(a < b, c > d)` is the
+case that needed it.
+
+`&E` succeeds where `E` matches and `!E` where it does not; neither consumes input nor yields an
+AST child. A predicate is a prefix on one element (`&A*` is `&(A*)`) and cannot carry a label.
+
+**What a body may be.** A rule reference, or a fixed-width expression over tokens -- a token, a
+sequence of them, or an alternation whose arms are the same width. The token form is a test over
+`Peek` offsets with no state touched; the rule form saves and restores the position, the error
+flag and the diagnostic count around one call. Anything else is `STORM0008` at lowering, as is a
+label inside a predicate and a predicate inside a LABELLED element: the emitter writes a labelled
+sequence, optional or list through paths that pass over element kinds they do not know and have no
+channel to say so, and a predicate dropped there would leave its alternative unguarded.
+
+**Passes.** A predicate is nullable and its body is leftmost for `LeftRecursionPass` (`rule A =
+&A B` and `rule A = &B A` are both left recursion); names inside it are resolved; a rule it names
+is an edge of the memoization graph; and `ReachabilityPass` neither flags an alternative holding a
+predicate nor counts its FIRST-k sequences against later ones, a guarded alternative accepting
+strictly less than its first three tokens claim. That last point costs `STORM0006` its sight of
+guarded alternatives, which is the price of the pass being a prefix approximation.
+
+**Memoization** stays sound: a predicate reads past the rule's end, but the answer is still a pure
+function of position in a fixed token stream. `SyntacticPredicateTests` runs each behaviour with
+the plan on and off. Twenty-three mutations, each caught by name.
+
+## An unlabelled token alternation in a rule sequence emits no code
+
+Found 2026-09-19 while sizing the predicate, measured on an unmodified generator: for
+
+```storm
+rule Item = name:IDENT typeArgs:TypeArgs (SEMI | COMMA) as Grouped | ...;
+```
+
+the generated alternative goes from the `_ParseTypeArgs()` check straight to node construction.
+The follower is neither checked nor consumed: `ParserEmitter.EmitFullExprParse` has no
+`AlternationIR` case and its switch ends in a silent `default: break`. A single unlabelled token
+is matched, the `TokenRefIR` case existing. `Mist.storm` has no such shape today, so nothing is
+wrong in the shipped parser, but a grammar author who writes one gets an alternative that accepts
+anything. The same silent default is why a predicate needed emission of its own rather than a
+reuse of "emit this expression". Either give the emitter the arm or refuse the shape at lowering.

@@ -196,6 +196,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "'{0}' does not fill slot '{1}' of '{2}': its '{3}' has a different signature.");
 
+    public static readonly DiagnosticDescriptor ReadonlyContractNotMet = new(
+        new DiagnosticId("MIST_PA_READONLY_CONTRACT_NOT_MET"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Member '{0}' in type '{1}' must be readonly to satisfy the readonly contract on abstract '{2}': it writes, or reaches something that does.");
+
     public static readonly DiagnosticDescriptor PropertySlotAccessorMissing = new(
         new DiagnosticId("MIST_PA_PROPERTY_SLOT_ACCESSOR_MISSING"),
         DiagnosticSeverity.Error,

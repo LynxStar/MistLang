@@ -1,0 +1,33 @@
+using Standard;
+
+namespace Refusal;
+
+public readonly abstract IThing
+{
+    int Peek();
+}
+
+public class Thing : IThing
+{
+    int count;
+
+    // REFUSE: MIST_PA_READONLY_CONTRACT_NOT_MET
+    public int Peek()
+    {
+        return Bump();
+    }
+
+    public int Bump()
+    {
+        count = count + 1;
+        return count;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

@@ -19,7 +19,10 @@ namespace Mist.ProgramAnalysis.Rules;
 /// slot and NOTHING ELSE: one restated on a derived abstract hides the base's slot rather than filling
 /// it, so the obligation stays with the conformer, which is what both pipelines measure and what C#
 /// does with a hiding interface member. A with block answers the slots of the abstract it names by its
-/// mappings or by the type's own members, and is redundant when the abstract is reached already.
+/// mappings or by the type's own members, and is redundant when the abstract is reached already. A slot
+/// that is `readonly`, which every slot of a readonly abstract is, is answered only by a member that
+/// writes nothing, by its modifier or by <see cref="ReadonlyInference"/>: readonly-contexts Requirement
+/// 13, which holds the member and not the conforming type, so a mutable type may meet it.
 /// </summary>
 internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 {
@@ -27,6 +30,8 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
+        var inference = new ReadonlyInference();
+
         foreach(var type in context.Types)
         {
             if(type is not ConcreteType { DeclarationNode: { } node } concrete)
@@ -38,15 +43,15 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
             foreach(var (abstractType, substitution) in Reached(concrete.BaseAbstractTypes, context.Model.TypeInterner))
             {
-                CheckSlots(context, concrete, node, abstractType, substitution, fillers, mappings: null);
+                CheckSlots(context, inference, concrete, node, abstractType, substitution, fillers, mappings: null);
                 CheckTypeSlots(context, concrete, node, abstractType, substitution);
             }
 
-            CheckConformances(context, concrete, fillers);
+            CheckConformances(context, inference, concrete, fillers);
         }
     }
 
-    private static void CheckConformances(AnalysisContext context, ConcreteType concrete, List<Filler> fillers)
+    private static void CheckConformances(AnalysisContext context, ReadonlyInference inference, ConcreteType concrete, List<Filler> fillers)
     {
         var reached = concrete.BaseAbstractTypes.Select(Name).ToHashSet(StringComparer.Ordinal);
 
@@ -62,24 +67,35 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
             foreach(var (abstractType, substitution) in Reached([conformance.AbstractType], context.Model.TypeInterner))
             {
-                CheckSlots(context, concrete, conformance.DeclarationNode, abstractType, substitution, fillers, conformance);
+                CheckSlots(context, inference, concrete, conformance.DeclarationNode, abstractType, substitution, fillers, conformance);
                 CheckTypeSlots(context, concrete, conformance.DeclarationNode, abstractType, substitution);
             }
         }
     }
 
     private static void CheckSlots(
-        AnalysisContext context, ConcreteType concrete, SyntaxNode at, AbstractType abstractType,
+        AnalysisContext context, ReadonlyInference inference, ConcreteType concrete, SyntaxNode at, AbstractType abstractType,
         TypeSubstitution substitution, List<Filler> fillers, ConformanceDeclaration? mappings)
     {
         var interner = context.Model.TypeInterner;
 
         foreach(var slot in abstractType.MethodsList.Where(method => method.Body is null && !method.Modifiers.IsStatic))
         {
-            var mapped = mappings?.Mappings.OfType<MethodMapping>()
-                .Any(mapping => mapping.TargetName == slot.Name && SlotSignatures.Answers(slot, mapping.Source, substitution, interner)) == true;
+            var answering = mappings?.Mappings.OfType<MethodMapping>()
+                .FirstOrDefault(mapping => mapping.TargetName == slot.Name && SlotSignatures.Answers(slot, mapping.Source, substitution, interner))?.Source
+                ?? fillers.FirstOrDefault(filler => filler.Method is { } method && method.Name == slot.Name && SlotSignatures.Answers(slot, method, substitution.Extend(filler.Substitution), interner))?.Method;
 
-            if(mapped || mappings?.UnresolvedTargets.Contains(slot.Name) == true || fillers.Any(filler => filler.Method is { } method && method.Name == slot.Name && SlotSignatures.Answers(slot, method, substitution.Extend(filler.Substitution), interner)))
+            if(answering is not null)
+            {
+                if(slot.Modifiers.IsReadonly && !inference.IsReadonly(answering))
+                {
+                    ReportContract(context, concrete, abstractType, answering.Name, answering.DeclarationNode ?? at);
+                }
+
+                continue;
+            }
+
+            if(mappings?.UnresolvedTargets.Contains(slot.Name) == true)
             {
                 continue;
             }
@@ -137,7 +153,19 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                     ProgramAnalysisDiagnostics.PropertySlotAccessorMissing, at, [],
                     TypeDisplay.Mist(concrete), slot.Name, accessor, TypeDisplay.Mist(abstractType));
             }
+
+            if(slot is { Getter: not null, Modifiers.IsReadonly: true } && answer.Getter is not null && !inference.IsReadonlyGetter(answer))
+            {
+                ReportContract(context, concrete, abstractType, answer.Name, answer.DeclarationNode ?? at);
+            }
         }
+    }
+
+    private static void ReportContract(AnalysisContext context, ConcreteType concrete, AbstractType abstractType, string member, SyntaxNode at)
+    {
+        context.Report(
+            ProgramAnalysisDiagnostics.ReadonlyContractNotMet, at, [],
+            member, TypeDisplay.Mist(concrete), TypeDisplay.Mist(abstractType));
     }
 
     private static void CheckTypeSlots(

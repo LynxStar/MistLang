@@ -16,7 +16,7 @@ public sealed class ConformanceDecisionTests : ProgramModelProbe
     [
         "MIST_PA_SLOT_NOT_FILLED", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "MIST_PA_PROPERTY_SLOT_ACCESSOR_MISSING",
         "MIST_PA_CONFORMANCE_SLOT_UNANSWERED", "MIST_PA_REDUNDANT_CONFORMANCE", "MIST_PA_TYPE_SLOT_UNFILLED",
-        "MIST_PA_TYPE_SLOT_CONSTRAINT_NOT_SATISFIED",
+        "MIST_PA_TYPE_SLOT_CONSTRAINT_NOT_SATISFIED", "MIST_PA_READONLY_CONTRACT_NOT_MET",
     ];
 
     public ConformanceDecisionTests()
@@ -155,6 +155,16 @@ public sealed class ConformanceDecisionTests : ProgramModelProbe
     public void AConformerThatLeavesASlot_IsReportedOnce(string extraType)
     {
         _ = Assert.Single(Analyse("", extraType));
+    }
+
+    [Theory]
+    [InlineData("public readonly abstract IRead { string Read(); int Count { get; } } public class Page : IRead { public string Text = \"a\"; public int Held = 1; public readonly string Read() { return Text; } public int Count { get { return Held; } } public void Clear() { Text = \"\"; Held = 0; } }")]
+    [InlineData("public readonly abstract IRead { int Peek(); } public class Page : IRead { int n; public int Peek() { return Look(); } int Look() { return n; } public void Bump() { n = n + 1; } }")]
+    [InlineData("public abstract IWrite { int Poke(); int Size { get; } } public class Page : IWrite { int n; public int Poke() { n = n + 1; return n; } public int Size { get { n = n + 1; return n; } } }")]
+    [InlineData("public readonly abstract IRead { int Peek(); } public class Shelf { int n; public int Peek() { return n; } public void Bump() { n = n + 1; } } public class Page : Shelf, IRead { }")]
+    public void AMemberThatWritesNothing_MeetsAReadonlyContractOnAMutableType(string extraType)
+    {
+        AssertSilent("", extraType);
     }
 
     [Fact]

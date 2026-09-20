@@ -1122,7 +1122,14 @@ public sealed class MistPrettyPrinter
                     // Emit the lowercase `func` keyword form with its type arguments
                     // (e.g., func<int, string>). The last type argument is the return type.
                     var typeArgs = EmitTypeArgumentList(funcRef.TypeArgs);
-                    return $"func{typeArgs}";
+                    var rank = funcRef.ArrayRank switch
+                    {
+                        SizedArrayRankArrayRankSuffixNode sizedRank => $"[{sizedRank.Size.Lexeme}]",
+                        not null => "[]",
+                        _ => string.Empty,
+                    };
+
+                    return $"func{typeArgs}{rank}{(funcRef.Optional is not null ? "?" : string.Empty)}";
                 }
             default:
                 return "object";

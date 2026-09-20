@@ -416,7 +416,7 @@ rule SingleTypeRef
     | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION? as NamedSingleTypeRef
     | LEFT_PARENTHESIS inner:TypeReference RIGHT_PARENTHESIS arrayRank:ArrayRankSuffix? as ParenthesizedTypeRef
     | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS as TupleSingleTypeRef
-    | FUNC typeArgs:TypeArgumentList as FuncSingleTypeRef
+    | FUNC typeArgs:TypeArgumentList arrayRank:ArrayRankSuffix? optional:QUESTION? as FuncSingleTypeRef
     ;
 
 rule TupleTypeElement = type:TypeReference name:IDENTIFIER?;

@@ -200,6 +200,53 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
     }
 
     [Fact]
+    public void AnArrayRankAfterAFunctionTypeMakesAnArrayOfFunctions()
+    {
+        var array = Assert.IsType<ConstructedType>(TypeOfLocal("func<int, bool>[] fs = null;"));
+
+        Assert.Equal("Standard.Array<,>", array.Definition.FullyQualifiedName);
+        Assert.Equal("Standard.Boolean", Assert.IsType<FunctionType>(array.TypeArguments[0]).ReturnType.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void ASizedRankAfterAFunctionTypeCarriesItsLength()
+    {
+        var array = Assert.IsType<ConstructedType>(TypeOfLocal("func<int, bool>[2] fs = null;"));
+
+        Assert.Equal(2L, Assert.IsType<LiftedType>(array.TypeArguments[1]).Value);
+    }
+
+    [Fact]
+    public void TheSuffixedSpellingAndTheParenthesizedOneReachOneInternedType()
+    {
+        var body = BodyIn("func<int, bool>[] suffixed = null;", extraPreamble: "(func<int, bool>)[] parenthesized = null;");
+        var declared = body.Statements.OfType<LocalDeclarationStatement>().ToList();
+
+        Assert.Same(
+            declared.First(statement => statement.Local.Name == "parenthesized").Local.Type,
+            declared.First(statement => statement.Local.Name == "suffixed").Local.Type);
+    }
+
+    [Fact]
+    public void AnOptionalFunctionTypeIsTheUnionOfThatFunctionWithVoid()
+    {
+        var union = Assert.IsType<UnionType>(TypeOfLocal("func<int, bool>? f = null;"));
+
+        Assert.Equal("Standard.Boolean", Assert.Single(union.Constituents.OfType<FunctionType>()).ReturnType.FullyQualifiedName);
+        Assert.Contains(union.Constituents, constituent => constituent.FullyQualifiedName == "Standard.Void");
+    }
+
+    [Fact]
+    public void BothSuffixesTogetherMakeTheArrayOptionalAndNotItsElement()
+    {
+        var union = Assert.IsType<UnionType>(TypeOfLocal("func<int, bool>[]? fs = null;"));
+        var array = Assert.Single(union.Constituents.OfType<ConstructedType>());
+
+        Assert.Equal("Standard.Array<,>", array.Definition.FullyQualifiedName);
+        _ = Assert.IsType<FunctionType>(array.TypeArguments[0]);
+    }
+
+    [Fact]
     public void AFunctionTypeAndATupleOfTheSameTypesAreNotTheSameType()
     {
         var body = BodyIn("(int, bool) pair = (1, true);", extraPreamble: "func<int, bool> f = null;");

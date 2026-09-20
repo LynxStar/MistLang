@@ -226,6 +226,7 @@ internal sealed class ScopeResolver
             PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => primitiveRef.Optional is not null,
             NamedSingleTypeRefSingleTypeRefNode namedRef => namedRef.Optional is not null,
             NestedGenericSingleTypeRefSingleTypeRefNode nestedRef => nestedRef.Optional is not null,
+            FuncSingleTypeRefSingleTypeRefNode funcRef => funcRef.Optional is not null,
             _ => false,
         };
     }
@@ -856,6 +857,7 @@ internal sealed class ScopeResolver
             NamedSingleTypeRefSingleTypeRefNode n => n.ArrayRank,
             NestedGenericSingleTypeRefSingleTypeRefNode nested => nested.ArrayRank,
             ParenthesizedTypeRefSingleTypeRefNode pr => pr.ArrayRank,
+            FuncSingleTypeRefSingleTypeRefNode func => func.ArrayRank,
             _ => null,
         };
     }

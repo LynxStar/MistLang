@@ -965,6 +965,26 @@ internal static class BodyEmitter
                 writer.Append(CastLowering.Pattern(Render(toString.Operand, diagnostics)));
                 break;
 
+            // A conversion that replaced a `?.Clone()` keeps that access's short-circuit: C# lifts a
+            // user-defined operator only over a nullable value type, so an absent reference operand
+            // would otherwise be handed to the operator instead of answering absence. The lift is
+            // written only where it spells differently from the result, which is where the operand
+            // is a value type and the branches would have no common type.
+            case CastExpression { IsConditional: true } lifted:
+                {
+                    var present = $"__converted{lifted.Node.Span.Start}";
+                    var target = TypeNameEmitter.Emit(lifted.TargetType);
+                    var result = TypeNameEmitter.Emit(lifted.Type);
+                    var converted = $"({target})({present})";
+
+                    writer.Append(
+                        $"({Render(lifted.Operand, diagnostics)} is {{ }} {present} ? "
+                        + (string.Equals(result, target, StringComparison.Ordinal) ? converted : $"({result})({converted})")
+                        + " : null)");
+                }
+
+                break;
+
             case CastExpression cast:
                 // The operand is parenthesized whatever it is. Parentheses written in source bind the
                 // expression inside them and reach the model as nothing, so `(double)(a / b)` arrives as

@@ -17,6 +17,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     private static readonly string[] Ids =
     [
         "MIST_PA_CAST_HAS_NO_CONVERSION", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY", "MIST_PA_NO_IMPLICIT_CONVERSION", "MIST_PA_CAST_REQUIRED",
+        "MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD",
         "MIST_PA_CAST_ARGUMENT_MISMATCH", "MIST_PA_AMBIGUOUS_CAST", "MIST_PM_UNRESOLVABLE_OVERLOAD",
         "MIST_PM_AMBIGUOUS_OVERLOAD", "MIST_PM_UNRESOLVED_MEMBER",
     ];
@@ -215,12 +216,26 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [InlineData("Crated<int> entersAMutableGenericClassByCast = (Crated<int>)new Crate<int>(1);", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
     [InlineData("Crate<int> leavesAMutableGenericClassByCast = (Crate<int>)new Crated<int>(1);", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
     [InlineData("Held<int> | Entity aUnionLeavesOnlyAsItsConstituentsAre = keptOrEntity;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
-    [InlineData("Chain<int> aSelfTypedSlotCopiesNothing = (Chain<int>)new Node<int>(1);", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("IntChain aSelfTypedSlotCopiesNothingWhenClosed = (IntChain)new Node<int>(1);", "MIST_PA_CAST_HAS_NO_CONVERSION")]
+    [InlineData("Chain<int> aSelfTypedSlotCopiesNothing = (Chain<int>)new Node<int>(1);", "MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD")]
+    [InlineData("IntChain aSelfTypedSlotCopiesNothingWhenClosed = (IntChain)new Node<int>(1);", "MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD")]
+    [InlineData("Node<int> aSelfTypedSlotLeavesNothingEither = new Chain<int>(1);", "MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD")]
     [InlineData("Packed<int, string> aPackConvertsNothing = (Packed<int, string>)new Tagged<int, string>(1);", "MIST_PA_CAST_HAS_NO_CONVERSION")]
     public void AConversionTheSourceDoesNotAdmit_IsRefused(string statement, string expected)
     {
         Assert.Equal(expected, Assert.Single(Analyse(statement)).Id.Value);
+    }
+
+    [Theory]
+    [InlineData("Chain<int> intoTheNewtype = (Chain<int>)new Node<int>(1);", "'Node<int> | void' in the source is a 'Chain<int> | void'")]
+    [InlineData("IntChain intoAClosedNewtype = (IntChain)new Node<int>(1);", "'Node<int> | void' in the source is a 'IntChain | void'")]
+    [InlineData("Node<int> outOfTheNewtype = new Chain<int>(1);", "'Node<int> | void' in the source is a 'Chain<int> | void'")]
+    public void ACopyThatDoesNotHold_NamesTheFieldAndSaysWhatWouldSayHowToCopyIt(string statement, string slots)
+    {
+        var refusal = Assert.Single(Analyse(statement));
+
+        Assert.Contains("does not hold at 'Next'", refusal.Message);
+        Assert.Contains(slots, refusal.Message);
+        Assert.Contains("implements no 'IClonable<Node<int>>'", refusal.Message);
     }
 
     [Fact]

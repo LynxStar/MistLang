@@ -35,6 +35,13 @@ internal sealed class CastExpression(
 
     public IMistType TargetType { get; } = targetType;
 
+    /// <summary>
+    /// Whether an absent operand short-circuits to absence instead of converting, which is what the
+    /// <c>?.</c> the conversion replaced meant. Named for the access rather than for the lift because
+    /// the operator still takes the operand's own type: <see cref="Type"/> is the lifted one.
+    /// </summary>
+    public bool IsConditional { get; init; }
+
     public CastOperator? Operator { get; } = bestOperators is [var called] ? called.Operator : null;
 
     public IReadOnlyList<CastOperator> AmbiguousOperators { get; } = bestOperators.Count > 1 ? [.. bestOperators.Select(function => function.Operator)] : [];

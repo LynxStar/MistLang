@@ -567,12 +567,150 @@ public sealed class CloneConversionRuntimeTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    private const string ConvertsASelfTypedSlotWholeEitherWay = """
+        using Standard;
+
+        namespace SelfTyped;
+
+        public class Node<T> : IClonable<Node<T>>
+        {
+            public T Item;
+            public Node<T>? Next;
+            private int depth;
+
+            public Node(T item, Node<T>? next)
+            {
+                this.Item = item;
+                this.Next = next;
+                this.depth = 0;
+            }
+
+            public int Depth()
+            {
+                return depth;
+            }
+
+            public owned Node<T> Clone()
+            {
+                if(this.Next is Node<T> next)
+                {
+                    var copy = new Node<T>(this.Item, next.Clone());
+                    copy.depth = next.depth + 1;
+                    return copy;
+                }
+
+                Node<T>? end = void;
+                return new Node<T>(this.Item, end);
+            }
+        }
+
+        public class Link : IClonable<Link>
+        {
+            public int Item;
+            public Link? Next;
+
+            public Link(int item, Link? next)
+            {
+                this.Item = item;
+                this.Next = next;
+            }
+
+            public owned Link Clone()
+            {
+                return new Link(this.Item, this.Next?.Clone());
+            }
+        }
+
+        public type Chain<T> = new Node<T>;
+        public type IntChain = new Node<int>;
+        public type Rope = new Link;
+
+        public class Program
+        {
+            public static string SpellNode<T>(Node<T>? head)
+            {
+                var text = "";
+                var cursor = head;
+                while(cursor is Node<T> here)
+                {
+                    text = $"{text} {here.Item}/{here.Depth()}";
+                    cursor = here.Next;
+                }
+
+                return text;
+            }
+
+            public static string SpellChain<T>(Chain<T>? head)
+            {
+                var text = "";
+                var cursor = head;
+                while(cursor is Chain<T> here)
+                {
+                    text = $"{text} {here.Item}/{here.Depth()}";
+                    cursor = here.Next;
+                }
+
+                return text;
+            }
+
+            public static string SpellRope(Rope? head)
+            {
+                var text = "";
+                var cursor = head;
+                while(cursor is Rope here)
+                {
+                    text = $"{text} {here.Item}";
+                    cursor = here.Next;
+                }
+
+                return text;
+            }
+
+            public static void Main(string[] args)
+            {
+                Node<int>? end = void;
+                var nodes = new Node<int>(1, new Node<int>(2, new Node<int>(3, end)));
+
+                var chain = (Chain<int>)nodes;
+                Console.WriteLine($"in{SpellChain<int>(chain)}");
+                Console.WriteLine($"out{SpellNode<int>((Node<int>)chain)}");
+
+                var closed = (IntChain)nodes;
+                Console.WriteLine($"closed {closed.Item} {closed.Next is void}");
+
+                if(nodes.Next is Node<int> second)
+                {
+                    second.Item = 99;
+                }
+
+                Console.WriteLine($"apart{SpellChain<int>(chain)} |{SpellNode<int>(nodes)}");
+
+                Link? none = void;
+                var rope = (Rope)new Link(4, new Link(5, none));
+                var tail = (Rope)new Link(6, none);
+                Console.WriteLine($"conditional{SpellRope(rope)} | {tail.Next is void}");
+            }
+        }
+        """;
+
     [Fact]
     public void EveryConversionOfAConstructedSource_CopiesItsPrivateStateAtRuntime()
     {
         Assert.Equal(
             "1,one 2,two\nEUR,7 USD,8\n3 fresh#1 made=1 | 3 fresh#1#1 made=1",
             CompileAndRun(ConvertsEachKindOfConstructedSource).ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public void AConversionCloningASelfTypedSlot_ConvertsTheWholeChainEitherWay()
+    {
+        Assert.Equal(
+            "in 1/1 2/1 3/0\n"
+            + "out 1/2 2/1 3/0\n"
+            + "closed 1 False\n"
+            + "apart 1/1 2/1 3/0 | 1/0 99/0 3/0\n"
+            + "conditional 4 5 | True",
+            CompileAndRun(ConvertsASelfTypedSlotWholeEitherWay).ReplaceLineEndings("\n"));
     }
 
     [Fact]

@@ -40,6 +40,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot cast '{0}' to '{1}'. '{2}' defines no copy to convert with; a newtype and its mutable class source convert only when the class implements 'IClonable<{2}>' with a Clone of its own.");
 
+    public static readonly DiagnosticDescriptor CopyConversionDoesNotHold = new(
+        new DiagnosticId("MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot convert '{0}' to '{1}'. The copy is field for field, and it does not hold at '{2}': a '{3}' in the source is a '{4}' in the newtype. '{5}' implements no 'IClonable<{5}>' to say how it is copied.");
+
     public static readonly DiagnosticDescriptor CloneConversionDoesNotHold = new(
         new DiagnosticId("MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD"),
         DiagnosticSeverity.Error,

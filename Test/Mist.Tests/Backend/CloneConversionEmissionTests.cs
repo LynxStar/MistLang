@@ -171,6 +171,50 @@ public sealed class CloneConversionEmissionTests
             public owned Sorted<T> Clone() { return new Sorted<T>(top); }
         }
 
+        public class Link : IClonable<Link>
+        {
+            public int Item;
+            public Link? Next;
+
+            public Link(int item, Link? next)
+            {
+                this.Item = item;
+                this.Next = next;
+            }
+
+            public owned Link Clone()
+            {
+                return new Link(this.Item, this.Next?.Clone());
+            }
+        }
+
+        public class Branch<T> : IClonable<Branch<T>>
+        {
+            public T Item;
+            public Branch<T>? Next;
+            private int tag;
+
+            public Branch(T item, Branch<T>? next)
+            {
+                this.Item = item;
+                this.Next = next;
+                this.tag = 0;
+            }
+
+            public owned Branch<T> Clone()
+            {
+                if(this.Next is Branch<T> next)
+                {
+                    var copy = new Branch<T>(this.Item, next.Clone());
+                    copy.tag = next.tag + 1;
+                    return copy;
+                }
+
+                Branch<T>? end = void;
+                return new Branch<T>(this.Item, end);
+            }
+        }
+
         public type Jaguar = new Tiger;
         public type Puma = new Lion;
         public type IntCell = new Cell<int>;
@@ -179,6 +223,8 @@ public sealed class CloneConversionEmissionTests
         public type WordSorted = new Sorted<Word>;
         public type Ocelot = new Lynx;
         public type Caracal = new Serval;
+        public type Chain = new Link;
+        public type Twig<T> = new Branch<T>;
         """;
 
     private const string Casts = """
@@ -196,6 +242,10 @@ public sealed class CloneConversionEmissionTests
         var spot = (Spot<int>)intSpot;
         var wordSorted = (WordSorted)new Sorted<Word>(new Word());
         var sorted = (Sorted<Word>)wordSorted;
+        var chain = (Chain)new Link(1, void);
+        var link = (Link)chain;
+        var twig = (Twig<int>)new Branch<int>(1, void);
+        var branch = (Branch<int>)twig;
         """;
 
     [Fact]
@@ -336,6 +386,29 @@ public sealed class CloneConversionEmissionTests
         Assert.Contains("System.Func<int> three = ((System.Func<int>)(() => __In_Probe_Lynx_Three(@this)));", emitted);
         Assert.Contains("System.Func<int> copyThree = __Out_Bound(copy, __t => (System.Func<int>)(() => __Out_Probe_Lynx_Three(__t)));", emitted);
         Assert.Contains("System.Func<int> three = @this.Three;", emitted);
+    }
+
+    [Fact]
+    public void ACloneOfASelfTypedSlot_IsTheConversionItselfAndGuardsAnAbsentOperand()
+    {
+        var emitted = EmitDeclaration("Chain");
+
+        Assert.Matches(@"new Probe\.Chain\(@this\.Item, \(@this\.Next is \{ \} (__converted\d+) \? \(Probe\.Chain\)\(\1\) : null\)\)", emitted);
+        Assert.Matches(@"new Probe\.Link\(@this\.Item, \(@this\.Next is \{ \} (__converted\d+) \? \(Probe\.Link\)\(\1\) : null\)\)", emitted);
+        Assert.DoesNotContain(".Clone()", emitted[emitted.IndexOf("explicit operator", StringComparison.Ordinal)..]);
+    }
+
+    [Fact]
+    public void ATestNamingTheResultWithinAConversion_TestsForTheOperandAndCastsWhatItBinds()
+    {
+        var emitted = EmitDeclaration("Twig<>");
+        var clone = emitted[..emitted.IndexOf("file static class", StringComparison.Ordinal)];
+
+        Assert.Contains("if (@this.Next is Probe.Branch<T> next)", clone);
+        Assert.Contains("new Probe.Twig<T>(@this.Item, ((Probe.Twig<T>)(next)))", clone);
+        Assert.Contains("if (@this.Next is Probe.Twig<T> next)", clone);
+        Assert.Contains("new Probe.Branch<T>(@this.Item, ((Probe.Branch<T>)(next)))", clone);
+        Assert.Contains("file static class __Probe_Twig_1__In_Probe_Branch_Access<T>", emitted);
     }
 
     [Fact]

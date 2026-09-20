@@ -1974,6 +1974,10 @@ firstWord=w fresh#1 made=2 secondWord=w fresh#2 made=2
 wordBack=w fresh#2#1 made=1 word=w fresh made=1
 --- Members a Clone reaches ---
 lynx=spots=4 spare=7 ocelot=spots=139 spare=5 lynxBack=spots=409 spare=5
+--- A field that names its source ---
+chain= 1/1 2/1 3/0 back= 1/2 2/1 3/0
+closed=1,False apart= 1/1 2/1 3/0 source= 1/0 99/0 3/0
+rope= 4 5 tail=6,True
 === Newtype Clones Done ===
 === Overloaded Indexers ===
 --- String index, int indexer declared first ---

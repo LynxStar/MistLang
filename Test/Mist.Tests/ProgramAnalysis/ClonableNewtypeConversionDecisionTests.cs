@@ -90,12 +90,72 @@ public sealed class ClonableNewtypeConversionDecisionTests
             }
         }
 
+        public class Link : IClonable<Link>
+        {
+            public int Item;
+            public Link? Next;
+
+            public Link(int item, Link? next)
+            {
+                this.Item = item;
+                this.Next = next;
+            }
+
+            public owned Link Clone()
+            {
+                return new Link(this.Item, this.Next?.Clone());
+            }
+        }
+
+        public class Branch<T> : IClonable<Branch<T>>
+        {
+            public T Item;
+            public Branch<T>? Next;
+
+            public Branch(T item, Branch<T>? next)
+            {
+                this.Item = item;
+                this.Next = next;
+            }
+
+            public owned Branch<T> Clone()
+            {
+                if(this.Next is Branch<T> next)
+                {
+                    return new Branch<T>(this.Item, next.Clone());
+                }
+
+                Branch<T>? end = void;
+                return new Branch<T>(this.Item, end);
+            }
+        }
+
+        public readonly class Rung : IClonable<Rung>
+        {
+            public int Item { get; }
+            public Rung? Next { get; }
+
+            public Rung(int item, Rung? next)
+            {
+                this.Item = item;
+                this.Next = next;
+            }
+
+            public owned Rung Clone()
+            {
+                return new Rung(this.Item, this.Next?.Clone());
+            }
+        }
+
         public type IntCell = new Cell<int>;
         public type Celled<C> = new Cell<C>;
         public type Jaguar = new Tiger;
         public type Puma = new Lion;
         public type Margay = new Ocelot;
         public type Actor = new Entity;
+        public type Chain = new Link;
+        public type Twig<T> = new Branch<T>;
+        public type Step = new Rung;
         """;
 
     private const string Locals = """
@@ -108,6 +168,13 @@ public sealed class ClonableNewtypeConversionDecisionTests
         var cell = new Cell<int>(1);
         var intCell = new IntCell(2);
         var celled = new Celled<string>("c");
+        Link? noLink = void;
+        var link = new Link(1, noLink);
+        Branch<int>? noBranch = void;
+        var branch = new Branch<int>(1, noBranch);
+        Rung? noRung = void;
+        var rung = new Rung(1, noRung);
+        var step = new Step(1, void);
         """;
 
     [Theory]
@@ -118,6 +185,12 @@ public sealed class ClonableNewtypeConversionDecisionTests
     [InlineData("var enteredAGenericNewtype = (Celled<int>)cell;")]
     [InlineData("var enteredAtAnotherInstance = (Celled<string>)new Cell<string>(\"s\");")]
     [InlineData("var leftAGenericNewtype = (Cell<string>)celled;")]
+    [InlineData("var aSelfTypedSlotClonedConditionally = (Chain)link;")]
+    [InlineData("var aSelfTypedSlotClonedConditionallyBack = (Link)new Chain(1, void);")]
+    [InlineData("var aSelfTypedSlotClonedUnderAPattern = (Twig<int>)branch;")]
+    [InlineData("var aSelfTypedSlotClonedUnderAPatternBack = (Branch<int>)new Twig<int>(1, void);")]
+    [InlineData("var aReadonlySourceWhoseCopyDoesNotHold = (Step)rung;")]
+    [InlineData("var aReadonlySourceWhoseCopyDoesNotHoldBack = (Rung)step;")]
     public void ACastRunningAClonableSourcesClone_IsAdmittedEitherWay(string statement)
     {
         Assert.Empty(Errors(Analyse(statement)));
@@ -133,6 +206,7 @@ public sealed class ClonableNewtypeConversionDecisionTests
     [InlineData("var toAnotherInstance = (Cell<int>)celled;", "MIST_PA_CAST_HAS_NO_CONVERSION")]
     [InlineData("var renamedField = (Puma)lion;", "MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD")]
     [InlineData("var renamedFieldBack = (Lion)puma;", "MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD")]
+    [InlineData("Rung aReadonlySourceNoLongerLeavesImplicitly = step;", "MIST_PA_CAST_REQUIRED")]
     public void ACastWithNoCopyThatHolds_IsRefused(string statement, string expected)
     {
         Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Id.Value);
@@ -180,6 +254,21 @@ public sealed class ClonableNewtypeConversionDecisionTests
         Assert.Equal("Probe.Cell<C>", conversion.SourceParameter.Type.FullyQualifiedName);
         Assert.Equal("Probe.Celled<Int32>", cast.Type.FullyQualifiedName);
         Assert.True(conversion.IsCalled);
+    }
+
+    [Fact]
+    public void ACloneOfTheOperandWithinAConversion_IsThatConversionAndIsNotJudgedAgainstItself()
+    {
+        var model = Build("var entered = (Chain)link;", out _);
+        var chain = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Chain"]);
+        var into = chain.CastOperatorsList.Single(conversion => conversion.TargetType.FullyQualifiedName == "Probe.Chain");
+        var creation = Assert.IsType<NewExpression>(Assert.IsType<ReturnStatement>(into.Body!.Statements[^1]).Value);
+        var converted = Assert.IsType<CastExpression>(creation.Arguments[1]);
+
+        Assert.Same(into, converted.Operator);
+        Assert.True(converted.IsConditional);
+        Assert.Equal("Probe.Chain", converted.TargetType.FullyQualifiedName);
+        Assert.Empty(Errors(Analyse("var entered = (Chain)link;")));
     }
 
     [Fact]

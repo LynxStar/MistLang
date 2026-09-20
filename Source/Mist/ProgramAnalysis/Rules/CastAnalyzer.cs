@@ -42,7 +42,7 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
 
         if(cast.ParameterType is { } parameter)
         {
-            return Assignability.Judge(cast.Operand, parameter, interner) is null && CloneRefusal(context, cast) is null;
+            return JudgeOperand(context, cast, parameter) is null && CloneRefusal(context, cast) is null;
         }
 
         return ConversionClassifier.Classify(cast.Operand.Type, cast.TargetType, interner) != ConversionKind.None
@@ -63,7 +63,7 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
         }
         else if(cast.ParameterType is { } parameter)
         {
-            if(Assignability.Judge(cast.Operand, parameter, context.Model.TypeInterner) is null
+            if(JudgeOperand(context, cast, parameter) is null
                 && CloneRefusal(context, cast) is { } refusal && cast.Operator is { ClonesThrough: { } body })
             {
                 context.Report(
@@ -99,7 +99,15 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
                     TypeDisplay.Mist(parameter));
             }
         }
-        else if(UncopiedSource(cast.Operand.Type, cast.TargetType) is { } source)
+        else if(!UnheldCopies.Report(context, cast.Operand.Type, cast.TargetType, cast.Node, [cast, cast.Operand]))
+        {
+            RefuseUnconverted(context, cast);
+        }
+    }
+
+    private static void RefuseUnconverted(AnalysisContext context, CastExpression cast)
+    {
+        if(UncopiedSource(cast.Operand.Type, cast.TargetType) is { } source)
         {
             context.Report(
                 ProgramAnalysisDiagnostics.NewtypeSourceDefinesNoCopy,
@@ -118,6 +126,20 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
                 TypeDisplay.Mist(cast.Operand.Type),
                 TypeDisplay.Mist(cast.TargetType));
         }
+    }
+
+    /// <summary>
+    /// A conditional conversion's operand is judged by what it holds when it is present: absence
+    /// short-circuits past the operator rather than reaching its parameter.
+    /// </summary>
+    private static DiagnosticDescriptor? JudgeOperand(AnalysisContext context, CastExpression cast, IMistType parameter)
+    {
+        var interner = context.Model.TypeInterner;
+
+        return cast.IsConditional
+            ? Assignability.Judge(OptionalLifting.NonVoidPortion(cast.Operand.Type, interner), parameter, interner)
+            : Assignability.Judge(cast.Operand, parameter, interner)
+            ;
     }
 
     private static ConversionRefusal? CloneRefusal(AnalysisContext context, CastExpression cast)

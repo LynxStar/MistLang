@@ -362,6 +362,11 @@ internal static class PostfixBinder
                 returnType, context.Resolver.LookupWellKnown(WellKnownTypes.Void), interner);
         }
 
+        if(CloneConversionBody.Convert(node, group, selected, ctx, context) is { } conversion)
+        {
+            return conversion;
+        }
+
         // The receiver's type arguments are already spelled in the receiver expression, and
         // repeating them on the member would be C# for something else entirely.
         var methodTypeArguments = selected.TypeParametersList

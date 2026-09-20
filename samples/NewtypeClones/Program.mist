@@ -287,6 +287,59 @@ public class Lynx : IClonable<Lynx>
     }
 }
 
+// A field whose type names the source answers the newtype in the clone, so no field of one stands for
+// the corresponding field of the other and the copy cannot be field for field. A source that says how it
+// is copied converts through that Clone instead: within the conversion, cloning a field IS the conversion,
+// and a test naming the result type tests for the operand, so the whole chain crosses rather than the head.
+public class Node<T> : IClonable<Node<T>>
+{
+    public T Item;
+    public Node<T>? Next;
+    private int depth;
+
+    public Node(T item, Node<T>? next)
+    {
+        this.Item = item;
+        this.Next = next;
+        this.depth = 0;
+    }
+
+    public int Depth()
+    {
+        return depth;
+    }
+
+    public owned Node<T> Clone()
+    {
+        if(this.Next is Node<T> next)
+        {
+            var copy = new Node<T>(this.Item, next.Clone());
+            copy.depth = next.depth + 1;
+            return copy;
+        }
+
+        Node<T>? end = void;
+        return new Node<T>(this.Item, end);
+    }
+}
+
+public class Link : IClonable<Link>
+{
+    public int Item;
+    public Link? Next;
+
+    public Link(int item, Link? next)
+    {
+        this.Item = item;
+        this.Next = next;
+    }
+
+    public owned Link Clone()
+    {
+        return new Link(this.Item, this.Next?.Clone());
+    }
+}
+
 public type Slot = Pair<int, string>;
 
 public type Age = new int;
@@ -306,6 +359,9 @@ public type Twin<T> = new Pair<T, T>;
 public type Swap<A, B> = new Pair<B, A>;
 public type Celled<T> = new Cell<T>;
 public type Ocelot = new Lynx;
+public type Chain<T> = new Node<T>;
+public type IntChain = new Node<int>;
+public type Rope = new Link;
 
 public class Person
 {
@@ -447,7 +503,64 @@ public class Program
         var lynxBack = (Lynx)ocelot;
         Console.WriteLine($"lynx={lynx.Describe()} ocelot={ocelot.Describe()} lynxBack={lynxBack.Describe()}");
 
+        Console.WriteLine("--- A field that names its source ---");
+        Node<int>? noNode = void;
+        var nodes = new Node<int>(1, new Node<int>(2, new Node<int>(3, noNode)));
+        var chain = (Chain<int>)nodes;
+        var nodesBack = (Node<int>)chain;
+        Console.WriteLine($"chain={SpellChain(chain)} back={SpellNodes(nodesBack)}");
+        var closed = (IntChain)nodes;
+        if(nodes.Next is Node<int> second)
+        {
+            second.Item = 99;
+        }
+
+        Console.WriteLine($"closed={closed.Item},{closed.Next is void} apart={SpellChain(chain)} source={SpellNodes(nodes)}");
+        Link? noLink = void;
+        var rope = (Rope)new Link(4, new Link(5, noLink));
+        var tail = (Rope)new Link(6, noLink);
+        Console.WriteLine($"rope={SpellRope(rope)} tail={tail.Item},{tail.Next is void}");
+
         Console.WriteLine("=== Newtype Clones Done ===");
+    }
+
+    public static string SpellNodes(Node<int>? head)
+    {
+        var text = "";
+        var cursor = head;
+        while(cursor is Node<int> here)
+        {
+            text = $"{text} {here.Item}/{here.Depth()}";
+            cursor = here.Next;
+        }
+
+        return text;
+    }
+
+    public static string SpellChain(Chain<int>? head)
+    {
+        var text = "";
+        var cursor = head;
+        while(cursor is Chain<int> here)
+        {
+            text = $"{text} {here.Item}/{here.Depth()}";
+            cursor = here.Next;
+        }
+
+        return text;
+    }
+
+    public static string SpellRope(Rope? head)
+    {
+        var text = "";
+        var cursor = head;
+        while(cursor is Rope here)
+        {
+            text = $"{text} {here.Item}";
+            cursor = here.Next;
+        }
+
+        return text;
     }
 
     public static void Main(string[] args)

@@ -25,12 +25,17 @@ internal static class NewtypeConversions
 
         if(!IsCopyable(source))
         {
-            SynthesizeClonable(clone, itself, source, sourceType, interner);
+            _ = SynthesizeClonable(clone, itself, source, sourceType, interner);
             return;
         }
 
-        if(!source.IsIntrinsic && !CopiesSlotForSlot(clone, source, sourceType))
+        if(!source.IsIntrinsic && UnheldSlot(clone, source, sourceType) is { } unheld)
         {
+            if(!SynthesizeClonable(clone, itself, source, sourceType, interner))
+            {
+                clone.UnheldCopy = unheld;
+            }
+
             return;
         }
 
@@ -91,22 +96,30 @@ internal static class NewtypeConversions
         }
     }
 
-    private static bool CopiesSlotForSlot(ConcreteType clone, ConcreteType source, IMistType sourceType)
+    private static UnheldCopy? UnheldSlot(ConcreteType clone, ConcreteType source, IMistType sourceType)
     {
         var substitution = TypeSubstitution.ForReceiver(sourceType as ConstructedType);
 
-        bool same(IMistType renamed, IMistType declared)
+        UnheldCopy? unheld(string member, IMistType renamed, IMistType declared)
         {
-            return renamed.FullyQualifiedName == substitution.Apply(declared, interner: null).FullyQualifiedName;
+            var applied = substitution.Apply(declared, interner: null);
+
+            return renamed.FullyQualifiedName == applied.FullyQualifiedName ? null : new UnheldCopy(member, renamed, applied);
         }
 
-        return clone.FieldsList.Where(field => !field.Modifiers.IsStatic)
-                .Zip(source.FieldsList.Where(field => !field.Modifiers.IsStatic))
-                .All(slot => same(slot.First.Type, slot.Second.Type))
-            && clone.PropertiesList.Where(property => !property.Modifiers.IsStatic)
-                .Zip(source.PropertiesList.Where(property => !property.Modifiers.IsStatic))
-                .All(slot => same(slot.First.Type, slot.Second.Type))
-            && (clone.BaseType is null || source.BaseType is null || same(clone.BaseType, source.BaseType));
+        var fields = clone.FieldsList.Where(field => !field.Modifiers.IsStatic)
+            .Zip(source.FieldsList.Where(field => !field.Modifiers.IsStatic))
+            .Select(slot => unheld(slot.First.Name, slot.First.Type, slot.Second.Type));
+
+        var properties = clone.PropertiesList.Where(property => !property.Modifiers.IsStatic)
+            .Zip(source.PropertiesList.Where(property => !property.Modifiers.IsStatic))
+            .Select(slot => unheld(slot.First.Name, slot.First.Type, slot.Second.Type));
+
+        var bases = clone.BaseType is { } renamedBase && source.BaseType is { } declaredBase
+            ? [unheld(declaredBase.Name, renamedBase, declaredBase)]
+            : Array.Empty<UnheldCopy?>();
+
+        return fields.Concat(properties).Concat(bases).FirstOrDefault(slot => slot is not null);
     }
 
     public static bool IsCopyable(ConcreteType source)
@@ -114,18 +127,20 @@ internal static class NewtypeConversions
         return source is StructType || source.Modifiers.IsReadonly;
     }
 
-    private static void SynthesizeClonable(ConcreteType clone, IMistType itself, ConcreteType source, IMistType sourceType, TypeInterner interner)
+    private static bool SynthesizeClonable(ConcreteType clone, IMistType itself, ConcreteType source, IMistType sourceType, TypeInterner interner)
     {
         if(CloneMethod(source, interner) is not { } sourceClone
             || clone.MethodsList.Find(method => ReferenceEquals(method.DeclarationNode, sourceClone.DeclarationNode)) is not { } renamedClone)
         {
-            return;
+            return false;
         }
 
         var sourceScope = sourceType is ConstructedType construction ? new ConstructionScope(source.Scope, construction) : source.Scope;
 
         clone.CastOperatorsList.Add(Through(renamedClone, itself, clone.Scope, sourceType, clone));
         clone.CastOperatorsList.Add(Through(sourceClone, sourceType, sourceScope, itself, clone));
+
+        return true;
     }
 
     private static Method? CloneMethod(ConcreteType source, TypeInterner interner)
@@ -146,14 +161,19 @@ internal static class NewtypeConversions
     private static CastOperator Through(Method cloneMethod, IMistType result, Scope resultScope, IMistType receiver, ConcreteType clone)
     {
         var modifiers = new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true };
+        var within = new ConversionScope(new ReceiverScope(resultScope, receiver));
 
-        return new CastOperator(result, new Parameter("value", receiver), isImplicit: false, modifiers)
+        var conversion = new CastOperator(result, new Parameter("value", receiver), isImplicit: false, modifiers)
         {
             Body = new Block(cloneMethod.Body!.Node),
-            Scope = new MethodScope(new ReceiverScope(resultScope, receiver)),
+            Scope = new MethodScope(within),
             DeclaringType = clone,
             ClonesThrough = cloneMethod,
         };
+
+        within.Conversion = conversion;
+
+        return conversion;
     }
 
     private static CastOperator Copy(IMistType from, IMistType to, ConcreteType clone, bool isImplicit)

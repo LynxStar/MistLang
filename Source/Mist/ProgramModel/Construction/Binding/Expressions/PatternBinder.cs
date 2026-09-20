@@ -131,7 +131,8 @@ internal static class PatternBinder
         {
             case TypePatternPrimaryPatternNode typePattern:
                 {
-                    var tested = context.Resolver.Resolve(typePattern.Type, ctx.Scope);
+                    var tested = CloneConversionBody.Tested(
+                        context.Resolver.Resolve(typePattern.Type, ctx.Scope), scrutineeType, ctx.Scope);
 
                     if(tested is NamedTupleType namedTuple)
                     {
@@ -218,7 +219,7 @@ internal static class PatternBinder
 
         return BindTypeTest(
             node,
-            context.Resolver.Resolve(bareType.Type, ctx.Scope),
+            CloneConversionBody.Tested(context.Resolver.Resolve(bareType.Type, ctx.Scope), scrutineeType, ctx.Scope),
             binding: null,
             scrutineeType,
             ctx,

@@ -4146,15 +4146,17 @@ capabilities:
       property accessor spells its target inside the instance's substitution. samples/OpenUnions
       prints `generic clones:` over `Kept<K>` and `Helded<K>` at two instantiations.
 
-      STILL NOT COVERED, outside the specialization: a generic method with STATED type arguments used
-      as a value (`Api.Pick<int, string>` with no call) does not parse, the grammar admitting a
-      type-argument list in four contexts only (generics-type-arguments Requirement 4.5), on both
-      pipelines. PROBED AGAIN 2026-09-19, one project each: the plain `Api.Same<int>` fails the same
-      way and `x => Api.Pick<int, string>(x)` prints `T 5 | R` on v2. DECIDED the same day by the
-      language owner: both the stated form and the BARE generic group (`func<int, int> same =
-      Api.Same;`) should work. The bare group converts, recorded under order 108; `Pick<T, R>(T | R)`
-      is not among what it reaches, the target not saying which constituent is T, so that one waits
-      on the stated form and the grammar.
+      THE LAST SHAPE LEFT OUTSIDE IS COVERED (2026-09-19): a generic method with STATED type arguments
+      used as a value (`Api.Pick<int, string>` with no call) did not parse on either pipeline, the
+      grammar admitting a type-argument list in four contexts only (generics-type-arguments 4.5).
+      DECIDED that day by the language owner: both the stated form and the BARE generic group
+      (`func<int, int> same = Api.Same;`) should work. Both do, recorded under order 108 -- the bare
+      group by reading its type arguments off the target, which cannot reach `Pick<T, R>(T | R)`, the
+      target not saying which constituent is T; the stated form by a fifth context in the grammar,
+      guarded by a syntactic predicate Storm gained for it. What belongs here is that a method emitted
+      per instantiation is named for the instance it was stated or inferred at
+      (`Pick__Standard_Int32__Standard_String`, `Lift__Standard_Int32`), the conversion recording the
+      instantiation as a call does. samples/OpenUnions prints `inferred values:` and `stated values:`.
     unlocks: []
 
   - id: union-widening-at-use-sites
@@ -6444,7 +6446,7 @@ capabilities:
       STILL OPEN, each a clean refusal: a VARIADIC generic method as a value; a group passed to a generic
       CALL that must learn its own type arguments from the group (`Api.Apply(4, Api.Next)` with `R
       Apply<T, R>(T, func<T, R>)`), the divergence order 109 records, a group having no type until a target
-      gives it one; and STATED type arguments (`Api.Same<int>`), which the grammar does not yet admit.
+      gives it one. STATED type arguments (`Api.Same<int>`) followed the same day, in the next paragraph.
       PROVED BY FunctionTypeResolutionTests (the arguments taken from parameters, from the result alone and
       on a generic receiver, the three refusals, the plain overload preferred, the type-parameter position,
       and the instantiation recorded from a local and from a call that settles its group late),
@@ -6454,6 +6456,45 @@ capabilities:
       Eleven mutations, each caught by name; a twelfth, applying the receiver's arguments before matching,
       survived as an equivalent -- they can mention none of the method's parameters -- and the code that
       made it possible is gone.
+
+      STATED TYPE ARGUMENTS ON A METHOD VALUE PARSE AND CONVERT (2026-09-19), the other half of the same
+      decision: `func<int | string, string> pick = Api.Pick<int, string>;` prints `T 5`, the line order 76 had
+      carried as uncovered since the open-union work. MEASURED FIRST: MIST_PARSE_INCOMPLETE at the enclosing
+      class on both pipelines, for the plain `Api.Same<int>` alike -- `MethodCallSuffix` wanting `(` after the
+      list, the parser committed to the identifier and read `<` as less-than. The restriction was deliberate
+      (generics-type-arguments 4.5): `Use(a < b, c > d)` is two comparisons, and an ordered choice commits to
+      the first alternative that succeeds LOCALLY, so an alternative `name typeArgs` would have stolen it with
+      no way back. What tells the readings apart is the token AFTER `>`, which no PEG alternative can see
+      without consuming it, so Storm gained syntactic predicates first (backlog/storm.md) and the grammar two
+      alternatives guarded by one: `DOT name typeArgs &(; , ) ] })` as a postfix suffix and `name typeArgs
+      &(...)` as a primary. Two routes were sized before either was built, by three scouts reading and
+      measuring: alternatives carrying their own follower (about fifteen of them, never an argument, which
+      is 14% of how method values are written in this repository) against the predicate (two alternatives,
+      every position). MEASURED for the predicate route on a scratch generator: of 1036 .mist files and 1241
+      Mist programs embedded in tests, none changes its parse; `>` must stay OUT of the follower set, or the
+      inner list of `Box<Span<T, unknown>> b;` reads as a value inside a comparison statement; and there
+      being no `>>` token, `Api.Same<List<List<int>>>` parses. Classic shares the parser and refuses the
+      form in its own checker (MIST_TC_0001) rather than crashing; samples/AllFeatures matches its baseline.
+      The binder gives the group its StatedTypeArguments and the conversion takes them in place of inference,
+      from a method of that arity only -- so stated arguments choose the generic over a plain overload of
+      the same signature -- and holds the closed signature to the target as before. A bare name so written
+      that is a generic TYPE is the constructed type as a value (`var t = Holder<int>;` prints its name), and
+      type arguments on a name that is not a method are MIST_PM_TYPE_ARGUMENTS_ON_A_NON_METHOD.
+      MEASURED after, each line derived by hand first: `4 | 5 | 6 | 7 8 | 9 | 10 | T 11 | box 12` and `13`
+      through an argument, a qualified and a bare return, a field initializer, both array-element followers,
+      a tuple element, a lambda body, the open union and an instance receiver; `True False | True True |
+      False` for the comparisons left alone; `3 | 2` through nested arguments; four refusals, each the one
+      expected -- the wrong arity, a target the stated signature is not, a field, and a constraint broken.
+      FOUND ON THE WAY, not part of this: `func<int, int>[]` does not parse as a type on either pipeline,
+      with plain lambdas as its elements too; `(func<int, int>)[]` does.
+      PROVED BY GenericMethodValueParseTests at Tier 1 (thirteen positions for the suffix, three for the bare
+      name, eleven shapes that must keep their parse -- the uninitialized `Box<Span<T, unknown>> b;` among
+      them -- the comparisons counted beside a method value, and the printer's round trip),
+      FunctionTypeResolutionTests (the arguments stated, both orders of `Either<T, R>`, the arity rule over
+      a plain overload, four refusals, the type literal, and a bare stated name inside generic code),
+      GenericMethodGroupEmissionTests and one corpus case. samples/OpenUnions prints `stated values: T 5 | R
+      | R | T w | T 4`, the last as an argument. Eleven mutations, each caught by name; the follower set
+      widened to `>` survived until the uninitialized declaration joined the rows.
     unlocks: []
 
   - id: delegate-func-conversion
@@ -11594,7 +11635,9 @@ samples:
         the newtypes `IntKeep` and `IntHeld` over specialized sources and the generic `Kept<K>` and
         `Helded<K>` over the same two at `<int>` and `<string>`, which CloneConversionRuntimeTests also
         runs, and `void` tested against a value optional, a reference one, a `K?` inside `Keep<K>` and a
-        three-way carrier, whose `absent:` line a test spelled `is Standard.Void` would print False for.
+        three-way carrier, whose `absent:` line a test spelled `is Standard.Void` would print False for;
+        and generic methods named as values, two per-instantiation ones with their type arguments read off
+        the target and `Pick<T, R>` with them stated in both orders, one of them passed as an argument.
 
 # =====================================================================
 

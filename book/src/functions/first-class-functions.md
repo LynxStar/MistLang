@@ -177,6 +177,23 @@ When a named method's signature matches the expected `func` type, you can use th
 
 The compiler verifies that the method's parameter types and return type match the target `func` type. If they don't match, you get a compile-time error.
 
+A generic method works the same way. Its type arguments come from the target: each type parameter is the type standing at the positions of the `func` type that mention it, the result included, so `func<int, int> same = Same;` is `Same<int>`. Where the target cannot settle them -- `Pick<T, R>(T | R)` against `func<int | string, string>` does not say which constituent is `T` -- state them after the name, with no call:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/functions/first-class-functions/generic-method-groups.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/functions/first-class-functions/generic-method-groups.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Stated type arguments are read as such only where the expression ends there -- before `;`, `,`, `)`, `]` or `}` -- which is what keeps `Use(a < b, c > d)` two comparisons. A generic method converts by exact signature like any other, and an inferred or stated type argument is held to the method's `where` clauses.
+
 ## Static Lambdas
 
 The `static` modifier on a lambda prevents it from capturing any enclosing variables. This guarantees no heap allocation for a closure object:

@@ -369,7 +369,7 @@ clr_attributes_to_project:
   - [x] readonly struct -> Mist readonly modifier ([IsReadOnly] type attribute filtered out)
   - [x] public custom attributes on classes/structs/interfaces and their methods, properties, fields, indexers, constructors, operators, cast operators, and parameters
   - [x] public custom attributes on enum types
-  - [x] compiler-internal attributes excluded (CompilerGenerated, Nullable*, Dynamic, Extension, TupleElementNames, IsUnmanaged)
+  - [x] compiler-internal attributes excluded (CompilerGenerated, Nullable*, Dynamic, Extension, TupleElementNames, IsUnmanaged) -- TupleElementNames is excluded from the attribute list but not discarded: TupleElementNames.Of reads it into tuple element names (see missing_stdlib_types)
   - [x] positional constructor argument values (including Type-, enum-, and array-valued)
   - [x] named property/field argument values
 
@@ -413,5 +413,36 @@ intrinsic_substitution:
   - [x] recursive substitution in constructed generics (e.g., List<int> -> List<Standard.Int32>)
 
 missing_stdlib_types:
-  - [ ] System.ValueTuple`N -> Standard tuple type
+  - [x] System.ValueTuple`N -> the Mist structural tuple (TupleType, decorated by NamedTupleType), not a Standard declaration
+    # Measured 2026-09-25 on v2 against Test/Mist.Tests.InteropFixtures/TupleSignatures.cs.
+    # BEFORE: a ValueTuple signature entered as a nominal ConstructedType over the projected
+    # System.ValueTuple`N shell, and TupleElementNamesAttribute was dropped. Passing Mist tuple
+    # literals, locals and nested/9-element literals to CLR parameters already compiled and ran, as
+    # did .Item1/.Item2 on a returned pair. Everything else failed: `(int, int) r = Divide(17, 5)`
+    # MIST_PA_NO_IMPLICIT_CONVERSION; `var (q, m) = ...` and the typed form MIST_PM_DECONSTRUCTION_SOURCE;
+    # every element name (.Quotient, .Origin.X, .Max, .Last, foreach e.Name) MIST_PM_UNRESOLVED_MEMBER;
+    # and past seven elements even .Item8/.Item9/.Item16 did not resolve (11 of 21 probes failed on
+    # tuples; 3 more failed for reasons that are not tuples', listed below).
+    # AFTER: AmbientTypeResolver resolves a closed ValueTuple`2..`8 to the interned TupleType of its
+    # flattened elements, every Rest spread, wrapped in NamedTupleType when the member's attribute names
+    # any element. All 11 now compile and print the right values, plus 23 further shapes (ref, nullable
+    # narrowing, dictionary keys, name-mismatched generic arguments, `unknown` patterns, 9- and
+    # 16-element round trips, BCL Enumerable.Zip(a, b) and a.Index()).
+    # Tests: ClrValueTupleTests (Tier 1: NameSlots against the compiler's own attribute on every fixture
+    # signature), AmbientTypeProviderV2TupleProjectionTests (Tier 3: projected structure and element
+    # types), ClrTupleSignatureRuntimeTests (Tier 4: values in and out at runtime, one compile, one run).
+    # Both name skips (Rest, delegate) are mutation-checked.
+    # NOT TUPLES, measured beside it and unchanged by it: unqualified `Math.DivRem` is Standard.Math
+    # (System.Math.DivRem works and returns the named tuple); `ps[2]` on a projected array is refused
+    # MIST_PA_INDEX_UNPROVEN, the length being unknown; and the extension form `a.Zip(b)` fails
+    # MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED whichever overload is meant, the tuple-free selector overload
+    # included, while the static form `Enumerable.Zip(a, b)` binds.
+    - [x] parameters, returns, properties, fields, indexers, constructors, extension receivers and returns, operator and cast returns
+    - [x] nested tuples, and tuples inside generic arguments, arrays, by-ref and Nullable
+    - [x] Rest encoding flattened at any depth (8, 9 and 16 elements covered)
+    - [x] element names: pre-order over the CLR type, each tuple taking its flattened count and each Rest re-taking its own (Octet's 8 elements carry 9 names); a count that disagrees drops every name
+    - [x] ValueTuple`1 stays nominal: Mist tuples have two or more elements (value-tuples Req 1.3)
+    - [ ] names on base types, interfaces and type-parameter constraints -- a base type's are on the type itself and simply not read; an interface's or constraint's sit on InterfaceImpl/GenericParamConstraint rows that reflection does not surface. All three stay structural and unnamed
+    - [ ] names inside a non-Func/Action delegate's signature -- FunctionShape reads Invoke unnamed and the delegate's names are skipped
+    - [ ] System.Tuple (reference tuples) stays nominal; no language requirement asks otherwise
   - [ ] Union type Standard Library representation

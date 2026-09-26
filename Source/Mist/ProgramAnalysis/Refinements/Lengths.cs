@@ -72,8 +72,13 @@ internal static class Lengths
 
     public static Admitted? OfSlice(RangeExpression range, Admitted? source)
     {
-        var from = range.Start is null ? Admitted.Exactly(0) : Position(range.Start, source);
-        var to = range.End is null ? source : Position(range.End, source);
+        return StoredRange.Of(range) is { } stored ? OfSlice(stored, source) : null;
+    }
+
+    public static Admitted? OfSlice(StoredRange range, Admitted? source)
+    {
+        var from = Position(range.Start, source);
+        var to = Position(range.End, source);
 
         return Exact(to) is { } high && Exact(from) is { } low && high >= low
             ? Admitted.Exactly(high - low)
@@ -81,17 +86,19 @@ internal static class Lengths
             ;
     }
 
-    private static Admitted? Position(Expression bound, Admitted? source)
+    private static Admitted? Position(RangeBound bound, Admitted? source)
     {
-        if(bound is UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset })
+        if(bound.Offset is not { } offset)
         {
-            return Exact(source) is { } length && Exact(Constant(offset)) is { } k
-                ? Admitted.Exactly(length - k)
-                : null
-                ;
+            return null;
         }
 
-        return Constant(bound);
+        if(!bound.FromEnd)
+        {
+            return Admitted.Exactly(offset);
+        }
+
+        return Exact(source) is { } length ? Admitted.Exactly(length - offset) : null;
     }
 
     private static Admitted? Shorten(Admitted? source, Admitted? by)

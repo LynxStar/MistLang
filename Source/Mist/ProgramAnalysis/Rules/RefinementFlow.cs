@@ -12,7 +12,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal sealed record Bound(object Holder, ComparisonKind Kind);
 
-internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0, Admitted? Length = null, RangeExpression? Slice = null)
+internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0, Admitted? Length = null, StoredRange? Slice = null)
 {
     public static readonly Knowledge Unknown = new(Admitted.Everything, ImmutableHashSet<Bound>.Empty);
 }
@@ -27,11 +27,23 @@ internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds
 /// the flow cannot see may reassign it then. A local keeps nothing at all when
 /// <see cref="UnseenWrites"/> names it.
 /// </summary>
-internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, LiftedReturns lifted)
+internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, LiftedReturns lifted, FlowGraph graph)
     : IFlowLattice<ImmutableDictionary<object, Knowledge>>
 {
     public static readonly ImmutableDictionary<object, Knowledge> Nothing =
         ImmutableDictionary.Create<object, Knowledge>(ReferenceEqualityComparer.Instance);
+
+    // A range captures bound values, so a written symbol cannot identify one captured value across paths.
+    private readonly HashSet<LocalVariable> rangeBoundWrites = graph.Blocks.SelectMany(block => block.Steps)
+        .Select(step => step.Node).OfType<AssignmentExpression>()
+        .Select(assignment => assignment.Target).OfType<LocalReferenceExpression>()
+        .Select(reference => reference.Local)
+        .Concat(graph.Blocks.SelectMany(block => block.Steps)
+            .Where(step => step.Kind is FlowStepKind.Bind or FlowStepKind.Introduce)
+            .Select(step => step.Variable).OfType<LocalVariable>())
+        .Concat(graph.Loops.SelectMany(loop => BodyWalker.DescendantsAndSelf(loop.Body))
+            .OfType<LocalDeclarationStatement>().Select(declaration => declaration.Local))
+        .Concat(unseenWrites).ToHashSet();
 
     public ImmutableDictionary<object, Knowledge> Join(
         ImmutableDictionary<object, Knowledge> left, ImmutableDictionary<object, Knowledge> right)
@@ -133,6 +145,11 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
     private static ImmutableDictionary<object, Knowledge> Learn(
         ImmutableDictionary<object, Knowledge> state, Expression condition, bool holds)
     {
+        if(condition is BinaryExpression { OperatorKind: BinaryOperatorKind.NotEqual })
+        {
+            holds = !holds;
+        }
+
         switch(condition)
         {
             case BinaryExpression { Left: MemberAccessExpression { MemberName: "Length", Receiver: var sizedOne }, Right: var limit2 } sized
@@ -216,7 +233,10 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
 
         if(value is RangeExpression written)
         {
-            return state.SetItem(local, Knowledge.Unknown with { Slice = written });
+            var stored = StoredRange.Of(written);
+            var stable = stored is not null && !stored.DependsOn(holder => holder is LocalVariable symbol && rangeBoundWrites.Contains(symbol));
+
+            return state.SetItem(local, Knowledge.Unknown with { Slice = stable ? stored : null });
         }
 
         if(value is IndexExpression { Index: LocalReferenceExpression taken } slice
@@ -241,9 +261,15 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
             {
                 state = state.Remove(other);
             }
-            else if(known.Bounds.Any(bound => lost(bound.Holder)))
+            else
             {
-                state = state.SetItem(other, known with { Bounds = known.Bounds.Where(bound => !lost(bound.Holder)).ToImmutableHashSet() });
+                var bounds = known.Bounds.Where(bound => !lost(bound.Holder)).ToImmutableHashSet();
+                var slice = known.Slice is { } range && range.DependsOn(lost) ? null : known.Slice;
+
+                if(bounds.Count != known.Bounds.Count || !Equals(slice, known.Slice))
+                {
+                    state = state.SetItem(other, known with { Bounds = bounds, Slice = slice });
+                }
             }
         }
 
@@ -337,7 +363,7 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
     {
         return kind switch
         {
-            BinaryOperatorKind.Equal => ComparisonKind.Equal,
+            BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual => ComparisonKind.Equal,
             BinaryOperatorKind.LessThan => ComparisonKind.LessThan,
             BinaryOperatorKind.GreaterThan => ComparisonKind.GreaterThan,
             BinaryOperatorKind.LessThanOrEqual => ComparisonKind.LessThanOrEqual,

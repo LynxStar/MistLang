@@ -3037,7 +3037,7 @@ rules:
       intersects whatever it learns with AtLeast(0), which is what every caller reaching it already
       assumes of the member it read. The same guard's else branch proves, `0 == xs.Length` mirrored
       proves, and the boundary holds: `if(xs.Length == 1) {} else { xs[0] }` is still UNPROVEN, a length
-      that is not 1 being free to be 0. `xs.Length != 0` is still not learned and is a task below.
+      that is not 1 being free to be 0. `xs.Length != 0` was not learned at this point.
 
       A RANGE IN A LOCAL SIZES ITS SLICE (2026-09-20), the other stalled snippet. Lengths.Of read a
       RangeExpression only where it was written in the index position, so `numbers[0..2]` sized its slice
@@ -3060,6 +3060,40 @@ rules:
       NOTHING. The second corpus case was written for it and now names it, reporting
       `index-past-a-range-the-paths-disagree-on.mist: expected MIST_PA_INDEX_UNPROVEN on line 20, reported:
       nothing`. Sound joining had been argued rather than measured, which is exactly what a mutation is for.
+
+      INEQUALITY GUARDS AND EQUIVALENT STORED RANGES (2026-09-25). A NotEqual comparison now asks the
+      existing equality proof with the path's truth inverted, including mirrored operands and logical
+      negation already decomposed by the flow framework. Length remains non-negative, so `Length != 0`
+      proves the first and last element; `Length != 1` and an arbitrary nonzero index prove neither.
+      No ComparisonKind or predicate surface changed.
+
+      A stored range is now a pair of bound values, compared alike by Join and Same: integral constants
+      by value, local and parameter references by symbol identity, and each from-end marker retained.
+      Omitted start is zero and omitted end is from-end zero. Unsupported expressions carry no range
+      fact, even when source text repeats. A bound symbol assigned anywhere in the body, including unseen
+      writes, carries no range fact: the existing graph supplies the write set, so reconstructing a range
+      after one branch changes its bound cannot mistake the symbol for its earlier captured value.
+      Ref aliases, introduced and pattern-bound symbols, and loop-body declarations are excluded too: a single
+      model symbol can receive a fresh value at each iteration.
+      Invalidation clears dependent facts, including copies; constant copies keep their captured value.
+      Lengths consumes the same representation for written and stored ranges. Symbolic offsets remain
+      unsized, and computing a slice's length does not itself prove the slice bounds valid.
+
+      COVERAGE: 21 InequalityGuardDecisionTests rows and 34 StoredRangeDecisionTests rows/facts, the latter
+      loading real Standard sources and asserting clean binding, a Range index yielding an unknown-length
+      Array<int>, and a resolved element access before judging flow. Joins on both paths, loops, omitted
+      bounds, from-end bounds, copied ranges, distinct same-name symbols, and invalidation are observed.
+      Seventeen new corpus cases pin insufficient guards, writes and calls, different bounds even with the
+      same resulting length, different from-end markers, unknown ranges, and an index past an equivalent
+      range. The existing stored-range and differing-range refusal cases remain unchanged. A scratch
+      runtime probe on both pipelines prints 7, 0, 8, 9, 30, 30 with no diagnostics: positive, mirrored
+      and negated guards, the empty path, and an equivalent stored range on either branch. The initial
+      focused ledger passed all 222 tests, including the refusal corpus. The final solution builds with
+      zero warnings and errors, full-solution and final-file formatting checks are clean, and both
+      orchestrators run with zero diagnostics and stdout byte-identical to their baselines.
+      The final full-suite ledger (20260926-094403) passed 7,519 tests: 6,745 compiler tests, 68 CLI tests
+      and 706 source-generator tests, with no failures. Its corpus test checked all 532 refusal programs,
+      including the unchanged stored-range and differing-range cases.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -3070,16 +3104,6 @@ rules:
         A union with refined constituents is judged per constituent by the value's base type, or for
         a constant by any integral constituent it fits; a runtime `is` against a union of refinements
         narrows to a constituent (Req 10.3) and is not judged beyond order 8's pattern rules.
-      - >
-        `xs.Length != 0` teaches the flow nothing, where `xs.Length == 0` failing now does. Comparison
-        maps no NotEqual because ComparisonKind, which the pattern model shares, declares none; giving
-        it one is a language-surface decision, and routing the operator to the equality's negation
-        instead is the smaller alternative.
-      - >
-        A Range a local was given is forgotten at ANY join, because two range expressions are compared
-        as nodes and two spellings of `0..3` are different nodes. Sound, and no worse than before the
-        range was carried at all, but `Range w = 0..3; if(flag) { w = 0..3; }` loses a length it could
-        keep; comparing the bounds structurally is what would keep it.
       - >
         Real-valued refinements (`double > 0.0`) are not proven: the interval set is over long. A
         property-pattern refinement is not proven either, as the comparison engine spec says.

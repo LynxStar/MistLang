@@ -147,7 +147,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
     {
         public void Judge(FlowGraph graph, ImmutableDictionary<object, Knowledge> entry)
         {
-            var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(graph, new RefinementFlow(unseenWrites, lifted), entry);
+            var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(graph, new RefinementFlow(unseenWrites, lifted, graph), entry);
             solution.Replay((state, step) => Judge(graph, state, step));
         }
 

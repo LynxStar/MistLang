@@ -1,0 +1,26 @@
+using Standard;
+
+namespace Refusal;
+
+type NonZero = int not 0;
+
+public class Probe
+{
+    public static int Keep(int value, int replacement)
+    {
+        if(value != 0)
+        {
+            value = replacement;
+            // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+            NonZero copy = value;
+            return copy;
+        }
+
+        return 1;
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(Keep(1, 0));
+    }
+}

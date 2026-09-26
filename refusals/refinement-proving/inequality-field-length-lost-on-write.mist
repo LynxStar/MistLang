@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    int[] cells = new int[1];
+
+    public int First(int[] replacement)
+    {
+        if(cells.Length != 0)
+        {
+            cells = replacement;
+            // REFUSE: MIST_PA_INDEX_UNPROVEN
+            return cells[0];
+        }
+
+        return 0;
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(new Probe().First(new int[0]));
+    }
+}

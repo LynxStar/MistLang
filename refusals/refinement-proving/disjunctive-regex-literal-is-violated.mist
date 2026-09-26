@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+type Choice = string (`[a-z]+` or `\d+`);
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        Choice value = "abc1";
+    }
+}

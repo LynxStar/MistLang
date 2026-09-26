@@ -6,9 +6,11 @@ type Choice = string (`[a-z]+` or `\d+`);
 
 public class Probe
 {
-    public static void Main()
+    public static void Check(string input)
     {
         // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
-        Choice value = "abc";
+        Choice value = input;
     }
+
+    public static void Main() { }
 }

@@ -6,9 +6,11 @@ type NotLetters = string not `[a-z]+`;
 
 public class Probe
 {
-    public static void Main()
+    public static void Check(string input)
     {
         // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
-        NotLetters value = "123";
+        NotLetters value = input;
     }
+
+    public static void Main() { }
 }

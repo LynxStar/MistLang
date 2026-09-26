@@ -8,7 +8,7 @@ public class Probe
 {
     public static void Main()
     {
-        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
         Tenth value = 0.1f;
     }
 }

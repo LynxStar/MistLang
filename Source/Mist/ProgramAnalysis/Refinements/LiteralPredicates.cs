@@ -69,24 +69,11 @@ internal static class LiteralPredicates
             ComparisonPattern comparison when Comparability.Misordered(comparison) is null => Compare(value, comparison),
             RegexPattern regex when value.Value is string input => Match(input, regex.Pattern),
             ConjunctionPattern conjunction => All(conjunction.Operands.Select(operand => Decide(operand, value))),
-            DisjunctionPattern disjunction when !ContainsRegex(disjunction) => Any(disjunction.Operands.Select(operand => Decide(operand, value))),
-            NegatedPattern negated when !ContainsRegex(negated) => Decide(negated.Operand, value) is { } inner ? !inner : null,
+            DisjunctionPattern disjunction => Any(disjunction.Operands.Select(operand => Decide(operand, value))),
+            NegatedPattern negated => Decide(negated.Operand, value) is { } inner ? !inner : null,
             TypeTestPattern { Refinement: { } refinement } => Decide(refinement, value),
             CatchAllPattern => true,
             _ => null,
-        };
-    }
-
-    private static bool ContainsRegex(Pattern pattern)
-    {
-        return pattern switch
-        {
-            RegexPattern => true,
-            ConjunctionPattern conjunction => conjunction.Operands.Any(ContainsRegex),
-            DisjunctionPattern disjunction => disjunction.Operands.Any(ContainsRegex),
-            NegatedPattern negated => ContainsRegex(negated.Operand),
-            TypeTestPattern { Refinement: { } refinement } => ContainsRegex(refinement),
-            _ => false,
         };
     }
 
@@ -104,7 +91,15 @@ internal static class LiteralPredicates
             return comparison.Kind == ComparisonKind.Equal && bound.Value is string other ? StringComparer.Ordinal.Equals(text, other) : null;
         }
 
-        if(bound.ConvertedTo(comparison.NarrowedType) is not { } limit)
+        var limit = bound.ConvertedTo(comparison.NarrowedType);
+
+        if(value.Value is float && bound.Value is double && value.ConvertedTo(comparison.Bound.Type) is { } promoted)
+        {
+            value = promoted;
+            limit = bound;
+        }
+
+        if(limit is null)
         {
             return null;
         }
@@ -162,30 +157,27 @@ internal static class LiteralPredicates
 
     private static bool? All(IEnumerable<bool?> operands)
     {
-        var result = (bool?)true;
-
         foreach(var operand in operands)
         {
-            result = And(result, operand);
+            if(operand != true)
+            {
+                return operand;
+            }
         }
 
-        return result;
+        return true;
     }
 
     private static bool? Any(IEnumerable<bool?> operands)
     {
-        var unknown = false;
-
         foreach(var operand in operands)
         {
-            if(operand == true)
+            if(operand != false)
             {
-                return true;
+                return operand;
             }
-
-            unknown |= operand is null;
         }
 
-        return unknown ? null : false;
+        return false;
     }
 }

@@ -25,7 +25,6 @@ internal class Container
 
     public Container()
     {
-        this.Origin = new Snippet.Point(0, 0);
     }
 
     public static Container __CreateDefault()

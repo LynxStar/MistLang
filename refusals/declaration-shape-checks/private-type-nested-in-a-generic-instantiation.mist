@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public class Box<T>
+{
+    private class Hidden
+    {
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_INACCESSIBLE_TYPE
+        Box<int>.Hidden h;
+        Console.WriteLine("unreachable");
+    }
+}

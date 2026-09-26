@@ -78,6 +78,8 @@ public sealed class ProgramModel : IProgramModel
 
     internal OptionalApplicationRegistry OptionalApplications { get; private set; } = new();
 
+    internal TypeNamingRegistry TypeNamings { get; private set; } = new();
+
     /// <summary>
     /// Runs <paramref name="trial"/> against empty registries and restores these after, so a binding
     /// made only to answer a question -- what a lambda returns under one candidate's parameter types --
@@ -86,9 +88,9 @@ public sealed class ProgramModel : IProgramModel
     /// </summary>
     internal T Discarding<T>(Func<T> trial)
     {
-        var kept = (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications);
-        (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications) =
-            (new(), new(), new(), new(), new());
+        var kept = (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications, TypeNamings);
+        (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications, TypeNamings) =
+            (new(), new(), new(), new(), new(), new());
 
         try
         {
@@ -96,7 +98,7 @@ public sealed class ProgramModel : IProgramModel
         }
         finally
         {
-            (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications) = kept;
+            (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications, TypeNamings) = kept;
         }
     }
 

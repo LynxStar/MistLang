@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public class Gauge
+{
+    private class Outer
+    {
+        public class Inner
+        {
+            public int n = 1;
+        }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_INACCESSIBLE_TYPE
+        var i = new Gauge.Outer.Inner();
+        Console.WriteLine("unreachable");
+    }
+}

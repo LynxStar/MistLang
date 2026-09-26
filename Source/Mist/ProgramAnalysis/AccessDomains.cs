@@ -28,6 +28,45 @@ internal static class AccessDomains
         };
     }
 
+    public static bool Reaches(AnalysisContext context, object use, IMistType type)
+    {
+        return Reaches(context.OwnerOf(use), context.AssemblyOf(use), type);
+    }
+
+    public static bool Reaches(MistType? owner, MistAssembly? assembly, IMistType type)
+    {
+        return type is DeclaredType declared
+            ? Blocking(owner, assembly, declared) is null
+            : Declarations.Parts(type).All(part => Reaches(owner, assembly, part));
+    }
+
+    /// <summary>
+    /// The outermost type along <paramref name="type"/>'s nesting whose own accessibility shuts the site out,
+    /// or null where every level admits it: a nested type's domain is its own intersected with its enclosing
+    /// type's (the accessibility spec's Requirement 11.1), and the outermost is the one C# names. A top-level
+    /// type has no enclosing type to be private or protected within, so anything but public is judged
+    /// against the compilation, and the declaration itself is left to be judged as a declaration.
+    /// </summary>
+    public static MistType? Blocking(MistType? owner, MistAssembly? assembly, MistType type)
+    {
+        MistType? blocking = null;
+
+        for(var current = type; current is not null; current = current.DeclaringType)
+        {
+            var accessibility = Declarations.ModifiersOf(current)?.Accessibility ?? Accessibility.Public;
+            var admitted = current.DeclaringType is { } declaring
+                ? Admits(owner, assembly, accessibility, declaring)
+                : accessibility == Accessibility.Public || current.Assembly == assembly;
+
+            if(!admitted)
+            {
+                blocking = current;
+            }
+        }
+
+        return blocking;
+    }
+
     public static string Where(Accessibility accessibility)
     {
         return accessibility switch

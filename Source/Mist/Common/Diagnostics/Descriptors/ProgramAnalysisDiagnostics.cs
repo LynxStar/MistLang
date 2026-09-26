@@ -82,6 +82,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "'{0}' is inaccessible due to its protection level: {1} members are accessible only {2}.");
 
+    public static readonly DiagnosticDescriptor InaccessibleType = new(
+        new DiagnosticId("MIST_PA_INACCESSIBLE_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The type '{0}' is inaccessible here: {1} types are accessible only {2}.");
+
     public static readonly DiagnosticDescriptor InconsistentAccessibility = new(
         new DiagnosticId("MIST_PA_INCONSISTENT_ACCESSIBILITY"),
         DiagnosticSeverity.Error,

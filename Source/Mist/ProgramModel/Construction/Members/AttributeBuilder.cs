@@ -109,6 +109,8 @@ internal sealed class AttributeBuilder(BuilderContext context)
             return context.Resolver.ResolveNamedType(writtenName, scope, node);
         }
 
+        context.ProgramModel.TypeNamings.Record(definition, scope, node);
+
         if(node.TypeArgs is null)
         {
             return definition;

@@ -20,8 +20,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// <c>this</c> in an instance constructor or an init accessor of the type or a derivation. A get-only
 /// auto-property stays assignable in its own type's constructor body alone, where the write lands on the
 /// backing field. A lambda or local function in either body is a body of its own and gets neither
-/// privilege. Whether the member itself is accessible is <see cref="AccessibilityAnalyzer"/>'s to say, so
-/// nothing more is said here about an accessor of a member out of reach.
+/// privilege. Whether the member and its type are accessible is <see cref="AccessibilityAnalyzer"/>'s to say,
+/// so nothing more is said here about an accessor of either out of reach.
 /// </summary>
 internal sealed class AccessorAnalyzer : IProgramAnalyzer
 {
@@ -110,7 +110,7 @@ internal sealed class AccessorAnalyzer : IProgramAnalyzer
             return true;
         }
 
-        if(!AccessDomains.Admits(context, use.Site, slot.Accessibility, declaring))
+        if(!AccessDomains.Reaches(context, use.Site, declaring) || !AccessDomains.Admits(context, use.Site, slot.Accessibility, declaring))
         {
             return false;
         }

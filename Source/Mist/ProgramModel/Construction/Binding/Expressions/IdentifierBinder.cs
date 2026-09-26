@@ -23,6 +23,11 @@ internal static class IdentifierBinder
         // scopes narrow it themselves on the way out of a static member or a nested type.
         var result = ctx.Scope.Lookup(new LookupRequest(name, MemberVisibility.InstanceAndStatic, node));
 
+        if(result is TypeResult named)
+        {
+            context.ProgramModel.TypeNamings.Record(named.Type, ctx.Scope, node);
+        }
+
         return result switch
         {
             VariableResult variable => new LocalReferenceExpression(node, variable.Variable, BodyScope.NarrowedIn(ctx.Scope, variable.Variable)),

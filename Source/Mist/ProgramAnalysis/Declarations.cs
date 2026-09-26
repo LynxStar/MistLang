@@ -41,22 +41,26 @@ internal static class Declarations
 
     public static Accessibility Effective(IMistType type)
     {
+        return type is DeclaredType declared
+            ? Narrowest(
+                ModifiersOf(declared)?.Accessibility ?? Accessibility.Public,
+                declared.DeclaringType is { } outer ? Effective(outer) : Accessibility.Public)
+            : Narrowest(Accessibility.Public, Parts(type).Select(Effective));
+    }
+
+    public static IEnumerable<IMistType> Parts(IMistType type)
+    {
         return type switch
         {
-            DeclaredType declared => Narrowest(
-                ModifiersOf(declared)?.Accessibility ?? Accessibility.Public,
-                declared.DeclaringType is { } outer ? Effective(outer) : Accessibility.Public),
-            ConstructedType constructed => Narrowest(
-                Effective(constructed.Definition), constructed.TypeArguments.Select(Effective)),
-            UnionType union => Narrowest(Accessibility.Public, union.Constituents.Select(Effective)),
-            IFunctionType function => Narrowest(
-                Effective(function.ReturnType), function.ParameterTypes.Select(Effective)),
-            INamedTupleType named => Effective(named.Underlying),
-            ITupleType tuple => Narrowest(Accessibility.Public, tuple.ElementTypes.Select(Effective)),
-            RefinedType refined => Effective(refined.BaseType),
-            LiftedType lifted => Effective(lifted.Type),
-            UnknownValueType value => Effective(value.Domain),
-            _ => Accessibility.Public,
+            ConstructedType constructed => [constructed.Definition, .. constructed.TypeArguments],
+            UnionType union => union.Constituents,
+            IFunctionType function => [function.ReturnType, .. function.ParameterTypes],
+            INamedTupleType named => [named.Underlying],
+            ITupleType tuple => tuple.ElementTypes,
+            RefinedType refined => [refined.BaseType],
+            LiftedType lifted => [lifted.Type],
+            UnknownValueType value => [value.Domain],
+            _ => [],
         };
     }
 

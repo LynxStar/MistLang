@@ -119,7 +119,7 @@ public abstract class ProgramModelProbe : IDisposable
     }
 
     private protected ProgramModelClass BuildModel(
-        string statement, string extraTypes, string extraPreamble, out ImmutableArray<Diagnostic> diagnostics)
+        string statement, string extraTypes, string extraPreamble, out ImmutableArray<Diagnostic> diagnostics, string? referenced = null)
     {
         var source = $$"""
             namespace Probe;
@@ -139,7 +139,7 @@ public abstract class ProgramModelProbe : IDisposable
             }
             """;
 
-        return Build(source, out diagnostics);
+        return Build(source, referenced, out diagnostics);
     }
 
     /// <summary>
@@ -149,15 +149,32 @@ public abstract class ProgramModelProbe : IDisposable
     /// </summary>
     private protected ProgramModelClass Build(string source, out ImmutableArray<Diagnostic> diagnostics)
     {
+        return Build(source, referenced: null, out diagnostics);
+    }
+
+    /// <summary>
+    /// As <see cref="Build(string, out ImmutableArray{Diagnostic})"/>, with <paramref name="referenced"/> compiled
+    /// alongside as a referenced project's file, which puts its declarations in an assembly of their own -- the
+    /// only way a probe can reach something another compilation declares internal.
+    /// </summary>
+    private protected ProgramModelClass Build(string source, string? referenced, out ImmutableArray<Diagnostic> diagnostics)
+    {
         var fileName = Path.Combine(outputDir, "Program.mist");
-        var parseDiagnostics = new DiagnosticBag();
+        var (sourceText, root) = Parse(fileName, source);
+        var units = new List<CompilationUnit> { new(sourceText) };
+        var roots = new List<Storm.Runtime.SyntaxNode> { root };
+        var projects = ImmutableArray<MistProject>.Empty;
 
-        var sourceText = new SourceText(fileName, source);
-        var tokens = new MistLexer().Lex(sourceText, parseDiagnostics);
-        var parseResult = new MistParser().Parse(tokens, parseDiagnostics);
+        if(referenced is not null)
+        {
+            var folder = Path.Combine(outputDir, "Library");
+            var library = new MistProject("Library", folder, Path.Combine(folder, "mist.toml"));
+            var (libraryText, libraryRoot) = Parse(Path.Combine(folder, "Library.mist"), referenced);
 
-        Assert.NotNull(parseResult.Root);
-        Assert.Empty(parseDiagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
+            units.Add(new CompilationUnit(libraryText) { OriginProjectPath = library.CanonicalTomlPath, ProjectFolder = folder });
+            roots.Add(libraryRoot);
+            projects = [library];
+        }
 
         var options = new CompilerOptions(
             ProjectFolder: outputDir,
@@ -171,14 +188,27 @@ public abstract class ProgramModelProbe : IDisposable
 
         var buildDiagnostics = new DiagnosticBag();
         var programModel = ProgramModelBuilder.Build(
-            new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText))),
-            ImmutableArray.Create(parseResult.Root),
+            new MistCompilation([.. units]) { Projects = projects },
+            [.. roots],
             options,
             buildDiagnostics,
             new StandardTypesAmbientProvider());
 
         diagnostics = buildDiagnostics.ToImmutableArray();
         return Assert.IsType<ProgramModelClass>(programModel);
+    }
+
+    private static (SourceText Text, Storm.Runtime.SyntaxNode Root) Parse(string fileName, string source)
+    {
+        var parseDiagnostics = new DiagnosticBag();
+        var sourceText = new SourceText(fileName, source);
+        var tokens = new MistLexer().Lex(sourceText, parseDiagnostics);
+        var parseResult = new MistParser().Parse(tokens, parseDiagnostics);
+
+        Assert.NotNull(parseResult.Root);
+        Assert.Empty(parseDiagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
+
+        return (sourceText, parseResult.Root);
     }
 
     /// <summary>

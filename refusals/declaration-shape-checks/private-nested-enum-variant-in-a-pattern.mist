@@ -1,0 +1,28 @@
+using Standard;
+
+namespace Refusal;
+
+public class Gauge
+{
+    private enum Mode
+    {
+        On,
+        Off,
+    }
+
+    public static unknown Current()
+    {
+        return Mode.On;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var m = Gauge.Current();
+        // REFUSE: MIST_PA_INACCESSIBLE_TYPE
+        bool on = m is Gauge.Mode.On;
+        Console.WriteLine("unreachable");
+    }
+}

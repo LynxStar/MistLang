@@ -412,6 +412,25 @@ intrinsic_substitution:
   - [x] substitute in interface type arguments
   - [x] recursive substitution in constructed generics (e.g., List<int> -> List<Standard.Int32>)
 
+nullable_value_types:
+  # ambient-type-provider-v2 Req 11.1 and 11.9: a Nullable<T> parameter or return is the Mist
+  # optional `T | void`, the inner type substituted as usual.
+  - [x] Nullable<T> -> `T | void` in every position: returns, parameters, properties, fields, and
+        as a type argument (IEnumerable<int?> is IEnumerable<int | void>, as a Mist `List<int?>` is)
+    # Measured 2026-09-26. BEFORE: every CLR `int?` was a nominal ConstructedType System.Nullable<Int32>.
+    # ResolveInbound tested for it with Nullable.GetUnderlyingType, which compares by reference against
+    # the runtime's own Nullable definition and returned null for the MetadataLoadContext type (probed
+    # directly: null for the loaded `int?`, System.Int32 for typeof(int?)). Parameters never came through
+    # ResolveInbound at all. Against HasNullableMembers on v2, `int? m = h.GetNullableInt(false)` failed
+    # MIST_PA_CAST_REQUIRED, and `.HasValue` and `.Value` bound, which optional-types Req 2.4 forbids on
+    # an optional; coalescing, narrowing, interpolation and passing int, `int?` or an absent `int?` to an
+    # `int?` parameter already ran, Roslyn resolving the nominal type downstream.
+    # AFTER: AmbientTypeResolver.Resolve recognises a closed System.Nullable`1 by name and wraps its
+    # argument. The assignment runs, the two members are refused MIST_PM_UNRESOLVED_MEMBER, and the other
+    # nine probes are unchanged. AllFeaturesV2 matches its baseline before and after, so no banked
+    # sample's output moved. AmbientTypeProviderV2NullableProjectionTests holds it, mutation-checked by
+    # restoring GetUnderlyingType.
+
 missing_stdlib_types:
   - [x] System.ValueTuple`N -> the Mist structural tuple (TupleType, decorated by NamedTupleType), not a Standard declaration
     # Measured 2026-09-25 on v2 against Test/Mist.Tests.InteropFixtures/TupleSignatures.cs.

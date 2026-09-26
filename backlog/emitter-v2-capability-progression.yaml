@@ -7771,14 +7771,17 @@ capabilities:
       null into a Mist value whose type says it cannot hold one -- which was impossible while every CLR
       reference was wrapped, because narrowing is a real runtime check.
 
-      THE VALUE-TYPE HALF IS NOT REACHED ON v2, measured 2026-09-25 while projecting CLR tuples.
-      `HasNullableMembers.GetNullableInt()` returns `int?` and projects as a nominal
-      ConstructedType `System.Nullable<Int32>`, as does the `int?` parameter of DoubleOrDefault and the
-      `(int Low, int High)?` result of TupleSignatures.Span. ResolveInbound detects the case with
-      Nullable.GetUnderlyingType, which compares against the runtime's own Nullable definition and so
-      cannot match a type loaded through MetadataLoadContext -- the only way v2 loads one. The evidence
-      above is all reference types, which take the other branch. Whether this reopens the status is left
-      to whoever changes it: switching `int?` to `int | void` changes how every such CLR API binds.
+      THE VALUE-TYPE HALF WAS NEVER REACHED ON v2, found 2026-09-25 while projecting CLR tuples and
+      fixed 2026-09-26. Every CLR `int?` projected as a nominal ConstructedType `System.Nullable<Int32>`:
+      ResolveInbound tested with Nullable.GetUnderlyingType, which compares by reference against the
+      runtime's own Nullable definition and so never matched a type loaded through MetadataLoadContext,
+      the only way v2 loads one. Everything above is reference types, which take the other branch, so
+      this entry's `done` was earned on half the capability. Users saw it as `int? m = GetNullableInt()`
+      refused MIST_PA_CAST_REQUIRED, and `.HasValue`/`.Value` binding on what optional-types says is an
+      optional. Resolve now recognises System.Nullable`1 by name, in EVERY position, as
+      ambient-type-provider-v2 Req 11.1 and 11.9 ask -- parameters included, since the absence there is
+      in the type rather than in an annotation. AllFeaturesV2 matches its baseline before and after.
+      Probes and tests in provider-tasks.yaml under nullable_value_types.
       
       THE C# COMPILER'S OWN ANALYSIS IS UNSOUND IN NAMED PLACES, and each is a way a null reaches a
       non-null slot with at most a warning: `null!`; `new string[10]`, whose elements are typed non-null

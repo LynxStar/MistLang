@@ -156,6 +156,19 @@ public sealed class RealRequirementTests
     }
 
     [Fact]
+    public void NonfinitePatternBounds_StayUnreadableUntilTheirEmissionIsSupported()
+    {
+        foreach(var number in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity })
+        {
+            foreach(var kind in new[] { ComparisonKind.Equal, ComparisonKind.LessThan })
+            {
+                Assert.Null(RealRequirement.Of(Comparison(Type("Double"), kind, number), RealKind.Double));
+                Assert.Null(RealRequirement.Of(Comparison(Type("Single"), kind, (float)number), RealKind.Single));
+            }
+        }
+    }
+
+    [Fact]
     public void PlainRealTypesHaveTheirRuntimeUniverseWithoutIntegralOrStringFacts()
     {
         Assert.Equal(RealSet.Everything(RealKind.Single), RealRequirement.OfType(Type("Single")));

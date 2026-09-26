@@ -34,7 +34,7 @@ internal static class LiteralPredicates
     {
         return expression switch
         {
-            UnaryExpression => false,
+            UnaryExpression or BinaryExpression => false,
             CloneExpression clone => TrustsType(clone.Source),
             _ => true,
         };

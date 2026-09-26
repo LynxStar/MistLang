@@ -45,7 +45,7 @@ internal static class RealRequirement
         switch(predicate)
         {
             case ComparisonPattern comparison when Comparability.Misordered(comparison) is null:
-                return LiteralOf(comparison.Bound) is { } bound ? RealSet.Compare(kind, comparison.Kind, bound) : null;
+                return LiteralOf(comparison.Bound) is { } bound && IsFinite(bound) ? RealSet.Compare(kind, comparison.Kind, bound) : null;
 
             case ConjunctionPattern conjunction:
                 return Combined(conjunction.Operands, kind, true);
@@ -109,6 +109,16 @@ internal static class RealRequirement
             || name == WellKnownTypes.UInt64.FullyQualifiedName || name == WellKnownTypes.UInt16.FullyQualifiedName
             || name == WellKnownTypes.Byte.FullyQualifiedName || name == WellKnownTypes.SByte.FullyQualifiedName
             || name == WellKnownTypes.Char.FullyQualifiedName;
+    }
+
+    private static bool IsFinite(LiteralValue value)
+    {
+        return value.Value switch
+        {
+            float number => float.IsFinite(number),
+            double number => double.IsFinite(number),
+            _ => true,
+        };
     }
 
     private static LiteralValue Negated(LiteralValue value)

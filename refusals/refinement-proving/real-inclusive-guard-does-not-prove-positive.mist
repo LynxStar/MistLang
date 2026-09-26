@@ -8,7 +8,7 @@ public class Probe
 {
     public static void Check(double input)
     {
-        if(input > 0.0)
+        if(input >= 0.0)
         {
             // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
             Positive value = input;

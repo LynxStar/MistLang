@@ -4,7 +4,6 @@ using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -143,7 +142,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         };
     }
 
-    private sealed class Proving(AnalysisContext context, LiftedReturns lifted, IReadOnlySet<LocalVariable> unseenWrites)
+    private sealed class Proving(AnalysisContext context, LiftedReturns lifted, IReadOnlySet<object> unseenWrites)
     {
         public void Judge(FlowGraph graph, ImmutableDictionary<object, Knowledge> entry)
         {
@@ -224,16 +223,17 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private void NeedIndex(ImmutableDictionary<object, Knowledge> state, IndexExpression index)
         {
-            if(RefinementFlow.Refused(state, index.Receiver))
+            if(RefinementFlow.Refused(state, index.Receiver, lifted))
             {
                 return;
             }
 
             var receiverType = index.Receiver.Type is TypeAlias { AliasedType: { } aliased } ? aliased : index.Receiver.Type;
 
-            if(receiverType is ConstructedType { Definition: var definition, TypeArguments.Count: 2 } && Lengths.IsIndexable(definition))
+            if((receiverType is ConstructedType { Definition: var definition, TypeArguments.Count: 2 } && Lengths.IsIndexable(definition))
+                || (receiverType.FullyQualifiedName == "Standard.String" && RangeBound.IsIndex(index.Index.Type)))
             {
-                var length = RefinementFlow.Length(state, index.Receiver);
+                var length = RefinementFlow.Length(state, index.Receiver, lifted);
 
                 if(Lengths.IsRangeSlice(index))
                 {
@@ -261,7 +261,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             if(Lengths.IsRangeSlice(index))
             {
-                NeedRange(state, index, RefinementFlow.Length(state, index.Receiver));
+                NeedRange(state, index, RefinementFlow.Length(state, index.Receiver, lifted));
                 return;
             }
 
@@ -284,7 +284,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private void NeedRange(ImmutableDictionary<object, Knowledge> state, IndexExpression index, Admitted? length)
         {
-            if(RefinementFlow.Refused(state, index.Receiver) || RefinementFlow.Range(state, index.Index) is not { } range || Lengths.SafetyOf(range, length) != RangeSafety.Violated)
+            if(RefinementFlow.Refused(state, index.Receiver, lifted) || RefinementFlow.Range(state, index.Index, lifted) is not { } range || Lengths.SafetyOf(range, length) != RangeSafety.Violated)
             {
                 return;
             }
@@ -300,12 +300,24 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         // any other index, and never learns what `^` means. Null for an index the slot's type refuses.
         private Knowledge? Reaching(ImmutableDictionary<object, Knowledge> state, IndexExpression index, Admitted? length)
         {
-            if(index.Index is not UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset })
+            if(index.Index is not UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd } && !RangeBound.IsIndex(index.Index.Type))
             {
                 return EntersBounds(index) ? Known(state, index.Index) : null;
             }
 
-            var back = Known(state, offset).Values;
+            var captured = RangeKnowledge.Index(state, index.Index, lifted);
+
+            if(captured is null)
+            {
+                return RangeBound.IsIndex(index.Index.Type) ? Knowledge.Unknown : EntersBounds(index) ? Known(state, index.Index) : null;
+            }
+
+            if(!captured.FromEnd)
+            {
+                return new Knowledge(captured.Values, ImmutableHashSet<Bound>.Empty);
+            }
+
+            var back = captured.Values;
 
             if(length is null || back.Low is not { } nearest)
             {
@@ -446,6 +458,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         {
             return considered.Any(constituent => LiteralPredicates.Applies(constituent)
                 ? LiteralPredicates.Satisfied(constituent, valueType, literal, expression)
+                    || (LiteralPredicates.Decide(constituent, literal) is null && RealKnowledge.Satisfied(known.Real, constituent))
                 : Requirement.OfType(constituent) is { } required
                 ? Satisfied(known, Read(required, proving: true), measured, length)
                 : !Requirement.IsUnreadable(constituent) || ReferenceEquals(Requirement.Refined(valueType), Requirement.Refined(constituent)));
@@ -540,9 +553,9 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 ;
         }
 
-        private static Admitted? Length(ImmutableDictionary<object, Knowledge> state, Expression? measured)
+        private Admitted? Length(ImmutableDictionary<object, Knowledge> state, Expression? measured)
         {
-            return measured is null ? null : Lengths.Typed(measured.Type) ?? RefinementFlow.Held(state, measured);
+            return RefinementFlow.Length(state, measured, lifted);
         }
 
         private static Requirement Stated(Requirement required, Admitted? length)
@@ -589,12 +602,12 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             if(value is not LocalReferenceExpression local)
             {
-                return new Knowledge(typed, ImmutableHashSet<Bound>.Empty);
+                return new Knowledge(typed, ImmutableHashSet<Bound>.Empty) { Real = RealKnowledge.Of(state, value) };
             }
 
             var flow = state.TryGetValue(local.Local, out var known) ? known : Knowledge.Unknown;
 
-            return new Knowledge(flow.Values.And(typed), flow.Bounds);
+            return new Knowledge(flow.Values.And(typed), flow.Bounds) { Real = RealKnowledge.Of(state, value) };
         }
 
         private static bool Accepts(IMistType constituent, IMistType valueType)

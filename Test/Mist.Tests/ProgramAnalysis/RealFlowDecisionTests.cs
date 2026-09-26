@@ -46,6 +46,8 @@ public sealed class RealFlowDecisionTests
 
     [Theory]
     [InlineData("if(input > 0.0) { Positive value = input; }")]
+    [InlineData("Positive value = (Positive)2.5;")]
+    [InlineData("if(input > 0.0) { Positive value = (Positive)input; }")]
     [InlineData("if(0.0 < input) { Positive value = input; }")]
     [InlineData("if(!(!(input > 0.0))) { Positive value = input; }")]
     [InlineData("if(input >= 0.0 && input <= 1.0) { Unit value = input; }")]
@@ -118,12 +120,18 @@ public sealed class RealFlowDecisionTests
     [InlineData("if(input > 0.0) { double sum = input + 1.0; Positive value = sum; }", "MIST_PA_REFINEMENT_UNPROVEN")]
     [InlineData("void Forward(Positive first) { Positive value = first - first; }", "MIST_PA_REFINEMENT_UNPROVEN")]
     [InlineData("void Forward(Positive first) { var value = (Positive)(first - first); }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(input >= 0.0 && input <= 1.0) { float narrowed = (float)input; FloatUnit value = narrowed; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(amount >= 0.0m && amount <= 1.0m) { double converted = (double)amount; Unit value = converted; }", "MIST_PA_REFINEMENT_UNPROVEN")]
     [InlineData("if(input > limit) { Positive value = input; }", "MIST_PA_REFINEMENT_UNPROVEN")]
     public void AnInsufficientGuardOrUnsupportedProof_RemainsUnproven(string body, string id)
     {
         Assert.Equal(id, Assert.Single(Analyse(body)).Id.Value);
+    }
+
+    [Theory]
+    [InlineData("if(input >= 0.0 && input <= 1.0) { float narrowed = (float)input; FloatUnit value = narrowed; }")]
+    [InlineData("if(amount >= 0.0m && amount <= 1.0m) { double converted = (double)amount; Unit value = converted; }")]
+    public void UnsupportedNumericCasts_DoNotTransferTheirSourceFacts(string body)
+    {
+        Assert.Equal(["MIST_PA_CAST_HAS_NO_CONVERSION", "MIST_PA_REFINEMENT_UNPROVEN"], Analyse(body).Select(diagnostic => diagnostic.Id.Value).Order());
     }
 
     [Fact]

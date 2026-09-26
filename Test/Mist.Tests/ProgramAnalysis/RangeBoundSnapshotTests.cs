@@ -59,7 +59,7 @@ public sealed class RangeBoundSnapshotTests
     public void IndexDomainWrappers_PreserveTheMarkerWithoutInventingOffsets()
     {
         var alias = new TypeAlias("Edge", "Probe", null, null, null!) { AliasedType = Index };
-        IMistType[] types = [Index, alias, new RefinedType(alias, null!, "EdgeRefinement"), new LiftedType(alias, 3L), new UnknownValueType(alias), new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true, Domain = Index }];
+        IMistType[] types = [Index, alias, new RefinedType(alias, null!, "EdgeRefinement"), new LiftedType(alias, 3L), new UnknownValueType(alias), new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true, Domain = (MistType)Index }];
 
         foreach(var type in types)
         {

@@ -2,24 +2,25 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// The locals of one body that can be written where its flow does not look: assigned inside a closure
+/// The holders of one body that can be written where its flow does not look: assigned inside a closure
 /// that captured them, which runs whenever it is called; handed to a `ref` or `out` parameter; or aliased
-/// by a ref local, the alias included. What the flow learned of such a local may be stale at any later
+/// by a ref local, the alias included. What the flow learned of such a holder may be stale at any later
 /// step, and there is no runtime guard behind a proof, so the flow keeps nothing of them and each is
 /// known only by its declared type -- which every write, wherever it sits, is still judged against.
 /// </summary>
 internal static class UnseenWrites
 {
-    public static readonly IReadOnlySet<LocalVariable> None = new HashSet<LocalVariable>();
+    public static readonly IReadOnlySet<object> None = new HashSet<object>();
 
-    public static IReadOnlySet<LocalVariable> Of(object root)
+    public static IReadOnlySet<object> Of(object root)
     {
-        var unseen = new HashSet<LocalVariable>(ReferenceEqualityComparer.Instance);
+        var unseen = new HashSet<object>(ReferenceEqualityComparer.Instance);
 
         foreach(var node in BodyWalker.DescendantsAndSelf(root))
         {
@@ -48,9 +49,9 @@ internal static class UnseenWrites
                 case LocalDeclarationStatement { Local: { IsRef: true } alias, Initializer: var aliased }:
                     _ = unseen.Add(alias);
 
-                    if(aliased is LocalReferenceExpression target)
+                    if(Referenced(aliased) is { } target)
                     {
-                        _ = unseen.Add(target.Local);
+                        _ = unseen.Add(target);
                     }
 
                     break;
@@ -60,26 +61,37 @@ internal static class UnseenWrites
         return unseen;
     }
 
-    private static void AddCapturedWrites(HashSet<LocalVariable> unseen, IEnumerable<LocalVariable> parameters, IReadOnlyList<object> inside)
+    private static void AddCapturedWrites(HashSet<object> unseen, IEnumerable<LocalVariable> parameters, IReadOnlyList<object> inside)
     {
         var own = Captures.OwnNames(parameters, inside);
 
-        foreach(var written in inside.OfType<AssignmentExpression>().Select(assignment => assignment.Target).OfType<LocalReferenceExpression>())
+        foreach(var written in inside.OfType<AssignmentExpression>().Select(assignment => Referenced(assignment.Target)).OfType<object>())
         {
-            if(!own.Contains(written.Local))
+            if(written is not LocalVariable local || !own.Contains(local))
             {
-                _ = unseen.Add(written.Local);
+                _ = unseen.Add(written);
             }
         }
     }
 
-    private static void AddByRef(HashSet<LocalVariable> unseen, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
+    private static object? Referenced(Expression? expression)
+    {
+        return expression switch
+        {
+            LocalReferenceExpression local => local.Local,
+            FieldReferenceExpression field => field.Field,
+            MemberAccessExpression { Member: FieldResult field } => field.Field,
+            _ => null,
+        };
+    }
+
+    private static void AddByRef(HashSet<object> unseen, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
     {
         for(var i = 0; parameters is not null && i < arguments.Count && i < parameters.Count; i++)
         {
-            if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out && arguments[i] is LocalReferenceExpression passed)
+            if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out && Referenced(arguments[i]) is { } passed)
             {
-                _ = unseen.Add(passed.Local);
+                _ = unseen.Add(passed);
             }
         }
     }

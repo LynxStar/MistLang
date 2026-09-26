@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    Index edge;
+
+    public int Read()
+    {
+        int[] numbers = [10, 20, 30, 40, 50];
+        this.edge = ^1;
+        ref Index alias = this.edge;
+        alias = ^5;
+        Range window = 0..this.edge;
+        var slice = numbers[window];
+        // REFUSE: MIST_PA_INDEX_UNPROVEN
+        return slice[0];
+    }
+
+    public static void Main() { }
+}

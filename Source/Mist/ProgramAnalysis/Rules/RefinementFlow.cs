@@ -12,7 +12,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal sealed record Bound(object Holder, ComparisonKind Kind);
 
-internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0, Admitted? Length = null, StoredRange? Slice = null, bool RefusedSlice = false, LiteralValue? Literal = null)
+internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0, Admitted? Length = null, StoredRange? Slice = null, bool RefusedSlice = false, LiteralValue? Literal = null, RangeBound? IndexValue = null, RealSet? Real = null, int RealChanges = 0)
 {
     public static readonly Knowledge Unknown = new(Admitted.Everything, ImmutableHashSet<Bound>.Empty);
 }
@@ -27,7 +27,7 @@ internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds
 /// the flow cannot see may reassign it then. A local keeps nothing at all when
 /// <see cref="UnseenWrites"/> names it.
 /// </summary>
-internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, LiftedReturns lifted)
+internal sealed class RefinementFlow(IReadOnlySet<object> unseenWrites, LiftedReturns lifted)
     : IFlowLattice<ImmutableDictionary<object, Knowledge>>
 {
     public static readonly ImmutableDictionary<object, Knowledge> Nothing =
@@ -58,8 +58,17 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
 
             var slice = Equals(mine.Slice, theirs.Slice) ? mine.Slice : null;
             var literal = Equals(mine.Literal, theirs.Literal) ? mine.Literal : null;
+            var index = Equals(mine.IndexValue, theirs.IndexValue) ? mine.IndexValue : null;
+            var real = mine.Real is { } leftReal && theirs.Real is { } rightReal && leftReal.Kind == rightReal.Kind ? leftReal.Or(rightReal) : null;
+            var realChanges = mine.RealChanges;
 
-            joined = joined.Add(local, new Knowledge(values, mine.Bounds.Intersect(theirs.Bounds), changes, length, slice, mine.RefusedSlice && theirs.RefusedSlice, literal));
+            if(real is not null && mine.Real is { } beforeReal && !real.Equals(beforeReal))
+            {
+                realChanges++;
+                real = realChanges > 2 ? real.WidenedAgainst(beforeReal) : real;
+            }
+
+            joined = joined.Add(local, new Knowledge(values, mine.Bounds.Intersect(theirs.Bounds), changes, length, slice, mine.RefusedSlice && theirs.RefusedSlice, literal, index, real, realChanges));
         }
 
         return joined;
@@ -71,7 +80,8 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
             && left.All(entry => right.TryGetValue(entry.Key, out var other)
                 && entry.Value.Values.Equals(other.Values) && entry.Value.Bounds.SetEquals(other.Bounds)
                 && Equals(entry.Value.Length, other.Length) && Equals(entry.Value.Slice, other.Slice)
-                && entry.Value.RefusedSlice == other.RefusedSlice && Equals(entry.Value.Literal, other.Literal));
+                && entry.Value.RefusedSlice == other.RefusedSlice && Equals(entry.Value.Literal, other.Literal)
+                && Equals(entry.Value.IndexValue, other.IndexValue) && Equals(entry.Value.Real, other.Real));
     }
 
     public ImmutableDictionary<object, Knowledge> Transfer(ImmutableDictionary<object, Knowledge> state, FlowStep step)
@@ -83,7 +93,7 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
 
     private bool IsWrittenUnseen(object holder)
     {
-        return holder is LocalVariable local && unseenWrites.Contains(local);
+        return unseenWrites.Contains(holder);
     }
 
     private ImmutableDictionary<object, Knowledge> Step(ImmutableDictionary<object, Knowledge> state, FlowStep step)
@@ -113,12 +123,13 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
 
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: var target } assignment } when Assigned(target) is { } field:
                 {
-                    var length = Length(state, assignment.Value);
-                    var refused = Refused(state, assignment.Value);
+                    var length = Length(state, assignment.Value, lifted);
+                    var refused = Refused(state, assignment.Value, lifted);
+                    var index = RangeBound.IsIndex(field.Type) ? RangeKnowledge.Index(state, assignment.Value, lifted) : null;
                     state = Forget(state, holder => ReferenceEquals(holder, field));
 
-                    return Holder(target) is Field owned && (length is not null || refused)
-                        ? state.SetItem(owned, Knowledge.Unknown with { Length = length, RefusedSlice = refused })
+                    return Holder(target) is Field owned && (length is not null || refused || index is not null)
+                        ? state.SetItem(owned, Knowledge.Unknown with { Length = length, RefusedSlice = refused, IndexValue = index })
                         : state;
                 }
 
@@ -149,12 +160,15 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
 
         return condition switch
         {
-            BinaryExpression { Left: MemberAccessExpression { MemberName: "Length", Receiver: var sizedOne }, Right: var limit2 } sized
-                            when Holder(sizedOne) is { } oneHolder && Comparison(sized.OperatorKind) is { } sizedKind && Requirement.Constant(limit2) is { } sizedBound => Sized(state, oneHolder, Requirement.Interval(sizedKind, sizedBound), holds),
-            BinaryExpression { Left: var limit3, Right: MemberAccessExpression { MemberName: "Length", Receiver: var sizedTwo } } sizedFlip
-                            when Holder(sizedTwo) is { } twoHolder && Comparison(sizedFlip.OperatorKind) is { } flipKind && Requirement.Constant(limit3) is { } flipBound => Sized(state, twoHolder, Requirement.Interval(Mirrored(flipKind), flipBound), holds),
-            BinaryExpression { Left: LocalReferenceExpression subject, Right: var bound } comparison when Comparison(comparison.OperatorKind) is { } kind => Compared(state, subject.Local, bound, kind, holds),
-            BinaryExpression { Left: var limit, Right: LocalReferenceExpression mirrored } flipped when Comparison(flipped.OperatorKind) is { } mirroredKind => Compared(state, mirrored.Local, limit, Mirrored(mirroredKind), holds),
+            BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true }, Left: MemberAccessExpression { MemberName: "Length", Receiver: var sizedOne }, Right: var limit2 } sized
+                            when RangeKnowledge.IsLength((MemberAccessExpression)sized.Left) && Holder(sizedOne) is { } oneHolder && Comparison(sized.OperatorKind) is { } sizedKind && Requirement.Constant(limit2) is { } sizedBound => Sized(state, oneHolder, Requirement.Interval(sizedKind, sizedBound), holds),
+            BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true }, Left: var limit3, Right: MemberAccessExpression { MemberName: "Length", Receiver: var sizedTwo } } sizedFlip
+                            when RangeKnowledge.IsLength((MemberAccessExpression)sizedFlip.Right) && Holder(sizedTwo) is { } twoHolder && Comparison(sizedFlip.OperatorKind) is { } flipKind && Requirement.Constant(limit3) is { } flipBound => Sized(state, twoHolder, Requirement.Interval(Mirrored(flipKind), flipBound), holds),
+            BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true }, Left: LocalReferenceExpression subject, Right: var bound } comparison when Comparison(comparison.OperatorKind) is { } kind => Compared(state, subject.Local, bound, kind, holds),
+            BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true }, Left: var limit, Right: LocalReferenceExpression mirrored } flipped when Comparison(flipped.OperatorKind) is { } mirroredKind => Compared(state, mirrored.Local, limit, Mirrored(mirroredKind), holds),
+            IsPatternExpression { Scrutinee: LocalReferenceExpression realSubject, Pattern: var realPattern }
+                            when RealRequirement.KindOf(realSubject.Type) is { } realKind && RealRequirement.Of(realPattern, realKind) is { } realMatched
+                            => RealKnowledge.Narrow(state, realSubject.Local, holds ? realMatched : realMatched.Not()),
             IsPatternExpression { Scrutinee: LocalReferenceExpression listed, Pattern: ListPattern list } when holds => Sliced(state, listed, list),
             IsPatternExpression { Scrutinee: LocalReferenceExpression subject, Pattern: var pattern }
                             when Requirement.Of(pattern) is { Bounds.Length: 0 } matched => Narrow(state, subject.Local, holds ? matched.Values : matched.Values.Not()),
@@ -165,6 +179,11 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
     private static ImmutableDictionary<object, Knowledge> Compared(
         ImmutableDictionary<object, Knowledge> state, LocalVariable subject, Expression bound, ComparisonKind kind, bool holds)
     {
+        if(RealRequirement.KindOf(subject.Type) is not null)
+        {
+            return RealKnowledge.Compared(state, subject, bound, kind, holds);
+        }
+
         if(Requirement.Constant(bound) is { } constant)
         {
             return Narrow(state, subject, holds ? Requirement.Interval(kind, constant) : Requirement.Interval(kind, constant).Not());
@@ -172,7 +191,7 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
 
         var upper = holds ? kind : Flipped(kind);
 
-        if(bound is not MemberAccessExpression { MemberName: "Length", Receiver: var measured }
+        if(bound is not MemberAccessExpression { Receiver: var measured } access || !RangeKnowledge.IsLength(access)
             || upper is not (ComparisonKind.LessThan or ComparisonKind.LessThanOrEqual))
         {
             return state;
@@ -208,6 +227,19 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
             return state.Remove(local);
         }
 
+        if(RangeBound.IsIndex(local.Type))
+        {
+            var index = RangeKnowledge.Index(state, value, lifted);
+            return index is null ? state.Remove(local) : state.SetItem(local, Knowledge.Unknown with { IndexValue = index });
+        }
+
+        if(RealRequirement.KindOf(local.Type) is not null)
+        {
+            var real = RealKnowledge.Assigned(state, value, local.Type);
+            var exact = LiteralValue.Of(value, held => state.TryGetValue(held, out var known) ? known.Literal : null)?.ConvertedTo(local.Type);
+            return real is null ? state.Remove(local) : state.SetItem(local, Knowledge.Unknown with { Real = real, Literal = exact });
+        }
+
         if(Requirement.Constant(value) is { } constant)
         {
             return state.SetItem(local, new Knowledge(Admitted.Exactly(constant), ImmutableHashSet<Bound>.Empty)
@@ -221,9 +253,9 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
             return state.SetItem(local, copied with { Literal = copied.Literal?.ConvertedTo(local.Type) });
         }
 
-        if(value is MemberAccessExpression { MemberName: "Length", Receiver: { } measured } && Lengths.IsSized(measured.Type))
+        if(value is MemberAccessExpression { Receiver: { } measured } access && RangeKnowledge.IsLength(access))
         {
-            return state.SetItem(local, new Knowledge(Length(state, measured) ?? Admitted.AtLeast(0), ImmutableHashSet<Bound>.Empty));
+            return state.SetItem(local, new Knowledge(Length(state, measured, lifted) ?? Admitted.AtLeast(0), ImmutableHashSet<Bound>.Empty));
         }
 
         if(lifted.Produced(value) is { } produced)
@@ -233,24 +265,24 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
 
         if(value is RangeExpression written)
         {
-            return state.SetItem(local, Knowledge.Unknown with { Slice = Range(state, written) });
+            return state.SetItem(local, Knowledge.Unknown with { Slice = Range(state, written, lifted) });
         }
 
-        if(value is IndexExpression slice && Lengths.IsRangeSlice(slice) && Range(state, slice.Index) is { } range)
+        if(value is IndexExpression slice && Lengths.IsRangeSlice(slice) && Range(state, slice.Index, lifted) is { } range)
         {
-            var sourceLength = Length(state, slice.Receiver);
-            var refused = Refused(state, slice.Receiver) || Lengths.SafetyOf(range, sourceLength) == RangeSafety.Violated;
+            var sourceLength = Length(state, slice.Receiver, lifted);
+            var refused = Refused(state, slice.Receiver, lifted) || Lengths.SafetyOf(range, sourceLength) == RangeSafety.Violated;
 
             return state.SetItem(local, Knowledge.Unknown with { Length = Lengths.OfSlice(range, sourceLength), RefusedSlice = refused });
         }
 
-        if(Refused(state, value))
+        if(Refused(state, value, lifted))
         {
             return state.SetItem(local, Knowledge.Unknown with { RefusedSlice = true });
         }
 
         var literal = LiteralValue.Of(value, held => state.TryGetValue(held, out var known) ? known.Literal : null)?.ConvertedTo(local.Type);
-        var length = Length(state, value);
+        var length = Length(state, value, lifted);
         return literal is not null || length is not null
             ? state.SetItem(local, Knowledge.Unknown with { Length = length, Literal = literal })
             : state.Remove(local)
@@ -320,43 +352,34 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
             ;
     }
 
-    public static StoredRange? Range(ImmutableDictionary<object, Knowledge> state, Expression index)
+    public static StoredRange? Range(ImmutableDictionary<object, Knowledge> state, Expression index, LiftedReturns? lifted = null)
     {
         return index switch
         {
-            RangeExpression range => StoredRange.Of(range, value => Captured(state, value)),
+            RangeExpression range => RangeKnowledge.Range(state, range, lifted),
             LocalReferenceExpression local when state.TryGetValue(local.Local, out var known) => known.Slice,
             _ => null,
         };
     }
 
-    public static Admitted? Length(ImmutableDictionary<object, Knowledge> state, Expression? expression)
+    public static Admitted? Length(ImmutableDictionary<object, Knowledge> state, Expression? expression, LiftedReturns? lifted = null)
     {
-        return Lengths.Of(expression, held => Held(state, held), range => Range(state, range));
+        return Lengths.Of(expression, held => Held(state, held), range => Range(state, range, lifted));
     }
 
-    public static bool Refused(ImmutableDictionary<object, Knowledge> state, Expression expression)
+    public static bool Refused(ImmutableDictionary<object, Knowledge> state, Expression expression, LiftedReturns? lifted = null)
     {
         return expression switch
         {
-            ImplicitConversionExpression conversion => Refused(state, conversion.Operand),
-            CloneExpression clone => Refused(state, clone.Source),
+            ImplicitConversionExpression conversion => Refused(state, conversion.Operand, lifted),
+            CloneExpression clone => Refused(state, clone.Source, lifted),
             LocalReferenceExpression local => state.TryGetValue(local.Local, out var known) && known.RefusedSlice,
             FieldReferenceExpression or MemberAccessExpression { Receiver: ThisExpression, Member: FieldResult }
                 => Holder(expression) is { } field && state.TryGetValue(field, out var held) && held.RefusedSlice,
-            IndexExpression slice when Lengths.IsRangeSlice(slice) => Refused(state, slice.Receiver)
-                || (Range(state, slice.Index) is { } range && Lengths.SafetyOf(range, Length(state, slice.Receiver)) == RangeSafety.Violated),
+            IndexExpression slice when Lengths.IsRangeSlice(slice) => Refused(state, slice.Receiver, lifted)
+                || (Range(state, slice.Index, lifted) is { } range && Lengths.SafetyOf(range, Length(state, slice.Receiver, lifted)) == RangeSafety.Violated),
             _ => false,
         };
-    }
-
-    private static Admitted Captured(ImmutableDictionary<object, Knowledge> state, Expression value)
-    {
-        var declared = Requirement.ValuesOf(value.Type) ?? Admitted.Everything;
-
-        return value is LocalReferenceExpression local && state.TryGetValue(local.Local, out var known)
-            ? known.Values.And(declared)
-            : declared;
     }
 
     private static bool IsMutableField(object holder)

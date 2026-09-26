@@ -39,6 +39,7 @@ internal static class ExtensionSpecialization
             method.Modifiers)
         {
             Scope = method.Scope,
+            BlockClosing = substitution,
         };
 
         closed.TypeParametersList.AddRange(method.TypeParametersList);

@@ -89,7 +89,7 @@ internal static class MethodGroupConversion
     {
         TypeSubstitution substitutionOf(Method candidate)
         {
-            return TypeSubstitution.ForPath(group.ReceiverConstructed, group.Paths?.GetValueOrDefault(candidate), interner);
+            return Receiver(group, candidate, interner);
         }
 
         var closed = group.Candidates
@@ -113,12 +113,20 @@ internal static class MethodGroupConversion
 
         if(converted is FunctionReferenceExpression { TypeArguments.Count: > 0 } reference)
         {
-            context.ProgramModel.ConstructorConstraintClosures.RecordMethod(reference.Method, reference.TypeArguments, group.Node);
+            var closing = Receiver(group, reference.Method, context.ProgramModel.TypeInterner)
+                .Extend(TypeSubstitution.ForMethod(reference.Method, reference.TypeArguments));
+
+            context.ProgramModel.ConstructorConstraintClosures.RecordMethod(reference.Method, reference.TypeArguments, closing, group.Node);
             context.ProgramModel.VariadicUses.Record(reference.Method, reference.TypeArguments);
             context.ProgramModel.GenericCalls.Record(reference.Method, reference.TypeArguments);
         }
 
         return converted;
+    }
+
+    private static TypeSubstitution Receiver(MethodGroupExpression group, Method candidate, TypeInterner interner)
+    {
+        return TypeSubstitution.ForPath(group.ReceiverConstructed, group.Paths?.GetValueOrDefault(candidate), interner);
     }
 
     internal static bool Accepts(MethodGroupExpression group, IMistType parameterType, TypeInterner interner)

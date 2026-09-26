@@ -1,0 +1,38 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IRank<T>
+{
+    int CompareTo(T other);
+}
+
+public class Score : IRank<Score>
+{
+    public int CompareTo(Score other)
+    {
+        return 0;
+    }
+}
+
+public class Grade : IRank<Score>
+{
+    public int CompareTo(Score other)
+    {
+        return 0;
+    }
+}
+
+public class Row<params Ts> where Ts : IRank<Ts>
+{
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CONSTRAINT_NOT_SATISFIED
+        var a = new Row<Score, Grade>();
+        Console.WriteLine("unreachable");
+    }
+}

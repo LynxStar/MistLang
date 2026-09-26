@@ -149,6 +149,16 @@ internal sealed class TypeSubstitution
     }
 
     /// <summary>
+    /// A whole-pack constraint holds of each element on its own (variadics Requirement 11.1), so a
+    /// constraint that names its pack is judged with the pack rebound to the one element under judgment
+    /// rather than to the pack the closing bound it to.
+    /// </summary>
+    public TypeSubstitution With(TypeParameter parameter, IMistType argument)
+    {
+        return new TypeSubstitution(new Dictionary<TypeParameter, IMistType>(bindings) { [parameter] = argument });
+    }
+
+    /// <summary>
     /// An array needs no arm of its own, being a construction of <c>Standard.Array</c>. Constructions,
     /// unions, tuples, function types and a refinement's base are descended into.
     /// </summary>

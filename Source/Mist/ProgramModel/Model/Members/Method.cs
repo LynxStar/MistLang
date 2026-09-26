@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
@@ -73,6 +74,14 @@ internal class Method(
     public MemberType? DeclaringType { get; init; }
 
     public Storm.Runtime.SyntaxNode? DeclarationNode { get; init; }
+
+    /// <summary>
+    /// What the receiver closed a generic extension block's type parameters with, on the copy
+    /// <see cref="ExtensionSpecialization"/> makes of one of its methods. That copy substitutes its
+    /// parameters and return but shares its type parameters with the declaration, so their
+    /// constraints still name the block's and are closed through this instead.
+    /// </summary>
+    public TypeSubstitution BlockClosing { get; init; } = TypeSubstitution.Empty;
 
     IReadOnlyList<ITypeParameter> IGenericDeclaration.TypeParameters => TypeParametersList;
     IReadOnlyList<IContextBinding> IMethod.ContextBindings => ContextBindingsList;

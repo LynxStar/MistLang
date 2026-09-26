@@ -373,7 +373,7 @@ internal static class PostfixBinder
         var methodTypeArguments = selected.TypeParametersList
             .ConvertAll(parameter => choice.Substitution.Apply(parameter, interner));
 
-        context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected, methodTypeArguments, node);
+        context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected, methodTypeArguments, choice.Substitution, node);
         context.ProgramModel.VariadicUses.Record(selected, methodTypeArguments);
         context.ProgramModel.GenericCalls.Record(selected, methodTypeArguments);
 

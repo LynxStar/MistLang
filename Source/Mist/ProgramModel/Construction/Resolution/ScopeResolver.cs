@@ -438,7 +438,7 @@ internal sealed class ScopeResolver
             if(i == segments.Count - 1 && typeArgs is not null)
             {
                 var own = BindPack(member, ResolveTypeArguments(typeArgs, scope), node);
-                context.ProgramModel.ConstructorConstraintClosures.RecordType(member, own, node);
+                context.ProgramModel.ConstructorConstraintClosures.RecordType(member, own, node, instantiation);
                 current = interner.GetOrCreateConstructedType(member, own, instantiation);
             }
             else

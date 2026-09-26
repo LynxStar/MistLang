@@ -1,0 +1,30 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IKeyed<K>
+{
+    K Key();
+}
+
+public class Badge : IKeyed<string>
+{
+    public string Key()
+    {
+        return "b";
+    }
+}
+
+public class Link<K, V> where V : IKeyed<K>
+{
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CONSTRAINT_NOT_SATISFIED
+        var a = new Link<int, Badge>();
+        Console.WriteLine("unreachable");
+    }
+}

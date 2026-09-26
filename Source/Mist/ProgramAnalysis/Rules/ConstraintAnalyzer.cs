@@ -30,9 +30,11 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 
             foreach(var argument in Arguments(closing))
             {
+                var judged = closing with { Argument = argument, Closing = closing.Closing.With(closing.Parameter, argument) };
+
                 foreach(var constraint in closing.Parameter.ConstraintsList)
                 {
-                    Judge(context, closing with { Argument = argument }, constraint);
+                    Judge(context, judged, constraint);
                 }
             }
         }
@@ -50,8 +52,13 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
             : [];
     }
 
-    private static void Judge(AnalysisContext context, TypeArgumentClosing closing, TypeParameterConstraint constraint)
+    private static void Judge(AnalysisContext context, TypeArgumentClosing closing, TypeParameterConstraint declared)
     {
+        if(Closed(declared, closing.Closing, context.Model.TypeInterner) is not { } constraint)
+        {
+            return;
+        }
+
         var argument = closing.Argument;
         var definition = argument is ConstructedType constructed ? constructed.Definition : argument;
 
@@ -81,6 +88,41 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
                 ProgramAnalysisDiagnostics.ConstraintNotSatisfied, closing.Node, [],
                 TypeDisplay.Mist(argument), Spelling(constraint), closing.Parameter.Name);
         }
+    }
+
+    /// <summary>
+    /// Null when the closing put a type that already failed into the constraint, as a sibling argument
+    /// that did not resolve does: that type was reported where it was written.
+    /// </summary>
+    private static TypeParameterConstraint? Closed(
+        TypeParameterConstraint declared, TypeSubstitution closing, TypeInterner interner)
+    {
+        switch(declared)
+        {
+            case TypeConstraint typed:
+                var required = closing.Apply(typed.ConstraintType, interner);
+                return Failed(required) ? null : new TypeConstraint(required);
+
+            case ConstructorConstraint constructor:
+                var signature = constructor.ParameterTypes.Select(type => closing.Apply(type, interner)).ToList();
+                return signature.Exists(Failed) ? null : new ConstructorConstraint(signature);
+
+            default:
+                return declared;
+        }
+    }
+
+    private static bool Failed(IMistType type)
+    {
+        return type switch
+        {
+            ErrorType => true,
+            ConstructedType constructed => constructed.TypeArguments.Any(Failed),
+            UnionType union => union.Constituents.Any(Failed),
+            TupleType tuple => tuple.ElementTypes.Any(Failed),
+            FunctionType function => function.ParameterTypes.Any(Failed) || Failed(function.ReturnType),
+            _ => false,
+        };
     }
 
     private static bool Keyword(TypeParameterConstraintKind kind, IMistType argument, IMistType definition)

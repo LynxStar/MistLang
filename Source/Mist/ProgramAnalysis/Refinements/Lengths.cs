@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -59,7 +60,7 @@ internal static class Lengths
             ArrayLiteralExpression literal => Admitted.Exactly(literal.Elements.Count),
             LiteralExpression { Value: string body } => LiteralValue.Decoded(body) is { } text ? Admitted.Exactly(text.Length) : null,
             LocalReferenceExpression or FieldReferenceExpression or MemberAccessExpression { Member: FieldResult } => tracked(expression) ?? Typed(expression.Type),
-            NewExpression { Arguments: [var source] } => Of(source, tracked, ranges),
+            NewExpression { Arguments: [var source] } creation when SequenceLengths.CopiesArray(creation) => Of(source, tracked, ranges),
             InvocationExpression invocation => OfCall(invocation, tracked, ranges),
             IndexExpression slice when IsRangeSlice(slice) && (ranges?.Invoke(slice.Index) ?? (slice.Index is RangeExpression direct ? StoredRange.Of(direct) : null)) is { } range => OfSlice(range, Of(slice.Receiver, tracked, ranges)),
             _ => Typed(expression.Type),
@@ -69,15 +70,11 @@ internal static class Lengths
     private static Admitted? OfCall(InvocationExpression invocation, Func<Expression, Admitted?> tracked, Func<Expression, StoredRange?>? ranges)
     {
         var receiver = invocation.Receiver is MemberAccessExpression access ? access.Receiver : null;
-        var name = invocation.Method?.Name;
-
-        return (name, invocation.Arguments) switch
+        return (SequenceLengths.Of(invocation, receiver), invocation.Arguments) switch
         {
-            ("AsSpan", []) => Of(receiver, tracked, ranges),
-            ("ToArray", []) => Of(receiver, tracked, ranges),
-            ("ToCharArray", []) => Of(receiver, tracked, ranges),
-            ("Slice", [_, var count]) => Constant(count),
-            ("Slice", [var start]) => Shorten(Of(receiver, tracked, ranges), Constant(start)),
+            (SequenceLengthOperation.Preserved, []) => Of(receiver, tracked, ranges),
+            (SequenceLengthOperation.Slice, [_, var count]) => Constant(count),
+            (SequenceLengthOperation.Slice, [var start]) => Shorten(Of(receiver, tracked, ranges), Constant(start)),
             _ => null,
         };
     }

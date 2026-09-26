@@ -87,6 +87,7 @@ internal static class MethodProjector
         {
             DeclaringType = memberType,
             Scope = methodScope,
+            SequenceLengthOperation = ClrSequenceLengths.Of(method),
         };
 
         projected.TypeParametersList.AddRange(typeParameters);

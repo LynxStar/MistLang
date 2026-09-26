@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Superseded** by [`defaultability`](../defaultability/requirements.md) (2026-09-26), which states the rules as they now stand and governs wherever the two differ. This document is kept so references to it by requirement number still resolve; the new spec's appendix maps each requirement here to where it now lives.
+
 ## Introduction
 
 This document specifies the requirements for redesigning Mist's defaultability semantics so that types are **no longer required** to be defaultable. Currently the compiler enforces that every concrete type must have a meaningful default value. This spec removes that enforcement and introduces a clear separation between:

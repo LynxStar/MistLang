@@ -1,0 +1,240 @@
+# Requirements Document
+
+## Introduction
+
+This document specifies what a member may do beyond its own scope, stated by three composable modifiers -- `readonly`, `local` and `pure` -- so that a caller can know what a call can touch without reading the member's body. `readonly` exists (`readonly-contexts` spec); this document adds `local` and `pure`, and amends `readonly` so the three agree.
+
+The language already needs this in several places without having had a name for it: a default must start in the same state every time it is taken, a refinement predicate may only read what cannot change under it, and a pure scope that builds a collection must be able to call `Add` on it.
+
+> **DRAFT.** The model is settled; the Open Questions at the end are not.
+
+### What `pure` means
+
+`pure` means what it means in computer science generally, and in Haskell: a pure computation
+
+1. has **no side effects** -- it changes no state that exists outside it and performs no input or output; and
+2. is **deterministic** -- its result depends only on its inputs, so the same inputs always give the same result.
+
+Two refinements, both standard:
+
+- **Allocation is not a side effect.** A pure computation may create objects and change them, as Haskell's `ST` lets a pure function mutate state that exists only inside it. Returning a list it built, and adding to it first, is pure.
+- **Pure is not total.** A pure computation may still fail or not terminate, as a pure Haskell function may. Purity promises the same failure every time, not that none occurs.
+
+Where other systems use the word differently, Mist follows the general meaning:
+
+| System | Its word | What it promises | In Mist |
+|---|---|---|---|
+| Haskell, general CS | pure | no side effects, deterministic | `pure` |
+| Solidity | `view` / `pure` | reads but writes no state / reads and writes no state | `readonly` / `pure` |
+| D | weakly / strongly pure | no global state; weakly pure may read and change its arguments | `pure` does neither to what it was handed; `local` is the closer match to weakly pure |
+| C# `[Pure]` attribute | pure | "does not make any visible state changes" | that is `readonly`, not `pure` |
+| GCC `__attribute__((pure))` | pure | no side effects, may read global memory | weaker than `pure` |
+
+### Every restriction is about what comes from outside
+
+A scope may do anything with what it **owns** -- what it created, what was moved into it, its own copies of structs. Each modifier restricts only what the scope does with what comes from **outside** it:
+
+| Modifier | May read from outside its own scope | May write outside its own scope |
+|---|---|---|
+| `readonly` | anything | nothing |
+| `local` | only its own instance | only its own instance |
+| `local readonly` | only its own instance | nothing |
+| `pure` | only what cannot change, and inputs it holds frozen | nothing |
+
+For a local function or lambda, "its own instance" is what it captured from the scope around it.
+
+Every `pure` member is `readonly`. Every `local readonly` member is both `local` and `readonly`. A member with none of these may do anything, and is assumed to.
+
+### Where an input comes from
+
+Purity is judged against the reference a scope holds, not the object behind it. A `frozen` reference can never observe a change: for its whole lifetime every read through it gives the same answer, even though the object behind it may change once the loan ends -- the next loan is a different input.
+
+| Input | Origin | May a pure scope read its state? | May it write it? |
+|---|---|---|---|
+| struct, by value | the scope's own copy | yes | yes (the copy) |
+| a reference-typed field inside that struct | external: the copy still points at another object | stable fields only | no |
+| struct by `ref` or `in` | external: the caller's storage | stable fields only | no |
+| class, unrestricted or `readonly ref` | external, and may change between reads | stable fields only | no |
+| class, `frozen` | external, but fixed for its lifetime | yes | no |
+| class, `owned` | moved in, so the scope's own | yes | yes |
+
+### What a pure scope may call
+
+| Calling... | Allowed on... | Because |
+|---|---|---|
+| a `pure` member | anything | it touches nothing outside its own scope |
+| a `local readonly` member | an instance the scope owns, or a `frozen` input | it reads only that instance, which cannot change under it |
+| a `local` member | an instance the scope owns | it may change that instance, and only the scope can observe it |
+| a `readonly` member | nothing | it may read outside state that can change between calls |
+| an unmarked member | nothing | it may do anything |
+
+### Example
+
+```mist
+public intrinsic owned class List<T>
+{
+    intrinsic public pure List();                        // a fresh, empty list
+    intrinsic public local readonly int Count { get; }   // reads only this list, writes nothing
+    intrinsic public local void Add(T item);             // touches only this list
+}
+
+pure int Seeded()
+{
+    owned var l = new List<int>();   // Seeded owns l
+    l.Add(1);                        // local, on an instance Seeded owns
+    return l.Count;                  // 1, every time
+}
+
+pure int Size(frozen List<int> xs)
+{
+    return xs.Count;                 // local readonly, on a frozen input
+}
+
+int Count(List<int> xs)
+{
+    return xs.Count;                 // readonly at most: xs can change between calls
+}
+```
+
+`Seeded` is proven pure from declarations alone. The owned binding proves `Seeded` owns `l`, and `Add` promises to touch nothing but `l`, so everything `Add` touches is inside `Seeded`.
+
+## Glossary
+
+- **Scope**: The body of a member, local function or lambda, during one evaluation of it.
+- **Owned (by a scope)**: What a scope created during its evaluation, what was moved into it through an `owned` parameter or binding, a struct it holds by value (but not what that struct's reference-typed fields point at), and, for a local function or lambda, what it captured that its enclosing scope owns.
+- **External**: Everything a scope does not own: its reference-typed and by-reference inputs, statics, and the world outside the program.
+- **Stable_Field**: A field that cannot change once its object is constructed: a `readonly` field, the backing field of an `init`-only property, or any field of a readonly type. A static field is stable when it is `readonly`.
+- **Own_Instance**: For an instance member, the instance it was called on and what that instance owns. For a local function or lambda, what it captured. Static members and constructors have none.
+- **Pure_Member**, **Local_Member**, **Local_Readonly_Member**, **Readonly_Member**: A member declared, or inferred (Requirement 8), to keep the corresponding promise.
+- **Readonly_Context**: As defined by the `readonly-contexts` spec, amended by Requirement 11.
+
+## Requirements
+
+### Requirement 1: Syntax
+
+**User Story:** As a Mist developer, I want to state what a member does beyond its own scope with a few modifiers that compose, rather than a keyword per combination.
+
+#### Acceptance Criteria
+
+1. THE Grammar SHALL define `local` and `pure` as reserved keywords. Neither is used as a name anywhere in the samples, the standard library or the book's snippets.
+2. THE Compiler SHALL accept these combinations on a member: `readonly`, `local`, `local readonly`, `pure`. Order among modifiers SHALL NOT matter.
+3. WHEN `pure` and `readonly` are both written, THE Compiler SHALL accept them and report an informational diagnostic that `readonly` is implied by `pure`.
+4. WHEN `pure` and `local` are both written, THE Compiler SHALL report an error: `local` allows a member to change its own instance, which `pure` forbids.
+5. `local` SHALL be admitted on instance methods, instance properties and indexers, local functions and lambdas, and SHALL be refused on static members and constructors, which have no Own_Instance. `pure` SHALL be admitted on methods, constructors, properties, indexers, local functions and lambdas. On a property or indexer, a modifier applies to each accessor it declares.
+6. THE Grammar SHALL admit these modifiers on intrinsic member declarations and on abstract members.
+7. THE Pretty_Printer SHALL preserve them, and parsing then printing then parsing SHALL produce an equivalent AST.
+
+### Requirement 2: How the Promises Nest
+
+#### Acceptance Criteria
+
+1. Every Pure_Member SHALL be a Readonly_Member. Every Local_Readonly_Member SHALL be both a Readonly_Member and a Local_Member.
+2. Wherever a readonly member, constructor or type is required -- a readonly context calling it, a readonly abstract member it implements, a `where T : readonly` bound -- a pure or local readonly one SHALL be accepted.
+3. The converse SHALL NOT hold: a readonly member is pure only if it also keeps Requirement 7, and local readonly only if it also keeps Requirement 5.
+
+### Requirement 3: A Promise, Not a Demand
+
+**User Story:** As a Mist developer, I want these modifiers to cost ordinary callers nothing, so that marking `List<T>.Add` `local` does not change how anyone calls it.
+
+#### Acceptance Criteria
+
+1. A modifier from this document SHALL be a promise the member makes about itself. It SHALL add no requirement on an ordinary caller -- no ownership tier, no loan, no modifier -- and SHALL change neither how a call binds nor what is emitted.
+2. Only a scope that is itself `readonly`, `local` or `pure`, or an expression the language requires to be pure (Requirement 12), SHALL consult these promises, and only to decide which calls it may make.
+
+### Requirement 4: `readonly`
+
+#### Acceptance Criteria
+
+1. A Readonly_Member SHALL write nothing External, and MAY read anything, as the `readonly-contexts` spec defines, amended by Requirement 11.
+2. A readonly scope MAY call a Readonly_Member, Pure_Member or Local_Readonly_Member on anything, and a Local_Member on an instance it owns.
+
+### Requirement 5: `local`
+
+**User Story:** As a Mist developer, I want to promise that a member touches nothing but its own instance, so that a scope which owns that instance can call it and remain whatever it is.
+
+#### Acceptance Criteria
+
+1. A Local_Member SHALL read and write only its Own_Instance and what it creates.
+2. A Local_Member MAY use its arguments as values -- store them, pass them on, compare them, read the contents of a struct passed by value -- and SHALL NOT read or write state reachable through a reference-typed or by-reference argument, which lies outside its Own_Instance.
+3. A Local_Member SHALL call only Pure_Members, and Local_Members and Local_Readonly_Members on its Own_Instance or on what it creates. It SHALL perform no input or output and read no static that is not a Stable_Field.
+4. A local function or lambda declared `local` SHALL treat what it captured as its Own_Instance. What it writes through a captured reference is its own only if the enclosing scope owns what that reference points at; THE Compiler SHALL judge that where the local function or lambda is called, against the enclosing scope's ownership.
+5. A Local_Readonly_Member SHALL keep criteria 1 to 4 and SHALL write nothing, its Own_Instance included.
+
+### Requirement 6: No Side Effects in a Pure Scope
+
+#### Acceptance Criteria
+
+1. A pure scope SHALL write only what it owns. A pure constructor MAY assign the fields of the instance under construction, which the constructing expression owns.
+2. A pure scope SHALL perform no input or output, directly or through anything it calls.
+3. A pure scope SHALL call only what the "What a pure scope may call" table admits: a Pure_Member on anything, a Local_Readonly_Member on an instance it owns or a `frozen` input, and a Local_Member on an instance it owns.
+4. WHEN a pure scope passes an argument to a Local_Member that may store it in an instance the scope owns, the argument SHALL be owned by the scope or unable to change. A `frozen` reference SHALL NOT be stored, since the owned instance may outlive the loan.
+
+### Requirement 7: Deterministic
+
+#### Acceptance Criteria
+
+1. A pure scope MAY read literals, `void`, enum variants, what it owns, the state of a `frozen` input, and any Stable_Field of any object it can reach, including a `readonly` static.
+2. A pure scope SHALL NOT read a field that is not a Stable_Field of an External object that is not a `frozen` input: reading the current contents of a reference it does not hold frozen is not pure, because the same reference can show different contents at different times.
+3. A pure scope SHALL NOT read any state outside the program -- the clock, randomness, the environment, files.
+4. A pure scope MAY create a lambda; the lambda's body is judged when it is called, not when it is created.
+
+### Requirement 8: Declaration and Inference
+
+#### Acceptance Criteria
+
+1. WHEN a member is declared `readonly`, `local`, `local readonly` or `pure`, THE Compiler SHALL check its body against the corresponding requirements and SHALL report an error at each operation that breaks them, naming the operation and the rule.
+2. WHEN a member with a Mist body declares none of them, THE Compiler SHALL infer the strongest promise its body keeps.
+3. THE Compiler SHALL infer over the whole program as a greatest fixpoint: every member with a Mist body starts with every promise, loses each one its body breaks or that a callee has lost, and the process repeats until nothing changes. Recursive members therefore keep a promise when nothing else takes it away.
+4. WHEN an abstract member declares a promise, every implementation SHALL keep it. WHEN it declares none, it SHALL be inferred to keep exactly the promises every implementation in the program keeps.
+
+### Requirement 9: Members Without a Mist Body
+
+#### Acceptance Criteria
+
+1. A member with no Mist body -- intrinsic, CLR-projected or extern -- SHALL keep a promise only when its Mist declaration states it. The compiler cannot see what such a member touches, so one that states nothing SHALL be treated as touching anything and performing input or output.
+2. A CLR member with no Mist declaration SHALL keep no promise. To use one from a readonly, local or pure scope, Standard declares it as an intrinsic with its promise, or the program wraps it in a member of its own.
+3. THE Standard declarations SHALL state the promise of each member they declare that keeps one: the primitive types' and `String`'s operations as `pure`, `Regex` matching as `pure`, and for any collection Standard declares, its constructors `pure`, its read-only members `local readonly`, and its adding and removing members `local`.
+
+### Requirement 10: Diagnostics
+
+#### Acceptance Criteria
+
+1. WHEN a declared promise is broken, THE Compiler SHALL report an error at the offending operation naming it, the promise, and the rule: the field written, the static read, the member called and the promise it lacks.
+2. WHEN a readonly, local or pure scope makes a call the tables do not admit, THE Compiler SHALL report an error naming the member, the promise it keeps, and what the call would need -- an owned receiver, a `frozen` input, or a stronger promise.
+
+### Requirement 11: Amendment to Readonly Contexts
+
+**User Story:** As a Mist developer, I want a readonly member to be able to build a value before returning it, so that `readonly` restricts what I do to what I was given, not to what I made.
+
+#### Acceptance Criteria
+
+1. This requirement amends the `readonly-contexts` spec's Requirement 11 with a fifteenth rule: WHILE in a readonly context, THE Readonly_Analyzer SHALL permit writing a field of, writing through an index of, and calling a setter of what the context owns, and SHALL permit calling a Local_Member on an instance it owns.
+2. The admission of an index write into an array the body just allocated, which the analyzer already makes, SHALL be read as a case of criterion 1 rather than a rule of its own.
+3. Base rule 10 SHALL admit allocation through a pure constructor, every pure constructor being readonly (Requirement 2).
+
+### Requirement 12: Where Mist Requires Purity
+
+#### Acceptance Criteria
+
+1. A Field_Initializer of a defaultable type, and a Default_Block entry, SHALL be pure expressions -- evaluated as a pure scope with no inputs (`defaultability` spec, Requirement 6) -- so every default of a type starts in the same state.
+2. A member a refinement predicate reads SHALL be a Pure_Member, or a Stable_Field. A Local_Readonly_Member is not enough there: it reads its instance's current state, which may change while the value exists.
+3. Other specs MAY require any of these promises by referring to this document.
+
+### Requirement 13: Emission
+
+#### Acceptance Criteria
+
+1. None of these modifiers SHALL change the emitted program's behavior. THE C# backend MAY emit `[System.Diagnostics.Contracts.Pure]` on a Readonly_Member as documentation, C#'s attribute promising what `readonly` does.
+
+### Requirement 14: Editor Support
+
+#### Acceptance Criteria
+
+1. THE TextMate grammar SHALL highlight `local` and `pure` as modifiers (`storage.modifier.mist`).
+
+## Open Questions
+
+1. **Should `pure` and `local` apply to a type**, giving every member the promise, as `readonly` does?
+2. **Should a function type be able to require a promise** (a `pure` `func<...>`), so a pure member can call a function value it was given?
+3. **Should a default be allowed to fail?** Purity does not promise totality (a pure member may divide by zero), and the `defaultability` spec calls a default something that cannot fail.
+4. **The name "pure struct".** The `definite-assignment` spec's Pure_Struct, and the comments that use the phrase, mean a struct with no reference-typed fields, which has nothing to do with `pure`. The `stampability` spec now names that property and reserves `stampable` for it, so the phrase should become "stampable struct" before `pure` is a keyword. What remains open is only when to make the rename.

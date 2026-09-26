@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Superseded** by [`defaultability`](../defaultability/requirements.md) (2026-09-26), which states the rules as they now stand and governs wherever the two differ. This document is kept so references to it by requirement number still resolve; the new spec's appendix maps each requirement here to where it now lives.
+
 ## Introduction
 
 This document specifies the requirements for adding the `default` keyword to the Mist programming language. The `default` keyword in Mist diverges significantly from C#: rather than producing a zeroed-out value or `null`, Mist's `default` is a value-based mechanism where every concrete type (class or struct) implements a default value. The default value is a pure compile-time (comptime) value — when the `default` operator is used, the compiler allocates memory for the value and copies the precomputed default into it.

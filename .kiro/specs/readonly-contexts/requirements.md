@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Amended** by [`purity`](../purity/requirements.md) Requirement 11 (draft, 2026-09-26): a readonly context may change what it owns -- write a field or index of, or call a setter of, what it created -- and may call a `local` member on an instance it owns, which base rules 6, 7 and 9 below do not yet say. That spec also defines `local` and `pure`, and makes every pure member readonly.
+
 ## Introduction
 
 This document specifies the requirements for adding readonly contexts to the Mist programming language. The readonly feature prevents mutation after object creation by restricting what operations are permitted within a readonly context. Within a readonly context, code may only interact with other readonly-qualified sites. Members, types, constructors, parameters, and arbitrary blocks can be marked or inferred as readonly, creating a transitive safety guarantee that prevents post-construction mutation.

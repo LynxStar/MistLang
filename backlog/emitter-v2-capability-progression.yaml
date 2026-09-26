@@ -2383,11 +2383,21 @@ capabilities:
         no factory and letting the use site fall to the backend sentinel. Classic's two diagnostics are
         the model. Also report a default block entry naming a member the type does not declare.
       - >
-        Report a default block entry, and a field initializer in a default context, that is not a
-        compile-time constant (default-keyword Requirements 6.9 and 13.4). Classic reports the first as
-        MIST_DEFAULT_NOT_CONSTANT and refuses `default(T)` on a type whose initializers are not constant as
-        MIST_DEFAULT_NOT_SUPPORTED; v2 admits and runs both, measured 2026-09-26 on
-        `default { Seen = Log.Show(void) }` and on `default(Bare)` over side-effecting initializers.
+        Report a field initializer of a defaultable type, and a default block entry, that is not a pure
+        expression (defaultability Requirement 6, drafted 2026-09-26; purity spec Requirements 6 and 7).
+        The rule is consistency, not constancy: `new Foo(7)` is admitted when `Foo(int)` is a pure
+        constructor, and `new(0, 0)` in TargetTypedNew passes because `Point(int, int)` only sets its own
+        fields. Waits on purity inference, which nothing implements yet. Classic reports only a
+        non-constant default block entry, as MIST_DEFAULT_NOT_CONSTANT, and refuses `default(T)` on a type
+        whose initializers are not constant as MIST_DEFAULT_NOT_SUPPORTED; v2 admits and runs both,
+        measured 2026-09-26 on `default { Seen = Log.Show(void) }` and on `default(Bare)` over
+        side-effecting initializers.
+      - >
+        Refuse `default(T)` on a class whose only constructor is a user-declared parameterless one and
+        which has no default block: defaultability Requirement 3.6 (optional-defaultability 4.2) makes it
+        non-defaultable. v2 admits it -- Defaultability.StatesAZero counts a parameterless constructor as
+        stating a zero -- and `default(Counter)` prints `start=1 step=0`, the initializers and zeros with
+        the constructor not run. Classic refuses it as MIST_DEFAULT_NOT_SUPPORTED. Measured 2026-09-26.
     unlocks: [DefaultKeyword]
 
   # ===================================================================

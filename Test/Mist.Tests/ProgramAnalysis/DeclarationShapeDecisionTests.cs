@@ -486,6 +486,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         public class Factory<T, A> where T : new(A) { }
         public class Row<params Ts> where Ts : IRank<Ts> { }
         public class Keys<K, params Vs> where Vs : IKeyed<K> { }
+        public class Hive<T> { public class Cell<U> where U : IRank<T> { } }
         public class Shelf<T> { public int Put<U>(U item) where U : T { return 1; } }
         public class Rack : Shelf<Animal> { }
         public class Tray<T> { }
@@ -506,6 +507,9 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     [InlineData("var made = new Factory<Widget, int>();", "")]
     [InlineData("var row = new Row<Score, Score>();", "")]
     [InlineData("var keys = new Keys<string, Badge, Badge>();", "")]
+    [InlineData("int unused = 1;", "public class Taker { public static int Take(Hive<Score>.Cell<Score> held) { return 1; } }")]
+    [InlineData("int unused = 1;", "public class Swarm : Hive<Score> { public int Make() { var made = new Cell<Score>(); return 1; } }")]
+    [InlineData("int unused = 1;", "public class Swarm : Hive<Score> { public int Take(Cell<Score> held) { return 1; } }")]
     [InlineData("var picked = Ranks.Pick<Score>(new Score());", "")]
     [InlineData("var picked = Ranks.Pick(new Score());", "")]
     [InlineData("func<Score, int> picked = Ranks.Pick;", "")]
@@ -530,6 +534,9 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     [InlineData("var made = new Factory<Widget, string>();", "", "'new(string)' constraint on type parameter 'T'")]
     [InlineData("var row = new Row<Score, Grade>();", "", "'IRank<Grade>' constraint on type parameter 'Ts'")]
     [InlineData("var keys = new Keys<int, Badge>();", "", "'IKeyed<int>' constraint on type parameter 'Vs'")]
+    [InlineData("int unused = 1;", "public class Taker { public static int Take(Hive<Grade>.Cell<Score> held) { return 1; } }", "'IRank<Grade>' constraint on type parameter 'U'")]
+    [InlineData("int unused = 1;", "public class Swarm : Hive<Grade> { public int Make() { var made = new Cell<Score>(); return 1; } }", "'IRank<Grade>' constraint on type parameter 'U'")]
+    [InlineData("int unused = 1;", "public class Swarm : Hive<Grade> { public int Take(Cell<Score> held) { return 1; } }", "'IRank<Grade>' constraint on type parameter 'U'")]
     [InlineData("var picked = Ranks.Pick<Grade>(new Grade());", "", "'IRank<Grade>' constraint on type parameter 'T'")]
     [InlineData("func<Grade, int> picked = Ranks.Pick;", "", "'IRank<Grade>' constraint on type parameter 'T'")]
     [InlineData("var tied = Ranks.Tie<int, Badge>(1, new Badge());", "", "'IKeyed<int>' constraint on type parameter 'V'")]

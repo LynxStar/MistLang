@@ -271,7 +271,7 @@ internal sealed class TypeSubstitution
     /// unbound parameter stands for itself, and a non-generic on the chain contributes a construction
     /// only when something further out did.
     /// </summary>
-    private ConstructedType? EnclosingInstantiation(MistType? declaring, TypeInterner? interner)
+    public ConstructedType? EnclosingInstantiation(MistType? declaring, TypeInterner? interner)
     {
         if(declaring is not (MemberType or EnumType))
         {

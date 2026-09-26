@@ -23,10 +23,23 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
             {
                 public static T Pick(T value) { return value; }
             }
+
+            public class Held<U>
+            {
+            }
         }
 
         public class Derived<T> : Base<T>
         {
+        }
+        """;
+
+    private const string Derivation = """
+        public class Swarm : Box<string>
+        {
+            public Pair<int> Made() { return new Pair<int>(); }
+
+            public int Tagged() { var tagged = Pair<int>.Tag("s"); return tagged.Length; }
         }
         """;
 
@@ -50,6 +63,13 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
 
                 public static Wrapper Make() { return new Wrapper(); }
             }
+
+            public class Pair<U>
+            {
+                public static T Tag(T value) { return value; }
+            }
+
+            public Pair<int> Paired() { return new Pair<int>(); }
         }
         """;
 
@@ -150,6 +170,47 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
 
         Assert.Equal("Base<int>.Inner", TypeDisplay.Mist(declaration.Local.Type));
         Assert.Same(declaration.Initializer!.Type, declaration.Local.Type);
+    }
+
+    [Fact]
+    public void AGenericNestedTypeWrittenInTypePositionIsTheCarriedType()
+    {
+        var declaration = DeclarationIn("Box<string>.Pair<int> p = new Box<string>().Paired();", extraTypes: "");
+        var type = Assert.IsType<ConstructedType>(declaration.Local.Type);
+
+        Assert.Equal("Box<string>.Pair<int>", TypeDisplay.Mist(type));
+        Assert.Equal("Box<string>", TypeDisplay.Mist(type.Enclosing!));
+        Assert.Same(declaration.Initializer!.Type, type);
+    }
+
+    [Fact]
+    public void AGenericNestedTypeOnAGenericBaseIsNamedThroughTheDeriver()
+    {
+        var declaration = DeclarationIn("Derived<int>.Held<string> h = new();", GenericBase);
+
+        Assert.Equal("Base<int>.Held<string>", TypeDisplay.Mist(declaration.Local.Type));
+    }
+
+    [Fact]
+    public void AGenericNestedTypeNamedInADerivationIsCarriedUnderTheBase()
+    {
+        var body = BodyIn("var inherited = new Swarm().Made();\nvar direct = new Box<string>().Paired();", Derivation);
+        var types = body.Statements.OfType<LocalDeclarationStatement>().Select(declaration => declaration.Local.Type).ToList();
+
+        Assert.Equal("Box<string>.Pair<int>", TypeDisplay.Mist(types[0]));
+        Assert.Same(types[1], types[0]);
+    }
+
+    [Fact]
+    public void AStaticReadThroughAGenericNestedTypeInADerivationIsSubstituted()
+    {
+        var model = BuildModel("int unused = 1;", Derivation, extraPreamble: "", out var diagnostics);
+        var tagged = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Swarm"]).MethodsList.Single(method => method.Name == "Tagged");
+
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+        Assert.Equal(
+            WellKnownTypes.String.FullyQualifiedName,
+            tagged.Body!.Statements.OfType<LocalDeclarationStatement>().Single().Local.Type.FullyQualifiedName);
     }
 
     [Theory]

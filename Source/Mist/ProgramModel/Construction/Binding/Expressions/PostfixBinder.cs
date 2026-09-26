@@ -25,18 +25,20 @@ internal static class PostfixBinder
 
         // A group is born inside this walk, so this is the last point that still knows one went
         // unconsumed -- unless an enclosing call has yet to choose the overload that would consume it,
-        // which is what the context flag says. Left to the emitter it would surface as
-        // MethodGroupReachedEmission, which blames the compiler for what is a gap in the frontend.
+        // which is what the context's settled postfix says: this one, or the one inside these
+        // parentheses, the only way a group can leave a nested postfix unconverted. Left to the emitter it
+        // would surface as MethodGroupReachedEmission, which blames the compiler for what is a gap in the
+        // frontend.
         if(result is MethodGroupExpression group)
         {
+            if(ReferenceEquals(ctx.SettledMethodGroup, node) || node is { Suffix.Length: 0, Target: ParenthesizedExpressionPrimaryNode })
+            {
+                return group;
+            }
+
             if(MethodGroupConversion.Convert(group, ctx.TargetType, context, out var ambiguous) is { } converted)
             {
                 return converted;
-            }
-
-            if(ctx.CallSettlesMethodGroups)
-            {
-                return group;
             }
 
             context.Diagnostics.ReportAtNode(
@@ -336,7 +338,7 @@ internal static class PostfixBinder
 
         var choice = OverloadResolution.Select(
             group.Candidates, bound, group.ReceiverConstructed, typeArguments, interner,
-            ArgumentBinder.RefFlags(arguments), group.Paths);
+            ArgumentBinder.RefFlags(arguments), group.Paths, new LambdaTrials(ctx, context));
 
         if(choice.Selected is not { } selected)
         {
@@ -347,8 +349,7 @@ internal static class PostfixBinder
             return new ErrorExpression(node);
         }
 
-        bound = MethodGroupConversion.Settle(
-            bound, selected.ParametersList, choice.Substitution, context);
+        bound = ArgumentBinder.Settle(bound, selected.ParametersList, choice.Substitution, ctx, context);
 
         var returnType = ClrInboundLifting.Close(
             selected.Modifiers,

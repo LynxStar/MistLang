@@ -22,22 +22,53 @@ internal static class LambdaBinder
 
     internal static Expression Bind(LambdaExpressionNode node, BindingContext ctx, BuilderContext context)
     {
+        var target = DelegateShape.Of(AliasTransparency.Expand(
+            ctx.TargetType ?? ErrorType.Instance, context.ProgramModel.TypeInterner));
+
+        if(target is not null && target.ParameterTypes.Count != DeclaredParameterCount(node))
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.LambdaArityMismatch, node, null,
+                target.Name, target.ParameterTypes.Count, DeclaredParameterCount(node));
+
+            return new ErrorExpression(node);
+        }
+
+        return Bind(node, target?.ParameterTypes, target?.ReturnType, ctx, context);
+    }
+
+    internal static Expression BindWithParameters(
+        LambdaExpressionNode node, IReadOnlyList<IMistType> parameterTypes, BindingContext ctx, BuilderContext context)
+    {
+        return parameterTypes.Count == DeclaredParameterCount(node)
+            ? Bind(node, parameterTypes, returnType: null, ctx, context)
+            : new ErrorExpression(node);
+    }
+
+    internal static int DeclaredParameterCount(LambdaExpressionNode node)
+    {
+        return ParameterNodes(Parts(node).Params).Count;
+    }
+
+    internal static List<IMistType?> StatedParameterTypes(
+        LambdaExpressionNode node, BindingContext ctx, BuilderContext context)
+    {
+        return ParameterNodes(Parts(node).Params)
+            .ConvertAll(parameter => parameter.Type is { } typeRef ? context.Resolver.Resolve(typeRef, ctx.Scope) : null);
+    }
+
+    private static Expression Bind(
+        LambdaExpressionNode node,
+        IReadOnlyList<IMistType>? parameterTypes,
+        IMistType? returnType,
+        BindingContext ctx,
+        BuilderContext context)
+    {
         var (modifiers, parameterList, expressionBody, blockBody) = Parts(node);
 
         var isAsync = modifiers.Any(modifier => modifier is AsyncLambdaModifierLambdaModifierNode);
         var isStatic = modifiers.Any(modifier => modifier is StaticLambdaModifierLambdaModifierNode);
-        var target = DelegateShape.Of(AliasTransparency.Expand(
-            ctx.TargetType ?? ErrorType.Instance, context.ProgramModel.TypeInterner));
         var declared = ParameterNodes(parameterList);
-
-        if(target is not null && target.ParameterTypes.Count != declared.Count)
-        {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.LambdaArityMismatch, node, null,
-                target.Name, target.ParameterTypes.Count, declared.Count);
-
-            return new ErrorExpression(node);
-        }
 
         var enclosing = ctx.Scope;
         var scope = new BodyScope(enclosing);
@@ -45,7 +76,7 @@ internal static class LambdaBinder
 
         try
         {
-            if(DeclareParameters(declared, target, scope, ctx, context) is not { } parameters)
+            if(DeclareParameters(declared, parameterTypes, scope, ctx, context) is not { } parameters)
             {
                 return new ErrorExpression(node);
             }
@@ -58,18 +89,18 @@ internal static class LambdaBinder
             ctx.IsAsyncContext = isAsync || enclosingIsAsync;
             ctx.InLambda = true;
 
-            var bodyTarget = isAsync && target?.ReturnType is { } asyncReturn
+            var bodyTarget = isAsync && returnType is { } asyncReturn
                 ? TaskResult.Of(asyncReturn) ?? asyncReturn
-                : target?.ReturnType
+                : returnType
                 ;
 
             try
             {
                 return expressionBody is not null
                     ? BindExpressionBodied(
-                        node, expressionBody, parameters, isStatic, isAsync, target, bodyTarget, ctx, context)
+                        node, expressionBody, parameters, isStatic, isAsync, returnType, bodyTarget, ctx, context)
                     : BindBlockBodied(
-                        node, blockBody!, parameters, isStatic, isAsync, target, bodyTarget, ctx, context)
+                        node, blockBody!, parameters, isStatic, isAsync, returnType, bodyTarget, ctx, context)
                     ;
             }
             finally
@@ -90,7 +121,7 @@ internal static class LambdaBinder
         List<LocalVariable> parameters,
         bool isStatic,
         bool isAsync,
-        IFunctionType? target,
+        IMistType? returnType,
         IMistType? bodyTarget,
         BindingContext ctx,
         BuilderContext context)
@@ -101,7 +132,7 @@ internal static class LambdaBinder
             result = ImplicitConversions.At(ExpressionBinder.BindExpression(body, ctx, context), bodyTarget, context.ProgramModel.TypeInterner);
         }
 
-        var declared = target?.ReturnType
+        var declared = returnType
             ?? (isAsync ? context.Resolver.ConstructTask(result.Type) : result.Type);
 
         return new LambdaExpression(
@@ -122,7 +153,7 @@ internal static class LambdaBinder
         List<LocalVariable> parameters,
         bool isStatic,
         bool isAsync,
-        IFunctionType? target,
+        IMistType? returnType,
         IMistType? bodyTarget,
         BindingContext ctx,
         BuilderContext context)
@@ -143,18 +174,18 @@ internal static class LambdaBinder
             ctx.ReturnType = enclosingReturn;
         }
 
-        var produced = target?.ReturnType is { } declared && !isAsync
+        var produced = returnType is { } declared && !isAsync
             ? declared
             : InferredReturnType(body, node, context)
                 ?? context.Resolver.LookupWellKnown(WellKnownTypes.Void)
             ;
 
-        var returnType = target?.ReturnType
+        var lambdaReturn = returnType
             ?? (isAsync ? context.Resolver.ConstructTask(produced) : produced);
 
         return new LambdaExpression(
             node, parameters, result: null, body, isStatic,
-            FunctionTypeOf(parameters, returnType, context))
+            FunctionTypeOf(parameters, lambdaReturn, context))
         {
             IsAsync = isAsync,
         };
@@ -207,7 +238,7 @@ internal static class LambdaBinder
     /// returns answer to it and not to this one, which is the only reason this walk cannot simply visit
     /// every statement.
     /// </summary>
-    private static IEnumerable<ReturnStatement> Returns(Statement statement)
+    internal static IEnumerable<ReturnStatement> Returns(Statement statement)
     {
         switch(statement)
         {
@@ -270,7 +301,7 @@ internal static class LambdaBinder
 
     private static List<LocalVariable>? DeclareParameters(
         List<DeclaredParameter> declared,
-        IFunctionType? target,
+        IReadOnlyList<IMistType>? parameterTypes,
         BodyScope scope,
         BindingContext ctx,
         BuilderContext context)
@@ -281,7 +312,7 @@ internal static class LambdaBinder
         {
             var type = declared[i].Type is { } typeRef
                 ? context.Resolver.Resolve(typeRef, ctx.Scope)
-                : target?.ParameterTypes[i]
+                : parameterTypes?[i]
                 ;
 
             if(type is null)

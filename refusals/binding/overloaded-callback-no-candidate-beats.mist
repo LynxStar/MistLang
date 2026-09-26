@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+public class Sink
+{
+    public static string Tie(func<int, int> f)
+    {
+        return "int";
+    }
+
+    public static string Tie(func<long, int> f)
+    {
+        return "long";
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PM_AMBIGUOUS_OVERLOAD
+        Console.WriteLine(Sink.Tie(x => 1));
+    }
+}

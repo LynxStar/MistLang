@@ -4,6 +4,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
+using Storm.Runtime;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
@@ -68,7 +69,8 @@ internal static class ArgumentBinder
         IReadOnlyList<IMistType>? targets,
         BindingContext ctx,
         BuilderContext context,
-        bool settlesMethodGroups = false)
+        bool settlesMethodGroups = false,
+        bool defersLambdas = false)
     {
         if(argumentList is null)
         {
@@ -78,21 +80,42 @@ internal static class ArgumentBinder
         var expressions = argumentList.GetAllExpressions();
         var bound = new List<Expression>(expressions.Length);
 
-        using var settlement = ctx.PushMethodGroupSettlement(settlesMethodGroups);
-
         for(var i = 0; i < expressions.Length; i++)
         {
+            if(defersLambdas && expressions[i] is LambdaFormExpressionNode { Lambda: { } lambda })
+            {
+                bound.Add(new UnboundLambdaExpression(lambda));
+                continue;
+            }
+
             var target = targets is not null && i < targets.Count ? targets[i] : null;
 
             // Pushed even when null, so that an enclosing target type stops here rather than
             // reaching an argument it has nothing to say about.
             using(ctx.PushTargetType(target))
+            using(ctx.PushMethodGroupSettlement(settlesMethodGroups ? ValueOf(expressions[i]) : null))
             {
                 Add(ExpressionBinder.BindExpression(expressions[i], ctx, context), target, bound, context);
             }
         }
 
         return bound;
+    }
+
+    private static PostfixNode? ValueOf(SyntaxNode argument)
+    {
+        PostfixNode? value = null;
+        var node = argument;
+
+        while(node is not null)
+        {
+            value = node as PostfixNode ?? value;
+
+            var children = node.Children().Where(child => child is not null).Take(2).ToList();
+            node = children.Count == 1 ? children[0] : null;
+        }
+
+        return value;
     }
 
     /// <summary>
@@ -214,15 +237,47 @@ internal static class ArgumentBinder
             .Select(parameter => substitution.Apply(parameter.Type, interner))
             .ToList();
 
-        return BindTargeted(argumentList, targets, ctx, context, settlesMethodGroups: targets is null);
+        var settled = sole is null
+            || (typeArguments is null && sole.TypeParametersList.Count > 0 && ValuePack.FlattenedSlot(sole.ParametersList) is null);
+
+        return BindTargeted(
+            argumentList, targets, ctx, context,
+            settlesMethodGroups: settled,
+            defersLambdas: settled && candidates.Count > 0 && !candidates.Any(candidate => ValuePack.FlattenedSlot(candidate.ParametersList) is not null));
+    }
+
+    /// <summary>
+    /// The arguments the call left unsettled, bound against the parameter the chosen overload gives each:
+    /// a lambda exactly as it would have been bound had that been the only candidate, and a group
+    /// converted by <see cref="MethodGroupConversion"/>. Where nothing was chosen the selection has
+    /// reported why, and a lambda is left as a failure rather than bound against nothing.
+    /// </summary>
+    internal static IReadOnlyList<Expression> Settle(
+        IReadOnlyList<Expression> arguments,
+        IReadOnlyList<Parameter>? parameters,
+        TypeSubstitution substitution,
+        BindingContext ctx,
+        BuilderContext context)
+    {
+        var interner = context.ProgramModel.TypeInterner;
+        var lambdasBound = arguments
+            .Select((argument, i) => argument is not UnboundLambdaExpression lambda
+                ? argument
+                : parameters is not null && i < parameters.Count
+                    ? LambdaTrials.BindAgainst(lambda, substitution.Apply(parameters[i].Type, interner), ctx, context)
+                    : new ErrorExpression(lambda.Node))
+            .ToList();
+
+        return MethodGroupConversion.Settle(lambdasBound, parameters, substitution, context);
     }
 
     /// <summary>
     /// The parameters of the one candidate taking this many arguments, and as many type arguments as the
     /// call states, or null where none or several do. Several cannot be narrowed here: choosing between
     /// them needs the argument types, which are what this is about to produce. An argument that cannot be
-    /// bound WITHOUT a target therefore survives untyped and the selection settles it -- see
-    /// <see cref="MethodGroupConversion"/>, which is the one such argument so far.
+    /// bound WITHOUT a target therefore survives untyped and the selection settles it -- a method group
+    /// (<see cref="MethodGroupConversion"/>) or a lambda (<see cref="UnboundLambdaExpression"/>), which a
+    /// sole GENERIC candidate leaves untyped too, its parameter types waiting on the type arguments.
     /// </summary>
     private static T? SoleByArity<T>(
         IReadOnlyList<T> candidates, int argumentCount, IReadOnlyList<IMistType>? typeArguments)

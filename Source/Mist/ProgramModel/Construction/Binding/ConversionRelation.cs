@@ -270,6 +270,7 @@ internal static class ConversionRelation
             or LiftedType
             or RefinedType
             or MethodGroupType
+            or UnboundLambdaType
             ;
     }
 
@@ -294,7 +295,7 @@ internal static class ConversionRelation
     private static bool WidensToUnknown(IMistType from, IMistType to)
     {
         return to is UnknownType
-            && from is not (ErrorType or MethodGroupType or NotProjectedType)
+            && from is not (ErrorType or MethodGroupType or UnboundLambdaType or NotProjectedType)
             && !OptionalUnion.IsVoid(from)
             ;
     }

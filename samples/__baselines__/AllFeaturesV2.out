@@ -2037,3 +2037,21 @@ stated values: T 5 | R | R | T w | T 4
 clones: present 7 | present 7 | absent copies 1 | absent copies 2
 generic clones: present w | present w | absent copies 1 | present w copies 1 | present w copies 2
 absent: True True | True False | True void
+=== CallableInference Sample ===
+lambda: 2 | stated: 2
+block body: big
+stated parameter: 4
+chained: <21>
+fold: 10 1234
+group: 5 | stated: 5
+overloaded group: Show(int) 4 | Show(string) w
+generic group: 3
+receiver: 4
+Transform(int) 6
+Transform(string) ab!
+Measure(int) 4
+Measure(string) 4
+Widen(int) 2
+Widen(long) 2
+Labeled(string) 4
+=== CallableInference Done ===

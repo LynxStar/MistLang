@@ -1,0 +1,21 @@
+using Standard;
+
+namespace Refusal;
+
+public class Sink
+{
+    public static R Apply<T, R>(T value, func<T, R> callback)
+    {
+        return callback(value);
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PM_UNRESOLVED_MEMBER
+        var measured = Sink.Apply(1, x => x.Length);
+        Console.WriteLine($"{measured}");
+    }
+}

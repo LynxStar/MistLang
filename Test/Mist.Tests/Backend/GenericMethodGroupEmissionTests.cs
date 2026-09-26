@@ -20,6 +20,10 @@ public sealed class GenericMethodGroupEmissionTests
             public static string Lift<K>(K? value) { return "lifted"; }
 
             public static int Apply(func<int, int> f, int value) { return f(value); }
+
+            public static T Twice<T>(T value, func<T, T> f) { return f(f(value)); }
+
+            public static R Pass<T, R>(T value, func<T, R> f) { return f(value); }
         }
 
         public class Box
@@ -48,9 +52,16 @@ public sealed class GenericMethodGroupEmissionTests
     [InlineData("func<long, long> same = Api.Same<long>;", "= Probe.Api.Same<long>;")]
     [InlineData("func<string?, string> lift = Api.Lift<string>;", "= Probe.Api.Lift__Standard_String;")]
     [InlineData("var applied = Api.Apply(Api.Same<int>, 3);", "Probe.Api.Apply(Probe.Api.Same<int>, 3)")]
+    [InlineData("var twice = Api.Twice(3, Api.Same);", "Probe.Api.Twice<int>(3, Probe.Api.Same<int>)")]
     public void AGenericMethodNamedAsAValue_StatesTheTypeArgumentsTheTargetTaughtIt(string statements, string expected)
     {
         Assert.Contains(expected, Emit("Probe", statements));
+    }
+
+    [Fact]
+    public void AnInferringCall_StatesTheTypeArgumentsItsLambdaTaughtIt()
+    {
+        Assert.Contains("Probe.Api.Pass<int, bool>(3, (int x) => x > 1)", Emit("Probe", "var passed = Api.Pass(3, x => x > 1);"));
     }
 
     [Fact]

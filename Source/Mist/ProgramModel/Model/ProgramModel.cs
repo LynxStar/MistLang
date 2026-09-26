@@ -68,15 +68,37 @@ public sealed class ProgramModel : IProgramModel
     /// Every type that closes a parameterized constructor constraint, collected as construction and
     /// resolution encounter them.
     /// </summary>
-    internal ConstraintClosureRegistry ConstructorConstraintClosures { get; } = new();
+    internal ConstraintClosureRegistry ConstructorConstraintClosures { get; private set; } = new();
 
-    internal VariadicUseRegistry VariadicUses { get; } = new();
+    internal VariadicUseRegistry VariadicUses { get; private set; } = new();
 
-    internal GenericCallRegistry GenericCalls { get; } = new();
+    internal GenericCallRegistry GenericCalls { get; private set; } = new();
 
-    internal TaskDropRegistry TaskDrops { get; } = new();
+    internal TaskDropRegistry TaskDrops { get; private set; } = new();
 
-    internal OptionalApplicationRegistry OptionalApplications { get; } = new();
+    internal OptionalApplicationRegistry OptionalApplications { get; private set; } = new();
+
+    /// <summary>
+    /// Runs <paramref name="trial"/> against empty registries and restores these after, so a binding
+    /// made only to answer a question -- what a lambda returns under one candidate's parameter types --
+    /// records nothing a consumer reads. Nothing reads a registry during binding, which is what makes
+    /// swapping them safe.
+    /// </summary>
+    internal T Discarding<T>(Func<T> trial)
+    {
+        var kept = (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications);
+        (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications) =
+            (new(), new(), new(), new(), new());
+
+        try
+        {
+            return trial();
+        }
+        finally
+        {
+            (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications) = kept;
+        }
+    }
 
     /// <summary>
     /// Retroactive conformance declarations collected during Phase 2c.

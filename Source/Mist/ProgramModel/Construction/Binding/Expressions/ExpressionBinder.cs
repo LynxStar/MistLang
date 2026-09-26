@@ -375,10 +375,9 @@ internal static class ExpressionBinder
             argumentList, ConstructorsOf(type), ctx, context, type as ConstructedType);
 
         var choice = SelectConstructor(
-            type, arguments, ArgumentBinder.RefFlags(argumentList), node, context);
+            type, arguments, ArgumentBinder.RefFlags(argumentList), node, new LambdaTrials(ctx, context), context);
 
-        var settled = MethodGroupConversion.Settle(
-            arguments, choice.Selected?.ParametersList, choice.Substitution, context);
+        var settled = ArgumentBinder.Settle(arguments, choice.Selected?.ParametersList, choice.Substitution, ctx, context);
 
         return (settled, choice);
     }
@@ -404,6 +403,7 @@ internal static class ExpressionBinder
         IReadOnlyList<Expression> arguments,
         IReadOnlyList<bool> argumentIsRef,
         Storm.Runtime.SyntaxNode node,
+        ILambdaTrials lambdas,
         BuilderContext context)
     {
         var constructed = type as ConstructedType;
@@ -416,7 +416,7 @@ internal static class ExpressionBinder
 
         var choice = OverloadResolution.Select(
             concrete.ConstructorsList, arguments, constructed, null, context.ProgramModel.TypeInterner,
-            argumentIsRef);
+            argumentIsRef, lambdas: lambdas);
 
         if(choice.Selected is null)
         {

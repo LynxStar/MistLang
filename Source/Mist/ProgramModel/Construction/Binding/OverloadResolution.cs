@@ -44,7 +44,8 @@ internal static class OverloadResolution
         IReadOnlyList<IMistType>? typeArguments,
         TypeInterner interner,
         IReadOnlyList<bool>? argumentIsRef = null,
-        IReadOnlyDictionary<T, IReadOnlyList<ConstructedType>>? paths = null)
+        IReadOnlyDictionary<T, IReadOnlyList<ConstructedType>>? paths = null,
+        ILambdaTrials? lambdas = null)
         where T : class, IOverload
     {
         var receiverSubstitution = TypeSubstitution.ForReceiver(receiver);
@@ -91,7 +92,7 @@ internal static class OverloadResolution
 
         foreach(var candidate in byArity)
         {
-            var substitution = Close(candidate, arguments, substitutionFor(candidate), typeArguments, interner, out var conflict);
+            var substitution = Close(candidate, arguments, substitutionFor(candidate), typeArguments, interner, lambdas, out var conflict);
 
             if(substitution is null)
             {
@@ -116,18 +117,17 @@ internal static class OverloadResolution
             return Winner(closed[0]);
         }
 
-        var applicable = new List<Applicant<T>>();
-        foreach(var candidate in closed)
-        {
-            if(IsApplicable(candidate, arguments, argumentIsRef, interner))
-            {
-                applicable.Add(candidate);
-            }
-        }
+        var applicable = closed.FindAll(candidate => IsApplicable(candidate, arguments, argumentIsRef, interner, lambdas));
 
         if(applicable.Count == 0)
         {
-            return new OverloadChoice<T> { Selected = null, Unresolvable = Methods(closed) };
+            // A lambda that binds under none of the candidates the other arguments admit is broken in
+            // itself rather than evidence against one of them, so where those arguments leave exactly
+            // one, it is chosen and binding the lambda against it reports what is wrong with the body.
+            return lambdas is not null
+                && closed.FindAll(candidate => IsApplicable(candidate, arguments, argumentIsRef, interner, lambdas: null)) is [var only]
+                    ? Winner(only)
+                    : new OverloadChoice<T> { Selected = null, Unresolvable = Methods(closed) };
         }
 
         if(applicable.Count == 1)
@@ -135,7 +135,7 @@ internal static class OverloadResolution
             return Winner(applicable[0]);
         }
 
-        var maximal = Maximal(applicable, arguments, interner);
+        var maximal = Maximal(applicable, arguments, interner, lambdas);
 
         if(maximal.Count == 1 || !AreDistinguishable(Methods(maximal)))
         {
@@ -275,6 +275,7 @@ internal static class OverloadResolution
         TypeSubstitution receiver,
         IReadOnlyList<IMistType>? typeArguments,
         TypeInterner interner,
+        ILambdaTrials? lambdas,
         out TypeArgumentConflict? conflict)
         where T : class, IOverload
     {
@@ -286,7 +287,7 @@ internal static class OverloadResolution
         }
 
         var own = typeArguments is null
-            ? TypeSubstitution.ForMethod(candidate, TypeArgumentInference.Infer(candidate, arguments, receiver, interner, out conflict))
+            ? TypeSubstitution.ForMethod(candidate, TypeArgumentInference.Infer(candidate, arguments, receiver, interner, lambdas, out conflict))
             : TypeSubstitution.ForMethod(candidate, typeArguments)
             ;
 
@@ -306,7 +307,7 @@ internal static class OverloadResolution
     /// </para>
     /// </summary>
     private static List<Applicant<T>> Maximal<T>(
-        List<Applicant<T>> applicable, IReadOnlyList<Expression> arguments, TypeInterner interner)
+        List<Applicant<T>> applicable, IReadOnlyList<Expression> arguments, TypeInterner interner, ILambdaTrials? lambdas)
         where T : class, IOverload
     {
         var maximal = new List<Applicant<T>>();
@@ -317,7 +318,7 @@ internal static class OverloadResolution
 
             foreach(var other in applicable)
             {
-                if(!ReferenceEquals(other, candidate) && IsBetter(other, candidate, arguments, interner))
+                if(!ReferenceEquals(other, candidate) && IsBetter(other, candidate, arguments, interner, lambdas))
                 {
                     beaten = true;
                     break;
@@ -376,7 +377,8 @@ internal static class OverloadResolution
         Applicant<T> candidate,
         IReadOnlyList<Expression> arguments,
         IReadOnlyList<bool>? argumentIsRef,
-        TypeInterner interner)
+        TypeInterner interner,
+        ILambdaTrials? lambdas)
         where T : class, IOverload
     {
         for(var i = 0; i < arguments.Count; i++)
@@ -404,6 +406,16 @@ internal static class OverloadResolution
                 continue;
             }
 
+            if(arguments[i] is UnboundLambdaExpression lambda)
+            {
+                if(lambdas is not null && !lambdas.Fits(lambda, parameter))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
             if(!ConversionRelation.IsImplicit(arguments[i].Type, parameter) && !ConstantConversion.Fits(arguments[i], parameter))
             {
                 return false;
@@ -421,15 +433,20 @@ internal static class OverloadResolution
     /// </para>
     /// </summary>
     private static bool IsBetter<T>(
-        Applicant<T> left, Applicant<T> right, IReadOnlyList<Expression> arguments, TypeInterner interner)
+        Applicant<T> left, Applicant<T> right, IReadOnlyList<Expression> arguments, TypeInterner interner, ILambdaTrials? lambdas)
         where T : class, IOverload
     {
         var strictlyBetterSomewhere = false;
 
         for(var i = 0; i < arguments.Count; i++)
         {
-            var comparison = CompareConversions(
-                arguments[i].Type, ParameterType(left, i, interner), ParameterType(right, i, interner));
+            var leftParameter = ParameterType(left, i, interner);
+            var rightParameter = ParameterType(right, i, interner);
+            var argument = arguments[i] is UnboundLambdaExpression lambda && lambdas is not null
+                ? lambdas.ComparedType(lambda, leftParameter, rightParameter)
+                : arguments[i].Type;
+
+            var comparison = CompareConversions(argument, leftParameter, rightParameter);
 
             if(comparison > 0)
             {

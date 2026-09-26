@@ -2576,8 +2576,9 @@ capabilities:
 
       The reason to state it anyway is that this algorithm is the weaker of the two, in three named
       ways: it does not track variance, so a bound read from inside a construction is fixed like any
-      other rather than as an exact bound; it has no inference from lambdas or method groups; and it
-      runs one pass rather than fixing in dependency order. Every shape it does
+      other rather than as an exact bound; it had no inference from lambdas or method groups until
+      2026-09-25 (below); and it runs one pass over the ordinary arguments rather than fixing in
+      dependency order, keeping dependency order for the callables alone. Every shape it does
       infer, C# infers and agrees on, so its successful answers are a subset of C#'s -- established
       by reasoning over the cases, not proved. Stating them therefore makes a wrong answer a C#
       error rather than something Roslyn quietly infers correctly on our behalf.
@@ -2644,6 +2645,114 @@ capabilities:
       type: it reaches the call's result, so binding anyway records a local typed by a parameter
       out of scope and emits that parameter where a type belongs, which Roslyn then reports against
       a generated file naming neither the call nor the parameter.
+
+      A LAMBDA OR A METHOD GROUP TEACHES THE CALL IT IS PASSED TO (2026-09-25), which is first-class-
+      functions Requirement 6.8 and the body-task register's "lambda arguments deferred during
+      applicability". The rules are type-argument-inference Requirement 11 and method-overloading
+      Requirements 3.13-3.16, written into the specs on 2026-09-26 as rules of their own rather than
+      as a reference to C#, whose choices they follow. MEASURED FIRST, one project per probe on --pipeline experimental, against
+      `R Apply<T, R>(T, func<T, R>)`: `Api.Apply(1, x => x + 1)` was MIST_PM_TYPE_ARGUMENTS_CONFLICT
+      naming 'int' and 'T' -- the lambda was bound against the OPEN parameter, so x was the callee's
+      own T and the lambda's type fed T back as a bound -- and a block body and a chain
+      (`Pipe(1, x => x + 1, y => ...)`) failed the same way; `Api.Apply(4, Api.Next)` was
+      MIST_PM_METHOD_GROUP_NOT_CONVERTED; a stated lambda parameter, `Run((string s) => s.Length,
+      "abc")`, closed R to ITSELF and Stage 5 then refused 'int' to 'R'; `Twice(3, Api.Same)` converted
+      Same at the callee's own T and conflicted; and in an overloaded call, `Transform(3, v => v * 2)`
+      beside a string overload or `Each(x => x + 1)` over func<int, int> and func<string, int>, the
+      lambda had no target at all (MIST_PM_LAMBDA_PARAMETER_NO_TYPE). Classic refuses every one of these
+      but the stated parameter, which it prints (a 3): MIST_TC_0081 with its placeholders unfilled beside
+      an operator error on the open T, MIST_TC_0084 for each group, MIST_TC_0031 for Transform.
+
+      A LAMBDA IN A SLOT THE CALL HAS NOT CLOSED IS HELD UNBOUND -- UnboundLambdaExpression, a binder
+      intermediate beside MethodGroupExpression, the slot being unclosed where several candidates take
+      the arity or a sole GENERIC one's type arguments are not stated -- and a group in the same slot is
+      left for the call. Inference reads the ordinary arguments first, and a stated lambda parameter as a
+      bound on its slot's parameter; then each callable whose inputs mention only parameters that now
+      have bounds has those FIXED, is typed by them, and its result teaches the rest: a lambda by a
+      binding made to be thrown away (LambdaTrials, diagnostics withheld and the five registries swapped
+      out by ProgramModel.Discarding), a group by the one overload whose parameters are those types
+      (MethodGroupConversion.ResultType). THE BINDING THAT STAYS IS MADE ONCE, after selection, against
+      the chosen parameter's closed type, which is the binding the call stating its type arguments
+      makes: an inferred call and its stated twin bind the same model and emit the same C#,
+      `Probe.Api.Apply<int, int>(1, (int x) => x + 1)`.
+
+      A PARAMETER FIXED TO TYPE A CALLABLE TAKES NO LATER BOUND (Requirement 11.4). `Grow(1, x => x * 2L)` over
+      `T Grow<T>(T, func<T, T>)` fixes T to int, and the long body is Stage 5's
+      MIST_PA_NO_IMPLICIT_CONVERSION at the body -- what the stated `Grow<int>` reports -- rather than a
+      refixing to long that would contradict the parameter type the lambda was bound with. A conflict
+      that keeps a callable from being typed is the one reported: `Apply2(1, "x", x => x)` is
+      MIST_PM_TYPE_ARGUMENTS_CONFLICT on T, not MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED on the R the lambda
+      never got to teach.
+
+      AN OVERLOADED CALL TYPES THE LAMBDA UNDER EACH CANDIDATE. From two closed candidates up, the lambda
+      fits a candidate where it binds against that parameter without a binder error, its stated parameter
+      types are the parameter's, and its results convert to the parameter's result -- so
+      `Measure(x => x + 1)` takes func<int, int>, the string body being a string, and `Measure(s =>
+      s.Length)` takes func<string, int>, int having no Length. An error-typed result counts as not
+      fitting, because an operator no type admits types as an error without a word from the binder:
+      `Measure(x => x * 2)` would otherwise fit both. Where two fit with the same parameters the lambda's own
+      result decides (method-overloading 3.14): `Widen(x => x + 1)` takes func<int, int> over
+      func<int, long>, and `x + 1L` the other. A lambda broken under every candidate the other arguments
+      admit is broken in itself, not evidence against them: where they leave one, that is chosen and
+      binding against it reports the body -- `Transform(3, v => v.Nope)` is one MIST_PM_UNRESOLVED_MEMBER,
+      not an unresolvable call. Constructors take the same path (`new Labeled(s => s.Length)`).
+
+      THE ARGUMENT'S OWN VALUE, NEVER A GROUP NESTED IN IT, is what the call settles. BindingContext names
+      the postfix that IS the argument -- reached by descending the argument's syntax while each node has
+      one child, so through parentheses and nothing else -- and only that postfix leaves its group for the
+      call; a group nested in the argument converts where it stands, against its own target.
+      `Apply(4, maybe ?? Api.Next)` binds as `Apply<int, int>`, Next converted to the `??`'s
+      func<int, int>, and `Measure(true switch { _ => Api.Next })` is one
+      MIST_PM_METHOD_GROUP_NOT_CONVERTED at the group. The settlement had been a flag reaching every
+      postfix inside the argument, harmless while only a several-candidate call set it and the flag was
+      read after conversion; set for a sole generic call too and read first, it let the `??` operand's
+      group through unconverted, MIST_INTERNAL_METHOD_GROUP_AT_EMISSION on an intermediate build, which
+      is why it is a node. The generated Children() yields null for an absent optional operand, which the
+      descent skips.
+
+      PROVED BY CallableArgumentInferenceTests on ProgramModelProbe -- the type arguments eleven calls learn
+      from lambdas, stated lambda parameters and groups, a parenthesized group among them; four inferred
+      calls bound exactly as their stated twins; the fixed parameter taking no later bound, alone and
+      beside an open one; nine overloaded calls taking the candidate the lambda fits; a group converted to
+      the overload the inferred parameters name; two groups nested in a `??` operand; an overloaded
+      constructor; the registry a losing candidate's trial leaves untouched; and eight calls whose
+      callables cannot complete, each one diagnostic -- by two GenericMethodGroupEmissionTests rows
+      (`Probe.Api.Twice<int>(3, Probe.Api.Same<int>)` and `Probe.Api.Pass<int, bool>(3, (int x) =>
+      x > 1)`), and by four corpus cases under refusals/binding. samples/CallableInference, banked V2-ONLY,
+      prints eighteen lines from `lambda: 2 | stated: 2` to `Labeled(string) 4`, each derived by hand first.
+      EIGHTEEN MUTATIONS, EACH CAUGHT BY NAME: the callable phase removed (20 rows); the late bound let
+      through (the mixed-result row -- the Grow row alone survived it, a result naming only fixed
+      parameters skipping the trial); the blocking conflict dropped; the stated-parameter bounds; the
+      group's result; the registry swap (the losing-trial row); withholding the diagnostics; the lenient
+      choice; the lambda's own result in betterness; the stated-parameter check; the error-typed result;
+      every result fitting; the fit ignored in applicability; lambdas not deferred (24 rows); and, run
+      again after the settlement became a node, the group left to the call (11), the settlement reaching
+      a switch arm, parentheses not handing a settled group on, and absent children counted in the
+      descent (11). AllFeaturesV2 matches its baseline before banking and after, and AllFeatures is
+      unchanged.
+
+      NOT PART OF THIS, each measured 2026-09-25 on --pipeline experimental:
+      a trial sees what BINDING reports and what the body's result type says, not a Stage 5 refusal
+      buried deeper in the body, so such a lambda leaves its candidate applicable and can tie two;
+      a lambda broken under SEVERAL candidates the other arguments admit is MIST_PM_UNRESOLVABLE_OVERLOAD
+      (`Each(x => x.Nope)`), which names the call and not the body;
+      a lambda of the wrong arity in an inferring call is reported against the closed parameter, which
+      then reads `'func<Int32, <error>>' takes 1 parameters but the lambda declares 2`;
+      a group no overload of which takes the fixed inputs (`Apply("w", Api.Next)`) is
+      MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED at the call, C#'s CS0411 shape, rather than NOT_CONVERTED at
+      the group;
+      a lambda or a group NESTED in another argument expression in an unclosed slot is still bound
+      against the open parameter -- `Apply(4, flag switch { true => Api.Next, _ => Api.Prev })` reports
+      both arms NOT_CONVERTED and a conflict naming 'int' and 'T', three diagnostics for one mistake;
+      a lambda in a call with a value pack is not deferred;
+      `Apply(1, x => Console.WriteLine(x))` infers R = void, and Roslyn refuses the generated call
+      exactly as it refuses the stated `Apply<int, void>(...)`: the lambda returns C# void where
+      Standard.Void is expected, an emitter gap of the void type argument's rather than of inference;
+      trial bindings multiply with nesting -- each unclosed level binds its lambda once per distinct
+      parameter list it is asked about and once for real, so the cost is exponential in the depth of
+      nested overloaded or generic calls taking lambdas, bounded per call by a cache;
+      and a type a discarded trial interns stays in the interner, as a losing candidate's substituted
+      signature already does.
     tasks:
       - >
         DONE 2026-09-12. Inference matches a parameter's construction against the argument's own type
@@ -2669,7 +2778,7 @@ capabilities:
         gained a function arm, having cut every function type at its `<` to a bare 'func'. Still
         open and separate: a lambda argument to an INFERRING call, `Apply(1, v => ...)`, which is the
         body-task register's "lambda arguments deferred during applicability" and which classic
-        refuses as well.
+        refuses as well. DONE 2026-09-25, see the task that closes this list.
       - >
         DONE 2026-09-13. The pairwise Wider fold is a bound set per type parameter, fixed by dominance
         with a refinement tier, and a conflict is refused in the frontend; see the evidence. The union
@@ -2728,6 +2837,10 @@ capabilities:
         COST OF THE RULE, recorded with the decision. A call mixing unrelated types needs its type
         argument stated, as in C#. The union rule's cost was the opposite: `F<T>(T, T)` accepting two
         different things without a word, most visibly where T never reaches the caller.
+      - >
+        DONE 2026-09-25. A lambda or a method group passed to an inferring call is typed by the
+        parameters the other arguments fixed and teaches the rest; an overloaded call types a lambda
+        under each candidate. See the evidence, which also records what is still not part of it.
     unlocks: []
 
   - id: generic-constraints-nominal
@@ -6513,10 +6626,11 @@ capabilities:
       True | held w 2` on a generic class, `some 5 | none | some w` through a per-instantiation method,
       `3 | w | 3` inside a generic method and a generic class, and `4 3` as the argument of a generic call
       whose own type arguments are stated.
-      STILL OPEN, each a clean refusal: a VARIADIC generic method as a value; a group passed to a generic
+      STILL OPEN, each a clean refusal: a VARIADIC generic method as a value. A group passed to a generic
       CALL that must learn its own type arguments from the group (`Api.Apply(4, Api.Next)` with `R
-      Apply<T, R>(T, func<T, R>)`), the divergence order 109 records, a group having no type until a target
-      gives it one. STATED type arguments (`Api.Same<int>`) followed the same day, in the next paragraph.
+      Apply<T, R>(T, func<T, R>)`) was the other, and is CLOSED 2026-09-25 at order 55: the call reads the
+      group's result at the parameter types its other arguments fixed, and converts it afterwards against
+      the closed parameter as here. STATED type arguments (`Api.Same<int>`) followed the same day, in the next paragraph.
       PROVED BY FunctionTypeResolutionTests (the arguments taken from parameters, from the result alone and
       on a generic receiver, the three refusals, the plain overload preferred, the type-parameter position,
       and the instantiation recorded from a local and from a call that settles its group late),
@@ -6565,7 +6679,7 @@ capabilities:
       GenericMethodGroupEmissionTests and one corpus case. samples/OpenUnions prints `stated values: T 5 | R
       | R | T w | T 4`, the last as an argument. Eleven mutations, each caught by name; the follower set
       widened to `>` survived until the uninitialized declaration joined the rows.
-    unlocks: []
+    unlocks: [CallableInference]
 
   - id: delegate-func-conversion
     name: Conversion between structural function types and named delegates
@@ -6663,6 +6777,11 @@ capabilities:
       target. `Keep<T>(T)` beside `Keep(bool)` given a group binds on classic and is refused here.
       Measured rather than assumed, and it refused before this order too -- with three diagnostics where
       there are now two.
+      MEASURED AGAIN 2026-09-25 WITH THE CALL QUALIFIED, `Api.Keep(Api.IsPositive)`, since classic judges
+      no bare-name call to its own class: classic refuses it as well (MIST_TC_0084, four times), and v2
+      refuses it once, MIST_PM_METHOD_GROUP_NOT_CONVERTED at the group, Keep(bool) being the one candidate
+      that closes -- a bare T gives a group no function type to be typed by. A group in a FUNCTION-typed
+      parameter of a generic candidate is order 55's since that date.
       
       samples/DelegateFuncConversion now matches classic byte for byte, standalone, and is banked on
       AllFeaturesV2 since order 129 carried a referenced manifest's framework references. Its own entry
@@ -11708,6 +11827,40 @@ samples:
         three-way carrier, whose `absent:` line a test spelled `is Standard.Void` would print False for;
         and generic methods named as values, two per-instantiation ones with their type arguments read off
         the target and `Pick<T, R>` with them stated in both orders, one of them passed as an argument.
+
+  - name: CallableInference
+    intro_order: 99
+    threshold: method-group-conversion
+    requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
+               var-type-inference, instance-fields, operators-arithmetic-comparison-logical,
+               control-flow-basic, array-literals, overload-resolution-by-argument-type,
+               constructor-overload-resolution, type-parameters-and-constructed-types,
+               generic-arity-keyed-lookup, type-argument-substitution, generic-methods,
+               type-argument-inference, func-structural-function-types, lambda-expressions,
+               method-group-conversion]
+    untested:
+      - >
+        V2-ONLY. Classic refuses this program in its own checker (measured 2026-09-25): every method group
+        argument is MIST_TC_0084, and an overloaded call's lambda is typed by one candidate whatever the
+        other arguments say, so `Measure(s => s.Length)` is MIST_UNDEFINED_MEMBER on Int32. Its checker
+        stopping there hides the inferred lambda lines, but probed alone `Apply(1, x => x + 1)`, a block
+        body and a chain are refused too (MIST_TC_0081). Referenced from AllFeaturesV2 alone, its lines
+        captured from v2 and read against the program by hand.
+      - >
+        WHAT WAS INFERRED IS INVISIBLE HERE, as order 55 records for inference generally: C# would infer
+        most of these calls again from the same lambda, so a line prints the same whether Mist stated
+        the right type arguments or Roslyn found them. The stated twins show only that the two print
+        alike; CallableArgumentInferenceTests holds the model and GenericMethodGroupEmissionTests the
+        stated spellings.
+      - >
+        Which overload was chosen IS visible, each naming itself, but a candidate chosen for the wrong
+        reason is not: `Widen(x => x + 1)` prints the same if the tie were settled by declaration order.
+        CallableArgumentInferenceTests pins the reasons, one row per rule.
+      - >
+        Every refusal is absent, a sample being a valid program: a conflict between an argument and a
+        stated lambda parameter, a lambda whose parameter nothing fixes, two overloads a lambda fits
+        alike, a body broken under the parameter inference fixed. refusals/binding holds one case each.
 
 # =====================================================================
 

@@ -152,7 +152,7 @@ internal sealed class UnsafeReach : IDisposable
     {
         if(current is not { } reach
             || Definition(creation.Type) is not MemberType created
-            || !creation.Initializer.Any(entry => entry.MemberName is { } name && !reach.Reaches(Lookup(created, name), created)))
+            || !creation.Initializer.Any(entry => entry.Member is { } member && !reach.Reaches(member, created)))
         {
             return null;
         }
@@ -179,7 +179,7 @@ internal sealed class UnsafeReach : IDisposable
             return $"{target}.Add({value});";
         }
 
-        return Lookup(created, name) switch
+        return entry.Member switch
         {
             FieldResult { Field: var field } when !reach.Reaches(field.Modifiers.Accessibility, false, field.DeclaringType, created)
                 => $"{reach.accessors.Field(field, ClosedOwner(field.DeclaringType!, creation.Type))}({target}) = {value};",
@@ -429,11 +429,6 @@ internal sealed class UnsafeReach : IDisposable
     private static bool IsAuto(Property property)
     {
         return AccessorEmitter.IsBodiless(property.Getter) && AccessorEmitter.IsBodiless(property.Setter);
-    }
-
-    private static LookupResult Lookup(MemberType type, string name)
-    {
-        return TypeMemberLookup.Find(type, LookupRequest.Member(name, MemberVisibility.InstanceOnly, null));
     }
 
     private static string Leading(bool isStatic, Func<string>? renderReceiver)

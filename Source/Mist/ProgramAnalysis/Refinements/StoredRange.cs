@@ -22,6 +22,11 @@ internal sealed record RangeBound(Admitted Values, object? Symbol, bool FromEnd)
             return Of(conversion.Operand, captured, indexes, lengths);
         }
 
+        if(expression is UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operator.Modifiers.IsIntrinsic: false })
+        {
+            return null;
+        }
+
         if(IsIndex(expression.Type) && expression is not UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd })
         {
             return SymbolOf(expression) is not null ? indexes?.Invoke(expression) : null;

@@ -29,6 +29,21 @@ public sealed class RangeBoundSnapshotTests
     }
 
     [Fact]
+    public void ASelectedUserUnaryOperator_DoesNotSupplyAFromEndMarker()
+    {
+        var operand = new LiteralExpression(null!, 3L, Integer);
+        var selected = new Operator(OperatorKind.Minus, Index, [new Parameter("offset", Integer)], default);
+        var fromEnd = new UnaryExpression(null!, UnaryOperatorKind.FromEnd, operand, Index) { Operator = selected };
+        var intrinsic = new UnaryExpression(null!, UnaryOperatorKind.FromEnd, operand, Index)
+        {
+            Operator = new Operator(OperatorKind.Minus, Index, [new Parameter("offset", Integer)], new MemberModifiers { IsIntrinsic = true }),
+        };
+
+        Assert.Null(RangeBound.Of(fromEnd));
+        Assert.Equal(new RangeBound(Admitted.Exactly(3), null, true), RangeBound.Of(intrinsic));
+    }
+
+    [Fact]
     public void IntegralIndexCreation_UsesFromStartAndUserDomainsRemainUnknown()
     {
         var constant = new LiteralExpression(null!, 3L, Integer);

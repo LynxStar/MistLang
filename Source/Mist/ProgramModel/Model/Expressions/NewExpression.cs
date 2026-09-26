@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
@@ -43,7 +44,7 @@ internal sealed class NewExpression(
 /// assignment to a name in scope.
 /// </summary>
 internal sealed class ObjectInitializerAssignment(
-    SyntaxNode node, string? memberName, Expression value, IMistType? targetType, Method? add = null)
+    SyntaxNode node, string? memberName, Expression value, IMistType? targetType, Method? add = null, LookupResult? member = null)
 {
     public SyntaxNode Node { get; } = node;
 
@@ -52,6 +53,8 @@ internal sealed class ObjectInitializerAssignment(
     /// stands for a call instead, which <see cref="Add"/> holds.
     /// </summary>
     public string? MemberName { get; } = memberName;
+
+    public LookupResult? Member { get; } = member;
 
     /// <summary>
     /// The <c>Add</c> overload a collection element resolved to. Recorded because emission writes

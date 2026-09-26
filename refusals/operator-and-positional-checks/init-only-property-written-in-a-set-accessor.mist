@@ -1,0 +1,23 @@
+using Standard;
+
+namespace Refusal;
+
+public class Jar
+{
+    public int Size { get; init; }
+
+    public int Depth
+    {
+        get { return Size; }
+        // REFUSE: MIST_PA_INIT_ONLY_ASSIGNMENT
+        set { this.Size = value; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

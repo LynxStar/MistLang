@@ -1,6 +1,8 @@
 // Tier 3 (Component): what AccessorAnalyzer deliberately does NOT report. Every fixture type is under analysis
-// in every row, so a get-only auto-property assigned in its own constructor is a silence proven by each of
-// them. WHY each is admitted is recorded on order 9 of backlog/analysis-v2-capability-progression.yaml.
+// in every row, so what the fixture bodies write -- a get-only auto-property in its own constructor, an init-only
+// one on `this` in a constructor or init accessor of its type or a derivation, a private setter from its own
+// type, a lambda there and a nested type -- is a silence proven by each of them. WHY each is admitted is
+// recorded on order 9 of backlog/analysis-v2-capability-progression.yaml.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
@@ -10,7 +12,11 @@ namespace Mist.Tests.ProgramAnalysis;
 
 public sealed class AccessorDecisionTests : ProgramModelProbe
 {
-    private static readonly string[] Ids = ["MIST_PA_NO_GET_ACCESSOR", "MIST_PA_NO_SET_ACCESSOR"];
+    private static readonly string[] Ids =
+    [
+        "MIST_PA_NO_GET_ACCESSOR", "MIST_PA_NO_SET_ACCESSOR", "MIST_PA_INACCESSIBLE_ACCESSOR", "MIST_PA_INIT_ONLY_ASSIGNMENT",
+        "MIST_PA_INACCESSIBLE_MEMBER",
+    ];
 
     public AccessorDecisionTests()
         : base("MistAccessor_")
@@ -74,6 +80,83 @@ public sealed class AccessorDecisionTests : ProgramModelProbe
         public class Stamped
         {
             public int Serial { get; init; }
+        }
+
+        public class Jar
+        {
+            public int Size { get; init; }
+
+            public int? Spare { get; init; }
+
+            public int Twice
+            {
+                get { return Size * 2; }
+                init { Size = value / 2; this.Spare = value; }
+            }
+
+            public Jar()
+            {
+                Size = 3;
+                this.Size = 4;
+                Spare ??= 1;
+            }
+        }
+
+        public class Crate : Jar
+        {
+            public int Depth
+            {
+                get { return Size; }
+                init { Size = value; }
+            }
+
+            public Crate()
+            {
+                this.Size = 20;
+                Size = 21;
+            }
+        }
+
+        public class Counter
+        {
+            public int Count { get; private set; }
+
+            public int this[int slot]
+            {
+                get { return Count + slot; }
+                private set { Count = value; }
+            }
+
+            public string this[string key]
+            {
+                get { return ""; }
+                set { Count = 0; }
+            }
+
+            public void Bump()
+            {
+                Count = Count + 1;
+                this.Count = this.Count + 1;
+                this[0] = this[0] + 1;
+                func<int> later = () => { Count = 5; return Count; };
+            }
+
+            public static Counter Made()
+            {
+                var made = new Counter { Count = 40 };
+                made.Count = made.Count + 1;
+                made[1] = 2;
+                return made;
+            }
+
+            public class Helper
+            {
+                public static void Poke(Counter counter)
+                {
+                    counter.Count = counter.Count + 100;
+                    counter[2] = 3;
+                }
+            }
         }
 
         public class Row<params TArgs>
@@ -154,12 +237,50 @@ public sealed class AccessorDecisionTests : ProgramModelProbe
         AssertSilent(statement);
     }
 
+    [Fact]
+    public void AnElementAccessTheTargetSupplies_IsNotJudged()
+    {
+        AssertSilent("int[] cells = [1]; cells[0] = 2;");
+    }
+
     [Theory]
-    [InlineData("var stamped = new Stamped(); stamped.Serial = 2;")]
-    [InlineData("int[] cells = [1]; cells[0] = 2;")]
-    public void ASlotThisRuleDoesNotOwn_IsNotJudged(string statement)
+    [InlineData("var stamped = new Stamped { Serial = 2 };")]
+    [InlineData("var jar = new Jar { Size = 1, Spare = 2 };")]
+    [InlineData("var twice = new Jar { Twice = 8 };")]
+    [InlineData("var crate = new Crate { Depth = 2, Size = 3 };")]
+    [InlineData("func<Jar> make = () => new Jar { Size = 5 };")]
+    public void AnInitOnlyPropertyWrittenInConstruction_IsAdmitted(string statement)
     {
         AssertSilent(statement);
+    }
+
+    [Theory]
+    [InlineData("var stamped = new Stamped { Serial = 2 }; int serial = stamped.Serial;")]
+    [InlineData("var jar = new Jar(); bool three = jar is { Size: 3 };")]
+    public void AnInitOnlyPropertyReadAfterConstruction_IsAdmitted(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Fact]
+    public void APrivateSetterUsedInsideItsTypeAndANestedOne_IsAdmitted()
+    {
+        AssertSilent("var made = Counter.Made(); made.Bump(); Counter.Helper.Poke(made);");
+    }
+
+    [Theory]
+    [InlineData("var counter = new Counter(); int count = counter.Count;")]
+    [InlineData("var counter = new Counter(); int slot = counter[2];")]
+    [InlineData("var counter = new Counter(); bool fresh = counter is { Count: 0 };")]
+    public void APublicReadThroughAPrivateSetter_IsAdmitted(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Fact]
+    public void AnIndexerWhoseSiblingHasAPrivateSetter_IsSelectedAndWritten()
+    {
+        AssertSilent("var counter = new Counter(); counter[\"a\"] = \"b\";");
     }
 
     private void AssertSilent(string statement)

@@ -51,7 +51,7 @@ internal static class ObjectInitializerBinder
         }
 
         var memberName = named.Name.Lexeme;
-        var target = ResolveTargetType(type, memberName, named, context);
+        var (target, found) = ResolveTarget(type, memberName, named, context);
 
         Expression value;
 
@@ -63,7 +63,7 @@ internal static class ObjectInitializerBinder
         value = ImplicitConversions.At(
             NewtypeLiterals.Admit(value, target, context.ProgramModel.TypeInterner)!, target, context.ProgramModel.TypeInterner);
 
-        bound.Add(new ObjectInitializerAssignment(named, memberName, value, target));
+        bound.Add(new ObjectInitializerAssignment(named, memberName, value, target, member: found));
     }
 
     /// <summary>
@@ -121,16 +121,16 @@ internal static class ObjectInitializerBinder
             : null;
     }
 
-    private static IMistType? ResolveTargetType(IMistType type, string memberName, SyntaxNode node, BuilderContext context)
+    private static MemberResolution.StorageLookup ResolveTarget(IMistType type, string memberName, SyntaxNode node, BuilderContext context)
     {
-        var (memberType, found) = MemberResolution.ResolveStorage(type, memberName, node, context);
+        var lookup = MemberResolution.ResolveStorage(type, memberName, node, context);
 
-        if(memberType is null)
+        if(lookup.Type is null)
         {
-            ReportNotStorage(found, type, memberName, node, context);
+            ReportNotStorage(lookup.Found, type, memberName, node, context);
         }
 
-        return memberType;
+        return lookup;
     }
 
     /// <summary>

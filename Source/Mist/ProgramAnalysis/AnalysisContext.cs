@@ -47,6 +47,11 @@ internal sealed class AnalysisContext(
         return roots.TryGetValue(node, out var root) ? root.Member : null;
     }
 
+    public object? RootOf(object node)
+    {
+        return roots.TryGetValue(node, out var root) ? root.Root : null;
+    }
+
     public MistAssembly? AssemblyOf(object node)
     {
         return roots.TryGetValue(node, out var root) ? root.Assembly : null;

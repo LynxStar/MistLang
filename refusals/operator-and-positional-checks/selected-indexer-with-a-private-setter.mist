@@ -1,0 +1,32 @@
+using Standard;
+
+namespace Refusal;
+
+public class Catalog
+{
+    public string title = "";
+    public int last;
+
+    public int this[int slot]
+    {
+        get { return slot; }
+        private set { last = value; }
+    }
+
+    public string this[string key]
+    {
+        get { return title; }
+        set { title = value; }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var catalog = new Catalog();
+        // REFUSE: MIST_PA_INACCESSIBLE_ACCESSOR
+        catalog[0] = 1;
+        Console.WriteLine("unreachable");
+    }
+}

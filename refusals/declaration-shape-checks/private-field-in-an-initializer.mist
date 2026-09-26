@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+public class Owner
+{
+    private int secret;
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_INACCESSIBLE_MEMBER
+        Owner o = new Owner { secret = 5 };
+        Console.WriteLine("unreachable");
+    }
+}

@@ -44,6 +44,11 @@ internal static class OverloadSignature
             && signature == Of(earlier, inherited ?? TypeSubstitution.Empty, interner);
     }
 
+    public static string? TypeOf(IMistType type, List<TypeParameter>? own = null)
+    {
+        return Render(type, own ?? []);
+    }
+
     private static string? Render(IMistType type, List<TypeParameter> own)
     {
         return ConversionRelation.Unrefined(type) switch

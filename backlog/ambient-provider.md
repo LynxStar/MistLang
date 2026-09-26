@@ -27,9 +27,9 @@ This means:
 
 ## Missing Standard Library Types
 
-The ambient provider's alias map needs Standard Library types for `ValueTuple` and `UnionType`. Currently when CLR APIs return or accept `ValueTuple<T1, T2, ...>` types, the provider has no alias entry to map them to the Mist tuple representation. Similarly, union types in Mist have no corresponding Standard Library type that the provider can resolve to.
+Union types in Mist have no corresponding Standard Library type that the provider can resolve to.
 
-- `System.ValueTuple`N → Standard tuple type (needs alias entry or special-case projection like Func/Action)
+- `System.ValueTuple`N → done 2026-09-25, and not through the alias map: a closed ValueTuple`2..`8 projects as the structural Mist tuple with its Rest flattened and its `TupleElementNames` applied. Evidence and residue in `provider-tasks.yaml` under `missing_stdlib_types`.
 - Union types need a Standard Library representation that the provider can reference when projecting APIs that use discriminated unions or similar patterns
 
 

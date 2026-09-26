@@ -15,10 +15,10 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// Reads of what nothing has yet assigned, on the assigned-set lattice: intersection at a join, a
-/// declaration without an initializer removing its local, an assignment adding its target, and a read
-/// adding the local it read, so that one unassigned local is one complaint, at its first read on each
-/// path, rather than one per use. A local is tracked only when declared without an initializer, since
-/// every other way a local comes to be gives it a value. A field is tracked only inside a constructor of
+/// declaration without an initializer removing its slots, an assignment adding its target slots, and a
+/// read settling only the slots it needs, so repeated reads of the same unassigned path do not cascade.
+/// A local is tracked only when declared without an initializer, since every other way it comes to be
+/// gives it a value. A field is tracked only inside a constructor of
 /// its own type that does not chain to
 /// `this(...)`, when its type has no default and is not a type parameter, whose default is each
 /// instantiation's to decide; and only as classic tracks it: read through an explicit `this`, so that
@@ -43,11 +43,12 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
             var tracked = BodyWalker.DescendantsAndSelf(root.Root)
                 .OfType<LocalDeclarationStatement>()
                 .Where(declaration => declaration.Initializer is null)
-                .Select(declaration => (object)declaration.Local)
-                .ToHashSet(ReferenceEqualityComparer.Instance);
+                .Select(declaration => declaration.Local);
 
-            var flow = new DefiniteAssignment(context, tracked, storage, constructor, LocalFunctionReads.Of(root.Root));
-            var solution = flow.Judge(FlowGraphBuilder.Build(root.Root), DefiniteAssignment.Nothing);
+            var graph = FlowGraphBuilder.Build(root.Root);
+            var slots = new LocalAssignmentSlots(tracked, root.Root);
+            var flow = new DefiniteAssignment(context, slots, storage, constructor, LocalFunctionReads.Of(graph));
+            var solution = flow.Judge(graph, DefiniteAssignment.Nothing);
 
             if(constructor is null || !solution.ReachesExit)
             {
@@ -116,10 +117,10 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
 
     private sealed class DefiniteAssignment(
         AnalysisContext context,
-        IReadOnlySet<object> tracked,
+        LocalAssignmentSlots slots,
         IReadOnlyList<object> storage,
         Constructor? constructor,
-        IReadOnlyDictionary<Method, IReadOnlySet<LocalVariable>> functionReads) : IFlowLattice<ImmutableHashSet<object>>
+        IReadOnlyDictionary<Method, IReadOnlySet<LocalStoragePath>> functionReads) : IFlowLattice<ImmutableHashSet<object>>
     {
         public static readonly ImmutableHashSet<object> Nothing = ImmutableHashSet.Create<object>(ReferenceEqualityComparer.Instance);
 
@@ -138,19 +139,21 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
             return step switch
             {
                 { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: null } declaration }
-                    => state.Remove(declaration.Local),
-                { Kind: FlowStepKind.Declare, Variable: { } declared } => state.Add(declared),
+                    => state.Except(slots.Required(new LocalStoragePath(declaration.Local))),
+                { Kind: FlowStepKind.Declare, Variable: { } declared }
+                    => state.Union(slots.Written(new LocalStoragePath(declared))),
                 { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }
-                    when Written(assignment.Target) is { } written => state.Add(written),
-                { Kind: FlowStepKind.Evaluate, Node: LocalReferenceExpression read } when tracked.Contains(read.Local)
-                    => state.Add(read.Local),
+                    => state.Union(Written(assignment.Target)),
+                { Kind: FlowStepKind.Evaluate, IsStorageReceiver: false, Node: Expression expression }
+                    when LocalStoragePath.Of(expression) is { } read && slots.Tracks(read)
+                    => state.Union(slots.Required(read)),
                 { Kind: FlowStepKind.Evaluate } when Entered(step.Node) is { } reads
-                    => state.Union(reads.Where(tracked.Contains)),
+                    => state.Union(reads.SelectMany(slots.Required)),
                 _ => state,
             };
         }
 
-        private IReadOnlySet<LocalVariable>? Entered(object node)
+        private IReadOnlySet<LocalStoragePath>? Entered(object node)
         {
             return LocalFunctionReads.Entered(node) is { } function && functionReads.TryGetValue(function, out var reads)
                 ? reads
@@ -166,15 +169,16 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
 
         private void Judge(FlowGraph graph, ImmutableHashSet<object> state, FlowStep step)
         {
-            if(step.Kind != FlowStepKind.Evaluate)
+            if(step.Kind != FlowStepKind.Evaluate || step.IsStorageReceiver)
             {
                 return;
             }
 
             switch(step.Node)
             {
-                case LocalReferenceExpression reference when tracked.Contains(reference.Local) && !state.Contains(reference.Local):
-                    context.Report(ProgramAnalysisDiagnostics.LocalReadBeforeAssignment, reference.Node, [reference], reference.Local.Name);
+                case Expression expression when LocalStoragePath.Of(expression) is { } read
+                    && slots.Tracks(read) && !slots.Required(read).All(state.Contains):
+                    context.Report(ProgramAnalysisDiagnostics.LocalReadBeforeAssignment, expression.Node, [expression], read.Name);
                     break;
 
                 case MemberAccessExpression { Receiver: ThisExpression } access
@@ -185,41 +189,51 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
                     break;
 
                 case LambdaExpression or AsyncBlockExpression when graph.Nested.TryGetValue(step.Node, out var nested):
-                    _ = new DefiniteAssignment(context, tracked, [], constructor: null, functionReads).Judge(nested, state);
+                    _ = new DefiniteAssignment(context, slots, [], constructor: null, functionReads).Judge(nested, state);
                     break;
 
                 // Entered with every tracked local taken as assigned, because a captured read is judged
                 // at each entry into the function rather than inside it -- see LocalFunctionReads -- and
                 // the body's own declarations remove their locals again as they are reached.
                 case LocalFunctionStatement when graph.Nested.TryGetValue(step.Node, out var nested):
-                    _ = new DefiniteAssignment(context, tracked, [], constructor: null, functionReads).Judge(nested, state.Union(tracked));
+                    _ = new DefiniteAssignment(context, slots, [], constructor: null, functionReads).Judge(nested, state.Union(slots.All));
                     break;
 
                 case InvocationExpression or FunctionReferenceExpression
                     when LocalFunctionReads.Entered(step.Node) is { } function && functionReads.TryGetValue(function, out var reads):
-                    foreach(var local in reads.Where(local => tracked.Contains(local) && !state.Contains(local)))
+                    foreach(var read in reads.Where(read => slots.Tracks(read) && !slots.Required(read).All(state.Contains))
+                        .GroupBy(read => read.Local).Select(group => group.First()))
                     {
                         context.Report(
                             ProgramAnalysisDiagnostics.LocalFunctionReadsUnassigned, ((Expression)step.Node).Node,
-                            [(Expression)step.Node], function.Name, local.Name);
+                            [(Expression)step.Node], function.Name, read.Name);
                     }
 
                     break;
             }
         }
 
-        private static object? Written(Expression target)
+        private IEnumerable<object> Written(Expression target)
         {
-            return target switch
+            if(target is SpreadExpression spread)
             {
-                SpreadExpression spread => Written(spread.Operand),
-                LocalReferenceExpression local => local.Local,
+                return Written(spread.Operand);
+            }
+
+            if(LocalStoragePath.Of(target) is { } path)
+            {
+                return slots.Written(path);
+            }
+
+            var member = target switch
+            {
                 FieldReferenceExpression field => field.Field,
                 PropertyReferenceExpression property => property.Property,
                 MemberAccessExpression { Receiver: ThisExpression } access => Storage(access.Member),
-                MemberAccessExpression { Receiver: LocalReferenceExpression local } when FlowGraphBuilder.IsValueLocal(local) => local.Local,
                 _ => null,
             };
+
+            return member is null ? [] : [member];
         }
 
         private static object? Storage(LookupResult? member)

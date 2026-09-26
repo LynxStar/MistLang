@@ -43,4 +43,11 @@ public sealed record CompilerOptions(
     bool VerboseResolution = false,
     ImmutableArray<CsprojProperty> CsprojProperties = default,
     ProjectOutputType OutputType = ProjectOutputType.Executable,
-    PipelineMode Pipeline = PipelineMode.Classic);
+    PipelineMode Pipeline = PipelineMode.Classic)
+{
+    /// <summary>
+    /// Assemblies handed to the compiler directly rather than resolved from a declaration. No manifest
+    /// can name one, so only a test supplying its own interop fixture sets this.
+    /// </summary>
+    internal ImmutableArray<string> AssemblyPaths { get; init; } = [];
+}

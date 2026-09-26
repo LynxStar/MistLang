@@ -162,24 +162,30 @@ internal static class LocalNames
                 break;
 
             case IfStatement conditional:
-                Walk(conditional.Condition, scope, declared);
-                Walk(conditional.ThenBranch, new Scope(scope), declared);
-
-                if(conditional.ElseBranch is Block elseBlock)
                 {
-                    Walk(elseBlock, new Scope(scope), declared);
-                }
-                else if(conditional.ElseBranch is { } elseStatement)
-                {
-                    Walk(elseStatement, scope, declared);
-                }
+                    var header = conditional.ConditionBinds ? new Scope(scope) : scope;
+                    Walk(conditional.Condition, header, declared);
+                    Walk(conditional.ThenBranch, new Scope(header), declared);
 
-                break;
+                    if(conditional.ElseBranch is Block elseBlock)
+                    {
+                        Walk(elseBlock, new Scope(header), declared);
+                    }
+                    else if(conditional.ElseBranch is { } elseStatement)
+                    {
+                        Walk(elseStatement, header, declared);
+                    }
+
+                    break;
+                }
 
             case WhileStatement loop:
-                Walk(loop.Condition, scope, declared);
-                Walk(loop.Body, new Scope(scope), declared);
-                break;
+                {
+                    var header = loop.ConditionBinds ? new Scope(scope) : scope;
+                    Walk(loop.Condition, header, declared);
+                    Walk(loop.Body, new Scope(header), declared);
+                    break;
+                }
 
             case ForStatement counted:
                 {

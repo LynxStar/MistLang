@@ -1,3 +1,4 @@
+using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -53,12 +54,13 @@ internal sealed class BindingContext
     public Property? EnclosingProperty { get; set; }
 
     /// <summary>
-    /// Whether a method group reaching the end of an expression is an ARGUMENT to a call that has not
-    /// chosen its overload yet, which makes the call the thing that converts it. Carried rather than
-    /// passed, because the group surfaces at the bottom of the expression recursion and the call that
-    /// settles it sits at the top.
+    /// The postfix whose value IS an argument to a call that has not chosen its overload yet, which makes
+    /// the call the thing that converts a method group it yields. Carried rather than passed, because the
+    /// group surfaces at the bottom of the expression recursion and the call that settles it sits at the
+    /// top. A node rather than a flag, so that a group nested in the argument -- an operand of `??`, a
+    /// switch arm -- is converted where it stands, against its own target.
     /// </summary>
-    public bool CallSettlesMethodGroups { get; set; }
+    public PostfixNode? SettledMethodGroup { get; set; }
 
     public BindingContext(BodyScope scope, IMistType? returnType)
     {
@@ -91,7 +93,7 @@ internal sealed class BindingContext
         return new TargetTypeScope(this, type);
     }
 
-    public MethodGroupSettlementScope PushMethodGroupSettlement(bool settled)
+    public MethodGroupSettlementScope PushMethodGroupSettlement(PostfixNode? settled)
     {
         return new MethodGroupSettlementScope(this, settled);
     }
@@ -121,18 +123,18 @@ internal sealed class BindingContext
     internal struct MethodGroupSettlementScope : IDisposable
     {
         private readonly BindingContext ctx;
-        private readonly bool previous;
+        private readonly PostfixNode? previous;
 
-        public MethodGroupSettlementScope(BindingContext ctx, bool settled)
+        public MethodGroupSettlementScope(BindingContext ctx, PostfixNode? settled)
         {
             this.ctx = ctx;
-            previous = ctx.CallSettlesMethodGroups;
-            ctx.CallSettlesMethodGroups = settled;
+            previous = ctx.SettledMethodGroup;
+            ctx.SettledMethodGroup = settled;
         }
 
         public void Dispose()
         {
-            ctx.CallSettlesMethodGroups = previous;
+            ctx.SettledMethodGroup = previous;
         }
     }
 }

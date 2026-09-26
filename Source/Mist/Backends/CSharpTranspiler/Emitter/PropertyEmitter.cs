@@ -39,14 +39,17 @@ internal static class PropertyEmitter
             writer.Write("}");
         }
 
+        StatementHost.Hosted? hosted = null;
+
         if(property.Initializer is { } initializer)
         {
             writer.Append(" = ");
-            BodyEmitter.EmitExpression(initializer, writer, diagnostics);
+            hosted = StatementHost.Emit(initializer, $"__Initialize{property.Name}", property.Type, [], writer, diagnostics);
             writer.Append(";");
         }
 
         writer.AppendLine();
+        StatementHost.EmitMethods(hosted is null ? [] : [hosted], writer, diagnostics);
     }
 
     private static string InlineAccessors(Property property)

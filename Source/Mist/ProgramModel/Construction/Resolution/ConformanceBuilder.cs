@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -78,7 +79,7 @@ internal sealed class ConformanceBuilder
 
         var target = abstractType is ConstructedType constructed ? constructed.Definition : abstractType;
 
-        if(target is not AbstractType slots)
+        if(target is not AbstractType)
         {
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.ConformanceTargetNotAbstract, decl, null,
@@ -91,9 +92,11 @@ internal sealed class ConformanceBuilder
 
         foreach(var mapping in decl.Mappings)
         {
-            if(Resolve(conformer, abstractType, slots, mapping, decl) is { } resolved)
+            var resolved = Resolve(conformer, abstractType, mapping, decl);
+
+            if(resolved.Count > 0)
             {
-                mappings.Add(resolved);
+                mappings.AddRange(resolved);
             }
             else
             {
@@ -109,30 +112,31 @@ internal sealed class ConformanceBuilder
         context.ProgramModel.ConformancesList.Add(conformance);
     }
 
-    private MemberMapping? Resolve(
+    private List<MemberMapping> Resolve(
         ConcreteType conformer,
         IMistType named,
-        AbstractType definition,
         MemberMappingNode mapping,
         SyntaxNode node)
     {
         var targetName = mapping.TargetName.Lexeme;
         var sourceName = mapping.SourceName.Lexeme;
 
-        if(FindSlot(named, definition, targetName) is not { } slot)
+        var slots = FindSlots(named, targetName);
+
+        if(slots.Count == 0)
         {
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.ConformanceUnresolvedSlot, node, null,
                 TypeDisplay.Mist(named), targetName);
-            return null;
+            return [];
         }
 
         var source = TypeMemberLookup.Find(
             conformer, LookupRequest.Member(sourceName, MemberVisibility.InstanceAndStatic, node));
 
-        var resolved = Pair(slot, source);
+        var resolved = Pair(slots, source);
 
-        if(resolved is null)
+        if(resolved.Count == 0)
         {
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.ConformanceMappingUnsatisfied, node, null,
@@ -142,72 +146,139 @@ internal sealed class ConformanceBuilder
         return resolved;
     }
 
-    /// <summary>
-    /// A mapping names two members and nothing else, so a slot the abstract declares twice
-    /// cannot be picked out, and is refused rather than guessed at.
-    /// </summary>
-    private static MemberMapping? Pair(Slot slot, LookupResult source)
+    private List<MemberMapping> Pair(IReadOnlyList<Slot> slots, LookupResult source)
     {
-        if(slot.Property is { } propertySlot)
+        var mappings = new List<MemberMapping>();
+        var interner = context.ProgramModel.TypeInterner;
+
+        foreach(var slot in slots)
         {
-            return source is PropertyResult found
-                ? new PropertyMapping(found.Property, propertySlot, slot.Declarer)
-                : null;
-        }
-
-        if(slot.Methods.Count != 1 || source is not MethodGroupResult sources)
-        {
-            return null;
-        }
-
-        foreach(var candidate in sources.Methods)
-        {
-            if(candidate.ParametersList.Count == slot.Methods[0].ParametersList.Count)
+            if(slot.Property is { } propertySlot && source is PropertyResult found)
             {
-                return new MethodMapping(candidate, slot.Methods[0], slot.Declarer);
-            }
-        }
+                var substitution = TypeSubstitution.ForMember(null, found, interner);
 
-        return null;
-    }
-
-    private static Slot? FindSlot(IMistType named, AbstractType definition, string name)
-    {
-        var queue = new Queue<(IMistType Named, AbstractType Definition)>();
-        var seen = new HashSet<AbstractType> { definition };
-
-        queue.Enqueue((named, definition));
-
-        while(queue.Count > 0)
-        {
-            var (currentNamed, current) = queue.Dequeue();
-
-            var methods = current.MethodsList.Where(method => method.Name == name).ToList();
-
-            if(methods.Count > 0)
-            {
-                return new Slot(currentNamed, methods, null);
-            }
-
-            if(current.PropertiesList.FirstOrDefault(property => property.Name == name) is { } found)
-            {
-                return new Slot(currentNamed, [], found);
-            }
-
-            foreach(var inherited in current.BaseAbstractTypes)
-            {
-                var inheritedDefinition =
-                    (inherited is ConstructedType constructed ? constructed.Definition : inherited) as AbstractType;
-
-                if(inheritedDefinition is not null && seen.Add(inheritedDefinition))
+                if(OverloadSignature.TypeOf(propertySlot.Type) is { } type
+                    && type == OverloadSignature.TypeOf(substitution.Apply(found.Property.Type, interner)))
                 {
-                    queue.Enqueue((inherited, inheritedDefinition));
+                    mappings.Add(new PropertyMapping(found.Property, propertySlot, slot.Declarer));
+                }
+            }
+            else if(slot.Method is { } methodSlot && source is MethodGroupResult sources)
+            {
+                var matching = sources.Methods.Where(candidate =>
+                {
+                    var path = sources.Paths?.GetValueOrDefault(candidate);
+                    var substitution = TypeSubstitution.ForPath(null, path, interner);
+
+                    return OverloadSignature.Of(methodSlot, TypeSubstitution.Empty, interner) is { } signature
+                        && signature == OverloadSignature.Of(candidate, substitution, interner)
+                        && OverloadSignature.TypeOf(methodSlot.ReturnType, methodSlot.TypeParametersList) is { } returnType
+                        && returnType == OverloadSignature.TypeOf(substitution.Apply(candidate.ReturnType, interner), candidate.TypeParametersList);
+                }).Take(2).ToList();
+
+                if(matching.Count > 1)
+                {
+                    return [];
+                }
+
+                if(matching.Count == 1)
+                {
+                    mappings.Add(new MethodMapping(matching[0], methodSlot, slot.Declarer));
                 }
             }
         }
 
-        return null;
+        return mappings;
     }
 
-    private sealed record Slot(IMistType Declarer, IReadOnlyList<Method> Methods, Property? Property);
+    private List<Slot> FindSlots(IMistType named, string name)
+    {
+        var slots = new List<Slot>();
+
+        foreach(var (declarer, definition, substitution) in AbstractInheritance.Reached([named], context.ProgramModel.TypeInterner))
+        {
+            foreach(var method in definition.MethodsList.Where(method => method.Name == name))
+            {
+                slots.Add(new Slot(declarer, Close(method, substitution), null));
+            }
+
+            foreach(var property in definition.PropertiesList.Where(property => property.Name == name))
+            {
+                slots.Add(new Slot(declarer, null, Close(property, substitution)));
+            }
+        }
+
+        return slots;
+    }
+
+    private Method Close(Method method, TypeSubstitution substitution)
+    {
+        var interner = context.ProgramModel.TypeInterner;
+        var returnType = substitution.Apply(method.ReturnType, interner);
+        var parameters = method.ParametersList.ConvertAll(parameter => Close(parameter, substitution));
+
+        if(ReferenceEquals(returnType, method.ReturnType)
+            && parameters.Zip(method.ParametersList).All(pair => ReferenceEquals(pair.First, pair.Second)))
+        {
+            return method;
+        }
+
+        var closed = new Method(method.Name, returnType, parameters, method.Modifiers)
+        {
+            Scope = method.Scope,
+            ReturnOwnership = method.ReturnOwnership,
+            DeclaredThisTier = method.DeclaredThisTier,
+            DeclaringType = method.DeclaringType,
+            DeclarationNode = method.DeclarationNode,
+        };
+
+        closed.TypeParametersList.AddRange(method.TypeParametersList);
+        closed.ContextBindingsList.AddRange(method.ContextBindingsList);
+        closed.AttributesList.AddRange(method.AttributesList);
+        closed.DeclaredAttributesList.AddRange(method.DeclaredAttributesList);
+        return closed;
+    }
+
+    private Parameter Close(Parameter parameter, TypeSubstitution substitution)
+    {
+        var type = substitution.Apply(parameter.Type, context.ProgramModel.TypeInterner);
+
+        if(ReferenceEquals(type, parameter.Type))
+        {
+            return parameter;
+        }
+
+        var closed = new Parameter(parameter.Name, type, parameter.Modifier)
+        {
+            IsFlattened = parameter.IsFlattened,
+        };
+
+        closed.AttributesList.AddRange(parameter.AttributesList);
+        closed.DeclaredAttributesList.AddRange(parameter.DeclaredAttributesList);
+        return closed;
+    }
+
+    private Property Close(Property property, TypeSubstitution substitution)
+    {
+        var type = substitution.Apply(property.Type, context.ProgramModel.TypeInterner);
+
+        if(ReferenceEquals(type, property.Type))
+        {
+            return property;
+        }
+
+        var closed = new Property(property.Name, type, property.Modifiers)
+        {
+            DeclaringType = property.DeclaringType,
+            DeclarationNode = property.DeclarationNode,
+            Getter = property.Getter,
+            Setter = property.Setter,
+        };
+
+        closed.AttributesList.AddRange(property.AttributesList);
+        closed.DeclaredAttributesList.AddRange(property.DeclaredAttributesList);
+        return closed;
+    }
+
+    private sealed record Slot(IMistType Declarer, Method? Method, Property? Property);
 }

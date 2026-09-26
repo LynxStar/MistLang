@@ -1,0 +1,27 @@
+using Standard;
+
+namespace Refusal;
+
+public struct Point
+{
+    public int x;
+    public int y;
+}
+
+public struct Nested
+{
+    public Point inner;
+    public bool flag;
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Nested n;
+        n.inner.x = 1;
+        // REFUSE: MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT
+        Point copy = n.inner;
+        Console.WriteLine(copy.x);
+    }
+}

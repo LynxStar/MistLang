@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+public class Jar
+{
+    // REFUSE: MIST_PM_STATIC_INIT_ACCESSOR
+    public static int Made { get; init; }
+
+    static Jar()
+    {
+        Made = 1;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

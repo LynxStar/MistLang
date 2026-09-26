@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+public class Counter
+{
+    public int Count { get; private init; }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_INACCESSIBLE_ACCESSOR
+        var counter = new Counter { Count = 5 };
+        Console.WriteLine("unreachable");
+    }
+}

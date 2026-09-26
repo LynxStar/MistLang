@@ -5,6 +5,7 @@
 // abstract -- are silences proven by every row. WHY each is silent is recorded once, on order 6 of
 // backlog/analysis-v2-capability-progression.yaml.
 
+using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.Tests.Helpers;
@@ -236,6 +237,93 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         AssertSilent(statement);
     }
 
+    [Fact]
+    public void AMemberNamedByAnInitializerAPatternOrAnIndexInsideItsDomain_IsAdmitted()
+    {
+        const string keeper = """
+            public class Keeper
+            {
+                private int hidden;
+                private int Tucked { get; set; }
+                protected int Guarded { get; set; }
+
+                private int this[int slot]
+                {
+                    get { return slot; }
+                }
+
+                public static Keeper Make() { return new Keeper { hidden = 1, Tucked = 2, Guarded = 3 }; }
+
+                public bool Check() { return this is { hidden: 1, Tucked: 2 } && this[0] == 0; }
+
+                public class Inner
+                {
+                    public static bool Peek(Keeper k) { return k is { hidden: 1, Tucked: 2 } && k[1] == 1; }
+                }
+            }
+
+            public class Heir : Keeper
+            {
+                public static Heir Build() { return new Heir { Guarded = 4 }; }
+
+                public bool Guards() { return this is { Guarded: 4 }; }
+            }
+            """;
+
+        AssertBoundAndSilent("bool ok = Keeper.Make().Check() && Keeper.Inner.Peek(Keeper.Make()) && Heir.Build().Guards();", keeper);
+    }
+
+    [Theory]
+    [InlineData("""
+        public class Gauge
+        {
+            private readonly int level = 1;
+
+            private type Low = Gauge ({ level: < 3 });
+
+            private static int Take(Gauge gauge) where gauge { level: < 3 }
+            {
+                return 1;
+            }
+
+            public bool IsLow() { return this is Low; }
+        }
+        """)]
+    [InlineData("""
+        public class Gauge
+        {
+            private readonly int level = 1;
+
+            private class Inner
+            {
+                public type Low = Gauge ({ level: < 3 });
+
+                public static bool Test(Gauge gauge) { return gauge is Low; }
+            }
+
+            public bool IsLow() { return Inner.Test(this); }
+        }
+        """)]
+    [InlineData("""
+        public class Gauge
+        {
+            protected readonly int level = 1;
+
+            internal readonly int shared = 2;
+        }
+
+        public class Wider : Gauge
+        {
+            protected type Low = Gauge ({ level: < 3 });
+        }
+
+        internal type Shared = Gauge ({ shared: < 3 });
+        """)]
+    public void ARefinementNoMoreAccessibleThanTheMembersItReads_IsDeclared(string extraTypes)
+    {
+        AssertBoundAndSilent("int unused = 1;", extraTypes);
+    }
+
     [Theory]
     [InlineData("var r = new NeedsReadonly<int>();")]
     [InlineData("var f = new NeedsReadonly<Frozen>();")]
@@ -384,6 +472,20 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     private void AssertSilent(string statement, string extraTypes = "")
     {
         Assert.Empty(Analyse(statement, extraTypes));
+    }
+
+    private void AssertBoundAndSilent(string statement, string extraTypes)
+    {
+        _ = BuildModel("int unused = 1;", extraTypes: "", extraPreamble: "", out var fixtures);
+        _ = BuildModel(statement, extraTypes, extraPreamble: "", out var build);
+
+        Assert.Equal(ErrorMessages(fixtures), ErrorMessages(build));
+        AssertSilent(statement, extraTypes);
+    }
+
+    private static List<string> ErrorMessages(ImmutableArray<Diagnostic> diagnostics)
+    {
+        return [.. diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.Message)];
     }
 
     private List<Diagnostic> Analyse(string statement, string extraTypes = "")

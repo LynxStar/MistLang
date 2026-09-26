@@ -19,6 +19,7 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     private const string UnresolvableId = "MIST_PM_UNRESOLVABLE_OVERLOAD";
     private const string MethodGroupId = "MIST_PM_METHOD_GROUP_NOT_CONVERTED";
     private const string UnresolvedIdentifierId = "MIST_PM_UNRESOLVED_IDENTIFIER";
+    private const string UnresolvedMemberId = "MIST_PM_UNRESOLVED_MEMBER";
     private const string ForEachElementId = "MIST_PM_FOREACH_ELEMENT_NOT_INFERABLE";
 
     private const string Mixer = """
@@ -458,6 +459,11 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     [InlineData("foreach(var e in neverDeclared) { var chosen = p.Format(e); }", UnresolvedIdentifierId)]
     [InlineData("foreach(var e in 5) { var chosen = p.Format(e); }", ForEachElementId)]
     [InlineData("with var w = neverDeclared; var chosen = p.Format(w);", UnresolvedIdentifierId)]
+    [InlineData("var chosen = p.Format(i.Lenght);", UnresolvedMemberId)]
+    [InlineData("var chosen = p.Format(i.Nope());", UnresolvedMemberId)]
+    [InlineData("var r = i.Lenght; var chosen = p.Format(r);", UnresolvedMemberId)]
+    [InlineData("string? maybe = s; var chosen = p.Format(maybe?.Lenght);", UnresolvedMemberId)]
+    [InlineData("var chosen = p.Format(Plain.Nope);", UnresolvedMemberId)]
     public void AnArgumentBoundFromAValueThatAlreadyFailed_IsNotReportedAgain(string statement, string reportedId)
     {
         var diagnostics = BuildRun(statement, SignTypes + FailingTypes, "byte small = 2; var table = new Table();");
@@ -471,6 +477,22 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     [InlineData("var r = u is (0, 0); var again = r; var chosen = p.Format(again);")]
     [InlineData("foreach(var e in u is (0, 0)) { var chosen = p.Format(e); }")]
     public void AnArgumentTheCompilerCouldNotFinish_IsStillReported(string statement)
+    {
+        var diagnostics = BuildRun(statement, extraPreamble: "unknown u = 1;");
+
+        Assert.Equal(UnresolvableId, Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error).Id.Value);
+    }
+
+    /// <summary>
+    /// An unknown receiver answers no member and the binder says NOTHING about it -- refusing it is
+    /// MIST_PA_UNKNOWN_HAS_NO_MEMBERS at Stage 5. So the argument must still reach a complaint here,
+    /// which is why suppression is keyed on whether the binder spoke and never on the unresolved result
+    /// alone: the two are indistinguishable in the result and opposite in what they owe the reader.
+    /// </summary>
+    [Theory]
+    [InlineData("var chosen = p.Format(u.Length);")]
+    [InlineData("var r = u.Length; var chosen = p.Format(r);")]
+    public void AnArgumentWhoseReceiverIsUnknown_IsStillReported(string statement)
     {
         var diagnostics = BuildRun(statement, extraPreamble: "unknown u = 1;");
 

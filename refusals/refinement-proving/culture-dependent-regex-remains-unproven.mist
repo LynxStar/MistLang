@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+type IgnoreCase = string `(?i:i)`;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        IgnoreCase value = "I";
+    }
+}

@@ -96,7 +96,7 @@ internal static class Declarations
         return rest.Aggregate(first, Narrowest);
     }
 
-    private static Accessibility Narrowest(Accessibility left, Accessibility right)
+    public static Accessibility Narrowest(Accessibility left, Accessibility right)
     {
         if(IsAtLeast(left, right))
         {

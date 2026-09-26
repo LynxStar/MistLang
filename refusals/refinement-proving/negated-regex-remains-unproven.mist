@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+type NotLetters = string not `[a-z]+`;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        NotLetters value = "123";
+    }
+}

@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+public class Gauge
+{
+    public int Level { get; }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_NO_SET_ACCESSOR
+        var gauge = new Gauge { Level = 5 };
+        Console.WriteLine("unreachable");
+    }
+}

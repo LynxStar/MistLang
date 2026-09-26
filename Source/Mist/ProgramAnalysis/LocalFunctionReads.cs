@@ -7,39 +7,33 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// For each local function under a body root, the enclosing locals its body reads without declaring,
-/// together with those of every local function it calls or names, to a fixpoint. Where a lambda's
-/// captured reads are judged at the point it is created, a local function's are judged at every entry
-/// into it -- a call, or a conversion of its name to a function value -- because its name is hoisted
-/// and a call may precede the declaration. The set is flow-insensitive within a body: a function that
-/// assigns a captured local before reading it still counts as reading it, which refuses a call made
-/// while that local is unassigned. A write target is not a read -- an assignment's local, a spread
-/// assignment's, the struct local a field is written through -- exactly the targets the rule's own
-/// Written counts as written; and only a bare reference enters a local function, since it has no
-/// declaring type to be reached through.
+/// Captured storage reads are flow-insensitive within a local function and judged at every call or
+/// conversion of its hoisted name. Lambda and async captures contribute when their expression is
+/// evaluated; another local function contributes only through an entry into it, to a fixpoint. The
+/// shared graph distinguishes reading a field from evaluating its storage receiver and write target.
 /// </summary>
 internal static class LocalFunctionReads
 {
-    public static IReadOnlyDictionary<Method, IReadOnlySet<LocalVariable>> Of(object root)
+    public static IReadOnlyDictionary<Method, IReadOnlySet<LocalStoragePath>> Of(FlowGraph graph)
     {
-        var functions = BodyWalker.DescendantsAndSelf(root).OfType<LocalFunctionStatement>().ToList();
-        var direct = new Dictionary<Method, HashSet<LocalVariable>>(ReferenceEqualityComparer.Instance);
+        var direct = new Dictionary<Method, HashSet<LocalStoragePath>>(ReferenceEqualityComparer.Instance);
         var entered = new Dictionary<Method, HashSet<Method>>(ReferenceEqualityComparer.Instance);
+        var declared = new Dictionary<Method, HashSet<LocalVariable>>(ReferenceEqualityComparer.Instance);
 
-        foreach(var function in functions)
+        foreach(var (function, body) in Functions(graph))
         {
-            var inside = Captures.Inside(function);
-            var own = Captures.OwnNames(function.Parameters, inside);
-            var written = Written(inside);
+            var own = Captures.OwnNames(function.Parameters, Captures.Inside(function));
+            var evaluated = Evaluated(body).ToList();
+            declared[function.Function] = own;
 
-            direct[function.Function] = new HashSet<LocalVariable>(
-                inside.OfType<LocalReferenceExpression>()
-                    .Where(reference => !written.Contains(reference) && !own.Contains(reference.Local))
-                    .Select(reference => reference.Local),
-                ReferenceEqualityComparer.Instance);
+            direct[function.Function] = evaluated.OfType<Expression>()
+                .Select(LocalStoragePath.Of)
+                .OfType<LocalStoragePath>()
+                .Where(path => !own.Contains(path.Local))
+                .ToHashSet();
 
             entered[function.Function] = new HashSet<Method>(
-                inside.Select(Entered).OfType<Method>(), ReferenceEqualityComparer.Instance);
+                evaluated.Select(Entered).OfType<Method>(), ReferenceEqualityComparer.Instance);
         }
 
         var changed = true;
@@ -55,14 +49,14 @@ internal static class LocalFunctionReads
                     if(direct.TryGetValue(callee, out var calleeReads))
                     {
                         var before = direct[function].Count;
-                        direct[function].UnionWith(calleeReads);
+                        direct[function].UnionWith(calleeReads.Where(path => !declared[function].Contains(path.Local)));
                         changed |= direct[function].Count != before;
                     }
                 }
             }
         }
 
-        var reads = new Dictionary<Method, IReadOnlySet<LocalVariable>>(ReferenceEqualityComparer.Instance);
+        var reads = new Dictionary<Method, IReadOnlySet<LocalStoragePath>>(ReferenceEqualityComparer.Instance);
 
         foreach(var (function, locals) in direct)
         {
@@ -72,27 +66,41 @@ internal static class LocalFunctionReads
         return reads;
     }
 
-    private static HashSet<LocalReferenceExpression> Written(IReadOnlyList<object> inside)
+    private static IEnumerable<(LocalFunctionStatement Function, FlowGraph Body)> Functions(FlowGraph graph)
     {
-        var written = new HashSet<LocalReferenceExpression>(ReferenceEqualityComparer.Instance);
-
-        foreach(var assignment in inside.OfType<AssignmentExpression>().Where(assignment => !assignment.IsCoalescing))
+        foreach(var (node, nested) in graph.Nested)
         {
-            var target = assignment.Target switch
+            if(node is LocalFunctionStatement function)
             {
-                SpreadExpression { Operand: LocalReferenceExpression spread } => spread,
-                MemberAccessExpression { Receiver: LocalReferenceExpression holder } when FlowGraphBuilder.IsValueLocal(holder) => holder,
-                LocalReferenceExpression local => local,
-                _ => null,
-            };
+                yield return (function, nested);
+            }
 
-            if(target is not null)
+            foreach(var descendant in Functions(nested))
             {
-                _ = written.Add(target);
+                yield return descendant;
             }
         }
+    }
 
-        return written;
+    private static IEnumerable<object> Evaluated(FlowGraph graph)
+    {
+        foreach(var step in graph.Blocks.SelectMany(block => block.Steps))
+        {
+            if(step.Kind != FlowStepKind.Evaluate || step.IsStorageReceiver)
+            {
+                continue;
+            }
+
+            yield return step.Node;
+
+            if(step.Node is LambdaExpression or AsyncBlockExpression && graph.Nested.TryGetValue(step.Node, out var nested))
+            {
+                foreach(var node in Evaluated(nested))
+                {
+                    yield return node;
+                }
+            }
+        }
     }
 
     public static Method? Entered(object node)

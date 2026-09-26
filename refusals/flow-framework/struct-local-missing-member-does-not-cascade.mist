@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public struct Point
+{
+    public int x;
+    public int y;
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Point p;
+        p.x = 1;
+        // REFUSE: MIST_PM_UNRESOLVED_MEMBER
+        var bad = p.missing;
+    }
+}

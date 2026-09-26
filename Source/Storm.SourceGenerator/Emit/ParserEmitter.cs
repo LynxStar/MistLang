@@ -2228,6 +2228,15 @@ public static class ParserEmitter
 
                     break;
                 }
+            case AlternationIR alternation when alternation.Alternatives.Count > 0
+                && alternation.Alternatives.All(alternative => alternative is TokenRefIR or StringLiteralIR):
+                {
+                    var matchExpression = string.Join(" ?? ", alternation.Alternatives.Select(alternative => MatchExprForAlternative(context, alternative)));
+                    writer.WriteLine(withCheck
+                        ? $"var _{varName} = {okVar} ? {matchExpression} : null;"
+                        : $"var _{varName} = {matchExpression};");
+                    break;
+                }
             case RuleRefIR ruleRef:
                 {
                     // Save state before attempting the optional rule parse.

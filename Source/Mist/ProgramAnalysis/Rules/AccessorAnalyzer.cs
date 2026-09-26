@@ -1,20 +1,27 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
+using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A property or indexer read where it has no getter, or assigned where it has no setter: the properties
-/// spec's Requirements 13.1-13.2 and 11.4-11.5. An indexer is judged as its index selected it, never chosen
-/// again by accessor, because C# selects first and then refuses -- a sibling that has the accessor does not
-/// rescue the one the index picked. A get-only auto-property stays assignable in its own type's
-/// constructor body, where the write lands on the backing field; a lambda or local function there is a body
-/// of its own and gets no such privilege.
+/// The accessor a use calls -- the getter to read, the setter to write, both for <c>??=</c> -- must exist,
+/// must be accessible where it is called, and if it is <c>init</c> must be called in construction: the
+/// properties spec's Requirements 13.1-13.2, 13.5 and 11.4-11.5. An indexer is judged as its index selected
+/// it, never chosen again by accessor, because C# selects first and then refuses -- a sibling that has the
+/// accessor does not rescue the one the index picked. Construction is an object initializer entry, or
+/// <c>this</c> in an instance constructor or an init accessor of the type or a derivation. A get-only
+/// auto-property stays assignable in its own type's constructor body alone, where the write lands on the
+/// backing field. A lambda or local function in either body is a body of its own and gets neither
+/// privilege. Whether the member itself is accessible is <see cref="AccessibilityAnalyzer"/>'s to say, so
+/// nothing more is said here about an accessor of a member out of reach.
 /// </summary>
 internal sealed class AccessorAnalyzer : IProgramAnalyzer
 {
@@ -43,48 +50,152 @@ internal sealed class AccessorAnalyzer : IProgramAnalyzer
             switch(node)
             {
                 case IndexExpression { Indexer: { } indexer } index:
-                    Judge(context, index, Named(indexer.DeclaringType, "this[]"), indexer.Getter, indexer.Setter);
+                    Judge(context, Use.Of(context, index), Slot.Of(indexer), Construction.None);
                     break;
 
-                case MemberAccessExpression { Member: PropertyResult { Property: var property } } access
-                    when !(access.Receiver is ThisExpression && AssignsBackingField(context, access, property, nested)):
-                    Judge(context, access, Named(property.DeclaringType, property.Name), property.Getter, property.Setter);
+                case MemberAccessExpression { Member: PropertyResult { Property: var property } } access:
+                    Judge(
+                        context, Use.Of(context, access), Slot.Of(property),
+                        access.Receiver is ThisExpression ? ConstructionAt(context, access, property, nested) : Construction.None);
                     break;
 
-                case PropertyReferenceExpression reference when !AssignsBackingField(context, reference, reference.Property, nested):
-                    Judge(context, reference, Named(reference.Property.DeclaringType, reference.Property.Name), reference.Property.Getter, reference.Property.Setter);
+                case PropertyReferenceExpression reference:
+                    Judge(context, Use.Of(context, reference), Slot.Of(reference.Property), ConstructionAt(context, reference, reference.Property, nested));
+                    break;
+
+                case ObjectInitializerAssignment { Member: PropertyResult { Property: var property } } entry:
+                    Judge(context, new Use(entry, entry.Node, [], AccessDirection.Write), Slot.Of(property), Construction.Init);
+                    break;
+
+                case PropertySubpattern { Member: PropertyResult { Property: var property } } subpattern:
+                    Judge(context, new Use(subpattern, subpattern.Node, [], AccessDirection.Read), Slot.Of(property), Construction.None);
                     break;
             }
         }
     }
 
-    private static void Judge(
-        AnalysisContext context, Expression access, string name, PropertyAccessor? getter, PropertyAccessor? setter)
+    private static void Judge(AnalysisContext context, Use use, Slot slot, Construction construction)
     {
-        var direction = context.DirectionOf(access);
-
-        if(direction.HasFlag(AccessDirection.Read) && getter is null)
+        if(use.Direction.HasFlag(AccessDirection.Read))
         {
-            context.Report(ProgramAnalysisDiagnostics.NoGetAccessor, access.Node, [access], name);
+            if(slot.Getter is null)
+            {
+                context.Report(ProgramAnalysisDiagnostics.NoGetAccessor, use.At, use.About, slot.Name);
+            }
+            else
+            {
+                _ = Reaches(context, use, slot, slot.Getter, "get");
+            }
         }
 
-        if(direction.HasFlag(AccessDirection.Write) && setter is null)
+        if(!use.Direction.HasFlag(AccessDirection.Write) || construction.HasFlag(Construction.BackingField))
         {
-            context.Report(ProgramAnalysisDiagnostics.NoSetAccessor, access.Node, [access], name);
+            return;
+        }
+
+        if(slot.Setter is not { } setter)
+        {
+            context.Report(ProgramAnalysisDiagnostics.NoSetAccessor, use.At, use.About, slot.Name);
+        }
+        else if(Reaches(context, use, slot, setter, setter.IsInit ? "init" : "set") && setter.IsInit && !construction.HasFlag(Construction.Init))
+        {
+            context.Report(ProgramAnalysisDiagnostics.InitOnlyAssignment, use.At, use.About, slot.Name);
         }
     }
 
-    private static bool AssignsBackingField(AnalysisContext context, Expression access, Property property, HashSet<object> nested)
+    private static bool Reaches(AnalysisContext context, Use use, Slot slot, PropertyAccessor accessor, string keyword)
     {
-        return property is { Getter.IsAuto: true, Setter: null }
-            && !nested.Contains(access)
-            && context.MemberOf(access) is Constructor { DeclaringType: { } built } constructor
+        if(slot.Declaring is not { } declaring)
+        {
+            return true;
+        }
+
+        if(!AccessDomains.Admits(context, use.Site, slot.Accessibility, declaring))
+        {
+            return false;
+        }
+
+        if(AccessDomains.Admits(context, use.Site, accessor.Accessibility, declaring))
+        {
+            return true;
+        }
+
+        context.Report(
+            ProgramAnalysisDiagnostics.InaccessibleAccessor, use.At, use.About,
+            keyword, slot.Name, accessor.Accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(accessor.Accessibility));
+
+        return false;
+    }
+
+    private static Construction ConstructionAt(AnalysisContext context, Expression access, Property property, HashSet<object> nested)
+    {
+        if(nested.Contains(access))
+        {
+            return Construction.None;
+        }
+
+        var member = context.MemberOf(access);
+        var construction = Construction.None;
+
+        if(property is { Getter.IsAuto: true, Setter: null }
+            && member is Constructor { DeclaringType: { } built } constructor
             && ReferenceEquals(built, property.DeclaringType)
-            && constructor.Modifiers.IsStatic == property.Modifiers.IsStatic;
+            && constructor.Modifiers.IsStatic == property.Modifiers.IsStatic)
+        {
+            construction |= Construction.BackingField;
+        }
+
+        if(member is Constructor { Modifiers.IsStatic: false } || InInitAccessor(context, access, member))
+        {
+            construction |= Construction.Init;
+        }
+
+        return construction;
     }
 
-    private static string Named(IMistType? declaring, string member)
+    private static bool InInitAccessor(AnalysisContext context, Expression access, object? member)
     {
-        return declaring is null ? member : $"{TypeDisplay.Mist(declaring)}.{member}";
+        return member is Property { Setter: { IsInit: true } setter }
+            && context.RootOf(access) is { } root
+            && (ReferenceEquals(root, setter.Body) || ReferenceEquals(root, setter.ExpressionBody));
+    }
+
+    [Flags]
+    private enum Construction
+    {
+        None = 0,
+        BackingField = 1,
+        Init = 2,
+    }
+
+    private readonly record struct Use(object Site, SyntaxNode At, IReadOnlyList<Expression> About, AccessDirection Direction)
+    {
+        public static Use Of(AnalysisContext context, Expression access)
+        {
+            return new Use(access, access.Node, [access], context.DirectionOf(access));
+        }
+    }
+
+    private readonly record struct Slot(
+        MistType? Declaring, string Name, Accessibility Accessibility, PropertyAccessor? Getter, PropertyAccessor? Setter)
+    {
+        public static Slot Of(Property property)
+        {
+            return new Slot(
+                property.DeclaringType, Named(property.DeclaringType, property.Name), property.Modifiers.Accessibility,
+                property.Getter, property.Setter);
+        }
+
+        public static Slot Of(Indexer indexer)
+        {
+            return new Slot(
+                indexer.DeclaringType, Named(indexer.DeclaringType, "this[]"), indexer.Modifiers.Accessibility,
+                indexer.Getter, indexer.Setter);
+        }
+
+        private static string Named(IMistType? declaring, string member)
+        {
+            return declaring is null ? member : $"{TypeDisplay.Mist(declaring)}.{member}";
+        }
     }
 }

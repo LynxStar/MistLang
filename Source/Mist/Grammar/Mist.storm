@@ -750,6 +750,7 @@ rule PrimaryPattern
     = type:TypeReference name:(IDENTIFIER | DISCARD)                         as TypePattern
     | LEFT_PARENTHESIS first:Pattern COMMA rest:Pattern (COMMA additional:Pattern)* RIGHT_PARENTHESIS  as TuplePositionalPattern
     | LEFT_PARENTHESIS inner:Pattern RIGHT_PARENTHESIS                      as ParenthesizedPattern
+    | typeName:QualifiedIdentifier? LEFT_BRACE subpatterns:PropertySubpatternList? RIGHT_BRACE name:(IDENTIFIER | DISCARD)?  as PropertyPattern
     | type:TypeReference                                                    as BareTypePattern
     | VAR name:(IDENTIFIER | DISCARD)                                       as VarPattern
     | DISCARD                                                               as DiscardPattern
@@ -757,7 +758,6 @@ rule PrimaryPattern
     | GREATER_THAN constant:VoidCoalescing                                  as GreaterThanRelationalPattern
     | LESS_THAN_OR_EQUAL constant:VoidCoalescing                            as LessThanOrEqualRelationalPattern
     | GREATER_THAN_OR_EQUAL constant:VoidCoalescing                         as GreaterThanOrEqualRelationalPattern
-    | typeName:QualifiedIdentifier? LEFT_BRACE subpatterns:PropertySubpatternList? RIGHT_BRACE name:(IDENTIFIER | DISCARD)?  as PropertyPattern
     | LEFT_BRACKET elements:ListPatternElementList? RIGHT_BRACKET           as ListPattern
     | literal:ConstantLiteral                                               as ConstantPattern
     ;

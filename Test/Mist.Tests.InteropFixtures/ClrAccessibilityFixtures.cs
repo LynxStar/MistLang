@@ -79,3 +79,16 @@ public class AllAccessibilityLevels
     protected internal class NestedProtectedInternal { }
     private protected class NestedPrivateProtected { }
 }
+
+public class ProtectedSetters
+{
+    private int stored;
+
+    public int Level { get; protected set; }
+
+    public int this[int slot]
+    {
+        get => stored + slot;
+        protected set => stored = value;
+    }
+}

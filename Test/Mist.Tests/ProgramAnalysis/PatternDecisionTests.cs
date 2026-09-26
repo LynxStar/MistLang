@@ -88,6 +88,8 @@ public sealed class PatternDecisionTests : ProgramModelProbe
     [InlineData("if(shape is Dog d) { n = 1; }")]
     [InlineData("if(dog is IShape sh) { n = 1; }")]
     [InlineData("if(any is Dog d) { n = 1; }")]
+    [InlineData("if(animal is Dog { } d) { n = 1; }")]
+    [InlineData("if(any is Person { Name: var name } person) { n = 1; }")]
     [InlineData("if(any is int i) { n = 1; }")]
     [InlineData("if(n is AdultAge age) { n = 1; }")]
     [InlineData("if(mixed is string s) { n = 1; }")]

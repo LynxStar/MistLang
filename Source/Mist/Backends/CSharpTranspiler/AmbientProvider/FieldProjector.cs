@@ -33,7 +33,10 @@ internal static class FieldProjector
             }
 
             var resolvedType = resolver.ResolveInbound(
-                field.FieldType, concreteType.Scope, ClrNullability.ResultIsNonNull(field, field));
+                field.FieldType,
+                concreteType.Scope,
+                ClrNullability.ResultIsNonNull(field, field),
+                TupleElementNames.Of(field, field.FieldType));
             var modifiers = new MemberModifiers
             {
                 Accessibility = ClrAccessibilityMap.FromField(field),

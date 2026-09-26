@@ -31,7 +31,10 @@ internal static class PropertyProjector
             }
 
             var resolvedType = resolver.ResolveInbound(
-                prop.PropertyType, memberType.Scope, ClrNullability.ResultIsNonNull(prop, prop));
+                prop.PropertyType,
+                memberType.Scope,
+                ClrNullability.ResultIsNonNull(prop, prop),
+                TupleElementNames.Of(prop, prop.PropertyType));
             var getter = CreateGetter(prop);
             var setter = CreateSetter(prop);
 
@@ -84,7 +87,7 @@ internal static class PropertyProjector
     {
         if(IsVisibleMethod(prop.GetMethod))
         {
-            return new PropertyAccessor();
+            return new PropertyAccessor { Accessibility = ClrAccessibilityMap.FromMethod(prop.GetMethod!) };
         }
 
         return null;
@@ -107,6 +110,6 @@ internal static class PropertyProjector
             .GetRequiredCustomModifiers()
             .Any(t => t.FullName == "System.Runtime.CompilerServices.IsExternalInit");
 
-        return new PropertyAccessor { IsInit = isInit };
+        return new PropertyAccessor { IsInit = isInit, Accessibility = ClrAccessibilityMap.FromMethod(setMethod) };
     }
 }

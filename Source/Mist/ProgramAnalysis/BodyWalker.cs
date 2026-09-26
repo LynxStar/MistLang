@@ -111,6 +111,7 @@ internal static class BodyWalker
         add<TypeLiteralExpression>(_ => []);
         add<TypeReferenceExpression>(_ => []);
         add<UnaryExpression>(e => [e.Operand]);
+        add<UnboundLambdaExpression>(_ => []);
         add<UnresolvedExpression>(_ => []);
         add<VoidLiteralExpression>(_ => []);
 
@@ -135,7 +136,7 @@ internal static class BodyWalker
         add<ListPattern>(p => [.. p.Elements]);
         add<ListPatternElement>(e => [e.Subpattern]);
         add<NegatedPattern>(p => [p.Operand]);
-        add<PropertyPattern>(p => [.. p.Subpatterns]);
+        add<PropertyPattern>(p => [p.TypeTest, .. p.Subpatterns]);
         add<PropertySubpattern>(s => [s.Pattern]);
         add<RegexPattern>(_ => []);
         add<TuplePattern>(p => [.. p.Elements]);

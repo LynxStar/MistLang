@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+type Invalid = string `[`;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        Invalid value = "a";
+    }
+}

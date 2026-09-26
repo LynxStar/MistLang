@@ -31,10 +31,22 @@ internal static class AccessorEmitter
             return;
         }
 
-        if(accessor.ExpressionBody is { } expression)
+        if(accessor.ExpressionBody is { } expression && BodyEmitter.NeedsStatements(expression, discarded: isSetter))
+        {
+            writer.WriteLine(header);
+
+            using(writer.Block())
+            {
+                BodyEmitter.EmitSequenced(expression, isSetter ? null : "return ", writer, diagnostics);
+            }
+
+            return;
+        }
+
+        if(accessor.ExpressionBody is { } expressionBody)
         {
             writer.Write($"{header} => ");
-            BodyEmitter.EmitExpression(expression, writer, diagnostics);
+            BodyEmitter.EmitExpression(expressionBody, writer, diagnostics);
             writer.Append(";");
             writer.AppendLine();
             return;

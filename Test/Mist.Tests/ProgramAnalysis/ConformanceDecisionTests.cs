@@ -173,6 +173,23 @@ public sealed class ConformanceDecisionTests : ProgramModelProbe
         AssertSilent("", "public class Lost : Nowhere { }");
     }
 
+    [Theory]
+    [InlineData("T Read();", "public int Number() { return 1; }", "Number as Read;")]
+    [InlineData("T Value { get; set; }", "public int Number { get; set; }", "Number as Value;")]
+    public void MappingOneConstruction_LeavesTheOtherConstructionUnanswered(string slot, string member, string mapping)
+    {
+        var findings = Analyse("", $$"""
+            public abstract IGeneric<T> { {{slot}} }
+            public abstract IBoth : IGeneric<int>, IGeneric<string> { }
+            public class Partial { {{member}} }
+            with Partial : IBoth { {{mapping}} }
+            """);
+
+        var finding = Assert.Single(findings);
+        Assert.Equal("MIST_PA_CONFORMANCE_SLOT_UNANSWERED", finding.Id.Value);
+        Assert.Contains("string", finding.Message);
+    }
+
     // ── Harness ─────────────────────────────────────────────────────────
 
     private void AssertSilent(string statement, string extraTypes = "")

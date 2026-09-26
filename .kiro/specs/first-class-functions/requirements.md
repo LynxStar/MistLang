@@ -108,7 +108,7 @@ The `delegate` keyword is deliberately omitted. Since Mist has type aliases and 
 5. WHEN a lambda is assigned using `var` with explicitly-typed parameters (e.g., `var foo = (int x) => x + 1;`), THE Semantic_Model_Builder SHALL infer the variable type as the `Func` type constructed from the explicit parameter types and the inferred return type.
 6. IF a lambda is assigned using `var` with implicitly-typed parameters (e.g., `var foo = x => x + 1;`), THEN THE Type_Checker SHALL report a diagnostic error indicating that lambda parameter types cannot be inferred without a target type.
 7. WHEN a lambda's return type is inferred from multiple return statements with different types, THE Type_Checker SHALL report a diagnostic error indicating inconsistent return types unless a common base type or union type can be determined.
-8. WHEN a lambda is used in a generic method call where the type argument depends on the lambda's type, THE Type_Checker SHALL participate in generic type argument inference by propagating the lambda's inferred type.
+8. WHEN a lambda is passed to a generic method call that infers its type arguments, THE Type_Checker SHALL give the lambda the parameter types the call's other arguments fix and infer the remaining type arguments from the type the lambda produces, per type-argument-inference Requirement 11; a method group passed there is typed the same way. WHEN the method is overloaded, the lambda SHALL be typed under each Candidate and choose among them per method-overloading Requirements 3.13-3.16.
 
 ### Requirement 7: Function Type as First-Class Value
 

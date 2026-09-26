@@ -34,7 +34,10 @@ internal static class IndexerProjector
             }
 
             var resolvedType = resolver.ResolveInbound(
-                prop.PropertyType, memberType.Scope, ClrNullability.ResultIsNonNull(prop, prop));
+                prop.PropertyType,
+                memberType.Scope,
+                ClrNullability.ResultIsNonNull(prop, prop),
+                TupleElementNames.Of(prop, prop.PropertyType));
             if(resolvedType is ErrorType or NotProjectedType)
             {
                 continue;
@@ -46,8 +49,8 @@ internal static class IndexerProjector
                 continue;
             }
 
-            var getter = IsVisibleMethod(prop.GetMethod) ? new PropertyAccessor() : null;
-            var setter = IsVisibleMethod(prop.SetMethod) ? new PropertyAccessor() : null;
+            var getter = IsVisibleMethod(prop.GetMethod) ? new PropertyAccessor { Accessibility = ClrAccessibilityMap.FromMethod(prop.GetMethod!) } : null;
+            var setter = IsVisibleMethod(prop.SetMethod) ? new PropertyAccessor { Accessibility = ClrAccessibilityMap.FromMethod(prop.SetMethod!) } : null;
 
             var accessibility = ClrAccessibilityMap.FromProperty(prop);
             var modifiers = new MemberModifiers

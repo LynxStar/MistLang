@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        var attribute = new System.ComponentModel.DataAnnotations.DataTypeAttribute("custom");
+        // REFUSE: MIST_PA_INACCESSIBLE_ACCESSOR
+        attribute.DisplayFormat = new System.ComponentModel.DataAnnotations.DisplayFormatAttribute();
+        Console.WriteLine("unreachable");
+    }
+}

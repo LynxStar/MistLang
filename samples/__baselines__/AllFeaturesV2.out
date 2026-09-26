@@ -1959,6 +1959,12 @@ Renamed<string>.Get()=r Twice()=r Tag=1 With(s).Value=s
 === Generic Abstract Members ===
 First(IntHolder)=5 First(Wrapper<string>)=w
 IntHolder.Same()=5 Wrapper<string>.Same()=w
+Single derived=12 base=13 property=3
+Single property after set=9 source=9
+Deep outer=24 base=25 property=5
+Deep property after set=11 source=11
+Dual read=37/mapped-stored echo=43/word! count=2/2
+Dual properties=12/changed sources=12/changed
 === Generic Abstract Members Done ===
 === Nested Generic Types ===
 Box<int>.Wrapper.Unwrap()=7
@@ -2064,3 +2070,21 @@ stated values: T 5 | R | R | T w | T 4
 clones: present 7 | present 7 | absent copies 1 | absent copies 2
 generic clones: present w | present w | absent copies 1 | present w copies 1 | present w copies 2
 absent: True True | True False | True void
+=== CallableInference Sample ===
+lambda: 2 | stated: 2
+block body: big
+stated parameter: 4
+chained: <21>
+fold: 10 1234
+group: 5 | stated: 5
+overloaded group: Show(int) 4 | Show(string) w
+generic group: 3
+receiver: 4
+Transform(int) 6
+Transform(string) ab!
+Measure(int) 4
+Measure(string) 4
+Widen(int) 2
+Widen(long) 2
+Labeled(string) 4
+=== CallableInference Done ===

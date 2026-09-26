@@ -156,19 +156,28 @@ Two rules for the same situation: a test just failed and you need to know whethe
 
 ## Rule 0: Run the suite through the ledger
 
-A full run goes through `tools/test-ledger/run.sh`, which builds, runs with a trx logger, keeps the
-whole output, and writes every failure's name, message and stack to
-`TestResults/ledger/<stamp>/failures.txt`, with a signature classification in `summary.txt`:
+A full run goes through `tools/test-ledger/run.sh`, started in the background. It builds, runs with
+a trx logger, and keeps everything in `TestResults/ledger/<stamp>/`; `TestResults/ledger/latest`
+points at the newest run from the moment it starts:
 
 ```bash
 tools/test-ledger/run.sh
 ```
 
+Its stdout is only the ledger's path and, at the end, `summary.txt`, so run it as it is. Do not
+redirect it to a file of your own, and do not pipe it or a bare `dotnet test` through `grep`, `head`
+or `tail`: that is how five entries in `backlog/flaky-tests.yaml` lost the name of the test that
+failed.
+
+When it ends, read `summary.txt`. Its first line says how the run ended, and a `no trx:` line names
+an assembly that started and never finished. Then read `failures.txt`: every failure's full message
+and stack, including any the console printed before a stopped run could write its trx. Stopping a
+run (TaskStop, Ctrl-C) still writes both. Read the ledger before rerunning, because a green rerun
+destroys the evidence.
+
 Pass a project and `dotnet test` arguments after it, e.g.
 `tools/test-ledger/run.sh Test/Mist.Tests --filter "FullyQualifiedName~X"`, and set
-`LEDGER_NO_BUILD=1` when the binaries are current. Do not pipe a test run through `grep`, `head` or
-`tail`: that is how five entries in `backlog/flaky-tests.yaml` lost the name of the test that failed.
-Read the ledger before rerunning, because a green rerun destroys the evidence.
+`LEDGER_NO_BUILD=1` when the binaries are current.
 
 Running `dotnet test` while another worktree's suite or build is running changes timing. The ledger
 records other `dotnet` processes in `env.txt`, so check it before reading a slow test as a defect. A

@@ -167,7 +167,14 @@ internal sealed class TypeSubstitution
 
         if(type is TypeParameter parameter)
         {
-            return bindings.TryGetValue(parameter, out var argument) ? argument : type;
+            if(!bindings.TryGetValue(parameter, out var argument))
+            {
+                return type;
+            }
+
+            return argument is UnknownType && parameter is { IsDependent: true, Domain: { } domain }
+                ? interner?.GetOrCreateUnknownValue(domain) ?? new UnknownValueType(domain)
+                : argument;
         }
 
         if(type is SpreadType spread)

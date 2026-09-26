@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+public class Gauge
+{
+    private readonly int level = 1;
+}
+
+// REFUSE: MIST_PA_INACCESSIBLE_MEMBER
+type Low = Gauge ({ level: < 3 });
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

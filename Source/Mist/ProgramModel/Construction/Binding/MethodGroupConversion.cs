@@ -57,24 +57,9 @@ internal static class MethodGroupConversion
             return null;
         }
 
-        TypeSubstitution substitutionOf(Method candidate)
-        {
-            return TypeSubstitution.ForPath(group.ReceiverConstructed, group.Paths?.GetValueOrDefault(candidate), interner);
-        }
+        var preferred = Preferred(group, target.ParameterTypes, target.ReturnType, interner);
 
-        var closed = group.Candidates
-            .Select(candidate => (Candidate: candidate, Substitution: Closing(candidate, group.StatedTypeArguments, target, substitutionOf(candidate), interner)))
-            .Where(candidate => candidate.Substitution is not null)
-            .ToDictionary(candidate => candidate.Candidate, candidate => candidate.Substitution!);
-
-        var matches = OverloadResolution.WithoutHidden([.. closed.Keys], substitutionOf, interner);
-
-        var preferred = matches
-            .Where(candidate => !matches.Exists(other => !ReferenceEquals(other, candidate)
-                && OverloadResolution.MoreSpecificSignature(other, candidate, target.ParameterTypes.Count)))
-            .ToList();
-
-        if(preferred is not [var match])
+        if(preferred is not [var (match, substitution)])
         {
             ambiguous = preferred.Count > 1;
             return null;
@@ -82,8 +67,43 @@ internal static class MethodGroupConversion
 
         return new FunctionReferenceExpression(group.Node, group.Receiver, match, target)
         {
-            TypeArguments = match.TypeParametersList.ConvertAll(parameter => closed[match].Apply(parameter, interner)),
+            TypeArguments = match.TypeParametersList.ConvertAll(parameter => substitution.Apply(parameter, interner)),
         };
+    }
+
+    /// <summary>
+    /// What the one overload taking exactly these parameter types returns, for a call that learns its own
+    /// type arguments from a group's result, or null where no overload or several do. The same choice
+    /// <see cref="Convert"/> makes, with the result left for the overload to say.
+    /// </summary>
+    internal static IMistType? ResultType(
+        MethodGroupExpression group, IReadOnlyList<IMistType> parameterTypes, TypeInterner interner)
+    {
+        return Preferred(group, parameterTypes, returnType: null, interner) is [var (match, substitution)]
+            ? substitution.Apply(match.ReturnType, interner)
+            : null;
+    }
+
+    private static List<(Method Method, TypeSubstitution Substitution)> Preferred(
+        MethodGroupExpression group, IReadOnlyList<IMistType> parameterTypes, IMistType? returnType, TypeInterner interner)
+    {
+        TypeSubstitution substitutionOf(Method candidate)
+        {
+            return TypeSubstitution.ForPath(group.ReceiverConstructed, group.Paths?.GetValueOrDefault(candidate), interner);
+        }
+
+        var closed = group.Candidates
+            .Select(candidate => (Candidate: candidate, Substitution: Closing(candidate, group.StatedTypeArguments, parameterTypes, returnType, substitutionOf(candidate), interner)))
+            .Where(candidate => candidate.Substitution is not null)
+            .ToDictionary(candidate => candidate.Candidate, candidate => candidate.Substitution!);
+
+        var matches = OverloadResolution.WithoutHidden([.. closed.Keys], substitutionOf, interner);
+
+        return matches
+            .Where(candidate => !matches.Exists(other => !ReferenceEquals(other, candidate)
+                && OverloadResolution.MoreSpecificSignature(other, candidate, parameterTypes.Count)))
+            .Select(candidate => (candidate, closed[candidate]))
+            .ToList();
     }
 
     internal static Expression? Convert(
@@ -151,7 +171,12 @@ internal static class MethodGroupConversion
     }
 
     private static TypeSubstitution? Closing(
-        Method candidate, IReadOnlyList<IMistType>? stated, IFunctionType target, TypeSubstitution substitution, TypeInterner interner)
+        Method candidate,
+        IReadOnlyList<IMistType>? stated,
+        IReadOnlyList<IMistType> parameterTypes,
+        IMistType? returnType,
+        TypeSubstitution substitution,
+        TypeInterner interner)
     {
         if(stated is not null && stated.Count != candidate.TypeParametersList.Count)
         {
@@ -160,7 +185,7 @@ internal static class MethodGroupConversion
 
         if(candidate.TypeParametersList.Count > 0)
         {
-            if((stated ?? TypeArgumentInference.FromSignature(candidate, target)) is not { } closing)
+            if((stated ?? TypeArgumentInference.FromSignature(candidate, parameterTypes, returnType)) is not { } closing)
             {
                 return null;
             }
@@ -168,13 +193,17 @@ internal static class MethodGroupConversion
             substitution = substitution.Extend(TypeSubstitution.ForMethod(candidate, closing));
         }
 
-        return SignatureIs(candidate, target, substitution, interner) ? substitution : null;
+        return SignatureIs(candidate, parameterTypes, returnType, substitution, interner) ? substitution : null;
     }
 
     private static bool SignatureIs(
-        Method candidate, IFunctionType target, TypeSubstitution substitution, TypeInterner interner)
+        Method candidate,
+        IReadOnlyList<IMistType> parameterTypes,
+        IMistType? returnType,
+        TypeSubstitution substitution,
+        TypeInterner interner)
     {
-        if(candidate.ParametersList.Count != target.ParameterTypes.Count)
+        if(candidate.ParametersList.Count != parameterTypes.Count)
         {
             return false;
         }
@@ -183,13 +212,13 @@ internal static class MethodGroupConversion
         {
             var parameter = substitution.Apply(candidate.ParametersList[i].Type, interner);
 
-            if(!IsTheSame(parameter, target.ParameterTypes[i]))
+            if(!IsTheSame(parameter, parameterTypes[i]))
             {
                 return false;
             }
         }
 
-        return IsTheSame(substitution.Apply(candidate.ReturnType, interner), target.ReturnType);
+        return returnType is null || IsTheSame(substitution.Apply(candidate.ReturnType, interner), returnType);
     }
 
     private static bool IsTheSame(IMistType declared, IMistType expected)

@@ -2351,11 +2351,43 @@ capabilities:
         longer gates defaultability, since a static field the type cannot zero says nothing about
         whether an instance can be defaulted. No banked sample declares a static field on a defaultable
         type, which is why DefaultKeyword going green did not catch it.
+      - >
+        FIXED 2026-09-26, recorded because it was a live defect this entry did not predict. The synthesized
+        constructor ran every field initializer a SECOND time: FieldEmitter writes the initializer onto the
+        field, C# runs field initializers in every constructor that does not chain to another, and the
+        synthesized constructor then assigned the same initializer again. Measured with side-effecting
+        initializers: `new Bare()` on a class declaring no constructor ran `abab` and a class deriving from it
+        `xababx`, where classic runs `ab` and `xab`; through the private sentinel, `default(Declared)` ran `aa`
+        and a struct's `default(Point)` `pp`. The synthesized constructor now assigns only what replaces the
+        field's own initializer -- a block entry, a binding, a zero -- and every path runs each initializer
+        once (`ab`, `xab`, `a`, `p`) with the same values. Classic's output is not the contract here: it runs
+        the initializer once and then overwrites the field with its zero, printing `new Bare()` with an empty
+        Field and a Count of 0. PROVED BY FieldInitializerRuntimeTests, whose trail covers `new` with and
+        without a declared constructor, through a base type and on a struct. The `default` paths are measured
+        by probe only, a side-effecting initializer there being one the spec refuses (Requirement 6.9) and
+        classic reports as MIST_DEFAULT_NOT_SUPPORTED; a test holding them would pin an invalid program.
+        Restoring the reassignment fails that test.
+        `new` ON A TYPE DECLARING NO CONSTRUCTOR RETURNS ITS DEFAULT, block included -- `new
+        Blocked().Count` is the block's 5, not the initializer's 7 -- and that is the rule rather than a
+        divergence. optional-defaultability's Implicit_Constructor is "a compiler-generated parameterless
+        constructor that returns the default value", generated only for a type with no user-defined
+        constructor (Requirements 4.3 and 4.4); default-keyword's "does not invoke any constructor" says only
+        that `default` runs none. A type declaring just `Config(string)` and a block is defaultable but gains
+        no parameterless constructor (4.1): `new Config()` is MIST_PM_NO_APPLICABLE_OVERLOAD on v2 and
+        MIST_TC_0013 on classic, and `default(Config)` goes through the private sentinel. A type declaring its
+        own `T()` keeps it for `new` and the block answers `default` (Container: 99 and 42). All three
+        measured 2026-09-26, identical on both pipelines.
     analysis_phase_tasks:
       - >
         Report a type that cannot be defaulted where something defaults it, rather than silently emitting
         no factory and letting the use site fall to the backend sentinel. Classic's two diagnostics are
         the model. Also report a default block entry naming a member the type does not declare.
+      - >
+        Report a default block entry, and a field initializer in a default context, that is not a
+        compile-time constant (default-keyword Requirements 6.9 and 13.4). Classic reports the first as
+        MIST_DEFAULT_NOT_CONSTANT and refuses `default(T)` on a type whose initializers are not constant as
+        MIST_DEFAULT_NOT_SUPPORTED; v2 admits and runs both, measured 2026-09-26 on
+        `default { Seen = Log.Show(void) }` and on `default(Bare)` over side-effecting initializers.
     unlocks: [DefaultKeyword]
 
   # ===================================================================
@@ -2582,8 +2614,9 @@ capabilities:
 
       The reason to state it anyway is that this algorithm is the weaker of the two, in three named
       ways: it does not track variance, so a bound read from inside a construction is fixed like any
-      other rather than as an exact bound; it has no inference from lambdas or method groups; and it
-      runs one pass rather than fixing in dependency order. Every shape it does
+      other rather than as an exact bound; it had no inference from lambdas or method groups until
+      2026-09-25 (below); and it runs one pass over the ordinary arguments rather than fixing in
+      dependency order, keeping dependency order for the callables alone. Every shape it does
       infer, C# infers and agrees on, so its successful answers are a subset of C#'s -- established
       by reasoning over the cases, not proved. Stating them therefore makes a wrong answer a C#
       error rather than something Roslyn quietly infers correctly on our behalf.
@@ -2650,6 +2683,114 @@ capabilities:
       type: it reaches the call's result, so binding anyway records a local typed by a parameter
       out of scope and emits that parameter where a type belongs, which Roslyn then reports against
       a generated file naming neither the call nor the parameter.
+
+      A LAMBDA OR A METHOD GROUP TEACHES THE CALL IT IS PASSED TO (2026-09-25), which is first-class-
+      functions Requirement 6.8 and the body-task register's "lambda arguments deferred during
+      applicability". The rules are type-argument-inference Requirement 11 and method-overloading
+      Requirements 3.13-3.16, written into the specs on 2026-09-26 as rules of their own rather than
+      as a reference to C#, whose choices they follow. MEASURED FIRST, one project per probe on --pipeline experimental, against
+      `R Apply<T, R>(T, func<T, R>)`: `Api.Apply(1, x => x + 1)` was MIST_PM_TYPE_ARGUMENTS_CONFLICT
+      naming 'int' and 'T' -- the lambda was bound against the OPEN parameter, so x was the callee's
+      own T and the lambda's type fed T back as a bound -- and a block body and a chain
+      (`Pipe(1, x => x + 1, y => ...)`) failed the same way; `Api.Apply(4, Api.Next)` was
+      MIST_PM_METHOD_GROUP_NOT_CONVERTED; a stated lambda parameter, `Run((string s) => s.Length,
+      "abc")`, closed R to ITSELF and Stage 5 then refused 'int' to 'R'; `Twice(3, Api.Same)` converted
+      Same at the callee's own T and conflicted; and in an overloaded call, `Transform(3, v => v * 2)`
+      beside a string overload or `Each(x => x + 1)` over func<int, int> and func<string, int>, the
+      lambda had no target at all (MIST_PM_LAMBDA_PARAMETER_NO_TYPE). Classic refuses every one of these
+      but the stated parameter, which it prints (a 3): MIST_TC_0081 with its placeholders unfilled beside
+      an operator error on the open T, MIST_TC_0084 for each group, MIST_TC_0031 for Transform.
+
+      A LAMBDA IN A SLOT THE CALL HAS NOT CLOSED IS HELD UNBOUND -- UnboundLambdaExpression, a binder
+      intermediate beside MethodGroupExpression, the slot being unclosed where several candidates take
+      the arity or a sole GENERIC one's type arguments are not stated -- and a group in the same slot is
+      left for the call. Inference reads the ordinary arguments first, and a stated lambda parameter as a
+      bound on its slot's parameter; then each callable whose inputs mention only parameters that now
+      have bounds has those FIXED, is typed by them, and its result teaches the rest: a lambda by a
+      binding made to be thrown away (LambdaTrials, diagnostics withheld and the five registries swapped
+      out by ProgramModel.Discarding), a group by the one overload whose parameters are those types
+      (MethodGroupConversion.ResultType). THE BINDING THAT STAYS IS MADE ONCE, after selection, against
+      the chosen parameter's closed type, which is the binding the call stating its type arguments
+      makes: an inferred call and its stated twin bind the same model and emit the same C#,
+      `Probe.Api.Apply<int, int>(1, (int x) => x + 1)`.
+
+      A PARAMETER FIXED TO TYPE A CALLABLE TAKES NO LATER BOUND (Requirement 11.4). `Grow(1, x => x * 2L)` over
+      `T Grow<T>(T, func<T, T>)` fixes T to int, and the long body is Stage 5's
+      MIST_PA_NO_IMPLICIT_CONVERSION at the body -- what the stated `Grow<int>` reports -- rather than a
+      refixing to long that would contradict the parameter type the lambda was bound with. A conflict
+      that keeps a callable from being typed is the one reported: `Apply2(1, "x", x => x)` is
+      MIST_PM_TYPE_ARGUMENTS_CONFLICT on T, not MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED on the R the lambda
+      never got to teach.
+
+      AN OVERLOADED CALL TYPES THE LAMBDA UNDER EACH CANDIDATE. From two closed candidates up, the lambda
+      fits a candidate where it binds against that parameter without a binder error, its stated parameter
+      types are the parameter's, and its results convert to the parameter's result -- so
+      `Measure(x => x + 1)` takes func<int, int>, the string body being a string, and `Measure(s =>
+      s.Length)` takes func<string, int>, int having no Length. An error-typed result counts as not
+      fitting, because an operator no type admits types as an error without a word from the binder:
+      `Measure(x => x * 2)` would otherwise fit both. Where two fit with the same parameters the lambda's own
+      result decides (method-overloading 3.14): `Widen(x => x + 1)` takes func<int, int> over
+      func<int, long>, and `x + 1L` the other. A lambda broken under every candidate the other arguments
+      admit is broken in itself, not evidence against them: where they leave one, that is chosen and
+      binding against it reports the body -- `Transform(3, v => v.Nope)` is one MIST_PM_UNRESOLVED_MEMBER,
+      not an unresolvable call. Constructors take the same path (`new Labeled(s => s.Length)`).
+
+      THE ARGUMENT'S OWN VALUE, NEVER A GROUP NESTED IN IT, is what the call settles. BindingContext names
+      the postfix that IS the argument -- reached by descending the argument's syntax while each node has
+      one child, so through parentheses and nothing else -- and only that postfix leaves its group for the
+      call; a group nested in the argument converts where it stands, against its own target.
+      `Apply(4, maybe ?? Api.Next)` binds as `Apply<int, int>`, Next converted to the `??`'s
+      func<int, int>, and `Measure(true switch { _ => Api.Next })` is one
+      MIST_PM_METHOD_GROUP_NOT_CONVERTED at the group. The settlement had been a flag reaching every
+      postfix inside the argument, harmless while only a several-candidate call set it and the flag was
+      read after conversion; set for a sole generic call too and read first, it let the `??` operand's
+      group through unconverted, MIST_INTERNAL_METHOD_GROUP_AT_EMISSION on an intermediate build, which
+      is why it is a node. The generated Children() yields null for an absent optional operand, which the
+      descent skips.
+
+      PROVED BY CallableArgumentInferenceTests on ProgramModelProbe -- the type arguments eleven calls learn
+      from lambdas, stated lambda parameters and groups, a parenthesized group among them; four inferred
+      calls bound exactly as their stated twins; the fixed parameter taking no later bound, alone and
+      beside an open one; nine overloaded calls taking the candidate the lambda fits; a group converted to
+      the overload the inferred parameters name; two groups nested in a `??` operand; an overloaded
+      constructor; the registry a losing candidate's trial leaves untouched; and eight calls whose
+      callables cannot complete, each one diagnostic -- by two GenericMethodGroupEmissionTests rows
+      (`Probe.Api.Twice<int>(3, Probe.Api.Same<int>)` and `Probe.Api.Pass<int, bool>(3, (int x) =>
+      x > 1)`), and by four corpus cases under refusals/binding. samples/CallableInference, banked V2-ONLY,
+      prints eighteen lines from `lambda: 2 | stated: 2` to `Labeled(string) 4`, each derived by hand first.
+      EIGHTEEN MUTATIONS, EACH CAUGHT BY NAME: the callable phase removed (20 rows); the late bound let
+      through (the mixed-result row -- the Grow row alone survived it, a result naming only fixed
+      parameters skipping the trial); the blocking conflict dropped; the stated-parameter bounds; the
+      group's result; the registry swap (the losing-trial row); withholding the diagnostics; the lenient
+      choice; the lambda's own result in betterness; the stated-parameter check; the error-typed result;
+      every result fitting; the fit ignored in applicability; lambdas not deferred (24 rows); and, run
+      again after the settlement became a node, the group left to the call (11), the settlement reaching
+      a switch arm, parentheses not handing a settled group on, and absent children counted in the
+      descent (11). AllFeaturesV2 matches its baseline before banking and after, and AllFeatures is
+      unchanged.
+
+      NOT PART OF THIS, each measured 2026-09-25 on --pipeline experimental:
+      a trial sees what BINDING reports and what the body's result type says, not a Stage 5 refusal
+      buried deeper in the body, so such a lambda leaves its candidate applicable and can tie two;
+      a lambda broken under SEVERAL candidates the other arguments admit is MIST_PM_UNRESOLVABLE_OVERLOAD
+      (`Each(x => x.Nope)`), which names the call and not the body;
+      a lambda of the wrong arity in an inferring call is reported against the closed parameter, which
+      then reads `'func<Int32, <error>>' takes 1 parameters but the lambda declares 2`;
+      a group no overload of which takes the fixed inputs (`Apply("w", Api.Next)`) is
+      MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED at the call, C#'s CS0411 shape, rather than NOT_CONVERTED at
+      the group;
+      a lambda or a group NESTED in another argument expression in an unclosed slot is still bound
+      against the open parameter -- `Apply(4, flag switch { true => Api.Next, _ => Api.Prev })` reports
+      both arms NOT_CONVERTED and a conflict naming 'int' and 'T', three diagnostics for one mistake;
+      a lambda in a call with a value pack is not deferred;
+      `Apply(1, x => Console.WriteLine(x))` infers R = void, and Roslyn refuses the generated call
+      exactly as it refuses the stated `Apply<int, void>(...)`: the lambda returns C# void where
+      Standard.Void is expected, an emitter gap of the void type argument's rather than of inference;
+      trial bindings multiply with nesting -- each unclosed level binds its lambda once per distinct
+      parameter list it is asked about and once for real, so the cost is exponential in the depth of
+      nested overloaded or generic calls taking lambdas, bounded per call by a cache;
+      and a type a discarded trial interns stays in the interner, as a losing candidate's substituted
+      signature already does.
     tasks:
       - >
         DONE 2026-09-12. Inference matches a parameter's construction against the argument's own type
@@ -2675,7 +2816,7 @@ capabilities:
         gained a function arm, having cut every function type at its `<` to a bare 'func'. Still
         open and separate: a lambda argument to an INFERRING call, `Apply(1, v => ...)`, which is the
         body-task register's "lambda arguments deferred during applicability" and which classic
-        refuses as well.
+        refuses as well. DONE 2026-09-25, see the task that closes this list.
       - >
         DONE 2026-09-13. The pairwise Wider fold is a bound set per type parameter, fixed by dominance
         with a refinement tier, and a conflict is refused in the frontend; see the evidence. The union
@@ -2734,6 +2875,10 @@ capabilities:
         COST OF THE RULE, recorded with the decision. A call mixing unrelated types needs its type
         argument stated, as in C#. The union rule's cost was the opposite: `F<T>(T, T)` accepting two
         different things without a word, most visibly where T never reaches the caller.
+      - >
+        DONE 2026-09-25. A lambda or a method group passed to an inferring call is typed by the
+        parameters the other arguments fixed and teaches the rest; an overloaded call types a lambda
+        under each candidate. See the evidence, which also records what is still not part of it.
     unlocks: []
 
   - id: generic-constraints-nominal
@@ -3049,7 +3194,7 @@ capabilities:
     order: 60
     layer: properties
     requires: [property-declarations-and-accessors]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       A private set enforced at call sites, and init writable only from a constructor or an
@@ -3063,6 +3208,13 @@ capabilities:
       setter from outside, and refusing an init write from anywhere but a constructor or an object
       initializer, are checks. A passing sample cannot show them, because a sample that violated
       either would fail to compile -- so this needs negative tests rather than a sample.
+
+      ENFORCEMENT IS DONE (2026-09-25), as analysis order 9, and the negative tests are its refusal
+      corpus. A private accessor used outside its type -- a setter, an init accessor, an index setter,
+      an initializer entry's -- is MIST_PA_INACCESSIBLE_ACCESSOR, and an init accessor called anywhere
+      but an object initializer, or on `this` in a constructor or init accessor of its type or a
+      derivation, is MIST_PA_INIT_ONLY_ASSIGNMENT, each at the Mist source where both reached Roslyn
+      before. Nothing emitted changed.
     unlocks: []
 
   - id: static-properties
@@ -3224,6 +3376,10 @@ capabilities:
         assigned to -- it is read only", and `Timeout = 1, Timeout = 2` reports "Duplicate
         initialization of member". So this is wrong place, not wrong output, which is why the whole
         family is deferred rather than blocking the capability.
+
+        0003 AND 0005 ARE v2's NOW (2026-09-25): an entry over a property with no setter, or with a
+        private one out of reach, is refused by analysis order 9, and an entry naming a member out of
+        reach by order 6, each at the entry. 0002, 0004 and 0006 were not measured again.
     unlocks: [PropertyInitializers]
 
   - id: target-typed-new
@@ -3767,7 +3923,7 @@ capabilities:
     order: 73
     layer: abstract-types
     requires: [nominal-conformance-and-slot-checking, abstract-type-default-members]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       A with block declares that an existing type conforms, mapping its members onto slots. Every
@@ -3842,7 +3998,7 @@ capabilities:
       only runs when a call has TWO candidates, which the sample has none of. Suppressing the consult
       makes v2 refuse a program classic runs -- MIST_PM_UNRESOLVABLE_OVERLOAD naming
       `(INamed), (bool)` -- which is exactly the order 46 pattern. Pinned in
-      Test/Mist.Tests/Semantics/ConformanceResolutionTests.cs, 14 tests on the ProgramModelProbe
+      Test/Mist.Tests/Semantics/ConformanceResolutionTests.cs on the ProgramModelProbe
       harness.
 
       A CONFORMANCE RANKS, deliberately, and this is the opposite call from order 46's on user-defined
@@ -3870,17 +4026,38 @@ capabilities:
       ICE: it is reachable from ordinary source and the source really is wrong, so blaming the compiler
       would send the reader looking in the wrong place. Logged for relocation rather than left implicit.
 
-      PARTIAL FOR THE GENERIC ABSTRACT. The arity path builds and interns a ConstructedType, so
-      `with Widget : IHold<int>` records and emits, but a slot inherited from a GENERIC base of the
-      named abstract records the base as written rather than with the named abstract's type arguments
-      applied. That is the same open-generic residue orders 53 and 72 carry, and it is unreachable
-      from any sample: every abstract in the repository that a with block names is non-generic.
-    tasks:
-      - >
-        Apply the named abstract's type arguments when the slot is inherited from a GENERIC base
-        abstract, so the explicit implementation is qualified by the closed form. Order 53 composes
-        substitutions along the base chain since 2026-09-12 (TypeSubstitution.ForPath), so the closed
-        form is now nameable and this is unblocked.
+      GENERIC INHERITED SLOTS CLOSE THROUGH THE WHOLE PATH. Reproduced before the fix on
+      `with SingleWidget : IDerived<int>` and a two-base chain with reordered parameters: the model
+      kept IBase<T> / IBase<TSecond> and emission failed with unbound T / TSecond and missing
+      IBase<int>.Value implementations. Slot traversal carries the inherited constructions and reuses
+      TypeSubstitution.ForPath to close both the declaring interface and the target method/property
+      signature. Original declarations remain open, and method-local type parameters retain their
+      identities. The existing conformance emitter consumes those closed signatures directly.
+
+      ConformanceResolutionTests pins direct, one-base and two-base mappings, including renamed and
+      reordered parameters and a nested array argument. GenericAbstractMembers, already banked on
+      AllFeaturesV2 alone, exercises derived/base interface dispatch: mapped defaults return 12/13
+      and 24/25 instead of the identity defaults' 2/3 and 4/5, and mapped property setters change the
+      source storage to 9 and 11. Classic refuses the inherited mappings with MIST_WITH_0004, so this
+      coverage stays V2-ONLY. Existing non-generic AbstractTypes coverage remains banked unchanged.
+      DISTINCT CONSTRUCTIONS KEEP DISTINCT SLOTS. Reproduced a hierarchy reaching IReadBase<int>
+      and IReadBase<string>: definition-based deduplication skipped one construction and paired
+      mappings with the wrong return/property type. The model tests failed in either base order,
+      and the runtime reproduction emitted duplicate int implementations and no string property.
+      AbstractInheritance now shares the closed-construction traversal between slot resolution and
+      conformance checking, with a separate path-based definition guard against expanding cycles.
+      Mapping selection compares complete closed method signatures, including return type and
+      method-local generic parameter positions, and closed property types. One mapping can fill
+      several matching slots, including both Count() slots on different constructions. Direct,
+      nested and diamond cases hold both base orders; repeated paths to one closed base emit once.
+      GenericAbstractMembers dispatches through both IDualBase<int> and IDualBase<string>, overrides
+      both defaults, selects both Echo overloads and updates independent mapped property storage.
+      An omitted mapping for the second construction is held by ConformanceDecisionTests and the
+      refusal corpus. Generic constraint checking, namespace-scoping policy and diagnostic
+      relocation remain separate work. Verified by a zero-warning solution build, solution-wide
+      formatting verification and 7474 of 7474 tests through the test ledger, including both
+      AllFeatures orchestrator baselines and the refusal corpus.
+    tasks: []
     analysis_phase_tasks:
       - >
         Report a conformance that leaves a slot UNANSWERED. Classic's MIST_WITH_0004 aggregate check
@@ -4469,6 +4646,69 @@ capabilities:
       UnitHoistingRuntimeTests, whose trail `kfh`, `xf` and `mfhfk` is the order the program ran in,
       identical to classic's. Ten mutations on confirmed builds each fail at least one test. Full
       suite green, 6038 of 6038.
+
+      CONDITIONALS LOWERED, AND EVERY VALUE GIVEN A STATEMENT TO HOIST INTO (2026-09-26). MEASURED FIRST on
+      v2: one probe per context the refusal named -- `&&`, `||`, `??`, `??=`, a conditional access's
+      arguments, switch arms, a for loop's condition and step, an expression lambda, an expression-bodied
+      property and its accessors, field and property initializers, a base constructor's arguments, a default
+      block entry -- each MIST_BE_UNHOISTED_UNIT_CALL. Classic, measured on the same probes, runs `&&`
+      (`ntfc`), `||` (`tnfc`), `??` and `??=` (`fs`), the conditional access (`Void took`, trail `gT`) and the
+      for condition (`fu0Bfu1Bfu2`) and step (`BfxBfx`); FAILS IN ROSLYN on the switch arms, the lambda, the
+      expression-bodied property and accessors, both initializers and the base arguments ('cannot convert
+      from void to MistVoid'); and refuses the default block entry as MIST_DEFAULT_NOT_CONSTANT. The task's
+      "classic runs all of them but the expression-bodied lambda" was not so.
+
+      A conditional whose operand that may not run takes a unit call's value is lowered to statements
+      (ConditionalLowering), the operand planned afresh inside the branch that runs it, and a temporary
+      takes the conditional's place. `&&` and `||` chains flatten and nest one guard per link that needs
+      statements (GuardChain), the earlier links written as the guards' own tests rather than stored in a
+      boolean, so a pattern variable they bind still reads as assigned later: `if(o is Log l &&
+      l.Has(Log.F())) { l.Poke(void); }` emits `if (o is Log l) { F(); if (l.Has(...)) { ... } }`, a flag
+      carrying an else. An if or while condition splits the same way. A for loop whose clause needs
+      statements becomes its initializer and `while (true)` with the step after the body, sound only because
+      Mist has no `continue`. `??` tests `is { } p`, `??=` tests `is null` and assigns inside, a conditional
+      access stores its receiver once and calls inside `is not null`, and a switch whose arm needs statements
+      becomes a switch statement over the same arm heads, defaulting to SwitchExpressionException. A switch
+      used as a statement with unit arms, `one switch { 1 => F(), _ => G() };`, which failed in Roslyn on
+      BOTH pipelines (CS0201), now runs. An expression lambda, an expression-bodied getter or setter and an
+      extension getter take a block; a field or property initializer and a base or this argument call a
+      private static method holding the statements and taking only the constructor parameters the value
+      reads -- a method rather than a lambda because a by-reference parameter cannot be captured. A default
+      block entry and a struct's chained call sit in a constructor body and hoist in place, as do a `with`
+      value and a discarded task. Whether a call yields nothing is still its method's declared return type,
+      so `Echo<void>(void)` under `&&` is left inline and unrefused.
+
+      AN ORDERING DEFECT IN THE EAGER HOISTING, found and fixed on the way. A value-type receiver and a
+      by-reference argument were left unstored, so the hoisted call ran before what their LOCATION is made
+      of: `Log.MakeBox().Pt.Name = Log.Show(Log.F())` ran `fms` and `Log.Bump(ref arr[Log.Idx()], Log.F())`
+      ran `fi` where classic runs `mfs` and `if`. The object holding the field and the index are now stored
+      ahead of the call, never the value in the location; a value-type receiver that is no location, a struct
+      a call returned, is a copy already and is stored whole (`Log.MakeSpot().Describe(Log.F())` runs `kfD`)
+      unless the call returned it by reference.
+
+      TWO SHAPES STAY REFUSED, each measured: a unit call in a switch arm's GUARD, which C# evaluates in a case
+      label holding no statement, with no way to fall through to the next arm; and a pattern variable bound
+      inside a lowered conditional that is not a condition's top-level `&&` chain and read in the body,
+      reached only as `if(!(!(o is Log l && l.Has(Log.F())))) { l.Poke(void); }`, which v2 admits and
+      classic does not. The planner reports them, once per statement, in place of the four emission sites
+      that each checked their own operand; the message now names which shape it met.
+
+      MEASURED on v2, every trail the order the program ran in: the fifteen probes; nested chains
+      (`tfcngc`); a sibling stored ahead of a lowered chain (`kwfhw`); nested coalesce; a while condition
+      (`fbfbfb`); an else-if; lowered holes; a lowered return; `??=` on a member (`mfsm`) and an index
+      (`ifs`); an await inside the lowered branch of an async method (`fLp`); enum and union switches; an
+      Action lambda; a struct's base chain (`fsgs`); `with`; a lambda called inside a lowered chain. PROVED BY
+      UnitHoistingEmissionTests (each lowering's shape, the stored receiver and target, the location operands,
+      the nested guards in an if and a while, both for-loop clauses, the lambda, getter, initializer and
+      chain-argument hosts, both refusals) and UnitHoistingRuntimeTests, whose sixteen trails show each call
+      run once where its value is taken, never on a branch not taken, at the right iteration, and not before
+      a lambda holding it is called. Eleven mutations on confirmed
+      builds each fail at least one test: a swapped coalesce, a chain that never splits, unstored location
+      operands, the step before the body, an unstored receiver or target, a host forwarding no parameter, a
+      dropped guard refusal, a conjunction starting true, an else flag never set, a re-emitted lowered root,
+      an unhoisted lambda body. The re-emitted root survived until an Action lambda over a conditional access
+      joined the emission tests. Full suite green on the tree
+      rebased onto c9fe3dda: Mist.Tests 6874 of 6874, AllFeatures and AllFeaturesV2 baselines unchanged.
     tasks:
       - >
         Emit Standard.Void by transpiling Standard/Void.mist rather than generating the C#
@@ -4477,14 +4717,14 @@ capabilities:
         reimplementing it. Still waits on properties, operator declarations and cast operator
         declarations, all of which Void.mist uses.
       - >
-        Take the value of a unit-valued call where hoisting cannot: under an operand that may not
-        run (the right of `&&` or `||`, a coalesce, a conditional access, a switch arm, a `??=`
-        value), in a `for` loop's condition or step, and in an expression with no statement of its
-        own -- an expression-bodied lambda, member or local function, a field or property
-        initializer, a default block entry, a constructor's base arguments. Each is
-        MIST_BE_UNHOISTED_UNIT_CALL today. The first needs the conditional lowered to statements,
-        the rest a statement to hoist into. Classic runs all of them but the expression-bodied
-        lambda, which fails in Roslyn there too.
+        DELIVERED 2026-09-26 but for two shapes; see the evidence above. Take the value of a unit-valued
+        call where hoisting cannot: under an operand that may not run, in a `for` loop's condition or
+        step, and in an expression with no statement of its own. STILL MIST_BE_UNHOISTED_UNIT_CALL: a
+        unit call in a switch arm's guard, which needs the switch lowered to a chain of tests, a case
+        being unable to fall through to the next arm; and a pattern variable bound inside a lowered
+        conditional that is not a condition's top-level `&&` chain and read after it, which needs the
+        variable declared ahead and copied in. The only program known to reach the second is the
+        double negation in the evidence.
       - >
         Wrap rather than convert where a unit-returning method is used as a function value,
         since Func<Standard.Void> cannot bind a void-returning method. Waits on lambdas and
@@ -5639,7 +5879,7 @@ capabilities:
     order: 93
     layer: patterns
     requires: [pattern-matching-core, property-declarations-and-accessors]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       A subpattern name is a MEMBER, and it resolves through MemberResolution.ResolveStorage -- the same
@@ -5655,10 +5895,11 @@ capabilities:
       AMBIGUOUSLY. Both are the pre-existing ConstructedType gap that program-model-body-tasks.yaml
       records under members, not something this order introduced or should paper over.
 
-      MULTIPLE BINDERS COME FROM THE SUBPATTERNS. `{ Age: int years, Name: var who }` yields two, each on
-      its own subpattern, and PropertyPattern.Binding is null. That is half of what this order was to
-      test about Pattern.Binding being singular per node, and the half that held. The OTHER half could
-      not be tested at all: see the grammar note below.
+      WHOLE AND MEMBER BINDINGS COEXIST. `value is Dog { Breed: var breed } dog` keeps the resolved
+      TypeTestPattern on PropertyPattern, its whole binding as Dog, and breed on the subpattern as
+      String. An untyped `{ Name: var name } whole` binds whole as the non-void scrutinee type. Both
+      kinds of binding are declared in the caller's scope, and LocalNames visits both; condition
+      headers have their own naming scope so later locals and else branches can reuse those names.
 
       SCOPE IS INHERITED, NOT REBUILT. Each subpattern's binder is declared into whatever scope the
       caller put in effect, so orders 90 and 95 already decided where it reaches -- the rest of its own
@@ -5669,53 +5910,44 @@ capabilities:
       MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED -- mutation-checked by threading `true` instead, which fails
       exactly the two tests that claim it.
 
-      TWO GRAMMAR SLOTS ARE SPELLED AND UNREACHABLE, which is why this is `partial` rather than `done`,
-      and neither is a binder gap:
+      BOTH GRAMMAR SLOTS PARSE AND ROUND-TRIP. PropertyPattern precedes BareTypePattern in the ordered
+      choice. Storm consumes optional pure-token alternatives, preserving the shared Token? Name AST
+      API and admitting both a trailing identifier and discard. A missing brace still backtracks to
+      the existing bare type form. Parser coverage exercises typed, qualified, alias, untyped, empty,
+      discard, conjunct and switch spellings.
 
-      - The leading `Type` in `Type { ... }` cannot parse. BareTypePattern sits above PropertyPattern in
-        PrimaryPattern's ordered choice and claims the identifier first, so `a is Dog { }` leaves the
-        brace unconsumed and fails as MIST_PARSE_INCOMPLETE at the enclosing member. Fixing it is a
-        grammar reorder -- safe in PEG terms, since the alternative resets on a missing LEFT_BRACE -- and
-        it then owes the typed form a type test, which means deciding whether it reuses TypeTestPattern's
-        constituent resolution for a union scrutinee.
-
-      - The trailing `name` in `{ ... } p` cannot parse either, and this one is a GENERATOR gap rather
-        than an ordering one: Storm emits no parse code for an optional GROUP. `_ParsePrimaryPattern`
-        declares `Token? _Name = null` under the comment "Optional complex expression" and consumes
-        nothing, so the slot is structurally always null. The non-optional form works -- TypePattern's
-        `name:(IDENTIFIER | DISCARD)` parses -- so the cheap fix is to split the alternative in two, the
-        named one first, exactly as ObjectCreationExpression and ObjectCreationExpressionNoArgs are
-        already split for the same reason.
-
-      Both slots are REFUSED rather than ignored: BindPropertyPattern parks the pattern when either is
-      filled, so whichever fix lands surfaces as an unsupported form instead of silently dropping a type
-      test or a binder that source did spell.
+      THE PREFIX IS RESOLVED BEFORE MEMBER LOOKUP. Qualified names use the scope's type lookup, then
+      aliases expand before binding the runtime test. Closed generic aliases substitute member types
+      without adding new generic-pattern syntax. Optional aliases test their non-void portion, since
+      the property clause proves presence, so members and whole bindings use the present type.
+      The retained TypeTestPattern carries union constituent discrimination and refinement predicates
+      through the existing type-test path. Native C# typed
+      property patterns gate member reads behind the runtime type test; null and mismatched values fail
+      without invoking getters. Union is-tests and switch arms read the selected constituent accessor.
 
       THREE WAYS A SUBPATTERN NAME FAILS, on the two channels order 90 established. Resolving to nothing
       or ambiguously is MemberResolution's own MIST_PM_UNRESOLVED_MEMBER, and the pattern narrows to
       ErrorType so BindIs answers ErrorExpression through the check it already makes. Resolving to a
       method, a nested type or an enum member is new: MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE, the sibling
-      of InitializerTargetNotAssignable worded for matching rather than assignment. And a scrutinee with
-      no members to speak of -- unknown, or a type that already failed -- parks the whole `is` as
-      UnresolvedExpression, because MemberResolution suppresses its report there and an ErrorExpression
-      with nothing reported is the one outcome the two channels forbid. `u is { }` still binds, having
-      nothing to look up, and means non-null as it does in C#.
+      of InitializerTargetNotAssignable worded for matching rather than assignment. A scrutinee whose
+      type already failed parks the whole `is` as UnresolvedExpression, because MemberResolution
+      suppresses its report there and an ErrorExpression with nothing reported is the one outcome the
+      two channels forbid. Unknown member reads retain the dynamic lowering described below.
+      `u is { }` binds, having nothing to look up, and means non-null as it does in C#.
 
       AN OPTIONAL SCRUTINEE IS PROJECTED. Members are looked up on OptionalLifting.NonVoidPortion, since
       a property pattern only matches a value that is present -- `maybe is { Length: > 3 }` on a
       `string?` resolves and narrows to String. Without it a union would be asked for members it declares
       none of and every such pattern would report a member that is really there. A NON-optional union is
-      left alone: it reaches EmitUnionNarrowing's existing UnsupportedUnionPattern guard, which is
-      correct until the typed form can name a constituent.
+      left alone for an untyped pattern: it reaches EmitUnionNarrowing's existing UnsupportedUnionPattern
+      guard. A typed pattern names and resolves its constituent through the standalone type-test path.
 
-      NOT BANKED, AND EMISSION IS THEREFORE NOT REGRESSION-LOCKED. PatternMatching and SwitchExpressions
-      both require this order but bottom out at order 125 (list-and-slice-patterns), so no sample can
-      carry it and none was invented for it. Emission was verified by hand instead, end to end on the
-      experimental pipeline over eight forms in one program -- `{ }`, two binders, a nested property
-      pattern, a primitive scrutinee, `or` and `and not` between property patterns, switch arms with a
-      `when` guard, and type-test subpatterns -- all producing correct output and C# that matches the
-      source shape. What is missing is a test that would notice if that stopped being true; the sample at
-      order 125 is where it comes from.
+      COVERAGE IS SPLIT BY PHASE. PropertyPatternResolutionTests pins tested-type member resolution,
+      aliases, narrowing, simultaneous bindings, conjunct and arm scope, and or/not restrictions.
+      BodyWalkerCoverageTest and FlowGraphTests pin traversal and successful-path binding. Direct-model
+      emission and batched in-process Roslyn runtime coverage pin null/mismatch getter short-circuiting,
+      whole/subbinding use, guards/results and naming collisions. PatternMatching and SwitchExpressions
+      are also composed in AllFeaturesV2; the new forms do not change their stdout baselines.
       
       AN UNKNOWN SCRUTINEE NOW ANSWERS EVERY MEMBER NAME, with unknown, where it used to park the whole
       `is` as UnresolvedExpression. Nothing is known about the shape, so the member can be called neither
@@ -5749,19 +5981,7 @@ capabilities:
       UnsupportedEnumPattern meets. Classic emits broken C# for these instead. Untested below Tier 6, for
       this order's existing reason: no harness asserts on a v2 emission refusal, and its two siblings have
       none either.
-    tasks:
-      - >
-        Move the PropertyPattern alternative above BareTypePattern in PrimaryPattern, so `Dog { ... }`
-        parses, then give the leading type name a type test. It is a QualifiedIdentifier rather than a
-        TypeReference, so it bypasses ScopeResolver.ResolveNamed and must expand aliases itself -- the
-        same trap ExpressionBinder.BindNamedCreation documents for `new` -- and a generic type name stays
-        out of reach either way.
-      - >
-        Split the alternative in two so the trailing binding parses, the named form first. The optional
-        GROUP is what Storm cannot generate; the non-optional form generates fine. Emission then has to
-        spell `{ ... } p`, and PropertyPattern.Binding stops being unconditionally null -- which is what
-        finally tests the claim that a pattern's own binder and its subpatterns' binders are separate
-        slots.
+    tasks: []
     analysis_phase_tasks:
       - >
         DECIDE WHETHER A RELATIONAL SUBPATTERN ON AN UNKNOWN MEMBER STAYS ADMITTED. Classic refuses
@@ -6155,6 +6375,20 @@ capabilities:
       compiles if the C# type carries the name. Tuples are also value kinds now, so `(int, string)?` spells
       as Nullable of the tuple rather than as the bare type with null for absence -- a ValueTuple is a
       struct, and IsValueKind answering false for it was wrong.
+
+      A CLR VALUETUPLE IS A MIST TUPLE, 2026-09-25. A projected signature's `System.ValueTuple<int, int>`
+      was a nominal ConstructedType over the ValueTuple shell, its TupleElementNamesAttribute dropped.
+      Measured against TupleSignatures in Mist.Tests.InteropFixtures on v2: literals PASSED into a tuple
+      parameter compiled and ran -- Roslyn converting them downstream -- and so did `.Item1` on a returned
+      pair, but a returned tuple could not be assigned to `(int, int)` (MIST_PA_NO_IMPLICIT_CONVERSION),
+      deconstructed (MIST_PM_DECONSTRUCTION_SOURCE), read by element name, or read past Item7 at all.
+      AmbientTypeResolver now resolves a closed ValueTuple`2..`8 to the interned TupleType of its flattened
+      elements, every Rest spread, decorated with the member's element names. Those names are laid out
+      pre-order over the CLR type with each Rest re-taking its own, so Octet's eight elements carry nine;
+      ClrValueTuple.NameSlots is checked against the compiler's own attribute on every fixture signature,
+      and both skips are mutation-checked. ClrTupleSignatureRuntimeTests sends literals in and reads
+      results out, sixteen elements deep. A ONE-ELEMENT ValueTuple STAYS NOMINAL, Mist having no one-tuple.
+      Detail and residue in provider-tasks.yaml under missing_stdlib_types.
     unlocks: []
 
   - id: named-tuple-elements
@@ -6542,10 +6776,11 @@ capabilities:
       True | held w 2` on a generic class, `some 5 | none | some w` through a per-instantiation method,
       `3 | w | 3` inside a generic method and a generic class, and `4 3` as the argument of a generic call
       whose own type arguments are stated.
-      STILL OPEN, each a clean refusal: a VARIADIC generic method as a value; a group passed to a generic
+      STILL OPEN, each a clean refusal: a VARIADIC generic method as a value. A group passed to a generic
       CALL that must learn its own type arguments from the group (`Api.Apply(4, Api.Next)` with `R
-      Apply<T, R>(T, func<T, R>)`), the divergence order 109 records, a group having no type until a target
-      gives it one. STATED type arguments (`Api.Same<int>`) followed the same day, in the next paragraph.
+      Apply<T, R>(T, func<T, R>)`) was the other, and is CLOSED 2026-09-25 at order 55: the call reads the
+      group's result at the parameter types its other arguments fixed, and converts it afterwards against
+      the closed parameter as here. STATED type arguments (`Api.Same<int>`) followed the same day, in the next paragraph.
       PROVED BY FunctionTypeResolutionTests (the arguments taken from parameters, from the result alone and
       on a generic receiver, the three refusals, the plain overload preferred, the type-parameter position,
       and the instantiation recorded from a local and from a call that settles its group late),
@@ -6594,7 +6829,7 @@ capabilities:
       GenericMethodGroupEmissionTests and one corpus case. samples/OpenUnions prints `stated values: T 5 | R
       | R | T w | T 4`, the last as an argument. Eleven mutations, each caught by name; the follower set
       widened to `>` survived until the uninitialized declaration joined the rows.
-    unlocks: []
+    unlocks: [CallableInference]
 
   - id: delegate-func-conversion
     name: Conversion between structural function types and named delegates
@@ -6692,6 +6927,11 @@ capabilities:
       target. `Keep<T>(T)` beside `Keep(bool)` given a group binds on classic and is refused here.
       Measured rather than assumed, and it refused before this order too -- with three diagnostics where
       there are now two.
+      MEASURED AGAIN 2026-09-25 WITH THE CALL QUALIFIED, `Api.Keep(Api.IsPositive)`, since classic judges
+      no bare-name call to its own class: classic refuses it as well (MIST_TC_0084, four times), and v2
+      refuses it once, MIST_PM_METHOD_GROUP_NOT_CONVERTED at the group, Keep(bool) being the one candidate
+      that closes -- a bare T gives a group no function type to be typed by. A group in a FUNCTION-typed
+      parameter of a generic candidate is order 55's since that date.
       
       samples/DelegateFuncConversion now matches classic byte for byte, standalone, and is banked on
       AllFeaturesV2 since order 129 carried a referenced manifest's framework references. Its own entry
@@ -7257,15 +7497,14 @@ capabilities:
       MIST_PM_LIST_PATTERN_SCRUTINEE.
 
       BINDERS ALL LIVE ON THE ELEMENTS, the slice included, and the node carries none. The grammar
-      spells no trailing name here at all, so this is PropertyPattern's situation and not
-      TuplePattern's -- Pattern.Binding stays singular per node with multiplicity coming from the
+      spells no trailing name here at all -- Pattern.Binding stays singular per node with multiplicity coming from the
       recursion. A positional element threads the order 99 hoisting list as a tuple element does,
       being the same kind of binding site; a SLICE clears it, since lifting an enum variant out of one
       would compare a sub-sequence against a variant.
 
       EVERY REACHABLE PrimaryPattern ALTERNATIVE IS NOW BOUND. All thirteen the grammar generates have
       arms, so BindPrimary's `default: return null` is unreachable from any spelling and parking now
-      happens only inside an arm -- a property pattern's two unreachable slots, a tuple pattern whose
+      happens only inside an arm -- a property member whose type failed, a tuple pattern whose
       elements name no type, a list pattern whose element fails to bind. Two tests that had used a
       list pattern AS the unmodelled form were retargeted: PatternResolutionTests lost
       AListPattern_ParksUnresolvedWithoutADiagnostic outright, and SwitchExpressionResolutionTests'
@@ -7567,6 +7806,18 @@ capabilities:
       intent, never a guarantee. A member that declares non-null and hands back null anyway now puts a
       null into a Mist value whose type says it cannot hold one -- which was impossible while every CLR
       reference was wrapped, because narrowing is a real runtime check.
+
+      THE VALUE-TYPE HALF WAS NEVER REACHED ON v2, found 2026-09-25 while projecting CLR tuples and
+      fixed 2026-09-26. Every CLR `int?` projected as a nominal ConstructedType `System.Nullable<Int32>`:
+      ResolveInbound tested with Nullable.GetUnderlyingType, which compares by reference against the
+      runtime's own Nullable definition and so never matched a type loaded through MetadataLoadContext,
+      the only way v2 loads one. Everything above is reference types, which take the other branch, so
+      this entry's `done` was earned on half the capability. Users saw it as `int? m = GetNullableInt()`
+      refused MIST_PA_CAST_REQUIRED, and `.HasValue`/`.Value` binding on what optional-types says is an
+      optional. Resolve now recognises System.Nullable`1 by name, in EVERY position, as
+      ambient-type-provider-v2 Req 11.1 and 11.9 ask -- parameters included, since the absence there is
+      in the type rather than in an annotation. AllFeaturesV2 matches its baseline before and after.
+      Probes and tests in provider-tasks.yaml under nullable_value_types.
       
       THE C# COMPILER'S OWN ANALYSIS IS UNSOUND IN NAMED PLACES, and each is a way a null reaches a
       non-null slot with at most a warning: `null!`; `new string[10]`, whose elements are typed non-null
@@ -9048,6 +9299,18 @@ capabilities:
       THE LATTICE IS A JUDGEMENT and is recorded below rather than counted here. It removes programs and
       changes none that compile -- and the C# a declaration becomes carries the same declaration, so
       Roslyn makes the same call on the emitted code.
+
+      ANALYSIS ORDER 10, 2026-09-25: the struct-local sibling gap was reproduced with a failing
+      component assertion before implementation, and classic's generated C# refused the same read.
+      Stage 5 now tracks nested source field paths with leaf-slot intersection, including whole-value
+      assignments, generic/inherited fields and captures. No binding or emission capability changed;
+      measured verification and remaining opaque-storage limits live in analysis order 10.
+      The 2026-09-26 full ledger (20260926-094332) passed all 7,508 tests, including both orchestrator
+      stdout baselines and the 551-file refusal corpus; the solution build and format checks were clean.
+      Main integration is recorded on analysis order 10: a second full run passed 7,570 tests and the
+      574-file corpus, followed by 184 targeted cases and 40 selected refusal files after lambda
+      inference landed. The final compiler including accessor enforcement built cleanly and matched
+      the complete 2,057-line AllFeaturesV2 baseline with no stderr diagnostics.
     tasks:
       - >
         MEASURED STALE 2026-09-12: `int later; later = 3;` binds and runs on v2, and the
@@ -10568,8 +10831,8 @@ samples:
                derived-to-base-conversion, string-interpolation, var-type-inference]
     untested:
       - >
-        IT DOES NOT TEST THAT A CONFORMANCE IS VISIBLE TO ASSIGNABILITY, though it is the only sample
-        that uses one, and this is measured rather than suspected. Deleting the conformance consult in
+        IT DOES NOT TEST THAT A CONFORMANCE IS VISIBLE TO ASSIGNABILITY, and this is measured rather
+        than suspected. Deleting the conformance consult in
         ConversionRelation.Inherits leaves this sample GREEN: its two with-block uses are plain
         assignments, and ConversionRelation's contract forbids refusing a program, so the assignment
         binds whether or not the conformance is known and the emitted C# compiles on the base-list
@@ -11267,7 +11530,8 @@ samples:
     untested:
       - A private set refused from outside, and an init write refused outside a constructor. Both
         are checks rather than emission, and a sample cannot show either, since a sample violating
-        them would not compile. See order 60.
+        them would not compile. See order 60; both are refused at the Mist source since 2026-09-25,
+        pinned by the refusal corpus of analysis order 9.
       - The indexer parameter refinement erases entirely and only in-range indices are
         exercised, so the missing bounds check never shows.
       - This sample is HOW ORDERS 67, 68 AND 70 ARE COVERED, through ILabeled, `IEditable`
@@ -11644,15 +11908,18 @@ samples:
     requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
                namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
                var-type-inference, type-parameters-and-constructed-types, generic-arity-keyed-lookup, type-argument-substitution,
-               generic-methods, abstract-type-declaration, default-member-forwarding-stubs, type-argument-inference]
+               generic-methods, abstract-type-declaration, default-member-forwarding-stubs, type-argument-inference,
+               retroactive-conformance-with-blocks, abstract-type-inheritance, abstract-type-property-slots,
+               property-declarations-and-accessors, field-initializers]
     untested:
       - >
         V2-ONLY. Classic infers `First(new IntHolder())` but restates `Same()` into IntHolder with
         `T held` where no T is in scope, so Roslyn refuses its generated file; this sample is referenced
         from AllFeaturesV2 alone and its lines were captured from v2 and read against the program by hand.
       - >
-        A default inherited through a chain of generic abstracts, `Holder<T> : Base<T>`, is not in the
-        sample; the path composes exactly as an inherited struct member's does (order 53).
+        An unmapped default inherited through a chain of generic abstracts is not in the sample;
+        the inherited defaults exercised here are explicitly mapped by with blocks, so they prove
+        mapping precedence rather than nominal default forwarding or unmapped-default dispatch.
 
   - name: NewtypeClones
     intro_order: 94
@@ -11819,6 +12086,40 @@ samples:
         three-way carrier, whose `absent:` line a test spelled `is Standard.Void` would print False for;
         and generic methods named as values, two per-instantiation ones with their type arguments read off
         the target and `Pick<T, R>` with them stated in both orders, one of them passed as an argument.
+
+  - name: CallableInference
+    intro_order: 99
+    threshold: method-group-conversion
+    requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
+               var-type-inference, instance-fields, operators-arithmetic-comparison-logical,
+               control-flow-basic, array-literals, overload-resolution-by-argument-type,
+               constructor-overload-resolution, type-parameters-and-constructed-types,
+               generic-arity-keyed-lookup, type-argument-substitution, generic-methods,
+               type-argument-inference, func-structural-function-types, lambda-expressions,
+               method-group-conversion]
+    untested:
+      - >
+        V2-ONLY. Classic refuses this program in its own checker (measured 2026-09-25): every method group
+        argument is MIST_TC_0084, and an overloaded call's lambda is typed by one candidate whatever the
+        other arguments say, so `Measure(s => s.Length)` is MIST_UNDEFINED_MEMBER on Int32. Its checker
+        stopping there hides the inferred lambda lines, but probed alone `Apply(1, x => x + 1)`, a block
+        body and a chain are refused too (MIST_TC_0081). Referenced from AllFeaturesV2 alone, its lines
+        captured from v2 and read against the program by hand.
+      - >
+        WHAT WAS INFERRED IS INVISIBLE HERE, as order 55 records for inference generally: C# would infer
+        most of these calls again from the same lambda, so a line prints the same whether Mist stated
+        the right type arguments or Roslyn found them. The stated twins show only that the two print
+        alike; CallableArgumentInferenceTests holds the model and GenericMethodGroupEmissionTests the
+        stated spellings.
+      - >
+        Which overload was chosen IS visible, each naming itself, but a candidate chosen for the wrong
+        reason is not: `Widen(x => x + 1)` prints the same if the tie were settled by declaration order.
+        CallableArgumentInferenceTests pins the reasons, one row per rule.
+      - >
+        Every refusal is absent, a sample being a valid program: a conflict between an argument and a
+        stated lambda parameter, a lambda whose parameter nothing fixes, two overloads a lambda fits
+        alike, a body broken under the parameter inference fixed. refusals/binding holds one case each.
 
 # =====================================================================
 

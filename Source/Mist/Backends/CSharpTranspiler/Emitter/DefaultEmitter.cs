@@ -55,19 +55,21 @@ internal static class DefaultEmitter
                 continue;
             }
 
-            writer.Write($"this.{field.Name} = ");
+            // FieldEmitter writes the initializer onto the field, and C# runs field initializers in every
+            // constructor that does not chain to another -- this one included -- so the field already holds
+            // it here, and assigning it again would run the initializer twice.
+            if(value is not null && ReferenceEquals(value, field.Initializer))
+            {
+                continue;
+            }
 
             if(value is not null)
             {
-                BodyEmitter.EmitExpression(value, writer, diagnostics);
-            }
-            else
-            {
-                writer.Append(DefaultSynthesis.Expression(field.Type)!);
+                BodyEmitter.EmitSequenced(value, $"this.{field.Name} = ", writer, diagnostics);
+                continue;
             }
 
-            writer.Append(";");
-            writer.AppendLine();
+            writer.WriteLine($"this.{field.Name} = {DefaultSynthesis.Expression(field.Type)!};");
         }
     }
 
@@ -87,10 +89,7 @@ internal static class DefaultEmitter
 
         foreach(var nested in binding.NestedEntries.OfType<DefaultValueEntry>())
         {
-            writer.Write($"{local}.{nested.FieldName} = ");
-            BodyEmitter.EmitExpression(nested.Value, writer, diagnostics);
-            writer.Append(";");
-            writer.AppendLine();
+            BodyEmitter.EmitSequenced(nested.Value, $"{local}.{nested.FieldName} = ", writer, diagnostics);
         }
 
         writer.WriteLine($"this.{field.Name} = {local};");

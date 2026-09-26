@@ -18,6 +18,9 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// </summary>
 internal static class MemberResolution
 {
+    internal readonly record struct MemberLookup(
+        LookupResult Found, ConstructedType? Constructed, bool Reported);
+
     /// <param name="type">
     /// The type as written at the use site. Members are declared on the generic DEFINITION, so that
     /// is what the lookup runs against, and the construction is handed back because it supplies the
@@ -29,7 +32,7 @@ internal static class MemberResolution
     /// property pattern do not widen to extensions: they call through
     /// <see cref="ResolveStorage"/>, which passes nothing, so the miss path below never runs for them.
     /// </param>
-    public static (LookupResult Found, ConstructedType? Constructed) Resolve(
+    public static MemberLookup Resolve(
         IMistType type,
         string memberName,
         MemberVisibility visibility,
@@ -47,7 +50,7 @@ internal static class MemberResolution
 
         if((constructed?.Definition ?? receiver) is not MistType declaring)
         {
-            return (new NotFoundResult(), null);
+            return new MemberLookup(new NotFoundResult(), null, Reported: false);
         }
 
         var found = TypeMemberLookup.Find(declaring, LookupRequest.Member(memberName, visibility, node));
@@ -70,9 +73,9 @@ internal static class MemberResolution
                 type, memberName, visibility, callSite, allowExtensionProperties, context.ProgramModel);
         }
 
-        Report(found, declaring, memberName, node, context);
+        var reported = Report(found, declaring, memberName, node, context);
 
-        return (found, constructed);
+        return new MemberLookup(found, constructed, reported);
     }
 
     internal readonly record struct StorageLookup(IMistType? Type, LookupResult Found);
@@ -90,7 +93,7 @@ internal static class MemberResolution
     public static StorageLookup ResolveStorage(
         IMistType type, string memberName, SyntaxNode node, BuilderContext context)
     {
-        var (found, constructed) = Resolve(type, memberName, MemberVisibility.InstanceOnly, node, context);
+        var (found, constructed, _) = Resolve(type, memberName, MemberVisibility.InstanceOnly, node, context);
 
         var memberType = found switch
         {
@@ -118,14 +121,19 @@ internal static class MemberResolution
     }
 
     /// <summary>
-    /// Reports a name that resolved to nothing, or to more than one kind of thing.
+    /// Reports a name that resolved to nothing, or to more than one kind of thing, and answers whether
+    /// it did. The answer travels out on <see cref="MemberLookup.Reported"/> and is recorded on the
+    /// access, because a caller cannot reconstruct it from the result alone: the same
+    /// <see cref="NotFoundResult"/> is a refusal already spoken for on a type that answers members and
+    /// a silence on one that does not.
     /// <para>
     /// Suppressed when the type is itself unresolved, because a type that already failed has already
     /// been reported on: every access through it would otherwise add a second error saying so -- one
-    /// mistake, a cascade of complaints.
+    /// mistake, a cascade of complaints. An unknown receiver is silent here for the opposite reason --
+    /// nothing has said anything yet, and refusing it is Stage 5's.
     /// </para>
     /// </summary>
-    private static void Report(
+    private static bool Report(
         LookupResult found,
         MistType declaring,
         string memberName,
@@ -134,7 +142,7 @@ internal static class MemberResolution
     {
         if(!AnswersMembers(declaring))
         {
-            return;
+            return false;
         }
 
         switch(found)
@@ -142,13 +150,16 @@ internal static class MemberResolution
             case NotFoundResult:
                 context.Diagnostics.ReportAtNode(
                     ProgramModelDiagnostics.UnresolvedMember, node, null, declaring.Name, memberName);
-                break;
+                return true;
 
             case AmbiguousResult ambiguous:
                 context.Diagnostics.ReportAtNode(
                     ProgramModelDiagnostics.AmbiguousMember, node, null,
                     declaring.Name, memberName, ambiguous.Candidates.Count);
-                break;
+                return true;
+
+            default:
+                return false;
         }
     }
 }

@@ -130,14 +130,18 @@ internal static class StructInitEmitter
             return;
         }
 
-        writer.Write($"{name}(");
-        EmitList.Separated(
-            constructor.ChainArgumentsList,
-            ", ",
-            writer,
-            argument => BodyEmitter.EmitExpression(argument, writer, diagnostics));
-        writer.Append(");");
-        writer.AppendLine();
+        using(BodyEmitter.EmitHoisted(
+            UnitHoisting.Plan(constructor.ChainArgumentsList, constructor.ChainedConstructor?.ParametersList), writer, diagnostics))
+        {
+            writer.Write($"{name}(");
+            EmitList.Separated(
+                constructor.ChainArgumentsList,
+                ", ",
+                writer,
+                argument => BodyEmitter.EmitExpression(argument, writer, diagnostics));
+            writer.Append(");");
+            writer.AppendLine();
+        }
     }
 
     private static StructType? UnwrapBaseStruct(MistType? baseType)

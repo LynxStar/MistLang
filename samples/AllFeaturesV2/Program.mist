@@ -106,5 +106,6 @@ public class Program
         OptionalTypeParameters.Program.RunDemo();
         GenericOptionals.Program.RunDemo();
         OpenUnions.Program.RunDemo();
+        CallableInference.Program.RunDemo();
     }
 }

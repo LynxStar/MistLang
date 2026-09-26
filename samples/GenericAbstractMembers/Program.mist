@@ -40,6 +40,92 @@ public class Wrapper<T> : Holder<T>
     }
 }
 
+public abstract IMappedBase<T>
+{
+    T Echo(T value)
+    {
+        return value;
+    }
+
+    T Value { get; set; }
+}
+
+public abstract IMappedDerived<T> : IMappedBase<T>
+{
+}
+
+public abstract IMappedMiddle<TFirst, TSecond> : IMappedBase<TSecond>
+{
+}
+
+public abstract IMappedOuter<TFirst, TSecond> : IMappedMiddle<TSecond, TFirst>
+{
+}
+
+public class SingleMappedWidget
+{
+    public int Stored { get; set; } = 3;
+
+    public int Map(int value)
+    {
+        return value + 10;
+    }
+}
+
+with SingleMappedWidget : IMappedDerived<int>
+{
+    Map as Echo;
+    Stored as Value;
+}
+
+public class DeepMappedWidget
+{
+    public int Stored { get; set; } = 5;
+
+    public int Map(int value)
+    {
+        return value + 20;
+    }
+}
+
+with DeepMappedWidget : IMappedOuter<int, string>
+{
+    Map as Echo;
+    Stored as Value;
+}
+
+public abstract IDualBase<T>
+{
+    T Read() { return Value; }
+    T Echo(T value) { return value; }
+    int Count() { return 0; }
+    T Value { get; set; }
+}
+
+public abstract IDualBranch<T> : IDualBase<T> { }
+public abstract IDualBoth : IDualBranch<int>, IDualBranch<string> { }
+
+public class DualMappedWidget
+{
+    public int Number { get; set; } = 7;
+    public string Text { get; set; } = "stored";
+    public int ReadNumber() { return Number + 30; }
+    public string ReadText() { return "mapped-" + Text; }
+    public int Echo(int value) { return value + 40; }
+    public string Echo(string value) { return value + "!"; }
+    public int Size() { return 2; }
+}
+
+with DualMappedWidget : IDualBoth
+{
+    ReadNumber as Read;
+    ReadText as Read;
+    Echo as Echo;
+    Size as Count;
+    Number as Value;
+    Text as Value;
+}
+
 public class Program
 {
     public static T First<T>(Holder<T> holder)
@@ -60,6 +146,29 @@ public class Program
         var words = new Wrapper<string>("w");
         Console.WriteLine($"First(IntHolder)={First(ints)} First(Wrapper<string>)={First(words)}");
         Console.WriteLine($"IntHolder.Same()={ints.Same()} Wrapper<string>.Same()={words.Same()}");
+
+        var single = new SingleMappedWidget();
+        IMappedDerived<int> derived = single;
+        IMappedBase<int> singleBase = derived;
+        Console.WriteLine($"Single derived={derived.Echo(2)} base={singleBase.Echo(3)} property={singleBase.Value}");
+        singleBase.Value = 9;
+        Console.WriteLine($"Single property after set={derived.Value} source={single.Stored}");
+
+        var deep = new DeepMappedWidget();
+        IMappedOuter<int, string> outer = deep;
+        IMappedBase<int> deepBase = outer;
+        Console.WriteLine($"Deep outer={outer.Echo(4)} base={deepBase.Echo(5)} property={deepBase.Value}");
+        outer.Value = 11;
+        Console.WriteLine($"Deep property after set={deepBase.Value} source={deep.Stored}");
+
+        var dual = new DualMappedWidget();
+        IDualBoth both = dual;
+        IDualBase<int> numbers = both;
+        IDualBase<string> text = both;
+        Console.WriteLine($"Dual read={numbers.Read()}/{text.Read()} echo={numbers.Echo(3)}/{text.Echo("word")} count={numbers.Count()}/{text.Count()}");
+        numbers.Value = 12;
+        text.Value = "changed";
+        Console.WriteLine($"Dual properties={numbers.Value}/{text.Value} sources={dual.Number}/{dual.Text}");
 
         Console.WriteLine("=== Generic Abstract Members Done ===");
     }

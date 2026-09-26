@@ -11,8 +11,8 @@ namespace Mist.ProgramAnalysis.Refinements;
 /// <summary>
 /// What a refinement predicate asks of a value, read off the pattern the binder bound for it: the
 /// integral set it admits, and the bounds it names symbolically -- `&lt; Length` inside Array, which
-/// no number stands for until an array is in hand. Null where the predicate says something this
-/// prover cannot decide, a property pattern or a regex, so that nothing is refused on its account.
+/// no number stands for until an array is in hand. Null where the predicate has no integral reading;
+/// supported real, string and regex constant decisions belong to <see cref="LiteralPredicates"/>.
 /// </summary>
 internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound> Bounds)
 {

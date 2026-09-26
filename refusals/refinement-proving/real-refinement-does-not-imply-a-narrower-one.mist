@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+type Positive = double > 0.0; type Unit = double >= 0.0 and <= 1.0;
+
+public class Probe
+{
+    public static void Forward(Positive input)
+    {
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        Unit value = input;
+    }
+
+    public static void Main()
+    {
+        Forward(2.5);
+    }
+}

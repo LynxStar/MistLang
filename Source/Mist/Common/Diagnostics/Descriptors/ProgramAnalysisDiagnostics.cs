@@ -340,6 +340,18 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot assign to '{0}': it has no 'set' or 'init' accessor.");
 
+    public static readonly DiagnosticDescriptor InaccessibleAccessor = new(
+        new DiagnosticId("MIST_PA_INACCESSIBLE_ACCESSOR"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The '{0}' accessor of '{1}' is inaccessible here: {2} accessors are accessible only {3}.");
+
+    public static readonly DiagnosticDescriptor InitOnlyAssignment = new(
+        new DiagnosticId("MIST_PA_INIT_ONLY_ASSIGNMENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot assign to '{0}' here: it is init-only, so it is assigned only in an object initializer, or on 'this' in a constructor or an 'init' accessor.");
+
     public static readonly DiagnosticDescriptor LocalReadBeforeAssignment = new(
         new DiagnosticId("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT"),
         DiagnosticSeverity.Error,

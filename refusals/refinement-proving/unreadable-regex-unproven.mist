@@ -6,10 +6,11 @@ type Email = string `^[^@]+@[^@]+\.[^@]+$`;
 
 public class Probe
 {
-    public static void Main()
+    public static void Check(string input)
     {
         // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
-        Email email = "a@b.co";
-        Console.WriteLine(email);
+        Email email = input;
     }
+
+    public static void Main() { }
 }

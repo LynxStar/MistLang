@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+type Other = string not "x";
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        Other value = "x";
+    }
+}

@@ -49,8 +49,8 @@ internal static class IndexerProjector
                 continue;
             }
 
-            var getter = IsVisibleMethod(prop.GetMethod) ? new PropertyAccessor() : null;
-            var setter = IsVisibleMethod(prop.SetMethod) ? new PropertyAccessor() : null;
+            var getter = IsVisibleMethod(prop.GetMethod) ? new PropertyAccessor { Accessibility = ClrAccessibilityMap.FromMethod(prop.GetMethod!) } : null;
+            var setter = IsVisibleMethod(prop.SetMethod) ? new PropertyAccessor { Accessibility = ClrAccessibilityMap.FromMethod(prop.SetMethod!) } : null;
 
             var accessibility = ClrAccessibilityMap.FromProperty(prop);
             var modifiers = new MemberModifiers

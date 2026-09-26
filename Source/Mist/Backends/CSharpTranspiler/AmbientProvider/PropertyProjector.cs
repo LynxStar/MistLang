@@ -87,7 +87,7 @@ internal static class PropertyProjector
     {
         if(IsVisibleMethod(prop.GetMethod))
         {
-            return new PropertyAccessor();
+            return new PropertyAccessor { Accessibility = ClrAccessibilityMap.FromMethod(prop.GetMethod!) };
         }
 
         return null;
@@ -110,6 +110,6 @@ internal static class PropertyProjector
             .GetRequiredCustomModifiers()
             .Any(t => t.FullName == "System.Runtime.CompilerServices.IsExternalInit");
 
-        return new PropertyAccessor { IsInit = isInit };
+        return new PropertyAccessor { IsInit = isInit, Accessibility = ClrAccessibilityMap.FromMethod(setMethod) };
     }
 }

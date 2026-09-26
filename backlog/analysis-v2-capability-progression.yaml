@@ -1694,6 +1694,25 @@ rules:
       full suite -- 6466, 664 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure
       and no rerun, AllFeaturesV2 run by hand was byte-identical and reported nothing, and the build and
       `dotnet format` were clean.
+
+      A MEMBER IS JUDGED WHEREVER IT IS NAMED (2026-09-25), not only through a receiver: the indexer an index
+      selected, and the field or property an object initializer entry or a property subpattern names.
+      MEASURED FIRST, on both pipelines: a private indexer read from another type, and a private field or
+      property named by an initializer entry or a subpattern from outside, each reached Roslyn on v2 as
+      "inaccessible due to its protection level". Classic refuses the two initializer shapes itself
+      (MIST_PI_0005, printed with its placeholder unfilled) and leaves the index and the patterns to Roslyn.
+      The initializer entry records its member for this (ObjectInitializerAssignment.Member, order 9); the
+      index and the subpattern already did. The domain question itself moved into AccessDomains, which order
+      9's accessor rule asks as well. Five corpus cases, one per shape, and a sixth pinning ONE complaint: a
+      protected property with a private setter, written from an unrelated type, is refused for the member
+      and not again for its setter. A decision row builds a type that names its own private field, property
+      and indexer from an initializer entry, a subpattern and an index, and from a type nested in it, and a
+      derivation that names a protected property the same two ways; it asserts the build bound exactly as the
+      fixtures alone do before asserting silence, since this file's fixtures carry one deliberate build error
+      and its other rows never look. Five mutations, each on a confirmed build and each caught: the index,
+      entry and subpattern arms dropped in turn (the private-indexer case, both initializer cases, both
+      pattern cases), and the entry's and the subpattern's owner lost, which only the decision row sees --
+      every corpus case is outside the domain whatever the owner reads as.
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
@@ -1742,11 +1761,10 @@ rules:
         classic and MIST_CS_ERROR on v2. In two blocks for int, v2's binder already refuses the second as
         MIST_PM_DUPLICATE_EXTENSION_MEMBER, and classic as SB_0073.
       - >
-        An indexer is not judged for accessibility. A `private` indexer read from another type reaches Roslyn
-        as "inaccessible due to its protection level" on both pipelines, measured 2026-09-15.
-        AccessibilityAnalyzer judges fields, properties, calls, constructions and function references, and
-        IndexExpression is not among them, though IndexExpression.Indexer records the selected indexer and
-        its declaring type.
+        A member a refinement PREDICATE names is not judged for accessibility: the predicate is no body node,
+        so its subpatterns never reach AccessibilityAnalyzer. `type Low = Gauge ({ level: < 3 })` over a private
+        readonly field reaches Roslyn as CS0122 on both pipelines, measured 2026-09-26. Whose domain a
+        predicate is read in -- the alias's declaration, or each use -- is the question to settle first.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance
@@ -2096,14 +2114,84 @@ rules:
       inherited-indexer candidates meanwhile, and measured again there: AllFeaturesV2 identical with zero
       findings, the full suite through the ledger at 7113 tests with none failing, zero warnings, and format
       clean.
+
+      THE ACCESSOR A USE CALLS, COMPLETED (2026-09-25), the properties spec's Requirements 13.1, 13.2 and
+      13.5 in full: the accessor must exist, must be accessible where it is called, and if it is `init` must
+      be called in construction. MEASURED FIRST, 38 probes on both pipelines. Every refused shape below
+      reached Roslyn on v2, against the generated file: CS8852 for an init-only write outside construction,
+      "the set accessor is inaccessible" for a private setter or init accessor used outside its type, "lacks
+      the get accessor" for a set-only property in a pattern, and "cannot be assigned to -- it is read only"
+      for an initializer entry over a get-only property. Classic refuses only that last one itself
+      (MIST_PI_0003) and leaves the rest to Roslyn too. The admitted shapes ran and printed the same on both
+      wherever classic can bind them: an object initializer, including one inside a lambda; `this.Size` and a
+      bare `Size` in an instance constructor of the type and of a derived one; an init accessor writing
+      another init-only property of its own type or a base, by name and through `this`; a struct constructor
+      and a struct initializer; `Size ??= 5` in the constructor; a private setter used from its own type, a
+      nested type and a factory's initializer; and a public read and a pattern over a private-set property.
+
+      AccessorAnalyzer takes the getter for a read, the setter for a write and both for `??=`, as before at
+      an indexer and a property through a receiver or by name, and now also at an OBJECT INITIALIZER ENTRY,
+      always a write, and a PROPERTY SUBPATTERN, always a read. Of the accessor it takes: missing is
+      MIST_PA_NO_GET_ACCESSOR or MIST_PA_NO_SET_ACCESSOR as before; `private` and used outside its type's
+      domain is MIST_PA_INACCESSIBLE_ACCESSOR; and a setter that is `init`, called anywhere but construction,
+      is MIST_PA_INIT_ONLY_ASSIGNMENT. Construction is an initializer entry, or `this`, written or implied, in
+      an instance constructor or in the body of an init accessor -- of the declaring type or a derivation,
+      which `this` already guarantees. Never another instance (`other.Size`, `value.Size`), never a lambda or
+      local function inside either body, and never a getter or a set accessor beside the init one, all three
+      bodies having the property as their member; AnalysisContext.RootOf tells them apart. The get-only
+      auto-property's backing-field privilege is unchanged and stays narrower: its own type's constructor
+      only, where C# refuses the same write in an init accessor (CS0200, and MIST_PA_NO_SET_ACCESSOR here,
+      measured). An index keeps the indexer it selected: over an int indexer with a private setter beside a
+      string one with a public setter, `catalog[0] = 1` is refused and `catalog["a"] = "b"` admitted.
+
+      ONE COMPLAINT PER USE. Whether the MEMBER is accessible stays order 6's question, so nothing more is
+      said here about an accessor of a member out of reach: a protected property with a private setter,
+      written from an unrelated type, is one MIST_PA_INACCESSIBLE_MEMBER, which is classic's verdict too
+      (TC_0171). And an inaccessible setter ends the judgement: a `private init` written after construction
+      from outside is one MIST_PA_INACCESSIBLE_ACCESSOR, not an init complaint beside it.
+
+      WHAT THE MODEL GAINED. ObjectInitializerAssignment.Member records what its name resolved to, as
+      MemberAccessExpression.Member and PropertySubpattern.Member already did, from the StorageLookup the
+      binder was already holding and dropping; UnsafeReach still resolves an entry again by name for its own
+      purpose. The domain question -- private, protected, internal, a nested type inside its enclosing one --
+      moved out of AccessibilityAnalyzer into AccessDomains, so the member rule and the accessor rule ask it
+      of one home and cannot disagree about what `private` reaches.
+
+      PROOF. 21 corpus cases under this order, one refusal each: init-only writes after construction, in a
+      method, in a set accessor, in a getter beside the init accessor, on another instance from a
+      constructor and from an init accessor, and from a lambda or local function in a constructor and a
+      lambda in an init accessor; private setters written from outside, by name and through `this` from a
+      derived type (one of them over a protected property), coalesced, and at an index; the selected indexer
+      whose setter is private; a private init accessor from an initializer, and written after construction;
+      initializer entries over a get-only property, a get-only auto-property and a private setter; and a
+      set-only property in a pattern. Six more under order 6, recorded there. AccessorDecisionTests' fixtures
+      now write init-only properties from constructors and init accessors of their type and of a derived
+      one, `??=` included, and a private setter and a private index setter from the type, a lambda in it and
+      a nested type -- silences every row proves -- and rows admit initializer entries (one in a lambda, one
+      naming a base's init-only property), reads of init-only and private-set properties through a receiver,
+      an index and a pattern, and the public string indexer beside the private-set int one. The row that
+      pinned an init write as NOT this rule's is gone: it is this rule's now. Sixteen mutations, each on a
+      confirmed build and each caught by what was written for it: the initializer entry's init privilege
+      dropped (six rows and a corpus case whose initializer then failed); the constructor's and the init
+      accessor's (every AccessorDecisionTests row, its fixtures writing through both); any accessor of an
+      init property taken for the init accessor (the getter-beside case); the closure exclusion dropped (the
+      five lambda and local-function cases, get-only and init-only); the init rule silenced (every init-only
+      case); the accessor's accessibility read as the member's (every private-accessor case); an accessor of
+      a member out of reach judged again (the protected-property case under order 6); the init rule judged
+      past an inaccessible setter (the private init written after construction); an entry taken as a read and
+      a subpattern as a write (the entry cases; the pattern case and both pattern rows); the entry and
+      subpattern arms dropped in turn; the entry's owner lost (every row, through the fixture factory's `new
+      Counter { Count = 40 }`); the index re-selected by accessor (both selected-indexer cases); and the
+      binder no longer recording the entry's member (all six initializer cases). The five on order 6's
+      analyzer are recorded there. The first run died with its session after fourteen, leaving the fifteenth
+      applied: it was reverted by hand, every mutation's text grepped absent, and the last seven rerun from a
+      fresh backup, which the restored files matched byte for byte. MEASURED: AllFeaturesV2 byte-identical
+      with zero findings; all 86 samples built standalone on v2 with no MIST_PA finding (five libraries
+      without a Main stop at the backend's entry-point check, after analysis, as before); the fourteen book
+      snippets that declare an init or private-set property, or use an initializer block or a property
+      pattern, built clean; the full suite through the ledger at 6702, 706 and 68 tests with none failing
+      and no rerun; zero warnings; and format clean.
     tasks:
-      - >
-        A write to an init-only property outside construction is left to Roslyn (CS8852, MIST_CS_ERROR on
-        both pipelines), where a write to a get-only one is MIST_PA_NO_SET_ACCESSOR. Measured 2026-09-19:
-        `jar.Size = 9` after `new Jar { Size = 1 }`, and `Size = Size + 10` in a method of Jar. Order 6 now
-        admits `init` under a refinement predicate on the strength of that refusal, so it wants to be the
-        frontend's: AccessorAnalyzer knows a constructor of the declaring type, and would need to know an
-        object initializer entry and an init accessor's own body as well.
       - >
         A readonly FIELD assigned outside a constructor is left to Roslyn (CS0191): the analysis owner
         of a body is its type, not its member, so a constructor cannot yet be told from a method.
@@ -2120,16 +2208,23 @@ rules:
         A user operator is found on either operand's own type and its base chain, not through
         conformances or extensions.
       - >
-        A property pattern and an object initializer entry are not judged for their accessor. `s is { X: 1 }`
-        over a set-only X reaches Roslyn on both pipelines, and `new Gauge { Level = 5 }` over a get-only
-        Level reaches it on v2, where classic refuses it as MIST_PI_0003 (emitter order 64's task); measured
-        2026-09-15. PropertySubpattern and ObjectInitializerAssignment record the member's NAME only, so there
-        is no accessor for this rule to read until they record the member.
+        A CLR-projected accessor carries no accessibility of its own. PropertyProjector projects a setter that
+        is public or protected alike, at the default, which reads as the property's own accessibility, so a
+        write from outside a derivation to a public property's protected setter would be admitted here and
+        refused by Roslyn. Read from the projector, not measured: reflection found no public property with a
+        protected setter in CoreLib, Regex, ComponentModel or the collections assembly to probe with.
       - >
-        Accessor ACCESSIBILITY is not judged at a use. A property or an indexer declared with `private set`
-        and written from outside its type reaches Roslyn as "the set accessor is inaccessible" on both
-        pipelines, measured 2026-09-15. It is emitter order 60's enforcement, which no task on this register
-        holds; the direction it needs is AnalysisContext.DirectionOf's.
+        A property subpattern in a refinement PREDICATE is no body node -- BodyWalker leaves a predicate to
+        the alias that declares it -- so this rule does not judge it at a use. A getter-less member there is
+        refused anyway, as MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER (order 6, through StableMembers), whose message
+        speaks of change after proof rather than of the missing getter. Measured 2026-09-26: `type Low = Gauge
+        ({ Level: < 3 })` over a set-only Level; Roslyn's "lacks the get accessor" on classic.
+      - >
+        `init` on a static property is refused by Roslyn at the declaration, "The 'init' accessor is not valid
+        on static members", on both pipelines, and not by the frontend (measured 2026-09-25). A static member
+        has no `this`, so no write to one is construction here: `Made = 1` in the type's static constructor is
+        MIST_PA_INIT_ONLY_ASSIGNMENT on v2 (measured 2026-09-26), a true refusal aimed at the write where the
+        mistake is the declaration. One never written still reaches Roslyn's.
 
 # ===================================================================
 # The other three subsystems. Expanded when reached; the tasks stay on

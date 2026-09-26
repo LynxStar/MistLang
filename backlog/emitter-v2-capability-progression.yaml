@@ -3141,7 +3141,7 @@ capabilities:
     order: 60
     layer: properties
     requires: [property-declarations-and-accessors]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       A private set enforced at call sites, and init writable only from a constructor or an
@@ -3155,6 +3155,13 @@ capabilities:
       setter from outside, and refusing an init write from anywhere but a constructor or an object
       initializer, are checks. A passing sample cannot show them, because a sample that violated
       either would fail to compile -- so this needs negative tests rather than a sample.
+
+      ENFORCEMENT IS DONE (2026-09-25), as analysis order 9, and the negative tests are its refusal
+      corpus. A private accessor used outside its type -- a setter, an init accessor, an index setter,
+      an initializer entry's -- is MIST_PA_INACCESSIBLE_ACCESSOR, and an init accessor called anywhere
+      but an object initializer, or on `this` in a constructor or init accessor of its type or a
+      derivation, is MIST_PA_INIT_ONLY_ASSIGNMENT, each at the Mist source where both reached Roslyn
+      before. Nothing emitted changed.
     unlocks: []
 
   - id: static-properties
@@ -3316,6 +3323,10 @@ capabilities:
         assigned to -- it is read only", and `Timeout = 1, Timeout = 2` reports "Duplicate
         initialization of member". So this is wrong place, not wrong output, which is why the whole
         family is deferred rather than blocking the capability.
+
+        0003 AND 0005 ARE v2's NOW (2026-09-25): an entry over a property with no setter, or with a
+        private one out of reach, is refused by analysis order 9, and an entry naming a member out of
+        reach by order 6, each at the entry. 0002, 0004 and 0006 were not measured again.
     unlocks: [PropertyInitializers]
 
   - id: target-typed-new
@@ -11275,7 +11286,8 @@ samples:
     untested:
       - A private set refused from outside, and an init write refused outside a constructor. Both
         are checks rather than emission, and a sample cannot show either, since a sample violating
-        them would not compile. See order 60.
+        them would not compile. See order 60; both are refused at the Mist source since 2026-09-25,
+        pinned by the refusal corpus of analysis order 9.
       - The indexer parameter refinement erases entirely and only in-range indices are
         exercised, so the missing bounds check never shows.
       - This sample is HOW ORDERS 67, 68 AND 70 ARE COVERED, through ILabeled, `IEditable`

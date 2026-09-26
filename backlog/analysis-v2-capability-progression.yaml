@@ -3631,6 +3631,46 @@ rules:
       PositiveInt on this integration and on the freshly rebuilt original base b9ab98a3, both exit 0
       without diagnostics. The baseline CLI build has zero warnings/errors. This return-covariance
       check is broader than the new real parameter-contract check and remains a separate task.
+      REFINED ABSTRACT CONTRACT CHECKPOINT (2026-09-26): the subsequent round now judges the
+      selected filler against the abstract promise. ConformanceAnswers is shared by conformance
+      and refinement checking, with separate abstract/filler substitutions; each concrete base is
+      closed before following the next, retaining two-level inherited generic contracts. Methods,
+      actual replacements of defaults, inherited fillers, with mappings and property getters prove
+      covariant outputs from whole declared integral/real predicates, refinement declaration identity,
+      or the existing R18 integral-only lift. A missing default filler owes nothing. Setter inputs
+      remain contravariant. Embedded refinements, including a nested type's enclosing construction,
+      and mutable ref parameters/returns require invariance; a ref return never relies on a current
+      value lift. Unknown symbolic conjuncts cannot disappear into their numeric intervals.
+      MIST_PA_REFINEMENT_RETURN_UNPROVEN reports an unproved output at the direct filler, or at the
+      concrete/with declaration for inherited/mapped obligations. Existing CONSTRAINT_STRENGTHENED
+      covers inputs and setters, including a symbolic bound in its message. No source text is compared.
+      New observable baseline witnesses on the pre-change CLI print -1 through a refined default
+      replacement, through Box<Positive> filled by Box<int>, and through a ref Positive slot filled
+      by a ref int writer. They are /private/tmp/mist-refined-default-slot-probe,
+      /private/tmp/mist-refined-nested-slot-probe and /private/tmp/mist-refined-out-slot-probe (the last
+      uses ref; own out declarations are unavailable in the grammar). Classic refuses the original
+      scalar return witness with MIST_SM_0022; no classic implementation source was read.
+      Coverage adds 120 Tier 3 cases plus three direct implication tests, and 14 refusal programs.
+      Focused ledger 20260926-173004 passes 1,463 component tests with zero warnings/errors.
+      An in-process harness checks all 14 new refusal markers; its first configured run exposed
+      two mapping anchors, corrected to the with declaration, and the final marker run passes all.
+      The initial combined ledger 20260926-172808 stopped on a missing TypeInterner import with
+      zero warnings; that import was fixed before the passing focused ledgers. No flaky rerun or
+      warning suppression occurred. Full ledger 20260926-173515 passes all 8,556 tests: 7,780 compiler,
+      68 CLI and 708 source-generator; zero failures/skips, with an empty failures.txt and a
+      zero-warning/error full build. The corpus includes all 712 refusal programs, retaining the
+      original differing-range cases. Final full dotnet format verification exits 0 with no diagnostics
+      (/private/tmp/mist-refined-contract-format-verify.log). Twelve runtime checks all exit 0 with
+      empty diagnostics and byte-exact stdout: AllFeatures classic (52,791 bytes), AllFeaturesV2
+      (61,466 bytes), the earlier range/span/predicate/decoded-string/Index/member/real-flow/CLR
+      length probes, and the new 26-byte contract witness covering safe method/getter/default/mapped
+      dispatch, integral lift and ref writing alongside the original != guard and equal-range join.
+      Script/output paths are /private/tmp/mist-refined-contract-runtime-checks.py and
+      /private/tmp/mist-refined-contract-next-runtime. Final v2 isolation, ASCII, comment-budget,
+      newline and YAML audits pass; samples, baselines and legacy implementations are untouched.
+      The full ledger records an unrelated external worktree test run; no timing failure occurred.
+      Both completed rounds remain committed locally for review; this round does not update Main
+      or the remote.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -3652,12 +3692,16 @@ rules:
         A refined return through a lambda, an `async` result, or a `switch` arm is judged where the
         binder recorded a target; a refined field initialiser is judged as a declaration is.
       - >
-        Abstract slot filling strips refinements when matching return types but does not judge return
-        implication. A PositiveReal or PositiveInt slot can be filled by a base-returning method, and
-        the caller can receive -1 as that refined type. The same runtime witness reproduces on the
-        original b9ab98a3 base and the current integration (2026-09-26), as the evidence above records.
-        Add a separate covariant return-contract proof/refusal; supported real parameter constraints
-        now have the existing contravariant subset check.
+        Selected abstract fillers now prove supported whole refined output contracts, including
+        inherited/generic/mapped/default/property surfaces and invariant embedded/ref storage
+        refinements. Symbolic/dependent predicate implication beyond declaration identity remains
+        unproven. R18 deliberately supplies no real/string/regex body lift; an unrefined real method
+        returning a positive constant is still refused for a refined slot. Differing tuple/function/
+        union nominal signatures retain their existing signature refusal. Readonly-ref returns remain
+        backend-refused, and own out declarations remain outside the grammar. Broader nominal and
+        member-modifier conformance is separate from this refinement proof. The existing stricter
+        refusal for an unrefined input slot versus a refined filler remains unchanged; adhoc R17.8's
+        exception conflicts with that banked behavior and requires a separate policy decision.
       - >
         An enum refinement is never proven. Requirement reads an enum variant bound as nothing it can
         decide, so since the unreadable predicates were refused (2026-09-19) every use is UNPROVEN, the valid

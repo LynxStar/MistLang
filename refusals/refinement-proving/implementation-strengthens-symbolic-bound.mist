@@ -1,0 +1,10 @@
+using Standard;
+namespace Refusal;
+type Positive = int > 0;
+public abstract IConsumer { void Take(Positive value); }
+public class Consumer : IConsumer
+{
+    public readonly int Bound = 10;
+    // REFUSE: MIST_PA_CONSTRAINT_STRENGTHENED
+    public void Take(Positive value) where value < Bound { }
+}

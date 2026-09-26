@@ -1,8 +1,8 @@
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
-using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis;
 

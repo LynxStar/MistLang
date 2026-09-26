@@ -120,6 +120,22 @@ public sealed class RefinedReturnDispatchDecisionTests
         Assert.Equal("MIST_PA_SLOT_SIGNATURE_MISMATCH", Assert.Single(Embedded(promised, produced)).Id.Value);
     }
 
+    [Fact]
+    public void AStrongerSymbolicParameterBound_IsNotDiscarded()
+    {
+        var findings = RefinedReturnContractDecisionTests.Analyse(Types + """
+            public abstract IConsumer { void Take(PositiveInt value); }
+            public class Consumer : IConsumer
+            {
+                public readonly int Bound = 10;
+                public void Take(PositiveInt value) where value < Bound { }
+            }
+            """);
+        var finding = Assert.Single(findings);
+        Assert.Equal("MIST_PA_CONSTRAINT_STRENGTHENED", finding.Id.Value);
+        Assert.Contains("< Bound", finding.Message, StringComparison.Ordinal);
+    }
+
     private static ImmutableArray<Diagnostic> Embedded(string promised, string produced)
     {
         return RefinedReturnContractDecisionTests.Analyse(Types + $$"""

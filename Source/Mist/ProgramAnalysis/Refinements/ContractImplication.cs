@@ -1,6 +1,5 @@
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Refinements;
@@ -9,7 +8,7 @@ internal static class ContractImplication
 {
     public static bool Proves(IMistType source, IMistType target, Admitted? lifted = null)
     {
-        return !HasRefinement(source) && !HasRefinement(target) || ProvesRefinement(source, target, lifted);
+        return (!HasRefinement(source) && !HasRefinement(target)) || ProvesRefinement(source, target, lifted);
     }
 
     private static bool ProvesRefinement(IMistType source, IMistType target, Admitted? lifted = null)

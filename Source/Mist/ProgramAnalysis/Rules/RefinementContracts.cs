@@ -55,7 +55,7 @@ internal static class RefinementContracts
             }
 
             var filler = answer.Member;
-            var node = filler.DeclaringType == concrete ? filler.DeclarationNode ?? at : at;
+            var node = mappings is null && filler.DeclaringType == concrete ? filler.DeclarationNode ?? at : at;
             var produced = answer.Source.Apply(filler.ReturnType, interner);
             var promised = answer.Target.Apply(slot.ReturnType, interner);
 
@@ -79,7 +79,7 @@ internal static class RefinementContracts
             }
 
             var filler = answer.Member;
-            var node = filler.DeclaringType == concrete ? filler.DeclarationNode ?? at : at;
+            var node = mappings is null && filler.DeclaringType == concrete ? filler.DeclarationNode ?? at : at;
             var produced = answer.Source.Apply(filler.Type, interner);
             var promised = answer.Target.Apply(slot.Type, interner);
 
@@ -157,7 +157,9 @@ internal static class RefinementContracts
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                    filler.Name, filler.ParametersList[i].Name, promised.Values, demanded.Values);
+                    filler.Name, filler.ParametersList[i].Name,
+                    demanded.Bounds.Length > 0 ? RefinementFindings.Describe(promised) : promised.Values.ToString(),
+                    demanded.Bounds.Length > 0 ? RefinementFindings.Describe(demanded) : demanded.Values.ToString());
             }
         }
     }

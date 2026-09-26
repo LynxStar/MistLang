@@ -151,7 +151,7 @@ internal static class RefinementFindings
         };
     }
 
-    private static string Describe(Requirement required)
+    public static string Describe(Requirement required)
     {
         var parts = new List<string>();
 

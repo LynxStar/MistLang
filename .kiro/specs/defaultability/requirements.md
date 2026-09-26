@@ -13,7 +13,7 @@ Where this document and either earlier spec differ, this document governs. The e
 
 ### Two ways to get a value
 
-- **Default (data).** A type's default value is precomputed data: `default(T)` stamps it out without running any user-declared code. It is deterministic and side-effect-free, which is why every expression that contributes to it must be consistent: each evaluation starts from the same state (Requirement 6).
+- **Default (data).** A type's default value is data its declaration states: `default(T)` builds it from the type's field initializers and default block, never through a constructor of `T`. It is deterministic and side-effect-free, which is why every expression that contributes to it must be consistent: each evaluation starts from the same state (Requirement 6). It can still fail, since a pure expression may divide by zero, but it fails the same way every time. A default that cannot fail at all needs a promise Mist does not have yet (`purity` spec, Deferred).
 - **Construction (behavior).** `new T(...)` runs a constructor, which is behavior: it may perform IO, fail, or depend on external state.
 
 A type is not required to have a default. A type with user-declared constructors has one only if it declares a `default { }` block. A type with no user-declared constructor must have a default, because that default is the only way to obtain an instance: the compiler generates an implicit parameterless constructor that returns it.

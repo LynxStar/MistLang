@@ -6,7 +6,7 @@ This document specifies what a member may do beyond its own scope, stated by thr
 
 The language already needs this in several places without having had a name for it: a default must start in the same state every time it is taken, a refinement predicate may only read what cannot change under it, and a pure scope that builds a collection must be able to call `Add` on it.
 
-> **DRAFT.** The model is settled; the Open Questions at the end are not.
+> **DRAFT.** The model is settled. What waits on something Mist does not have yet is listed under Deferred at the end.
 
 ### What `pure` means
 
@@ -44,6 +44,8 @@ A scope may do anything with what it **owns** -- what it created, what was moved
 For a local function or lambda, "its own instance" is what it captured from the scope around it.
 
 Every `pure` member is `readonly`. Every `local readonly` member is both `local` and `readonly`. A member with none of these may do anything, and is assumed to.
+
+Each modifier may also be written on a type, as `readonly` already can: every member of the type then makes the promise (Requirement 15). A `pure` type cannot change once constructed, and the instance members of a `local` type never reach outside their instance.
 
 ### Where an input comes from
 
@@ -106,6 +108,8 @@ int Count(List<int> xs)
 - **Stable_Field**: A field that cannot change once its object is constructed: a `readonly` field, the backing field of an `init`-only property, or any field of a readonly type. A static field is stable when it is `readonly`.
 - **Own_Instance**: For an instance member, the instance it was called on and what that instance owns. For a local function or lambda, what it captured. Static members and constructors have none.
 - **Pure_Member**, **Local_Member**, **Local_Readonly_Member**, **Readonly_Member**: A member declared, or inferred (Requirement 8), to keep the corresponding promise.
+- **Pure_Type**, **Local_Type**, **Local_Readonly_Type**: A type declared with the corresponding modifier (Requirement 15). **Readonly_Type** is as the `readonly-contexts` spec defines it.
+- **Pure_Function_Type**: A function type written with `pure` (Requirement 16).
 - **Readonly_Context**: As defined by the `readonly-contexts` spec, amended by Requirement 11.
 
 ## Requirements
@@ -117,10 +121,10 @@ int Count(List<int> xs)
 #### Acceptance Criteria
 
 1. THE Grammar SHALL define `local` and `pure` as reserved keywords. Neither is used as a name anywhere in the samples, the standard library or the book's snippets.
-2. THE Compiler SHALL accept these combinations on a member: `readonly`, `local`, `local readonly`, `pure`. Order among modifiers SHALL NOT matter.
+2. THE Compiler SHALL accept these combinations on a member, and on a type (Requirement 15): `readonly`, `local`, `local readonly`, `pure`. Order among modifiers SHALL NOT matter.
 3. WHEN `pure` and `readonly` are both written, THE Compiler SHALL accept them and report an informational diagnostic that `readonly` is implied by `pure`.
 4. WHEN `pure` and `local` are both written, THE Compiler SHALL report an error: `local` allows a member to change its own instance, which `pure` forbids.
-5. `local` SHALL be admitted on instance methods, instance properties and indexers, local functions and lambdas, and SHALL be refused on static members and constructors, which have no Own_Instance. `pure` SHALL be admitted on methods, constructors, properties, indexers, local functions and lambdas. On a property or indexer, a modifier applies to each accessor it declares.
+5. `local` SHALL be admitted on instance methods, instance properties and indexers, local functions and lambdas, and SHALL be refused on static members and constructors, which have no Own_Instance. `pure` SHALL be admitted on methods, constructors, properties, indexers, local functions and lambdas, and on a function type (Requirement 16). On a property or indexer, a modifier applies to each accessor it declares.
 6. THE Grammar SHALL admit these modifiers on intrinsic member declarations and on abstract members.
 7. THE Pretty_Printer SHALL preserve them, and parsing then printing then parsing SHALL produce an equivalent AST.
 
@@ -140,6 +144,7 @@ int Count(List<int> xs)
 
 1. A modifier from this document SHALL be a promise the member makes about itself. It SHALL add no requirement on an ordinary caller -- no ownership tier, no loan, no modifier -- and SHALL change neither how a call binds nor what is emitted.
 2. Only a scope that is itself `readonly`, `local` or `pure`, or an expression the language requires to be pure (Requirement 12), SHALL consult these promises, and only to decide which calls it may make.
+3. The one exception is `pure` on a function type (Requirement 16). It is part of a type, not a promise a member makes, so it is checked wherever a value converts to that type, as any type is.
 
 ### Requirement 4: `readonly`
 
@@ -176,7 +181,7 @@ int Count(List<int> xs)
 1. A pure scope MAY read literals, `void`, enum variants, what it owns, the state of a `frozen` input, and any Stable_Field of any object it can reach, including a `readonly` static.
 2. A pure scope SHALL NOT read a field that is not a Stable_Field of an External object that is not a `frozen` input: reading the current contents of a reference it does not hold frozen is not pure, because the same reference can show different contents at different times.
 3. A pure scope SHALL NOT read any state outside the program -- the clock, randomness, the environment, files.
-4. A pure scope MAY create a lambda; the lambda's body is judged when it is called, not when it is created.
+4. A pure scope MAY create a lambda. The lambda's body is judged when it is called, or where it converts to a Pure_Function_Type (Requirement 16), not when it is created.
 
 ### Requirement 8: Declaration and Inference
 
@@ -232,9 +237,43 @@ int Count(List<int> xs)
 
 1. THE TextMate grammar SHALL highlight `local` and `pure` as modifiers (`storage.modifier.mist`).
 
-## Open Questions
+### Requirement 15: Promises on a Type
 
-1. **Should `pure` and `local` apply to a type**, giving every member the promise, as `readonly` does?
-2. **Should a function type be able to require a promise** (a `pure` `func<...>`), so a pure member can call a function value it was given?
-3. **Should a default be allowed to fail?** Purity does not promise totality (a pure member may divide by zero), and the `defaultability` spec calls a default something that cannot fail.
-4. **The name "pure struct".** The `definite-assignment` spec's Pure_Struct, and the comments that use the phrase, mean a struct with no reference-typed fields, which has nothing to do with `pure`. The `stampability` spec now names that property and reserves `stampable` for it, so the phrase should become "stampable struct" before `pure` is a keyword. What remains open is only when to make the rename.
+**User Story:** As a Mist developer, I want to make a promise once for a whole type, so that a type whose every member keeps it says so where the type is declared, as a `readonly` type already does.
+
+#### Acceptance Criteria
+
+1. THE Compiler SHALL accept `local`, `local readonly` and `pure` on every type declaration that admits `readonly` (`readonly-contexts` spec, Requirement 8), with the combinations and diagnostics of Requirement 1 criteria 2 to 4.
+2. A modifier on a type SHALL be read as that modifier written on each of the type's members that admits it (Requirement 1 criterion 5): `pure` on every member, constructors and static members included, as `readonly` on a type does; `local` on every instance method, property and indexer. Constructors and static members of a Local_Type, which `local` does not admit, SHALL keep what they declare or infer.
+3. A Pure_Type and a Local_Readonly_Type SHALL each be a Readonly_Type. Every field of a Pure_Type is therefore a Stable_Field, and no member writes an instance once it is constructed, so a Pure_Type cannot change after construction. A pure scope MAY read its state through any reference, not only a `frozen` one, as Requirement 7 criterion 1 already admits, and MAY call any of its members.
+4. A Local_Type's members SHALL keep Requirement 5 each: every call they make is to a Pure_Member, or to a Local_Member or Local_Readonly_Member on the Own_Instance. The Own_Instance includes what the instance owns, so a member MAY call a `local` or stronger member on a field the instance owns, and only a Pure_Member on a field it does not own, whose object other references may share.
+5. A member's own modifiers SHALL combine with its type's as though both were written on the member, with the diagnostics of Requirement 1. One exception: a member of a Local_Type MAY declare `pure`, which then replaces `local` instead of conflicting with it. Requirement 1 criterion 4 refuses `pure local` because `local` lets a member write its instance, and a pure member of a Local_Type writes nothing, so it breaks no promise of its type.
+
+### Requirement 16: Pure Function Types
+
+**User Story:** As a Mist developer, I want to write a pure member that calls a function it was given, so that higher-order helpers can be used in pure code when the function passed to them is pure.
+
+```mist
+pure int Twice(pure func<int, int> f, int x)
+{
+    return f(f(x));                                   // calling a pure function value
+}
+
+Twice(n => n + 1, 3);                                 // 5
+Twice(n => { Console.WriteLine(n); return n; }, 3);   // error: the lambda writes to the console
+```
+
+#### Acceptance Criteria
+
+1. THE Compiler SHALL accept `pure` before any type that resolves to a Func_Type (`first-class-functions` spec), through `func`, `Func`, `Action` or an alias. The result SHALL be a Pure_Function_Type with the same parameter and return types.
+2. WHERE `pure` could belong to the enclosing declaration -- before the return type of a member or local function, or the type of a property or indexer -- it SHALL belong to the declaration. A Pure_Function_Type in those places SHALL be named through an alias (`type Step = pure func<int, int>;`).
+3. Invoking a value of a Pure_Function_Type SHALL count as calling a Pure_Member, which a pure scope may do on anything (Requirement 6 criterion 3).
+4. A lambda SHALL convert to a Pure_Function_Type only when it keeps Requirements 6 and 7. It SHALL be judged once, where it converts, as a pure scope whose captured variables are External inputs. It MAY read a captured variable only when nothing can assign that variable after the capture, and through that variable only what Requirement 7 admits for an External input. A method group SHALL convert only when its method is a Pure_Member.
+5. A Pure_Function_Type SHALL convert implicitly to the same function type without `pure`. The reverse SHALL be refused, by a cast as well: no function value, CLR delegate included, carries evidence that it is pure unless its type states it.
+6. As a type argument, the promise SHALL be part of the type: `List<pure func<int, int>>` and `List<func<int, int>>` are different types, and neither converts to the other.
+7. THE Compiler SHALL report an error for two overloads whose signatures differ only in whether a function type is pure. The promise is erased on emission (Requirement 13), so both would emit the same C# signature.
+8. WHEN a conversion to a Pure_Function_Type is refused, THE Compiler SHALL report an error at the operation in the lambda or method that breaks purity, as Requirement 10 does for a declared promise.
+
+## Deferred
+
+1. **A default that cannot fail.** A default is data, and it should not be able to fail. But Mist has no promise that a computation cannot fail, no notion of a total or panic-free member, so no rule can require it yet. Until Mist has such a promise, a default may fail the way any pure expression may (dividing by zero is pure). Because it is pure, it fails the same way every time it is taken. Once Mist gains such a promise, defaults should require it.

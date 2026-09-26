@@ -38,7 +38,7 @@ internal sealed class AmbientTypeResolver
     /// Handles closed generics by resolving the definition and type arguments
     /// recursively, then interning a <see cref="ConstructedType"/>.
     /// </summary>
-    public MistType Resolve(Type clrType, Scope scope)
+    public MistType Resolve(Type clrType, Scope scope, TupleElementNames? names = null)
     {
         // Pointer types (int*, void*, T**) are unsafe and have no Mist representation.
         // Returning ErrorType causes the owning member to be skipped.
@@ -63,13 +63,18 @@ internal sealed class AmbientTypeResolver
                 return ErrorType.Instance;
             }
 
-            return Resolve(elementType, scope);
+            return Resolve(elementType, scope, names);
         }
 
         // CLR array type (e.g., int[], string[]): construct Standard.Array<Element, unknown>.
         if(clrType.IsArray)
         {
-            return ResolveArrayType(clrType, scope);
+            return ResolveArrayType(clrType, scope, names);
+        }
+
+        if(ClrValueTuple.Cardinality(clrType) >= 2)
+        {
+            return ResolveTuple(clrType, scope, names);
         }
 
         // A DELEGATE IS A FUNCTION TYPE, whatever it is called. Comparison, Predicate and
@@ -78,6 +83,7 @@ internal sealed class AmbientTypeResolver
         // convert to. Its Invoke signature is what it means.
         if(FunctionShape(clrType, scope) is { } function)
         {
+            names?.Skip(ClrValueTuple.NameSlots(clrType));
             return function;
         }
 
@@ -85,7 +91,7 @@ internal sealed class AmbientTypeResolver
         // definition and each argument, then intern a ConstructedType.
         if(clrType.IsGenericType && !clrType.IsGenericTypeDefinition)
         {
-            return ResolveClosedGeneric(clrType, scope);
+            return ResolveClosedGeneric(clrType, scope, names);
         }
 
         // Generic type parameter (e.g., T, TKey): resolve by name from the scope chain.
@@ -244,8 +250,10 @@ internal sealed class AmbientTypeResolver
     /// the remainder are the nested type's own.
     /// </para>
     /// </summary>
-    private MistType ResolveClosedGeneric(Type clrType, Scope scope)
+    private MistType ResolveClosedGeneric(Type clrType, Scope scope, TupleElementNames? names)
     {
+        names?.Skip(ClrValueTuple.Cardinality(clrType) ?? 0);
+
         var definitionClrType = clrType.GetGenericTypeDefinition();
         var definition = Resolve(definitionClrType, scope);
 
@@ -253,12 +261,12 @@ internal sealed class AmbientTypeResolver
         var inherited = definitionClrType.DeclaringType?.GetGenericArguments().Length ?? 0;
         var enclosing = inherited == 0
             ? null
-            : Resolve(definitionClrType.DeclaringType!.MakeGenericType(clrArgs[..inherited]), scope) as ConstructedType;
+            : Resolve(definitionClrType.DeclaringType!.MakeGenericType(clrArgs[..inherited]), scope, names) as ConstructedType;
         var resolvedArgs = new List<IMistType>(clrArgs.Length - inherited);
 
         foreach(var clrArg in clrArgs[inherited..])
         {
-            resolvedArgs.Add(Resolve(clrArg, scope));
+            resolvedArgs.Add(Resolve(clrArg, scope, names));
         }
 
         // A span's Mist declaration carries a length the CLR one has no slot for (WellKnownTypeMap says
@@ -277,6 +285,48 @@ internal sealed class AmbientTypeResolver
     }
 
     /// <summary>
+    /// A tuple of the ELEMENTS, each Rest spread into the one flat list C# reads it as. Names are taken
+    /// in the order <see cref="ClrValueTuple.NameSlots"/> counts them, which every branch of
+    /// <see cref="Resolve"/> keeps to: a Rest skips its own names as it is met, the flat tuple having
+    /// already taken the ones that mean anything, and a delegate skips its whole subtree because its
+    /// shape is read from Invoke instead.
+    /// </summary>
+    private MistType ResolveTuple(Type clrType, Scope scope, TupleElementNames? names)
+    {
+        var elementNames = names?.Take(ClrValueTuple.Cardinality(clrType)!.Value);
+        var elements = new List<IMistType>();
+        AppendTupleElements(clrType, scope, names, elements);
+
+        if(elements.Find(element => element is ErrorType or NotProjectedType) is MistType unresolved)
+        {
+            return unresolved;
+        }
+
+        var tuple = typeInterner.GetOrCreateTupleType(elements);
+
+        return elementNames is not null && Array.Exists(elementNames, name => name is not null)
+            ? new NamedTupleType(tuple, elementNames)
+            : tuple;
+    }
+
+    private void AppendTupleElements(Type clrTuple, Scope scope, TupleElementNames? names, List<IMistType> elements)
+    {
+        var arguments = clrTuple.GetGenericArguments();
+
+        foreach(var argument in arguments.Take(ClrValueTuple.RestPosition))
+        {
+            elements.Add(Resolve(argument, scope, names));
+        }
+
+        if(arguments.Length > ClrValueTuple.RestPosition)
+        {
+            var rest = arguments[ClrValueTuple.RestPosition];
+            names?.Skip(ClrValueTuple.Cardinality(rest)!.Value);
+            AppendTupleElements(rest, scope, names, elements);
+        }
+    }
+
+    /// <summary>
     /// Resolves a CLR array type (e.g., int[], string[]) by constructing
     /// <c>Standard.Array&lt;ElementType, Length&gt;</c>, where the length is an
     /// <see cref="UnknownValueType"/> over <c>int</c> because reflection carries no length.
@@ -290,9 +340,9 @@ internal sealed class AmbientTypeResolver
     /// <c>unknown</c> appears.
     /// </para>
     /// </summary>
-    private MistType ResolveArrayType(Type clrType, Scope scope)
+    private MistType ResolveArrayType(Type clrType, Scope scope, TupleElementNames? names)
     {
-        var elementType = Resolve(clrType.GetElementType()!, scope);
+        var elementType = Resolve(clrType.GetElementType()!, scope, names);
         if(elementType is ErrorType or NotProjectedType)
         {
             return elementType;
@@ -337,17 +387,18 @@ internal sealed class AmbientTypeResolver
     /// cannot be absent -- which is what stopped `xs.Skip(5).First()` resolving. Nullable-of-T is
     /// unaffected: its absence is in the type, not in an annotation.
     /// </param>
-    public IMistType ResolveInbound(Type clrType, Scope scope, bool declaredNonNull = false)
+    public IMistType ResolveInbound(
+        Type clrType, Scope scope, bool declaredNonNull = false, TupleElementNames? names = null)
     {
         var effective = clrType.IsByRef ? clrType.GetElementType()! : clrType;
         var underlying = Nullable.GetUnderlyingType(effective);
 
         if(underlying is not null)
         {
-            return WrapWithVoid(Resolve(underlying, scope));
+            return WrapWithVoid(Resolve(underlying, scope, names));
         }
 
-        var resolved = Resolve(clrType, scope);
+        var resolved = Resolve(clrType, scope, names);
 
         return IsReferenceType(effective) && !declaredNonNull ? WrapWithVoid(resolved) : resolved;
     }

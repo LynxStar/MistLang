@@ -68,7 +68,7 @@ internal static class ClrNullability
         }
     }
 
-    private static IEnumerable<CustomAttributeData> CustomAttributes(object target)
+    internal static IEnumerable<CustomAttributeData> CustomAttributes(object target)
     {
         return SafeAttributes(() => target switch
         {

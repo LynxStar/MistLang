@@ -34,7 +34,10 @@ internal static class IndexerProjector
             }
 
             var resolvedType = resolver.ResolveInbound(
-                prop.PropertyType, memberType.Scope, ClrNullability.ResultIsNonNull(prop, prop));
+                prop.PropertyType,
+                memberType.Scope,
+                ClrNullability.ResultIsNonNull(prop, prop),
+                TupleElementNames.Of(prop, prop.PropertyType));
             if(resolvedType is ErrorType or NotProjectedType)
             {
                 continue;

@@ -59,7 +59,10 @@ internal static class MethodProjector
 
         // Resolve return type.
         var returnType = resolver.ResolveInbound(
-            method.ReturnType, methodScope, ClrNullability.ResultIsNonNull(method.ReturnParameter, method));
+            method.ReturnType,
+            methodScope,
+            ClrNullability.ResultIsNonNull(method.ReturnParameter, method),
+            TupleElementNames.Of(method.ReturnParameter, method.ReturnType));
         if(returnType is ErrorType or NotProjectedType)
         {
             return null;

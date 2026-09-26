@@ -130,7 +130,7 @@ internal static class ExtensionProjector
             clrTypeParams, receiverClrType, extensionBlock, blockScope, methodScope, resolver);
 
         // The receiver may only name block-level parameters, so it resolves against the block.
-        var receiverType = resolver.Resolve(receiverClrType, blockScope);
+        var receiverType = resolver.Resolve(receiverClrType, blockScope, TupleElementNames.Of(receiverParam, receiverClrType));
         if(receiverType is ErrorType or NotProjectedType)
         {
             return;
@@ -138,7 +138,10 @@ internal static class ExtensionProjector
 
         // Everything else may name both levels, so it resolves against the method.
         var returnType = resolver.ResolveInbound(
-            method.ReturnType, methodScope, ClrNullability.ResultIsNonNull(method.ReturnParameter, method));
+            method.ReturnType,
+            methodScope,
+            ClrNullability.ResultIsNonNull(method.ReturnParameter, method),
+            TupleElementNames.Of(method.ReturnParameter, method.ReturnType));
         if(returnType is ErrorType or NotProjectedType)
         {
             return;

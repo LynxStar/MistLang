@@ -31,7 +31,10 @@ internal static class PropertyProjector
             }
 
             var resolvedType = resolver.ResolveInbound(
-                prop.PropertyType, memberType.Scope, ClrNullability.ResultIsNonNull(prop, prop));
+                prop.PropertyType,
+                memberType.Scope,
+                ClrNullability.ResultIsNonNull(prop, prop),
+                TupleElementNames.Of(prop, prop.PropertyType));
             var getter = CreateGetter(prop);
             var setter = CreateSetter(prop);
 

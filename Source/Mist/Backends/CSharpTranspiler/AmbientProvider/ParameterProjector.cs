@@ -34,7 +34,7 @@ internal static class ParameterProjector
             var clrParameterType = param.ParameterType.IsByRef
                 ? param.ParameterType.GetElementType()!
                 : param.ParameterType;
-            var paramType = resolver.Resolve(clrParameterType, scope);
+            var paramType = resolver.Resolve(clrParameterType, scope, TupleElementNames.Of(param, clrParameterType));
             if(paramType is ErrorType or NotProjectedType)
             {
                 return null;

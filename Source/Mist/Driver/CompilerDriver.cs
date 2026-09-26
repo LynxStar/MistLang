@@ -79,7 +79,7 @@ public sealed class CompilerDriver : ICompilerDriver
         options = ProjectDependencyUnion.Apply(options, loadResult.ReferencedConfigurations);
 
         // Stage 1.5: Package Resolution (runs only when deps are declared)
-        var resolvedAssemblyPaths = ResolvePackages(options, allDiagnostics);
+        var resolvedAssemblyPaths = ResolvePackages(options, allDiagnostics).AddRange(options.AssemblyPaths);
 
         // Stage 2: Lexing
         var lexResult = Lex(compilation, allDiagnostics);

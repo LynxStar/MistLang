@@ -67,7 +67,8 @@ internal static class OperatorProjector
     /// </summary>
     private static void ProjectOperator(MethodInfo method, OperatorKind kind, MemberType memberType, AmbientTypeResolver resolver)
     {
-        var returnType = resolver.Resolve(method.ReturnType, memberType.Scope);
+        var returnType = resolver.Resolve(
+            method.ReturnType, memberType.Scope, TupleElementNames.Of(method.ReturnParameter, method.ReturnType));
         if(returnType is ErrorType or NotProjectedType)
         {
             return;
@@ -101,7 +102,8 @@ internal static class OperatorProjector
             return;
         }
 
-        var targetType = resolver.Resolve(method.ReturnType, memberType.Scope);
+        var targetType = resolver.Resolve(
+            method.ReturnType, memberType.Scope, TupleElementNames.Of(method.ReturnParameter, method.ReturnType));
         if(targetType is ErrorType or NotProjectedType)
         {
             return;

@@ -75,7 +75,31 @@ internal static class ClrSequenceLengths
 
     private static bool Is(Type metadata, Type runtime)
     {
-        // MetadataLoadContext types have separate object identity; the assembly is part of CLR type identity.
-        return metadata.FullName == runtime.FullName && metadata.Assembly.FullName == runtime.Assembly.FullName;
+        // SDK reference declarations and runtime implementations can live in different signed assemblies.
+        if(metadata.FullName != runtime.FullName)
+        {
+            return false;
+        }
+
+        if(metadata.Assembly.FullName == runtime.Assembly.FullName)
+        {
+            return true;
+        }
+
+        var implementation = runtime.Assembly.GetName();
+        if(implementation.Name != "System.Private.CoreLib")
+        {
+            return false;
+        }
+
+        var reference = new AssemblyName
+        {
+            Name = runtime == typeof(MemoryExtensions) ? "System.Memory" : "System.Runtime",
+            Version = implementation.Version,
+            CultureName = implementation.CultureName,
+        };
+        reference.SetPublicKeyToken(runtime == typeof(MemoryExtensions)
+            ? Convert.FromHexString("cc7b13ffcd2ddd51") : typeof(Enumerable).Assembly.GetName().GetPublicKeyToken());
+        return metadata.Assembly.FullName == reference.FullName;
     }
 }

@@ -1794,7 +1794,7 @@ rules:
       those and a with block answered by the type's own member, which C# implements implicitly.
 
       THE RULE. Slots are the bodiless instance members of the abstracts the type's own base list
-      reaches, transitively through the abstract hierarchy, each abstract visited once so a diamond asks
+      reaches, transitively through the abstract hierarchy, each closed abstract visited once so a diamond asks
       once. Fillers are the public instance members the type declares or inherits along its concrete
       base chain, each read through the substitution of the base it came from; a default is a member,
       not a slot, and fills nothing but its own name. A member answers a slot when the arity matches
@@ -1864,6 +1864,14 @@ rules:
       decided. The full suite -- 6470, 664 and 68 tests, AllFeaturesV2's baseline among them -- passed with
       no failure and no rerun, AllFeaturesV2 run by hand was byte-identical and reported nothing, and the
       build and `dotnet format` were clean.
+
+      DISTINCT CLOSED BASES ARE SEPARATE OBLIGATIONS (2026-09-26). Reaching IGeneric<int> does not
+      answer or suppress IGeneric<string>. Reached shares AbstractInheritance with conformance
+      mapping construction, deduplicating closed constructions while guarding cycles per path.
+      Mapped property answers now compare the closed property type as well as its name. Two
+      ConformanceDecisionTests rows hold the missing method/property mapping on the second
+      construction, and with-block-second-generic-base-unanswered holds the method refusal at
+      the with block. Emitter order 73 records the positive model and runtime dispatch coverage.
     tasks:
       - >
         A mapping onto a NON-PUBLIC source member is admitted. Classic requires public; C# accepts the

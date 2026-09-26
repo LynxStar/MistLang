@@ -125,8 +125,10 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         foreach(var slot in abstractType.PropertiesList.Where(IsPropertySlot))
         {
             var answer = mappings?.Mappings.OfType<PropertyMapping>()
-                .FirstOrDefault(mapping => mapping.TargetName == slot.Name)?.Source
-                ?? fillers.FirstOrDefault(filler => filler.Property?.Name == slot.Name)?.Property;
+                .FirstOrDefault(mapping => mapping.TargetName == slot.Name
+                    && SlotSignatures.Agree(substitution.Apply(slot.Type, interner), mapping.Source.Type))?.Source
+                ?? fillers.FirstOrDefault(filler => filler.Property is { } property && property.Name == slot.Name
+                    && SlotSignatures.Agree(substitution.Extend(filler.Substitution).Apply(slot.Type, interner), property.Type))?.Property;
 
             if(answer is null && mappings?.UnresolvedTargets.Contains(slot.Name) == true)
             {
@@ -228,26 +230,9 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
     internal static IEnumerable<(AbstractType Abstract, TypeSubstitution Substitution)> Reached(
         IEnumerable<IMistType> roots, TypeInterner interner)
     {
-        var pending = new Queue<IMistType>(roots);
-        var visited = new HashSet<string>(StringComparer.Ordinal);
-
-        while(pending.Count > 0)
+        foreach(var (_, definition, substitution) in AbstractInheritance.Reached(roots, interner))
         {
-            var reference = pending.Dequeue();
-            var definition = reference is ConstructedType constructed ? constructed.Definition : reference;
-
-            if(definition is not AbstractType abstractType || !visited.Add(abstractType.FullyQualifiedName))
-            {
-                continue;
-            }
-
-            var substitution = TypeSubstitution.ForReceiver(reference as ConstructedType);
-            yield return (abstractType, substitution);
-
-            foreach(var baseAbstract in abstractType.BaseAbstractTypes)
-            {
-                pending.Enqueue(substitution.Apply(baseAbstract, interner));
-            }
+            yield return (definition, substitution);
         }
     }
 

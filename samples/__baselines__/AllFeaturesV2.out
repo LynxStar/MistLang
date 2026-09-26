@@ -1932,6 +1932,12 @@ Renamed<string>.Get()=r Twice()=r Tag=1 With(s).Value=s
 === Generic Abstract Members ===
 First(IntHolder)=5 First(Wrapper<string>)=w
 IntHolder.Same()=5 Wrapper<string>.Same()=w
+Single derived=12 base=13 property=3
+Single property after set=9 source=9
+Deep outer=24 base=25 property=5
+Deep property after set=11 source=11
+Dual read=37/mapped-stored echo=43/word! count=2/2
+Dual properties=12/changed sources=12/changed
 === Generic Abstract Members Done ===
 === Nested Generic Types ===
 Box<int>.Wrapper.Unwrap()=7

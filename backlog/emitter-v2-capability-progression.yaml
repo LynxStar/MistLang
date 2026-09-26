@@ -3902,7 +3902,7 @@ capabilities:
     order: 73
     layer: abstract-types
     requires: [nominal-conformance-and-slot-checking, abstract-type-default-members]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       A with block declares that an existing type conforms, mapping its members onto slots. Every
@@ -3977,7 +3977,7 @@ capabilities:
       only runs when a call has TWO candidates, which the sample has none of. Suppressing the consult
       makes v2 refuse a program classic runs -- MIST_PM_UNRESOLVABLE_OVERLOAD naming
       `(INamed), (bool)` -- which is exactly the order 46 pattern. Pinned in
-      Test/Mist.Tests/Semantics/ConformanceResolutionTests.cs, 14 tests on the ProgramModelProbe
+      Test/Mist.Tests/Semantics/ConformanceResolutionTests.cs on the ProgramModelProbe
       harness.
 
       A CONFORMANCE RANKS, deliberately, and this is the opposite call from order 46's on user-defined
@@ -4005,17 +4005,38 @@ capabilities:
       ICE: it is reachable from ordinary source and the source really is wrong, so blaming the compiler
       would send the reader looking in the wrong place. Logged for relocation rather than left implicit.
 
-      PARTIAL FOR THE GENERIC ABSTRACT. The arity path builds and interns a ConstructedType, so
-      `with Widget : IHold<int>` records and emits, but a slot inherited from a GENERIC base of the
-      named abstract records the base as written rather than with the named abstract's type arguments
-      applied. That is the same open-generic residue orders 53 and 72 carry, and it is unreachable
-      from any sample: every abstract in the repository that a with block names is non-generic.
-    tasks:
-      - >
-        Apply the named abstract's type arguments when the slot is inherited from a GENERIC base
-        abstract, so the explicit implementation is qualified by the closed form. Order 53 composes
-        substitutions along the base chain since 2026-09-12 (TypeSubstitution.ForPath), so the closed
-        form is now nameable and this is unblocked.
+      GENERIC INHERITED SLOTS CLOSE THROUGH THE WHOLE PATH. Reproduced before the fix on
+      `with SingleWidget : IDerived<int>` and a two-base chain with reordered parameters: the model
+      kept IBase<T> / IBase<TSecond> and emission failed with unbound T / TSecond and missing
+      IBase<int>.Value implementations. Slot traversal carries the inherited constructions and reuses
+      TypeSubstitution.ForPath to close both the declaring interface and the target method/property
+      signature. Original declarations remain open, and method-local type parameters retain their
+      identities. The existing conformance emitter consumes those closed signatures directly.
+
+      ConformanceResolutionTests pins direct, one-base and two-base mappings, including renamed and
+      reordered parameters and a nested array argument. GenericAbstractMembers, already banked on
+      AllFeaturesV2 alone, exercises derived/base interface dispatch: mapped defaults return 12/13
+      and 24/25 instead of the identity defaults' 2/3 and 4/5, and mapped property setters change the
+      source storage to 9 and 11. Classic refuses the inherited mappings with MIST_WITH_0004, so this
+      coverage stays V2-ONLY. Existing non-generic AbstractTypes coverage remains banked unchanged.
+      DISTINCT CONSTRUCTIONS KEEP DISTINCT SLOTS. Reproduced a hierarchy reaching IReadBase<int>
+      and IReadBase<string>: definition-based deduplication skipped one construction and paired
+      mappings with the wrong return/property type. The model tests failed in either base order,
+      and the runtime reproduction emitted duplicate int implementations and no string property.
+      AbstractInheritance now shares the closed-construction traversal between slot resolution and
+      conformance checking, with a separate path-based definition guard against expanding cycles.
+      Mapping selection compares complete closed method signatures, including return type and
+      method-local generic parameter positions, and closed property types. One mapping can fill
+      several matching slots, including both Count() slots on different constructions. Direct,
+      nested and diamond cases hold both base orders; repeated paths to one closed base emit once.
+      GenericAbstractMembers dispatches through both IDualBase<int> and IDualBase<string>, overrides
+      both defaults, selects both Echo overloads and updates independent mapped property storage.
+      An omitted mapping for the second construction is held by ConformanceDecisionTests and the
+      refusal corpus. Generic constraint checking, namespace-scoping policy and diagnostic
+      relocation remain separate work. Verified by a zero-warning solution build, solution-wide
+      formatting verification and 7474 of 7474 tests through the test ledger, including both
+      AllFeatures orchestrator baselines and the refusal corpus.
+    tasks: []
     analysis_phase_tasks:
       - >
         Report a conformance that leaves a slot UNANSWERED. Classic's MIST_WITH_0004 aggregate check
@@ -10748,8 +10769,8 @@ samples:
                derived-to-base-conversion, string-interpolation, var-type-inference]
     untested:
       - >
-        IT DOES NOT TEST THAT A CONFORMANCE IS VISIBLE TO ASSIGNABILITY, though it is the only sample
-        that uses one, and this is measured rather than suspected. Deleting the conformance consult in
+        IT DOES NOT TEST THAT A CONFORMANCE IS VISIBLE TO ASSIGNABILITY, and this is measured rather
+        than suspected. Deleting the conformance consult in
         ConversionRelation.Inherits leaves this sample GREEN: its two with-block uses are plain
         assignments, and ConversionRelation's contract forbids refusing a program, so the assignment
         binds whether or not the conformance is known and the emitted C# compiles on the base-list
@@ -11776,15 +11797,18 @@ samples:
     requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
                namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
                var-type-inference, type-parameters-and-constructed-types, generic-arity-keyed-lookup, type-argument-substitution,
-               generic-methods, abstract-type-declaration, default-member-forwarding-stubs, type-argument-inference]
+               generic-methods, abstract-type-declaration, default-member-forwarding-stubs, type-argument-inference,
+               retroactive-conformance-with-blocks, abstract-type-inheritance, abstract-type-property-slots,
+               property-declarations-and-accessors, field-initializers]
     untested:
       - >
         V2-ONLY. Classic infers `First(new IntHolder())` but restates `Same()` into IntHolder with
         `T held` where no T is in scope, so Roslyn refuses its generated file; this sample is referenced
         from AllFeaturesV2 alone and its lines were captured from v2 and read against the program by hand.
       - >
-        A default inherited through a chain of generic abstracts, `Holder<T> : Base<T>`, is not in the
-        sample; the path composes exactly as an inherited struct member's does (order 53).
+        An unmapped default inherited through a chain of generic abstracts is not in the sample;
+        the inherited defaults exercised here are explicitly mapped by with blocks, so they prove
+        mapping precedence rather than nominal default forwarding or unmapped-default dispatch.
 
   - name: NewtypeClones
     intro_order: 94

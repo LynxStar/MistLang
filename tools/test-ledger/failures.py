@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Reads every trx in <ledger>/trx and writes failures.txt and summary.txt beside it.
+"""Reads a ledger directory and writes failures.txt and summary.txt beside its trx folder.
 
     python3 tools/test-ledger/failures.py <ledger-dir> [repo-root]
 
 The classifier recognises the signatures recorded in backlog/flaky-tests.yaml, so a mass failure
 is named by its shape rather than by 400 messages read one at a time.
+
+A trx is written only when its assembly finishes, so a stopped run leaves none for the assembly
+it was in. Those assemblies are named from test.log, and any failure the console printed before
+the stop is recovered from test.log into failures.txt.
 """
 import collections
 import datetime
+import functools
 import glob
 import os
 import re
@@ -20,6 +25,12 @@ AST_MISMATCH = re.compile(r"AST count \((\d+)\) does not match compilation unit 
 STANDARD_MISSING = re.compile(r"The namespace 'Standard' could not be found")
 UNDEFINED_NAME = re.compile(r"(MIST_UNDEFINED_\w+)[^'\n]*'([^'\n]+)'")
 ERROR_SENTINEL = re.compile(r"ErrorType has no TypeKind")
+
+OUTCOME = re.compile(r"^outcome: (.*)$|^(test exit \d+ after \d+s)$", re.M)
+STARTED = re.compile(r"^Test run for (.+?\.dll) ", re.M)
+CONSOLE_RESULT = re.compile(r"^  (Failed|Passed|Skipped) (.+) \[[^\]]*\]$")
+CONSOLE_FRAME = re.compile(
+    r"^(Test run for |A total of |Starting test execution|VSTest version|Results File:|Passed!|Failed!|\[xUnit\.net )")
 
 
 def parse_time(text):
@@ -74,13 +85,46 @@ def classify(message):
     return "other"
 
 
+def read_text(path):
+    if not os.path.exists(path):
+        return ""
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        return handle.read()
+
+
+def outcome(ledger):
+    matches = OUTCOME.findall(read_text(os.path.join(ledger, "env.txt")))
+    if not matches:
+        return "none recorded -- the run is still going, or was killed before it could record one"
+    current, legacy = matches[-1]
+    return current or legacy
+
+
+def console_failures(log):
+    blocks = []
+    current = None
+    for line in log.splitlines():
+        result = CONSOLE_RESULT.match(line)
+        if result or CONSOLE_FRAME.match(line):
+            current = (result.group(2), [line]) if result and result.group(1) == "Failed" else None
+            if current:
+                blocks.append(current)
+        elif current is not None:
+            current[1].append(line)
+    return [(name, "\n".join(lines).rstrip()) for name, lines in blocks]
+
+
+@functools.lru_cache(maxsize=None)
+def standard_files(repo):
+    paths = sorted(glob.glob(os.path.join(repo, "Source", "Standard", "**", "*.mist"), recursive=True))
+    return [(path, read_text(path)) for path in paths]
+
+
 def provenance(name, repo):
     if repo is None:
         return ""
     hits = []
-    for path in sorted(glob.glob(os.path.join(repo, "Source", "Standard", "**", "*.mist"), recursive=True)):
-        with open(path, encoding="utf-8") as handle:
-            text = handle.read()
+    for path, text in standard_files(repo):
         offset = text.find(name)
         if offset >= 0:
             line = text.count("\n", 0, offset) + 1
@@ -93,6 +137,14 @@ def main():
     ledger = sys.argv[1]
     repo = sys.argv[2] if len(sys.argv) > 2 else None
     runs = [read_trx(path) for path in sorted(glob.glob(os.path.join(ledger, "trx", "*.trx")))]
+    log = read_text(os.path.join(ledger, "test.log"))
+
+    written = {run["assembly"].lower() for run in runs}
+    started = [os.path.basename(path) for path in STARTED.findall(log)]
+    unfinished = [name for name in started if name.lower() not in written] if len(runs) < len(started) else []
+
+    in_trx = {r["name"] for run in runs for r in run["results"] if r["outcome"] == "Failed"}
+    console_only = [(name, block) for name, block in console_failures(log) if name not in in_trx]
 
     with open(os.path.join(ledger, "failures.txt"), "w", encoding="utf-8") as out:
         for run in runs:
@@ -108,8 +160,17 @@ def main():
                 if result["stdout"]:
                     out.write("--- stdout\n" + result["stdout"].rstrip() + "\n")
                 out.write("\n")
+        for name, block in console_only:
+            out.write(f"=== FAILED {name}\n")
+            out.write("    from test.log: its assembly wrote no trx\n")
+            out.write(block + "\n\n")
 
-    lines = []
+    lines = [f"outcome: {outcome(ledger)}"]
+    for name in unfinished:
+        lines.append(f"no trx: {name} started and never finished")
+    if unfinished:
+        seen = f"{len(console_only)} failure(s), copied to failures.txt," if console_only else "no failure"
+        lines.append(f"  test.log shows {seen} before the run stopped")
     for run in runs:
         elapsed = (run["finish"] - run["start"]).total_seconds() if run["start"] and run["finish"] else 0.0
         lines.append(f"{run['assembly']}: total {run['total']}, passed {run['passed']}, failed {run['failed']}, {elapsed:.0f}s")

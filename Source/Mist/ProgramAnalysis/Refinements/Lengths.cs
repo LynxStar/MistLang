@@ -57,7 +57,7 @@ internal static class Lengths
             ArrayCreationExpression creation => Constant(creation.Size),
             StackallocExpression stack => Constant(stack.Size),
             ArrayLiteralExpression literal => Admitted.Exactly(literal.Elements.Count),
-            LiteralExpression { Value: string text } => Admitted.Exactly(text.Length),
+            LiteralExpression { Value: string body } => LiteralValue.Decoded(body) is { } text ? Admitted.Exactly(text.Length) : null,
             LocalReferenceExpression or FieldReferenceExpression or MemberAccessExpression { Member: FieldResult } => tracked(expression) ?? Typed(expression.Type),
             NewExpression { Arguments: [var source] } => Of(source, tracked, ranges),
             InvocationExpression invocation => OfCall(invocation, tracked, ranges),

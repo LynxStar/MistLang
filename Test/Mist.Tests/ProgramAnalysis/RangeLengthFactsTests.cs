@@ -1,14 +1,72 @@
 // Tier 1: enumerate concrete runtime slices to check conservative interval lengths and endpoint classifications.
 
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Tests.ProgramAnalysis;
 
 public sealed class RangeLengthFactsTests
 {
+    [Fact]
+    public void NumericFacts_DoNotDescribeBooleanRealOrUserIndexConversions()
+    {
+        IMistType[] types = [
+            new StructType("Boolean", "Standard", null, null, null),
+            new StructType("Single", "Standard", null, null, null),
+            new StructType("Double", "Standard", null, null, null),
+            new StructType("Decimal", "Standard", null, null, null),
+            new StructType("Index", "Standard", null, null, null),
+            new ClassType("Counter", "Probe", null, null, null),
+        ];
+
+        foreach(var type in types)
+        {
+            var local = new LocalReferenceExpression(null!, new LocalVariable("end", type));
+
+            Assert.Null(RangeBound.Of(local, _ => Admitted.Exactly(3)));
+            Assert.Null(RangeBound.Of(new LiteralExpression(null!, 3L, type)));
+        }
+    }
+
+    [Fact]
+    public void IntegralValueDomains_PreserveBothOffsetMarkersThroughWrappers()
+    {
+        foreach(var name in new[] { "Int32", "Int64", "Int16", "UInt32", "UInt64", "UInt16", "Byte", "SByte", "Char" })
+        {
+            var integer = new StructType(name, "Standard", null, null, null);
+            var alias = new TypeAlias("Offset", "Probe", null, null, null!) { AliasedType = integer };
+            IMistType[] types = [integer, alias, new RefinedType(alias, null!, "PositiveOffset"), new LiftedType(alias, 3L), new UnknownValueType(alias), new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true, Domain = integer }];
+
+            foreach(var type in types)
+            {
+                var local = new LocalReferenceExpression(null!, new LocalVariable("end", type));
+                var fromEnd = new UnaryExpression(null!, UnaryOperatorKind.FromEnd, local, new StructType("Index", "Standard", null, null, null));
+
+                Assert.Equal(new RangeBound(Admitted.Exactly(3), null, false), RangeBound.Of(local, _ => Admitted.Exactly(3)));
+                Assert.Equal(new RangeBound(Admitted.Exactly(3), null, true), RangeBound.Of(fromEnd, _ => Admitted.Exactly(3)));
+            }
+        }
+    }
+
+    [Fact]
+    public void UnresolvedAndCyclicDomains_DoNotCaptureOffsets()
+    {
+        var alias = new TypeAlias("Offset", "Probe", null, null, null!);
+        var dependent = new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true };
+
+        Assert.Null(RangeBound.Of(new LocalReferenceExpression(null!, new LocalVariable("end", alias)), _ => Admitted.Exactly(3)));
+        Assert.Null(RangeBound.Of(new LocalReferenceExpression(null!, new LocalVariable("end", dependent)), _ => Admitted.Exactly(3)));
+
+        alias.AliasedType = dependent;
+        dependent.Domain = alias;
+
+        Assert.Null(RangeBound.Of(new LocalReferenceExpression(null!, new LocalVariable("end", alias)), _ => Admitted.Exactly(3)));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

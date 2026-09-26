@@ -1,5 +1,7 @@
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Refinements;
 
@@ -11,12 +13,17 @@ internal sealed record RangeBound(Admitted Values, LocalVariable? Symbol, bool F
         var fromEnd = expression is UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd };
         var offset = fromEnd ? ((UnaryExpression)expression).Operand : expression;
 
+        if(!IsOffset(offset.Type))
+        {
+            return null;
+        }
+
         if(Requirement.Constant(offset) is { } constant)
         {
             return new RangeBound(Admitted.Exactly(constant), null, fromEnd);
         }
 
-        if(offset is not LocalReferenceExpression { Local.IsRef: false } local || Requirement.Unrefined(offset.Type).FullyQualifiedName == "Standard.Index")
+        if(offset is not LocalReferenceExpression { Local.IsRef: false } local)
         {
             return null;
         }
@@ -24,6 +31,33 @@ internal sealed record RangeBound(Admitted Values, LocalVariable? Symbol, bool F
         var values = captured?.Invoke(offset) ?? Requirement.ValuesOf(offset.Type) ?? Admitted.Everything;
 
         return new RangeBound(values, Lengths.Exact(values) is null ? local.Local : null, fromEnd);
+    }
+
+    private static bool IsOffset(IMistType type)
+    {
+        var visited = new HashSet<IMistType>(ReferenceEqualityComparer.Instance);
+
+        while(visited.Add(type))
+        {
+            var domain = type switch
+            {
+                TypeAlias { AliasedType: { } aliased } => aliased,
+                RefinedType refined => refined.BaseType,
+                LiftedType lifted => lifted.Type,
+                UnknownValueType unknown => unknown.Domain,
+                TypeParameter { IsDependent: true, Domain: { } dependent } => dependent,
+                _ => null,
+            };
+
+            if(domain is null)
+            {
+                return Requirement.IsIntegral(type);
+            }
+
+            type = domain;
+        }
+
+        return false;
     }
 }
 

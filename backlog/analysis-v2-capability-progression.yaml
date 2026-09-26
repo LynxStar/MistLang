@@ -1133,7 +1133,7 @@ rules:
       NOT JUDGED: a from-end index or a range, which records no slot, as a user indexer's does; that closes
       order 9's task on `numbers[^1]`. A CLR-projected indexer, as before (task below). NOT CHANGED, and
       measured beside it: no variable index into an unknown-length span can be proven, since `span.Length`
-      types as unknown (the task on order 10, amended with the measurement); and `cells[(byte)1]` into
+      types as unknown (recovered on 2026-09-26, with the evidence on order 12); and `cells[(byte)1]` into
       `int[3]` is INDEX_UNPROVEN, the prover reading no constant through a cast, where classic refuses the
       cast itself.
 
@@ -2479,13 +2479,6 @@ rules:
         MIST_PM_UNRESOLVED_TYPE on v2; the binder resolves only a simple name there. Until it does,
         the generic-struct and ref-struct stampability refusals cannot be measured or pinned.
       - >
-        `Span<T>` erases its length to `unknown` rather than an unknown int VALUE, so `int n =
-        span.Length;` is refused by order 5 as unknown-to-int; `int[]` gets this right. Found while
-        probing stackalloc; not a flow matter, and left as an order 5 finding. Measured again 2026-09-15:
-        `i < span.Length` is MIST_PA_UNKNOWN_HAS_NO_OPERATORS, so no variable index into an unknown-length
-        span can be proven on v2, where classic runs a guarded `span[i]`, a loop to `span.Length` and a
-        span parameter indexed under a guard.
-      - >
         Parameters have no Introduce step: the model keeps a method's parameters as Parameter, and
         the LocalVariable each is referenced through is the body scope's. Order 11 will want them on
         the graph, and will need the binder to record the mapping.
@@ -3330,6 +3323,76 @@ rules:
       The final full-suite ledger (20260926-094403) passed 7,519 tests: 6,745 compiler tests, 68 CLI tests
       and 706 source-generator tests, with no failures. Its corpus test checked all 532 refusal programs,
       including the unchanged stored-range and differing-range cases.
+
+      PARALLEL REFINEMENT FOLLOW-UPS (2026-09-26). RangeBound now captures an immutable admitted set when
+      the range is constructed. Later writes never reread that symbol, and copies carry the captured
+      value. Exact offsets compare by numeric value; non-exact descriptors retain symbol identity and
+      from-end markers, without inferring correlation between their independent interval sets. Loop
+      declarations and introduced bindings clear prior facts, and unseen writes and ref aliases remain
+      conservative. Join and Same compare the same bound representation; differing ranges remain lost
+      even if their resulting lengths happen to agree.
+
+      Symbolic supported offsets now size a slice by a conservative interval for end minus start; equal
+      from-end markers cancel the receiver length. Definitely negative offsets, offsets beyond every
+      possible receiver length, and definitely reversed endpoints report INDEX_OUT_OF_BOUNDS. Uncertain
+      endpoints retain runtime slicing semantics. Refused-slice facts prevent a second complaint through
+      copies and fields of this instance, while a valid replacement or a join with a valid path clears
+      that suppression. Intrinsic
+      sizing is gated on a supported receiver, so an arbitrary Range indexer supplies no slice proof.
+
+      Erased dependent slots recover UnknownValueType over the parameter's declared runtime domain in
+      TypeSubstitution. Span and ReadOnlySpan Length therefore retain ZeroOrPositiveInt, and ordinary
+      integer assignment, operators and the existing bounds prover can read them. The receiver's erased
+      shape remains erased, lifted lengths remain lifted and no size is invented. Ordinary generic
+      unknown stays the top type. Mirrored symbolic guards now use the same comparison reasoning as
+      direct guards, including Length > i and negated comparisons.
+
+      The existing flow also carries optional exact finite numeric and decoded string facts. Supported
+      real comparisons, string equality and negation, and literal regex full matching can decide a
+      constant, copied local or equal join; invalidation forgets the fact. An exact literal verdict
+      takes precedence over a retained refinement type, and unary transformations cannot reuse their
+      operand's refinement promise, so negating a Positive value does not prove another Positive.
+      Integral-to-real conversion follows the emitted representation, including float-to-double precision and unsigned literal
+      truncation. Regex evaluation uses the emitter's ^(?:pattern)$ wrapping, including its final-newline
+      semantics, with a 100 ms evaluation budget per match. Unsupported options and predicate compositions remain
+      UNPROVEN. String slice lengths use decoded runtime characters rather than source escape spelling.
+
+      Classic's regex assignments are an observable oracle, but its real and string constant verdicts
+      were measured inconsistent with refinement-types R5.1 and R5.2 on 2026-09-19: even valid positive
+      reals and string equality were refused, while negated string equality admitted both values. The
+      literal evaluator must therefore follow the specs and the observable v2 runtime `is` for those
+      shapes. It supplies a static proof, with no runtime guard inserted at a refined assignment.
+
+      COVERAGE: 62 new RangeCaptureDecisionTests rows and nine RangeLengthFactsTests rows, the latter
+      enumerating successful concrete slices against all four from-end marker combinations and pinning
+      no inferred size for an arbitrary Range indexer. StoredRangeDecisionTests now holds 31 rows,
+      retaining the differing-range refusals and replacing unsupported-capture expectations with actual
+      snapshot proofs. SpanLengthDecisionTests adds 34 rows over real Standard members and resolved
+      indexers; LiteralPredicateDecisionTests adds 66 rows and LiteralPredicateEvaluatorTests eleven;
+      DecodedSliceDecisionTests adds eight component rows over real slicing. Thirty-seven new corpus
+      cases pin endpoint errors, insufficient span guards and invalidating writes, violated constants,
+      and deliberately unsupported literal predicates. The copied-symbolic-bound refusal is strengthened
+      to index 3 after the original end changes from 3 to 5, so capturing the original 3 is measured as
+      INDEX_OUT_OF_BOUNDS. Existing differing-range refusal programs remain unchanged. The three earlier
+      unreadable real/regex/string cases now use genuinely dynamic inputs and retain UNPROVEN markers.
+
+      COMBINED FOCUSED LEDGER 20260926-111048: full solution build, zero warnings and errors; all 409
+      selected compiler checks pass, including the previously deferred mirrored span guard, the final
+      literal unary-identity hardening and all decoded-string cases. Independent read-only review found
+      no dropped predicate behavior in the shared lattice merge. Earlier track failures were diagnosed
+      fixture errors (domain assertions, duplicate names, unsupported escape and source-out spellings),
+      corrected before these checks; no flake was found and no diagnostic was suppressed.
+      FULL CHECKPOINT LEDGER 20260926-111126 passes all 7,808 tests: 7,034 compiler, 68 CLI and 706 source-generator
+      tests, with zero failures or skips. The full corpus checks all 641 programs, including the then-current new
+      refusals and the unchanged differing-range cases. This checkpoint uses the current binaries from the
+      clean full solution build above; no source or test changed between the focused and full runs.
+      INTEGRATION BOUNDARY: offsets are captured only from integral value domains, unwrapping resolved
+      aliases, refinements, lifted and erased values, and dependent domains. Boolean, real, Index and
+      user-defined conversion facts cannot supply offsets; unresolved or cyclic domains remain unknown.
+      The resolved custom-comparison/implicit-from-end-Index regression deliberately fails before
+      this gate in ledger 20260926-112926: no finding at slice[2] after a length-two slice. Three unit
+      checks pin both marker preservation and domain refusals, with one new corpus refusal. Final
+      validation follows this boundary fix and integration with current main.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -3341,8 +3404,9 @@ rules:
         a constant by any integral constituent it fits; a runtime `is` against a union of refinements
         narrows to a constituent (Req 10.3) and is not judged beyond order 8's pattern rules.
       - >
-        Real-valued refinements (`double > 0.0`) are not proven: the interval set is over long. A
-        property-pattern refinement is not proven either, as the comparison engine spec says.
+        Dynamic real-valued refinement implication and real guards are not proven: the interval set is
+        over long, and exact literal evaluation does not supply a real interval lattice. Property-pattern
+        refinements remain unproven, as the comparison engine spec says.
       - >
         A refined return through a lambda, an `async` result, or a `switch` arm is judged where the
         binder recorded a target; a refined field initialiser is judged as a declaration is.
@@ -3385,24 +3449,13 @@ rules:
         `if (x > 3) { return x; }` leave the member at its declared type. The natural next step is to lift
         from what RefinementFlow knows at each return rather than from the returned expression's type.
       - >
-        A predicate the prover cannot read is refused even when a constant plainly meets it: `Email e =
-        "a@b.co"`, `Positive p = 2.5` over `double > 0.0` and `Named n = "x"` over `string "x"` are UNPROVEN,
-        where classic evaluates the constant and accepts it (and refuses a violating one as MIST_TC_0097).
-        Evaluating a regex against a string literal, a real comparison against a real literal and a string
-        constant pattern against a string literal would admit them; nothing in AllFeaturesV2 assigns one.
-        CLASSIC IS AN ORACLE FOR THE REGEX ALONE (measured 2026-09-19, one project per shape): `Email e =
-        "a@b.co"` runs and `"nope"` is MIST_TC_0097, but every real constant is TC_0097, valid or not --
-        `Positive p = 2.5`, `= 3`, `Unit u = 0.5` over `double >= 0.0 and <= 1.0`, the message reading
-        `'> ?'` and naming 2.5 for -2.5 -- as is every string constant, `Named n = "x"` included, while
-        `string not "x"` admits both "y" and "x". So the real and string verdicts are the spec's
-        (Requirements 5.1 and 5.2) and no pipeline's. THE EVALUATOR IS THE WHOLE PROOF, there being no
-        runtime guard behind it, so it must agree with the emitted `is` exactly or stay UNPROVEN: a string
-        LiteralExpression holds the source body with its escapes unread (LiteralBinder strips the quotes
-        and nothing else); a `float` base compares its literal at another precision than the predicate's
-        double bound (`0.1f <= 0.1` is false); and a regex is matched in full by the BACKEND's wrapping
-        (RegexLowering.FullMatchPattern, `^(?:...)$`), by an engine that can backtrack without bound.
-        A readonly field states no value either, so `< limit` over `readonly int limit = 3` is unproven at
-        every use.
+        Literal regex evaluation stays UNPROVEN for timeout, malformed patterns and ignore-case options,
+        whose ambient culture can differ between compiler and runtime. Regex inside `not` or `or` also
+        stays UNPROVEN: emitted pattern composition does not preserve the hoisted regex condition there.
+        A float predicate with a double comparison bound is UNPROVEN because emission produces an
+        incompatible C# relational pattern. These emitter seams need their own fixes before the prover
+        admits them. A readonly field states no value either, so `< limit` over `readonly int limit = 3`
+        is still unproven at every use.
       - >
         A symbolic bound naming neither a member nor an array's or a span's Length has nothing to read it
         through. A `where` naming another parameter (`where lo < hi`) does not bind on v2
@@ -3411,10 +3464,20 @@ rules:
         type parameter of a user generic (`where i < N`) is likewise unproven at a call, though the
         receiver's type argument states N.
       - >
-        An erased span's Length is typed `unknown` on v2, so `if (i < s.Length) { s.Slice(i, 0) }` over a
-        `Span<int>` parameter is refused as MIST_PA_UNKNOWN_HAS_NO_OPERATORS before the prover sees it, and
-        a `Span<int>` does not convert to a `ReadOnlySpan<int>` (MIST_PA_NO_IMPLICIT_CONVERSION). Both
-        measured 2026-09-19 while probing Slice; neither is this rule's.
+        Span<int> to ReadOnlySpan<int> conversion remains refused as MIST_PA_NO_IMPLICIT_CONVERSION;
+        classic refuses it too (MIST_TC_0157, measured 2026-09-26). Erased Length typing is recovered,
+        without recovering a compile-time size, as the evidence above records.
+      - >
+        Range capture supports integral constants and non-ref numeric local/parameter offsets. Stored
+        Index values carry no known from-end marker; member-valued bounds, arithmetic and other unsupported
+        expressions stay unknown. Joins retain matching bound descriptors, not different ranges with the
+        same resulting length. Unknown endpoint validity remains a runtime slicing check.
+      - >
+        User Range indexers are refused by IndexBinder before analysis, whose intrinsic SliceType only
+        supports Standard arrays, spans and strings. Separately, Lengths.OfCall still trusts the member
+        names Slice, ToArray, AsSpan and ToCharArray without verifying the declaring type; user methods
+        with those names can fabricate result-length knowledge. This is a pre-existing inference limit
+        found in review, not widened into the range-capture work.
       - >
         A property or indexer accessor with a Mist body forgets every non-readonly field fact, whether or
         not it writes one; ReadonlyInference already answers whether a getter writes, and consulting it

@@ -198,6 +198,15 @@ public sealed class RangeCaptureDecisionTests
         Assert.Equal(refused ? 1 : 0, findings.Length);
     }
 
+    [Fact]
+    public void AUserComparison_DoesNotSupplyAnImplicitIndexConversionOffset()
+    {
+        var model = Build("var counter = new Counter(); if(counter == 3) { Range window = 0..counter; var slice = numbers[window]; var last = slice[2]; }",
+            "public class Counter { public static bool operator ==(Counter counter, int value) { return true; } public static bool operator !=(Counter counter, int value) { return false; } public static implicit operator Index(Counter counter) { return ^3; } }");
+
+        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+    }
+
     private static ProgramModelClass Build(string statements, string types = "", string preamble = Preamble)
     {
         var model = StandardModelProbe.Build(preamble + statements, out var diagnostics, types);

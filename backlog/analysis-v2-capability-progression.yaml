@@ -176,12 +176,62 @@ rules:
       them -- passed with no failure and no rerun, and the build and `dotnet format` were clean.
       
       NOT CLOSED, each measured the same day and recorded with its output against the error-expression
-      sentinel entry in program-model-body-tasks: a member access the binder refused
-      (`Console.WriteLine(k.Lenght)` is still two complaints, and is probably the commonest cascade left);
-      a pattern binding over a failed scrutinee; an inferred deconstruction that declares no locals; a
-      declared type that failed; and a value the binder types ErrorType for Stage 5 to refuse, which
-      through a local is still two and passed directly is one complaint and the wrong one, because the
-      refused call drops its arguments before Stage 5 walks them.
+      sentinel entry in program-model-body-tasks: a pattern binding over a failed scrutinee; an inferred
+      deconstruction that declares no locals; a declared type that failed; and a value the binder types
+      ErrorType for Stage 5 to refuse, which through a local is still two and passed directly is one
+      complaint and the wrong one, because the refused call drops its arguments before Stage 5 walks
+      them. The fifth, a member access the binder refused, is closed below.
+
+      A MEMBER ACCESS THE BINDER REFUSED ADDS NO SECOND COMPLAINT (2026-09-25). The suppression above
+      recognized a failed LOCAL but not the refusal that produced one, so the commonest cascade of all
+      survived it. MEASURED on both pipelines at 6b73b28b, one project per probe: `int k = 5;
+      Console.WriteLine(k.Lenght);`, `Console.WriteLine(k.Nope())`, `var n = k.Lenght;
+      Console.WriteLine(n);`, `s?.Lenght` over a `string?`, and `Math.Rond(1.5)` on a type name each
+      reported MIST_PM_UNRESOLVED_MEMBER and then MIST_PM_UNRESOLVABLE_OVERLOAD at WriteLine, naming
+      (string), (unknown). Each is now the first complaint alone. CLASSIC IS NOT THE ONE-COMPLAINT
+      REFERENCE the note above assumed: on the same five projects it reports MIST_UNDEFINED_MEMBER TWICE
+      for four of them -- only the `var` local draws one -- so v2 is now stricter here too, and classic's
+      duplicate is recorded rather than matched.
+
+      WHAT CHANGED. MemberResolution.Report now ANSWERS whether it reported; the answer leaves Resolve on
+      MemberLookup.Reported and is recorded on MemberAccessExpression.IsFailed, which PriorFailure.Of
+      reads beside its existing receiver walk. RECORDED, NOT RE-DERIVED, and that is the whole of the
+      rule: the same NotFoundResult is a refusal already spoken on a type that answers members and a
+      silence on one that does not, so a predicate that re-tested AnswersMembers would read an unknown
+      receiver's silence as a refusal and swallow the only complaint that program gets. Measured on the
+      model: `i.Lenght` binds an access with IsFailed true, `u.Length` over unknown one with IsFailed
+      false, the receiver being UnknownType and AnswersMembers false. The two sites that record it are
+      the plain and the conditional access; a `?.` on a NON-optional receiver records nothing, having
+      resolved no member and reported nothing, which leaves that refusal Stage 5's.
+
+      PROVED BY six corpus cases in binding -- refused-member-access-as-an-argument,
+      refused-member-call-as-an-argument, local-from-a-refused-member-access-passed-on,
+      refused-conditional-member-access-as-an-argument, refused-static-member-as-an-argument, and
+      unknown-receiver-member-reaches-its-call, which expects MIST_PM_UNRESOLVABLE_OVERLOAD and is the
+      case that sees a complaint SWALLOWED rather than doubled; its expectation is the
+      ErrorType-for-Stage-5 item's wrong-but-current complaint and changes when that item lands -- and
+      seven rows in OverloadSelectionTests, five holding a refused access to its one complaint and two
+      holding an unknown receiver still reported. FIVE MUTATIONS on a confirmed build, each caught by the
+      cases and rows named for it: the access arm dropped from PriorFailure failed all five cascade cases
+      and the five rows that pass a refused access on; the plain access recording no refusal failed four
+      of them, the conditional case being the one it cannot reach; the conditional recording none failed
+      that case alone and its one row; a missing member not saying it reported failed the same five
+      again; and an UNANSWERING type claiming it reported failed ONLY
+      unknown-receiver-member-reaches-its-call and the two unknown rows -- the one mutation that REMOVES
+      a complaint instead of doubling one, which is why that case is written to expect a diagnostic
+      rather than to forbid one. The full suite -- 6697, 706 and 68 tests, AllFeaturesV2's baseline among
+      them -- passed with no failure and no rerun, and the build and `dotnet format` were clean.
+
+      A NO-OP BUILD CAN HIDE ALL OF IT, recorded because it produced a defect report that was not real.
+      The mutation script restored each file with shutil.copy2, which preserves the pristine mtime, so
+      the restored source read as OLDER than the mutated binary and MSBuild skipped compilation: the
+      final "restored build ok" was a no-op that left the last mutation in Mist.Core.dll. The
+      per-mutation verdicts were unaffected, since writing a mutation bumps the mtime, but everything
+      measured afterwards ran against that binary -- the full suite failed the two unknown-receiver rows,
+      which were correctly detecting the leftover mutation, and a probe of the model then "showed" an
+      unknown receiver being recorded as reported, a defect that did not exist. Restore with copyfile
+      plus a touch, and re-run the corpus and the rows AFTER the final restore rather than trusting the
+      build's exit code.
     tasks:
       - >
         Keep the 72 banked samples as the FALSE-POSITIVE half. A new analyzer that refuses OR WARNS on a

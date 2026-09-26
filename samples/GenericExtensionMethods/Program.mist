@@ -1,0 +1,146 @@
+// GenericExtensionMethods -- generic methods declared in extension blocks, and the constraints they
+// declare, generic block or not. A stated type argument that differs from the argument's own type is
+// printed beside the inferred one, since only the first shows the stated choice survived. Runs on the
+// experimental pipeline only: classic cannot resolve a generic block's type parameter
+// (MIST_UNDEFINED_TYPE_ARGUMENT), so this sample is referenced from AllFeaturesV2 and not AllFeatures.
+
+using Standard;
+
+namespace GenericExtensionMethods;
+
+public class Animal
+{
+    public string Sound()
+    {
+        return "...";
+    }
+}
+
+public class Dog : Animal
+{
+    public string Bark()
+    {
+        return "woof";
+    }
+}
+
+public class Shelf<S>
+{
+}
+
+public class Box<T>
+{
+}
+
+public abstract IShape
+{
+    int Sides();
+}
+
+public class Square : IShape
+{
+    public int Sides()
+    {
+        return 4;
+    }
+}
+
+public class Tag
+{
+    public string Text;
+
+    public Tag(string text)
+    {
+        this.Text = text;
+    }
+}
+
+public struct Point
+{
+    public int X = 3;
+    public int Y = 4;
+}
+
+public class Holder
+{
+}
+
+<T> extension(Box<T> self)
+{
+    public string Put<U>(U item) where U : T
+    {
+        var slot = new Shelf<T>();
+        var kind = new Shelf<U>();
+        return Type.Of(slot).ToString() + " <- " + Type.Of(kind).ToString();
+    }
+
+    public T Store<U>(U item) where U : T
+    {
+        T stored = item;
+        return stored;
+    }
+}
+
+extension(Holder self)
+{
+    public int Count<U>(U shape) where U : IShape
+    {
+        return shape.Sides();
+    }
+
+    public U Fresh<U>() where U : new()
+    {
+        return new U();
+    }
+
+    public U Make<U>(string text) where U : new(string)
+    {
+        return new U(text);
+    }
+
+    public int Plus<N:int>(int value)
+    {
+        return value + N;
+    }
+
+    public U Blank<U>() where U : default
+    {
+        U made = default;
+        return made;
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Generic Extension Methods Sample ===");
+
+        var box = new Box<Animal>();
+        Console.WriteLine($"stated:   {box.Put<Dog>(new Dog())}");
+        Console.WriteLine($"widened:  {box.Put<Animal>(new Dog())}");
+        Console.WriteLine($"inferred: {box.Put(new Dog())}");
+
+        func<Dog, string> put = box.Put;
+        Console.WriteLine($"group:    {put(new Dog())}");
+
+        Animal stored = box.Store(new Dog());
+        Console.WriteLine($"stored as the block's T: {stored.Sound()}");
+
+        var holder = new Holder();
+        Console.WriteLine($"Count(Square)={holder.Count(new Square())}");
+        Console.WriteLine($"Fresh<Dog>().Bark()={holder.Fresh<Dog>().Bark()}");
+        var tag = holder.Make<Tag>("hi");
+        Console.WriteLine($"Make<Tag>(hi).Text={tag.Text}");
+        Console.WriteLine($"Plus<4>(3)={holder.Plus<4>(3)}");
+        Console.WriteLine($"Blank<int>()={holder.Blank<int>()}");
+
+        Point origin = holder.Blank<Point>();
+        Console.WriteLine($"Blank<Point>()=({origin.X}, {origin.Y})");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

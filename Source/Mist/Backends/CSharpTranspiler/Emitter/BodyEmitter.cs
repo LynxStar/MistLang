@@ -912,7 +912,7 @@ internal static class BodyEmitter
                     && (callee.TypeArguments is { Count: > 0 } || CollidingName(invocation.Method, callee.Receiver.Type) is not null))
                 {
                     EmitMemberAccess(
-                        callee, invocation.Method?.TypeParametersList, writer, diagnostics,
+                        callee, ExtensionBlockEmitter.CallTypeArguments(invocation.Method, callee.TypeArguments), writer, diagnostics,
                         CollidingName(invocation.Method, callee.Receiver.Type));
                 }
                 else
@@ -927,7 +927,7 @@ internal static class BodyEmitter
                 break;
 
             case MemberAccessExpression memberAccess:
-                EmitMemberAccess(memberAccess, parameters: null, writer, diagnostics);
+                EmitMemberAccess(memberAccess, (memberAccess.TypeArguments, null), writer, diagnostics);
                 break;
 
             // Named on the carrier rather than written as dot-notation, which is what the extension
@@ -1191,12 +1191,15 @@ internal static class BodyEmitter
                     writer.Append(ReceiverSpelling.Qualifier(functionRef.Method.DeclaringType, functionRef.Method.Modifiers.IsStatic));
                 }
 
+                var (functionArguments, functionParameters) =
+                    ExtensionBlockEmitter.CallTypeArguments(functionRef.Method, functionRef.TypeArguments);
+
                 writer.Append(
                     CalleeName(
                         CollidingName(functionRef.Method, functionRef.Receiver?.Type) ?? LocalNames.Of(functionRef.Method),
-                        functionRef.TypeArguments,
-                        functionRef.Method.TypeParametersList)
-                    + EmitTypeArguments(functionRef.TypeArguments, functionRef.Method.TypeParametersList));
+                        functionArguments,
+                        functionParameters)
+                    + EmitTypeArguments(functionArguments, functionParameters));
                 break;
 
             case MethodGroupExpression methodGroup:
@@ -2361,7 +2364,7 @@ internal static class BodyEmitter
 
     private static void EmitMemberAccess(
         MemberAccessExpression memberAccess,
-        IReadOnlyList<TypeParameter>? parameters,
+        (IReadOnlyList<IMistType> Arguments, IReadOnlyList<TypeParameter>? Parameters) typeArguments,
         CSharpWriter writer,
         DiagnosticBag diagnostics,
         string? memberName = null)
@@ -2396,8 +2399,8 @@ internal static class BodyEmitter
 
         EmitSubExpression(memberAccess.Receiver, PostfixPrecedence, writer, diagnostics);
         writer.Append(memberAccess.IsConditional ? "?." : ".");
-        writer.Append(CalleeName(memberName ?? memberAccess.MemberName, memberAccess.TypeArguments, parameters));
-        writer.Append(EmitTypeArguments(memberAccess.TypeArguments, parameters));
+        writer.Append(CalleeName(memberName ?? memberAccess.MemberName, typeArguments.Arguments, typeArguments.Parameters));
+        writer.Append(EmitTypeArguments(typeArguments.Arguments, typeArguments.Parameters));
     }
 
     /// <summary>

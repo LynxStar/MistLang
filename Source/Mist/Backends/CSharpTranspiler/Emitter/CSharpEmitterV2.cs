@@ -689,6 +689,14 @@ internal sealed class CSharpEmitterV2
             }
         }
 
+        foreach(var method in EmittableBlocks().SelectMany(block => block.MethodsList))
+        {
+            foreach(var parameter in method.TypeParametersList)
+            {
+                Collect(parameter, signatures);
+            }
+        }
+
         if(signatures.Count == 0)
         {
             return;
@@ -727,6 +735,14 @@ internal sealed class CSharpEmitterV2
         {
             signatures[ConstructorConstraintInterfaces.InterfaceName(signature)] = signature;
         }
+    }
+
+    private IEnumerable<ExtensionBlock> EmittableBlocks()
+    {
+        return programModel.Assemblies
+            .Where(assembly => assembly.HasMistSource)
+            .SelectMany(assembly => assembly.CompilationUnits)
+            .SelectMany(unit => unit.Extensions);
     }
 
     private IEnumerable<MemberType> EmittableTypes()

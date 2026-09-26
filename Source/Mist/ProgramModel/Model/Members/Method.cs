@@ -83,6 +83,8 @@ internal class Method(
     /// </summary>
     public TypeSubstitution BlockClosing { get; init; } = TypeSubstitution.Empty;
 
+    public ExtensionBlock? ClosedBlock { get; init; }
+
     IReadOnlyList<ITypeParameter> IGenericDeclaration.TypeParameters => TypeParametersList;
     IReadOnlyList<IContextBinding> IMethod.ContextBindings => ContextBindingsList;
     IReadOnlyList<IParameter> IMethod.Parameters => ParametersList;

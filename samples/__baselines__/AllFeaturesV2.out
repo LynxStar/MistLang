@@ -2061,3 +2061,15 @@ Widen(int) 2
 Widen(long) 2
 Labeled(string) 4
 === CallableInference Done ===
+=== Generic Extension Methods Sample ===
+stated:   GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Animal] <- GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Dog]
+widened:  GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Animal] <- GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Animal]
+inferred: GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Animal] <- GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Dog]
+group:    GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Animal] <- GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Dog]
+stored as the block's T: ...
+Count(Square)=4
+Fresh<Dog>().Bark()=woof
+Make<Tag>(hi).Text=hi
+Plus<4>(3)=7
+Blank<int>()=0
+Blank<Point>()=(3, 4)

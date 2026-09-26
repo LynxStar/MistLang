@@ -3410,7 +3410,21 @@ rules:
       stdout/stderr are retained in /private/tmp/mist-refinement-runtime-checks.py and
       /private/tmp/mist-refinement-combined-runtime; format output is
       /private/tmp/mist-refinement-followups-final-format.log. Changed v2 source has no legacy semantic
-      or analyzer references. All code remains on the local review branch pending the user's decision.
+      or analyzer references. At the initial review checkpoint, all code remained local pending the
+      user's decision; publication was then explicitly authorized.
+      MAIN INTEGRATION CHECKPOINT (2026-09-26): rebased onto f4124311, incorporating typed-property
+      patterns and inherited generic conformance. Full ledger 20260926-140125 builds with zero warnings
+      and errors and passes all 7,922 tests: 7,146 compiler, 68 CLI and 708 source-generator; zero failures
+      or skips, with empty failures.txt. A subsequent clean rebase onto b836a87e incorporates predicate
+      accessibility and CLR accessor projection; targeted checks cover analysis, backend, unsafe reach,
+      accessor projection and the full refusal corpus before publication. Ledger 20260926-141216
+      rebuilds with zero warnings/errors and passes all 2,590 selected tests: 2,588 compiler and two
+      CLI checks; zero failures/skips and empty failures.txt. Its corpus checks all 653 refusal programs.
+      Full-solution formatting exits 0 without diagnostics (/private/tmp/mist-refinement-main-format.log).
+      The same eight runtime checks pass again on this main integration, all exit 0 with zero diagnostic
+      output and byte-exact stdout. Classic AllFeatures remains 52,791 bytes; current AllFeaturesV2 is
+      59,745 bytes after main's inherited-conformance sample additions. Range/span/predicate/decoded probes
+      retain their earlier exact outputs. No source or test changed after the final integration build.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>

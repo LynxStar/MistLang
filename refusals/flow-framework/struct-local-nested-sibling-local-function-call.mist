@@ -1,0 +1,28 @@
+using Standard;
+
+namespace Refusal;
+
+public struct Point
+{
+    public int x;
+    public int y;
+}
+
+public struct Nested
+{
+    public Point inner;
+    public bool flag;
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Nested n;
+        n.inner.x = 1;
+        int Read() { return n.inner.y; }
+        // REFUSE: MIST_PA_LOCAL_FUNCTION_READS_UNASSIGNED
+        Console.WriteLine(Read());
+        n.inner.y = 2;
+    }
+}

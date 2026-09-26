@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+public struct Point
+{
+    public int x;
+    public int y;
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        Point p;
+        // REFUSE: MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT
+        Console.WriteLine(p.x);
+    }
+}

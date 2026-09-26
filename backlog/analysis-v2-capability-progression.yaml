@@ -2263,9 +2263,8 @@ rules:
       at a join, a declaration without an initializer removing its local, an assignment adding its
       target, a read adding the local it read so one unassigned local is one complaint per path. Locals
       are tracked only when declared without an initializer, every other way a local comes to be giving
-      it a value. Writing a field of a struct held in a local writes the local and reads none of it --
-      Roslyn admits `Point p; p.x = 1; p.y = 2;` -- and Roslyn keeps the per-field precision v2 does
-      not have (the task below). Classic's own analyzer reports NONE of the local cases: it emits
+      it a value. The initial implementation counted a struct field write as writing the whole local;
+      the per-field extension measured below closes that gap. Classic's own analyzer reports NONE of the local cases: it emits
       `int x;` and Roslyn refuses with CS0165, measured on a 27-shape probe compiled through the
       emitted project. Every one of Roslyn's eleven refusals is v2's, at the same read, including the
       read inside a lambda before the capture is assigned and an assignment inside a lambda or async
@@ -2328,6 +2327,74 @@ rules:
       body's own local -- and seven decision rows for the admits: assigned before the call with the
       declaration first or last, assigned on both branches, a write inside then a read after the second
       assignment, recursion, a func value after assignment.
+
+      STRUCT LOCAL FIELD PATHS, 2026-09-25. Reproduced before the change with
+      FlowDecisionTests.WritingOneStructFieldDoesNotAssignItsSibling: `Point p; p.x = 1; return p.y;`
+      produced no Stage 5 finding (ledger 20260925-230359, one failing assertion, zero build warnings).
+      Scratch classic CLI probes, without inspecting classic implementation, confirmed that the
+      sibling read, sibling lambda capture and whole partial value fail only as MIST_CS_ERROR in
+      generated C#. An assigned field and its lambda capture run with the sibling unassigned; a
+      nested assigned field and a whole-value-versus-individual-fields branch join also run. Classic
+      did not resolve the local-function probe, so that shape has no classic oracle here.
+
+      LocalStoragePath identifies direct instance fields by their bound Field identity through value
+      receivers; reference, property and method boundaries read the value they need. The shared CFG
+      preserves receiver events but marks storage navigation, so a read of `p.inner.x` requires that
+      path rather than every sibling. LocalAssignmentSlots expands the finite observed field paths
+      before solving and uses common leaf slots for whole-value and subtree assignments, including
+      inherited fields and substituted generic fields. Intersection remains the join and the existing
+      FlowSolution remains the solver. Declaration transfer removes every slot for a fresh local on
+      each loop entry. Static fields are excluded; field initializers do not initialize a bare local.
+      Auto-property backing storage is opaque, and accessors require an assigned value receiver.
+      Empty source structs have no required storage; intrinsic and imported CLR layouts stay opaque.
+
+      Local-function capture summaries now use the same graph and paths, including transitive calls
+      and function values; lambda and async bodies retain the enclosing slot state. A successful field
+      read or write never settles siblings. A refused read settles only its required slots, and a
+      local-function entry emits at most one finding per captured local, preserving recovery without
+      cascading at repeated reads. Constructor storage and constructor-this escape policy are unchanged.
+
+      COVERAGE AND ORACLES. Forty-four new component cases (39 admits, four repeated-read recovery
+      checks, one exact regression) and 36 marked refusals, bringing flow-framework to 70 and the full
+      corpus to 551. The fixtures require clean binding as well as Stage 5 silence. A bare generic
+      local declaration is currently parsed as a comparison; transparent aliases exercise the same
+      constructed field types and were separately run through v2. Additional executable probes passed
+      generic nested and inherited layouts, reference boundaries, partial lambda captures and local
+      functions. An imported DateTime assigned from Now and copied ran; an uninitialized DateTime was
+      refused in Mist. A failed member lookup no longer adds an assignment complaint about its receiver:
+      the final CLI probe produced only MIST_PM_UNRESOLVED_MEMBER for `p.missing`.
+
+      VERIFICATION, 2026-09-26. `dotnet build Mist.slnx --no-restore --disable-build-servers -m:1
+      -p:UseSharedCompilation=false`, zero warnings/errors in 9.24 seconds; log
+      TestResults/field-assignment-resumed-build.log. `dotnet format Mist.slnx --verify-no-changes
+      --no-restore` passed (field-assignment-resumed-format.log). All 101 FlowDecisionTests passed
+      in ledger 20260926-094255, including the initial sibling regression. `git diff --check` and
+      parsing both capability registers as YAML passed.
+
+      FULL LEDGER 20260926-094332, `LEDGER_NO_BUILD=1 tools/test-ledger/run.sh` after that rebuild:
+      7,508 passed, zero failures/skips (Mist.Tests 6,734, CLI 68, source generator 706).
+      The TRX confirms both AllFeatures and AllFeaturesV2 compile/run/stdout baselines, the experimental
+      Testing command, all 101 flow decision cases, and EveryRefusalCaseIsRefusedForTheStatedReason.
+      All 551 corpus files matched their diagnostic IDs and Mist source lines with no unexpected
+      errors or warnings. Main-suite duration was 705 seconds with other worktrees' full suites active
+      (recorded in env.txt); failures.txt is empty.
+
+      MAIN INTEGRATION, 2026-09-26. Rebased onto 3ba44080 and rebuilt with zero warnings/errors
+      (field-assignment-integration-build.log, 22.10 seconds); format passed. Full ledger
+      20260926-103117 passed 7,570 tests (Mist.Tests 6,796, CLI 68, source generator 706), including
+      both sample baselines and the then-574-file refusal corpus, with no failures/skips.
+      After main's lambda-inference commits (af136414), the solution rebuilt with zero warnings/errors
+      (field-assignment-main-build.log, 196.72 seconds), format passed, and ledger 20260926-104750
+      passed all 184 selected flow, local-function, walker, callable-inference, emission and sample
+      baseline cases. A temporary in-process harness using RefusalCorpusTest's existing compiler and
+      marker checker passed the 36 struct-local files plus the four new lambda-inference files,
+      with no missing or extra diagnostics (field-assignment-selected-corpus.log). Its initial missing
+      Standard-directory setup was corrected before this successful run; no compiler change was needed.
+      Main's accessor-enforcement commits (56cebe73) were then included; the compiler/CLI build had
+      zero warnings/errors in 39.12 seconds (field-assignment-main-compiler-build.log), and the final
+      AllFeaturesV2 run matched all 2,057 baseline lines with empty stderr. The full corpus now has
+      605 files; the last full-corpus run above covered the earlier 574-file snapshot.
+
     tasks:
       - >
         The definite-assignment spec is stricter than classic: Req 1.1 refuses any read of an
@@ -2336,9 +2403,13 @@ rules:
         classic. Whether to adopt the spec's rule -- which refuses samples-shaped code like a helper
         method called from a constructor before every field is assigned -- is a decision.
       - >
-        Per-field definite assignment of a struct local is left to Roslyn (CS0170): `Point p;
-        p.x = 1; return p.y;` passes Stage 5, since a field write counts as writing the whole local,
-        and is refused by the emitted C#. Tracking (local, field) pairs is the natural extension.
+        Field-path precision covers source-declared struct fields. Imported/intrinsic storage, tuple
+        elements and synthesized variadic projections remain opaque and require whole-value assignment.
+        Empty-layout recursion guards use struct definitions, so repeated generic wrappers around an
+        empty type can conservatively require whole-value assignment when their paths are unexpanded.
+        Local-function capture summaries remain flow-insensitive: a function that writes a capture
+        before reading it still requires assignment at entry and does not establish assignment in its
+        caller. Ref-alias referents and interprocedural assignment effects are not modeled.
       - >
         A generic type in element position -- `new Pair<int>[3]`, `stackalloc Span<int>[2]` -- is
         MIST_PM_UNRESOLVED_TYPE on v2; the binder resolves only a simple name there. Until it does,
@@ -3278,4 +3349,3 @@ rules:
         A property or indexer accessor with a Mist body forgets every non-readonly field fact, whether or
         not it writes one; ReadonlyInference already answers whether a getter writes, and consulting it
         (for calls too) would keep a guard across a pure accessor. Sound, imprecise.
-

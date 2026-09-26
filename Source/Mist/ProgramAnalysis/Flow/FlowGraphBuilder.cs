@@ -354,10 +354,14 @@ internal sealed class FlowGraphBuilder
         return (matched, unmatched);
     }
 
-    private FlowBlock Expression(Expression expression, FlowBlock current)
+    private FlowBlock Expression(Expression expression, FlowBlock current, bool isStorageReceiver = false)
     {
         switch(expression)
         {
+            case MemberAccessExpression access when LocalStoragePath.Of(access) is not null || access.Type is ErrorType:
+                current = Expression(access.Receiver, current, isStorageReceiver: true);
+                break;
+
             case BinaryExpression { OperatorKind: BinaryOperatorKind.LogicalAnd or BinaryOperatorKind.LogicalOr }
                 or UnaryExpression { OperatorKind: UnaryOperatorKind.LogicalNot }
                 or IsPatternExpression:
@@ -422,7 +426,7 @@ internal sealed class FlowGraphBuilder
                 break;
         }
 
-        current.Steps.Add(Evaluate(expression));
+        current.Steps.Add(new FlowStep(FlowStepKind.Evaluate, expression, IsStorageReceiver: isStorageReceiver));
         return current;
     }
 
@@ -442,7 +446,7 @@ internal sealed class FlowGraphBuilder
     {
         current = assignment.Target switch
         {
-            MemberAccessExpression { Receiver: LocalReferenceExpression local } when IsValueLocal(local) => current,
+            MemberAccessExpression member when LocalStoragePath.Of(member) is not null || member.Type is ErrorType => current,
             MemberAccessExpression member => Expression(member.Receiver, current),
             IndexExpression index => Expression(index.Index, Expression(index.Receiver, current)),
             ExtensionPropertyAccessExpression extension => Expression(extension.Receiver, current),
@@ -461,11 +465,6 @@ internal sealed class FlowGraphBuilder
         absent = Expression(assignment.Value, absent);
         absent.Steps.Add(Evaluate(assignment));
         return Join(present, absent);
-    }
-
-    public static bool IsValueLocal(LocalReferenceExpression local)
-    {
-        return local.Type is StructType or ConstructedType { Definition: StructType };
     }
 
     private void Leave(FlowBlock current, int depth)

@@ -1,0 +1,16 @@
+using Standard;
+
+namespace Refusal;
+
+public struct WithInitializer { public int x = 7; public int y; }
+
+public class Probe
+{
+    public static void Main()
+    {
+        WithInitializer p;
+        p.y = 2;
+        // REFUSE: MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT
+        Console.WriteLine(p.x);
+    }
+}

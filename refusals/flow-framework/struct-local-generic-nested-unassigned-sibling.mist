@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public struct Point
+{
+    public int x;
+    public int y;
+}
+
+public struct Wrapper<T> { public T inner; public int other; }
+
+type PointWrapper = Wrapper<Point>;
+
+public class Probe
+{
+    public static void Main()
+    {
+        PointWrapper w;
+        w.inner.x = 1;
+        // REFUSE: MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT
+        Console.WriteLine(w.inner.y);
+    }
+}

@@ -85,6 +85,94 @@ public sealed class FlowDecisionTests : ProgramModelProbe
         AssertSilent(statement);
     }
 
+    [Fact]
+    public void WritingOneStructFieldDoesNotAssignItsSibling()
+    {
+        var finding = Assert.Single(AnalyseStruct("", """
+            public class Reader
+            {
+                public static int Read()
+                {
+                    Point p;
+                    p.x = 1;
+                    return p.y;
+                }
+            }
+            """));
+
+        Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", finding.Id.Value);
+    }
+
+    [Theory]
+    [InlineData("Point p; p.x = 1; var value = p.x;")]
+    [InlineData("Point p; p.x = 1; p.x = p.x + 2; var value = p.x;")]
+    [InlineData("Point p; p.x = 1; p.y = 2; Point copy = p;")]
+    [InlineData("Point p = new Point(); var value = p.y;")]
+    [InlineData("Point p; p = new Point(); var value = p.y;")]
+    [InlineData("Point p; p.x = 1; p.y = 2; void Take(Point value) { } Take(p);")]
+    [InlineData("Point Make() { Point p; p.x = 1; p.y = 2; return p; } Point value = Make();")]
+    [InlineData("Point p; if(flag) { p.x = 1; } else { p.x = 2; } var value = p.x;")]
+    [InlineData("Point p; if(flag) { p.x = 1; p.y = 2; } else { p.x = 3; p.y = 4; } Point copy = p;")]
+    [InlineData("Point p; if(flag) { p = new Point(); } else { p.x = 1; p.y = 2; } Point copy = p;")]
+    [InlineData("Point p; if(flag) { p.x = 1; } else { return; } var value = p.x;")]
+    [InlineData("Point p; while(true) { p.x = 1; break; } var value = p.x;")]
+    [InlineData("Point p; p.x = 1; while(flag) { p.y = 2; flag = false; } var value = p.x;")]
+    [InlineData("Point p; while(true) { if(flag) { p.x = 1; break; } p.x = 2; break; } var value = p.x;")]
+    [InlineData("while(flag) { Point p; p.x = 1; var value = p.x; flag = false; }")]
+    [InlineData("Point first; Point second; first.x = 1; second.y = 2; var value = first.x + second.y;")]
+    [InlineData("Nested n; n.inner.x = 1; var value = n.inner.x;")]
+    [InlineData("Nested n; n.inner.x = 1; n.inner.y = 2; Point copy = n.inner;")]
+    [InlineData("Nested n; n.inner = new Point(); var value = n.inner.y;")]
+    [InlineData("Nested n; n.inner.x = 1; n.inner.y = 2; n.flag = true; Nested copy = n;")]
+    [InlineData("Nested n; if(flag) { n.inner = new Point(); } else { n.inner.x = 1; n.inner.y = 2; } Point copy = n.inner;")]
+    [InlineData("Nested n; if(flag) { n.inner.x = 1; } else { n.inner.x = 2; } var value = n.inner.x;")]
+    [InlineData("Point p; p.x = 1; func<int, int> read = value => value + p.x; var result = read(2);")]
+    [InlineData("Nested n; n.inner.x = 1; func<int, int> read = value => value + n.inner.x; var result = read(2);")]
+    [InlineData("Point p; int Read() { return p.x; } p.x = 1; var value = Read();")]
+    [InlineData("Point p; int Read() { return p.x; } p.x = 1; func<int> read = Read;")]
+    [InlineData("Point p; int Read() { return p.x; } int Forward() { return Read(); } p.x = 1; var value = Forward();")]
+    [InlineData("Nested n; int Read() { return n.inner.x; } n.inner.x = 1; var value = Read();")]
+    [InlineData("Point p; p.x = 1; var task = async { var value = p.x; };")]
+    public void AStructFieldAssignedOnEveryPathToItsRead_IsAdmitted(string statement)
+    {
+        Assert.Empty(AnalyseStruct(statement));
+    }
+
+    [Theory]
+    [InlineData("Holder h; h.box = new Box(); h.box.value = 1; var value = h.box.value;",
+        "public class Box { public int value; } public struct Holder { public Box box; public int other; }")]
+    [InlineData("PointWrapper w; w.inner.x = 1; var value = w.inner.x;",
+        "public struct Wrapper<T> { public T inner; public int other; } type PointWrapper = Wrapper<Point>;")]
+    [InlineData("PointWrapper w; w.inner.x = 1; w.inner.y = 2; w.other = 3; PointWrapper copy = w;",
+        "public struct Wrapper<T> { public T inner; public int other; } type PointWrapper = Wrapper<Point>;")]
+    [InlineData("IntWrapper w; w.inner = 1; w.other = 2; IntWrapper copy = w;",
+        "public struct Wrapper<T> { public T inner; public int other; } type IntWrapper = Wrapper<int>;")]
+    [InlineData("ExtendedPoint p; p.x = 1; p.y = 2; p.z = 3; ExtendedPoint copy = p;",
+        "public struct ExtendedPoint : Point { public int z; }")]
+    [InlineData("ExtendedPoint p; p.x = 1; var value = p.x;",
+        "public struct ExtendedPoint : Point { public int z; }")]
+    [InlineData("WithProperty p = new WithProperty(); p.Value = 1; var value = p.Value;",
+        "public struct WithProperty { public int count; public int Value { get; set; } }")]
+    [InlineData("WithInitializer p = new WithInitializer(); var value = p.x;",
+        "public struct WithInitializer { public int x = 7; public int y; }")]
+    [InlineData("WithStatic p; p.value = 1; WithStatic copy = p;",
+        "public struct WithStatic { public int value; public static int shared; }")]
+    [InlineData("Empty value; Empty copy = value;", "public struct Empty { }")]
+    public void RelevantStructStorageIsAssigned(string statement, string types)
+    {
+        Assert.Empty(AnalyseStruct(statement, types));
+    }
+
+    [Theory]
+    [InlineData("Point p; p.x = 1; var first = p.y; var second = p.y; Point copy = p;")]
+    [InlineData("Nested n; n.inner.x = 1; var first = n.inner.y; var second = n.inner.y; Point copy = n.inner;")]
+    [InlineData("Point p; p.x = 1; Point first = p; Point second = p;")]
+    [InlineData("Point p; p.x = 1; int Read() { return p.y; } var first = Read(); var second = Read();")]
+    public void AnUnassignedStructFieldIsReportedOnce(string statement)
+    {
+        _ = Assert.Single(AnalyseStruct(statement));
+    }
+
     [Theory]
     [InlineData("public class A { public Dog owner; public A() { Console.WriteLine(owner.Name); owner = new Dog(\"a\"); } }")]
     [InlineData("public class A { public Dog owner; public A() { Describe(); owner = new Dog(\"a\"); } public string Describe() { return owner.Name; } }")]
@@ -162,5 +250,16 @@ public sealed class FlowDecisionTests : ProgramModelProbe
         ProgramAnalysisRunner.Run(model, findings);
 
         return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+    }
+
+    private List<Diagnostic> AnalyseStruct(string statement, string extraTypes = "")
+    {
+        var model = BuildModel(statement, extraTypes, extraPreamble: "", out var diagnostics);
+        Assert.Empty(diagnostics.Where(d => d.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning));
+
+        var findings = new DiagnosticBag();
+        ProgramAnalysisRunner.Run(model, findings);
+
+        return [.. findings.ToImmutableArray().Where(d => d.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning)];
     }
 }

@@ -9136,6 +9136,18 @@ capabilities:
       THE LATTICE IS A JUDGEMENT and is recorded below rather than counted here. It removes programs and
       changes none that compile -- and the C# a declaration becomes carries the same declaration, so
       Roslyn makes the same call on the emitted code.
+
+      ANALYSIS ORDER 10, 2026-09-25: the struct-local sibling gap was reproduced with a failing
+      component assertion before implementation, and classic's generated C# refused the same read.
+      Stage 5 now tracks nested source field paths with leaf-slot intersection, including whole-value
+      assignments, generic/inherited fields and captures. No binding or emission capability changed;
+      measured verification and remaining opaque-storage limits live in analysis order 10.
+      The 2026-09-26 full ledger (20260926-094332) passed all 7,508 tests, including both orchestrator
+      stdout baselines and the 551-file refusal corpus; the solution build and format checks were clean.
+      Main integration is recorded on analysis order 10: a second full run passed 7,570 tests and the
+      574-file corpus, followed by 184 targeted cases and 40 selected refusal files after lambda
+      inference landed. The final compiler including accessor enforcement built cleanly and matched
+      the complete 2,057-line AllFeaturesV2 baseline with no stderr diagnostics.
     tasks:
       - >
         MEASURED STALE 2026-09-12: `int later; later = 3;` binds and runs on v2, and the

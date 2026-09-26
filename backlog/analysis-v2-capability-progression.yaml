@@ -1802,7 +1802,8 @@ rules:
         all three as MIST_UNDEFINED_TYPE. It matters most for refinements: the predicate rule above holds a
         private member only to a private alias, which is sound only if a private alias cannot be named
         outside its type -- and `g is Gauge.Low` from outside Gauge is admitted and inlines `{ level: < 3 }`
-        where Roslyn refuses it. A decision is open on it.
+        where Roslyn refuses it. DECIDED 2026-09-26 by Arthur: a type named where it is not accessible is
+        refused, as C# refuses it.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance

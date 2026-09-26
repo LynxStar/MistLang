@@ -41,16 +41,22 @@ internal static class SlotSignatures
 
     public static bool Answers(Method slot, Method filler, TypeSubstitution substitution, TypeInterner interner)
     {
+        return Answers(slot, filler, substitution, TypeSubstitution.Empty, interner);
+    }
+
+    public static bool Answers(
+        Method slot, Method filler, TypeSubstitution slotSubstitution, TypeSubstitution fillerSubstitution, TypeInterner interner)
+    {
         if(slot.ParametersList.Count != filler.ParametersList.Count
             || slot.TypeParametersList.Count != filler.TypeParametersList.Count
-            || !Agree(substitution.Apply(slot.ReturnType, interner), filler.ReturnType))
+            || !Agree(slotSubstitution.Apply(slot.ReturnType, interner), fillerSubstitution.Apply(filler.ReturnType, interner)))
         {
             return false;
         }
 
         for(var i = 0; i < slot.ParametersList.Count; i++)
         {
-            if(!Agree(substitution.Apply(slot.ParametersList[i].Type, interner), filler.ParametersList[i].Type))
+            if(!Agree(slotSubstitution.Apply(slot.ParametersList[i].Type, interner), fillerSubstitution.Apply(filler.ParametersList[i].Type, interner)))
             {
                 return false;
             }

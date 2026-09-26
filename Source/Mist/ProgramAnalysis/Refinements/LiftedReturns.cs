@@ -38,6 +38,11 @@ internal sealed class LiftedReturns
         return Lift(property, Root(property.Getter), property.Type);
     }
 
+    public Admitted? Of(Method method)
+    {
+        return method.Modifiers.IsAsync ? null : Lift(method, method.Body, method.ReturnType);
+    }
+
     private static object? Root(PropertyAccessor? getter)
     {
         return getter is { IsAuto: false } ? (object?)getter.Body ?? getter.ExpressionBody : null;

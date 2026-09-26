@@ -81,9 +81,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
         foreach(var slot in abstractType.MethodsList.Where(method => method.Body is null && !method.Modifiers.IsStatic))
         {
-            var answering = mappings?.Mappings.OfType<MethodMapping>()
-                .FirstOrDefault(mapping => mapping.TargetName == slot.Name && SlotSignatures.Answers(slot, mapping.Source, substitution, interner))?.Source
-                ?? fillers.FirstOrDefault(filler => filler.Method is { } method && method.Name == slot.Name && SlotSignatures.Answers(slot, method, substitution.Extend(filler.Substitution), interner))?.Method;
+            var answering = ConformanceAnswers.Method(slot, substitution, fillers, mappings, interner)?.Member;
 
             if(answering is not null)
             {
@@ -124,11 +122,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
         foreach(var slot in abstractType.PropertiesList.Where(IsPropertySlot))
         {
-            var answer = mappings?.Mappings.OfType<PropertyMapping>()
-                .FirstOrDefault(mapping => mapping.TargetName == slot.Name
-                    && SlotSignatures.Agree(substitution.Apply(slot.Type, interner), mapping.Source.Type))?.Source
-                ?? fillers.FirstOrDefault(filler => filler.Property is { } property && property.Name == slot.Name
-                    && SlotSignatures.Agree(substitution.Extend(filler.Substitution).Apply(slot.Type, interner), property.Type))?.Property;
+            var answer = ConformanceAnswers.Property(slot, substitution, fillers, mappings, interner)?.Member;
 
             if(answer is null && mappings?.UnresolvedTargets.Contains(slot.Name) == true)
             {
@@ -262,7 +256,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                 yield return new Filler(null, property, substitution);
             }
 
-            current = type.BaseType;
+            current = type.BaseType is { } baseType ? substitution.Apply(baseType, interner: null) : null;
         }
     }
 

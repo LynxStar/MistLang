@@ -58,7 +58,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         foreach(var concrete in context.Types.OfType<ConcreteType>())
         {
-            JudgeImplementations(context, concrete);
+            RefinementContracts.Judge(context, concrete, lifted);
 
             foreach(var constructor in concrete.ConstructorsList)
             {
@@ -66,56 +66,6 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 {
                     new Proving(context, lifted, UnseenWrites.None).NeedArguments(
                         RefinementFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList);
-                }
-            }
-        }
-    }
-
-    private static void JudgeImplementations(AnalysisContext context, ConcreteType concrete)
-    {
-        var fillers = ConformanceAnalyzer.Fillers(concrete).ToList();
-
-        foreach(var (abstractType, substitution) in ConformanceAnalyzer.Reached(concrete.BaseAbstractTypes, context.Model.TypeInterner))
-        {
-            foreach(var slot in abstractType.MethodsList)
-            {
-                var filler = fillers.FirstOrDefault(candidate => candidate.Method is { } method
-                    && method.Name == slot.Name && SlotSignatures.Answers(slot, method, substitution, context.Model.TypeInterner))?.Method;
-
-                if(filler is null || filler.DeclaringType != concrete || filler.DeclarationNode is null)
-                {
-                    continue;
-                }
-
-                for(var i = 0; i < slot.ParametersList.Count && i < filler.ParametersList.Count; i++)
-                {
-                    if(RealRequirement.OfType(filler.ParametersList[i].Type) is { } realDemanded)
-                    {
-                        var promisedType = substitution.Apply(slot.ParametersList[i].Type, context.Model.TypeInterner);
-                        var realPromised = RealRequirement.OfType(promisedType) ?? RealSet.Everything(realDemanded.Kind);
-                        if(!realPromised.IsSubsetOf(realDemanded))
-                        {
-                            context.Report(
-                                ProgramAnalysisDiagnostics.ConstraintStrengthened, filler.DeclarationNode, [],
-                                filler.Name, filler.ParametersList[i].Name, realPromised, realDemanded);
-                        }
-
-                        continue;
-                    }
-
-                    if(Requirement.OfType(filler.ParametersList[i].Type) is not { } demanded)
-                    {
-                        continue;
-                    }
-
-                    var promised = Requirement.OfType(slot.ParametersList[i].Type) ?? Requirement.Anything;
-
-                    if(!promised.Values.IsSubsetOf(demanded.Values))
-                    {
-                        context.Report(
-                            ProgramAnalysisDiagnostics.ConstraintStrengthened, filler.DeclarationNode, [],
-                            filler.Name, filler.ParametersList[i].Name, promised.Values, demanded.Values);
-                    }
                 }
             }
         }

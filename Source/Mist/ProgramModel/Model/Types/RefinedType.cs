@@ -43,6 +43,8 @@ internal sealed class RefinedType : MistType, IRefinedType
 
     public bool IsAnonymous { get; }
 
+    public RefinedType Declaration => root;
+
     public bool IsSubstituted { get; }
 
     /// <summary>

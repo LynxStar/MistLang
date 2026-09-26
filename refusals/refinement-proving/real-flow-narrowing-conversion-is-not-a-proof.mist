@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+type FloatUnit = float >= 0.0f and <= 1.0f;
+
+public class Probe
+{
+    public static void Check(double input)
+    {
+        if(input >= 0.0 && input <= 1.0)
+        {
+            float narrowed = (float)input;
+            // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+            FloatUnit value = narrowed;
+        }
+    }
+
+    public static void Main() { }
+}

@@ -1,0 +1,16 @@
+using Standard;
+
+namespace Refusal;
+
+type Positive = double > 0.0;
+
+public class Probe
+{
+    public static void Forward(Positive first)
+    {
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        var value = (Positive)(first - first);
+    }
+
+    public static void Main() { }
+}

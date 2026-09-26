@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+type Unit = double >= 0.0 and <= 1.0;
+
+public class Probe
+{
+    public static void Check(bool flag)
+    {
+        double number = 0.25;
+        if(flag) { number = 1.5; }
+        // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+        Unit value = number;
+    }
+
+    public static void Main() { }
+}

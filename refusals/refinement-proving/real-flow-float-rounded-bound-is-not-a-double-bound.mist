@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+type Tenth = double <= 0.1;
+
+public class Probe
+{
+    public static void Check(float input)
+    {
+        if(input <= 0.1f)
+        {
+            // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
+            Tenth value = input;
+        }
+    }
+
+    public static void Main() { }
+}

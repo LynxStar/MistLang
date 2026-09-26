@@ -65,6 +65,7 @@ types:
       - [x] set accessor
       - [x] init accessor -> Mist init keyword
       - [x] visibility (public, protected)
+      - [x] per-accessor visibility (a protected setter beside a public getter) -- 2026-09-26
       - [x] static
       - [x] attributes
     fields:
@@ -89,6 +90,7 @@ types:
         - [x] closed generic
       - [x] get accessor
       - [x] set accessor
+      - [x] per-accessor visibility (a protected setter beside a public getter) -- 2026-09-26
       - [x] attributes
     operators:
       - [x] operator symbol
@@ -172,6 +174,7 @@ types:
       - [x] set accessor
       - [x] init accessor -> Mist init keyword
       - [x] visibility (public, protected)
+      - [x] per-accessor visibility (a protected setter beside a public getter) -- 2026-09-26
       - [x] static
       - [x] attributes
     fields:
@@ -196,6 +199,7 @@ types:
         - [x] closed generic
       - [x] get accessor
       - [x] set accessor
+      - [x] per-accessor visibility (a protected setter beside a public getter) -- 2026-09-26
       - [x] attributes
     operators:
       - [x] operator symbol

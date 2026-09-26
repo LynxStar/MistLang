@@ -1713,6 +1713,40 @@ rules:
       entry and subpattern arms dropped in turn (the private-indexer case, both initializer cases, both
       pattern cases), and the entry's and the subpattern's owner lost, which only the decision row sees --
       every corpus case is outside the domain whatever the owner reads as.
+
+      A PREDICATE IS JUDGED WHERE IT IS DECLARED (2026-09-26), decided by Arthur, with C#'s rule that
+      visibility cannot be relaxed: a member a refinement predicate names must be reachable from the
+      declaration -- the alias, or the type, method, indexer, extension method or local function whose
+      parameter it refines -- and that declaration may be no more accessible than the member. `type Low =
+      Gauge ({ level: < 3 })` nested in Gauge over a private `level` is valid ONLY if Low is private; a
+      broader Low would leak private state to everyone who can test against it. Emission is why it matters
+      beyond principle: BodyEmitter inlines a predicate at every `is` test, so a Low used where `level`
+      cannot be seen is C# that does not compile. MEASURED FIRST on v2: a top-level alias, a public nested
+      alias and a public method's `where` over a private field, and a local function's and an extension
+      method's `where` over one, were all admitted -- they compile only while nothing tests against them.
+      DeclaredPredicates now holds the one enumeration of declared predicates, with the type each counts
+      as, its assembly and its reach (effective accessibility, private for a local function), and
+      DeclarationShapeAnalyzer's own three walks became one loop over it, so the refinement rules and this
+      one cannot disagree about where predicates are. AccessibilityAnalyzer asks every field or property a
+      predicate names -- through a subpattern at any depth, or a bound such as `< Gauge.Max` -- first
+      whether the declaration reaches it (MIST_PA_INACCESSIBLE_MEMBER, through AccessDomains' owner overload),
+      then whether the member is at least as accessible as the declaration
+      (MIST_PA_INCONSISTENT_ACCESSIBILITY, "field 'Gauge.level' is less accessible than type alias 'Low'"),
+      once per member. The member's own accessibility is compared, not its declaring type's too, because
+      an alias over a less accessible TYPE is already the aliased-type exposure. Declarations.Narrowest is
+      now the one copy, AccessibilityAnalyzer's own having been the same function. Seven corpus cases: an
+      alias out of reach, one more accessible than the member, a public method's `where`, a nested
+      subpattern, a bound, a local function's `where` and an extension method's. Three decision rows admit
+      a private alias and a private method's `where` over a private field, a public alias inside a private
+      nested class (reach private through the nesting), a protected alias in a derivation over a protected
+      member and an internal alias over an internal one, each asserting its build bound first.
+      Ten mutations, each on a confirmed build and each caught by what was written for it: DeclaredPredicates
+      losing its aliases, its extension methods, its local functions and its methods in turn (the new case
+      for each, and every existing refinement-not-comparable case over the same position, which is the
+      proof that both rules now read one enumeration); reach read without nesting (the private-nested-class
+      row alone); an alias's owner lost (all three rows, and the exposure case turning into a reach
+      refusal); the reach check and the exposure check silenced in turn; the walk made shallow (the nested
+      subpattern and the bound); and the bound's arm dropped (the bound case).
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
@@ -1761,10 +1795,14 @@ rules:
         classic and MIST_CS_ERROR on v2. In two blocks for int, v2's binder already refuses the second as
         MIST_PM_DUPLICATE_EXTENSION_MEMBER, and classic as SB_0073.
       - >
-        A member a refinement PREDICATE names is not judged for accessibility: the predicate is no body node,
-        so its subpatterns never reach AccessibilityAnalyzer. `type Low = Gauge ({ level: < 3 })` over a private
-        readonly field reaches Roslyn as CS0122 on both pipelines, measured 2026-09-26. Whose domain a
-        predicate is read in -- the alias's declaration, or each use -- is the question to settle first.
+        A TYPE NAMED where it is not accessible is not refused: accessibility is judged for members and
+        exposure, never for a type name at a use. Measured 2026-09-26 on v2: `new Gauge.Hidden()` and `o is
+        Gauge.Hidden` over a private nested class reach Roslyn as CS0122, and `Gauge.Count c = 3` over a
+        private nested alias of int is ADMITTED AND RUNS, printing 3, because an alias erases. Classic refuses
+        all three as MIST_UNDEFINED_TYPE. It matters most for refinements: the predicate rule above holds a
+        private member only to a private alias, which is sound only if a private alias cannot be named
+        outside its type -- and `g is Gauge.Low` from outside Gauge is admitted and inlines `{ level: < 3 }`
+        where Roslyn refuses it. A decision is open on it.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance
@@ -2162,8 +2200,7 @@ rules:
 
       WHAT THE MODEL GAINED. ObjectInitializerAssignment.Member records what its name resolved to, as
       MemberAccessExpression.Member and PropertySubpattern.Member already did, from the StorageLookup the
-      binder was already holding and dropping; UnsafeReach still resolves an entry again by name for its own
-      purpose. The domain question -- private, protected, internal, a nested type inside its enclosing one --
+      binder was already holding and dropping, and UnsafeReach reads it too (see below). The domain question -- private, protected, internal, a nested type inside its enclosing one --
       moved out of AccessibilityAnalyzer into AccessDomains, so the member rule and the accessor rule ask it
       of one home and cannot disagree about what `private` reaches.
 
@@ -2201,6 +2238,34 @@ rules:
       snippets that declare an init or private-set property, or use an initializer block or a property
       pattern, built clean; the full suite through the ledger at 6702, 706 and 68 tests with none failing
       and no rerun; zero warnings; and format clean.
+
+      THREE GAPS CLOSED BESIDE IT (2026-09-26), each recorded as a task above until then. A CLR ACCESSOR
+      CARRIES ITS OWN ACCESSIBILITY: PropertyProjector and IndexerProjector projected every visible accessor
+      at the default, which the model reads as the property's own, so a public property's protected setter
+      read as public. Measured first on both pipelines with DataTypeAttribute.DisplayFormat (`get; protected
+      set;`, found by reflection over the shared framework, as PipeStream.IsConnected and DbColumn's are):
+      a write from outside a derivation reached Roslyn as "the set accessor is inaccessible", a read ran.
+      Each accessor now takes ClrAccessibilityMap.FromMethod, as constructors, methods and operators
+      already did, and the write is MIST_PA_INACCESSIBLE_ACCESSOR at the Mist source; the read still runs,
+      and so does a Mist class deriving from DataTypeAttribute that writes DisplayFormat in its constructor.
+      Nothing else reads a CLR accessor's accessibility -- UnsafeReach asks only for `private`, which no
+      projection yields. `init` ON A STATIC PROPERTY is refused where it is declared,
+      MIST_PM_STATIC_INIT_ACCESSOR, beside the abstract and indexer refusals of the same accessor, and is
+      then built as a plain setter, so the write in its static constructor that this order refused as
+      MIST_PA_INIT_ONLY_ASSIGNMENT for want of a declaration rule is not refused a second time. With no
+      static init accessor left after construction, the static guard on the init window could never
+      matter and went. UnsafeReach READS THE RECORDED MEMBER: its object-initializer path resolved each
+      entry by name again through TypeMemberLookup, a second lookup that is not the binder's (the binder
+      also consults spread projections), and now reads ObjectInitializerAssignment.Member, so the member
+      emission acts on is the one analysis judged. It was the only re-resolution by name in the backend.
+      One corpus case each for the first two (the second also pins the write left silent), two
+      ClrAccessorAccessibilityProjectionTests rows over a C# fixture with a protected setter on a property and
+      on an indexer, and CloneConversionEmissionTests, which already emits an initializer entry through an
+      UnsafeAccessor, for the third. Six mutations, each on a confirmed build and each caught: the property
+      and the indexer setter projected at the default (the corpus case and a row; the indexer row), the static
+      refusal dropped and the refused accessor kept as init (the corpus case both times, the second through
+      the write's second complaint), and UnsafeReach reading no recorded member at the entry and at the
+      block (ACastToTheSource_ConstructsItAndWritesItsPrivateStateThroughAccessors both times).
     tasks:
       - >
         A readonly FIELD assigned outside a constructor is left to Roslyn (CS0191): the analysis owner
@@ -2218,23 +2283,11 @@ rules:
         A user operator is found on either operand's own type and its base chain, not through
         conformances or extensions.
       - >
-        A CLR-projected accessor carries no accessibility of its own. PropertyProjector projects a setter that
-        is public or protected alike, at the default, which reads as the property's own accessibility, so a
-        write from outside a derivation to a public property's protected setter would be admitted here and
-        refused by Roslyn. Read from the projector, not measured: reflection found no public property with a
-        protected setter in CoreLib, Regex, ComponentModel or the collections assembly to probe with.
-      - >
         A property subpattern in a refinement PREDICATE is no body node -- BodyWalker leaves a predicate to
         the alias that declares it -- so this rule does not judge it at a use. A getter-less member there is
         refused anyway, as MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER (order 6, through StableMembers), whose message
         speaks of change after proof rather than of the missing getter. Measured 2026-09-26: `type Low = Gauge
         ({ Level: < 3 })` over a set-only Level; Roslyn's "lacks the get accessor" on classic.
-      - >
-        `init` on a static property is refused by Roslyn at the declaration, "The 'init' accessor is not valid
-        on static members", on both pipelines, and not by the frontend (measured 2026-09-25). A static member
-        has no `this`, so no write to one is construction here: `Made = 1` in the type's static constructor is
-        MIST_PA_INIT_ONLY_ASSIGNMENT on v2 (measured 2026-09-26), a true refusal aimed at the write where the
-        mistake is the declaration. One never written still reaches Roslyn's.
 
 # ===================================================================
 # The other three subsystems. Expanded when reached; the tasks stay on

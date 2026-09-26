@@ -3569,6 +3569,68 @@ rules:
       output and byte-exact stdout. Classic AllFeatures remains 52,791 bytes; current AllFeaturesV2 is
       59,745 bytes after main's inherited-conformance sample additions. Range/span/predicate/decoded probes
       retain their earlier exact outputs. No source or test changed after the final integration build.
+      NEXT THREE-TRACK CHECKPOINT (2026-09-26): isolated range/Index, real-domain and predicate-emission
+      work is combined locally on Main 7ac5e7a5. Stored Index snapshots preserve from-end markers;
+      numeric member bounds use declared or supported lifted values, and genuine Length bounds keep
+      declaration/receiver identity until an exact value makes it unnecessary. Separate equivalent
+      expressions retain matching descriptors at joins; differing bounds/receivers/markers still drop
+      knowledge. Ref aliases, ref/out calls and captured writes exclude owned field snapshots as well
+      as locals. No source-text equality, member-body Index lift or new arithmetic proof is used.
+      Typed Single, Double and Decimal sets track finite intervals, NaN and both infinities separately.
+      Assignments, copies, direct/mirrored/negated guards, joins and widening use the existing flow
+      framework. Arithmetic cannot reuse an operand's refined type; casts retain separately judged
+      conversion obligations. Nonfinite comparison-pattern bounds remain unreadable. Real abstract
+      method parameter contracts now check promised-set inclusion, with 27 same/looser/stricter cases,
+      including NaN-sensitive refusals and Single-versus-Double thresholds.
+      Regex-bearing not/or predicates retain their hoisted condition, nested pattern composition,
+      short circuiting and one scrutinee evaluation. Float predicates with Double bounds use ordinary
+      promoted comparisons. The runtime seam test checks 67 observations against C# operator oracles,
+      including signed zero, NaN and infinities; malformed/timeouts/ignore-case/culture remain unknown.
+      Prerequisite length hardening follows resolved Standard/CLR operation identities and signatures,
+      rather than names. User Slice/AsSpan/ToArray/ToCharArray lookalikes cannot supply lengths. The
+      initial full ledger 20260926-155938 recorded a real AllFeaturesV2 AsSpan regression and was stopped
+      after 634 seconds before completion to rebuild the corrected integration. Runtime-only metadata
+      tests had missed the SDK reference assemblies used by the compiler. The fix retains signed
+      assembly/type identity, explicitly recognizes the verified reference declarations, and adds both
+      reference-pack and actual ambient-model coverage. Ledger 20260926-161349 passes 17 checks including
+      both unchanged baselines; zero warnings/errors. New fixture import and identity failures were
+      corrected before that run; no warning was suppressed and no flake was observed.
+      FINAL FOCUSED LEDGER 20260926-161730 rebuilds with zero warnings/errors and passes all 1,374 selected
+      checks: analysis, real contracts, range/Index capture, literal/predicate runtime seams, trusted CLR
+      identities and Main's generic extension/constructor constraints. Full-solution formatting exits 0
+      without diagnostics after correcting the rebase's final-newline artifact; log is
+      /private/tmp/mist-refinement-next-format-verify.log. No source or test changed after these checks
+      except that whitespace correction. Eleven sequential runtime checks pass with exit 0, empty
+      diagnostics and byte-exact stdout: classic AllFeatures (52,791 bytes), current AllFeaturesV2
+      (61,466 bytes), captured-range probes on both pipelines (55 bytes each), erased-span probes on both
+      (22 bytes each), literal predicates (64 bytes), decoded-string slicing (9 bytes), stored Index/member
+      bounds (20 bytes), real flow (34 bytes) and supported CLR sequence calls (14 bytes). Runtime script
+      and outputs are /private/tmp/mist-refinement-next-runtime-checks.py and
+      /private/tmp/mist-refinement-next-runtime. An extra one-argument Span.Slice probe reports
+      MIST_PM_NO_APPLICABLE_OVERLOAD: Standard currently declares only the two-argument shape; the final
+      CLR runtime probe uses supported calls. Samples and their baselines remain unchanged by this batch.
+      FULL PRE-FINAL LEDGER 20260926-162443 rebuilds with zero warnings/errors and passes 8,432 of
+      8,433 tests: 7,656 of 7,657 compiler, all 68 CLI and all 708 source-generator tests; no skips.
+      The sole failure is the corpus's new stored-Index marker-disagreement fixture, which still used
+      an unsupported int-to-Index assignment. The fixture now captures ^1 in a Range and joins it with
+      0..4, preserving the intended equal-result-length/different-marker refusal already covered by
+      the component row. An isolated CLI compile reports only MIST_PA_INDEX_UNPROVEN at slice[0].
+      No compiler or C# test code changes for this correction, and the original differing-range refusal
+      programs remain untouched. The final full ledger uses the current zero-warning binaries from
+      this build, with LEDGER_NO_BUILD=1; the source and test assemblies are unchanged.
+      FINAL FULL LEDGER 20260926-163749 passes all 8,433 tests: 7,657 compiler, 68 CLI and 708
+      source-generator tests; zero failures or skips, with empty failures.txt. The full corpus checks
+      all 698 refusal programs, including the corrected marker disagreement, owned-field alias writes,
+      new real/regex refusals and the unchanged differing-range cases. No source or C# test changed
+      between the zero-warning build and this full rerun. Final isolation and comment audits are clean;
+      the analysis register parses as valid YAML. The combined branch and evidence remain local for
+      the user's requested review before deciding whether to update/push Main.
+      SEPARATE OBSERVED LIMIT: an abstract slot returning a refined type can be filled by a method
+      returning the unrefined base. An abstract-typed caller then trusts the advertised refinement.
+      The isolated /private/tmp/mist-refined-return-slot-probe prints -1 for both PositiveReal and
+      PositiveInt on this integration and on the freshly rebuilt original base b9ab98a3, both exit 0
+      without diagnostics. The baseline CLI build has zero warnings/errors. This return-covariance
+      check is broader than the new real parameter-contract check and remains a separate task.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -3580,12 +3642,22 @@ rules:
         a constant by any integral constituent it fits; a runtime `is` against a union of refinements
         narrows to a constituent (Req 10.3) and is not judged beyond order 8's pattern rules.
       - >
-        Dynamic real-valued refinement implication and real guards are not proven: the interval set is
-        over long, and exact literal evaluation does not supply a real interval lattice. Property-pattern
-        refinements remain unproven, as the comparison engine spec says.
+        Typed single, double and decimal intervals now prove supported dynamic real implication and
+        guards, with separate NaN and infinity facts. Symbolic real bounds, arithmetic relationships,
+        user operators and unsupported numeric conversions remain unknown; decimal representation
+        gaps can conservatively refuse an implication. Nonfinite comparison-pattern bounds remain
+        unreadable until their emission is verified. Property-pattern refinements remain unproven,
+        as the comparison engine spec says.
       - >
         A refined return through a lambda, an `async` result, or a `switch` arm is judged where the
         binder recorded a target; a refined field initialiser is judged as a declaration is.
+      - >
+        Abstract slot filling strips refinements when matching return types but does not judge return
+        implication. A PositiveReal or PositiveInt slot can be filled by a base-returning method, and
+        the caller can receive -1 as that refined type. The same runtime witness reproduces on the
+        original b9ab98a3 base and the current integration (2026-09-26), as the evidence above records.
+        Add a separate covariant return-contract proof/refusal; supported real parameter constraints
+        now have the existing contravariant subset check.
       - >
         An enum refinement is never proven. Requirement reads an enum variant bound as nothing it can
         decide, so since the unreadable predicates were refused (2026-09-19) every use is UNPROVEN, the valid
@@ -3605,33 +3677,32 @@ rules:
         local function's `where` and another parameter being the shapes that must stay unread. Sound,
         imprecise, and nothing banked writes one. Classic runs both calls.
       - >
-        FOUND WHILE PROVING THE EXTENSION `where`, none of it this rule's (measured 2026-09-19). A VALID
-        dependent argument on an extension method does not emit: `jar.Sized<5>()` over
-        `Sized<N:int>() where N >= 3` in a block is MIST_CS_ERROR ("The name 'TN' does not exist"), where
-        the same method declared on the class prints 5 -- an emitter gap, and classic cannot name N in a
-        block at all. A `using` naming no namespace reaches Roslyn on v2 (MIST_CS_ERROR) where classic is
-        MIST_UNDEFINED_NAMESPACE. A generic local function that USES its type parameter is four complaints
+        Generic extension methods now retain their block and method type arguments through emission,
+        including dependent parameters, as Main's carrier checks verify (2026-09-26). The earlier
+        extension `where` investigation also found unrelated remaining binder gaps: a `using` naming
+        no namespace reaches Roslyn on v2 (MIST_CS_ERROR) where classic is MIST_UNDEFINED_NAMESPACE.
+        A generic local function that USES its type parameter is four complaints
         for one mistake: MIST_PM_LOCAL_FUNCTION_GENERIC, then MIST_PM_UNRESOLVED_TYPE twice for
         `T Same<T>(T x)` and MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH at `Same<int>(2)`; the banked case uses
         neither. A static extension member cannot be called on either pipeline (program-model-body-tasks
         already carries it).
       - >
         An array returned from a method is unknown by design and wants a guard, as FirstClassFunctions and
-        StandardSurface took one. Lengths.Of names the CLR members it follows (`AsSpan`, `ToArray`,
-        `ToCharArray`, `Slice`); any other member's result is unknown. A method's returned LENGTH is not
-        lifted by refinement-types R18, which lifts integral values only.
+        StandardSurface took one. Lengths.Of follows only supported resolved Standard or CLR
+        declarations and signatures for AsSpan, ToArray, ToCharArray and Slice; spelling alone supplies
+        no proof. Other methods and static CLR call forms remain unknown. A method's returned LENGTH
+        is not lifted by refinement-types R18, which lifts integral values only.
       - >
         The lift reads no flow (tabled by Arthur until the four items closed): `var n = 7; return n;` and
         `if (x > 3) { return x; }` leave the member at its declared type. The natural next step is to lift
         from what RefinementFlow knows at each return rather than from the returned expression's type.
       - >
         Literal regex evaluation stays UNPROVEN for timeout, malformed patterns and ignore-case options,
-        whose ambient culture can differ between compiler and runtime. Regex inside `not` or `or` also
-        stays UNPROVEN: emitted pattern composition does not preserve the hoisted regex condition there.
-        A float predicate with a double comparison bound is UNPROVEN because emission produces an
-        incompatible C# relational pattern. These emitter seams need their own fixes before the prover
-        admits them. A readonly field states no value either, so `< limit` over `readonly int limit = 3`
-        is still unproven at every use.
+        whose ambient culture can differ between compiler and runtime. Supported regex not/or
+        composition and float predicates with double comparison bounds now preserve the ordinary
+        runtime comparison semantics; dynamic regex and unsupported union composition remain unknown.
+        A readonly field states no value either, so `< limit` over `readonly int limit = 3` is still
+        unproven at every use.
       - >
         A symbolic bound naming neither a member nor an array's or a span's Length has nothing to read it
         through. A `where` naming another parameter (`where lo < hi`) does not bind on v2
@@ -3644,19 +3715,21 @@ rules:
         classic refuses it too (MIST_TC_0157, measured 2026-09-26). Erased Length typing is recovered,
         without recovering a compile-time size, as the evidence above records.
       - >
-        Range capture supports integral constants and non-ref numeric local/parameter offsets. Stored
-        Index values carry no known from-end marker; member-valued bounds, arithmetic and other unsupported
-        expressions stay unknown. Joins retain matching bound descriptors, not different ranges with the
-        same resulting length. Unknown endpoint validity remains a runtime slicing check.
+        Range capture supports integral constants, non-ref numeric local/parameter offsets, captured
+        Index markers, declared or lifted numeric member bounds, and genuine sequence Length bounds.
+        Non-exact bounds retain declaration and receiver identity. Index-returning getters/calls,
+        user conversions/operators, ref/deep receivers and arithmetic remain unknown; implicit int
+        assignment to Index still reports MIST_PA_NO_IMPLICIT_CONVERSION. Writes through field aliases
+        exclude affected snapshots conservatively. Joins retain matching bound descriptors, not
+        different ranges with the same resulting length. Unknown endpoint validity remains a runtime
+        slicing check.
       - >
         User Range indexers are refused by IndexBinder before analysis, whose intrinsic SliceType only
-        supports Standard arrays, spans and strings. Separately, Lengths.OfCall still trusts the member
-        names Slice, ToArray, AsSpan and ToCharArray without verifying the declaring type; user methods
-        with those names can fabricate result-length knowledge. This is a pre-existing inference limit
-        measured on v2 on 2026-09-26: a user Slice(0, 3) returning [10] admits result[2], prints
-        Length 1, then throws IndexOutOfRangeException. The scratch program is
-        /private/tmp/mist-existing-slice-name-inference. This is separate from the range-capture changes
-        and needs declaration-identity checks before those method names supply length facts.
+        supports Standard arrays, spans and strings. Resolved operation identity now gates method
+        length facts, including the SDK reference-assembly declarations used by the real compiler.
+        User methods or extensions named Slice, ToArray, AsSpan or ToCharArray supply no length fact.
+        Additional sequence operations need verified declaration and signature contracts before
+        analysis can follow them.
       - >
         A property or indexer accessor with a Mist body forgets every non-readonly field fact, whether or
         not it writes one; ReadonlyInference already answers whether a getter writes, and consulting it

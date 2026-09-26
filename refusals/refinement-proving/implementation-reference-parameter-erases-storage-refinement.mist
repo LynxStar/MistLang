@@ -1,0 +1,13 @@
+using Standard;
+
+namespace Refusal;
+
+type Positive = int > 0;
+public abstract IWriter { void Fill(ref Positive value); }
+public class Writer : IWriter
+{
+    // REFUSE: MIST_PA_CONSTRAINT_STRENGTHENED
+    public void Fill(ref int value) { value = -1; }
+}
+
+public class Probe { public static void Main() { } }

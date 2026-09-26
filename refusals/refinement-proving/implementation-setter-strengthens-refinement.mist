@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+type Positive = int > 0;
+type Strong = int >= 2;
+public abstract IWriter { Positive Value { set; } }
+public class Writer : IWriter
+{
+    // REFUSE: MIST_PA_CONSTRAINT_STRENGTHENED
+    public Strong Value { set { } }
+}
+
+public class Probe { public static void Main() { } }

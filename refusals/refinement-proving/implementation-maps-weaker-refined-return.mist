@@ -1,0 +1,11 @@
+using Standard;
+
+namespace Refusal;
+
+type Positive = int > 0;
+public abstract IFactory { Positive Make(); }
+public class Factory { public int Text() { return -1; } }
+// REFUSE: MIST_PA_REFINEMENT_RETURN_UNPROVEN
+with Factory : IFactory { Text as Make; }
+
+public class Probe { public static void Main() { } }

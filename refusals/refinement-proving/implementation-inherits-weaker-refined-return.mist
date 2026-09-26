@@ -1,0 +1,13 @@
+using Standard;
+
+namespace Refusal;
+
+type Positive = int > 0;
+type NonNegative = int >= 0;
+public abstract IFactory<TOut, TIn> { TOut Make(TIn value); }
+public class Base<T> { public T Make(T value) { return value; } }
+public class Middle<T> : Base<T> { }
+// REFUSE: MIST_PA_REFINEMENT_RETURN_UNPROVEN
+public class Factory : Middle<NonNegative>, IFactory<Positive, NonNegative> { }
+
+public class Probe { public static void Main() { } }

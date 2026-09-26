@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+type NonPositive = double <= 0.0;
+type NotPositive = double not > 0.0;
+public abstract IFactory { NonPositive Make(NotPositive value); }
+public class Factory : IFactory
+{
+    // REFUSE: MIST_PA_REFINEMENT_RETURN_UNPROVEN
+    public NotPositive Make(NotPositive value) { return value; }
+}
+
+public class Probe { public static void Main() { } }

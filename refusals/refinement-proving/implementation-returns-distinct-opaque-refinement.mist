@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+type Letters = string `[a-z]+`;
+type SameLetters = string `[a-z]+`;
+public abstract IFactory { Letters Make(SameLetters value); }
+public class Factory : IFactory
+{
+    // REFUSE: MIST_PA_REFINEMENT_RETURN_UNPROVEN
+    public SameLetters Make(SameLetters value) { return value; }
+}
+
+public class Probe { public static void Main() { } }

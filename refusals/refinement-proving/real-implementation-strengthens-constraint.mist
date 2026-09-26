@@ -1,0 +1,22 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IRealContract
+{
+    double Keep(double value) where value not > 0.0;
+}
+
+public class NonPositive : IRealContract
+{
+    // REFUSE: MIST_PA_CONSTRAINT_STRENGTHENED
+    public double Keep(double value) where value <= 0.0
+    {
+        return value;
+    }
+}
+
+public class Probe
+{
+    public static void Main() { }
+}

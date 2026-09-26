@@ -14,9 +14,6 @@ namespace Snippet
 
         public Settings()
         {
-            this.Timeout = 30;
-            this.Enabled = true;
-            this.Mode = "auto";
         }
 
         public static Settings __CreateDefault()

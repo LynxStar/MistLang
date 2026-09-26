@@ -1,0 +1,33 @@
+using Standard;
+
+namespace Refusal;
+
+public class Gauge
+{
+    private class Hidden
+    {
+        private readonly int secret = 1;
+
+        public static int Prop { get; private set; }
+
+        private Hidden()
+        {
+        }
+
+        private static int Make()
+        {
+            return 1;
+        }
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        unknown o = 1;
+        // REFUSE: MIST_PA_INACCESSIBLE_TYPE
+        int m = Gauge.Hidden.Make();
+        Console.WriteLine("unreachable");
+    }
+}

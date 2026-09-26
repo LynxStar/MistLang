@@ -31,6 +31,10 @@ diagnostic ids and messages are observable behaviour and may be matched; its cod
 - Where predicates are declared has one home as well: `DeclaredPredicates` yields every alias, parameter
   and dependent-parameter predicate -- extension blocks and local functions included -- with the type it
   counts as and how far it is visible. A rule that walks declarations for predicates itself will miss one.
+- Where a type is NAMED has one home as well: the binder records every written name it resolves to a
+  declared type on `ProgramModel.TypeNamings`, with the type and assembly whose code the name sits in,
+  because resolution expands an alias and keeps only what a qualified name reached. A rule about a type
+  name reads `AnalysisContext.Namings` (the program pass only), never the resolved types a model holds.
 - A target the binder knew but the model dropped — a return's, an argument's, a chain's, an
   initializer entry's — is recorded ON the model (`ReturnStatement.TargetType`,
   `InvocationExpression.ParameterTypes`, `Constructor.ChainParameterTypes`) rather than re-derived by

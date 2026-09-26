@@ -438,6 +438,7 @@ internal sealed class ScopeResolver
                 return ErrorType.Instance;
             }
 
+            context.ProgramModel.TypeNamings.Record(member, scope, node);
             var substitution = TypeSubstitution.ForPath(instantiation, found.BaseConstructions, interner);
 
             if(generic)
@@ -503,8 +504,13 @@ internal sealed class ScopeResolver
     {
         var lookupName = arity > 0 ? BuildArityName(stem, arity) : stem;
 
-        return FindByArity(lookupName, stem, arity, scope)
-            ?? ResolveNamedType(lookupName, scope, locationNode);
+        if(FindByArity(lookupName, stem, arity, scope) is { } absorbing)
+        {
+            context.ProgramModel.TypeNamings.Record(absorbing, scope, locationNode);
+            return absorbing;
+        }
+
+        return ResolveNamedType(lookupName, scope, locationNode);
     }
 
     /// <summary>
@@ -859,6 +865,7 @@ internal sealed class ScopeResolver
         switch(result)
         {
             case TypeResult typeResult:
+                context.ProgramModel.TypeNamings.Record(typeResult.Type, scope, locationNode);
                 return typeResult.Type;
 
             case AmbiguousResult:

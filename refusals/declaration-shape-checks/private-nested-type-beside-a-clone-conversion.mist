@@ -1,0 +1,30 @@
+using Standard;
+
+namespace Refusal;
+
+public class Gauge : IClonable<Gauge>
+{
+    private class Hidden
+    {
+    }
+
+    public int level = 1;
+
+    public owned Gauge Clone()
+    {
+        return new Gauge();
+    }
+}
+
+public type Dial = new Gauge;
+
+public class Probe
+{
+    public static void Main()
+    {
+        Dial dial = (Dial)new Gauge();
+        // REFUSE: MIST_PA_INACCESSIBLE_TYPE
+        Gauge.Hidden h;
+        Console.WriteLine(dial.level);
+    }
+}

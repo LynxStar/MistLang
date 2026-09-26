@@ -11,9 +11,11 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The two accessibility questions, from the full-accessibility-model spec: whether a use sits inside
-/// the member's domain -- <see cref="AccessDomains"/> -- and whether a declaration exposes a type less
-/// accessible than itself. Order 6 of the analysis register.
+/// The accessibility questions, from the full-accessibility-model spec: whether a name sits inside the
+/// domain of the type it names, whether a use sits inside the member's -- <see cref="AccessDomains"/> --
+/// and whether a declaration exposes a type less accessible than itself. A member of a type out of reach,
+/// and a declaration exposing one, are left to the name that reached the type, so that one mistake is
+/// one complaint. Order 6 of the analysis register.
 /// </summary>
 internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
 {
@@ -55,6 +57,8 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
             }
         }
 
+        JudgeNamings(context);
+
         foreach(var type in context.Types)
         {
             CheckExposure(context, type);
@@ -64,6 +68,28 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
         {
             CheckPredicate(context, declared.Predicate, declared.Site);
         }
+    }
+
+    private static void JudgeNamings(AnalysisContext context)
+    {
+        var judged = new HashSet<SyntaxNode>(ReferenceEqualityComparer.Instance);
+
+        foreach(var naming in context.Namings)
+        {
+            if(AccessDomains.Blocking(naming.Owner, naming.Assembly, naming.Named) is { } blocking && judged.Add(naming.Node))
+            {
+                var accessibility = Declarations.ModifiersOf(blocking)?.Accessibility ?? Accessibility.Public;
+
+                context.Report(
+                    ProgramAnalysisDiagnostics.InaccessibleType, naming.Node, [],
+                    Qualified(blocking), accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(accessibility));
+            }
+        }
+    }
+
+    private static string Qualified(MistType type)
+    {
+        return type.DeclaringType is { } outer ? $"{Qualified(outer)}.{TypeDisplay.Mist(type)}" : TypeDisplay.Mist(type);
     }
 
     private static void JudgeStorage(
@@ -86,7 +112,8 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
                 _ => (null, "", null),
             };
 
-            if(at is null || Storage(member) is not { Declaring: { } declaring } storage)
+            if(at is null || Storage(member) is not { Declaring: { } declaring } storage
+                || !AccessDomains.Reaches(site.Owner, site.Assembly, declaring))
             {
                 continue;
             }
@@ -121,7 +148,8 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
     private static void Judge(
         AnalysisContext context, object use, SyntaxNode at, IReadOnlyList<Expression> about, string name, MemberModifiers modifiers, MistType? declaring)
     {
-        if(declaring is not null && !AccessDomains.Admits(context, use, modifiers.Accessibility, declaring))
+        if(declaring is not null && AccessDomains.Reaches(context, use, declaring)
+            && !AccessDomains.Admits(context, use, modifiers.Accessibility, declaring))
         {
             context.Report(
                 ProgramAnalysisDiagnostics.InaccessibleMember, at, about,
@@ -137,11 +165,11 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
         switch(type)
         {
             case TypeAlias { AliasedType: { } aliased }:
-                Expose(context, typeNode, "aliased type", aliased, typeAccess, "type alias", type.Name);
+                Expose(context, type, typeNode, "aliased type", aliased, typeAccess, "type alias", type.Name);
                 return;
 
             case Newtype { SourceType: { } source }:
-                Expose(context, typeNode, "source type", source, typeAccess, "newtype", type.Name);
+                Expose(context, type, typeNode, "source type", source, typeAccess, "newtype", type.Name);
                 return;
 
             case MemberType member:
@@ -154,7 +182,7 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
     {
         if(type is ConcreteType { BaseType: { } baseType })
         {
-            Expose(context, typeNode, "base type", baseType, typeAccess, "type", type.Name);
+            Expose(context, type, typeNode, "base type", baseType, typeAccess, "type", type.Name);
         }
 
         foreach(var method in type.EnumerateDelegates())
@@ -164,35 +192,37 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
 
             if(method is not Constructor)
             {
-                Expose(context, method.DeclarationNode, "return type", method.ReturnType, access, kind, method.Name);
+                Expose(context, type, method.DeclarationNode, "return type", method.ReturnType, access, kind, method.Name);
             }
 
             foreach(var parameter in method.ParametersList)
             {
-                Expose(context, method.DeclarationNode, "parameter type", parameter.Type, access, kind, method.Name);
+                Expose(context, type, method.DeclarationNode, "parameter type", parameter.Type, access, kind, method.Name);
             }
         }
 
         foreach(var property in type.PropertiesList)
         {
-            Expose(context, property.DeclarationNode, "property type", property.Type, Declarations.Narrowest(property.Modifiers.Accessibility, typeAccess), "property", property.Name);
+            Expose(context, type, property.DeclarationNode, "property type", property.Type, Declarations.Narrowest(property.Modifiers.Accessibility, typeAccess), "property", property.Name);
         }
 
         foreach(var indexer in type.IndexersList)
         {
-            Expose(context, indexer.DeclarationNode, "indexer type", indexer.Type, Declarations.Narrowest(indexer.Modifiers.Accessibility, typeAccess), "indexer", "this");
+            Expose(context, type, indexer.DeclarationNode, "indexer type", indexer.Type, Declarations.Narrowest(indexer.Modifiers.Accessibility, typeAccess), "indexer", "this");
         }
 
         foreach(var field in (type as ConcreteType)?.FieldsList ?? [])
         {
-            Expose(context, field.DeclarationNode, "field type", field.Type, Declarations.Narrowest(field.Modifiers.Accessibility, typeAccess), "field", field.Name);
+            Expose(context, type, field.DeclarationNode, "field type", field.Type, Declarations.Narrowest(field.Modifiers.Accessibility, typeAccess), "field", field.Name);
         }
     }
 
     private static void Expose(
-        AnalysisContext context, SyntaxNode? at, string exposedKind, IMistType exposed, Accessibility required, string memberKind, string memberName)
+        AnalysisContext context, MistType declaring, SyntaxNode? at, string exposedKind, IMistType exposed, Accessibility required,
+        string memberKind, string memberName)
     {
-        if(at is not null && !Declarations.IsAtLeast(Declarations.Effective(exposed), required))
+        if(at is not null && !Declarations.IsAtLeast(Declarations.Effective(exposed), required)
+            && AccessDomains.Reaches(declaring, declaring.Assembly, exposed))
         {
             context.Report(
                 ProgramAnalysisDiagnostics.InconsistentAccessibility, at, [],

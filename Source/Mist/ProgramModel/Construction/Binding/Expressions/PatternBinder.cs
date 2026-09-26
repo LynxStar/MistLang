@@ -212,7 +212,7 @@ internal static partial class PatternBinder
         BindingContext ctx,
         BuilderContext context)
     {
-        if(EnumVariant(node, bareType.Type, ctx) is { } variant)
+        if(EnumVariant(node, bareType.Type, ctx, context) is { } variant)
         {
             return new ComparisonPattern(node, scrutineeType, ComparisonKind.Equal, variant);
         }
@@ -260,7 +260,7 @@ internal static partial class PatternBinder
     }
 
     private static Expression? EnumVariant(
-        PrimaryPatternNode node, TypeReferenceNode typeRef, BindingContext ctx)
+        PrimaryPatternNode node, TypeReferenceNode typeRef, BindingContext ctx, BuilderContext context)
     {
         if(typeRef.SingleTypeRefs.Length > 0
             || typeRef.First is not NamedSingleTypeRefSingleTypeRefNode
@@ -286,6 +286,8 @@ internal static partial class PatternBinder
         {
             return null;
         }
+
+        context.ProgramModel.TypeNamings.Record(enumType, ctx.Scope, node);
 
         return new MemberAccessExpression(
             node, new TypeReferenceExpression(node, enumType), variantName, enumType);

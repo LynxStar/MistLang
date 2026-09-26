@@ -544,7 +544,7 @@ internal static class PostfixBinder
         // the finished tree.
         if(receiver is NamespaceReferenceExpression namespaceRef)
         {
-            return BindQualifiedName(node, namespaceRef, memberName, context);
+            return BindQualifiedName(node, namespaceRef, memberName, ctx, context);
         }
 
         var (found, constructed, reported) = ResolveMember(receiver, memberName, node, ctx, context);
@@ -574,6 +574,7 @@ internal static class PostfixBinder
         // substitution does for a definition exactly as it does for a member's type.
         if(found is TypeResult { Type: DeclaredType nested } typeResult)
         {
+            context.ProgramModel.TypeNamings.Record(nested, ctx.Scope, node);
             var carried = receiver is TypeReferenceExpression { ReferencedType: ConstructedType instantiation }
                 ? TypeSubstitution
                     .ForPath(instantiation, typeResult.BaseConstructions, context.ProgramModel.TypeInterner)
@@ -599,9 +600,15 @@ internal static class PostfixBinder
     /// contain types and further namespaces, so the result collapses the receiver
     /// rather than nesting onto it.
     /// </summary>
-    private static Expression BindQualifiedName(Storm.Runtime.SyntaxNode node, NamespaceReferenceExpression namespaceRef, string memberName, BuilderContext context)
+    private static Expression BindQualifiedName(
+        Storm.Runtime.SyntaxNode node, NamespaceReferenceExpression namespaceRef, string memberName, BindingContext ctx, BuilderContext context)
     {
         var result = context.Resolver.LookupQualified(namespaceRef.NamespaceName, memberName);
+
+        if(result is TypeResult named)
+        {
+            context.ProgramModel.TypeNamings.Record(named.Type, ctx.Scope, node);
+        }
 
         return result switch
         {

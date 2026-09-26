@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -26,6 +27,8 @@ internal sealed class AnalysisContext(
     public IReadOnlyList<SourceRoot> Bodies { get; } = scope.Bodies;
 
     public IReadOnlyList<ExtensionBlock> Extensions { get; } = scope.Extensions;
+
+    public IReadOnlyList<TypeNaming> Namings { get; } = scope.Namings;
 
     public IReadOnlyList<object> Nodes { get; } = nodes;
 

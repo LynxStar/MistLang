@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public class Gauge
+{
+    private class Pack<params Ts>
+    {
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_INACCESSIBLE_TYPE
+        var p = new Gauge.Pack<int, string>();
+        Console.WriteLine("unreachable");
+    }
+}

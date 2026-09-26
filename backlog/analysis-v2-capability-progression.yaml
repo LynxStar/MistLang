@@ -1830,6 +1830,88 @@ rules:
       The full suite -- 7000, 708 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure
       and no rerun on 2026-09-26, together with emitter order 111's extension carriers; the build and `dotnet
       format` were clean.
+      A TYPE IS JUDGED WHEREVER IT IS NAMED (2026-09-26), decided by Arthur: a name denoting a type outside
+      its accessibility domain is refused, as C# refuses it (CS0122) -- the full-accessibility-model spec's
+      Requirement 11.2, a nested type's domain being its own intersected with its enclosing type's (11.1).
+      MEASURED FIRST on both pipelines, one probe per position, over a private class and a private alias
+      nested in a public Gauge and named from another type: a local's type, `new`, a cast, `as`, `is`, a
+      typed property pattern, a type argument of a construction and of a generic method, a type in value
+      position, a static receiver, `default(T)`, an array, optional, union, tuple and function type, a
+      foreach's and a lambda's parameter, a parameter, return, field and property type of another type, a
+      top-level alias, refinement and newtype over the private one, a protected nested type outside a
+      derivation, a public type nested in a private one, a private enum's variant in a pattern, and an
+      extension block's receiver -- and, once main's named-element fix (emitter order 11) resolved it, an
+      array creation's element type, which the element resolution records like any other name. Classic refuses every one, as MIST_UNDEFINED_TYPE (MIST_UNDEFINED_TYPE_ARGUMENT
+      for a type argument, MIST_TC_0170 for a static receiver). v2 ADMITTED the aliases, which erase --
+      `Gauge.Count c = 3` printed 3, and `public type Leak = Gauge.Count` and a newtype over the private
+      class compiled -- refused the public signatures for the wrong reason (inconsistent accessibility), and
+      left the rest for Roslyn to refuse against the generated file.
+      THE NAME DOES NOT SURVIVE RESOLUTION: ScopeResolver expands an alias where it resolves one, and a
+      qualified or nested name leaves only the type it reached, so no model node holds anything to judge.
+      The binder records each naming as it resolves it instead -- TypeNamingRegistry, a registry on the model
+      like OptionalApplications, of the declared type, the node, and the type and assembly whose code the
+      name is written in, read off the scope chain -- at every point a written name becomes a declared type:
+      ScopeResolver's named-type lookup (every type position, and the `new`, pattern, attribute-literal and
+      with-declaration names that go through it), the variadic probe beside it, each segment of a nested
+      generic (`Box<int>.Hidden`), the expression binders (a bare name, a namespace-qualified one, a type
+      nested off a type), an enum variant's type in a pattern, an attribute's class, and a dependent
+      parameter's domain -- recorded at its declaration, the domain resolver keeping no syntax on a
+      parameter by design. A clone's members are its source's text bound again under a CloneScope and record
+      nothing, the source's binding having recorded them; the registry is swapped out with the others under
+      Discarding. AccessibilityAnalyzer judges the namings in the program pass alone -- AnalysisScope
+      carries them, empty in the clone and clone-conversion passes, since a conversion's pass reads any error
+      as that conversion's refusal -- once per node, as MIST_PA_INACCESSIBLE_TYPE naming the OUTERMOST level
+      that shuts the site out, which is C#'s choice: `new Gauge.Outer.Inner()` over a private Outer is "The
+      type 'Gauge.Outer' is inaccessible here: private types are accessible only within the declaring type."
+      A NEW ID rather than MIST_PA_INACCESSIBLE_MEMBER: the finding is about a type, judged along its nesting
+      rather than at one level, and a program filtering on either should not be handed the other. Classic's
+      MIST_UNDEFINED_TYPE is not matched, the type being defined -- saying otherwise is what CS0122 exists to
+      avoid. A top-level type's own level is judged against the compilation; a private or protected
+      top-level DECLARATION is the task below, not this rule's.
+      ONE MISTAKE, ONE COMPLAINT: a member of a type the site cannot reach is not judged again for its own
+      accessibility, its accessor's, or as a predicate's member, and a declaration exposing a type it cannot
+      reach is not also inconsistent -- AccessDomains.Reaches, structural as Effective is, the two now
+      sharing Declarations.Parts. So a private constructor, static method or setter of an unreachable type,
+      a private field in a pattern or a predicate over one, and a public method or field whose type names
+      one, each get the one complaint, at the name. Exposure still catches a type reached WITHOUT being named
+      out of reach: `public type Shown = Hidden` inside Gauge is refused at Shown, and `Take(Gauge.Shown s)`
+      elsewhere is then silent. A second name in one statement is a second complaint, as it is in C#.
+      PROVED BY forty-six corpus cases -- one per position above, and one per one-complaint shape (a private
+      constructor, static method or setter of an unreachable type, a private field in its pattern or its
+      refinement, a public parameter or optional field naming one, two blocked levels at one name, and a
+      naming beside a clone conversion, whose pass must not see it) -- and a forty-seventh pinning the
+      Declarations.Parts refactor: a public method returning List<Hidden> inside Hidden's own type is still
+      inconsistent. Admit rows, each asserting its build bound before asserting silence: a private class,
+      alias, enum and variadic class named from their type's own body, signatures, lambda, local function,
+      pattern and static receiver; a private type named from a nested type, and a private type nested in a
+      nested type named from that one, so the innermost type is the owner; a protected nested type from a
+      derivation, its base list and a type nested in it; a private type through its own generic
+      instantiation; a newtype cloning a type whose body names its private type; and an internal nested and
+      top-level type named anywhere in the compilation. ProgramModelProbe now builds a referenced project into
+      an assembly of its own, so rows also refuse another compilation's internal type named as a local's
+      type, an erased alias, a bare receiver, a namespace-qualified one and a dependent domain, refuse its
+      internal member, and admit its public ones -- the only way to reach the bare and namespace-qualified
+      binders and the domain resolver, since within one compilation a simple name finds nothing out of reach.
+      A row names the outermost blocked level in the message, and one counts the findings at a name reached
+      twice, because the corpus cannot see a duplicate: Diagnostic is a record, so one expectation claims two
+      identical findings. THIRTY-ONE MUTATIONS, each on a confirmed build. Twenty-nine caught by what was
+      written for them: each recording site left out in turn (the named-type lookup failing thirty-five
+      cases; the variadic probe, a nested generic's segment, a type nested off a type, the enum variant and
+      the attribute their own; the bare name, the namespace-qualified one and the domain the cross-compilation
+      rows alone), the clone skip removed (the clone row), the owner read as the outermost type (the
+      nested-in-nested row), the assembly lost (every exposure case and the internal rows), the namings left
+      unjudged, reported per record (the counting row), named flat or at the innermost level (the message
+      row), the top level and the nesting left unjudged, each of the four silences removed (its one-complaint
+      cases), the structural reach made shallow (the optional field and the refinement), private, protected
+      and internal shut and internal opened in turn, Parts dropping a construction's arguments (the
+      constructed case), and the clone-conversion pass handed the namings (its case). Two survive, both
+      unobservable by construction: the registry left in place under Discarding, a trial resolving the same
+      names in the same scopes, which the per-node rule collapses; and the clone passes handed the namings,
+      CloneDiagnostics dropping a finding the program pass already made. AllFeaturesV2 run by hand was
+      byte-identical and reported nothing, every sample built standalone on v2 reported nothing, all 721
+      corpus cases held after the rebase onto main, and the full suite -- 7473, 708 and 68 tests,
+      AllFeaturesV2's baseline and RefusalCorpusTest among them -- passed with no failure and no rerun; the
+      build and `dotnet format` were clean.
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
@@ -1842,9 +1924,6 @@ rules:
         A protected instance member reached through a base-typed receiver from a derived type is
         admitted, where C# demands the receiver be of the accessing type. Permissive on purpose until a
         program shows it matters.
-      - >
-        Internal is judged within one compilation and a sample proves the referenced-project case; no
-        Tier 3 test can build two assemblies, so the assembly comparison is pinned by the sweep alone.
       - >
         The unknown default-entry refusal and the constraint checks at field initializers are stricter
         than classic's analyzer; the first Roslyn refuses anyway, the second classic itself refuses one
@@ -1877,16 +1956,6 @@ rules:
         `Describe(int a)` and `Describe(int b)` in one `extension(int self)` block is MIST_SB_0073 on
         classic and MIST_CS_ERROR on v2. In two blocks for int, v2's binder already refuses the second as
         MIST_PM_DUPLICATE_EXTENSION_MEMBER, and classic as SB_0073.
-      - >
-        A TYPE NAMED where it is not accessible is not refused: accessibility is judged for members and
-        exposure, never for a type name at a use. Measured 2026-09-26 on v2: `new Gauge.Hidden()` and `o is
-        Gauge.Hidden` over a private nested class reach Roslyn as CS0122, and `Gauge.Count c = 3` over a
-        private nested alias of int is ADMITTED AND RUNS, printing 3, because an alias erases. Classic refuses
-        all three as MIST_UNDEFINED_TYPE. It matters most for refinements: the predicate rule above holds a
-        private member only to a private alias, which is sound only if a private alias cannot be named
-        outside its type -- and `g is Gauge.Low` from outside Gauge is admitted and inlines `{ level: < 3 }`
-        where Roslyn refuses it. DECIDED 2026-09-26 by Arthur: a type named where it is not accessible is
-        refused, as C# refuses it.
       - >
         A nested generic's constraint naming its enclosing type's parameter is judged unsubstituted where
         the binder builds the nested type without its enclosing instantiation: `new Inner<Score>()` inside
@@ -3669,8 +3738,26 @@ rules:
       /private/tmp/mist-refined-contract-next-runtime. Final v2 isolation, ASCII, comment-budget,
       newline and YAML audits pass; samples, baselines and legacy implementations are untouched.
       The full ledger records an unrelated external worktree test run; no timing failure occurred.
-      Both completed rounds remain committed locally for review; this round does not update Main
-      or the remote.
+      At the end of that round, both completed rounds were committed locally for review, before
+      updating Main or the remote.
+      MAIN INTEGRATION CHECKPOINT (2026-09-26): the reviewed refinement head d32f5e51 is combined with
+      Main dde4dc355, preserving four intervening commits for type-name accessibility, nested enum
+      emission and book snippets. The automatic merge has no conflicts; a read-only seam audit finds
+      no material integration issue. Accessibility's naming registry preserves the declaration and
+      receiver identities used by range/Index/Length proofs, and its new diagnostic remains distinct
+      from REFINEMENT_RETURN_UNPROVEN. No additional source repair is needed.
+      Full integration ledger 20260926-175733 passes all 8,575 tests: 7,799 compiler, 68 CLI and 708
+      source-generator tests, with zero failures/skips and an empty failures.txt. Its full build has
+      zero warnings/errors; tests finish in 587 seconds, with no unrelated dotnet process recorded at
+      startup. All 759 refusal programs are checked, including the original differing-range cases.
+      Full dotnet format verification exits 0 with an empty /private/tmp/mist-refinement-main-format.log.
+      Twelve runtime checks re-run with the rebuilt CLI all exit 0, report no diagnostics and match
+      byte-exact stdout, including both full sample baselines, actual slicing, the != guard/equal-range
+      join and the refined abstract contract witness. Script/output paths are
+      /private/tmp/mist-refinement-main-runtime-checks.py and /private/tmp/mist-refinement-main-runtime.
+      The merged sources remain unchanged after the full build; only this evidence is amended.
+      V2 isolation, whitespace and YAML checks pass. No warning suppression or flaky rerun occurs.
+      This checkpoint validates promotion of the combined merge to Main; the limits below remain open.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>

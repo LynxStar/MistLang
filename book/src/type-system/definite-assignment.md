@@ -47,7 +47,7 @@ Compound assignment (`x += 1`) counts as a read followed by a write, so using it
 
 ## Stampable Types and Bare Array Creation
 
-When you write `new T[size]`, the question is: what value goes in each slot? For types whose default value is a flat, copyable bit pattern — primitives like `int` and pure structs whose fields are all primitives or other pure structs — the answer is straightforward: the CLR's zero-fill produces a valid default. These types are called **stampable**.
+When you write `new T[size]`, the question is: what value goes in each slot? For types whose default value is a flat, copyable bit pattern — primitives like `int`, and structs whose fields are all primitives or other such structs — the answer is straightforward: the CLR's zero-fill produces a valid default. These types are called **stampable**.
 
 A stampable type is one where replicating the default into N slots is a zero-cost bitwise operation with no hidden constructor calls, no heap allocation, and no aliasing concerns. Bare array creation `new T[size]` is restricted to stampable element types:
 

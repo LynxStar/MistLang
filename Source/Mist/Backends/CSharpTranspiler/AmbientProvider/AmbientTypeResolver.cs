@@ -72,6 +72,11 @@ internal sealed class AmbientTypeResolver
             return ResolveArrayType(clrType, scope, names);
         }
 
+        if(NullableUnderlying(clrType) is { } underlying)
+        {
+            return (MistType)WrapWithVoid(Resolve(underlying, scope, names));
+        }
+
         if(ClrValueTuple.Cardinality(clrType) >= 2)
         {
             return ResolveTuple(clrType, scope, names);
@@ -149,6 +154,20 @@ internal sealed class AmbientTypeResolver
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Not <see cref="Nullable.GetUnderlyingType"/>, which compares by reference against the runtime's own
+    /// Nullable definition and so never matches a type loaded through MetadataLoadContext -- the only way
+    /// this resolver is ever handed one.
+    /// </summary>
+    private static Type? NullableUnderlying(Type clrType)
+    {
+        return clrType.IsGenericType
+            && !clrType.IsGenericTypeDefinition
+            && clrType.GetGenericTypeDefinition().FullName == "System.Nullable`1"
+                ? clrType.GetGenericArguments()[0]
+                : null;
     }
 
     private bool IsWellKnown(Type clrType)
@@ -391,13 +410,6 @@ internal sealed class AmbientTypeResolver
         Type clrType, Scope scope, bool declaredNonNull = false, TupleElementNames? names = null)
     {
         var effective = clrType.IsByRef ? clrType.GetElementType()! : clrType;
-        var underlying = Nullable.GetUnderlyingType(effective);
-
-        if(underlying is not null)
-        {
-            return WrapWithVoid(Resolve(underlying, scope, names));
-        }
-
         var resolved = Resolve(clrType, scope, names);
 
         return IsReferenceType(effective) && !declaredNonNull ? WrapWithVoid(resolved) : resolved;

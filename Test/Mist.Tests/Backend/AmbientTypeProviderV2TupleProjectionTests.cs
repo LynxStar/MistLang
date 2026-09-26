@@ -84,7 +84,7 @@ public sealed class AmbientTypeProviderV2TupleProjectionTests(AmbientTypeProvide
         var pairs = Assert.IsType<ConstructedType>(OptionalInner(Result(nameof(TupleSignatures.Pairs))));
         Assert.Equal([Int, Int], Names(Assert.IsType<TupleType>(pairs.TypeArguments[0]).ElementTypes));
 
-        var span = Assert.IsType<NamedTupleType>(OptionalInner(Result(nameof(TupleSignatures.Span))));
+        var span = Assert.IsType<NamedTupleType>(OptionalInner(Assert.IsType<UnionType>(Result(nameof(TupleSignatures.Span)))));
         Assert.Equal(["Low", "High"], span.ElementNames);
 
         var swapped = Parameter(nameof(TupleSignatures.Swap));
@@ -137,13 +137,9 @@ public sealed class AmbientTypeProviderV2TupleProjectionTests(AmbientTypeProvide
 
     private static IMistType OptionalInner(IMistType type)
     {
-        return type switch
-        {
-            UnionType union => Assert.Single(
-                union.Constituents, constituent => constituent.FullyQualifiedName != "Standard.Void"),
-            ConstructedType { Definition.FullyQualifiedName: "System.Nullable<>" } nullable => nullable.TypeArguments[0],
-            _ => type,
-        };
+        return type is UnionType union
+            ? Assert.Single(union.Constituents, constituent => constituent.FullyQualifiedName != "Standard.Void")
+            : type;
     }
 
     private static IEnumerable<string> Names(IEnumerable<IMistType> types)

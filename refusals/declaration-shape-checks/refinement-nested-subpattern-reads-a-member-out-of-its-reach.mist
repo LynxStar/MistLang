@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public class Dial
+{
+    private readonly int notch = 1;
+}
+
+public class Gauge
+{
+    public readonly Dial dial = new Dial();
+}
+
+// REFUSE: MIST_PA_INACCESSIBLE_MEMBER
+type Low = Gauge ({ dial: { notch: < 3 } });
+
+public class Probe
+{
+    public static void Main()
+    {
+        Console.WriteLine("unreachable");
+    }
+}

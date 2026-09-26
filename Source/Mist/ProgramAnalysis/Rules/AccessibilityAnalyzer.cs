@@ -59,21 +59,63 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
         {
             CheckExposure(context, type);
         }
+
+        foreach(var declared in DeclaredPredicates.Of(context))
+        {
+            CheckPredicate(context, declared.Predicate, declared.Site);
+        }
     }
 
     private static void JudgeStorage(
         AnalysisContext context, object use, SyntaxNode at, IReadOnlyList<Expression> about, string name, LookupResult member)
     {
-        switch(member)
+        if(Storage(member) is { } storage)
         {
-            case FieldResult found:
-                Judge(context, use, at, about, name, found.Field.Modifiers, found.Field.DeclaringType ?? AccessDomains.Definition(found.DeclaringType));
-                break;
-
-            case PropertyResult found:
-                Judge(context, use, at, about, name, found.Property.Modifiers, found.Property.DeclaringType ?? AccessDomains.Definition(found.DeclaringType));
-                break;
+            Judge(context, use, at, about, name, storage.Modifiers, storage.Declaring);
         }
+    }
+
+    private static void CheckPredicate(AnalysisContext context, Pattern predicate, PredicateSite site)
+    {
+        foreach(var node in BodyWalker.DescendantsAndSelf(predicate))
+        {
+            var (at, name, member) = node switch
+            {
+                PropertySubpattern subpattern => (subpattern.Node, subpattern.MemberName, subpattern.Member),
+                MemberAccessExpression { Member: { } found } access => (access.Node, access.MemberName, found),
+                _ => (null, "", null),
+            };
+
+            if(at is null || Storage(member) is not { Declaring: { } declaring } storage)
+            {
+                continue;
+            }
+
+            var accessibility = storage.Modifiers.Accessibility;
+
+            if(!AccessDomains.Admits(site.Owner, site.Assembly, accessibility, declaring))
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.InaccessibleMember, at, [],
+                    name, accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(accessibility));
+            }
+            else if(!Declarations.IsAtLeast(accessibility, site.Reach))
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.InconsistentAccessibility, at, [],
+                    storage.Kind, $"{TypeDisplay.Mist(declaring)}.{name}", site.Kind, site.Name);
+            }
+        }
+    }
+
+    private static (MemberModifiers Modifiers, MistType? Declaring, string Kind)? Storage(LookupResult? member)
+    {
+        return member switch
+        {
+            FieldResult found => (found.Field.Modifiers, found.Field.DeclaringType ?? AccessDomains.Definition(found.DeclaringType), "field"),
+            PropertyResult found => (found.Property.Modifiers, found.Property.DeclaringType ?? AccessDomains.Definition(found.DeclaringType), "property"),
+            _ => null,
+        };
     }
 
     private static void Judge(
@@ -117,7 +159,7 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
 
         foreach(var method in type.EnumerateDelegates())
         {
-            var access = Narrowest(method.Modifiers.Accessibility, typeAccess);
+            var access = Declarations.Narrowest(method.Modifiers.Accessibility, typeAccess);
             var kind = method is Constructor ? "constructor" : "method";
 
             if(method is not Constructor)
@@ -133,17 +175,17 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
 
         foreach(var property in type.PropertiesList)
         {
-            Expose(context, property.DeclarationNode, "property type", property.Type, Narrowest(property.Modifiers.Accessibility, typeAccess), "property", property.Name);
+            Expose(context, property.DeclarationNode, "property type", property.Type, Declarations.Narrowest(property.Modifiers.Accessibility, typeAccess), "property", property.Name);
         }
 
         foreach(var indexer in type.IndexersList)
         {
-            Expose(context, indexer.DeclarationNode, "indexer type", indexer.Type, Narrowest(indexer.Modifiers.Accessibility, typeAccess), "indexer", "this");
+            Expose(context, indexer.DeclarationNode, "indexer type", indexer.Type, Declarations.Narrowest(indexer.Modifiers.Accessibility, typeAccess), "indexer", "this");
         }
 
         foreach(var field in (type as ConcreteType)?.FieldsList ?? [])
         {
-            Expose(context, field.DeclarationNode, "field type", field.Type, Narrowest(field.Modifiers.Accessibility, typeAccess), "field", field.Name);
+            Expose(context, field.DeclarationNode, "field type", field.Type, Declarations.Narrowest(field.Modifiers.Accessibility, typeAccess), "field", field.Name);
         }
     }
 
@@ -156,10 +198,5 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
                 ProgramAnalysisDiagnostics.InconsistentAccessibility, at, [],
                 exposedKind, TypeDisplay.Mist(exposed), memberKind, memberName);
         }
-    }
-
-    private static Accessibility Narrowest(Accessibility member, Accessibility type)
-    {
-        return Declarations.IsAtLeast(member, type) ? type : Declarations.IsAtLeast(type, member) ? member : Accessibility.Private;
     }
 }

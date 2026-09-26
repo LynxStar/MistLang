@@ -274,6 +274,57 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("""
+        public class Gauge
+        {
+            private readonly int level = 1;
+
+            private type Low = Gauge ({ level: < 3 });
+
+            private static int Take(Gauge gauge) where gauge { level: < 3 }
+            {
+                return 1;
+            }
+
+            public bool IsLow() { return this is Low; }
+        }
+        """)]
+    [InlineData("""
+        public class Gauge
+        {
+            private readonly int level = 1;
+
+            private class Inner
+            {
+                public type Low = Gauge ({ level: < 3 });
+
+                public static bool Test(Gauge gauge) { return gauge is Low; }
+            }
+
+            public bool IsLow() { return Inner.Test(this); }
+        }
+        """)]
+    [InlineData("""
+        public class Gauge
+        {
+            protected readonly int level = 1;
+
+            internal readonly int shared = 2;
+        }
+
+        public class Wider : Gauge
+        {
+            protected type Low = Gauge ({ level: < 3 });
+        }
+
+        internal type Shared = Gauge ({ shared: < 3 });
+        """)]
+    public void ARefinementNoMoreAccessibleThanTheMembersItReads_IsDeclared(string extraTypes)
+    {
+        AssertBoundAndSilent("int unused = 1;", extraTypes);
+    }
+
+    [Theory]
     [InlineData("var r = new NeedsReadonly<int>();")]
     [InlineData("var f = new NeedsReadonly<Frozen>();")]
     [InlineData("var m = new NeedsMutable<Mutable>();")]

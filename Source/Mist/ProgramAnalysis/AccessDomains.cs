@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Types;
 
@@ -13,14 +14,17 @@ internal static class AccessDomains
 {
     public static bool Admits(AnalysisContext context, object use, Accessibility accessibility, MistType declaring)
     {
-        var owner = context.OwnerOf(use);
+        return Admits(context.OwnerOf(use), context.AssemblyOf(use), accessibility, declaring);
+    }
 
+    public static bool Admits(MistType? owner, MistAssembly? assembly, Accessibility accessibility, MistType declaring)
+    {
         return accessibility switch
         {
             Accessibility.Public => true,
             Accessibility.Private => Encloses(declaring, owner),
             Accessibility.Protected => DerivesFrom(owner, declaring),
-            _ => declaring.Assembly == context.AssemblyOf(use),
+            _ => declaring.Assembly == assembly,
         };
     }
 

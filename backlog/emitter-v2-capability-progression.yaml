@@ -2345,6 +2345,25 @@ capabilities:
         longer gates defaultability, since a static field the type cannot zero says nothing about
         whether an instance can be defaulted. No banked sample declares a static field on a defaultable
         type, which is why DefaultKeyword going green did not catch it.
+      - >
+        FIXED 2026-09-26, recorded because it was a live defect this entry did not predict. The synthesized
+        constructor ran every field initializer a SECOND time: FieldEmitter writes the initializer onto the
+        field, C# runs field initializers in every constructor that does not chain to another, and the
+        synthesized constructor then assigned the same initializer again. Measured with side-effecting
+        initializers: `new Bare()` on a class declaring no constructor ran `abab` and a class deriving from it
+        `xababx`, where classic runs `ab` and `xab`; through the private sentinel, `default(Declared)` ran `aa`
+        and a struct's `default(Point)` `pp`. The synthesized constructor now assigns only what replaces the
+        field's own initializer -- a block entry, a binding, a zero -- and every path runs each initializer
+        once (`ab`, `xab`, `a`, `p`) with the same values. Classic's output is not the contract here: it runs
+        the initializer once and then overwrites the field with its zero, printing `new Bare()` with an empty
+        Field and a Count of 0. PROVED BY FieldInitializerRuntimeTests, whose trail covers `new` with and
+        without a declared constructor, through a base type and on a struct. The `default` paths are measured
+        by probe only, a side-effecting initializer there being one the spec refuses (Requirement 6.9) and
+        classic reports as MIST_DEFAULT_NOT_SUPPORTED; a test holding them would pin an invalid program.
+        Restoring the reassignment fails that test.
+        LEFT AS FOUND: on a type declaring no constructor, `new` applies the default block too -- `new
+        Blocked().Count` is the block's 5, not the initializer's 7 -- on both pipelines. The spec says a
+        block "does not invoke any constructor", which reads as `default` alone; left for a decision.
     analysis_phase_tasks:
       - >
         Report a type that cannot be defaulted where something defaults it, rather than silently emitting

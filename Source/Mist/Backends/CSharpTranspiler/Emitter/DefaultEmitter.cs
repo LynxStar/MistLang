@@ -55,6 +55,14 @@ internal static class DefaultEmitter
                 continue;
             }
 
+            // FieldEmitter writes the initializer onto the field, and C# runs field initializers in every
+            // constructor that does not chain to another -- this one included -- so the field already holds
+            // it here, and assigning it again would run the initializer twice.
+            if(value is not null && ReferenceEquals(value, field.Initializer))
+            {
+                continue;
+            }
+
             if(value is not null)
             {
                 BodyEmitter.EmitSequenced(value, $"this.{field.Name} = ", writer, diagnostics);

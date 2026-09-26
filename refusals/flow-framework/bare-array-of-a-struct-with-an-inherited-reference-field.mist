@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+public struct Ancestor
+{
+    public string owner;
+}
+
+public struct Derived : Ancestor { }
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_ARRAY_REQUIRES_INITIALIZER
+        var items = new Derived[2];
+    }
+}

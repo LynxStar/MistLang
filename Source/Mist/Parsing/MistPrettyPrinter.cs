@@ -1003,6 +1003,7 @@ public sealed class MistPrettyPrinter
             PrimitiveElementTypeRefElementTypeRefNode primitiveRef => EmitPrimitiveType(primitiveRef.PrimitiveType),
             UnknownElementTypeRefElementTypeRefNode => "unknown",
             NamedElementTypeRefElementTypeRefNode namedRef => ExtractQualifiedName(namedRef.Name) + EmitTypeArgumentList(namedRef.TypeArgs),
+            FuncElementTypeRefElementTypeRefNode funcRef => "func" + EmitTypeArgumentList(funcRef.TypeArgs),
             _ => "object"
         };
     }

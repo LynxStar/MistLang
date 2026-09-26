@@ -1453,6 +1453,7 @@ SumSpan=179
 pairs[1].second=12
 qualifiedPoints[1].y=24
 qualifiedPairs[1].second=36
+readOnlyPairs.Length=2
 aliasPairs[1].second=48
 aliasPoints[1].y=60
 aliasStackPairs[1].second=72

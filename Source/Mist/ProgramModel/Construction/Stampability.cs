@@ -39,7 +39,7 @@ internal static class Stampability
             StructType { IsRef: true } => "it is a ref struct",
             StructType { IsIntrinsic: true } => null,
             StructType structType => FieldsWhyNot(structType, visiting),
-            ClassType => "it is a reference type",
+            ClassType or IFunctionType => "it is a reference type",
             _ => "it is not a struct",
         };
     }
@@ -53,6 +53,11 @@ internal static class Stampability
 
         try
         {
+            if(type.BaseType is { } baseType && WhyNot(baseType, visiting) is { } baseReason)
+            {
+                return baseReason;
+            }
+
             foreach(var field in Defaultability.InstanceFields(type))
             {
                 if(WhyNot(field.Type, visiting) is not null)

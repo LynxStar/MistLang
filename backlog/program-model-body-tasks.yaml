@@ -435,7 +435,7 @@ expressions:
     - [ ] property initializer block (NamedPropertyAssignment + CollectionElementAssignment) -- its presence is what forces ObjectCreationExpression to the sentinel
   arrays_and_spans:
     - [x] ArrayCreationExpression (`new T[n]`) -> array type (known length if literal size). Named elements share ScopeResolver.ResolveNamed with ordinary type references, including qualified names, generic arguments, transparent aliases, interning and direct constraint closures. NamedAllocationElementTypeTests pins the model; NamedAllocationElements is banked in AllFeaturesV2
-    - [~] StackallocExpression (`stackalloc T[n]`) -> span type, readonly from target context. Named elements use the same resolver as array creation and ordinary type references. MISSING: known length for literal sizes; BindStackalloc still constructs an unknown-length span
+    - [x] StackallocExpression (`stackalloc T[n]`) -> span type, readonly from target context. Named elements use the same resolver as array creation and ordinary type references. Integer literal sizes preserve the interned dependent length; computed sizes retain an unknown Int32 value length. StackallocLengthInferenceTests pins both span families and the size expression
     - [x] EmptyArrayLiteralExpression (`[]`) -> element type from target context -- GRAMMAR MISMATCH: there is no such alternative. Mist.storm has one ArrayLiteralExpression with elements:ArrayElementList?, and the implementation correctly treats `[]` as that rule with a null list, supplying the element type from the target and reporting EmptyArrayLiteralNeedsTargetType when there is none
     - [~] ArrayLiteralExpression (`[a, b, ...]`) -> element type via best-common-type -- MISSING: best-common-type. Elements bind against the target ELEMENT type and the length is known, but CommonElementType is a ReferenceEquals uniformity check that reports ArrayLiteralNoCommonElementType on any difference, because no widening infrastructure exists yet
   tuples:
@@ -651,7 +651,7 @@ mist_specific_semantics:
     - [ ] async functor (`async expr`) -> wraps in Task<T>
     - [ ] discarded-task tracking per block scope (scope-exit await); async promotion signal for the emitter
   stackalloc_ref:
-    - [~] stackalloc -> span type (readonly from target; qualified/generic/alias element resolution shared with ordinary references). Literal-size length inference remains missing; every stackalloc carries an unknown length
+    - [x] stackalloc -> span type (readonly from target; qualified/generic/alias element resolution shared with ordinary references). Integer literal sizes carry a known length, and computed sizes carry an unknown Int32 value length
     - [ ] ref-expression / ref-argument value categories -- ref on arguments is erased by GetAllExpressions()
 
 # =============================================================================

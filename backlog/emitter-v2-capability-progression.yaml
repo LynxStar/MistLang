@@ -6342,10 +6342,18 @@ capabilities:
       nothing it used to compile changed. The OPTIONAL spelling it runs: `func<int, int>? f = x => x + 1;`
       prints 4 on both pipelines.
 
-      NOT PART OF THIS, each measured: `new func<int, int>[2]` is still MIST_PARSE_INCOMPLETE, ElementTypeRef
-      carrying no func alternative, so an array literal is the only way to make one; a lambda assigned
+      NOT PART OF THIS, each measured: a lambda assigned
       DIRECTLY to `func<int, int>?` is MIST_PM_LAMBDA_PARAMETER_NO_TYPE on v2, the target being a union and
       not a function type; and `(func<int, int>)?` does not parse, ParenthesizedTypeRef carrying no optional.
+
+      ALLOCATION ELEMENT POSITIONS, 2026-09-26. The first-class-functions requirement that func and Func
+      are interchangeable in type positions now reaches ElementTypeRef. The keyword form uses the same
+      structural resolver and interner as an ordinary reference, and the pretty-printer preserves it.
+      Bare `new func<int, int>[2]` and `stackalloc func<int, int>[2]` remain refused by the existing
+      stampability rules with a reference-type reason, as named Func, Action and aliases are. Function
+      arrays require explicit values or the initializer-based Array constructor. FunctionAllocationParseTests
+      and FunctionAllocationElementTypeTests pin parsing, interned identity and the analysis seam; two
+      flow-framework corpus cases hold the source-level refusals. Generic constraint semantics are unchanged.
 
       PROVED BY FunctionTypeSuffixParseTests at Tier 1 -- twelve positions for the rank and eight for the
       optional, the sized rank, both suffixes together, the parenthesized spelling keeping the parse it had,
@@ -8015,7 +8023,13 @@ capabilities:
       carry the exact element type into the span. NamedAllocationElements is banked in AllFeaturesV2;
       the model tests pin interning and constraint closures independently of output. Size expressions
       remain bound once and evaluated once; the sample prints lengths 2 and 3 after exactly two calls.
-      Literal stackalloc sizes still produce an unknown-length span; this patch changes no length rule.
+      LITERAL LENGTHS, 2026-09-26. BindStackalloc now retains the same integer-literal length as array
+      creation through ConstructLengthIndexed, including readonly targets. StackallocLengthInferenceTests
+      pins interned identity with explicit dependent span types and leaves computed sizes as unknown
+      Int32 values. NamedAllocationElements uses explicit length-2 mutable and readonly span targets;
+      the dynamic allocations still observe lengths 2 and 3 after exactly two calls.
+      StackallocLengthWideningTests holds the permitted erasure into ordinary Span and ReadOnlySpan
+      aliases; the analysis register records the dependent-domain conversion rule this needed.
     analysis_phase_tasks:
       - >
         Enforce the stampability predicate on the element type, which is distinct from C#'s unmanaged
@@ -9059,6 +9073,12 @@ capabilities:
       resolution makes qualified, generic and alias element types representable without changing
       stampability or generic constraints. NamedAllocationElementTypeTests pins the analysis seam;
       the analysis register's flow-framework evidence records the refused shapes.
+
+      INHERITED STORAGE, 2026-09-26. Stampability inspects the concrete struct's base chain as well as
+      its own instance fields, retaining the recursion guard and excluding static storage. Inherited
+      reference fields and declared type-parameter fields are refused; multilevel primitive fields are
+      admitted. InheritedStampabilityTests pins the predicate, InheritedStampabilityAnalysisTests pins
+      both allocation gates, and the flow-framework corpus holds the inherited-reference array refusal.
     analysis_phase_tasks:
       - >
         Classify element types by stampability and refuse a bare sized array creation for one that is not,
@@ -11071,13 +11091,14 @@ samples:
         with MIST_UNDEFINED_TYPE, and their alias declarations with MIST_SB_0062 (measured
         2026-09-25 through the CLI before the v2 fix). Referenced from AllFeaturesV2 alone, with
         its lines captured from v2 and read against the program by hand. Struct fields are int;
-        a field typed T remains non-stampable under the existing rule, even in Pair<int>.
+        definite-assignment Requirement 3.4 deliberately keeps a field typed T non-stampable, even in Pair<int>.
       - >
         Invalid arity, unresolved names, non-stampable elements and ref-struct type arguments are
         negative claims that a stdout baseline cannot make; NamedAllocationElementTypeTests holds them.
       - >
-        Function-type allocation syntax and generic constraint semantics are excluded. Stackalloc
-        literal-length inference remains unknown, as before; the sample observes runtime lengths only.
+        Bare function-type allocations are reference-type refusals, held by the flow-framework corpus,
+        and generic constraint semantics are unchanged. Explicit length-2 mutable and readonly span
+        targets exercise literal-length inference; computed sizes exercise runtime lengths and call count.
 
   - name: StructInheritance
     intro_order: 53

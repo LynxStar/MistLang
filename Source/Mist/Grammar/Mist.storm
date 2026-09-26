@@ -399,6 +399,7 @@ rule ElementTypeRef
     = primitiveType:PrimitiveType as PrimitiveElementTypeRef
     | UNKNOWN as UnknownElementTypeRef
     | name:QualifiedIdentifier typeArgs:TypeArgumentList? as NamedElementTypeRef
+    | FUNC typeArgs:TypeArgumentList as FuncElementTypeRef
     ;
 
 @memo

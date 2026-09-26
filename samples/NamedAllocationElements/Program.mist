@@ -18,11 +18,13 @@ public class Program
         pairs[1] = new Pair<int>(11, 12);
         Ns.Point[] qualifiedPoints = new Ns.Point[2];
         qualifiedPoints[1] = new Ns.Point(23, 24);
-        Span<Ns.Pair<int>> qualifiedPairs = stackalloc Ns.Pair<int>[2];
+        Span<Ns.Pair<int>, 2> qualifiedPairs = stackalloc Ns.Pair<int>[2];
         qualifiedPairs[1] = new Ns.Pair<int>(35, 36);
+        ReadOnlySpan<Ns.Pair<int>, 2> readOnlyPairs = stackalloc Ns.Pair<int>[2];
         Console.WriteLine($"pairs[1].second={pairs[1].second}");
         Console.WriteLine($"qualifiedPoints[1].y={qualifiedPoints[1].y}");
         Console.WriteLine($"qualifiedPairs[1].second={qualifiedPairs[1].second}");
+        Console.WriteLine($"readOnlyPairs.Length={readOnlyPairs.Length}");
 
         Pair<int>[] aliasPairs = new PairAlias<int>[2];
         aliasPairs[1] = new Pair<int>(47, 48);

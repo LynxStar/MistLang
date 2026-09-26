@@ -450,6 +450,7 @@ internal static class ExpressionBinder
     {
         var elementType = ResolveElementType(node.Type, ctx, context);
         var size = BindExpression(node.Size, ctx, context);
+        var length = size is LiteralExpression { Value: long written } && written <= int.MaxValue ? (int?)written : null;
 
         // Read off the DEFINITION rather than the target's own name, which carries its arguments and so
         // never equals the bare declaration's.
@@ -459,9 +460,8 @@ internal static class ExpressionBinder
                 : WellKnownTypes.Span
                 ;
 
-        // The size is an arbitrary expression, so the length is not statically known.
         return new StackallocExpression(
-            node, elementType, size, context.Resolver.ConstructLengthIndexed(definition, elementType, null));
+            node, elementType, size, context.Resolver.ConstructLengthIndexed(definition, elementType, length));
     }
 
     private static IMistType ResolveElementType(ElementTypeRefNode elementTypeRef, BindingContext ctx, BuilderContext context)
@@ -472,6 +472,8 @@ internal static class ExpressionBinder
             UnknownElementTypeRefElementTypeRefNode => UnknownType.Instance,
             NamedElementTypeRefElementTypeRefNode namedRef => context.Resolver.ResolveNamed(
                 namedRef.Name, namedRef.TypeArgs, ctx.Scope, namedRef),
+            FuncElementTypeRefElementTypeRefNode funcRef => context.Resolver.ResolveFunction(
+                funcRef.TypeArgs, ctx.Scope, funcRef),
             _ => ErrorType.Instance,
         };
     }

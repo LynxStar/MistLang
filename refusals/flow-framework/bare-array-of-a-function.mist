@@ -1,0 +1,12 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_ARRAY_REQUIRES_INITIALIZER
+        var callbacks = new func<int, int>[2];
+    }
+}

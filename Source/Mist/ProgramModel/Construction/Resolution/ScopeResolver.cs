@@ -127,13 +127,13 @@ internal sealed class ScopeResolver
     /// parameters, so <c>func&lt;bool&gt;</c> takes nothing -- one syntax across every arity, which is
     /// what makes the grammar need no separate zero-parameter form.
     /// </summary>
-    private IMistType ResolveFunction(FuncSingleTypeRefSingleTypeRefNode funcRef, Scope scope)
+    internal IMistType ResolveFunction(TypeArgumentListNode arguments, Scope scope, Storm.Runtime.SyntaxNode node)
     {
-        var typeArguments = ResolveTypeArguments(funcRef.TypeArgs, scope);
+        var typeArguments = ResolveTypeArguments(arguments, scope);
 
         if(typeArguments.Count == 0)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.FunctionTypeNeedsAResult, funcRef, null);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.FunctionTypeNeedsAResult, node, null);
             return ErrorType.Instance;
         }
 
@@ -198,7 +198,7 @@ internal sealed class ScopeResolver
                 nestedRef.Outer, nestedRef.OuterArgs, nestedRef.Nested, nestedRef.TypeArgs, scope, nestedRef),
             ParenthesizedTypeRefSingleTypeRefNode parenRef => Resolve(parenRef.Inner, scope),
             TupleSingleTypeRefSingleTypeRefNode tupleRef => ResolveTuple(tupleRef, scope),
-            FuncSingleTypeRefSingleTypeRefNode funcRef => ResolveFunction(funcRef, scope),
+            FuncSingleTypeRefSingleTypeRefNode funcRef => ResolveFunction(funcRef.TypeArgs, scope, funcRef),
             SpreadSingleTypeRefSingleTypeRefNode spread => ResolveSpread(spread, scope),
             _ => ReportUnsupported(singleRef),
         };

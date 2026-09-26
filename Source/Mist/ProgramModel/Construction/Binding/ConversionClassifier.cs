@@ -177,7 +177,7 @@ internal static class ConversionClassifier
             var slot = target.TypeArguments[i];
 
             if(!Same(argument, slot)
-                && !(slot is UnknownValueType unknown && argument is LiftedType or UnknownValueType && Same(Normalize(argument), unknown.Domain))
+                && !ErasesDependentValue(argument, slot, target.Definition, i)
                 && !AgreesUpToUnknownValues(argument, slot))
             {
                 return false;
@@ -185,6 +185,30 @@ internal static class ConversionClassifier
         }
 
         return true;
+    }
+
+    private static bool ErasesDependentValue(IMistType argument, IMistType slot, IMistType definition, int ordinal)
+    {
+        if(argument is not (LiftedType or UnknownValueType))
+        {
+            return false;
+        }
+
+        if(slot is UnknownValueType unknown)
+        {
+            return Same(Normalize(argument), unknown.Domain);
+        }
+
+        if(slot is not UnknownType || definition is not IHasTypeParameters declared)
+        {
+            return false;
+        }
+
+        var domain = declared.TypeParametersList
+            .FirstOrDefault(parameter => parameter.Ordinal == ordinal && parameter.IsDependent)?.Domain;
+
+        return domain is not null
+            && Same(Normalize(argument), Normalize(ConversionRelation.Unrefined(domain)));
     }
 
     private static bool CrossesDelegateShape(IMistType from, IMistType to)

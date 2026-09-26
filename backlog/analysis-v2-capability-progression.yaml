@@ -354,6 +354,14 @@ rules:
       conversions the emitter spells as operators, stated because the model declares none. A fifth
       answer, UNCLASSIFIED, is for a sentinel -- an error type, a skipped CLR type -- where there is no
       type to classify and a refusal would blame the program for the compiler.
+
+      DEPENDENT LENGTH ERASURE, 2026-09-26. Literal stackalloc lengths exposed a conversion gap:
+      `Span<T>` and `ReadOnlySpan<T>` aliases carry bare unknown in their declared dependent slot,
+      while sized allocations carry a lifted Int32 value. The classifier now accepts that erasure
+      only for a declared dependent parameter with the same underlying value domain. Ordinary struct
+      type arguments remain invariant, differing known lengths remain distinct, and a bool cannot
+      fill the unknown Int32 length slot. StackallocLengthWideningTests holds both span families,
+      constructed elements and aliases against the real Standard declarations, plus the refusals.
       
       THE CONSTRUCTED-GENERICS GAP WAS REAL. `(IEnumerable<int>)list` is admitted by classic, and the
       partial relation answered false for it: Inherits walks only MemberType and a List<int> is a
@@ -2159,6 +2167,17 @@ rules:
       generic structs with a T field remain non-stampable, ref structs reach the stampability refusal,
       and a ref-struct type argument reaches the existing type-argument check. Pair<T> in the positive
       fixtures stores only int fields, preserving the conservative classifier and constraint semantics.
+
+      ALLOCATION FOLLOWUPS, 2026-09-26. Keyword func element references share ordinary function-type
+      resolution and reach the existing array/stackalloc refusal with a reference-type reason, held
+      by FunctionAllocationElementTypeTests and two flow-framework corpus cases. Stampability also
+      examines inherited instance storage: inherited references and declared type-parameter fields
+      are refused, multilevel primitive fields are admitted, and cycles terminate conservatively.
+      InheritedStampabilityTests and InheritedStampabilityAnalysisTests pin the predicate and both
+      allocation gates; the inherited-reference array has a corpus case. Definite-assignment Requirement
+      3.4 still deliberately refuses fields typed T even in closed generic constructions. No constraint
+      kind or constraint semantics changed. Measured through the classic CLI, the inherited-reference
+      fixture is MIST_ARRAY_REQUIRES_INITIALIZER there too, with its message placeholders unformatted.
 
       MEASURED: the first sweep reported ten findings, all type-parameter or pack fields in generic
       containers, fixed at the source; then zero findings and identical stdout on AllFeaturesV2 and

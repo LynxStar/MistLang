@@ -6,14 +6,14 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        Direction d = Direction.North;
-        bool isNorth = (d == Direction.North);
-        bool isSouth = (d == Direction.South);
+        Snippet.Direction d = Snippet.Direction.North;
+        bool isNorth = (d == Snippet.Direction.North);
+        bool isSouth = (d == Snippet.Direction.South);
         System.Console.WriteLine($"d is Direction.North = {isNorth}");
         System.Console.WriteLine($"d is Direction.South = {isSouth}");
-        Color c = Color.Green;
-        bool isGreen = (c == Color.Green);
-        bool isRed = (c == Color.Red);
+        Snippet.Color c = Snippet.Color.Green;
+        bool isGreen = (c == Snippet.Color.Green);
+        bool isRed = (c == Snippet.Color.Red);
         System.Console.WriteLine($"c is Color.Green = {isGreen}");
         System.Console.WriteLine($"c is Color.Red = {isRed}");
     }

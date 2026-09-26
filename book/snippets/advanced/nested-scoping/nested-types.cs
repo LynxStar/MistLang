@@ -7,7 +7,7 @@ public class Outer
     public static void Demo()
     {
         System.Console.WriteLine(Snippet.Outer.Inner.Hello());
-        System.Console.WriteLine($"Status.Active = {Status.Active}");
+        System.Console.WriteLine($"Status.Active = {Snippet.Outer.Status.Active}");
     }
 
     public Outer()

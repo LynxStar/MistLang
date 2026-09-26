@@ -145,7 +145,7 @@ internal sealed class AccessorAnalyzer : IProgramAnalyzer
             construction |= Construction.BackingField;
         }
 
-        if(!property.Modifiers.IsStatic && (member is Constructor { Modifiers.IsStatic: false } || InInitAccessor(context, access, member)))
+        if(member is Constructor { Modifiers.IsStatic: false } || InInitAccessor(context, access, member))
         {
             construction |= Construction.Init;
         }

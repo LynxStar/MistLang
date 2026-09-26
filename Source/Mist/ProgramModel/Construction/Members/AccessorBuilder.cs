@@ -78,7 +78,7 @@ internal sealed class AccessorBuilder
 
     public PropertyAccessor? BuildInitAccessor(
         ModifierNode? modifier, string memberName, Storm.Runtime.SyntaxNode locationNode,
-        bool isAbstract, bool isAuto, BlockNode? body, ExpressionNode? expression)
+        bool isAbstract, bool isStatic, bool isAuto, BlockNode? body, ExpressionNode? expression)
     {
         if(isAbstract)
         {
@@ -86,6 +86,13 @@ internal sealed class AccessorBuilder
             return null;
         }
 
-        return BuildSetter(modifier, memberName, locationNode, isAbstract: false, isAuto, isInit: true, body, expression);
+        if(isStatic)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.StaticPropertyInitAccessor, locationNode, null, memberName);
+        }
+
+        // Built as a plain setter once refused, rather than dropped as the abstract case is, so a write to it is
+        // not refused again: the mistake is the declaration's, and it has been reported there.
+        return BuildSetter(modifier, memberName, locationNode, isAbstract: false, isAuto, isInit: !isStatic, body, expression);
     }
 }

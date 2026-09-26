@@ -223,6 +223,12 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "Abstract types cannot declare init accessors on property '{0}' because abstract types cannot be instantiated.");
 
+    public static readonly DiagnosticDescriptor StaticPropertyInitAccessor = new(
+        new DiagnosticId("MIST_PM_STATIC_INIT_ACCESSOR"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Static property '{0}' cannot declare an init accessor: init runs while an instance is constructed, and a static property belongs to no instance.");
+
     // ── Modifier validation ──────────────────────────────────────────────
 
     /// <summary>A member cannot be both public and private.</summary>

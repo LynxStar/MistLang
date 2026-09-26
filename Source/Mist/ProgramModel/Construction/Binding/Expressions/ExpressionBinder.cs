@@ -470,7 +470,8 @@ internal static class ExpressionBinder
         {
             PrimitiveElementTypeRefElementTypeRefNode primitiveRef => ResolvePrimitiveElementType(primitiveRef, context),
             UnknownElementTypeRefElementTypeRefNode => UnknownType.Instance,
-            NamedElementTypeRefElementTypeRefNode namedRef => context.Resolver.ResolveNamedType(namedRef.Name.IDENTIFIER.Lexeme, ctx.Scope, namedRef),
+            NamedElementTypeRefElementTypeRefNode namedRef => context.Resolver.ResolveNamed(
+                namedRef.Name, namedRef.TypeArgs, ctx.Scope, namedRef),
             _ => ErrorType.Instance,
         };
     }

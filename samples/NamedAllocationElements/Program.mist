@@ -1,0 +1,59 @@
+using Standard;
+using NamedAllocationElements.Ns;
+
+namespace NamedAllocationElements;
+
+type PairAlias<T> = Ns.Pair<T>;
+type PointAlias = Ns.Point;
+type ClosedPairAlias = Ns.Pair<int>;
+
+public class Program
+{
+    private static int allocationSizeCalls = 0;
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Named Allocation Elements Sample ===");
+        Pair<int>[] pairs = new Pair<int>[2];
+        pairs[1] = new Pair<int>(11, 12);
+        Ns.Point[] qualifiedPoints = new Ns.Point[2];
+        qualifiedPoints[1] = new Ns.Point(23, 24);
+        Span<Ns.Pair<int>> qualifiedPairs = stackalloc Ns.Pair<int>[2];
+        qualifiedPairs[1] = new Ns.Pair<int>(35, 36);
+        Console.WriteLine($"pairs[1].second={pairs[1].second}");
+        Console.WriteLine($"qualifiedPoints[1].y={qualifiedPoints[1].y}");
+        Console.WriteLine($"qualifiedPairs[1].second={qualifiedPairs[1].second}");
+
+        Pair<int>[] aliasPairs = new PairAlias<int>[2];
+        aliasPairs[1] = new Pair<int>(47, 48);
+        Ns.Point[] aliasPoints = new PointAlias[2];
+        aliasPoints[1] = new Ns.Point(59, 60);
+        Span<Ns.Pair<int>> aliasStackPairs = stackalloc PairAlias<int>[2];
+        aliasStackPairs[1] = new Ns.Pair<int>(71, 72);
+        Span<Ns.Pair<int>> closedAliasPairs = stackalloc ClosedPairAlias[2];
+        closedAliasPairs[1] = new Ns.Pair<int>(83, 84);
+        Console.WriteLine($"aliasPairs[1].second={aliasPairs[1].second}");
+        Console.WriteLine($"aliasPoints[1].y={aliasPoints[1].y}");
+        Console.WriteLine($"aliasStackPairs[1].second={aliasStackPairs[1].second}");
+        Console.WriteLine($"closedAliasPairs[1].second={closedAliasPairs[1].second}");
+
+        allocationSizeCalls = 0;
+        var sizedPairs = new Pair<int>[NextAllocationSize()];
+        var sizedStackPairs = stackalloc PairAlias<int>[NextAllocationSize()];
+        Console.WriteLine($"sizedPairs.Length={sizedPairs.Length}");
+        Console.WriteLine($"sizedStackPairs.Length={sizedStackPairs.Length}");
+        Console.WriteLine($"allocationSizeCalls={allocationSizeCalls}");
+        Console.WriteLine("=== Named Allocation Elements Done ===");
+    }
+
+    private static int NextAllocationSize()
+    {
+        allocationSizeCalls = allocationSizeCalls + 1;
+        return allocationSizeCalls + 1;
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

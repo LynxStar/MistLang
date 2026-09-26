@@ -546,6 +546,12 @@ capabilities:
       it replaced -- the same code previously emitted the same broken output with NO Mist
       diagnostic at all, because a bare UnknownType receiver hits PostfixBinder's suppression
       guard and an UnknownValueType receiver does not.
+      NAMED ELEMENT RESOLUTION, 2026-09-25. Array creation shares ScopeResolver.ResolveNamed with
+      ordinary type references, retaining the qualified identifier and type arguments that the
+      allocation path dropped. Generic constructions and aliases resolve to the same interned types,
+      with direct type-argument and constructor-constraint closures recorded at the element node.
+      NamedAllocationElementTypeTests pins identity, unresolved names and arity-bearing Mist diagnostics;
+      NamedAllocationElements exercises the emitted allocations and runtime size evaluation in AllFeaturesV2.
     tasks:
       - Resolve a member through a dependent argument's domain, so `arr.Length.ToString()`
         binds on Int32. Needs the expression's type to come from the domain rather than the
@@ -8003,6 +8009,13 @@ capabilities:
       ZERO-INITIALIZATION AND SLICE ALIASING ARE C#'s OWN once the type is spelled as the CLR span --
       StackOnlyTypes reads `ro[0]=0` from an untouched buffer and sees a write through a slice in the
       original. Neither needed a lowering, which is the same argument order 139 makes.
+
+      NAMED ELEMENT RESOLUTION, 2026-09-25. Stackalloc uses the same named resolver as array creation
+      and ordinary type references, so `stackalloc Ns.Pair<int>[2]` and generic or closed aliases
+      carry the exact element type into the span. NamedAllocationElements is banked in AllFeaturesV2;
+      the model tests pin interning and constraint closures independently of output. Size expressions
+      remain bound once and evaluated once; the sample prints lengths 2 and 3 after exactly two calls.
+      Literal stackalloc sizes still produce an unknown-length span; this patch changes no length rule.
     analysis_phase_tasks:
       - >
         Enforce the stampability predicate on the element type, which is distinct from C#'s unmanaged
@@ -8011,7 +8024,7 @@ capabilities:
         The escape rule: a stackalloc-backed span may be passed down but must not escape. Classic has
         FrameEscapeAnalyzer for this and v2 runs no analyzers. StackOnlyTypes exercises the permitted
         direction only, so nothing measures the refusal either way.
-    unlocks: [StackOnlyTypes]
+    unlocks: [StackOnlyTypes, NamedAllocationElements]
 
   # ===================================================================
   # Layer AA -- refinement and dependent types.
@@ -9041,6 +9054,11 @@ capabilities:
       
       THE CLASSIFICATION IS A JUDGEMENT: deciding which element types may be zero-filled refuses bare
       `new T[n]` for the rest and changes nothing that compiles.
+
+      NAMED ELEMENTS NOW REACH THE EXISTING JUDGEMENT (2026-09-25): shared ordinary named-type
+      resolution makes qualified, generic and alias element types representable without changing
+      stampability or generic constraints. NamedAllocationElementTypeTests pins the analysis seam;
+      the analysis register's flow-framework evidence records the refused shapes.
     analysis_phase_tasks:
       - >
         Classify element types by stampability and refuse a bare sized array creation for one that is not,
@@ -11038,6 +11056,28 @@ samples:
       - Zero-initialization rests on one element printing zero, which uninitialized memory
         could match by chance, and the struct element type has no members so element dispatch
         is never touched.
+
+  - name: NamedAllocationElements
+    intro_order: 99
+    threshold: stackalloc
+    requires: [stackalloc, struct-declaration, constructors, methods-static-and-instance,
+               statements-core, namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference, instance-fields, arrays-sized-index-length,
+               type-parameters-and-constructed-types, generic-arity-keyed-lookup,
+               type-argument-substitution, generic-type-aliases]
+    untested:
+      - >
+        V2-ONLY. Classic refuses the relative qualified names Ns.Point and Ns.Pair in the fixture
+        with MIST_UNDEFINED_TYPE, and their alias declarations with MIST_SB_0062 (measured
+        2026-09-25 through the CLI before the v2 fix). Referenced from AllFeaturesV2 alone, with
+        its lines captured from v2 and read against the program by hand. Struct fields are int;
+        a field typed T remains non-stampable under the existing rule, even in Pair<int>.
+      - >
+        Invalid arity, unresolved names, non-stampable elements and ref-struct type arguments are
+        negative claims that a stdout baseline cannot make; NamedAllocationElementTypeTests holds them.
+      - >
+        Function-type allocation syntax and generic constraint semantics are excluded. Stackalloc
+        literal-length inference remains unknown, as before; the sample observes runtime lengths only.
 
   - name: StructInheritance
     intro_order: 53

@@ -83,6 +83,7 @@ public class Program
         OptionalDefaultability.Program.RunDemo();
         RefStructs.Program.RunDemo();
         StackOnlyTypes.Program.RunDemo();
+        NamedAllocationElements.Program.RunDemo();
         DropSemantics.Program.RunDemo();
         SubstructuralFieldDiscipline.Program.RunDemo();
         StructuredConcurrency.Program.RunDemo();

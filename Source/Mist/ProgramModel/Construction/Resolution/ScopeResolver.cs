@@ -193,7 +193,7 @@ internal sealed class ScopeResolver
             VoidSingleTypeRefSingleTypeRefNode => LookupWellKnown(WellKnownTypes.Void),
             UnknownSingleTypeRefSingleTypeRefNode => UnknownType.Instance,
             PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => ResolveReservedAlias(primitiveRef),
-            NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef, scope),
+            NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef.Name, namedRef.TypeArgs, scope, namedRef),
             NestedGenericSingleTypeRefSingleTypeRefNode nestedRef => ResolveNestedGeneric(
                 nestedRef.Outer, nestedRef.OuterArgs, nestedRef.Nested, nestedRef.TypeArgs, scope, nestedRef),
             ParenthesizedTypeRefSingleTypeRefNode parenRef => Resolve(parenRef.Inner, scope),
@@ -287,14 +287,15 @@ internal sealed class ScopeResolver
     /// <summary>
     /// Resolves a named type reference by looking up the name in the scope.
     /// </summary>
-    private IMistType ResolveNamed(NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
+    internal IMistType ResolveNamed(
+        QualifiedIdentifierNode name, TypeArgumentListNode? typeArguments, Scope scope, Storm.Runtime.SyntaxNode node)
     {
         // Qualified if dotted, simple otherwise; the arity marker is the resolver's to add.
-        var stem = namedRef.Name.IDENTIFIERs.Length > 0
-            ? QualifiedNameHelper.Build(namedRef.Name)
-            : namedRef.Name.IDENTIFIER.Lexeme;
+        var stem = name.IDENTIFIERs.Length > 0
+            ? QualifiedNameHelper.Build(name)
+            : name.IDENTIFIER.Lexeme;
 
-        var arity = GetTypeArgumentArity(namedRef.TypeArgs);
+        var arity = GetTypeArgumentArity(typeArguments);
 
         if(arity == 0 && stem.Split('.') is [var parameterName, var slotName]
             && SlotThrough(parameterName, slotName, scope) is { } slot)
@@ -302,7 +303,7 @@ internal sealed class ScopeResolver
             return slot;
         }
 
-        var baseType = ResolveGenericDefinition(stem, arity, scope, namedRef);
+        var baseType = ResolveGenericDefinition(stem, arity, scope, node);
 
         if(baseType is ErrorType)
         {
@@ -311,26 +312,26 @@ internal sealed class ScopeResolver
 
         if(baseType is TypeAlias alias)
         {
-            return ExpandAlias(alias, namedRef, scope);
+            return ExpandAlias(alias, typeArguments, scope, node);
         }
 
         // If type arguments are present, resolve them and wrap in a ConstructedType. A variadic
         // family is constructed even when NONE are written, since absorbing nothing is a binding
         // like any other -- a bare `Action` is Action<[]>, not an unconstructed definition.
-        var written = namedRef.TypeArgs is { } typeArgList
+        var written = typeArguments is { } typeArgList
             ? ResolveTypeArguments(typeArgList, scope)
             : [];
 
-        if(namedRef.TypeArgs is not null || Absorbs(baseType))
+        if(typeArguments is not null || Absorbs(baseType))
         {
-            var typeArgs = BindPack(baseType, written, namedRef);
+            var typeArgs = BindPack(baseType, written, node);
 
             if(AsFunctionType(baseType, typeArgs) is { } functionType)
             {
                 return functionType;
             }
 
-            context.ProgramModel.ConstructorConstraintClosures.RecordType(baseType, typeArgs, namedRef);
+            context.ProgramModel.ConstructorConstraintClosures.RecordType(baseType, typeArgs, node);
             return Construct(baseType, typeArgs, scope);
         }
 
@@ -560,14 +561,15 @@ internal sealed class ScopeResolver
         return typeArgs;
     }
 
-    private IMistType ExpandAlias(TypeAlias alias, NamedSingleTypeRefSingleTypeRefNode namedRef, Scope scope)
+    private IMistType ExpandAlias(
+        TypeAlias alias, TypeArgumentListNode? typeArguments, Scope scope, Storm.Runtime.SyntaxNode node)
     {
         // Bound before substituting, exactly as a class's arguments are: an alias declaring a pack
         // has the same gap between its slot count and a flat use site, and substituting by ordinal
         // across that gap silently drops the surplus.
-        var typeArgs = namedRef.TypeArgs is { } typeArgList
-            ? BindPack(alias, ResolveTypeArguments(typeArgList, scope), namedRef)
-            : Absorbs(alias) ? BindPack(alias, [], namedRef) : null;
+        var typeArgs = typeArguments is { } typeArgList
+            ? BindPack(alias, ResolveTypeArguments(typeArgList, scope), node)
+            : Absorbs(alias) ? BindPack(alias, [], node) : null;
 
         return ExpandAlias(alias, typeArgs);
     }

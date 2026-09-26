@@ -1449,6 +1449,18 @@ view[2]=9
 --- Span Argument ---
 SumSpan=179
 === StackOnlyTypes Done ===
+=== Named Allocation Elements Sample ===
+pairs[1].second=12
+qualifiedPoints[1].y=24
+qualifiedPairs[1].second=36
+aliasPairs[1].second=48
+aliasPoints[1].y=60
+aliasStackPairs[1].second=72
+closedAliasPairs[1].second=84
+sizedPairs.Length=2
+sizedStackPairs.Length=3
+allocationSizeCalls=2
+=== Named Allocation Elements Done ===
 === Drop Semantics Sample ===
 --- 1. Linear: auto-drop at scope exit ---
   Created FileHandle(1)

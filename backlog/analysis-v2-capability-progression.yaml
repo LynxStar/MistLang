@@ -2148,8 +2148,17 @@ rules:
       a newtype, a type parameter, a ref struct, or a struct that contains itself. Each is classic's
       verdict, measured, except the alias: classic refuses `new Coord[3]` for `type Coord = Point`,
       and v2 admits what the alias names. Classic's message had its placeholders unformatted; v2's
-      names the element type and the reason. `new Pair<int>[3]` and `stackalloc Span<int>[2]` are not
-      measurable on v2: the binder does not resolve a generic type in element position, recorded below.
+      names the element type and the reason.
+
+      NAMED ALLOCATION ELEMENTS, 2026-09-25. Reproduced before the fix: the experimental CLI reports
+      MIST_PM_UNRESOLVED_TYPE for `new Pair<int>[2]`, `new Ns.Point[2]` and
+      `stackalloc Ns.Pair<int>[2]`, dropping the qualifier and type arguments. Both allocation binders
+      now share ScopeResolver.ResolveNamed with ordinary type references, preserving alias expansion,
+      interned identity and direct constraint-closure recording. NamedAllocationElementTypeTests pins
+      the model and the analysis seam: qualified classes and aliases reach the reference-type refusal,
+      generic structs with a T field remain non-stampable, ref structs reach the stampability refusal,
+      and a ref-struct type argument reaches the existing type-argument check. Pair<T> in the positive
+      fixtures stores only int fields, preserving the conservative classifier and constraint semantics.
 
       MEASURED: the first sweep reported ten findings, all type-parameter or pack fields in generic
       containers, fixed at the source; then zero findings and identical stdout on AllFeaturesV2 and
@@ -2194,10 +2203,6 @@ rules:
         Per-field definite assignment of a struct local is left to Roslyn (CS0170): `Point p;
         p.x = 1; return p.y;` passes Stage 5, since a field write counts as writing the whole local,
         and is refused by the emitted C#. Tracking (local, field) pairs is the natural extension.
-      - >
-        A generic type in element position -- `new Pair<int>[3]`, `stackalloc Span<int>[2]` -- is
-        MIST_PM_UNRESOLVED_TYPE on v2; the binder resolves only a simple name there. Until it does,
-        the generic-struct and ref-struct stampability refusals cannot be measured or pinned.
       - >
         `Span<T>` erases its length to `unknown` rather than an unknown int VALUE, so `int n =
         span.Length;` is refused by order 5 as unknown-to-int; `int[]` gets this right. Found while

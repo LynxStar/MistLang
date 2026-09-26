@@ -65,6 +65,7 @@ ExtensionMethodBinding = { path = "../ExtensionMethodBinding" }
 OptionalDefaultability = { path = "../OptionalDefaultability" }
 RefStructs = { path = "../RefStructs" }
 StackOnlyTypes = { path = "../StackOnlyTypes" }
+NamedAllocationElements = { path = "../NamedAllocationElements" }
 DropSemantics = { path = "../DropSemantics" }
 SubstructuralFieldDiscipline = { path = "../SubstructuralFieldDiscipline" }
 StructuredConcurrency = { path = "../StructuredConcurrency" }

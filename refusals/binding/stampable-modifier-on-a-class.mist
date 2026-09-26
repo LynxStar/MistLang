@@ -1,0 +1,4 @@
+namespace Refusal;
+
+// REFUSE: MIST_PM_STAMPABLE_REQUIRES_STRUCT
+public stampable class Box { }

@@ -66,6 +66,9 @@ internal static class ModifierBuilder
                 case ReadonlyModifierModifierNode:
                     result = result with { IsReadonly = true };
                     break;
+                case StampableModifierModifierNode:
+                    result = result with { IsStampable = true };
+                    break;
                 case AsyncModifierModifierNode:
                     result = result with { IsAsync = true };
                     break;
@@ -100,6 +103,11 @@ internal static class ModifierBuilder
         }
 
         ValidateUniversalConflicts(accessModifierCount, diagnostics, node, modifiers);
+
+        if(result.IsStampable && (result.IsRef || node is not TypeBodyDeclarationNode { Keyword: StructKeywordTypeKeywordNode }))
+        {
+            diagnostics.ReportAtNode(ProgramModelDiagnostics.StampableRequiresStruct, node, null);
+        }
 
         return result;
     }

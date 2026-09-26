@@ -1,0 +1,30 @@
+using Standard;
+
+namespace StampableGuarantee;
+
+public stampable struct Point
+{
+    public int X;
+    public int Y;
+}
+
+public stampable struct Box<T> where T : stampable
+{
+    public T Item;
+
+    public Box(T item)
+    {
+        Item = item;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var points = new Point[2];
+        var boxes = new Box<Point>[2];
+        Console.WriteLine($"points[0].X={points[0].X}");
+        Console.WriteLine($"boxes[0].Item.Y={boxes[0].Item.Y}");
+    }
+}

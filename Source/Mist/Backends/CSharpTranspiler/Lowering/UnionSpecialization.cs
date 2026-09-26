@@ -465,7 +465,7 @@ internal sealed class UnionSpecialization
     {
         return parameter.ConstraintsList.Exists(constraint => constraint is KeywordConstraint
         {
-            Kind: TypeParameterConstraintKind.Struct or TypeParameterConstraintKind.Class,
+            Kind: TypeParameterConstraintKind.Struct or TypeParameterConstraintKind.Class or TypeParameterConstraintKind.Stampable,
         });
     }
 

@@ -26,7 +26,7 @@ internal sealed class ScopeResolver
 
     /// <summary>
     /// Builds an alias whose target is not resolved yet, so <see cref="ExpandAlias(TypeAlias,
-    /// IReadOnlyList{IMistType}?)"/> can expand chains regardless of declaration order. Set by
+    /// IReadOnlyList{IMistType}?, Storm.Runtime.SyntaxNode?)"/> can expand chains regardless of declaration order. Set by
     /// <see cref="ProgramModelBuilder"/> to the Phase 2a alias builder; cycle detection lives
     /// with the builder, which is why this completes rather than merely tolerates a null target.
     /// </summary>
@@ -409,7 +409,7 @@ internal sealed class ScopeResolver
 
         if(definition is TypeAlias alias)
         {
-            current = ExpandAlias(alias, arguments);
+            current = ExpandAlias(alias, arguments, node);
         }
         else
         {
@@ -571,7 +571,7 @@ internal sealed class ScopeResolver
             ? BindPack(alias, ResolveTypeArguments(typeArgList, scope), node)
             : Absorbs(alias) ? BindPack(alias, [], node) : null;
 
-        return ExpandAlias(alias, typeArgs);
+        return ExpandAlias(alias, typeArgs, node);
     }
 
     /// <summary>
@@ -582,7 +582,7 @@ internal sealed class ScopeResolver
     /// is completed on demand through <see cref="AliasCompleter"/>, so an expansion never
     /// returns another alias: a chain bottoms out and a cycle resolves to an error type.
     /// </summary>
-    internal IMistType ExpandAlias(TypeAlias alias, IReadOnlyList<IMistType>? typeArgs)
+    internal IMistType ExpandAlias(TypeAlias alias, IReadOnlyList<IMistType>? typeArgs, Storm.Runtime.SyntaxNode? node = null)
     {
         if(alias.AliasedType is null)
         {
@@ -597,6 +597,11 @@ internal sealed class ScopeResolver
         if(typeArgs is null)
         {
             return aliased;
+        }
+
+        if(node is not null)
+        {
+            context.ProgramModel.ConstructorConstraintClosures.RecordType(alias, typeArgs, node);
         }
 
         return TypeSubstitution

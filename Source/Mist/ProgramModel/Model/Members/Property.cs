@@ -40,6 +40,10 @@ internal sealed class Property(
     /// </summary>
     public PropertyAccessor? Setter { get; init; }
 
+    public bool UsesBackingField { get; internal set; }
+
+    public bool HasBackingStorage => UsesBackingField || Getter is { IsAuto: true } || Setter is { IsAuto: true };
+
     /// <summary>
     /// The property initializer expression, or null if none. Settable for the same reason
     /// <see cref="Field.Initializer"/> is: Phase 2 parks the unbound expression, Phase 3 replaces it.

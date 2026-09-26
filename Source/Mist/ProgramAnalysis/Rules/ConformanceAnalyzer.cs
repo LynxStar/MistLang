@@ -191,6 +191,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                         TypeDisplay.Mist(typed.ConstraintType)),
                     KeywordConstraint { Kind: TypeParameterConstraintKind.Class } => (filler is not StructType, "class"),
                     KeywordConstraint { Kind: TypeParameterConstraintKind.Struct } => (filler is not ClassType, "struct"),
+                    KeywordConstraint { Kind: TypeParameterConstraintKind.Stampable } => (Stampability.IsStampable(filler), "stampable"),
                     _ => (true, ""),
                 };
 

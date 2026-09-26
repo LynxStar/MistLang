@@ -41,7 +41,7 @@ public sealed class InheritedStampabilityTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void ConstructedBaseWithADeclaredTypeParameterFieldStaysNonStampable(bool constructedDerived)
+    public void ConstructedBaseStorageUsesItsClosedTypeArgument(bool constructedDerived)
     {
         var ancestor = Struct("Ancestor<>");
         var parameter = new TypeParameter("T", 0, ancestor.Scope, ancestor);
@@ -55,10 +55,8 @@ public sealed class InheritedStampabilityTests
 
         IMistType allocationElement = constructedDerived ? new ConstructedType(derived, [Primitive()]) : derived;
 
-        var reason = Stampability.WhyNotStampable(allocationElement);
-
-        Assert.NotNull(reason);
-        Assert.Contains("field 'value'", reason, StringComparison.Ordinal);
+        Assert.Null(Stampability.WhyNotStampable(allocationElement));
+        Assert.True(Stampability.IsStampable(allocationElement));
     }
 
     [Fact]

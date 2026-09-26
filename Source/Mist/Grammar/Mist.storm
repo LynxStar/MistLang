@@ -98,6 +98,7 @@ rule ConstraintList = Constraint (COMMA Constraint)*;
 rule Constraint
     = CLASS                                                                    as ClassConstraint
     | STRUCT                                                                   as StructConstraint
+    | STAMPABLE                                                                as StampableConstraint
     | READONLY                                                                 as ReadonlyConstraint
     | MUTABLE                                                                  as MutableConstraint
     | OWNED                                                                    as OwnedConstraint
@@ -204,6 +205,7 @@ rule Modifier
     | STATIC     as StaticModifier
     | INTRINSIC  as IntrinsicModifier
     | READONLY   as ReadonlyModifier
+    | STAMPABLE  as StampableModifier
     | OWNED      as OwnedModifier
     | AFFINE     as AffineModifier
     | LINEAR     as LinearModifier

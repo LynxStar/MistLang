@@ -12,7 +12,7 @@ class Name<T> where T : constraint {
 }
 ```
 
-The constraint can be a type name (abstract type, base class), a structural constraint (`class`, `struct`), or a constructor constraint (`new()`). Multiple constraints on the same type parameter are separated by commas.
+The constraint can be a type name (abstract type, base class), a structural constraint (`class`, `struct`, `stampable`), or a constructor constraint (`new()`). Multiple constraints on the same type parameter are separated by commas.
 
 ## Class Constraint (Reference Type)
 
@@ -51,6 +51,14 @@ The `struct` constraint restricts a type parameter to value types only. Referenc
 {{#endtabs }}
 
 With this constraint, `ValOnly<int>` and `ValOnly<Point>` (where `Point` is a struct) are valid, but `ValOnly<string>` would be rejected.
+
+## Stampable Constraint
+
+`where T : stampable` requires a type whose default can be replicated safely into contiguous storage. This is stronger than `struct`: a struct containing a `string` field is a value type, but is not stampable. The constraint enables bare array creation and `stackalloc` of an open type parameter, and must be satisfied when a generic caller forwards that parameter.
+
+The compiler accepts stampability inferred from concrete and closed generic instance storage; the type argument does not need an explicit declaration modifier. See [Stampable Types](./stampability.md#a-generic-constraint) for a compiling generic allocation example and the distinction between inference and a declaration guarantee.
+
+`stampable` can be combined with `struct`, but conflicts with `class`. It does not supply the separate `default` or constructor capabilities.
 
 ## Abstract Type Constraint
 
@@ -231,6 +239,7 @@ The same `where` clause syntax works uniformly across classes, structs, and abst
 |---|---|
 | `class` | Must be a reference type |
 | `struct` | Must be a value type |
+| `stampable` | Must have recursively stampable instance storage |
 | `AbstractTypeName` | Must implement the abstract type |
 | `BaseClassName` | Must extend the base class |
 | `new()` | Must have a parameterless constructor |

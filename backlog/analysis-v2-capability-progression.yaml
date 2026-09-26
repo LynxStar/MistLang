@@ -2175,9 +2175,34 @@ rules:
       are refused, multilevel primitive fields are admitted, and cycles terminate conservatively.
       InheritedStampabilityTests and InheritedStampabilityAnalysisTests pin the predicate and both
       allocation gates; the inherited-reference array has a corpus case. Definite-assignment Requirement
-      3.4 still deliberately refuses fields typed T even in closed generic constructions. No constraint
-      kind or constraint semantics changed. Measured through the classic CLI, the inherited-reference
+      3.4 originally refused fields typed T even in closed generic constructions. That restriction is
+      superseded by the stampability spec below. Measured through the classic CLI, the inherited-reference
       fixture is MIST_ARRAY_REQUIRES_INITIALIZER there too, with its message placeholders unformatted.
+
+      STAMPABILITY PROPERTY, 2026-09-26. The new stampability spec supersedes the conservative
+      type-parameter-field rule. The shared classifier substitutes receiver and enclosing arguments
+      through inherited instance storage, includes automatic and explicit property backing storage,
+      ignores static storage, and accepts ordinary open parameters with a stampable bound. Finite
+      nested constructions are admitted while recursive and expanding storage graphs terminate.
+      An explicit stampable struct declaration is checked even when unused; the modifier never
+      grants the property. StampableDeclarationTests and StampableAllocationAnalysisTests hold the
+      declaration and allocation seams, with declaration and placement refusals in the corpus.
+      ConstructedStampabilityTests holds structural proof independently of emission. Generic
+      closings, constrained aliases, open forwarding and pack element bounds are checked by
+      ConstraintAnalyzer without changing existing constraint kinds; syntax and emitter tests hold
+      representation and unmanaged emission. StampableTypes is the v2-only runtime proof.
+
+      REMAINING LIMITATION: arbitrary imported CLR structs remain conservatively non-stampable.
+      Ambient projection does not establish complete private/backing-field storage, and reference
+      assemblies may omit implementation layout. Extending this proof needs storage metadata and
+      an unknown-layout state, plus deliberate handling of the implicit System.ValueType base.
+
+      MEASURED FOR STAMPABILITY: the initial 71-case probe reproduced 52 failures before integration
+      (TestResults/ledger/20260926-150759). The implementation adds 121 syntax, model, analysis and
+      emission cases plus six refusal fixtures. Full solution ledger 20260926-152727 passed 7681/7681
+      (6907 Mist, 706 Storm, 68 CLI) with a zero-warning, zero-error build and no unchanged-test flakes.
+      Formatter verification, standalone StampableTypes and the AllFeaturesV2 baseline passed.
+      The classic AllFeatures compatibility build also passed without diagnostics.
 
       MEASURED: the first sweep reported ten findings, all type-parameter or pack fields in generic
       containers, fixed at the source; then zero findings and identical stdout on AllFeaturesV2 and
@@ -3133,4 +3158,3 @@ rules:
         A property or indexer accessor with a Mist body forgets every non-readonly field fact, whether or
         not it writes one; ReadonlyInference already answers whether a getter writes, and consulting it
         (for calls too) would keep a guard across a pure accessor. Sound, imprecise.
-

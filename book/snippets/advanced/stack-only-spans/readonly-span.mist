@@ -6,8 +6,7 @@ ReadOnlySpan<int> ro = stackalloc int[3];
 Console.WriteLine($"ro.Length={ro.Length}");
 Console.WriteLine($"ro[0]={ro[0]}");
 
-// A stampable struct can be used as the element type.
-// Only value types whose fields are all primitive are stampable.
+// Stampability is inferred from recursively stampable instance storage.
 Span<Point> points = stackalloc Point[2];
 points[0] = new Point(1, 2);
 points[1] = new Point(3, 4);

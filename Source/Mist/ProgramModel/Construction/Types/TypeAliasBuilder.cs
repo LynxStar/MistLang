@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Members;
@@ -27,7 +28,7 @@ internal sealed class TypeAliasBuilder
     /// <summary>
     /// Resolves the type alias's modifiers and target type reference. Re-entrant: an alias
     /// whose target names a later-declared alias is completed on demand from
-    /// <see cref="ScopeResolver.ExpandAlias(TypeAlias, IReadOnlyList{IMistType}?)"/>, so a
+    /// <see cref="ScopeResolver.ExpandAlias(TypeAlias, IReadOnlyList{IMistType}?, Storm.Runtime.SyntaxNode?)"/>, so a
     /// second call for an already-built alias returns without work, and re-entering an alias
     /// still being built is the definition of a cycle -- reported at that alias's declaration,
     /// which resolves to an error type to stop the recursion.
@@ -64,6 +65,11 @@ internal sealed class TypeAliasBuilder
         var modifiers = ModifierBuilder.Build(decl, context.Diagnostics, typeDef.DeclaringType);
 
         typeDef.Modifiers = modifiers;
+
+        var stampableClauses = decl.Constraints.IsDefaultOrEmpty ? [] : decl.Constraints.Where(clause => clause is GenericConstraintClauseWhereClauseNode generic
+            && generic.Constraints.Constraints.Prepend(generic.Constraints.Constraint)
+                .Any(constraint => constraint is StampableConstraintConstraintNode)).ToImmutableArray();
+        new ConstraintResolver(context, scopeResolver).Resolve(stampableClauses, typeDef.TypeParametersList, typeDef.Scope);
 
         var refinableExpr = decl.Type;
 

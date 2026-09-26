@@ -23,6 +23,8 @@ public record struct MemberModifiers
     /// <summary>Whether the declaration has <c>readonly</c>.</summary>
     public bool IsReadonly { get; init; }
 
+    public bool IsStampable { get; init; }
+
     /// <summary>Whether the declaration has <c>async</c>.</summary>
     public bool IsAsync { get; init; }
 

@@ -1,0 +1,9 @@
+namespace Refusal;
+
+public class Gate<T> where T : stampable { }
+
+public class Use<T> where T : struct
+{
+    // REFUSE: MIST_PA_CONSTRAINT_NOT_SATISFIED
+    public static void Accept(Gate<T> value) { }
+}

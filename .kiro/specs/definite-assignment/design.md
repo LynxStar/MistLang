@@ -12,6 +12,8 @@ This feature closes three soundness holes where Mist code can observe a value th
 
 The design reuses the existing `TypeCheckerAnalyzer` dataflow infrastructure (which already does forward, branch-intersecting assignment tracking for constructor fields) and the existing defaultability machinery in `SemanticModelBuilder` (which already walks field types and handles cycles via topological ordering), generalizing both rather than introducing parallel systems.
 
+The classification architecture below records the original delivery. For the isolated v2 compiler, receiver-based inference, declaration guarantees, generic proof, and termination rules are superseded by [the stampability design](../stampability/design.md). A flag on a generic definition cannot describe both `Box<int>` and `Box<string>`.
+
 ## Architecture
 
 ```mermaid
@@ -66,7 +68,7 @@ IsStructStampable(st, visited):
             primitive (int, bool, char, float, ...) → ok, continue
             StructType inner →
                 if not IsStructStampable(inner, visited): return false
-            TypeParameterType → return false      // Req 3.4
+            TypeParameterType → require stampable proof or substituted actual type
             DependentTypeParameterType → return false
             ClassType / InterfaceType / TraitType / UnionType / ArrayType / others → return false  // Req 3.2, 3.3
     return true
@@ -248,7 +250,7 @@ For any method/constructor body, the analyzer emits `MIST_LOCAL_READ_BEFORE_ASSI
 
 ### Property 3: Stampability classification correctness
 
-A struct is classified `IsStampable` if and only if every instance field's type is transitively a primitive or a stampable struct; any reference-typed field or any type-parameter-typed field makes it non-stampable. Classes are never stampable.
+A struct receiver is stampable when its substituted instance storage, including inherited fields and automatic-property or explicit `field` accessor backing storage, is recursively stampable under the existing category gates. An unresolved stored type parameter needs `stampable` proof. Reference-bearing storage never qualifies. The modifier validates this property at declaration; it does not override it. See [stampability](../stampability/requirements.md).
 
 **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
 
@@ -282,7 +284,7 @@ The six Correctness Properties above are each realized as a property-based test.
 
 - Field: assigned-on-all-branches (no diagnostic), assigned-on-one-branch (diagnostic), read-after-assign (no diagnostic), `this`-escape before full assignment (diagnostic), initializer/synthetic-default pre-assignment (no diagnostic), end-of-constructor not-assigned still fires.
 - Local: declared-with-initializer (no diagnostic), read-before-assign (diagnostic), conditional-merge assigned (no diagnostic), loop-body read (diagnostic), compound-assignment-before-assign (diagnostic).
-- Stampability: primitive struct (stampable), nested pure struct (stampable), struct-with-class-field (not), struct-with-type-param-field (not), struct-with-string-field (not, string is reference).
+- Stampability: primitive struct (stampable), nested pure struct (stampable), struct-with-class-field (not), closed generic with substituted primitive storage (stampable), open generic with stampable proof (stampable), unresolved type-parameter storage without proof (not), struct-with-string-field (not, string is reference).
 - Array: bare stampable (compiles), bare reference (`MIST_ARRAY_REQUIRES_INITIALIZER`), bare non-stampable struct (error), `new Array<Class,N>(fn)` (compiles), array literal of reference types (compiles).
 - Emitter: bare stampable emits no fill loop; `new Array<T,N>(fn)` emits per-index `fn` loop; verify `__CreateDefault` is not emitted in any array path.
 

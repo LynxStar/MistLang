@@ -1,0 +1,30 @@
+using Standard;
+
+namespace StampableConstraint;
+
+public struct Point
+{
+    public int X;
+    public int Y;
+}
+
+public class Program
+{
+    private static int AllocationLength<T>() where T : stampable
+    {
+        var items = new T[2];
+        Span<T, 3> buffer = stackalloc T[3];
+        return items.Length + buffer.Length;
+    }
+
+    private static int Forward<T>() where T : stampable
+    {
+        return AllocationLength<T>();
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine($"int length={Forward<int>()}");
+        Console.WriteLine($"point length={Forward<Point>()}");
+    }
+}

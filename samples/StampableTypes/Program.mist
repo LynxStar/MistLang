@@ -1,0 +1,104 @@
+using Standard;
+
+namespace StampableTypes;
+
+type IntBox = Box<int>;
+
+public struct Box<T>
+{
+    public T Item;
+
+    public Box(T item)
+    {
+        Item = item;
+    }
+}
+
+public stampable struct Cell<T> where T : stampable
+{
+    public T Item;
+}
+
+public stampable struct Point
+{
+    public int X;
+    public int Y { get; set; }
+}
+
+public stampable struct Marker<T>
+{
+    public int Item;
+}
+
+public class Program
+{
+    private static int sizeCalls = 0;
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Stampable Types Sample ===");
+        var boxes = new Box<int>[2];
+        boxes[1] = new Box<int>(17);
+        Console.WriteLine($"inferred.Item={boxes[1].Item}");
+        var nested = new Box<Box<int>>[2];
+        nested[1] = new Box<Box<int>>(new Box<int>(23));
+        Console.WriteLine($"nested.Item={nested[1].Item.Item}");
+        Span<Box<int>> aliasStorage = stackalloc IntBox[2];
+        aliasStorage[1] = new Box<int>(31);
+        Console.WriteLine($"aliasStack.Item={aliasStorage[1].Item}");
+
+        var points = new Point[2];
+        points[1].X = 37;
+        points[1].Y = 41;
+        Console.WriteLine($"declared.Point={points[1].X},{points[1].Y}");
+        var cells = new Cell<int>[2];
+        cells[1].Item = 43;
+        Console.WriteLine($"declaredGeneric.Item={cells[1].Item}");
+        var generic = MakeBoxes<int>(47);
+        Console.WriteLine($"genericArray.Item={generic[0].Item}");
+        Console.WriteLine($"genericStack.Item={StackItem<int>(53)}");
+        Console.WriteLine($"forwardedStack.Item={ForwardStack<int>(59)}");
+        Span<Marker<string>> markers = stackalloc Marker<string>[2];
+        markers[1].Item = 61;
+        Console.WriteLine($"unusedArgument.Item={StackItem<Marker<string>>(markers[1]).Item}");
+
+        var strings = new Array<Box<string>, 2>(i => new Box<string>("filled"));
+        Console.WriteLine($"nonStampable.Item={strings[1].Item}");
+        sizeCalls = 0;
+        var sized = new Box<int>[NextSize()];
+        var stack = stackalloc Box<int>[NextSize()];
+        Console.WriteLine($"computedLengths={sized.Length},{stack.Length}");
+        Console.WriteLine($"sizeCalls={sizeCalls}");
+        Console.WriteLine("=== Stampable Types Done ===");
+    }
+
+    private static Array<Box<T>, 2> MakeBoxes<T>(T item) where T : stampable
+    {
+        var boxes = new Box<T>[2];
+        boxes[0] = new Box<T>(item);
+        return boxes;
+    }
+
+    private static T StackItem<T>(T item) where T : stampable
+    {
+        Span<Cell<T>> cells = stackalloc Cell<T>[2];
+        cells[0].Item = item;
+        return cells[0].Item;
+    }
+
+    private static T ForwardStack<T>(T item) where T : stampable
+    {
+        return StackItem<T>(item);
+    }
+
+    private static int NextSize()
+    {
+        sizeCalls = sizeCalls + 1;
+        return sizeCalls + 1;
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

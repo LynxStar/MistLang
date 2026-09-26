@@ -158,11 +158,11 @@ public sealed class NamedAllocationElementTypeTests : ProgramModelProbe
     [Theory]
     [InlineData("new Ns.Owner[2]", "MIST_PA_ARRAY_REQUIRES_INITIALIZER", "reference type")]
     [InlineData("new OwnerAlias[2]", "MIST_PA_ARRAY_REQUIRES_INITIALIZER", "reference type")]
-    [InlineData("new Ns.NonStampable<int>[2]", "MIST_PA_ARRAY_REQUIRES_INITIALIZER", "field 'value'")]
+    [InlineData("new Ns.NonStampable<string>[2]", "MIST_PA_ARRAY_REQUIRES_INITIALIZER", "field 'value'")]
     [InlineData("new Ns.RefPoint[2]", "MIST_PA_ARRAY_REQUIRES_INITIALIZER", "ref struct")]
     [InlineData("stackalloc Ns.Owner[2]", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE", "reference type")]
     [InlineData("stackalloc OwnerAlias[2]", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE", "reference type")]
-    [InlineData("stackalloc Ns.NonStampable<int>[2]", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE", "field 'value'")]
+    [InlineData("stackalloc Ns.NonStampable<string>[2]", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE", "field 'value'")]
     [InlineData("stackalloc Ns.RefPoint[2]", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE", "ref struct")]
     public void ProgramModelToAnalysis_ResolvedElementsReachTheStampabilityGate(string allocation, string diagnosticId, string reason)
     {

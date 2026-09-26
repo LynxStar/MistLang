@@ -1462,6 +1462,20 @@ sizedPairs.Length=2
 sizedStackPairs.Length=3
 allocationSizeCalls=2
 === Named Allocation Elements Done ===
+=== Stampable Types Sample ===
+inferred.Item=17
+nested.Item=23
+aliasStack.Item=31
+declared.Point=37,41
+declaredGeneric.Item=43
+genericArray.Item=47
+genericStack.Item=53
+forwardedStack.Item=59
+unusedArgument.Item=61
+nonStampable.Item=filled
+computedLengths=2,3
+sizeCalls=2
+=== Stampable Types Done ===
 === Drop Semantics Sample ===
 --- 1. Linear: auto-drop at scope exit ---
   Created FileHandle(1)

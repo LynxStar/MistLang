@@ -364,6 +364,12 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Field '{0}' must be definitely assigned before constructor '{1}' completes. The field's type '{2}' is not defaultable and has no initializer.");
 
+    public static readonly DiagnosticDescriptor StampableDeclarationNotSatisfied = new(
+        new DiagnosticId("MIST_PA_STAMPABLE_DECLARATION_NOT_SATISFIED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Struct '{0}' is declared 'stampable', but {1}. Every instance storage type must be stampable; constrain stored type parameters with 'where T : stampable'.");
+
     public static readonly DiagnosticDescriptor ArrayRequiresInitializer = new(
         new DiagnosticId("MIST_PA_ARRAY_REQUIRES_INITIALIZER"),
         DiagnosticSeverity.Error,

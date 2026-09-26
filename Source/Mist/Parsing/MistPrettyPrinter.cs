@@ -2356,6 +2356,9 @@ public sealed class MistPrettyPrinter
                 case ReadonlyModifierModifierNode:
                     parts.Add("readonly");
                     break;
+                case StampableModifierModifierNode:
+                    parts.Add("stampable");
+                    break;
                 case OwnedModifierModifierNode:
                     parts.Add("owned");
                     break;
@@ -2641,6 +2644,8 @@ public sealed class MistPrettyPrinter
                 return "class";
             case StructConstraintConstraintNode:
                 return "struct";
+            case StampableConstraintConstraintNode:
+                return "stampable";
             case ReadonlyConstraintConstraintNode:
                 return "readonly";
             case MutableConstraintConstraintNode:

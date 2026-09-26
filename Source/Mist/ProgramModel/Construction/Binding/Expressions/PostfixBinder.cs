@@ -90,8 +90,9 @@ internal static class PostfixBinder
 
         var typeArgs = context.Resolver.BindPack(
             definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
+        context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node);
         var type = definition is TypeAlias alias
-            ? context.Resolver.ExpandAlias(alias, typeArgs)
+            ? context.Resolver.ExpandAlias(alias, typeArgs, node)
             : context.Resolver.Construct(definition, typeArgs, ctx.Scope);
 
         return BindMemberAccess(node, new TypeReferenceExpression(node, type), node.Member.Lexeme, ctx, context);
@@ -124,8 +125,9 @@ internal static class PostfixBinder
         }
 
         var typeArgs = context.Resolver.BindPack(definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
+        context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node);
         var type = definition is TypeAlias alias
-            ? context.Resolver.ExpandAlias(alias, typeArgs)
+            ? context.Resolver.ExpandAlias(alias, typeArgs, node)
             : context.Resolver.Construct(definition, typeArgs, ctx.Scope);
 
         return new TypeLiteralExpression(node, type, context.Resolver.LookupWellKnown(WellKnownTypes.Type));

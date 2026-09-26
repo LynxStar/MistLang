@@ -11,6 +11,8 @@ public enum TypeParameterConstraintKind
     /// <summary>Value type constraint (<c>struct</c>).</summary>
     Struct,
 
+    Stampable,
+
     /// <summary>Readonly constraint (<c>readonly</c>).</summary>
     Readonly,
 

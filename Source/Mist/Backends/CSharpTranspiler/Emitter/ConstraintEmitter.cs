@@ -9,7 +9,7 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// The <c>where</c> clauses of a generic declaration, one line per constrained parameter, indented
 /// under the declaration they qualify.
 /// <para>
-/// C# FIXES THE ORDER WITHIN A CLAUSE -- <c>class</c> or <c>struct</c> first, then the types, then
+/// C# FIXES THE ORDER WITHIN A CLAUSE -- <c>class</c>, <c>struct</c> or <c>unmanaged</c> first, then the types, then
 /// <c>new()</c> -- and rejects any other, so the parts are collected into three buckets rather than
 /// emitted as they were declared. Mist's own order is free.
 /// </para>
@@ -59,6 +59,12 @@ internal static class ConstraintEmitter
         var kinds = new List<string>();
         var types = new List<string>();
         var parameterless = false;
+        var stampable = parameter.ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable);
+
+        if(stampable)
+        {
+            kinds.Add("unmanaged");
+        }
 
         foreach(var constraint in parameter.ConstraintsList)
         {
@@ -69,7 +75,11 @@ internal static class ConstraintEmitter
                     break;
 
                 case KeywordConstraint { Kind: TypeParameterConstraintKind.Struct }:
-                    kinds.Add("struct");
+                    if(!stampable)
+                    {
+                        kinds.Add("struct");
+                    }
+
                     break;
 
                 case TypeConstraint typeConstraint:
@@ -91,7 +101,7 @@ internal static class ConstraintEmitter
         var parts = new List<string>(kinds);
         parts.AddRange(types);
 
-        if(parameterless)
+        if(parameterless && !stampable)
         {
             parts.Add("new()");
         }

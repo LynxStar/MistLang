@@ -10,6 +10,7 @@ Mist already supports unconstrained generics (type parameter declarations, const
 - **Base class constraints** (`where T : Animal`) — the type argument must be or derive from the specified class.
 - **`class` constraint** (`where T : class`) — the type argument must be a reference type (class or interface).
 - **`struct` constraint** (`where T : struct`) — the type argument must be a value type (struct).
+- **`stampable` constraint** (`where T : stampable`) — the type argument must have recursively stampable instance storage, as defined by [stampability](../stampability/requirements.md). This stronger property supports allocation through an open parameter and is not implied by `struct` or `default`.
 - **Constructor constraints** (`where T : new()`, `where T : new(int)`, `where T : new(int, int, string)`) — the type argument must have a public constructor matching the specified parameter signature. Unlike C#, Mist supports constraining to any constructor signature, not just parameterless. Multiple constructor constraints can be specified on the same type parameter (e.g., `where T : new(), new(int), new(bool)`) with OR semantics — the type argument must have a public constructor matching at least one of the specified signatures.
 - **Multiple constraints** (`where T : class, IComparable<T>, new()`) — multiple constraints on the same type parameter are combined conjunctively.
 - **Multiple `where` clauses** (`where T : class where U : struct`) — each type parameter can have its own constraint clause.
@@ -19,6 +20,8 @@ Mist already supports unconstrained generics (type parameter declarations, const
 - Constructor constraints (`new(...)`) may appear at any position in the constraint list, not only at the end.
 
 Generic constraints apply to generic classes, generic structs, generic interfaces, and generic methods.
+
+The [stampability specification](../stampability/requirements.md) extends the grammar, model registration, satisfaction checks, forwarding, and C# representation for that keyword. Its rules also apply to constrained aliases and every ordinary generic closing. Unrelated constraint semantics are unchanged.
 
 ## Glossary
 

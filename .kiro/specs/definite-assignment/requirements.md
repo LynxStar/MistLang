@@ -14,7 +14,7 @@ This feature supersedes the interim "emit a default-fill loop for array creation
 
 ### Non-Goals
 
-- **No `stampable` constraint.** This feature does not introduce a new generic constraint kind. Any struct with a type-parameter-typed field is classified non-stampable, full stop. A future spec may add a `stampable` constraint to allow generic structs to be stampable when instantiated with stampable arguments.
+- **Stampability extension.** Inference for constructed types, the `stampable` declaration modifier, and `where T : stampable` are specified by [stampability](../stampability/requirements.md). They supersede this feature's original blanket prohibition on type-parameter fields without changing default construction or assignment analysis.
 - **No clone-replication construction form.** The `vec![x; n]` analog (clone one value into N slots) is expressible via the index→value function (`new Array<T, N>(i => original.Clone())`) and is not given dedicated syntax.
 - **No change to `default` semantics for non-array contexts.** `default(T)`, defaultable-field synthetic injection, and `default {}` blocks are unchanged except where the array-fill use of `__CreateDefault()` is removed.
 
@@ -22,7 +22,7 @@ This feature supersedes the interim "emit a default-fill loop for array creation
 
 - **Definite_Assignment**: A static dataflow property: a storage location (field, local, or array element) has been assigned a value on every control-flow path that reaches a given read of that location.
 - **Definite_Assignment_Analyzer**: The semantic analysis component that computes definite-assignment state and emits diagnostics for reads of not-definitely-assigned locations.
-- **Stampable_Type**: A type whose `default` value is a flat, copyable bit pattern with no heap identity, such that replicating it into N slots is a pure copy (no constructor/factory call, no aliasing). In Mist v1 this is exactly the set of **pure structs**: structs whose fields are transitively all primitives or other pure structs. Reference types (classes) are never stampable. Structs containing any reference-typed field are not stampable.
+- **Stampable_Type**: A type whose `default` value is a flat, copyable bit pattern with no heap identity, such that replicating it into N slots is a pure copy (no constructor/factory call, no aliasing). Primitive types and ordinary structs with recursively stampable instance storage qualify, including substituted constructed types and open types with sufficient `stampable` proof. Reference types and structs containing reference-bearing storage never qualify. The complete category rules and declaration guarantees are defined in [stampability](../stampability/requirements.md).
 - **Pure_Struct**: A struct type whose every field's type is transitively a primitive or another Pure_Struct (no reference-typed fields, no type-parameter fields that could bind to a reference type).
 - **Stamp_Fill**: Array initialization that replicates a single stampable default value into every slot via a bitwise/value copy, with no per-element constructor or factory invocation.
 - **Initializer_Array_Construction**: Array construction that supplies a value for every slot via an explicit index→value function passed to the `Array<TValue, Length>` constructor — `new Array<T, Size>(i => ...)` — so that no slot is ever observable without an assigned value. The constructor invokes the function once per index in `[0, Length)`, assigning result `i` to slot `i`.
@@ -68,11 +68,11 @@ This feature supersedes the interim "emit a default-fill loop for array creation
 
 #### Acceptance Criteria
 
-1. THE Semantic_Model_Builder SHALL classify a struct type as Stampable_Type if and only if every field's declared type is transitively a primitive type or another Stampable_Type.
+1. THE compiler SHALL classify a struct receiver as Stampable_Type when every part of its non-static instance storage is recursively stampable after receiver substitution, including inherited fields and automatic-property or explicit `field` accessor backing storage, subject to the category gates in the stampability specification.
 2. THE Semantic_Model_Builder SHALL classify every class (reference) type as NOT a Stampable_Type.
 3. THE Semantic_Model_Builder SHALL classify a struct that contains at least one reference-typed field (directly or transitively) as NOT a Stampable_Type.
-4. THE Semantic_Model_Builder SHALL classify a struct that contains a field whose type is a type parameter as NOT a Stampable_Type, regardless of any constraints on that type parameter (including `default` or `struct` constraints). No `stampable` constraint exists; the presence of any type-parameter-typed field is sufficient to make the struct non-stampable.
-5. WHERE a struct participates in a cycle of struct field types, THE Semantic_Model_Builder SHALL terminate the stampability computation without infinite recursion and SHALL classify the cyclic struct conservatively as NOT a Stampable_Type unless every type in the cycle is otherwise stampable.
+4. THE compiler SHALL classify stored type parameters after substituting available actual type arguments. An unresolved stored parameter SHALL require `stampable` proof; `default`, `struct`, or readonly information alone SHALL be insufficient. An unused type parameter SHALL NOT prevent stampability. See stampability Requirements 2–5 for inference, declaration guarantees, and constraint satisfaction.
+5. THE stampability computation SHALL terminate on recursive and expanding generic storage graphs, SHALL refuse actual recursive value storage conservatively, and SHALL accept finite substituted nesting such as `Box<Box<int>>` when its storage is otherwise stampable.
 
 ### Requirement 4: Bare Array Creation Restricted to Stampable Types
 

@@ -176,6 +176,7 @@ internal static class ExpressionBinder
             return new ErrorExpression(node);
         }
 
+        property.UsesBackingField = true;
         return new BackingFieldReferenceExpression(node, property);
     }
 
@@ -250,7 +251,7 @@ internal static class ExpressionBinder
 
             if(definition is TypeAlias alias)
             {
-                type = context.Resolver.ExpandAlias(alias, typeArgs);
+                type = context.Resolver.ExpandAlias(alias, typeArgs, node);
             }
             else
             {
@@ -268,7 +269,7 @@ internal static class ExpressionBinder
             if(definition is TypeAlias alias)
             {
                 type = context.Resolver.ExpandAlias(
-                    alias, ScopeResolver.Absorbs(alias) ? context.Resolver.BindPack(alias, [], node) : null);
+                    alias, ScopeResolver.Absorbs(alias) ? context.Resolver.BindPack(alias, [], node) : null, node);
             }
             else if(ScopeResolver.Absorbs(definition))
             {

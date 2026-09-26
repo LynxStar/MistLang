@@ -1,0 +1,25 @@
+using Standard;
+
+namespace StampableInference;
+
+public struct Box<T>
+{
+    public T Item;
+
+    public Box(T item)
+    {
+        Item = item;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var numbers = new Box<int>[2];
+        Console.WriteLine($"numbers[0].Item={numbers[0].Item}");
+
+        var text = new Box<string>("ready");
+        Console.WriteLine($"text.Item={text.Item}");
+    }
+}

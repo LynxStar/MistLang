@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
@@ -27,6 +28,7 @@ internal sealed class ConstraintClosureRegistry
 {
     private readonly Dictionary<(IMistType, string), ConstraintClosure> closures = [];
     private readonly List<TypeArgumentClosing> closings = [];
+    private readonly List<TypeArgumentClosing> openClosings = [];
 
     public IEnumerable<ConstraintClosure> Closures => closures.Values;
 
@@ -37,18 +39,35 @@ internal sealed class ConstraintClosureRegistry
     /// </summary>
     public IReadOnlyList<TypeArgumentClosing> Closings => closings;
 
+    public IEnumerable<TypeArgumentClosing> StampableOpenClosings => openClosings.Where(closing =>
+        closing.Parameter.ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable));
+
     /// <summary>
     /// Records the closures a constructed generic TYPE performs, one per parameterized constructor
     /// constraint on the parameter each argument fills.
     /// </summary>
     public void RecordType(IMistType definition, IReadOnlyList<IMistType> typeArguments, SyntaxNode node)
     {
+        if(definition is TypeAlias alias)
+        {
+            Record(alias.TypeParametersList, typeArguments, node, stampableOnly: true);
+            return;
+        }
+
         if(definition is not MemberType member)
         {
             return;
         }
 
         Record(member.TypeParametersList, typeArguments, node);
+    }
+
+    public void RecordStampableType(IMistType definition, IReadOnlyList<IMistType> typeArguments, SyntaxNode node)
+    {
+        if(definition is MemberType member)
+        {
+            Record(member.TypeParametersList, typeArguments, node, stampableOnly: true);
+        }
     }
 
     /// <summary>
@@ -60,13 +79,22 @@ internal sealed class ConstraintClosureRegistry
     }
 
     private void Record(
-        IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType> typeArguments, SyntaxNode node)
+        IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType> typeArguments, SyntaxNode node, bool stampableOnly = false)
     {
         for(var i = 0; i < parameters.Count && i < typeArguments.Count; i++)
         {
+            if(stampableOnly && !parameters[i].ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable))
+            {
+                continue;
+            }
+
             if(typeArguments[i] is not TypeParameter)
             {
                 closings.Add(new TypeArgumentClosing(parameters[i], typeArguments[i], node));
+            }
+            else
+            {
+                openClosings.Add(new TypeArgumentClosing(parameters[i], typeArguments[i], node));
             }
 
             foreach(var signature in Parameterized(parameters[i]))

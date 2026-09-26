@@ -1,0 +1,7 @@
+namespace Refusal;
+
+// REFUSE: MIST_PA_STAMPABLE_DECLARATION_NOT_SATISFIED
+public stampable struct Box<T>
+{
+    public T Item;
+}

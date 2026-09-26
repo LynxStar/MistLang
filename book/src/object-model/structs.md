@@ -26,6 +26,8 @@ Declare a struct with the `struct` keyword. A struct can contain fields, constru
 
 Structs support the same access modifiers (`public`, `private`), constructors, and instance methods as classes.
 
+An ordinary struct can also carry the `stampable` modifier, requiring its instance storage to remain safe for bare array and stack allocation. The compiler can infer the same property when the modifier is absent, including after substituting closed generic arguments. See [Stampable Types](../type-system/stampability.md) for declaration guarantees and generic bounds.
+
 ## Copy Semantics
 
 {{#tabs }}

@@ -66,6 +66,7 @@ OptionalDefaultability = { path = "../OptionalDefaultability" }
 RefStructs = { path = "../RefStructs" }
 StackOnlyTypes = { path = "../StackOnlyTypes" }
 NamedAllocationElements = { path = "../NamedAllocationElements" }
+StampableTypes = { path = "../StampableTypes" }
 DropSemantics = { path = "../DropSemantics" }
 SubstructuralFieldDiscipline = { path = "../SubstructuralFieldDiscipline" }
 StructuredConcurrency = { path = "../StructuredConcurrency" }

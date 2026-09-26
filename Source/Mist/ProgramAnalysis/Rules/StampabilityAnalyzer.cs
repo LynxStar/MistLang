@@ -12,6 +12,19 @@ internal sealed class StampabilityAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
+        foreach(var type in context.Types.OfType<StructType>())
+        {
+            if(type.Modifiers.IsStampable
+                && !type.IsRef
+                && type.DeclarationNode is { } declaration
+                && Stampability.WhyNotStampable(type) is { } reason)
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.StampableDeclarationNotSatisfied, declaration, [],
+                    TypeDisplay.Mist(type), reason);
+            }
+        }
+
         foreach(var node in context.Nodes)
         {
             switch(node)

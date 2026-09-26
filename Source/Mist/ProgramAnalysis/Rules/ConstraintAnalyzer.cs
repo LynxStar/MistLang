@@ -21,16 +21,23 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
-        foreach(var closing in context.Model.ConstructorConstraintClosures.Closings)
+        var closures = context.Model.ConstructorConstraintClosures;
+
+        foreach(var closing in closures.Closings.Concat(closures.StampableOpenClosings))
         {
             if(closing.Argument is ErrorType || !context.IsInSource(closing.Node))
             {
                 continue;
             }
 
-            foreach(var argument in Arguments(closing))
+            foreach(var constraint in closing.Parameter.ConstraintsList)
             {
-                foreach(var constraint in closing.Parameter.ConstraintsList)
+                if(closing.Argument is TypeParameter && constraint.Kind != TypeParameterConstraintKind.Stampable)
+                {
+                    continue;
+                }
+
+                foreach(var argument in Arguments(closing, constraint))
                 {
                     Judge(context, closing with { Argument = argument }, constraint);
                 }
@@ -38,15 +45,22 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static IEnumerable<IMistType> Arguments(TypeArgumentClosing closing)
+    private static IEnumerable<IMistType> Arguments(TypeArgumentClosing closing, TypeParameterConstraint constraint)
     {
         if(!closing.Parameter.IsPack)
         {
             return [closing.Argument];
         }
 
-        return closing.Argument is LiftedType { Value: TypePackValue pack }
-            ? pack.Elements.Where(element => element is not (TypeParameter or SpreadType))
+        if(constraint.Kind == TypeParameterConstraintKind.Stampable)
+        {
+            return closing.Argument is LiftedType { Value: TypePackValue pack }
+                ? pack.Elements.Select(element => element is SpreadType spread ? spread.Operand : element)
+                : [closing.Argument];
+        }
+
+        return closing.Argument is LiftedType { Value: TypePackValue otherPack }
+            ? otherPack.Elements.Where(element => element is not (TypeParameter or SpreadType))
             : [];
     }
 
@@ -89,6 +103,9 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
         {
             TypeParameterConstraintKind.Class => definition is not (StructType or EnumType),
             TypeParameterConstraintKind.Struct => definition is not ClassType,
+            TypeParameterConstraintKind.Stampable => argument is TypeParameter { IsPack: true } pack
+                ? pack.ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable)
+                : Stampability.IsStampable(argument),
             TypeParameterConstraintKind.Readonly => definition is not MemberType || Declarations.IsReadonly(definition),
             TypeParameterConstraintKind.Mutable => !Declarations.IsReadonly(definition),
             TypeParameterConstraintKind.Owned => definition is not MemberType member || member.Modifiers.IsOwned,

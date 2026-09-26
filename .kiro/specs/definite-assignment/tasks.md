@@ -6,13 +6,15 @@ This plan implements definite-assignment analysis (constructor fields + locals),
 
 ## Tasks
 
+The checked tasks below record the original delivery. Their type-parameter-field prohibition is superseded by the isolated v2 work in [stampability/tasks.md](../stampability/tasks.md). The original classic architecture is not an implementation reference for v2.
+
 - [x] 1. Stampability classification in the semantic model
   - [x] 1.1 Add `bool IsStampable` property to `StructType` (`Source/Mist/Semantics/Model/Types/StructType.cs`)
     - Default `false`, `internal set`.
     - _Requirements: 3.1_
   - [x] 1.2 Implement `ComputeStampability` in `SemanticModelBuilder`
     - Mirror `ComputeDefaultability`: iterate struct types, compute `IsStructStampable` with a `visited` set for cycle safety.
-    - Rules: primitive field → ok; nested struct field → recurse; type-parameter / dependent-type-parameter field → not stampable; class/interface/trait/union/array field → not stampable.
+    - Original rules: primitive field → ok; nested struct field → recurse; unresolved type-parameter field without proof → not stampable; class/interface/trait/union/array field → not stampable. Receiver substitution and open `stampable` proof are extended by the stampability specification.
     - Invoke from the same place `ComputeDefaultability` is invoked (after field types resolved).
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
   - [x] 1.3 Write property test for stampability classification (Property 3)

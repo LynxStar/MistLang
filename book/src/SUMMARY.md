@@ -39,6 +39,7 @@
 - [Accessibility](type-system/accessibility.md)
 - [Generics](type-system/generics.md)
 - [Generic Constraints](type-system/generic-constraints.md)
+- [Stampable Types](type-system/stampability.md)
 - [Associated Types](type-system/associated-types.md)
 - [Type Aliases](type-system/type-aliases.md)
 - [Type Unions](type-system/type-unions.md)

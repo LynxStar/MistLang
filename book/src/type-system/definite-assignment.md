@@ -64,7 +64,9 @@ A stampable type is one where replicating the default into N slots is a zero-cos
 {{#endtab }}
 {{#endtabs }}
 
-Attempting `new T[size]` with a non-stampable type (any class, or a struct containing a reference-typed or type-parameter field) produces a compile-time error:
+Mist infers stampability from instance storage, substituting actual arguments for closed generic types. A field of type `T` can also qualify in an open context when `T` has a `stampable` constraint. The optional `stampable` declaration modifier requires that proof when the declaration is checked. See [Stampable Types](./stampability.md) for all three uses.
+
+Attempting `new T[size]` with a non-stampable type, such as a class or a struct containing reference storage, produces a compile-time error:
 
 ```
 error MIST_ARRAY_REQUIRES_INITIALIZER: Cannot create a bare array of 'Widget'

@@ -84,6 +84,7 @@ public class Program
         RefStructs.Program.RunDemo();
         StackOnlyTypes.Program.RunDemo();
         NamedAllocationElements.Program.RunDemo();
+        StampableTypes.Program.RunDemo();
         DropSemantics.Program.RunDemo();
         SubstructuralFieldDiscipline.Program.RunDemo();
         StructuredConcurrency.Program.RunDemo();

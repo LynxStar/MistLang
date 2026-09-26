@@ -214,6 +214,7 @@ internal sealed class ConstraintResolver
         {
             ClassConstraintConstraintNode => new KeywordConstraint(TypeParameterConstraintKind.Class),
             StructConstraintConstraintNode => new KeywordConstraint(TypeParameterConstraintKind.Struct),
+            StampableConstraintConstraintNode => new KeywordConstraint(TypeParameterConstraintKind.Stampable),
             ReadonlyConstraintConstraintNode => new KeywordConstraint(TypeParameterConstraintKind.Readonly),
             MutableConstraintConstraintNode => new KeywordConstraint(TypeParameterConstraintKind.Mutable),
             OwnedConstraintConstraintNode => new KeywordConstraint(TypeParameterConstraintKind.Owned),
@@ -313,6 +314,7 @@ internal sealed class ConstraintResolver
 
         // Check mutually exclusive pairs.
         CheckConflict(typeParam, seen, TypeParameterConstraintKind.Class, TypeParameterConstraintKind.Struct);
+        CheckConflict(typeParam, seen, TypeParameterConstraintKind.Class, TypeParameterConstraintKind.Stampable);
         CheckConflict(typeParam, seen, TypeParameterConstraintKind.Readonly, TypeParameterConstraintKind.Mutable);
         CheckSubstructuralConflicts(typeParam, seen);
     }
@@ -379,6 +381,7 @@ internal sealed class ConstraintResolver
         {
             TypeParameterConstraintKind.Class => "class",
             TypeParameterConstraintKind.Struct => "struct",
+            TypeParameterConstraintKind.Stampable => "stampable",
             TypeParameterConstraintKind.Readonly => "readonly",
             TypeParameterConstraintKind.Mutable => "mutable",
             TypeParameterConstraintKind.Owned => "owned",

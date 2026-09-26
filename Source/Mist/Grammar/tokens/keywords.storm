@@ -78,6 +78,7 @@ token FUNC = "func";
 
 // Generic constraint keywords
 token WHERE = "where";
+token STAMPABLE = "stampable";
 
 // Readonly context keywords
 token READONLY = "readonly";

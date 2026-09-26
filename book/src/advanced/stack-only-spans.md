@@ -41,13 +41,15 @@ Only **stampable** types are valid as `stackalloc` element types. A type is stam
 | Element type | Allowed? |
 |---|---|
 | Primitive types (`int`, `bool`, `double`, etc.) | ✅ |
-| Structs with only primitive fields | ✅ |
+| Structs whose instance storage is recursively stampable | ✅ |
+| Closed generics with stampable substituted storage | ✅ |
+| Type parameters constrained by `where T : stampable` | ✅ |
 | Reference types (classes, abstract types) | ❌ |
 | Non-stampable structs (structs with reference-type fields) | ❌ |
 | Ref structs | ❌ |
 | Unconstrained type parameters | ❌ |
 
-This matches the same restriction on array element types — if `new T[n]` is valid, so is `stackalloc T[n]`.
+The compiler uses the same [stampability proof](../type-system/stampability.md) for bare arrays and stack allocation. The optional declaration modifier is not required; concrete and closed generic element types can qualify by inference. A `struct` constraint alone cannot prove the absence of reference-bearing fields.
 
 ## The Span API
 
@@ -133,4 +135,3 @@ Note that spans received as method **parameters** or obtained from `AsSpan()` on
 ## Interop with .NET
 
 `Standard.Span<T>` and `Standard.ReadOnlySpan<T>` are backed by `System.Span<T>` and `System.ReadOnlySpan<T>` respectively. When a .NET method returns a `System.Span<T>`, it projects into Mist as `Span<T>` (unknown length). Conversely, passing a Mist `Span<T>` to a .NET method that expects `System.Span<T>` requires no conversion — they are the same type at runtime.
-

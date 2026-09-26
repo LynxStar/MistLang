@@ -93,6 +93,35 @@ internal sealed class RealSet : IEquatable<RealSet>
             && Intervals.All(mine => other.Intervals.Any(theirs => Covers(theirs, mine)));
     }
 
+    public override string ToString()
+    {
+        var parts = Intervals.Select(interval =>
+            $"{(interval.IncludesLow ? "[" : "(")}{Display(interval.Low)}..{Display(interval.High)}{(interval.IncludesHigh ? "]" : ")")}").ToList();
+        if(IncludesNaN)
+        {
+            parts.Add("NaN");
+        }
+
+        if(IncludesPositiveInfinity)
+        {
+            parts.Add("+Infinity");
+        }
+
+        if(IncludesNegativeInfinity)
+        {
+            parts.Add("-Infinity");
+        }
+
+        return parts.Count == 0 ? "nothing" : string.Join(" or ", parts);
+    }
+
+    private string Display(RealPoint point)
+    {
+        return Kind == RealKind.Decimal ? point.Decimal.ToString(CultureInfo.InvariantCulture)
+            : Kind == RealKind.Single ? ((float)point.Binary).ToString("R", CultureInfo.InvariantCulture)
+            : point.Binary.ToString("R", CultureInfo.InvariantCulture);
+    }
+
     public RealSet And(RealSet other)
     {
         RequireSameKind(other);

@@ -89,6 +89,20 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
                 for(var i = 0; i < slot.ParametersList.Count && i < filler.ParametersList.Count; i++)
                 {
+                    if(RealRequirement.OfType(filler.ParametersList[i].Type) is { } realDemanded)
+                    {
+                        var promisedType = substitution.Apply(slot.ParametersList[i].Type, context.Model.TypeInterner);
+                        var realPromised = RealRequirement.OfType(promisedType) ?? RealSet.Everything(realDemanded.Kind);
+                        if(!realPromised.IsSubsetOf(realDemanded))
+                        {
+                            context.Report(
+                                ProgramAnalysisDiagnostics.ConstraintStrengthened, filler.DeclarationNode, [],
+                                filler.Name, filler.ParametersList[i].Name, realPromised, realDemanded);
+                        }
+
+                        continue;
+                    }
+
                     if(Requirement.OfType(filler.ParametersList[i].Type) is not { } demanded)
                     {
                         continue;

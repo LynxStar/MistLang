@@ -2929,6 +2929,13 @@ capabilities:
       verification, mdbook build and synchronized JavaScript syntax checks passed. Classic
       AllFeatures builds without diagnostics; the new feature remains v2-only.
 
+      MAIN INTEGRATION, 2026-09-26: a9dce212 retains main's declared/closed constructor witness
+      signatures and nested generic enclosing receivers with stampable constraint emission. Final
+      ledger 20260926-155133 passed all 8230 tests with zero build warnings/errors; formatter
+      verification passed. All five affected book snippet pairs regenerate unchanged without
+      failures against the integrated emitter. The combined AllFeaturesV2 baseline preserves
+      main's existing output outside NamedAllocationElements and StampableTypes.
+
       BANKED, VIA ORDER 57. This entry was `unexercised` while GenericConstraints was blocked on the
       factory lowering, so all of the above was measured against classic on an unbanked sample. That
       landed and the sample is now in AllFeaturesV2, so the 19 `where` clauses and the constraint arm

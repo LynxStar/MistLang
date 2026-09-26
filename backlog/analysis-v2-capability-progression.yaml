@@ -2499,6 +2499,14 @@ rules:
       Formatter verification, standalone StampableTypes and the AllFeaturesV2 baseline passed.
       The classic AllFeatures compatibility build also passed without diagnostics.
 
+      MAIN INTEGRATION, 2026-09-26: a9dce212 includes main through 3df486ae. Closing records retain
+      full sibling/receiver/enclosing substitution alongside selective stampable open forwarding;
+      four new scalar/pack cases combine stampability and sibling constraints. Focused ledger
+      20260926-154926 passed 170/170. Final ledger 20260926-155133 passed 8230/8230 (7454 Mist,
+      708 Storm, 68 CLI), with zero build warnings/errors and no unchanged-test flakes. Whole-solution
+      formatter verification passed. Ledger 20260926-154123 was stopped after main advanced and
+      recorded no failure before interruption; it is not counted as a complete run.
+
       MEASURED: the first sweep reported ten findings, all type-parameter or pack fields in generic
       containers, fixed at the source; then zero findings and identical stdout on AllFeaturesV2 and
       AllFeatures, and zero on the three unbanked samples. Thirty corpus cases, one per refused shape.

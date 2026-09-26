@@ -41,3 +41,11 @@ The work extends the isolated v2 compiler. Independent grammar/model representat
 - Whole-solution formatter verification passed. The standalone `StampableTypes` sample passed, and the full suite verified its composition in `AllFeaturesV2`; computed sizes invoked their helper exactly twice. Existing baseline output outside the new sample is unchanged. Classic `AllFeatures` still builds without diagnostics.
 - `SnippetEmitter` generated all three new C# tabs without failures; each new Mist example compiled and ran with the expected output. The affected stack-only snippet pairs were also regenerated successfully. `mdbook build`, both JavaScript syntax checks, include resolution, and highlighting synchronization passed.
 - Analysis and emitter registers parse as YAML, and `git diff --check` passes. Arbitrary imported CLR layout proof is recorded as future model work; indirect constraint entailment and classic semantic support remain outside this delivery.
+
+## Main Integration (2026-09-26)
+
+- Implementation commit `870e1d13` was integrated with main's refinement, accessor, tuple, constraint-substitution, extension, and nested-generic changes through `a9dce212`.
+- Generic closing records retain the complete sibling, receiver, and enclosing substitution. Open stampable forwarding retains its selective checks. Constructor witnesses retain both declared and closed signatures. Four added integration cases combine stampability with sibling constraints on scalar and pack arguments.
+- Focused ledger `TestResults/ledger/20260926-154926` passed all 170 constraint cases with zero build warnings or errors. The earlier integration ledger `20260926-154123` was stopped cleanly after main advanced; it recorded no failures before interruption and is not counted as a full pass.
+- The integrated whole-solution build and formatter verification pass. All five affected book snippet pairs regenerate unchanged without failures. The combined baseline preserves the latest main's output outside the two newly banked samples.
+- Final integration ledger `TestResults/ledger/20260926-155133` passed all 8,230 tests: 7,454 Mist, 708 Storm, and 68 CLI, with zero failures and a zero-warning, zero-error build. No unchanged-test flakes occurred. Only documentation evidence changed after this run.

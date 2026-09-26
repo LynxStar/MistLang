@@ -3381,7 +3381,9 @@ rules:
       literal unary-identity hardening and all decoded-string cases. Independent read-only review found
       no dropped predicate behavior in the shared lattice merge. Earlier track failures were diagnosed
       fixture errors (domain assertions, duplicate names, unsupported escape and source-out spellings),
-      corrected before these checks; no flake was found and no diagnostic was suppressed.
+      corrected before these checks; no flake was found and no diagnostic was suppressed. Final
+      read-only review also confirms the integral-domain capture gate preserves supported wrappers
+      and from-end markers without admitting user Index conversions.
       FULL CHECKPOINT LEDGER 20260926-111126 passes all 7,808 tests: 7,034 compiler, 68 CLI and 706 source-generator
       tests, with zero failures or skips. The full corpus checks all 641 programs, including the then-current new
       refusals and the unchanged differing-range cases. This checkpoint uses the current binaries from the
@@ -3392,7 +3394,23 @@ rules:
       The resolved custom-comparison/implicit-from-end-Index regression deliberately fails before
       this gate in ledger 20260926-112926: no finding at slice[2] after a length-two slice. Three unit
       checks pin both marker preservation and domain refusals, with one new corpus refusal. Final
-      validation follows this boundary fix and integration with current main.
+      validation follows this boundary fix and integration with main 65be45b0.
+      FINAL FOCUSED LEDGER 20260926-113459: full solution build with zero warnings/errors and all 413
+      selected checks passing, including the custom comparison/conversion refusal and three offset-domain
+      invariants. FINAL FULL LEDGER 20260926-113556 passes all 7,851 tests: 7,077 compiler, 68 CLI, 706
+      source-generator; zero failures or skips. The corpus now checks all 642 programs, including 37
+      new refusals across the three tracks and integration boundaries. No source or test changed between
+      that build, focused run and final full run; failures.txt is empty. Other worktrees had suites
+      running concurrently as env.txt records; no timing failure or flake was observed.
+      Final full-solution dotnet format --verify-no-changes exits 0 with no diagnostics. Eight isolated
+      runtime checks all exit 0 with empty diagnostic output and byte-exact stdout: classic AllFeatures
+      (52,791 bytes), experimental AllFeaturesV2 (59,504 bytes), captured-range probes on both pipelines
+      (55 bytes each), mirrored erased-span Length probes on both (22 bytes each), v2 literal predicate
+      oracle (64 bytes), and v2 decoded-string slicing (9 bytes). The final runtime script and per-case
+      stdout/stderr are retained in /private/tmp/mist-refinement-runtime-checks.py and
+      /private/tmp/mist-refinement-combined-runtime; format output is
+      /private/tmp/mist-refinement-followups-final-format.log. Changed v2 source has no legacy semantic
+      or analyzer references. All code remains on the local review branch pending the user's decision.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -3477,7 +3495,10 @@ rules:
         supports Standard arrays, spans and strings. Separately, Lengths.OfCall still trusts the member
         names Slice, ToArray, AsSpan and ToCharArray without verifying the declaring type; user methods
         with those names can fabricate result-length knowledge. This is a pre-existing inference limit
-        found in review, not widened into the range-capture work.
+        measured on v2 on 2026-09-26: a user Slice(0, 3) returning [10] admits result[2], prints
+        Length 1, then throws IndexOutOfRangeException. The scratch program is
+        /private/tmp/mist-existing-slice-name-inference. This is separate from the range-capture changes
+        and needs declaration-identity checks before those method names supply length facts.
       - >
         A property or indexer accessor with a Mist body forgets every non-readonly field fact, whether or
         not it writes one; ReadonlyInference already answers whether a getter writes, and consulting it

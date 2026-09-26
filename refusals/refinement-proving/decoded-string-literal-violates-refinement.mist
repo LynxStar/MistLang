@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+type Named = string "a\n";
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        Named value = "a\\n";
+    }
+}

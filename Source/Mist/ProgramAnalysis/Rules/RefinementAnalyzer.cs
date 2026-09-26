@@ -24,9 +24,9 @@ namespace Mist.ProgramAnalysis.Rules;
 /// parameter's `where` IS the parameter's type, an anonymous refinement of the declared one, so the
 /// model has one way to say a value is narrowed and this rule one way to read it, and nothing is left
 /// to a runtime guard at the callee: refinement is type checking, and a call is where the type is
-/// met. A predicate the prover has no interval for -- a property pattern, a regex, a real -- is met only
-/// by a value already of that refinement, so anything else must pass an `is` first; one refused at its
-/// declaration owes nothing more.
+/// met. Exact literal facts also decide supported real, string and regex predicates. A predicate with
+/// neither an interval nor a sound literal decision is met only by a value already of that refinement,
+/// so anything else must pass an `is` first; one refused at its declaration owes nothing more.
 /// </summary>
 internal sealed class RefinementAnalyzer : IProgramAnalyzer
 {
@@ -312,7 +312,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return;
             }
 
-            if(onConstraint is not null && Requirement.IsAnonymous(target) && Requirement.OfType(target) is { } constrained)
+            if(onConstraint is not null && Requirement.IsAnonymous(target) && !LiteralPredicates.Applies(target) && Requirement.OfType(target) is { } constrained)
             {
                 Need(state, value, constrained, at, onConstraint, measured: measured);
                 return;
@@ -320,12 +320,20 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             var known = Known(state, value);
 
-            if(AnySatisfied(known, considered, value.Type, measured, Length(state, measured)))
+            var literal = LiteralValue.Of(value, held => state.TryGetValue(held, out var exact) ? exact.Literal : null);
+
+            if(AnySatisfied(known, considered, value.Type, measured, Length(state, measured), literal, value))
             {
                 return;
             }
 
-            if(Requirement.OfType(considered[0]) is { } required)
+            if(LiteralPredicates.Applies(considered[0]))
+            {
+                RefinementFindings.ReportLiteral(
+                    context, value, considered[0], TypeDisplay.Mist(target), at,
+                    Requirement.IsAnonymous(target) ? onConstraint : null, literal);
+            }
+            else if(Requirement.OfType(considered[0]) is { } required)
             {
                 RefinementFindings.Report(
                     context, known.Values, value, Stated(Read(required, proving: false), Length(state, measured)), TypeDisplay.Mist(target), at, onConstraint: null);
@@ -404,9 +412,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         }
 
         private bool AnySatisfied(
-            Knowledge known, List<IMistType> considered, IMistType valueType, Expression? measured = null, Admitted? length = null)
+            Knowledge known, List<IMistType> considered, IMistType valueType, Expression? measured = null, Admitted? length = null, LiteralValue? literal = null, Expression? expression = null)
         {
-            return considered.Any(constituent => Requirement.OfType(constituent) is { } required
+            return considered.Any(constituent => LiteralPredicates.Applies(constituent)
+                ? LiteralPredicates.Satisfied(constituent, valueType, literal, expression)
+                : Requirement.OfType(constituent) is { } required
                 ? Satisfied(known, Read(required, proving: true), measured, length)
                 : !Requirement.IsUnreadable(constituent) || ReferenceEquals(Requirement.Refined(valueType), Requirement.Refined(constituent)));
         }

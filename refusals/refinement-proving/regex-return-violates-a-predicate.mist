@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+type Letters = string `[a-z]+`;
+
+public class Probe
+{
+    public static Letters Make()
+    {
+        // REFUSE: MIST_PA_REFINEMENT_VIOLATED
+        return "123";
+    }
+
+    public static void Main()
+    {
+        var value = Make();
+    }
+}

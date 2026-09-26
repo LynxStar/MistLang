@@ -6,8 +6,8 @@ namespace Mist.ProgramAnalysis.Refinements;
 /// The values a predicate over one integral quantity admits, as a sorted list of disjoint closed
 /// intervals, so that every question the prover asks -- does a constant satisfy it, does one predicate
 /// imply another, what do two facts leave when both hold -- is a set operation with an exact answer.
-/// A code point and a truth are integers too; a real is not represented, and a predicate over one is
-/// simply not proven.
+/// A code point and a truth are integers too; real literals are decided by <see cref="LiteralPredicates"/>
+/// without approximating their values as integral intervals.
 /// </summary>
 internal sealed class Admitted : IEquatable<Admitted>
 {

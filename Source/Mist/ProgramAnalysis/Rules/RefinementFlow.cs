@@ -12,7 +12,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal sealed record Bound(object Holder, ComparisonKind Kind);
 
-internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0, Admitted? Length = null, StoredRange? Slice = null)
+internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0, Admitted? Length = null, StoredRange? Slice = null, LiteralValue? Literal = null)
 {
     public static readonly Knowledge Unknown = new(Admitted.Everything, ImmutableHashSet<Bound>.Empty);
 }
@@ -69,8 +69,9 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
             var length = mine.Length is { } left2 && theirs.Length is { } right2 ? left2.Or(right2) : null;
 
             var slice = Equals(mine.Slice, theirs.Slice) ? mine.Slice : null;
+            var literal = Equals(mine.Literal, theirs.Literal) ? mine.Literal : null;
 
-            joined = joined.Add(local, new Knowledge(values, mine.Bounds.Intersect(theirs.Bounds), changes, length, slice));
+            joined = joined.Add(local, new Knowledge(values, mine.Bounds.Intersect(theirs.Bounds), changes, length, slice, literal));
         }
 
         return joined;
@@ -81,7 +82,7 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
         return left.Count == right.Count
             && left.All(entry => right.TryGetValue(entry.Key, out var other)
                 && entry.Value.Values.Equals(other.Values) && entry.Value.Bounds.SetEquals(other.Bounds)
-                && Equals(entry.Value.Length, other.Length) && Equals(entry.Value.Slice, other.Slice));
+                && Equals(entry.Value.Length, other.Length) && Equals(entry.Value.Slice, other.Slice) && Equals(entry.Value.Literal, other.Literal));
     }
 
     public ImmutableDictionary<object, Knowledge> Transfer(ImmutableDictionary<object, Knowledge> state, FlowStep step)
@@ -136,6 +137,9 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
 
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: var written } } when RunsAccessor(written):
                 return Forget(state, IsMutableField);
+
+            case { Kind: FlowStepKind.Introduce or FlowStepKind.Bind, Variable: { } introduced }:
+                return state.TryGetValue(introduced, out var prior) ? state.SetItem(introduced, prior with { Literal = null }) : state;
 
             default:
                 return state;
@@ -218,12 +222,15 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
 
         if(Requirement.Constant(value) is { } constant)
         {
-            return state.SetItem(local, new Knowledge(Admitted.Exactly(constant), ImmutableHashSet<Bound>.Empty));
+            return state.SetItem(local, new Knowledge(Admitted.Exactly(constant), ImmutableHashSet<Bound>.Empty)
+            {
+                Literal = LiteralValue.Of(value)?.ConvertedTo(local.Type),
+            });
         }
 
         if(value is LocalReferenceExpression source && state.TryGetValue(source.Local, out var copied))
         {
-            return state.SetItem(local, copied);
+            return state.SetItem(local, copied with { Literal = copied.Literal?.ConvertedTo(local.Type) });
         }
 
         if(lifted.Produced(value) is { } produced)
@@ -246,8 +253,10 @@ internal sealed class RefinementFlow(IReadOnlySet<LocalVariable> unseenWrites, L
             return state.SetItem(local, Knowledge.Unknown with { Length = sized });
         }
 
-        return Lengths.Of(value, held => Held(state, held)) is { } length
-            ? state.SetItem(local, Knowledge.Unknown with { Length = length })
+        var literal = LiteralValue.Of(value, held => state.TryGetValue(held, out var known) ? known.Literal : null)?.ConvertedTo(local.Type);
+        var length = Lengths.Of(value, held => Held(state, held));
+        return literal is not null || length is not null
+            ? state.SetItem(local, Knowledge.Unknown with { Length = length, Literal = literal })
             : state.Remove(local)
             ;
     }

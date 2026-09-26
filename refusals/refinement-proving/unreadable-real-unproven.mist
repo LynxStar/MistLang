@@ -6,10 +6,11 @@ type Positive = double > 0.0;
 
 public class Probe
 {
-    public static void Main()
+    public static void Check(double input)
     {
         // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
-        Positive positive = 2.5;
-        Console.WriteLine(positive);
+        Positive positive = input;
     }
+
+    public static void Main() { }
 }

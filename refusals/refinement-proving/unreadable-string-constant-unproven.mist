@@ -6,10 +6,11 @@ type Named = string "x";
 
 public class Probe
 {
-    public static void Main()
+    public static void Check(string input)
     {
         // REFUSE: MIST_PA_REFINEMENT_UNPROVEN
-        Named named = "anything";
-        Console.WriteLine(named);
+        Named named = input;
     }
+
+    public static void Main() { }
 }

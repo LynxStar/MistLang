@@ -82,6 +82,21 @@ internal static class RefinementFindings
         }
     }
 
+    public static void ReportLiteral(
+        AnalysisContext context, Expression value, IMistType constituent, string target, Expression at, string? onConstraint,
+        LiteralValue? literal)
+    {
+        if(LiteralPredicates.Decide(constituent, literal) != false)
+        {
+            ReportUnreadable(context, value, constituent, target, at, onConstraint);
+            return;
+        }
+
+        context.Report(
+            onConstraint is null ? ProgramAnalysisDiagnostics.RefinementViolated : ProgramAnalysisDiagnostics.ConstraintViolated,
+            at.Node, [value, at], literal!, Describe(constituent), onConstraint ?? target);
+    }
+
     public static void ReportPositionUnreadable(
         AnalysisContext context, IMistType slot, Storm.Runtime.SyntaxNode at, string shown, string parameter, IReadOnlyList<Expression> about)
     {

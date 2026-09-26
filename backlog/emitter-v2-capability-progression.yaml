@@ -3057,6 +3057,39 @@ capabilities:
       sound under this lowering -- a closing type without the matching constructor fails to satisfy the
       synthesized interface and Roslyn refuses it. That is `roslyn-downstream`, so the diagnostic lands
       on a generated file and porting the check is worth doing for the location alone.
+
+      A SIGNATURE THAT NAMES A TYPE PARAMETER, 2026-09-26. `class Factory<T, A> where T : new(A)` failed
+      Roslyn with nothing closing it (the task below): the interface was named for its signature's types
+      and declared `static abstract T __New(A arg0)` where no A is in scope. THE INTERFACE IS NOW GENERIC
+      OVER ITS OPEN POSITIONS -- a position whose type names a type parameter, at any depth -- each named
+      by its index, which no type's identifier can be: `new(A)` is `__IConstruct_0<T, TArg0>` declaring
+      `__New(TArg0 arg0)`, `new(int, A)` is `__IConstruct_int_1<T, TArg1>`, and `new(Box<A>)` is
+      `__IConstruct_0` as well, its position closed as `Box<A>`. A concrete signature is named and
+      declared exactly as before. The constraint closes the interface with its own types, `where T :
+      __IConstruct_0<T, A>`, and `new T(arg)` stays `T.__New(arg)`. A CLOSING TYPE IMPLEMENTS IT AS ITS
+      USE CLOSES IT: ConstraintClosure records, beside the declared signature, the one its site's
+      substitution produces (TypeArgumentClosing.Closing, since 2026-09-25), so `Factory<Widget, int>`
+      appends `__IConstruct_0<Widget, int>` and a `__New(int)` factory. Appends are deduplicated by the
+      interface they name and the closed signature -- Factory's A and a method's A are different
+      parameters naming one interface -- and factories by the closed signature alone, `new(int)` and
+      `new(A)` closed with int asking for the same `__New(int)`.
+
+      MEASURED: samples/ConstructorConstraintSignatures, banked V2-ONLY, constructs a Widget through new(A)
+      closed with int and with string, new(int) beside them, new(int, A), new(Box<A>) and a method-level
+      new(A), each line naming the constructor it reached. AllFeaturesV2 was otherwise byte-identical,
+      GenericConstraints' concrete signatures included. PROVED BY ConstructorConstraintInterfaceEmissionTests,
+      eighteen rows: five where clauses, the concrete one among them; five interfaces on the closing type,
+      each listed once; four factories, each declared once; and four interface declarations.
+      Eight mutations on confirmed builds, each judged by those rows and by AllFeaturesV2 against its
+      baseline, all caught: the closing ignoring its closed signature (4 rows), the closure recording the
+      declared signature (7), factories not deduplicated (1), witnesses deduplicated by declared signature
+      rather than by interface (1), the interface declaring only its product (3), its member spelling open
+      positions by their types (3), and nothing counted open (11) -- each also a Roslyn error in the
+      sample. Open positions named by their types rather than their index was caught by the rows ALONE
+      (11): the sample runs either way, since the index is a choice of one interface per shape rather than
+      a correctness need, and ConstructorConstraintInterfaces says so where it is made.
+      The full suite -- 7233, 708 and 68 tests -- passed with no failure and no rerun on 2026-09-26, and
+      the build and `dotnet format` were clean.
     analysis_phase_tasks:
       - >
         REPORT A MISSING CONSTRUCTOR ON THE CLOSING TYPE AT THE MIST SOURCE. The synthesized `__New`
@@ -3086,7 +3119,27 @@ capabilities:
         instantiation chain to bound. An earlier draft of this entry claimed case 12 exercised
         propagation -- it does not, being the parameterless form -- and under this lowering the question
         does not arise at all.
-    unlocks: []
+      - >
+        A SIGNATURE NAMING A TYPE PARAMETER DOES NOT EMIT. Measured 2026-09-25: `class Factory<T, A>
+        where T : new(A)` fails Roslyn with nothing closing it at all -- `__IConstruct_A<T>` declares
+        `static abstract T __New(A arg0)` where no `A` is in scope (CS0246), and the generic's own
+        `new T(arg)` then cannot pass its `A` to that one. The interface is generic over the product
+        alone and names the signature's types in its name; a signature naming a parameter needs the
+        interface generic over those positions as well, closed at the constraint and at each appended
+        base. Until 2026-09-25 analysis refused the valid `Factory<Widget, int>` against '(A)' and hid
+        this; it now admits it and refuses `Factory<Widget, string>` against 'new(string)' at the Mist
+        source (analysis order 6), so a valid closing reaches the backend.
+        DONE 2026-09-26: the interface is generic over its open positions -- see the evidence above.
+      - >
+        A GENERIC CLOSING TYPE WHOSE CONSTRUCTOR TAKES ITS OWN PARAMETER does not emit, concrete signature
+        or open alike. Measured 2026-09-26: `Sized<Crate<int>>` over `where T : new(int)`, with
+        `Crate<X>(X held)`, appends `Crate<X> : __IConstruct_int<Crate<X>>` and `__New(int arg0) { return
+        new Crate<X>(arg0); }`, which C# refuses ("cannot convert from 'int' to 'X'"); `Sized<Crate<int>,
+        int>` over `new(A)` does the same through `__IConstruct_0<Crate<X>, int>`. Analysis admits both. The
+        append is on the open declaration, and a concrete position cannot say "only where X is int"; an
+        open one can -- `Crate<X> : __IConstruct_0<Crate<X>, X>` with `__New(X arg0)`, read off the
+        constructor that satisfied the constraint in its declaration's own terms.
+    unlocks: [ConstructorConstraintSignatures]
 
   # ===================================================================
   # Layer K -- properties, indexers and object initializers.
@@ -3525,6 +3578,49 @@ capabilities:
       new("boxed")`. samples/NestedGenericTypes proves the local, the target-typed new, the type
       pattern and the through-base form on v2 and is banked on AllFeaturesV2 alone: classic parses
       the form, answers `unknown` for the node in every switch, and Roslyn refuses what it emits.
+
+      A GENERIC LAST SEGMENT NEVER RESOLVED, whatever the paragraph above says, and a nested generic named
+      from a derivation was built with no enclosing at all (2026-09-26). MEASURED on v2 on 2026-09-25:
+      `Outer<string>.Inner<int> i = new Outer<string>().Make()` was MIST_PM_UNRESOLVED_TYPE "The type
+      'Outer<string>.Inner' could not be found" -- each segment was looked up by its bare name, and a
+      generic nested type is declared under its arity name -- and nothing beyond the parse tests reached
+      it. Inside `Deriv : Outer<Score>`, `new Inner<Score>()` was Inner of Score with no enclosing, so the
+      model did not know `T` was Score there: `Inner<U> where U : IRank<T>` was refused against
+      'IRank<T>', and in a derivation that is not itself generic the emitter spelled the type
+      `Outer<T>.Inner<int>`, naming a T C# has no binding for.
+
+      THE LAST SEGMENT IS LOOKED UP BY ITS ARITY NAME, and its enclosing is what the path to it closes the
+      declaring type with -- TypeSubstitution.EnclosingInstantiation, made public for this -- rather than
+      the instantiation written: `Derived<int>.Held<string>` over a Held declared in `Base<T>` is
+      `Base<int>.Held<string>`, as `Derived<int>.Inner` was already `Base<int>.Inner`. A SIMPLE NAME THE
+      SCOPE FOUND THROUGH A CONSTRUCTED BASE is carried under that base, by ScopeResolver.InheritedEnclosing:
+      the scope walk already records the base constructions a name came through, and the same
+      EnclosingInstantiation over them answers `Outer<Score>` inside `Deriv`, `Outer<X>` inside `Deriv<X>
+      : Outer<X>`, and nothing where the name was found in its declaring type's own body, where a
+      definition stays itself. Every bare construction goes through ScopeResolver.Construct -- a type
+      position, `new`, a generic name in an expression and a static read through one -- and the two that
+      record a closing hand ConstraintClosureRegistry the same enclosing, so `Hive<Score>.Cell<Score>` and
+      `new Cell<Score>()` inside `Swarm : Hive<Score>` meet `where U : IRank<T>` as IRank of Score.
+
+      MEASURED: the reported program prints 7; `new Inner<Score>()` and a local of `Inner<Score>` inside a
+      derivation of `Outer<Score>` run, emitted as `Outer<Score>.Inner<Score>`; `Derived<int>.Inner<string>`
+      read from a derivation's factory is assignable to `Base<int>.Inner<string>` and its fields read as
+      int and string. AllFeaturesV2 run by hand was byte-identical to its baseline. PROVED BY
+      ConstructedGenericMemberAccessTests (a generic last segment carried and identical to the inferred
+      type; one on a generic base named through the deriver; one named in a derivation, identical to the
+      base's own; a static read through one in a derivation, substituted), NestedGenericTypeEmissionTests
+      (the written local, and a derivation's return type and `new`), and six DeclarationShapeDecisionTests
+      rows: `Hive<Score>.Cell<Score>` as a parameter type, and `new Cell<Score>()` and a `Cell<Score>`
+      parameter inside `Swarm : Hive<Score>`, each admitted, and each refused over `Grade`. Nine
+      mutations on confirmed builds, all caught: the last segment looked up by its bare name (7 rows), the
+      nested reference, the type position and `new` each recording without the enclosing (2 each),
+      enclosed by the instantiation written rather than the base (1), nothing inherited (7), and the type
+      position, `new` and an expression-position name each built bare (2, 1, 1). The last SURVIVED at
+      first: the static read sat in a method declared to return string, so it type-checked with T
+      unbound, and the row now reads the local's own type. Disabling the inheritance measured the
+      emission claim above -- `Ngd.Outer<T>.Inner<int> Made()` and Roslyn's "'T' could not be found".
+      The full suite -- 7028, 708 and 68 tests -- passed with no failure and no rerun on 2026-09-26, and
+      the build and `dotnet format` were clean.
     analysis_phase_tasks:
       - >
         Report a nested newtype or type alias that something references. Both are ERASED at the C#
@@ -6992,12 +7088,71 @@ capabilities:
 
       BANKS NO SAMPLE, and cannot: no call site can reach any of this until order 112. The claim it
       makes is checkable without one, which is why it is its own commit.
+
+      GENERIC METHODS AND THEIR CONSTRAINTS, 2026-09-26, two defects filed in backlog/general.md. A GENERIC
+      METHOD OF A GENERIC BLOCK did not compile: `<T> extension(Box<T> self) { public int Put<U>(U item) }`
+      emitted its carrier `Put<T, U>(this Box<T> self, U item)` and each call `box.Put<Dog>(...)`, written
+      or inferred -- one type argument for a method of two, which C# refuses as "'Box<Animal>' does not
+      contain a definition for 'Put'" -- and a method group `func<Dog, int> f = box.Put` likewise. And
+      EVERY CARRIER DROPPED ITS METHOD'S CONSTRAINTS, generic block or not: `where U : IShape` over a body
+      calling `shape.Sides()`, `new()`, `new(int)` (whose interface was never declared either), a
+      dependent `Plus<N:int>` declared `<N>` while its body reads `TN`, and `where U : default`, whose
+      witness the call passes and the carrier did not declare -- each a Roslyn error on a valid program.
+      Classic cannot resolve a generic block's type parameter at all (MIST_UNDEFINED_TYPE_ARGUMENT), so
+      there is no classic output to match.
+
+      A CALL WRITES THE BLOCK'S TYPE ARGUMENTS AHEAD OF THE METHOD'S rather than none of them. C# takes all
+      of a carrier's or none, and none would hand the choice to C#'s inference, which disagrees with a
+      stated argument: `box.Put<Animal>(new Dog())` is U = Animal in Mist and U = Dog to C#. The emitter
+      infers nothing of its own anywhere else either. The block's arguments come off the closed copy lookup
+      already made -- ExtensionSpecialization records the block beside BlockClosing, as Method.ClosedBlock
+      -- in the order the carrier declares them, ExtensionBlockEmitter.CarrierTypeParameters being the one
+      home of that order for both. A call writing no type arguments is untouched, C# reading the block's off
+      the receiver as before. Only a block declared in Mist: a projected CLR block keeps its parameters'
+      ordinals in the CLR method's flat list, which need not put the receiver's first.
+
+      THE CARRIER DECLARES WHAT ITS METHOD'S CONSTRAINTS LOWER TO, through the ConstraintEmitter an ordinary
+      method uses, over the block's parameters and the method's. Its type parameters are spelled as
+      MethodEmitter spells them (DependentCarrierNames), so a dependent one is `TN` in the declaration, the
+      where clause and the body alike; a `default` constraint's witnesses follow the receiver, where the
+      call already writes them; and the constructor-constraint interfaces are collected from extension
+      methods as well as from types.
+
+      MEASURED: samples/GenericExtensionMethods, banked V2-ONLY, prints each call's T and U -- stated,
+      widened, inferred and through a group -- a U stored as the block's T, and one line per constraint
+      kind. AllFeaturesV2 run by hand was byte-identical to the extended baseline and reported nothing.
+      Beside it, one program each: a generic block's non-generic method and a non-generic block's generic
+      method already ran, and still do. PROVED BY ExtensionCarrierEmissionTests, ten rows: four call
+      spellings -- stated, inferred, widened, grouped -- and six carrier signatures, each with the line
+      that follows it. Nine mutations on confirmed builds, each judged by those rows and by AllFeaturesV2
+      against its baseline; seven caught by both: no block arguments written (4 rows), the invocation and
+      the group bypassing the helper (3, 1), no where clauses (5), parameters spelled by name (1), no
+      `default` witnesses (1), and the specialization forgetting its block (4). THE INTERFACES NOT
+      COLLECTED FROM BLOCKS SURVIVED at first, because GenericConstraints declares `new(int)` on a type
+      and so declares `__IConstruct_int` for the whole composed program; the sample's constraint became
+      `new(string)`, which no other banked program declares, and AllFeaturesV2 alone now catches it. A
+      PROJECTED BLOCK PREPENDED TOO SURVIVES, no CLR generic extension call binding at all (the task
+      below).
+      The full suite -- 7000, 708 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure
+      and no rerun on 2026-09-26, together with analysis order 6's constraint substitution; the build and `dotnet
+      format` were clean.
     untested:
       - Nothing calls an extension member yet, so the emitted carriers are proven to COMPILE and not
         to be reachable. That is order 112's to show.
       - The stdlib's own `extension(unknown self)` is deliberately not emitted -- its GetType body
         calls Type.Of, which does not lower on v2 -- so the universal receiver's emission is unproven.
-    unlocks: []
+    tasks:
+      - >
+        A STATIC member of a generic block cannot be called with type arguments: `Box<Animal>.Make<int>(1)`
+        over `<T> extension(Box<T> self) { public static int Make<U>(U item) }` is
+        MIST_PM_METHOD_GROUP_NOT_CONVERTED on v2, measured 2026-09-26, so no call reaches its carrier.
+      - >
+        A CLR generic extension method with a type parameter of its own does not bind: `xs.Aggregate<long>(10,
+        add)` and `xs.Select<string>(name)` on an `int[]` are MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED even with
+        the argument stated, measured 2026-09-26 under `using System.Linq`. When one binds, its call must
+        write the CLR method's arguments in that method's order, by ordinal, which ExtensionBlockEmitter's
+        block-first order deliberately does not claim.
+    unlocks: [GenericExtensionMethods]
 
   - id: extension-lookup-and-specificity
     name: Extension member lookup fallback with specificity ordering
@@ -8864,6 +9019,16 @@ capabilities:
 
       DELIVERED: samples/Variadics runs on v2 with output identical to classic, and is banked in
       AllFeaturesV2.
+    tasks:
+      - >
+        A WHOLE-PACK CONSTRAINT THAT NAMES ITS PACK DOES NOT EMIT. Measured 2026-09-25: `class Row<params
+        Ts> where Ts : IRank<Ts>` closed as `Row<Score, Score>`, Score being `IRank<Score>`, fails Roslyn
+        -- the specialization is emitted `Row_2<T1, T2>` with `where T1 : IRank<Ts>` and `where T2 :
+        IRank<Ts>`, `Ts` in scope nowhere (CS0246, then CS0311 at the construction). Each element's clause
+        wants the pack replaced by that element, `where T1 : IRank<T1>`, which is how analysis order 6
+        reads it (variadics Requirement 11.1, each element on its own) since 2026-09-25: it admits that
+        closing and refuses `Row<Score, Grade>` against 'IRank<Grade>'. A constraint naming a sibling,
+        `Keys<K, params Vs> where Vs : IKeyed<K>`, already emits and runs.
     unlocks: [Variadics]
 
   # ===================================================================
@@ -12009,6 +12174,57 @@ samples:
         Every refusal is absent, a sample being a valid program: a conflict between an argument and a
         stated lambda parameter, a lambda whose parameter nothing fixes, two overloads a lambda fits
         alike, a body broken under the parameter inference fixed. refusals/binding holds one case each.
+
+  - name: GenericExtensionMethods
+    intro_order: 100
+    threshold: extension-block-declaration
+    requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
+               var-type-inference, instance-fields, struct-declaration, abstract-type-declaration,
+               type-parameters-and-constructed-types, type-argument-substitution, generic-methods,
+               type-argument-inference, generic-constraints-nominal, generic-constraints-constructor,
+               dependent-type-parameters, default-generic-constraint, func-structural-function-types,
+               method-group-conversion, extension-block-declaration, extension-lookup-and-specificity]
+    untested:
+      - >
+        V2-ONLY. Classic cannot resolve a generic extension block's type parameter
+        (MIST_UNDEFINED_TYPE_ARGUMENT at the block, then MIST_UNDEFINED_TYPE at every use), measured
+        2026-09-26. Referenced from AllFeaturesV2 alone, its lines captured from v2 and read against the
+        program by hand.
+      - >
+        Only the widened line shows that a stated type argument survived: the stated, inferred and grouped
+        lines print the same U whether Mist's argument or C#'s inference reached the call.
+        ExtensionCarrierEmissionTests holds each spelling.
+      - >
+        A constraint that only restricts is invisible here: every call meets Put's `where U : T`, and a
+        carrier without it prints the same. Store's `T stored = item` needs it to compile, and the refusals
+        are analysis's, in refusals/declaration-shape-checks.
+      - >
+        Blank<Point>() prints the field initializers because v2's `default` of a struct is its synthesized
+        default, as a plain `Point p = default;` also prints; classic cannot compile a struct with field
+        initializers and no constructor.
+
+  - name: ConstructorConstraintSignatures
+    intro_order: 101
+    threshold: generic-constraints-constructor
+    requires: [class-declaration, constructors, constructor-overload-resolution, methods-static-and-instance,
+               statements-core, namespace-file-scoped, standard-library-binding, literals-primitive,
+               string-interpolation, var-type-inference, instance-fields, type-parameters-and-constructed-types,
+               type-argument-substitution, generic-methods, generic-constraints-nominal,
+               generic-constraints-constructor]
+    untested:
+      - >
+        V2-ONLY. Classic cannot resolve a type parameter in a constructor constraint
+        (MIST_CONSTRAINT_0008 "Constraint type 'A' could not be resolved"), measured 2026-09-26. Referenced
+        from AllFeaturesV2 alone, its lines captured from v2 and read against the program by hand.
+      - >
+        Every closing type is Widget, which is not generic; a generic closing type whose constructor takes
+        its own parameter does not emit (order 57's task).
+      - >
+        Each line names the constructor it reached, so a factory calling the wrong overload shows; which
+        interface carried the call does not -- `Boxed<Widget, int>` prints the same through
+        `__IConstruct_0<Widget, Box<int>>` as it would through a concrete one. ConstructorConstraintInterfaceEmissionTests
+        holds the spellings.
 
 # =====================================================================
 

@@ -1747,6 +1747,81 @@ rules:
       row alone); an alias's owner lost (all three rows, and the exposure case turning into a reach
       refusal); the reach check and the exposure check silenced in turn; the walk made shallow (the nested
       subpattern and the bound); and the bound's arm dropped (the bound case).
+
+      A CONSTRAINT IS JUDGED AS ITS CLOSING FILLS IT, since 2026-09-25. ConstraintAnalyzer classified each
+      argument against the DECLARED constraint, so a constraint naming any type parameter was judged
+      against that parameter rather than against what the site closed it with. MEASURED on v2 at
+      6b73b28b: `new Sorted<Score>()` over `Sorted<T> where T : IRank<T>`, Score being `IRank<Score>`, was
+      MIST_PA_CONSTRAINT_NOT_SATISFIED against 'IRank<T>'. So was every valid closing of a constraint naming
+      a sibling -- `Kin<Animal, Dog>` over `where U : T`, `Link<string, Badge>` over `where V : IKeyed<K>`
+      -- a receiver's parameter, `new Shelf<Animal>().Put<Dog>(d)` over `Put<U>(U item) where U : T`,
+      written or inferred and through a derivation `Rack : Shelf<Animal>`, an extension block's, a base
+      clause `class Board : Sorted<Score>`, a method group `func<Score, int> f = Ranks.Pick`, and a
+      constructor signature, `Factory<Widget, int>` over `where T : new(A)` reported as needing '(A)'. A
+      wrong argument was refused naming the declared constraint, 'IRank<T>' for a Grade implementing
+      IRank<Score>. CLASSIC REFUSES THE F-BOUNDED PROGRAM TOO, as MIST_CONSTRAINT_0009 "does not implement
+      abstract type 'IRank<T>'", and cannot resolve a constraint naming a sibling or an enclosing parameter
+      at all -- MIST_CONSTRAINT_0008 "Constraint type 'T' could not be resolved" at `Kin`,
+      MIST_UNDEFINED_TYPE_ARGUMENT at `IKeyed<K>` and at `Put`'s `where`, `new(A)` likewise -- so there is
+      no classic verdict to match. The admits are the generic-constraints spec's, whose Requirement 5.1 and
+      own example `where T : IComparable<T>` presuppose them, and C#'s.
+
+      THE CLOSING CARRIES ITS SUBSTITUTION. TypeArgumentClosing.Closing is the site's whole
+      TypeSubstitution rather than one parameter and its argument: at a type closing, the declaration's
+      parameters by the written arguments over the enclosing instantiation where the site has one; at a
+      call, overload resolution's own substitution -- receiver, base path, and the method's arguments
+      written or inferred, so the two are judged alike by construction rather than by a second inference;
+      at a method group, the same rebuilt from the receiver's path and the stated or target-read
+      arguments; and for a method of a generic extension block, Method.BlockClosing, which
+      ExtensionSpecialization sets on the closed copy, since that copy substitutes its parameters and
+      return but shares its type parameters, whose constraints still name the block's. The rule applies
+      it to a type constraint and to a constructor signature before judging, and names what it judged:
+      'IRank<Grade>', 'Dog', 'IKeyed<int>', 'new(string)'. A constraint into which the closing brings a
+      type that already failed -- `Kin<Nothing, Dog>`, `Link<Nothing, Badge>`, `Factory<Widget, Nothing>`
+      -- says nothing more, the binder having reported the name; each of the three was a second complaint.
+      The site reported is unchanged: the construction, the call, the group, the base clause.
+      A whole-pack constraint naming its own pack is read of each element on its own, variadics
+      Requirement 11.1 -- `Row<params Ts> where Ts : IRank<Ts>` asks IRank<Score> of a Score -- by
+      rebinding the pack to the element under judgment (TypeSubstitution.With); read of the pack it asked
+      'IRank<[Score, Score]>', which no element satisfies. A pack naming a sibling needs nothing more.
+      Classic refuses both pack forms, valid closings included, as MIST_VAR_0009 against the declared
+      constraint.
+
+      THREE OF THE NEW ADMITS REACH A BACKEND THAT CANNOT EXPRESS THEM, each measured failing Roslyn and
+      each failing the same way with nothing closing it, so none is this order's to refuse: a constructor
+      signature naming a parameter (emitter order 57's task), a whole-pack constraint naming its pack
+      (variadic-monomorphization's task), and a generic method of a generic extension block, whose call
+      passed too few type arguments -- with every extension method's `where` dropped besides. The first
+      and third emit and run since 2026-09-26 (emitter orders 57 and 111). Before, analysis refused the
+      valid closings of the first two for the wrong reason and hid them.
+
+      PROVED BY twelve corpus cases, one refusal each at the use: f-bounded-constraint-closed-over-the-
+      wrong-type and -in-a-base-clause, sibling-constraint-closed-by-a-supertype and -inside-a-constructed-
+      constraint, generic-method-inferred-against-a-self-referencing-constraint, generic-method-group-
+      against-a-self-referencing-constraint, generic-method-explicit- and -inferred-against-a-sibling-
+      constraint, generic-method-constraint-naming-the-receivers-parameter, extension-method-constraint-
+      naming-the-blocks-parameter, constructor-constraint-naming-a-sibling-parameter and pack-element-
+      against-a-constraint-naming-its-pack. They prove the refusal and where it lands, NOT the
+      substitution: the rule without it refused every one of them too, for the wrong reason, and no
+      mutation below was caught by the corpus. The substitution is pinned in DeclarationShapeDecisionTests
+      over one fixture set: nineteen admits -- F-bounded as a construction, a declared local and a base
+      clause; two siblings; a constructor signature; a pack naming itself and a pack naming a sibling; a
+      method's written, inferred and group closings of a self-referencing constraint, and written and
+      inferred of a sibling; a receiver's parameter written, inferred, through a derivation and through a
+      group; an extension block's written and inferred -- each also holding the build's errors to the
+      fixtures' own, so none is silent for want of binding; fourteen refusals asserting the substituted
+      constraint in the message; four written and inferred pairs asserting identical findings; four
+      silences over a sibling that failed. Twelve mutations on confirmed builds, eleven caught: the rule
+      without substitution (33 rows); a failed type judged in a type constraint and in a signature (2, 1);
+      a signature left unsubstituted (3); a type closing without its declaration's arguments (14); a
+      method closing without the block's, at the registry and at the specialization (3 each); a call's
+      closing without its receiver (5); a group's without its receiver, and empty (2, 4); a pack element
+      judged against the whole pack (2). DROPPING THE ENCLOSING INSTANTIATION ResolveNestedGeneric records
+      SURVIVED, reached by no program, since `Outer<string>.Inner<int>` does not resolve at all -- filed
+      in backlog/general.md.
+      The full suite -- 7000, 708 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure
+      and no rerun on 2026-09-26, together with emitter order 111's extension carriers; the build and `dotnet
+      format` were clean.
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
@@ -1804,6 +1879,18 @@ rules:
         outside its type -- and `g is Gauge.Low` from outside Gauge is admitted and inlines `{ level: < 3 }`
         where Roslyn refuses it. DECIDED 2026-09-26 by Arthur: a type named where it is not accessible is
         refused, as C# refuses it.
+      - >
+        A nested generic's constraint naming its enclosing type's parameter is judged unsubstituted where
+        the binder builds the nested type without its enclosing instantiation: `new Inner<Score>()` inside
+        `Deriv : Outer<Score>`, with `Inner<U> where U : IRank<T>`, is refused against 'IRank<T>' where C#
+        admits it. The model does not know `T` there, so no rule can. Filed in backlog/general.md with
+        `Outer<string>.Inner<int>` not resolving, which is also why the enclosing instantiation
+        ConstraintClosureRegistry.RecordType takes is reached by no program.
+        DONE 2026-09-26, by the binder (emitter order 66, nested-type-declarations): both resolve, the
+        derivation's name carried under its base, and RecordType is handed that enclosing at the nested
+        reference, at a type position and at `new`. Six DeclarationShapeDecisionTests rows over
+        `Hive<T>.Cell<U> where U : IRank<T>` pin it, and dropping the enclosing at each of the three is
+        now caught.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance

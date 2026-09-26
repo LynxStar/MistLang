@@ -247,7 +247,7 @@
         {
           "comment": "Storage modifiers. `params` (variadics Req 17.1) is the value-side slurp / type-pack modifier and is highlighted here for value-parameter positions and class/struct/abstract type-parameter lists.",
           "name": "storage.modifier.mist",
-          "match": "\\b(public|private|protected|internal|sealed|static|intrinsic|implicit|explicit|readonly|mutable|owned|affine|linear|relevant|frozen|ref|borrowed|async|params)\\b"
+          "match": "\\b(public|private|protected|internal|sealed|static|intrinsic|implicit|explicit|readonly|pure|local|mutable|owned|affine|linear|relevant|frozen|ref|borrowed|async|params)\\b"
         },
         {
           "comment": "default modifier on enum variant: default VariantName",

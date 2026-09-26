@@ -24,7 +24,7 @@ internal sealed class AccessorBuilder
         ModifierNode? modifier, string memberName, Storm.Runtime.SyntaxNode locationNode,
         bool isAbstract, bool isAuto, BlockNode? body, ExpressionNode? expression)
     {
-        if(modifier is not null)
+        if(modifier is not null && !RefusesPromise(modifier, locationNode))
         {
             if(isAbstract)
             {
@@ -50,7 +50,7 @@ internal sealed class AccessorBuilder
     {
         var accessibility = Accessibility.Public;
 
-        if(modifier is not null)
+        if(modifier is not null && !RefusesPromise(modifier, locationNode))
         {
             if(isAbstract)
             {
@@ -94,5 +94,23 @@ internal sealed class AccessorBuilder
         // Built as a plain setter once refused, rather than dropped as the abstract case is, so a write to it is
         // not refused again: the mistake is the declaration's, and it has been reported there.
         return BuildSetter(modifier, memberName, locationNode, isAbstract: false, isAuto, isInit: !isStatic, body, expression);
+    }
+
+    private bool RefusesPromise(ModifierNode modifier, Storm.Runtime.SyntaxNode locationNode)
+    {
+        var written = modifier switch
+        {
+            PureModifierModifierNode => "pure",
+            LocalModifierModifierNode => "local",
+            _ => null,
+        };
+
+        if(written is null)
+        {
+            return false;
+        }
+
+        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.PurityModifierPlacement, locationNode, null, written, "an accessor", string.Empty);
+        return true;
     }
 }

@@ -468,7 +468,7 @@ internal static class ExpressionBinder
 
     private static IMistType ResolveElementType(ElementTypeRefNode elementTypeRef, BindingContext ctx, BuilderContext context)
     {
-        return elementTypeRef switch
+        var resolved = elementTypeRef switch
         {
             PrimitiveElementTypeRefElementTypeRefNode primitiveRef => ResolvePrimitiveElementType(primitiveRef, context),
             UnknownElementTypeRefElementTypeRefNode => UnknownType.Instance,
@@ -478,6 +478,11 @@ internal static class ExpressionBinder
                 funcRef.TypeArgs, ctx.Scope, funcRef),
             _ => ErrorType.Instance,
         };
+
+        return elementTypeRef is NamedElementTypeRefElementTypeRefNode { Pure: not null } or FuncElementTypeRefElementTypeRefNode { Pure: not null }
+            or PrimitiveElementTypeRefElementTypeRefNode { Pure: not null }
+            ? PureFunctionReference.Apply(resolved, elementTypeRef, context)
+            : resolved;
     }
 
     private static IMistType ResolvePrimitiveElementType(PrimitiveElementTypeRefElementTypeRefNode node, BuilderContext context)

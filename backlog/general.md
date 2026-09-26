@@ -806,3 +806,19 @@ Second, through inheritance: with `Inner<U> where U : IRank<T>`, `new Inner<Scor
 1. Look a generic last segment up by its arity name in `ResolveNestedGeneric`, and pin `Outer<string>.Inner<int>` at Tier 3 on the model, then on the emitted C#.
 2. Decide how a simple name reached through a constructed base carries the base's instantiation -- the scope lookup would have to return the base construction it came through, as `TypeMemberLookup`'s `BaseConstructions` already does for members.
 3. Record in `nested-type-declarations` of the emitter register.
+
+## A Mist `func` overload beside a CLR delegate overload of the same shape is ambiguous in the emitted C#
+
+Observed 2026-09-26 while reviewing pure function types (v2):
+
+```mist
+static string N(func<int, bool> f) { return "func"; }
+static string N(System.Predicate<int> f) { return "delegate"; }
+
+// in Main
+N(n => n > 1);
+```
+
+Mist resolves the call (no diagnostic), but the lambda is emitted bare, so Roslyn reports the call ambiguous between `N(Func<int, bool>)` and `N(Predicate<int>)` (MIST_CS_ERROR). The same holds for a method group argument. Nothing about purity is involved; a `pure func` overload beside the delegate one now ranks the pure overload first at the Mist level (LambdaTrials.ComparedType keeps the purity of either side) and meets the same C# ambiguity.
+
+**Action:** when the selected overload has a same-shaped delegate sibling, emit the argument target-typed (`new System.Func<int, bool>(...)` or a cast), and pin it at Tier 4.

@@ -49,6 +49,7 @@ internal static class AmbientProviderTestHelper
                 {
                     IsIntrinsic = true,
                     IsReadonly = readonlyNames.Contains(type.Name),
+                    IsPure = readonlyNames.Contains(type.Name),
                 };
             }
 

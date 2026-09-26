@@ -133,7 +133,7 @@ public sealed class RefEmissionPropertyTests : IDisposable
     private static readonly string[] ParamNames = ["x", "y", "z", "val", "item"];
     private static readonly string[] MethodNames = ["DoWork", "Process", "Compute", "Transform"];
     private static readonly string[] FieldNames = ["stored", "cached", "data", "value"];
-    private static readonly string[] VarNames = ["a", "b", "c", "local"];
+    private static readonly string[] VarNames = ["a", "b", "c", "held"];
 
     /// <summary>
     /// Returns a valid default literal for the given Mist type.

@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public class Counter
+{
+    public int Count;
+
+    // REFUSE: MIST_PM_LOCAL_REQUIRES_INSTANCE
+    public local Counter() { }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var counter = new Counter();
+        Console.WriteLine(counter.Count);
+    }
+}

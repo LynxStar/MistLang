@@ -285,9 +285,9 @@ public static class ReadonlyAnalyzerGenerators
                from methodName in Gen.Elements(MethodNames)
                let source = $@"class {className} {{
     readonly int {methodName}() {{
-        var local = 42;
-        local = local + 1;
-        return local;
+        var held = 42;
+        held = held + 1;
+        return held;
     }}
 }}"
                select new PermittedOperationScenario(source,

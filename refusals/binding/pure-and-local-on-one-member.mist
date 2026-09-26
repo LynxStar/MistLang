@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    // REFUSE: MIST_PM_PURE_AND_LOCAL
+    public pure local int Twice(int x) { return x * 2; }
+
+    public static void Main()
+    {
+        var probe = new Probe();
+        Console.WriteLine(probe.Twice(2));
+    }
+}

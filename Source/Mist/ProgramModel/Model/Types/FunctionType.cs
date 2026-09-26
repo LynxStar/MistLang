@@ -10,16 +10,19 @@ namespace Mist.ProgramModel.Model.Types;
 /// </summary>
 internal sealed class FunctionType : MistType, IFunctionType
 {
-    public FunctionType(IReadOnlyList<IMistType> parameterTypes, IMistType returnType)
-        : base(BuildName(parameterTypes, returnType), new Scope(null), declaringType: null)
+    public FunctionType(IReadOnlyList<IMistType> parameterTypes, IMistType returnType, bool isPure = false)
+        : base(BuildName(parameterTypes, returnType, isPure), new Scope(null), declaringType: null)
     {
         ParameterTypes = parameterTypes;
         ReturnType = returnType;
+        IsPure = isPure;
     }
 
     public IReadOnlyList<IMistType> ParameterTypes { get; }
 
     public IMistType ReturnType { get; }
+
+    public bool IsPure { get; }
 
     /// <summary>
     /// The parameter types followed by the result, which is the order source writes and the order the
@@ -38,7 +41,7 @@ internal sealed class FunctionType : MistType, IFunctionType
         return all;
     }
 
-    private static string BuildName(IReadOnlyList<IMistType> parameterTypes, IMistType returnType)
+    private static string BuildName(IReadOnlyList<IMistType> parameterTypes, IMistType returnType, bool isPure)
     {
         var parts = new string[parameterTypes.Count + 1];
 
@@ -48,6 +51,6 @@ internal sealed class FunctionType : MistType, IFunctionType
         }
 
         parts[^1] = returnType.Name;
-        return $"func<{string.Join(", ", parts)}>";
+        return $"{(isPure ? "pure " : string.Empty)}func<{string.Join(", ", parts)}>";
     }
 }

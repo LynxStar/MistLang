@@ -1000,10 +1000,10 @@ public sealed class MistPrettyPrinter
     {
         return elementTypeRef switch
         {
-            PrimitiveElementTypeRefElementTypeRefNode primitiveRef => EmitPrimitiveType(primitiveRef.PrimitiveType),
+            PrimitiveElementTypeRefElementTypeRefNode primitiveRef => PurePrefix(primitiveRef.Pure) + EmitPrimitiveType(primitiveRef.PrimitiveType),
             UnknownElementTypeRefElementTypeRefNode => "unknown",
-            NamedElementTypeRefElementTypeRefNode namedRef => ExtractQualifiedName(namedRef.Name) + EmitTypeArgumentList(namedRef.TypeArgs),
-            FuncElementTypeRefElementTypeRefNode funcRef => "func" + EmitTypeArgumentList(funcRef.TypeArgs),
+            NamedElementTypeRefElementTypeRefNode namedRef => PurePrefix(namedRef.Pure) + ExtractQualifiedName(namedRef.Name) + EmitTypeArgumentList(namedRef.TypeArgs),
+            FuncElementTypeRefElementTypeRefNode funcRef => PurePrefix(funcRef.Pure) + "func" + EmitTypeArgumentList(funcRef.TypeArgs),
             _ => "object"
         };
     }
@@ -1035,7 +1035,7 @@ public sealed class MistPrettyPrinter
         {
             case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
                 {
-                    var keyword = EmitPrimitiveType(primitiveRef.PrimitiveType);
+                    var keyword = PurePrefix(primitiveRef.Pure) + EmitPrimitiveType(primitiveRef.PrimitiveType);
                     if(primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                     {
                         return $"{keyword}[{sizedRank.Size.Lexeme}]";
@@ -1072,7 +1072,7 @@ public sealed class MistPrettyPrinter
                 }
             case NamedSingleTypeRefSingleTypeRefNode namedRef:
                 {
-                    var name = ExtractQualifiedName(namedRef.Name);
+                    var name = PurePrefix(namedRef.Pure) + ExtractQualifiedName(namedRef.Name);
                     var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
                     if(namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
                     {
@@ -1130,11 +1130,16 @@ public sealed class MistPrettyPrinter
                         _ => string.Empty,
                     };
 
-                    return $"func{typeArgs}{rank}{(funcRef.Optional is not null ? "?" : string.Empty)}";
+                    return $"{PurePrefix(funcRef.Pure)}func{typeArgs}{rank}{(funcRef.Optional is not null ? "?" : string.Empty)}";
                 }
             default:
                 return "object";
         }
+    }
+
+    private static string PurePrefix(Token? pure)
+    {
+        return pure is null ? string.Empty : "pure ";
     }
 
     private static string EmitPrimitiveType(PrimitiveTypeNode primitiveType)
@@ -1591,6 +1596,8 @@ public sealed class MistPrettyPrinter
             {
                 StaticLambdaModifierLambdaModifierNode => "static",
                 AsyncLambdaModifierLambdaModifierNode => "async",
+                PureLambdaModifierLambdaModifierNode => "pure",
+                LocalLambdaModifierLambdaModifierNode => "local",
                 _ => "",
             });
         }
@@ -2355,6 +2362,12 @@ public sealed class MistPrettyPrinter
                     break;
                 case ReadonlyModifierModifierNode:
                     parts.Add("readonly");
+                    break;
+                case PureModifierModifierNode:
+                    parts.Add("pure");
+                    break;
+                case LocalModifierModifierNode:
+                    parts.Add("local");
                     break;
                 case StampableModifierModifierNode:
                     parts.Add("stampable");

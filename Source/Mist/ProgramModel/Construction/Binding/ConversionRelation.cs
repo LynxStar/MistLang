@@ -97,8 +97,20 @@ internal static class ConversionRelation
             || WidensElementwise(from, to)
             || WidensToUnknownArguments(from, to)
             || WidensToBaseDelegate(from, to)
+            || DropsPurity(from, to)
             || (copying && LeavesClone(from, to))
             ;
+    }
+
+    /// <summary>
+    /// A pure function type is within the same shape without <c>pure</c>, and never the reverse: no
+    /// function value carries evidence of purity unless its type states it (purity spec Requirement 16.5).
+    /// </summary>
+    private static bool DropsPurity(IMistType from, IMistType to)
+    {
+        return from is IFunctionType { IsPure: true } source
+            && to is IFunctionType { IsPure: false } target
+            && DelegateShape.SameShape(source, target);
     }
 
     /// <summary>

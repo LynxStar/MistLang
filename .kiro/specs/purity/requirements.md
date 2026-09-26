@@ -124,7 +124,7 @@ int Count(List<int> xs)
 2. THE Compiler SHALL accept these combinations on a member, and on a type (Requirement 15): `readonly`, `local`, `local readonly`, `pure`. Order among modifiers SHALL NOT matter.
 3. WHEN `pure` and `readonly` are both written, THE Compiler SHALL accept them and report an informational diagnostic that `readonly` is implied by `pure`.
 4. WHEN `pure` and `local` are both written, THE Compiler SHALL report an error: `local` allows a member to change its own instance, which `pure` forbids.
-5. `local` SHALL be admitted on instance methods, instance properties and indexers, local functions and lambdas, and SHALL be refused on static members and constructors, which have no Own_Instance. `pure` SHALL be admitted on methods, constructors, properties, indexers, local functions and lambdas, and on a function type (Requirement 16). On a property or indexer, a modifier applies to each accessor it declares.
+5. `local` SHALL be admitted on instance methods, instance properties and indexers, local functions and lambdas, and SHALL be refused on static members and constructors, which have no Own_Instance. `pure` SHALL be admitted on methods, constructors, properties, indexers, local functions and lambdas, and on a function type (Requirement 16). On a property or indexer, a modifier applies to each accessor it declares. On a local function, `readonly` is admitted only within `local readonly` or through `pure`; a bare `readonly` stays refused, as the `local-functions` spec has it.
 6. THE Grammar SHALL admit these modifiers on intrinsic member declarations and on abstract members.
 7. THE Pretty_Printer SHALL preserve them, and parsing then printing then parsing SHALL produce an equivalent AST.
 

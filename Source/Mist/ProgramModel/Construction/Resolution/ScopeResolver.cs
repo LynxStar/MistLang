@@ -192,12 +192,18 @@ internal sealed class ScopeResolver
         {
             VoidSingleTypeRefSingleTypeRefNode => LookupWellKnown(WellKnownTypes.Void),
             UnknownSingleTypeRefSingleTypeRefNode => UnknownType.Instance,
+            PrimitiveSingleTypeRefSingleTypeRefNode { Pure: not null } primitiveRef => PureFunctionReference.Apply(
+                ResolveReservedAlias(primitiveRef), primitiveRef, context),
             PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => ResolveReservedAlias(primitiveRef),
+            NamedSingleTypeRefSingleTypeRefNode { Pure: not null } namedRef => PureFunctionReference.Apply(
+                ResolveNamed(namedRef.Name, namedRef.TypeArgs, scope, namedRef), namedRef, context),
             NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef.Name, namedRef.TypeArgs, scope, namedRef),
             NestedGenericSingleTypeRefSingleTypeRefNode nestedRef => ResolveNestedGeneric(
                 nestedRef.Outer, nestedRef.OuterArgs, nestedRef.Nested, nestedRef.TypeArgs, scope, nestedRef),
             ParenthesizedTypeRefSingleTypeRefNode parenRef => Resolve(parenRef.Inner, scope),
             TupleSingleTypeRefSingleTypeRefNode tupleRef => ResolveTuple(tupleRef, scope),
+            FuncSingleTypeRefSingleTypeRefNode { Pure: not null } funcRef => PureFunctionReference.Apply(
+                ResolveFunction(funcRef.TypeArgs, scope, funcRef), funcRef, context),
             FuncSingleTypeRefSingleTypeRefNode funcRef => ResolveFunction(funcRef.TypeArgs, scope, funcRef),
             SpreadSingleTypeRefSingleTypeRefNode spread => ResolveSpread(spread, scope),
             _ => ReportUnsupported(singleRef),

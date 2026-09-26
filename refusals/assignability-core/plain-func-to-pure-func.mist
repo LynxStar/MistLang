@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        func<int, int> plain = n => n + 1;
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        pure func<int, int> promised = plain;
+        Console.WriteLine(promised(1));
+    }
+}

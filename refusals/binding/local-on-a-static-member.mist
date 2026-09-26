@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    // REFUSE: MIST_PM_LOCAL_REQUIRES_INSTANCE
+    public static local int Twice(int x) { return x * 2; }
+
+    public static void Main()
+    {
+        Console.WriteLine(Twice(2));
+    }
+}

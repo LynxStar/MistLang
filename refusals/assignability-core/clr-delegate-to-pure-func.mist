@@ -1,0 +1,15 @@
+using Standard;
+using System;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        Predicate<int> positive = n => n > 0;
+        // REFUSE: MIST_PA_NO_IMPLICIT_CONVERSION
+        pure func<int, bool> promised = positive;
+        Console.WriteLine(promised(1));
+    }
+}

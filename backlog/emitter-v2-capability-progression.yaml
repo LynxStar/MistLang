@@ -2361,9 +2361,16 @@ capabilities:
         by probe only, a side-effecting initializer there being one the spec refuses (Requirement 6.9) and
         classic reports as MIST_DEFAULT_NOT_SUPPORTED; a test holding them would pin an invalid program.
         Restoring the reassignment fails that test.
-        LEFT AS FOUND: on a type declaring no constructor, `new` applies the default block too -- `new
-        Blocked().Count` is the block's 5, not the initializer's 7 -- on both pipelines. The spec says a
-        block "does not invoke any constructor", which reads as `default` alone; left for a decision.
+        `new` ON A TYPE DECLARING NO CONSTRUCTOR RETURNS ITS DEFAULT, block included -- `new
+        Blocked().Count` is the block's 5, not the initializer's 7 -- and that is the rule rather than a
+        divergence. optional-defaultability's Implicit_Constructor is "a compiler-generated parameterless
+        constructor that returns the default value", generated only for a type with no user-defined
+        constructor (Requirements 4.3 and 4.4); default-keyword's "does not invoke any constructor" says only
+        that `default` runs none. A type declaring just `Config(string)` and a block is defaultable but gains
+        no parameterless constructor (4.1): `new Config()` is MIST_PM_NO_APPLICABLE_OVERLOAD on v2 and
+        MIST_TC_0013 on classic, and `default(Config)` goes through the private sentinel. A type declaring its
+        own `T()` keeps it for `new` and the block answers `default` (Container: 99 and 42). All three
+        measured 2026-09-26, identical on both pipelines.
     analysis_phase_tasks:
       - >
         Report a type that cannot be defaulted where something defaults it, rather than silently emitting

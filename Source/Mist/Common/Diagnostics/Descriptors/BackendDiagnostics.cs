@@ -351,7 +351,7 @@ public static class BackendDiagnostics
         new DiagnosticId("MIST_BE_UNHOISTED_UNIT_CALL"),
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
-        "'{0}' yields nothing and its value is taken here. The experimental emitter supplies that value by running the call ahead of its statement, which it cannot do where the call may not run, runs again with a loop's step, or has no statement of its own.");
+        "'{0}' yields nothing and its value is taken {1}. The experimental emitter supplies that value by running the call as a statement, and has nowhere to put one there.");
 
     public static readonly DiagnosticDescriptor UnspecializedPack = new(
         new DiagnosticId("MIST_BE_UNSPECIALIZED_PACK"),

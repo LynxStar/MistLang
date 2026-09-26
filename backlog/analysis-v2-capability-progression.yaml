@@ -2429,6 +2429,12 @@ rules:
         The worklist's iteration to a fixpoint is exercised by every loop in the corpus but cannot be
         told apart from a single pass on an intersection lattice, whose back edges only remove. The
         first customer whose lattice grows along a back edge is the one that will observe it.
+      - >
+        A pattern variable read where it is not definitely assigned passes Stage 5 and is refused by the
+        emitted C# as CS0165: `if(Log.No() || o is Log l) { l.Poke(void); }` is MIST_CS_ERROR on v2, measured
+        2026-09-26 (classic fails the same way). The binding is in scope in the then-branch but assigned only
+        where the `is` held, so the analyzer needs pattern bindings on the graph with the state an `is`
+        leaves when true.
   - id: ownership-borrow-checking
     name: Tiers, moves, lending and the substructural counts
     order: 11

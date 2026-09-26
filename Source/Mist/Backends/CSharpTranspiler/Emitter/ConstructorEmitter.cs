@@ -45,13 +45,25 @@ internal static class ConstructorEmitter
         writer.Write($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({parameters})");
 
         var loweredToCall = declaringType is StructType && structInitNames is not null;
+        var hosted = new List<StatementHost.Hosted>();
 
         if(!loweredToCall && constructor.ChainKind != ConstructorChainKind.None)
         {
             var target = constructor.ChainKind == ConstructorChainKind.This ? "this" : "base";
             writer.Append($" : {target}(");
-            EmitList.Separated(
-                constructor.ChainArgumentsList, ", ", writer, argument => BodyEmitter.EmitExpression(argument, writer, diagnostics));
+            EmitList.Separated(constructor.ChainArgumentsList, ", ", writer, argument =>
+            {
+                if(StatementHost.Emit(
+                    argument,
+                    $"__ChainArgument{argument.Node.Span.Start}",
+                    argument.Type,
+                    constructor.ParametersList,
+                    writer,
+                    diagnostics) is { } host)
+                {
+                    hosted.Add(host);
+                }
+            });
             writer.Append(")");
         }
 
@@ -73,6 +85,8 @@ internal static class ConstructorEmitter
                 BodyEmitter.EmitMethodBody(constructor, constructor.Body, writer, diagnostics);
             }
         }
+
+        StatementHost.EmitMethods(hosted, writer, diagnostics);
     }
 
     private static string ResolveModifiers(Constructor constructor, MemberType declaringType)

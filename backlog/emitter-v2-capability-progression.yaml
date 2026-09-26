@@ -2350,6 +2350,12 @@ capabilities:
         Report a type that cannot be defaulted where something defaults it, rather than silently emitting
         no factory and letting the use site fall to the backend sentinel. Classic's two diagnostics are
         the model. Also report a default block entry naming a member the type does not declare.
+      - >
+        Report a default block entry, and a field initializer in a default context, that is not a
+        compile-time constant (default-keyword Requirements 6.9 and 13.4). Classic reports the first as
+        MIST_DEFAULT_NOT_CONSTANT and refuses `default(T)` on a type whose initializers are not constant as
+        MIST_DEFAULT_NOT_SUPPORTED; v2 admits and runs both, measured 2026-09-26 on
+        `default { Seen = Log.Show(void) }` and on `default(Bare)` over side-effecting initializers.
     unlocks: [DefaultKeyword]
 
   # ===================================================================
@@ -4572,6 +4578,69 @@ capabilities:
       UnitHoistingRuntimeTests, whose trail `kfh`, `xf` and `mfhfk` is the order the program ran in,
       identical to classic's. Ten mutations on confirmed builds each fail at least one test. Full
       suite green, 6038 of 6038.
+
+      CONDITIONALS LOWERED, AND EVERY VALUE GIVEN A STATEMENT TO HOIST INTO (2026-09-26). MEASURED FIRST on
+      v2: one probe per context the refusal named -- `&&`, `||`, `??`, `??=`, a conditional access's
+      arguments, switch arms, a for loop's condition and step, an expression lambda, an expression-bodied
+      property and its accessors, field and property initializers, a base constructor's arguments, a default
+      block entry -- each MIST_BE_UNHOISTED_UNIT_CALL. Classic, measured on the same probes, runs `&&`
+      (`ntfc`), `||` (`tnfc`), `??` and `??=` (`fs`), the conditional access (`Void took`, trail `gT`) and the
+      for condition (`fu0Bfu1Bfu2`) and step (`BfxBfx`); FAILS IN ROSLYN on the switch arms, the lambda, the
+      expression-bodied property and accessors, both initializers and the base arguments ('cannot convert
+      from void to MistVoid'); and refuses the default block entry as MIST_DEFAULT_NOT_CONSTANT. The task's
+      "classic runs all of them but the expression-bodied lambda" was not so.
+
+      A conditional whose operand that may not run takes a unit call's value is lowered to statements
+      (ConditionalLowering), the operand planned afresh inside the branch that runs it, and a temporary
+      takes the conditional's place. `&&` and `||` chains flatten and nest one guard per link that needs
+      statements (GuardChain), the earlier links written as the guards' own tests rather than stored in a
+      boolean, so a pattern variable they bind still reads as assigned later: `if(o is Log l &&
+      l.Has(Log.F())) { l.Poke(void); }` emits `if (o is Log l) { F(); if (l.Has(...)) { ... } }`, a flag
+      carrying an else. An if or while condition splits the same way. A for loop whose clause needs
+      statements becomes its initializer and `while (true)` with the step after the body, sound only because
+      Mist has no `continue`. `??` tests `is { } p`, `??=` tests `is null` and assigns inside, a conditional
+      access stores its receiver once and calls inside `is not null`, and a switch whose arm needs statements
+      becomes a switch statement over the same arm heads, defaulting to SwitchExpressionException. A switch
+      used as a statement with unit arms, `one switch { 1 => F(), _ => G() };`, which failed in Roslyn on
+      BOTH pipelines (CS0201), now runs. An expression lambda, an expression-bodied getter or setter and an
+      extension getter take a block; a field or property initializer and a base or this argument call a
+      private static method holding the statements and taking only the constructor parameters the value
+      reads -- a method rather than a lambda because a by-reference parameter cannot be captured. A default
+      block entry and a struct's chained call sit in a constructor body and hoist in place, as do a `with`
+      value and a discarded task. Whether a call yields nothing is still its method's declared return type,
+      so `Echo<void>(void)` under `&&` is left inline and unrefused.
+
+      AN ORDERING DEFECT IN THE EAGER HOISTING, found and fixed on the way. A value-type receiver and a
+      by-reference argument were left unstored, so the hoisted call ran before what their LOCATION is made
+      of: `Log.MakeBox().Pt.Name = Log.Show(Log.F())` ran `fms` and `Log.Bump(ref arr[Log.Idx()], Log.F())`
+      ran `fi` where classic runs `mfs` and `if`. The object holding the field and the index are now stored
+      ahead of the call, never the value in the location; a value-type receiver that is no location, a struct
+      a call returned, is a copy already and is stored whole (`Log.MakeSpot().Describe(Log.F())` runs `kfD`)
+      unless the call returned it by reference.
+
+      TWO SHAPES STAY REFUSED, each measured: a unit call in a switch arm's GUARD, which C# evaluates in a case
+      label holding no statement, with no way to fall through to the next arm; and a pattern variable bound
+      inside a lowered conditional that is not a condition's top-level `&&` chain and read in the body,
+      reached only as `if(!(!(o is Log l && l.Has(Log.F())))) { l.Poke(void); }`, which v2 admits and
+      classic does not. The planner reports them, once per statement, in place of the four emission sites
+      that each checked their own operand; the message now names which shape it met.
+
+      MEASURED on v2, every trail the order the program ran in: the fifteen probes; nested chains
+      (`tfcngc`); a sibling stored ahead of a lowered chain (`kwfhw`); nested coalesce; a while condition
+      (`fbfbfb`); an else-if; lowered holes; a lowered return; `??=` on a member (`mfsm`) and an index
+      (`ifs`); an await inside the lowered branch of an async method (`fLp`); enum and union switches; an
+      Action lambda; a struct's base chain (`fsgs`); `with`; a lambda called inside a lowered chain. PROVED BY
+      UnitHoistingEmissionTests (each lowering's shape, the stored receiver and target, the location operands,
+      the nested guards in an if and a while, both for-loop clauses, the lambda, getter, initializer and
+      chain-argument hosts, both refusals) and UnitHoistingRuntimeTests, whose sixteen trails show each call
+      run once where its value is taken, never on a branch not taken, at the right iteration, and not before
+      a lambda holding it is called. Eleven mutations on confirmed
+      builds each fail at least one test: a swapped coalesce, a chain that never splits, unstored location
+      operands, the step before the body, an unstored receiver or target, a host forwarding no parameter, a
+      dropped guard refusal, a conjunction starting true, an else flag never set, a re-emitted lowered root,
+      an unhoisted lambda body. The re-emitted root survived until an Action lambda over a conditional access
+      joined the emission tests. Full suite green on the tree
+      rebased onto c9fe3dda: Mist.Tests 6874 of 6874, AllFeatures and AllFeaturesV2 baselines unchanged.
     tasks:
       - >
         Emit Standard.Void by transpiling Standard/Void.mist rather than generating the C#
@@ -4580,14 +4649,14 @@ capabilities:
         reimplementing it. Still waits on properties, operator declarations and cast operator
         declarations, all of which Void.mist uses.
       - >
-        Take the value of a unit-valued call where hoisting cannot: under an operand that may not
-        run (the right of `&&` or `||`, a coalesce, a conditional access, a switch arm, a `??=`
-        value), in a `for` loop's condition or step, and in an expression with no statement of its
-        own -- an expression-bodied lambda, member or local function, a field or property
-        initializer, a default block entry, a constructor's base arguments. Each is
-        MIST_BE_UNHOISTED_UNIT_CALL today. The first needs the conditional lowered to statements,
-        the rest a statement to hoist into. Classic runs all of them but the expression-bodied
-        lambda, which fails in Roslyn there too.
+        DELIVERED 2026-09-26 but for two shapes; see the evidence above. Take the value of a unit-valued
+        call where hoisting cannot: under an operand that may not run, in a `for` loop's condition or
+        step, and in an expression with no statement of its own. STILL MIST_BE_UNHOISTED_UNIT_CALL: a
+        unit call in a switch arm's guard, which needs the switch lowered to a chain of tests, a case
+        being unable to fall through to the next arm; and a pattern variable bound inside a lowered
+        conditional that is not a condition's top-level `&&` chain and read after it, which needs the
+        variable declared ahead and copied in. The only program known to reach the second is the
+        double negation in the evidence.
       - >
         Wrap rather than convert where a unit-returning method is used as a function value,
         since Func<Standard.Void> cannot bind a void-returning method. Waits on lambdas and

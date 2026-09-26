@@ -50,8 +50,9 @@ internal static class FieldEmitter
         }
 
         writer.Write($"{emittedModifiers}{typeName} {field.Name} = ");
-        BodyEmitter.EmitExpression(field.Initializer, writer, diagnostics);
+        var hosted = StatementHost.Emit(field.Initializer, $"__Initialize{field.Name}", type, [], writer, diagnostics);
         writer.Append(";");
         writer.AppendLine();
+        StatementHost.EmitMethods(hosted is null ? [] : [hosted], writer, diagnostics);
     }
 }

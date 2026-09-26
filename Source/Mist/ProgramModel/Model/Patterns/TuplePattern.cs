@@ -7,7 +7,7 @@ namespace Mist.ProgramModel.Model.Patterns;
 /// <c>(p, q, ...)</c>. Each element pattern matches against the element the scrutinee holds at that
 /// position, so an element's type is its subpattern's scrutinee and nesting narrows progressively.
 /// <para>
-/// The one pattern kind that carries a binding of its own ALONGSIDE its subpatterns'.
+/// A whole-value binding coexists with the element bindings, as it does for a property pattern.
 /// <c>x is (int a, int b) whole</c> keeps three names, and only one of them belongs to this node --
 /// which is what <see cref="Pattern.Binding"/> being singular per node means, rather than a pattern
 /// having at most one binder anywhere beneath it.

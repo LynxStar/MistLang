@@ -5830,7 +5830,7 @@ capabilities:
     order: 93
     layer: patterns
     requires: [pattern-matching-core, property-declarations-and-accessors]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
       A subpattern name is a MEMBER, and it resolves through MemberResolution.ResolveStorage -- the same
@@ -5846,10 +5846,11 @@ capabilities:
       AMBIGUOUSLY. Both are the pre-existing ConstructedType gap that program-model-body-tasks.yaml
       records under members, not something this order introduced or should paper over.
 
-      MULTIPLE BINDERS COME FROM THE SUBPATTERNS. `{ Age: int years, Name: var who }` yields two, each on
-      its own subpattern, and PropertyPattern.Binding is null. That is half of what this order was to
-      test about Pattern.Binding being singular per node, and the half that held. The OTHER half could
-      not be tested at all: see the grammar note below.
+      WHOLE AND MEMBER BINDINGS COEXIST. `value is Dog { Breed: var breed } dog` keeps the resolved
+      TypeTestPattern on PropertyPattern, its whole binding as Dog, and breed on the subpattern as
+      String. An untyped `{ Name: var name } whole` binds whole as the non-void scrutinee type. Both
+      kinds of binding are declared in the caller's scope, and LocalNames visits both; condition
+      headers have their own naming scope so later locals and else branches can reuse those names.
 
       SCOPE IS INHERITED, NOT REBUILT. Each subpattern's binder is declared into whatever scope the
       caller put in effect, so orders 90 and 95 already decided where it reaches -- the rest of its own
@@ -5860,53 +5861,44 @@ capabilities:
       MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED -- mutation-checked by threading `true` instead, which fails
       exactly the two tests that claim it.
 
-      TWO GRAMMAR SLOTS ARE SPELLED AND UNREACHABLE, which is why this is `partial` rather than `done`,
-      and neither is a binder gap:
+      BOTH GRAMMAR SLOTS PARSE AND ROUND-TRIP. PropertyPattern precedes BareTypePattern in the ordered
+      choice. Storm consumes optional pure-token alternatives, preserving the shared Token? Name AST
+      API and admitting both a trailing identifier and discard. A missing brace still backtracks to
+      the existing bare type form. Parser coverage exercises typed, qualified, alias, untyped, empty,
+      discard, conjunct and switch spellings.
 
-      - The leading `Type` in `Type { ... }` cannot parse. BareTypePattern sits above PropertyPattern in
-        PrimaryPattern's ordered choice and claims the identifier first, so `a is Dog { }` leaves the
-        brace unconsumed and fails as MIST_PARSE_INCOMPLETE at the enclosing member. Fixing it is a
-        grammar reorder -- safe in PEG terms, since the alternative resets on a missing LEFT_BRACE -- and
-        it then owes the typed form a type test, which means deciding whether it reuses TypeTestPattern's
-        constituent resolution for a union scrutinee.
-
-      - The trailing `name` in `{ ... } p` cannot parse either, and this one is a GENERATOR gap rather
-        than an ordering one: Storm emits no parse code for an optional GROUP. `_ParsePrimaryPattern`
-        declares `Token? _Name = null` under the comment "Optional complex expression" and consumes
-        nothing, so the slot is structurally always null. The non-optional form works -- TypePattern's
-        `name:(IDENTIFIER | DISCARD)` parses -- so the cheap fix is to split the alternative in two, the
-        named one first, exactly as ObjectCreationExpression and ObjectCreationExpressionNoArgs are
-        already split for the same reason.
-
-      Both slots are REFUSED rather than ignored: BindPropertyPattern parks the pattern when either is
-      filled, so whichever fix lands surfaces as an unsupported form instead of silently dropping a type
-      test or a binder that source did spell.
+      THE PREFIX IS RESOLVED BEFORE MEMBER LOOKUP. Qualified names use the scope's type lookup, then
+      aliases expand before binding the runtime test. Closed generic aliases substitute member types
+      without adding new generic-pattern syntax. Optional aliases test their non-void portion, since
+      the property clause proves presence, so members and whole bindings use the present type.
+      The retained TypeTestPattern carries union constituent discrimination and refinement predicates
+      through the existing type-test path. Native C# typed
+      property patterns gate member reads behind the runtime type test; null and mismatched values fail
+      without invoking getters. Union is-tests and switch arms read the selected constituent accessor.
 
       THREE WAYS A SUBPATTERN NAME FAILS, on the two channels order 90 established. Resolving to nothing
       or ambiguously is MemberResolution's own MIST_PM_UNRESOLVED_MEMBER, and the pattern narrows to
       ErrorType so BindIs answers ErrorExpression through the check it already makes. Resolving to a
       method, a nested type or an enum member is new: MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE, the sibling
-      of InitializerTargetNotAssignable worded for matching rather than assignment. And a scrutinee with
-      no members to speak of -- unknown, or a type that already failed -- parks the whole `is` as
-      UnresolvedExpression, because MemberResolution suppresses its report there and an ErrorExpression
-      with nothing reported is the one outcome the two channels forbid. `u is { }` still binds, having
-      nothing to look up, and means non-null as it does in C#.
+      of InitializerTargetNotAssignable worded for matching rather than assignment. A scrutinee whose
+      type already failed parks the whole `is` as UnresolvedExpression, because MemberResolution
+      suppresses its report there and an ErrorExpression with nothing reported is the one outcome the
+      two channels forbid. Unknown member reads retain the dynamic lowering described below.
+      `u is { }` binds, having nothing to look up, and means non-null as it does in C#.
 
       AN OPTIONAL SCRUTINEE IS PROJECTED. Members are looked up on OptionalLifting.NonVoidPortion, since
       a property pattern only matches a value that is present -- `maybe is { Length: > 3 }` on a
       `string?` resolves and narrows to String. Without it a union would be asked for members it declares
       none of and every such pattern would report a member that is really there. A NON-optional union is
-      left alone: it reaches EmitUnionNarrowing's existing UnsupportedUnionPattern guard, which is
-      correct until the typed form can name a constituent.
+      left alone for an untyped pattern: it reaches EmitUnionNarrowing's existing UnsupportedUnionPattern
+      guard. A typed pattern names and resolves its constituent through the standalone type-test path.
 
-      NOT BANKED, AND EMISSION IS THEREFORE NOT REGRESSION-LOCKED. PatternMatching and SwitchExpressions
-      both require this order but bottom out at order 125 (list-and-slice-patterns), so no sample can
-      carry it and none was invented for it. Emission was verified by hand instead, end to end on the
-      experimental pipeline over eight forms in one program -- `{ }`, two binders, a nested property
-      pattern, a primitive scrutinee, `or` and `and not` between property patterns, switch arms with a
-      `when` guard, and type-test subpatterns -- all producing correct output and C# that matches the
-      source shape. What is missing is a test that would notice if that stopped being true; the sample at
-      order 125 is where it comes from.
+      COVERAGE IS SPLIT BY PHASE. PropertyPatternResolutionTests pins tested-type member resolution,
+      aliases, narrowing, simultaneous bindings, conjunct and arm scope, and or/not restrictions.
+      BodyWalkerCoverageTest and FlowGraphTests pin traversal and successful-path binding. Direct-model
+      emission and batched in-process Roslyn runtime coverage pin null/mismatch getter short-circuiting,
+      whole/subbinding use, guards/results and naming collisions. PatternMatching and SwitchExpressions
+      are also composed in AllFeaturesV2; the new forms do not change their stdout baselines.
       
       AN UNKNOWN SCRUTINEE NOW ANSWERS EVERY MEMBER NAME, with unknown, where it used to park the whole
       `is` as UnresolvedExpression. Nothing is known about the shape, so the member can be called neither
@@ -5940,19 +5932,7 @@ capabilities:
       UnsupportedEnumPattern meets. Classic emits broken C# for these instead. Untested below Tier 6, for
       this order's existing reason: no harness asserts on a v2 emission refusal, and its two siblings have
       none either.
-    tasks:
-      - >
-        Move the PropertyPattern alternative above BareTypePattern in PrimaryPattern, so `Dog { ... }`
-        parses, then give the leading type name a type test. It is a QualifiedIdentifier rather than a
-        TypeReference, so it bypasses ScopeResolver.ResolveNamed and must expand aliases itself -- the
-        same trap ExpressionBinder.BindNamedCreation documents for `new` -- and a generic type name stays
-        out of reach either way.
-      - >
-        Split the alternative in two so the trailing binding parses, the named form first. The optional
-        GROUP is what Storm cannot generate; the non-optional form generates fine. Emission then has to
-        spell `{ ... } p`, and PropertyPattern.Binding stops being unconditionally null -- which is what
-        finally tests the claim that a pattern's own binder and its subpatterns' binders are separate
-        slots.
+    tasks: []
     analysis_phase_tasks:
       - >
         DECIDE WHETHER A RELATIONAL SUBPATTERN ON AN UNKNOWN MEMBER STAYS ADMITTED. Classic refuses
@@ -7460,15 +7440,14 @@ capabilities:
       MIST_PM_LIST_PATTERN_SCRUTINEE.
 
       BINDERS ALL LIVE ON THE ELEMENTS, the slice included, and the node carries none. The grammar
-      spells no trailing name here at all, so this is PropertyPattern's situation and not
-      TuplePattern's -- Pattern.Binding stays singular per node with multiplicity coming from the
+      spells no trailing name here at all -- Pattern.Binding stays singular per node with multiplicity coming from the
       recursion. A positional element threads the order 99 hoisting list as a tuple element does,
       being the same kind of binding site; a SLICE clears it, since lifting an enum variant out of one
       would compare a sub-sequence against a variant.
 
       EVERY REACHABLE PrimaryPattern ALTERNATIVE IS NOW BOUND. All thirteen the grammar generates have
       arms, so BindPrimary's `default: return null` is unreachable from any spelling and parking now
-      happens only inside an arm -- a property pattern's two unreachable slots, a tuple pattern whose
+      happens only inside an arm -- a property member whose type failed, a tuple pattern whose
       elements name no type, a list pattern whose element fails to bind. Two tests that had used a
       list pattern AS the unmodelled form were retargeted: PatternResolutionTests lost
       AListPattern_ParksUnresolvedWithoutADiagnostic outright, and SwitchExpressionResolutionTests'

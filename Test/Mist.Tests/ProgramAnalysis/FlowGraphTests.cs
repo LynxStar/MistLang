@@ -130,6 +130,33 @@ public sealed class FlowGraphTests : ProgramModelProbe
         Assert.Equal([0], atElse);
     }
 
+    [Theory]
+    [InlineData("unknown value = new Dog();", "Dog { Name: var part } whole")]
+    [InlineData("Dog? value = new Dog();", "{ Name: var part } whole")]
+    public void PropertyPatternBindingsAreBoundTogetherOnTheMatchedPathOnly(string declaration, string pattern)
+    {
+        var body = BodyIn($"{declaration} if(value is {pattern}) {{ var kept = whole; var piece = part; }} else {{ var failed = 42; }}");
+        var graph = FlowGraphBuilder.Build(body);
+        var solution = FlowSolution<int>.Solve(graph, new BindCount(), 0);
+        var atRead = new List<int>();
+        var atElse = new List<int>();
+
+        solution.Replay((state, step) =>
+        {
+            if(step.Node is LocalReferenceExpression { Local.Name: "whole" or "part" })
+            {
+                atRead.Add(state);
+            }
+            else if(IsLiteral(step.Node, 42))
+            {
+                atElse.Add(state);
+            }
+        });
+
+        Assert.Equal([2, 2], atRead);
+        Assert.Equal([0], atElse);
+    }
+
     [Fact]
     public void AReturnEndsItsPathAndAJoinContinuesTheOthers()
     {

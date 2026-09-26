@@ -27,7 +27,7 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 /// re-derives the parentheses from precedence, as it does for expressions.
 /// </para>
 /// </summary>
-internal static class PatternBinder
+internal static partial class PatternBinder
 {
     internal static Pattern? Bind(
         PatternNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context)
@@ -291,7 +291,7 @@ internal static class PatternBinder
             node, new TypeReferenceExpression(node, enumType), variantName, enumType);
     }
 
-    private static Pattern BindTypeTest(
+    private static TypeTestPattern BindTypeTest(
         PrimaryPatternNode node,
         IMistType tested,
         LocalVariable? binding,
@@ -320,68 +320,6 @@ internal static class PatternBinder
         // ErrorType rather than the tested type, so BindIs answers with an ErrorExpression through the
         // check it already makes instead of needing a second channel for "reported but shaped fine".
         return new TypeTestPattern(node, ErrorType.Instance, binding, constituent: null);
-    }
-
-    /// <summary>
-    /// A subpattern names a MEMBER, resolved against the scrutinee's own type -- which is the whole of
-    /// what makes <c>{ Length: &gt; 3 }</c> mean something on a string -- and the member's type is then
-    /// the subpattern's scrutinee, so nesting narrows progressively without this method counting depth.
-    /// <para>
-    /// Two of the grammar's slots are refused rather than ignored. A leading type name is unreachable
-    /// because BareTypePattern claims the identifier first in the ordered choice, and a trailing binding
-    /// is unreachable because the parser generator emits no code for an optional group -- so filling
-    /// either one means the grammar changed, and parking says so instead of quietly dropping a type test
-    /// or a binder that the source did spell.
-    /// </para>
-    /// </summary>
-    private static Pattern? BindPropertyPattern(
-        PropertyPatternPrimaryPatternNode node,
-        IMistType scrutineeType,
-        bool bindingsPermitted,
-        BindingContext ctx,
-        BuilderContext context)
-    {
-        if(node.TypeName is not null || node.Name is not null)
-        {
-            return null;
-        }
-
-        var matched = OptionalLifting.NonVoidPortion(scrutineeType, context.ProgramModel.TypeInterner);
-        var subpatterns = new List<PropertySubpattern>();
-        var narrowed = matched;
-
-        foreach(var subpattern in Subpatterns(node.Subpatterns))
-        {
-            var memberName = subpattern.Name.Lexeme;
-            var (resolved, found) = MemberResolution.ResolveStorage(matched, memberName, subpattern, context);
-
-            // UNKNOWN ANSWERS EVERY MEMBER NAME, with unknown. Nothing is known about the scrutinee's
-            // shape, so the member cannot be named as missing either -- which is what asking an
-            // anonymous type held as unknown for a property IS, and the whole of what the pattern is
-            // for. The read is the emitter's to defer to the runtime.
-            var memberType = resolved ?? (matched is UnknownType ? UnknownType.Instance : null);
-
-            if(memberType is null)
-            {
-                if(!MemberResolution.AnswersMembers(matched))
-                {
-                    return null;
-                }
-
-                ReportSubpatternNotStorage(found, matched, memberName, subpattern, context);
-                narrowed = ErrorType.Instance;
-                continue;
-            }
-
-            if(Bind(subpattern.Pattern, memberType, bindingsPermitted, ctx, context) is not { } bound)
-            {
-                return null;
-            }
-
-            subpatterns.Add(new PropertySubpattern(subpattern, memberName, bound, memberType, found));
-        }
-
-        return new PropertyPattern(node, narrowed, subpatterns);
     }
 
     private static Pattern? BindTuplePattern(
@@ -611,25 +549,6 @@ internal static class PatternBinder
             namedTuple.Underlying,
             matched is ITupleType ? null : namedTuple.Underlying,
             Declare(node, name, namedTuple.Underlying, bindingsPermitted, ctx, context));
-    }
-
-    private static void ReportSubpatternNotStorage(
-        LookupResult found,
-        IMistType matched,
-        string memberName,
-        SyntaxNode node,
-        BuilderContext context)
-    {
-        if(found is MethodGroupResult or TypeResult or EnumMemberResult)
-        {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.PatternSubpatternNotStorage, node, null, matched.Name, memberName);
-        }
-    }
-
-    private static IReadOnlyList<PropertySubpatternNode> Subpatterns(PropertySubpatternListNode? list)
-    {
-        return list is null ? [] : GrammarRepetition.LeadAndRepeated(list.PropertySubpattern, list.PropertySubpatterns);
     }
 
     private static IReadOnlyList<ListPatternElementNode> Elements(ListPatternElementListNode? list)

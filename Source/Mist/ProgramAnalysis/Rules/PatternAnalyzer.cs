@@ -86,6 +86,11 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
                 break;
 
             case PropertyPattern property:
+                if(property.TypeTest is { } typeTest)
+                {
+                    Walk(context, typeTest, input, about);
+                }
+
                 foreach(var subpattern in property.Subpatterns)
                 {
                     Walk(context, subpattern.Pattern, subpattern.MemberType, about);

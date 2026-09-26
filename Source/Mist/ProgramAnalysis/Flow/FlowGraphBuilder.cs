@@ -308,7 +308,11 @@ internal sealed class FlowGraphBuilder
                 }
 
             case PropertyPattern property:
-                return All(property.Subpatterns.Select(subpattern => subpattern.Pattern), current);
+                {
+                    var (matched, unmatched) = property.TypeTest is { } typeTest ? Pattern(typeTest, current) : Split(current);
+                    var (all, some) = All(property.Subpatterns.Select(subpattern => subpattern.Pattern), matched);
+                    return Bound(pattern, all, Join(unmatched, some));
+                }
 
             case TuplePattern tuple:
                 {

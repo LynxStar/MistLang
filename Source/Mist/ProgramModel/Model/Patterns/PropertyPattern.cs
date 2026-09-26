@@ -5,25 +5,24 @@ using Storm.Runtime;
 namespace Mist.ProgramModel.Model.Patterns;
 
 /// <summary>
-/// <c>{ Member: p, ... }</c>. Each subpattern names a member of the scrutinee's own type and matches
-/// against what that member holds, so the member's type is the subpattern's scrutinee and nesting
-/// narrows progressively.
-/// <para>
-/// Keeps no binding of its own, and not because a property pattern could not carry one -- the grammar
-/// spells a trailing name -- but because nothing can reach that slot yet, so a binder here would be a
-/// slot no source fills. The binders a property pattern contributes therefore all live on its
-/// SUBPATTERNS, which is where <see cref="Pattern.Binding"/> being singular per node puts them: several
-/// out of one pattern comes from the recursion.
-/// </para>
+/// Members resolve against the type established by <see cref="TypeTest"/>, or the present portion of
+/// the scrutinee's type for an untyped pattern. The whole-value binding belongs to this node while
+/// each member binding belongs to its subpattern, so both survive independently.
 /// </summary>
 internal sealed class PropertyPattern(
-    SyntaxNode node, IMistType narrowedType, IReadOnlyList<PropertySubpattern> subpatterns) : Pattern(node)
+    SyntaxNode node,
+    IMistType narrowedType,
+    IReadOnlyList<PropertySubpattern> subpatterns,
+    LocalVariable? binding = null,
+    TypeTestPattern? typeTest = null) : Pattern(node)
 {
     public IReadOnlyList<PropertySubpattern> Subpatterns { get; } = subpatterns;
 
+    public TypeTestPattern? TypeTest { get; } = typeTest;
+
     public override IMistType NarrowedType { get; } = narrowedType;
 
-    public override LocalVariable? Binding => null;
+    public override LocalVariable? Binding { get; } = binding;
 }
 
 internal sealed record PropertySubpattern(SyntaxNode Node, string MemberName, Pattern Pattern, IMistType MemberType, LookupResult Member);

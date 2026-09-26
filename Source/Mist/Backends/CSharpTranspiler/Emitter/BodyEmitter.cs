@@ -1552,7 +1552,7 @@ internal static class BodyEmitter
             return;
         }
 
-        if(isPattern.Pattern is not TypeTestPattern { Constituent: { } constituent })
+        if(PatternConstituent(isPattern.Pattern) is not { } constituent)
         {
             diagnostics.ReportAtNode(
                 BackendDiagnostics.UnsupportedUnionPattern, isPattern.Node, null, union.Name);
@@ -1671,7 +1671,7 @@ internal static class BodyEmitter
             return;
         }
 
-        if(pattern is not TypeTestPattern { Constituent: { } constituent })
+        if(PatternConstituent(pattern) is not { } constituent)
         {
             diagnostics.ReportAtNode(
                 BackendDiagnostics.UnsupportedUnionPattern, pattern.Node, null, union.Name);
@@ -1682,6 +1682,16 @@ internal static class BodyEmitter
         writer.Append($"{{ {UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent))}: ");
         EmitPattern(pattern, 0, hoisted: null, writer, diagnostics);
         writer.Append(" }");
+    }
+
+    private static IMistType? PatternConstituent(Pattern pattern)
+    {
+        return pattern switch
+        {
+            TypeTestPattern typeTest => typeTest.Constituent,
+            PropertyPattern property => property.TypeTest?.Constituent,
+            _ => null,
+        };
     }
 
     /// <summary>
@@ -2160,19 +2170,19 @@ internal static class BodyEmitter
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
-        if(property.Subpatterns.Count == 0)
-        {
-            writer.Append("{ }");
-            return;
-        }
-
-        if(property.NarrowedType is UnknownType)
+        if(property.NarrowedType is UnknownType && property.Subpatterns.Count > 0)
         {
             EmitUnknownPropertyPattern(property, hoisted, writer, diagnostics);
             return;
         }
 
-        writer.Append("{ ");
+        if(property.TypeTest is { } typeTest)
+        {
+            EmitTypeTest(typeTest, hoisted, writer, diagnostics);
+            writer.Append(typeTest.Refinement is null && !typeTest.TestsAbsence ? " " : " and ");
+        }
+
+        writer.Append(property.Subpatterns.Count == 0 ? "{ }" : "{ ");
 
         EmitList.Separated(property.Subpatterns, ", ", writer, subpattern =>
         {
@@ -2180,7 +2190,15 @@ internal static class BodyEmitter
             EmitPattern(subpattern.Pattern, 0, hoisted: null, writer, diagnostics);
         });
 
-        writer.Append(" }");
+        if(property.Subpatterns.Count > 0)
+        {
+            writer.Append(" }");
+        }
+
+        if(property.Binding is { } whole)
+        {
+            writer.Append($" {LocalNames.Of(whole)}");
+        }
     }
 
     /// <summary>
@@ -2214,7 +2232,7 @@ internal static class BodyEmitter
             return;
         }
 
-        var bound = TemporaryName();
+        var bound = property.Binding is { } whole ? LocalNames.Of(whole) : TemporaryName();
         writer.Append($"not null and var {bound}");
 
         foreach(var subpattern in property.Subpatterns)
@@ -2233,6 +2251,7 @@ internal static class BodyEmitter
             DisjunctionPattern => DisjunctionPrecedence,
             ConjunctionPattern => ConjunctionPrecedence,
             TypeTestPattern { Refinement: not null } => ConjunctionPrecedence,
+            PropertyPattern { TypeTest.Refinement: not null } => ConjunctionPrecedence,
             NegatedPattern => NegationPrecedence,
             _ => int.MaxValue,
         };

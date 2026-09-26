@@ -1894,7 +1894,9 @@ rules:
       a conjunct's predecessor's narrowing, a member's, a tuple element's -- so one walk reaches the
       top-level test, the subpattern order 93 asked for, the tuple element order 103 asked for, and the
       conjunct order 92 hit while writing its sample. PropertySubpattern now records the member's type,
-      which the binder had and dropped.
+      which the binder had and dropped. Typed property patterns retain their leading TypeTestPattern;
+      the walker visits it and this rule judges it against the original input before member subpatterns.
+      The typed-property-pattern-never-matches refusal and admitted derived/unknown tests pin that path.
 
       CLASSIC'S VERDICTS ARE THE CONTRACT, measured on a 20-shape probe. Classic refuses a relational
       pattern on a type with no comparison operators and a constant of an incomparable type (TC_0051

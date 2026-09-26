@@ -64,7 +64,6 @@ public sealed class RangeCaptureDecisionTests
     [InlineData("int end = 3; Range window = 0..end; var change = () => { end = 0; }; change(); var slice = numbers[window]; var last = slice[0];")]
     [InlineData("int end = Pick.End(3); Range window = 0..end; if(flag) { end = 3; window = 0..end; } var slice = numbers[window]; var last = slice[0];")]
     [InlineData("int end = 3; ref int alias = end; Range window = 0..alias; alias = 0; var slice = numbers[window]; var last = slice[0];")]
-    [InlineData("Index end = ^1; Range window = 0..end; var slice = numbers[window]; var last = slice[0];")]
     [InlineData("int end = 3; Range window = 0..end; Pick.Change(ref end); var slice = numbers[window]; var last = slice[0];")]
     public void LaterFactsAndAliasedWrites_DoNotProveAnEarlierUnknownCapture(string statements)
     {

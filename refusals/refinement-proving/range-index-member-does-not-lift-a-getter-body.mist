@@ -1,0 +1,18 @@
+using Standard;
+
+namespace Refusal;
+
+public class Holder { public Index End { get { return ^1; } } }
+
+public class Probe
+{
+    public static void Main()
+    {
+        var numbers = [10, 20, 30, 40, 50];
+        var holder = new Holder();
+        Range window = 0..holder.End;
+        var slice = numbers[window];
+        // REFUSE: MIST_PA_INDEX_UNPROVEN
+        Console.WriteLine(slice[0]);
+    }
+}

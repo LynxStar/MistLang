@@ -1,0 +1,17 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        var numbers = [10, 20, 30, 40, 50];
+        bool flag = true;
+        Index end = ^1;
+        if(flag) { end = 4; }
+        var slice = numbers[0..end];
+        // REFUSE: MIST_PA_INDEX_UNPROVEN
+        Console.WriteLine(slice[0]);
+    }
+}

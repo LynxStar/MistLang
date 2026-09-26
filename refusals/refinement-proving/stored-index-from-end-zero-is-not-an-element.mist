@@ -1,0 +1,14 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        var numbers = [10, 20, 30, 40, 50];
+        Index edge = ^0;
+        // REFUSE: MIST_PA_INDEX_OUT_OF_BOUNDS
+        Console.WriteLine(numbers[edge]);
+    }
+}

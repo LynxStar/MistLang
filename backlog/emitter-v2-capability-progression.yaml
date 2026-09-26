@@ -5636,6 +5636,25 @@ capabilities:
       designates a variant, there being no other way to choose between them -- where a class is
       defaultable when each field has a zero of its own. An enum designating none falls to the sentinel,
       which is what a non-defaultable class does.
+
+      A NESTED ENUM WAS SPELLED BARE (2026-09-26). TypeNameEmitter sent every member type through the
+      namespace-and-nesting qualification and let an enum -- a DeclaredType, not a MemberType -- fall to its
+      simple name, so `Gauge.Mode` named from another type reached Roslyn as `Mode`, "could not be found": as
+      a local's type, a parameter's, a variant in an expression and a variant in a pattern alike, all four
+      going through that one spelling. An enum is now qualified as every declared type is -- `Probe.Gauge.Mode`,
+      and a top-level one `Probe.Mode`, which C# resolved already from the file's namespace but which carried
+      the cross-project collision ShouldQualify exists for. Classic refuses the qualification
+      (MIST_UNDEFINED_TYPE), so no sample reached it and no baseline says what classic prints; read against
+      the program, the repro prints `on` then `done`, and a nested enum as a parameter, a local, an argument
+      and a pattern prints `off`, `on` and `off matched`. `Console.WriteLine(mode)` prints the underlying
+      value, 1, on both pipelines alike -- the implicit conversion to byte outranking object -- which is not
+      this. PROVED BY EnumTypeNameEmissionTests (Tier 1): a top-level enum, a nested one and one nested two
+      deep, over hand-built types. Two mutations, each caught: the enum arm removed (all three rows) and the
+      nesting walk narrowed to member types (the two nested rows). AllFeaturesV2 run by hand was
+      byte-identical; six book snippets regenerated to the qualified spelling, the second SnippetEmitter
+      pass reporting nothing to update. One of them names an enum `Environment`, now `Enums.Environment`,
+      which a bare spelling left one `using System` away from System.Environment. The full suite -- 7473,
+      708 and 68 tests -- passed with no failure and no rerun.
     analysis_phase_tasks:
       - >
         Report a base type that is not deeply readonly, including every constituent of a union base.

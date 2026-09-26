@@ -15,7 +15,8 @@ internal sealed class MemberAccessExpression(
     IMistType type,
     IReadOnlyList<IMistType>? typeArguments = null,
     bool isConditional = false,
-    LookupResult? member = null) : Expression(node)
+    LookupResult? member = null,
+    bool isFailed = false) : Expression(node)
 {
     /// <summary>
     /// The expression whose member is being accessed.
@@ -48,4 +49,14 @@ internal sealed class MemberAccessExpression(
     /// Null where the access resolved no member of its own: a spread element, a callee.
     /// </summary>
     public LookupResult? Member { get; } = member;
+
+    /// <summary>
+    /// The member did not resolve and the binder said so, which makes any complaint about this value a
+    /// second complaint about one mistake -- see
+    /// <see cref="Construction.Binding.PriorFailure"/>. Carried rather than re-derived from
+    /// <see cref="Member"/>, because the same unresolved result is a spoken refusal on a type that
+    /// answers members and a silence on one that does not, and reading it as a refusal where nothing was
+    /// said would swallow the only diagnostic an unknown receiver gets.
+    /// </summary>
+    public bool IsFailed { get; } = isFailed;
 }

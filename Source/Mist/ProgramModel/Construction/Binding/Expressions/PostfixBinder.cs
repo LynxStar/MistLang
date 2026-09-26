@@ -438,7 +438,7 @@ internal static class PostfixBinder
     internal static Expression BindDrop(
         Storm.Runtime.SyntaxNode node, Expression task, bool isImplicit, BindingContext ctx, BuilderContext context)
     {
-        var (found, constructed) = MemberResolution.Resolve(
+        var (found, constructed, _) = MemberResolution.Resolve(
             task.Type, "Drop", MemberVisibility.InstanceOnly, node, context, ctx.Scope);
 
         if(found is not MethodGroupResult { Methods.Count: > 0 } group)
@@ -508,7 +508,7 @@ internal static class PostfixBinder
         var interner = context.ProgramModel.TypeInterner;
         var projected = OptionalLifting.NonVoidPortion(receiver.Type, interner);
 
-        var (found, constructed) = MemberResolution.Resolve(
+        var (found, constructed, reported) = MemberResolution.Resolve(
             projected, memberName, MemberVisibility.InstanceOnly, node, context, ctx.Scope);
 
         if(found is MethodGroupResult { Methods.Count: > 0 } group)
@@ -527,7 +527,8 @@ internal static class PostfixBinder
         var lifted = OptionalLifting.Lift(
             resolved, context.Resolver.LookupWellKnown(WellKnownTypes.Void), interner);
 
-        return new MemberAccessExpression(node, receiver, memberName, lifted, isConditional: true, member: found);
+        return new MemberAccessExpression(
+            node, receiver, memberName, lifted, isConditional: true, member: found, isFailed: reported);
     }
 
     private static Expression BindMemberAccess(Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BindingContext ctx, BuilderContext context)
@@ -541,7 +542,7 @@ internal static class PostfixBinder
             return BindQualifiedName(node, namespaceRef, memberName, context);
         }
 
-        var (found, constructed) = ResolveMember(receiver, memberName, node, ctx, context);
+        var (found, constructed, reported) = ResolveMember(receiver, memberName, node, ctx, context);
 
         if(found is MethodGroupResult { Methods.Count: > 0 } group)
         {
@@ -585,7 +586,7 @@ internal static class PostfixBinder
             context.Resolver.LookupWellKnown(WellKnownTypes.Void),
             context.ProgramModel.TypeInterner);
 
-        return new MemberAccessExpression(node, receiver, memberName, resolved, member: found);
+        return new MemberAccessExpression(node, receiver, memberName, resolved, member: found, isFailed: reported);
     }
 
     /// <summary>
@@ -615,7 +616,7 @@ internal static class PostfixBinder
     /// exclude the wrong ones rather than resolve and then reject them.
     /// </para>
     /// </summary>
-    private static (LookupResult Found, ConstructedType? Constructed) ResolveMember(
+    private static MemberResolution.MemberLookup ResolveMember(
         Expression receiver, string memberName, Storm.Runtime.SyntaxNode node, BindingContext ctx, BuilderContext context)
     {
         // A pack named in expression position is not a type being asked for a static member: it IS

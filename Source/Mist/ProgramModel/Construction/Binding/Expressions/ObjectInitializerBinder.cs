@@ -88,7 +88,7 @@ internal static class ObjectInitializerBinder
         }
 
         var value = ExpressionBinder.BindExpression(expressionNode, ctx, context);
-        var (found, constructed) = MemberResolution.Resolve(
+        var (found, constructed, _) = MemberResolution.Resolve(
             type, "Add", MemberVisibility.InstanceOnly, assignment, context, ctx.Scope);
 
         if(found is not MethodGroupResult { Methods.Count: > 0 } group)

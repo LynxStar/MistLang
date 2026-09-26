@@ -1,0 +1,13 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        int k = 5;
+        // REFUSE: MIST_PM_UNRESOLVED_MEMBER
+        Console.WriteLine(k.Nope());
+    }
+}

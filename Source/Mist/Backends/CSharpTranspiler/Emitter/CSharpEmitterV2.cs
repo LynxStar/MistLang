@@ -715,10 +715,10 @@ internal sealed class CSharpEmitterV2
             }
 
             first = false;
-            writer.WriteLine($"public interface {name}<T>");
+            writer.WriteLine($"public interface {name}<{ConstructorConstraintInterfaces.TypeParameters(signature)}>");
             using(writer.Block())
             {
-                var parameters = ConstructorConstraintInterfaces.Parameters(signature);
+                var parameters = ConstructorConstraintInterfaces.DeclaredParameters(signature);
                 writer.WriteLine(
                     $"static abstract T {ConstructorConstraintInterfaces.MemberName}({parameters});");
             }

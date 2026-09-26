@@ -87,7 +87,10 @@ internal sealed class ConstraintClosureRegistry
                     continue;
                 }
 
-                _ = closures.TryAdd((argument, Key(signature)), new ConstraintClosure(argument, signature, node));
+                var closed = signature.Select(type => closing.Apply(type, interner: null)).ToList();
+
+                _ = closures.TryAdd(
+                    (argument, $"{Key(signature)}|{Key(closed)}"), new ConstraintClosure(argument, signature, closed, node));
             }
         }
     }
@@ -114,7 +117,7 @@ internal sealed class ConstraintClosureRegistry
 }
 
 internal sealed record ConstraintClosure(
-    IMistType TypeArgument, IReadOnlyList<IMistType> Signature, SyntaxNode Node);
+    IMistType TypeArgument, IReadOnlyList<IMistType> Signature, IReadOnlyList<IMistType> Closed, SyntaxNode Node);
 
 /// <param name="Closing">
 /// The whole site's substitution rather than this one pair, because a constraint may name a sibling

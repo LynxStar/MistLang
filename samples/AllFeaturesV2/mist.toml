@@ -88,3 +88,4 @@ GenericOptionals = { path = "../GenericOptionals" }
 OpenUnions = { path = "../OpenUnions" }
 CallableInference = { path = "../CallableInference" }
 GenericExtensionMethods = { path = "../GenericExtensionMethods" }
+ConstructorConstraintSignatures = { path = "../ConstructorConstraintSignatures" }

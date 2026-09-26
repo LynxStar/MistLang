@@ -2073,3 +2073,11 @@ Make<Tag>(hi).Text=hi
 Plus<4>(3)=7
 Blank<int>()=0
 Blank<Point>()=(3, 4)
+=== Constructor Constraint Signatures Sample ===
+Factory<Widget, int>:    Widget(int 5)
+Factory<Widget, string>: Widget(string w)
+Sized<Widget>:           Widget(int 6)
+Mixed<Widget, string>:   Widget(int 7, string m)
+Boxed<Widget, int>:      Widget(Box 8)
+Build<Widget, int>:      Widget(int 9)
+Build<Widget, string>:   Widget(string b)

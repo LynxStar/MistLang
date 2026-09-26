@@ -17,7 +17,7 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 internal sealed class ConstraintClosureMap
 {
-    private readonly Dictionary<MemberType, List<IReadOnlyList<IMistType>>> byDefinition = [];
+    private readonly Dictionary<MemberType, List<ConstructorWitness>> byDefinition = [];
 
     public static ConstraintClosureMap Build(ProgramModel.Model.ProgramModel model, DiagnosticBag diagnostics)
     {
@@ -36,40 +36,41 @@ internal sealed class ConstraintClosureMap
                     closure.Node,
                     null,
                     TypeDisplay.Mist(closure.TypeArgument),
-                    string.Join(", ", closure.Signature.Select(TypeDisplay.Mist)));
+                    string.Join(", ", closure.Closed.Select(TypeDisplay.Mist)));
 
                 continue;
             }
 
-            map.Add(definition, closure.Signature);
+            map.Add(definition, new ConstructorWitness(closure.Signature, closure.Closed));
         }
 
         return map;
     }
 
-    public IReadOnlyList<IReadOnlyList<IMistType>> For(MemberType type)
+    public IReadOnlyList<ConstructorWitness> For(MemberType type)
     {
-        return byDefinition.TryGetValue(type, out var signatures) ? signatures : [];
+        return byDefinition.TryGetValue(type, out var witnesses) ? witnesses : [];
     }
 
-    private void Add(MemberType definition, IReadOnlyList<IMistType> signature)
+    private void Add(MemberType definition, ConstructorWitness witness)
     {
-        if(!byDefinition.TryGetValue(definition, out var signatures))
+        if(!byDefinition.TryGetValue(definition, out var witnesses))
         {
-            signatures = [];
-            byDefinition[definition] = signatures;
+            witnesses = [];
+            byDefinition[definition] = witnesses;
         }
 
-        if(!signatures.Any(existing => Same(existing, signature)))
+        if(!witnesses.Any(existing => Same(existing.Closed, witness.Closed)
+            && ConstructorConstraintInterfaces.InterfaceName(existing.Signature) == ConstructorConstraintInterfaces.InterfaceName(witness.Signature)))
         {
-            signatures.Add(signature);
+            witnesses.Add(witness);
         }
     }
 
-    private static bool Same(IReadOnlyList<IMistType> left, IReadOnlyList<IMistType> right)
+    public static bool Same(IReadOnlyList<IMistType> left, IReadOnlyList<IMistType> right)
     {
         return left.Count == right.Count
-            && !left.Where((type, i) => !ReferenceEquals(type, right[i])).Any();
+            && !left.Where((type, i) => type.FullyQualifiedName != right[i].FullyQualifiedName).Any();
     }
 
     /// <summary>
@@ -86,3 +87,7 @@ internal sealed class ConstraintClosureMap
         };
     }
 }
+
+/// <param name="Signature">The declaration's, which names the interface.</param>
+/// <param name="Closed">The same signature as a closing use fills it: the interface's arguments and the factory's parameters.</param>
+internal sealed record ConstructorWitness(IReadOnlyList<IMistType> Signature, IReadOnlyList<IMistType> Closed);

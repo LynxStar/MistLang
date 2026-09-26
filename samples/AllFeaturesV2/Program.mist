@@ -106,5 +106,6 @@ public class Program
         OpenUnions.Program.RunDemo();
         CallableInference.Program.RunDemo();
         GenericExtensionMethods.Program.RunDemo();
+        ConstructorConstraintSignatures.Program.RunDemo();
     }
 }

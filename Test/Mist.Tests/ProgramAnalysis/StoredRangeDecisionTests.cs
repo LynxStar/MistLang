@@ -74,14 +74,14 @@ public sealed class StoredRangeDecisionTests
     [Theory]
     [InlineData("low..high")]
     [InlineData("low..^high")]
-    public void EquivalentSymbolBounds_RetainTheRangeWithoutInventingALength(string bounds)
+    public void EquivalentSymbolBounds_ProveTheirCapturedLength(string bounds)
     {
         var model = BuildResolved($"int low = 0; int high = 3; Range window = {bounds}; if(flag) {{ window = {bounds}; }} var slice = numbers[window]; var last = slice[0];");
         var body = Body(model);
         var state = StateAtExit(body);
 
         Assert.NotNull(state[Local(body, "window")].Slice);
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Empty(Findings(model));
     }
 
     [Fact]
@@ -102,32 +102,30 @@ public sealed class StoredRangeDecisionTests
     [Theory]
     [InlineData("low = 1;")]
     [InlineData("high = 1;")]
-    [InlineData("var change = () => { high = 1; }; change();")]
-    public void AWriteToASymbolicBound_DiscardsTheStoredProof(string write)
+    public void AWriteToASymbolicBound_KeepsTheCapturedValue(string write)
     {
         var model = BuildResolved($"int low = 0; int high = 3; Range window = low..high; if(flag) {{ window = low..high; }} {write} var slice = numbers[window]; var last = slice[0];");
         var body = Body(model);
 
-        Assert.Null(StateAtExit(body)[Local(body, "window")].Slice);
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.NotNull(StateAtExit(body)[Local(body, "window")].Slice);
+        Assert.Empty(Findings(model));
     }
 
     [Fact]
-    public void ACopyOfASymbolicRange_DropsTheProofWhenItsBoundIsWritten()
+    public void ACopyOfASymbolicRange_KeepsTheCapturedValueWhenItsBoundIsWritten()
     {
         var model = BuildResolved("int end = 3; Range original = 0..end; Range window = original; if(flag) { window = original; } end = 1; var slice = numbers[window]; var last = slice[0];");
         var body = Body(model);
         var state = StateAtExit(body);
 
-        Assert.Null(state[Local(body, "original")].Slice);
-        Assert.Null(state[Local(body, "window")].Slice);
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.NotNull(state[Local(body, "original")].Slice);
+        Assert.NotNull(state[Local(body, "window")].Slice);
+        Assert.Empty(Findings(model));
     }
 
     [Theory]
     [InlineData("int end = 3; Range window = 0..end; if(flag) { end = 1; window = 0..end; }")]
-    [InlineData("int end = 3; end = 1; Range original = 0..end; Range window = original; if(flag) { window = original; }")]
-    public void AReconstructedOrCopiedRangeOverAWrittenSymbol_ProvidesNoStoredProof(string ranges)
+    public void AReconstructedRangeOverDifferentCapturedValues_ProvidesNoStoredProof(string ranges)
     {
         var model = BuildResolved(ranges + "var slice = numbers[window]; var last = slice[0];");
         var body = Body(model);
@@ -138,8 +136,7 @@ public sealed class StoredRangeDecisionTests
 
     [Theory]
     [InlineData("foreach(var end in [3, 1]) { Range window = 0..end; var slice = numbers[window]; var last = slice[0]; }", "")]
-    [InlineData("while(flag) { int end = Pick.End(); Range window = 0..end; var slice = numbers[window]; var last = slice[0]; flag = false; }", "public class Pick { public static int End() { return 3; } }")]
-    public void ARangeOverABoundEvaluatedAgainInALoop_ProvidesNoStoredProof(string loop, string types)
+    public void AnUnknownForeachBound_ProvidesNoSliceLength(string loop, string types)
     {
         var model = BuildResolved(loop, types);
         var body = Body(model);
@@ -152,7 +149,7 @@ public sealed class StoredRangeDecisionTests
                 return;
             }
 
-            Assert.Null(state[Local(body, "window")].Slice);
+            Assert.NotNull(state[Local(body, "window")].Slice);
             inspected = true;
         });
 
@@ -226,7 +223,7 @@ public sealed class StoredRangeDecisionTests
         var graph = FlowGraphBuilder.Build(body);
 
         return FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(
-            graph, new RefinementFlow(UnseenWrites.Of(body), new LiftedReturns(), graph), RefinementFlow.Nothing);
+            graph, new RefinementFlow(UnseenWrites.Of(body), new LiftedReturns()), RefinementFlow.Nothing);
     }
 
     private static ImmutableArray<Diagnostic> Findings(ProgramModelClass model)

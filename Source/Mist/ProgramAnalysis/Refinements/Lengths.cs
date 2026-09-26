@@ -18,6 +18,18 @@ internal static class Lengths
         return definition.FullyQualifiedName is "Standard.Array<,>" or "Standard.Span<,>" or "Standard.ReadOnlySpan<,>";
     }
 
+    public static bool IsSized(IMistType type)
+    {
+        var receiver = Requirement.Unrefined(type);
+
+        return receiver.FullyQualifiedName == "Standard.String" || (receiver is ConstructedType { Definition: var definition } && IsIndexable(definition));
+    }
+
+    public static bool IsRangeSlice(IndexExpression index)
+    {
+        return Requirement.Unrefined(index.Index.Type).FullyQualifiedName == "Standard.Range" && IsSized(index.Receiver.Type);
+    }
+
     public static Admitted? Typed(IMistType type)
     {
         var unaliased = type is TypeAlias { AliasedType: { } aliased } ? aliased : type;
@@ -35,37 +47,37 @@ internal static class Lengths
         };
     }
 
-    public static Admitted? Of(Expression? expression, Func<Expression, Admitted?> tracked)
+    public static Admitted? Of(Expression? expression, Func<Expression, Admitted?> tracked, Func<Expression, StoredRange?>? ranges = null)
     {
         return expression switch
         {
             null => null,
-            ImplicitConversionExpression conversion => Of(conversion.Operand, tracked),
-            CloneExpression clone => Of(clone.Source, tracked),
+            ImplicitConversionExpression conversion => Of(conversion.Operand, tracked, ranges),
+            CloneExpression clone => Of(clone.Source, tracked, ranges),
             ArrayCreationExpression creation => Constant(creation.Size),
             StackallocExpression stack => Constant(stack.Size),
             ArrayLiteralExpression literal => Admitted.Exactly(literal.Elements.Count),
             LiteralExpression { Value: string text } => Admitted.Exactly(text.Length),
             LocalReferenceExpression or FieldReferenceExpression or MemberAccessExpression { Member: FieldResult } => tracked(expression) ?? Typed(expression.Type),
-            NewExpression { Arguments: [var source] } => Of(source, tracked),
-            InvocationExpression invocation => OfCall(invocation, tracked),
-            IndexExpression { Index: RangeExpression range } slice => OfSlice(range, Of(slice.Receiver, tracked)),
+            NewExpression { Arguments: [var source] } => Of(source, tracked, ranges),
+            InvocationExpression invocation => OfCall(invocation, tracked, ranges),
+            IndexExpression slice when IsRangeSlice(slice) && (ranges?.Invoke(slice.Index) ?? (slice.Index is RangeExpression direct ? StoredRange.Of(direct) : null)) is { } range => OfSlice(range, Of(slice.Receiver, tracked, ranges)),
             _ => Typed(expression.Type),
         };
     }
 
-    private static Admitted? OfCall(InvocationExpression invocation, Func<Expression, Admitted?> tracked)
+    private static Admitted? OfCall(InvocationExpression invocation, Func<Expression, Admitted?> tracked, Func<Expression, StoredRange?>? ranges)
     {
         var receiver = invocation.Receiver is MemberAccessExpression access ? access.Receiver : null;
         var name = invocation.Method?.Name;
 
         return (name, invocation.Arguments) switch
         {
-            ("AsSpan", []) => Of(receiver, tracked),
-            ("ToArray", []) => Of(receiver, tracked),
-            ("ToCharArray", []) => Of(receiver, tracked),
+            ("AsSpan", []) => Of(receiver, tracked, ranges),
+            ("ToArray", []) => Of(receiver, tracked, ranges),
+            ("ToCharArray", []) => Of(receiver, tracked, ranges),
             ("Slice", [_, var count]) => Constant(count),
-            ("Slice", [var start]) => Shorten(Of(receiver, tracked), Constant(start)),
+            ("Slice", [var start]) => Shorten(Of(receiver, tracked, ranges), Constant(start)),
             _ => null,
         };
     }
@@ -77,28 +89,49 @@ internal static class Lengths
 
     public static Admitted? OfSlice(StoredRange range, Admitted? source)
     {
-        var from = Position(range.Start, source);
-        var to = Position(range.End, source);
-
-        return Exact(to) is { } high && Exact(from) is { } low && high >= low
-            ? Admitted.Exactly(high - low)
-            : null
-            ;
+        return SafetyOf(range, source) == RangeSafety.Violated ? null : Difference(range, source)?.And(Admitted.AtLeast(0));
     }
 
-    private static Admitted? Position(RangeBound bound, Admitted? source)
+    public static RangeSafety SafetyOf(StoredRange range, Admitted? source)
     {
-        if(bound.Offset is not { } offset)
+        var length = source ?? Admitted.AtLeast(0);
+        var size = Difference(range, length)!;
+
+        if(Outside(range.Start.Values, length) || Outside(range.End.Values, length) || size.High is < 0)
+        {
+            return RangeSafety.Violated;
+        }
+
+        return Inside(range.Start.Values, length) && Inside(range.End.Values, length) && size.Low is >= 0
+            ? RangeSafety.Proven
+            : RangeSafety.Unknown;
+    }
+
+    private static bool Outside(Admitted offset, Admitted length)
+    {
+        return offset.High is < 0 || (offset.Low is { } low && length.High is { } high && low > high);
+    }
+
+    private static bool Inside(Admitted offset, Admitted length)
+    {
+        return offset.Low is >= 0 && offset.High is { } high && length.Low is { } low && high <= low;
+    }
+
+    private static Admitted? Difference(StoredRange range, Admitted? source)
+    {
+        if(range.Start.FromEnd == range.End.FromEnd)
+        {
+            return range.Start.FromEnd ? range.Start.Values.Minus(range.End.Values) : range.End.Values.Minus(range.Start.Values);
+        }
+
+        if(source is null)
         {
             return null;
         }
 
-        if(!bound.FromEnd)
-        {
-            return Admitted.Exactly(offset);
-        }
-
-        return Exact(source) is { } length ? Admitted.Exactly(length - offset) : null;
+        return range.End.FromEnd
+            ? source.Minus(range.End.Values).Minus(range.Start.Values)
+            : range.End.Values.Minus(source.Minus(range.Start.Values));
     }
 
     private static Admitted? Shorten(Admitted? source, Admitted? by)
@@ -123,4 +156,11 @@ internal static class Lengths
     {
         return admitted?.Intervals is [var first, ..] && first.Low > long.MinValue ? first.Low : null;
     }
+}
+
+internal enum RangeSafety
+{
+    Unknown,
+    Proven,
+    Violated,
 }

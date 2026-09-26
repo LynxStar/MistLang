@@ -147,7 +147,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
     {
         public void Judge(FlowGraph graph, ImmutableDictionary<object, Knowledge> entry)
         {
-            var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(graph, new RefinementFlow(unseenWrites, lifted, graph), entry);
+            var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(graph, new RefinementFlow(unseenWrites, lifted), entry);
             solution.Replay((state, step) => Judge(graph, state, step));
         }
 
@@ -224,11 +224,23 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private void NeedIndex(ImmutableDictionary<object, Knowledge> state, IndexExpression index)
         {
+            if(RefinementFlow.Refused(state, index.Receiver))
+            {
+                return;
+            }
+
             var receiverType = index.Receiver.Type is TypeAlias { AliasedType: { } aliased } ? aliased : index.Receiver.Type;
 
             if(receiverType is ConstructedType { Definition: var definition, TypeArguments.Count: 2 } && Lengths.IsIndexable(definition))
             {
-                var length = Lengths.Typed(receiverType) ?? RefinementFlow.Held(state, index.Receiver);
+                var length = RefinementFlow.Length(state, index.Receiver);
+
+                if(Lengths.IsRangeSlice(index))
+                {
+                    NeedRange(state, index, length);
+                    return;
+                }
+
                 var known = Reaching(state, index, length);
 
                 if(known is null)
@@ -247,6 +259,12 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return;
             }
 
+            if(Lengths.IsRangeSlice(index))
+            {
+                NeedRange(state, index, RefinementFlow.Length(state, index.Receiver));
+                return;
+            }
+
             if(index.FromEnd is { } counted)
             {
                 var written = index.Index is ImplicitConversionExpression conversion ? conversion.Operand : index.Index;
@@ -262,6 +280,18 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             {
                 Need(state, index.Index, slot, index.Index, onConstraint: parameter.Name);
             }
+        }
+
+        private void NeedRange(ImmutableDictionary<object, Knowledge> state, IndexExpression index, Admitted? length)
+        {
+            if(RefinementFlow.Refused(state, index.Receiver) || RefinementFlow.Range(state, index.Index) is not { } range || Lengths.SafetyOf(range, length) != RangeSafety.Violated)
+            {
+                return;
+            }
+
+            context.Report(
+                ProgramAnalysisDiagnostics.IndexOutOfBounds, index.Index.Node, [index.Index, index.Receiver],
+                RefinementFindings.Display(index.Index), RefinementFindings.Display(index.Receiver), "0 <= start <= end <= Length");
         }
 
         // What is known of the value that meets an array's or a span's slot. `^k` names the position

@@ -524,6 +524,8 @@ It prints `none`, but `out/Nf/Program.cs` declares `private string note;` and as
 
 ## 🟡 v2 refuses an F-bounded constraint on any class
 
+**Closed on v2 (2026-09-25):** the program below prints `ok`, and a `Grade : IRank<Score>` closing `Sorted<Grade>` is refused as not satisfying `'IRank<Grade>'`. Every constraint is now judged as its closing fills it -- a sibling parameter, a receiver's, an extension block's, a constructor signature's -- see the 2026-09-25 paragraphs of order 6 (`declaration-shape-checks`) in `backlog/analysis-v2-capability-progression.yaml`. Classic refuses this program too (`MIST_CONSTRAINT_0009` against `'IRank<T>'`), so the admit follows the generic-constraints spec and C#, not classic. Everything below this paragraph is the entry as filed.
+
 **Severity: medium** -- a valid program is refused.
 
 **Verified empirically** (2026-09-13) on `--pipeline experimental`:
@@ -703,3 +705,104 @@ Two separate causes in `Source/Mist/Grammar/Mist.storm`:
    in statement position is also the opening of a ternary whose condition is parenthesized, and the
    uninitialized-declaration alternative would see a type where an expression was written. Measure the
    corpus before changing it, as order 104's entry did.
+
+---
+
+## 🟡 v2 cannot emit a generic method of a generic extension block, nor an extension method's `where`
+
+**Closed on v2 (2026-09-26):** the program below prints `2`. A call or method group that writes a generic block's method's own type arguments writes the block's ahead of them, and every carrier declares its method's constraints -- a `where` clause, a `new()`, a `new(int)` interface, a dependent parameter's witness, a `default` witness parameter. `samples/GenericExtensionMethods` banks it V2-ONLY; see the 2026-09-26 evidence of `extension-block-declaration` in `backlog/emitter-v2-capability-progression.yaml`. Everything below this paragraph is the entry as filed.
+
+**Severity: medium** -- a valid program fails in Roslyn against the generated file.
+
+**Verified empirically** (2026-09-25) on `--pipeline experimental`, with no constraint involved:
+
+```mist
+using Standard;
+
+namespace Ebu;
+
+public class Animal
+{
+}
+
+public class Dog : Animal
+{
+}
+
+public class Box<T>
+{
+}
+
+<T> extension(Box<T> self)
+{
+    public int Put<U>(U item)
+    {
+        return 1;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var box = new Box<Animal>();
+        var a = box.Put<Dog>(new Dog());
+        var b = box.Put(new Dog());
+        Console.WriteLine(a + b);
+    }
+}
+```
+
+Observed: `MIST_CS_ERROR: 'Box<Animal>' does not contain a definition for 'Put'`, once per call. The carrier is emitted `public static int Put<T, U>(this Ebu.Box<T> self, U item)` and both calls as `box.Put<Ebu.Dog>(...)` -- one type argument for a method of two, which C# cannot bind. Expected: `2`.
+
+The same carrier drops every `where`: in a NON-generic block, `public int Count<U>(U shape) where U : IShape { return shape.Sides(); }` is emitted `Count<U>(this Ew.Holder self, U shape)` and fails as `'U' does not contain a definition for 'Sides'`.
+
+Analysis already judges both constraints at the Mist source, the block's parameter included (order 6 of `backlog/analysis-v2-capability-progression.yaml`, 2026-09-25), so only emission is missing.
+
+**Action:**
+1. Read `ExtensionBlockEmitter` and the call emission in `BodyEmitter`. At a call to a method of a generic block, either write the block's arguments ahead of the method's or write none and let C# infer them; decide which by what C# can infer from the receiver when a method argument is written explicitly.
+2. Give each carrier method the `where` clauses of the block's parameters and its own (`ConstraintEmitter`).
+3. Bank it by extending an existing extension sample only with its owner's leave (`samples/CLAUDE.md`), or add a new sample to `AllFeaturesV2`, and record it in `extension-block-declaration` of `backlog/emitter-v2-capability-progression.yaml`.
+
+---
+
+## 🟡 A nested generic cannot be named under its enclosing instantiation, and a derived type builds it without one
+
+**Closed on v2 (2026-09-26):** the program below prints `7`, and `new Inner<Score>()` inside `Deriv : Outer<Score>` is `Outer<Score>.Inner<Score>`, admitted against `where U : IRank<T>`. A generic last segment is looked up by its arity name, and a nested generic the scope found through a constructed base is carried under that base -- see the 2026-09-26 paragraphs of `nested-type-declarations` in `backlog/emitter-v2-capability-progression.yaml`. Everything below this paragraph is the entry as filed.
+
+**Severity: medium** -- valid programs are refused, one at the binder and one at the constraint rule.
+
+**Verified empirically** (2026-09-25) on `--pipeline experimental`:
+
+```mist
+public class Outer<T>
+{
+    public class Inner<U>
+    {
+        public int Size()
+        {
+            return 7;
+        }
+    }
+
+    public Inner<int> Make()
+    {
+        return new Inner<int>();
+    }
+}
+
+// in Main
+Outer<string>.Inner<int> i = new Outer<string>().Make();
+Console.WriteLine(i.Size());
+```
+
+Observed: `MIST_PM_UNRESOLVED_TYPE: The type 'Outer<string>.Inner' could not be found.` Expected: `7`. `nested-type-declarations` in `backlog/emitter-v2-capability-progression.yaml` records that "a generic last segment constructs over its own arguments with the instantiation enclosing", but `ScopeResolver.ResolveNestedGeneric` looks each segment up by its bare name, and a generic nested type is registered under its arity name, so the lookup fails first. Nothing tests a generic last segment beyond the parse (`ConstructedGenericMemberAccessParseTests`).
+
+Second, through inheritance: with `Inner<U> where U : IRank<T>`, `new Inner<Score>()` inside `public class Deriv : Outer<Score>` is `MIST_PA_CONSTRAINT_NOT_SATISFIED` against `'IRank<T>'`, where C# reads it as `Outer<Score>.Inner<Score>` and admits it. The binder constructs `Inner<Score>` with no enclosing instantiation, so the model itself does not know `T` is `Score` there; a member of `Inner` returning `T` would be typed `T` the same way.
+
+`ConstraintClosureRegistry.RecordType` already takes the enclosing instantiation, and `ResolveNestedGeneric` passes it, but no program reaches that line today, so a mutation dropping it survives (order 6, 2026-09-25).
+
+**Action:**
+1. Look a generic last segment up by its arity name in `ResolveNestedGeneric`, and pin `Outer<string>.Inner<int>` at Tier 3 on the model, then on the emitted C#.
+2. Decide how a simple name reached through a constructed base carries the base's instantiation -- the scope lookup would have to return the base construction it came through, as `TypeMemberLookup`'s `BaseConstructions` already does for members.
+3. Record in `nested-type-declarations` of the emitter register.

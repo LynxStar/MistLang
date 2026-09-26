@@ -92,10 +92,11 @@ internal static class PostfixBinder
 
         var typeArgs = context.Resolver.BindPack(
             definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
-        context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node);
+        var enclosing = context.Resolver.InheritedEnclosing(definition, ctx.Scope);
+        context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node, enclosing);
         var type = definition is TypeAlias alias
             ? context.Resolver.ExpandAlias(alias, typeArgs, node)
-            : context.Resolver.Construct(definition, typeArgs, ctx.Scope);
+            : context.Resolver.Construct(definition, typeArgs, ctx.Scope, enclosing);
 
         return BindMemberAccess(node, new TypeReferenceExpression(node, type), node.Member.Lexeme, ctx, context);
     }
@@ -127,10 +128,11 @@ internal static class PostfixBinder
         }
 
         var typeArgs = context.Resolver.BindPack(definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
-        context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node);
+        var enclosing = context.Resolver.InheritedEnclosing(definition, ctx.Scope);
+        context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node, enclosing);
         var type = definition is TypeAlias alias
             ? context.Resolver.ExpandAlias(alias, typeArgs, node)
-            : context.Resolver.Construct(definition, typeArgs, ctx.Scope);
+            : context.Resolver.Construct(definition, typeArgs, ctx.Scope, enclosing);
 
         return new TypeLiteralExpression(node, type, context.Resolver.LookupWellKnown(WellKnownTypes.Type));
     }
@@ -375,7 +377,7 @@ internal static class PostfixBinder
         var methodTypeArguments = selected.TypeParametersList
             .ConvertAll(parameter => choice.Substitution.Apply(parameter, interner));
 
-        context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected, methodTypeArguments, node);
+        context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected, methodTypeArguments, choice.Substitution, node);
         context.ProgramModel.VariadicUses.Record(selected, methodTypeArguments);
         context.ProgramModel.GenericCalls.Record(selected, methodTypeArguments);
 

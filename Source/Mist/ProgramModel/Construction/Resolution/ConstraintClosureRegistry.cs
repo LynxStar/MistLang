@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -46,11 +47,14 @@ internal sealed class ConstraintClosureRegistry
     /// Records the closures a constructed generic TYPE performs, one per parameterized constructor
     /// constraint on the parameter each argument fills.
     /// </summary>
-    public void RecordType(IMistType definition, IReadOnlyList<IMistType> typeArguments, SyntaxNode node)
+    public void RecordType(
+        IMistType definition, IReadOnlyList<IMistType> typeArguments, SyntaxNode node, ConstructedType? enclosing = null)
     {
         if(definition is TypeAlias alias)
         {
-            Record(alias.TypeParametersList, typeArguments, node, stampableOnly: true);
+            var aliasClosing = TypeSubstitution.ForReceiver(enclosing)
+                .Extend(TypeSubstitution.ForParameters(alias.TypeParametersList, typeArguments));
+            Record(alias.TypeParametersList, typeArguments, aliasClosing, node, stampableOnly: true);
             return;
         }
 
@@ -59,27 +63,35 @@ internal sealed class ConstraintClosureRegistry
             return;
         }
 
-        Record(member.TypeParametersList, typeArguments, node);
+        var closing = TypeSubstitution.ForReceiver(enclosing)
+            .Extend(TypeSubstitution.ForParameters(member.TypeParametersList, typeArguments));
+
+        Record(member.TypeParametersList, typeArguments, closing, node);
     }
 
-    public void RecordStampableType(IMistType definition, IReadOnlyList<IMistType> typeArguments, SyntaxNode node)
+    public void RecordStampableType(
+        IMistType definition, IReadOnlyList<IMistType> typeArguments, SyntaxNode node, ConstructedType? enclosing = null)
     {
         if(definition is MemberType member)
         {
-            Record(member.TypeParametersList, typeArguments, node, stampableOnly: true);
+            var closing = TypeSubstitution.ForReceiver(enclosing)
+                .Extend(TypeSubstitution.ForParameters(member.TypeParametersList, typeArguments));
+            Record(member.TypeParametersList, typeArguments, closing, node, stampableOnly: true);
         }
     }
 
     /// <summary>
     /// Records the closures a generic METHOD call performs.
     /// </summary>
-    public void RecordMethod(Method method, IReadOnlyList<IMistType> typeArguments, SyntaxNode node)
+    public void RecordMethod(
+        Method method, IReadOnlyList<IMistType> typeArguments, TypeSubstitution closing, SyntaxNode node)
     {
-        Record(method.TypeParametersList, typeArguments, node);
+        Record(method.TypeParametersList, typeArguments, method.BlockClosing.Extend(closing), node);
     }
 
     private void Record(
-        IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType> typeArguments, SyntaxNode node, bool stampableOnly = false)
+        IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType> typeArguments, TypeSubstitution closing, SyntaxNode node,
+        bool stampableOnly = false)
     {
         for(var i = 0; i < parameters.Count && i < typeArguments.Count; i++)
         {
@@ -90,11 +102,11 @@ internal sealed class ConstraintClosureRegistry
 
             if(typeArguments[i] is not TypeParameter)
             {
-                closings.Add(new TypeArgumentClosing(parameters[i], typeArguments[i], node));
+                closings.Add(new TypeArgumentClosing(parameters[i], typeArguments[i], node, closing));
             }
             else
             {
-                openClosings.Add(new TypeArgumentClosing(parameters[i], typeArguments[i], node));
+                openClosings.Add(new TypeArgumentClosing(parameters[i], typeArguments[i], node, closing));
             }
 
             foreach(var signature in Parameterized(parameters[i]))
@@ -109,7 +121,10 @@ internal sealed class ConstraintClosureRegistry
                     continue;
                 }
 
-                _ = closures.TryAdd((argument, Key(signature)), new ConstraintClosure(argument, signature, node));
+                var closed = signature.Select(type => closing.Apply(type, interner: null)).ToList();
+
+                _ = closures.TryAdd(
+                    (argument, $"{Key(signature)}|{Key(closed)}"), new ConstraintClosure(argument, signature, closed, node));
             }
         }
     }
@@ -136,6 +151,11 @@ internal sealed class ConstraintClosureRegistry
 }
 
 internal sealed record ConstraintClosure(
-    IMistType TypeArgument, IReadOnlyList<IMistType> Signature, SyntaxNode Node);
+    IMistType TypeArgument, IReadOnlyList<IMistType> Signature, IReadOnlyList<IMistType> Closed, SyntaxNode Node);
 
-internal sealed record TypeArgumentClosing(TypeParameter Parameter, IMistType Argument, SyntaxNode Node);
+/// <param name="Closing">
+/// The whole site's substitution rather than this one pair, because a constraint may name a sibling
+/// parameter, the receiver's or an enclosing declaration's -- <c>where U : T</c>, <c>where T : IRank of T</c> --
+/// and is only judged once every parameter it names is replaced by what this site closed it with.
+/// </param>
+internal sealed record TypeArgumentClosing(TypeParameter Parameter, IMistType Argument, SyntaxNode Node, TypeSubstitution Closing);

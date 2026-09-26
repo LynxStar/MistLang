@@ -1,0 +1,34 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IKeyed<K>
+{
+    K Key();
+}
+
+public class Badge : IKeyed<string>
+{
+    public string Key()
+    {
+        return "b";
+    }
+}
+
+public class Ranks
+{
+    public static int Tie<K, V>(K key, V value) where V : IKeyed<K>
+    {
+        return 3;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CONSTRAINT_NOT_SATISFIED
+        var a = Ranks.Tie<int, Badge>(1, new Badge());
+        Console.WriteLine(a);
+    }
+}

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel.Contracts.Types;
@@ -39,9 +40,29 @@ internal static class ConstructorConstraintInterfaces
     /// and the generic that constrains it may sit in any namespace and the emitted usings cover
     /// neither.
     /// </summary>
-    public static string Closed(IReadOnlyList<IMistType> signature, string product)
+    public static string Closed(IReadOnlyList<IMistType> signature, IReadOnlyList<IMistType> closedSignature, string product)
     {
-        return $"{Namespace}.{InterfaceName(signature)}<{product}>";
+        var open = OpenPositions(signature).Select(i => TypeNameEmitter.Emit(closedSignature[i]));
+
+        return $"{Namespace}.{InterfaceName(signature)}<{string.Join(", ", open.Prepend(product))}>";
+    }
+
+    /// <summary>
+    /// A position whose type names a type parameter is one of the interface's own parameters rather
+    /// than part of its name, since no single interface declaration can spell a parameter that belongs
+    /// to whichever generic constrains with it. It is named by its index rather than its type, so every
+    /// generic's <c>new(A)</c> is one interface whatever it calls the parameter, and a closing type used
+    /// by several appends it once.
+    /// </summary>
+    public static string TypeParameters(IReadOnlyList<IMistType> signature)
+    {
+        return string.Join(", ", OpenPositions(signature).Select(i => $"TArg{i}").Prepend("T"));
+    }
+
+    public static string DeclaredParameters(IReadOnlyList<IMistType> signature)
+    {
+        return string.Join(", ", signature.Select((type, i) =>
+            $"{(IsOpen(type) ? $"TArg{i}" : TypeNameEmitter.Emit(type))} arg{i}"));
     }
 
     /// <summary>
@@ -60,7 +81,18 @@ internal static class ConstructorConstraintInterfaces
 
     private static string Suffix(IReadOnlyList<IMistType> signature)
     {
-        return string.Join("_", signature.Select(Identifier));
+        return string.Join("_", signature.Select((type, i) =>
+            IsOpen(type) ? i.ToString(CultureInfo.InvariantCulture) : Identifier(type)));
+    }
+
+    private static IEnumerable<int> OpenPositions(IReadOnlyList<IMistType> signature)
+    {
+        return Enumerable.Range(0, signature.Count).Where(i => IsOpen(signature[i]));
+    }
+
+    private static bool IsOpen(IMistType type)
+    {
+        return TypeParameterReach.Collect(type).Count > 0;
     }
 
     private static string Identifier(IMistType type)

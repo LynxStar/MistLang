@@ -322,10 +322,15 @@ internal static class TypeEmitter
                 IteratorBoilerplateEmitter.Emit(concrete, writer, ref anyEmitted);
             }
 
-            foreach(var signature in closedConstraints)
+            foreach(var (witness, i) in closedConstraints.Select((witness, i) => (witness, i)))
             {
+                if(closedConstraints.Take(i).Any(earlier => ConstraintClosureMap.Same(earlier.Closed, witness.Closed)))
+                {
+                    continue;
+                }
+
                 SeparateMember(writer, ref anyEmitted);
-                EmitConstraintFactory(type, signature, writer);
+                EmitConstraintFactory(type, witness.Closed, writer);
             }
 
             foreach(var nested in type.NestedTypes.OfType<DeclaredType>())
@@ -422,7 +427,7 @@ internal static class TypeEmitter
     /// so the ordering does not depend on how the declaration was written.
     /// </para>
     /// </summary>
-    private static string EmitBaseList(MemberType type, IReadOnlyList<IReadOnlyList<IMistType>> closedConstraints)
+    private static string EmitBaseList(MemberType type, IReadOnlyList<ConstructorWitness> closedConstraints)
     {
         var bases = new List<string>();
 
@@ -438,9 +443,9 @@ internal static class TypeEmitter
             bases.Add(TypeNameEmitter.Emit(SlotLift.Base(abstractRef, type) ?? abstractRef));
         }
 
-        foreach(var signature in closedConstraints)
+        foreach(var witness in closedConstraints)
         {
-            bases.Add(ConstructorConstraintInterfaces.Closed(signature, EmitTypeName(type)));
+            bases.Add(ConstructorConstraintInterfaces.Closed(witness.Signature, witness.Closed, EmitTypeName(type)));
         }
 
         return bases.Count > 0 ? $" : {string.Join(", ", bases)}" : "";

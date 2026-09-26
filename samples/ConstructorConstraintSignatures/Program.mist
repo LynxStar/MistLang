@@ -1,0 +1,105 @@
+// ConstructorConstraintSignatures -- parameterized constructor constraints whose signature names a type
+// parameter: `new(A)`, `new(int, A)`, `new(Box<A>)`, on a type and on a method. Widget closes several of
+// them with different arguments, and one closing needs the same `(int)` constructor a plain `new(int)`
+// constraint does. Runs on the experimental pipeline only: classic cannot resolve a type parameter in a
+// constructor constraint (MIST_CONSTRAINT_0008), so this sample is referenced from AllFeaturesV2 alone.
+
+using Standard;
+
+namespace ConstructorConstraintSignatures;
+
+public class Box<V>
+{
+    public V Held;
+
+    public Box(V held)
+    {
+        this.Held = held;
+    }
+}
+
+public class Widget
+{
+    public string Note;
+
+    public Widget(int size)
+    {
+        this.Note = $"Widget(int {size})";
+    }
+
+    public Widget(string name)
+    {
+        this.Note = $"Widget(string {name})";
+    }
+
+    public Widget(int size, string name)
+    {
+        this.Note = $"Widget(int {size}, string {name})";
+    }
+
+    public Widget(Box<int> box)
+    {
+        this.Note = $"Widget(Box {box.Held})";
+    }
+}
+
+public class Factory<T, A> where T : new(A)
+{
+    public T Make(A arg)
+    {
+        return new T(arg);
+    }
+}
+
+public class Sized<T> where T : new(int)
+{
+    public T Make(int size)
+    {
+        return new T(size);
+    }
+}
+
+public class Mixed<T, A> where T : new(int, A)
+{
+    public T Make(int size, A arg)
+    {
+        return new T(size, arg);
+    }
+}
+
+public class Boxed<T, A> where T : new(Box<A>)
+{
+    public T Make(A arg)
+    {
+        return new T(new Box<A>(arg));
+    }
+}
+
+public class Builder
+{
+    public static T Build<T, A>(A arg) where T : new(A)
+    {
+        return new T(arg);
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Constructor Constraint Signatures Sample ===");
+
+        Console.WriteLine($"Factory<Widget, int>:    {new Factory<Widget, int>().Make(5).Note}");
+        Console.WriteLine($"Factory<Widget, string>: {new Factory<Widget, string>().Make("w").Note}");
+        Console.WriteLine($"Sized<Widget>:           {new Sized<Widget>().Make(6).Note}");
+        Console.WriteLine($"Mixed<Widget, string>:   {new Mixed<Widget, string>().Make(7, "m").Note}");
+        Console.WriteLine($"Boxed<Widget, int>:      {new Boxed<Widget, int>().Make(8).Note}");
+        Console.WriteLine($"Build<Widget, int>:      {Builder.Build<Widget, int>(9).Note}");
+        Console.WriteLine($"Build<Widget, string>:   {Builder.Build<Widget, string>("b").Note}");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

@@ -1,0 +1,42 @@
+using Standard;
+
+namespace Refusal;
+
+public abstract IRank<T>
+{
+    int CompareTo(T other);
+}
+
+public class Score : IRank<Score>
+{
+    public int CompareTo(Score other)
+    {
+        return 0;
+    }
+}
+
+public class Grade : IRank<Score>
+{
+    public int CompareTo(Score other)
+    {
+        return 0;
+    }
+}
+
+public class Ranks
+{
+    public static int Pick<T>(T value) where T : IRank<T>
+    {
+        return 2;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CONSTRAINT_NOT_SATISFIED
+        var a = Ranks.Pick(new Grade());
+        Console.WriteLine(a);
+    }
+}

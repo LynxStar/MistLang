@@ -257,6 +257,35 @@ public sealed class StampableConstraintTests : ProgramModelProbe
             && diagnostic.Message.Contains("stampable", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("int", false, true)]
+    [InlineData("string", false, false)]
+    [InlineData("int", true, true)]
+    [InlineData("string", true, false)]
+    public void ProgramModelToAnalysis_StampabilityAndSiblingConstraintsShareTheClosing(string key, bool pack, bool accepted)
+    {
+        var parameters = pack ? "K, params V" : "K, V";
+        var arguments = pack ? $"{key}, Value, Value" : $"{key}, Value";
+        var model = Build($$"""
+            namespace Probe;
+            abstract IKeyed<K> { K Key(); }
+            public struct Value : IKeyed<int> { public int Key() { return 1; } }
+            public class Gate<{{parameters}}> where V : stampable, IKeyed<K> { }
+            public class Use { public static void Accept(Gate<{{arguments}}> value) { } }
+            """, out var diagnostics);
+        Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+
+        var findings = new DiagnosticBag();
+        ProgramAnalysisRunner.Run(model, findings);
+        var errors = findings.ToImmutableArray().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).ToArray();
+        Assert.Equal(accepted ? 0 : pack ? 2 : 1, errors.Length);
+        Assert.All(errors, error =>
+        {
+            Assert.Equal("MIST_PA_CONSTRAINT_NOT_SATISFIED", error.Id.Value);
+            Assert.Contains("IKeyed<string>", error.Message, StringComparison.Ordinal);
+        });
+    }
+
     private List<Diagnostic> Findings(string declarations)
     {
         var model = Build($"namespace Probe; {declarations}", out var diagnostics);

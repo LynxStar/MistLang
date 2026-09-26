@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+public class Animal
+{
+}
+
+public class Dog : Animal
+{
+}
+
+public class Kin<T, U> where U : T
+{
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        // REFUSE: MIST_PA_CONSTRAINT_NOT_SATISFIED
+        var a = new Kin<Dog, Animal>();
+        Console.WriteLine("unreachable");
+    }
+}

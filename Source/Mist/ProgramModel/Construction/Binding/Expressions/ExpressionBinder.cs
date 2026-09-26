@@ -255,8 +255,9 @@ internal static class ExpressionBinder
             }
             else
             {
-                context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, node);
-                type = context.Resolver.Construct(definition, typeArgs, ctx.Scope);
+                var enclosing = context.Resolver.InheritedEnclosing(definition, ctx.Scope);
+                context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, node, enclosing);
+                type = context.Resolver.Construct(definition, typeArgs, ctx.Scope, enclosing);
             }
         }
         else

@@ -331,8 +331,9 @@ internal sealed class ScopeResolver
                 return functionType;
             }
 
-            context.ProgramModel.ConstructorConstraintClosures.RecordType(baseType, typeArgs, node);
-            return Construct(baseType, typeArgs, scope);
+            var enclosing = InheritedEnclosing(baseType, scope);
+            context.ProgramModel.ConstructorConstraintClosures.RecordType(baseType, typeArgs, node, enclosing);
+            return Construct(baseType, typeArgs, scope, enclosing);
         }
 
         return baseType;
@@ -385,7 +386,8 @@ internal sealed class ScopeResolver
     /// reference is, then each further segment looked up as a nested type on the definition reached so
     /// far and carried under the instantiation -- the same carrying a member's declared type gets, so a
     /// local written this way and one inferred from <c>Box&lt;int&gt;.Wrapper.Make()</c> hold one type.
-    /// A generic last segment is constructed over its own arguments with the instantiation enclosing.
+    /// A generic last segment is constructed over its own arguments, enclosed by its declaring type as the
+    /// path to it closes that type -- the instantiation written, or the base it was reached through.
     /// </summary>
     internal IMistType ResolveNestedGeneric(
         QualifiedIdentifierNode outer,
@@ -423,9 +425,11 @@ internal sealed class ScopeResolver
         for(var i = 0; i < segments.Count; i++)
         {
             var name = segments[i].Lexeme;
+            var generic = i == segments.Count - 1 && typeArgs is not null;
+            var lookupName = generic ? BuildArityName(name, GetTypeArgumentArity(typeArgs)) : name;
 
             if(current is not ConstructedType instantiation || instantiation.Definition is not MistType declaring
-                || TypeMemberLookup.Find(declaring, LookupRequest.Member(name, MemberVisibility.None, node))
+                || TypeMemberLookup.Find(declaring, LookupRequest.Member(lookupName, MemberVisibility.None, node))
                     is not TypeResult { Type: DeclaredType member } found)
             {
                 context.Diagnostics.ReportAtNode(
@@ -436,11 +440,12 @@ internal sealed class ScopeResolver
 
             var substitution = TypeSubstitution.ForPath(instantiation, found.BaseConstructions, interner);
 
-            if(i == segments.Count - 1 && typeArgs is not null)
+            if(generic)
             {
-                var own = BindPack(member, ResolveTypeArguments(typeArgs, scope), node);
-                context.ProgramModel.ConstructorConstraintClosures.RecordType(member, own, node);
-                current = interner.GetOrCreateConstructedType(member, own, instantiation);
+                var own = BindPack(member, ResolveTypeArguments(typeArgs!, scope), node);
+                var enclosing = substitution.EnclosingInstantiation(member.DeclaringType, interner);
+                context.ProgramModel.ConstructorConstraintClosures.RecordType(member, own, node, enclosing);
+                current = interner.GetOrCreateConstructedType(member, own, enclosing);
             }
             else
             {
@@ -453,10 +458,37 @@ internal sealed class ScopeResolver
 
     public IMistType Construct(IMistType definition, IReadOnlyList<IMistType> typeArguments, Scope scope)
     {
+        return Construct(definition, typeArguments, scope, InheritedEnclosing(definition, scope));
+    }
+
+    public IMistType Construct(
+        IMistType definition, IReadOnlyList<IMistType> typeArguments, Scope scope, ConstructedType? enclosing)
+    {
         var interner = context.ProgramModel.TypeInterner;
 
         return CloneRenaming.Rename(scope, definition, typeArguments, interner)
-            ?? interner.GetOrCreateConstructedType(definition, typeArguments);
+            ?? interner.GetOrCreateConstructedType(definition, typeArguments, enclosing);
+    }
+
+    /// <summary>
+    /// The instantiation a nested generic named by its simple name is carried under when the scope
+    /// found it through a constructed base: inside <c>Deriv : Outer of Score</c>, <c>Inner of U</c> is
+    /// Outer of Score's, as a member of Outer read there is typed through the same base. Null where it
+    /// was found in its declaration's own body, where a definition stays itself.
+    /// </summary>
+    public ConstructedType? InheritedEnclosing(IMistType definition, Scope scope)
+    {
+        if(definition is not MemberType { DeclaringType: { } declaring } nested
+            || scope.Lookup(new LookupRequest(nested.Name, MemberVisibility.None, null))
+                is not TypeResult { BaseConstructions: [_, ..] path } found
+            || !ReferenceEquals(found.Type, nested))
+        {
+            return null;
+        }
+
+        var interner = context.ProgramModel.TypeInterner;
+
+        return TypeSubstitution.ForPath(receiver: null, path, interner).EnclosingInstantiation(declaring, interner);
     }
 
     public IMistType? FindGenericDefinition(string stem, int arity, Scope scope)

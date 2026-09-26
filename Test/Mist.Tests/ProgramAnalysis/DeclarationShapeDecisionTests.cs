@@ -444,6 +444,10 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     [InlineData("var q = new NeedsReadonly<Nothing>();", "")]
     [InlineData("int unused = 1;", "public class Sink { public static int Take(Nothing a) { return 1; } public static int Take(Nothing b) { return 2; } }")]
     [InlineData("int unused = 1;", "public class Box<T> { } public class Sink { public static int Take(Box<Nothing> a) { return 1; } public static int Take(Box<Nothing> b) { return 2; } }")]
+    [InlineData("var kin = new Kin<Nothing, Dog>();", Closings)]
+    [InlineData("var link = new Link<Nothing, Badge>();", Closings)]
+    [InlineData("var tie = Ranks.Tie<Nothing, Badge>(1, new Badge());", Closings)]
+    [InlineData("var made = new Factory<Widget, Nothing>();", Closings)]
     public void AUseThatAlreadyFailed_IsNotReportedAgain(string statement, string extraTypes)
     {
         AssertSilent(statement, extraTypes);
@@ -465,6 +469,100 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         const string shapes = "public class Shapes { public static int Sides<T>(T shape) where T : IShape { return 4; } }";
 
         Assert.Equal(findings, Analyse(statement, shapes).Count(d => d.Id.Value == "MIST_PA_CONSTRAINT_NOT_SATISFIED"));
+    }
+
+    private const string Closings = """
+        abstract IRank<T> { int CompareTo(T other); }
+        public class Score : IRank<Score> { public int CompareTo(Score other) { return 0; } }
+        public class Grade : IRank<Score> { public int CompareTo(Score other) { return 0; } }
+        public class Animal { }
+        public class Dog : Animal { }
+        abstract IKeyed<K> { K Key(); }
+        public class Badge : IKeyed<string> { public string Key() { return "b"; } }
+        public class Widget { public Widget(int size) { } }
+        public class Sorted<T> where T : IRank<T> { }
+        public class Kin<T, U> where U : T { }
+        public class Link<K, V> where V : IKeyed<K> { }
+        public class Factory<T, A> where T : new(A) { }
+        public class Row<params Ts> where Ts : IRank<Ts> { }
+        public class Keys<K, params Vs> where Vs : IKeyed<K> { }
+        public class Hive<T> { public class Cell<U> where U : IRank<T> { } }
+        public class Shelf<T> { public int Put<U>(U item) where U : T { return 1; } }
+        public class Rack : Shelf<Animal> { }
+        public class Tray<T> { }
+        <T> extension(Tray<T> self) { public int Put<U>(U item) where U : T { return 1; } }
+        public class Ranks
+        {
+            public static int Pick<T>(T value) where T : IRank<T> { return 2; }
+            public static int Tie<K, V>(K key, V value) where V : IKeyed<K> { return 3; }
+        }
+        """;
+
+    [Theory]
+    [InlineData("var sorted = new Sorted<Score>();", "")]
+    [InlineData("Sorted<Score> held = new Sorted<Score>();", "")]
+    [InlineData("int unused = 1;", "public class Board : Sorted<Score> { }")]
+    [InlineData("var kin = new Kin<Animal, Dog>();", "")]
+    [InlineData("var link = new Link<string, Badge>();", "")]
+    [InlineData("var made = new Factory<Widget, int>();", "")]
+    [InlineData("var row = new Row<Score, Score>();", "")]
+    [InlineData("var keys = new Keys<string, Badge, Badge>();", "")]
+    [InlineData("int unused = 1;", "public class Taker { public static int Take(Hive<Score>.Cell<Score> held) { return 1; } }")]
+    [InlineData("int unused = 1;", "public class Swarm : Hive<Score> { public int Make() { var made = new Cell<Score>(); return 1; } }")]
+    [InlineData("int unused = 1;", "public class Swarm : Hive<Score> { public int Take(Cell<Score> held) { return 1; } }")]
+    [InlineData("var picked = Ranks.Pick<Score>(new Score());", "")]
+    [InlineData("var picked = Ranks.Pick(new Score());", "")]
+    [InlineData("func<Score, int> picked = Ranks.Pick;", "")]
+    [InlineData("var tied = Ranks.Tie<string, Badge>(\"k\", new Badge());", "")]
+    [InlineData("var tied = Ranks.Tie(\"k\", new Badge());", "")]
+    [InlineData("var put = new Shelf<Animal>().Put<Dog>(new Dog());", "")]
+    [InlineData("var put = new Shelf<Animal>().Put(new Dog());", "")]
+    [InlineData("var put = new Rack().Put(new Dog());", "")]
+    [InlineData("func<Dog, int> put = new Shelf<Animal>().Put;", "")]
+    [InlineData("var put = new Tray<Animal>().Put<Dog>(new Dog());", "")]
+    [InlineData("var put = new Tray<Animal>().Put(new Dog());", "")]
+    public void AConstraintNamingAParameterIsJudgedAsTheClosingFillsIt_AndAdmitsTheRightArgument(string statement, string extraTypes)
+    {
+        AssertBoundAndSilent(statement, Closings + extraTypes);
+    }
+
+    [Theory]
+    [InlineData("var sorted = new Sorted<Grade>();", "", "'IRank<Grade>' constraint on type parameter 'T'")]
+    [InlineData("int unused = 1;", "public class Board : Sorted<Grade> { }", "'IRank<Grade>' constraint on type parameter 'T'")]
+    [InlineData("var kin = new Kin<Dog, Animal>();", "", "'Dog' constraint on type parameter 'U'")]
+    [InlineData("var link = new Link<int, Badge>();", "", "'IKeyed<int>' constraint on type parameter 'V'")]
+    [InlineData("var made = new Factory<Widget, string>();", "", "'new(string)' constraint on type parameter 'T'")]
+    [InlineData("var row = new Row<Score, Grade>();", "", "'IRank<Grade>' constraint on type parameter 'Ts'")]
+    [InlineData("var keys = new Keys<int, Badge>();", "", "'IKeyed<int>' constraint on type parameter 'Vs'")]
+    [InlineData("int unused = 1;", "public class Taker { public static int Take(Hive<Grade>.Cell<Score> held) { return 1; } }", "'IRank<Grade>' constraint on type parameter 'U'")]
+    [InlineData("int unused = 1;", "public class Swarm : Hive<Grade> { public int Make() { var made = new Cell<Score>(); return 1; } }", "'IRank<Grade>' constraint on type parameter 'U'")]
+    [InlineData("int unused = 1;", "public class Swarm : Hive<Grade> { public int Take(Cell<Score> held) { return 1; } }", "'IRank<Grade>' constraint on type parameter 'U'")]
+    [InlineData("var picked = Ranks.Pick<Grade>(new Grade());", "", "'IRank<Grade>' constraint on type parameter 'T'")]
+    [InlineData("func<Grade, int> picked = Ranks.Pick;", "", "'IRank<Grade>' constraint on type parameter 'T'")]
+    [InlineData("var tied = Ranks.Tie<int, Badge>(1, new Badge());", "", "'IKeyed<int>' constraint on type parameter 'V'")]
+    [InlineData("var put = new Shelf<Dog>().Put<Animal>(new Animal());", "", "'Dog' constraint on type parameter 'U'")]
+    [InlineData("var put = new Rack().Put(new Score());", "", "'Animal' constraint on type parameter 'U'")]
+    [InlineData("func<Animal, int> put = new Shelf<Dog>().Put;", "", "'Dog' constraint on type parameter 'U'")]
+    [InlineData("var put = new Tray<Dog>().Put<Animal>(new Animal());", "", "'Dog' constraint on type parameter 'U'")]
+    public void AConstraintNamingAParameterIsJudgedAsTheClosingFillsIt_AndRefusesTheWrongArgument(
+        string statement, string extraTypes, string constraint)
+    {
+        var finding = Assert.Single(Analyse(statement, Closings + extraTypes));
+
+        Assert.Contains(constraint, finding.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("var picked = Ranks.Pick<Grade>(new Grade());", "var picked = Ranks.Pick(new Grade());")]
+    [InlineData("var tied = Ranks.Tie<int, Badge>(1, new Badge());", "var tied = Ranks.Tie(1, new Badge());")]
+    [InlineData("var put = new Shelf<Dog>().Put<Animal>(new Animal());", "var put = new Shelf<Dog>().Put(new Animal());")]
+    [InlineData("var put = new Tray<Dog>().Put<Animal>(new Animal());", "var put = new Tray<Dog>().Put(new Animal());")]
+    public void AnInferredMethodClosing_IsJudgedAsTheSameClosingWrittenOut(string written, string inferred)
+    {
+        var expected = Analyse(written, Closings).Select(d => d.Message).ToList();
+
+        Assert.NotEmpty(expected);
+        Assert.Equal(expected, Analyse(inferred, Closings).Select(d => d.Message));
     }
 
     // ── Harness ─────────────────────────────────────────────────────────

@@ -1,8 +1,10 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
@@ -65,9 +67,14 @@ internal static class ExtensionBlockEmitter
             ? "void"
             : TypeNameEmitter.Emit(method.ReturnType);
 
+        var typeParameters = CarrierTypeParameters(method, block);
+        var parameters = DefaultConstraintWitness.Parameters(method.TypeParametersList);
+        parameters.Add(ParameterEmitter.Emit(method.ParametersList, diagnostics));
+
         writer.WriteLine(
-            $"public static {returnType} {method.Name}{TypeParameters(method, block)}"
-            + $"({Parameters(method.ParametersList, method.Modifiers.IsStatic, block, receiver, diagnostics)})");
+            $"public static {returnType} {method.Name}{TypeParameters(typeParameters)}"
+            + $"({Parameters(parameters, method.Modifiers.IsStatic, block, receiver)})");
+        ConstraintEmitter.Emit(typeParameters, writer);
 
         using(writer.Block())
         {
@@ -100,8 +107,8 @@ internal static class ExtensionBlockEmitter
 
         writer.WriteLine(
             $"public static {TypeNameEmitter.Emit(property.Type)} get_{property.Name}"
-            + $"{TypeParameters(method: null, block)}"
-            + $"({Parameters([], property.Modifiers.IsStatic, block, receiver, diagnostics)})");
+            + $"{TypeParameters(CarrierTypeParameters(method: null, block))}"
+            + $"({Parameters([], property.Modifiers.IsStatic, block, receiver)})");
 
         using(writer.Block())
         {
@@ -122,46 +129,52 @@ internal static class ExtensionBlockEmitter
     /// takes no receiver at all.
     /// </summary>
     private static string Parameters(
-        IReadOnlyList<Parameter> declared,
+        IReadOnlyList<string> declared,
         bool isStatic,
         ExtensionBlock block,
-        IMistType receiver,
-        DiagnosticBag diagnostics)
+        IMistType receiver)
     {
-        var rest = ParameterEmitter.Emit(declared, diagnostics);
+        var parts = declared.Where(part => part.Length > 0).ToList();
 
-        if(isStatic)
+        if(!isStatic)
         {
-            return rest;
+            parts.Insert(0, $"this {TypeNameEmitter.Emit(receiver)} {block.ReceiverParameterName}");
         }
 
-        var self = $"this {TypeNameEmitter.Emit(receiver)} {block.ReceiverParameterName}";
-
-        return rest.Length == 0 ? self : $"{self}, {rest}";
+        return string.Join(", ", parts);
     }
 
     /// <summary>
     /// The block's type parameters and the member's own, in that order. They cannot go on the class,
     /// so every member restates them; a member declared inside a generic block is generic in both.
     /// </summary>
-    private static string TypeParameters(Method? method, ExtensionBlock block)
+    private static List<TypeParameter> CarrierTypeParameters(Method? method, ExtensionBlock block)
     {
-        var names = new List<string>();
+        return [.. block.TypeParametersList, .. method?.TypeParametersList ?? []];
+    }
 
-        foreach(var parameter in block.TypeParametersList)
+    private static string TypeParameters(IReadOnlyList<TypeParameter> parameters)
+    {
+        return parameters.Count == 0 ? "" : $"<{string.Join(", ", parameters.Select(DependentCarrierNames.Parameter))}>";
+    }
+
+    /// <summary>
+    /// What a call writes after the member's name: C# takes all of a carrier's type arguments or none,
+    /// so a call that writes the method's own writes the block's ahead of them, in the order
+    /// <see cref="CarrierTypeParameters"/> declares. Only a block declared in Mist, whose carrier this
+    /// emitter wrote; a projected block keeps the order of the CLR method it came from.
+    /// </summary>
+    internal static (IReadOnlyList<IMistType> Arguments, IReadOnlyList<TypeParameter>? Parameters) CallTypeArguments(
+        Method? method, IReadOnlyList<IMistType> written)
+    {
+        if(written.Count == 0 || method is not { ClosedBlock: { DeclarationNode: not null } block })
         {
-            names.Add(parameter.Name);
+            return (written, method?.TypeParametersList);
         }
 
-        if(method is not null)
-        {
-            foreach(var parameter in method.TypeParametersList)
-            {
-                names.Add(parameter.Name);
-            }
-        }
+        var arguments = block.TypeParametersList.ConvertAll(parameter => method.BlockClosing.Apply(parameter, interner: null));
 
-        return names.Count == 0 ? "" : $"<{string.Join(", ", names)}>";
+        return ([.. arguments, .. written], CarrierTypeParameters(method, block));
     }
 
     private static void Separate(CSharpWriter writer, ref bool first)

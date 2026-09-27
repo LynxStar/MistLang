@@ -57,13 +57,12 @@ Every test of a rule follows the testing philosophy, `.claude/skills/testing-phi
 A decision that cannot be called without compiling a program is a rule to refactor, not a reason to
 climb a tier.
 
+Every new or migrated rule test declares its tier with `[Trait("Tier", "N")]`, as specified in
+`Test/CLAUDE.md` under "Test tier classification". Class traits apply only to classes whose tests
+all share a tier; mixed classes use method traits. Existing unclassified tests may remain unmarked.
+
 The one claim that crosses stages is no-cascade — one mistake, one complaint, across Stages 4 and 5.
 That is the Stage 4→5 seam: a handful of Tier 4 tests in total, never one per rule or per case.
-
-**`refusals/` and `RefusalCorpusTest` completely ignored the testing philosophy.** Each of their 759
-cases compiles a whole program to check one rule's diagnostic: Tier 4–5 machinery for a Tier 1–2
-invariant, about 12 of the suite's 13 minutes (measured 2026-09-26). Stop making it worse: never add
-a case there. A rule's refusals go in its Tier 1–2 tests.
 
 The samples banked in `AllFeaturesV2` are the false-positive half: a rule that fires on a working
 program fails the Tier 6 baseline.

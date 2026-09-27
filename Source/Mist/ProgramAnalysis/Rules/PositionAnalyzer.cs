@@ -1,5 +1,4 @@
 using Mist.Common.Diagnostics;
-using Mist.ProgramModel;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
@@ -35,12 +34,12 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
         {
             switch(node)
             {
-                case AssignmentExpression { IsCoalescing: true } coalescing when !statementLevel.Contains(coalescing):
-                    context.Report(ProgramAnalysisDiagnostics.CoalescingAssignmentNotAStatement, coalescing.Node, [coalescing.Target]);
+                case AssignmentExpression { IsCoalescing: true } coalescing when PositionDecision.Coalescing(statementLevel.Contains(coalescing)) is { } positional:
+                    context.Report(positional, coalescing.Node, [coalescing.Target]);
                     break;
 
                 case AssignmentExpression { Target: LocalReferenceExpression { Local.IsReadonly: true } target } assignment:
-                    context.Report(ProgramAnalysisDiagnostics.ReadonlyLocalReassigned, assignment.Node, [target], target.Local.Name);
+                    context.Report(PositionDecision.Reassignment(target.Local)!.Value, assignment.Node, [target], target.Local.Name);
                     break;
 
                 case LambdaExpression { IsStatic: true } lambda:
@@ -59,10 +58,10 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
 
         foreach(var application in context.Model.OptionalApplications.Applications)
         {
-            if(OptionalUnion.ContainsVoid(application.Inner) && context.IsInSource(application.Node))
+            if(PositionDecision.Optional(application.Inner) is { } optional && context.IsInSource(application.Node))
             {
                 context.Report(
-                    ProgramAnalysisDiagnostics.OptionalOfOptional, application.Node, [], TypeDisplay.Mist(application.Inner));
+                    optional, application.Node, [], TypeDisplay.Mist(application.Inner));
             }
         }
     }

@@ -202,6 +202,31 @@ This design makes progress impossible to lose silently. Deleting a reference rem
 
 ## Rules of Engagement
 
+### Declare the tier in test metadata
+
+Every new or migrated test must carry its tier in the framework's discoverable metadata, on
+either pipeline. This repo uses xUnit: `[Trait("Tier", "1")]` through `[Trait("Tier", "6")]`.
+Exactly one effective tier per test. Tag a concrete class only if all tests share its tier;
+otherwise tag individual methods and leave the class untagged. Class and method traits combine,
+so method traits cannot override a class tier. `[Fact]`, `[Theory]` and FsCheck `[Property]` all
+follow this rule; split theory rows requiring different tiers into different methods. Do not
+use an assembly or shared base fixture to assign a blanket tier. Keep feature traits and
+scheduling collections independent. See `Test/CLAUDE.md`, "Test tier classification", for examples
+and runner filters. If another framework is used, use its native category/tag mechanism with
+the same six-tier meaning.
+
+Existing tests may remain unmarked until audited or migrated. Missing metadata means
+unclassified; do not infer Tier 1 from the folder, name, or a comment. Choose the tier from the
+invariant, then audit the implementation, including its helpers and fixtures. A tag claiming
+Tier 1 while exercising Tier 4 infrastructure is a defect, and relabelling does not excuse a
+single-stage invariant tested at the wrong tier.
+
+Before adding higher-tier coverage beyond the pyramid's limits, get explicit human approval
+for an exception: state the invariant, case count, expected cost and why lower tiers cannot
+prove it. Count theory rows and repeated pipeline executions, not merely classes or methods.
+Do not hide 200 system cases in one theory or loop. Tests within the existing limits need no
+extra approval.
+
 ### Tier determines allowed infrastructure, not the other way around
 
 Decide which tier a test belongs to FIRST based on what invariant it encodes. Then constrain the infrastructure to what that tier allows. Do not let the available infrastructure dictate the tier.

@@ -94,8 +94,10 @@ After the pilot, steps 2–5 are independent of each other and can run in parall
 2. Find the rule's decision. If it cannot be called without a model, extract it first.
 3. Write a Tier 1 `[Theory]` (Tier 2 where the rule walks a body): **one row per case**, recognisably
    named after the case file, asserting the same diagnostic id. A case's silences, where it has
-   them, become rows too.
-4. Add a few Tier 2 tests for where the rule reports: one per kind of site.
+   them, become rows too. Declare `[Trait("Tier", "1")]` or `[Trait("Tier", "2")]` on each new
+   test method, or on a concrete class whose tests all share that tier, following `Test/CLAUDE.md`.
+4. Add a few Tier 2 tests for where the rule reports: one per kind of site, tagged
+   `[Trait("Tier", "2")]`. Tag the retained Stage 4-to-5 seam tests `[Trait("Tier", "4")]`.
 5. Mutation-check the new rows: break the decision and confirm each row fails. The register records
    how, on order 1: restore with a copy plus a touch, and re-run after the final restore, not trusting
    the build's exit code.
@@ -103,8 +105,9 @@ After the pilot, steps 2–5 are independent of each other and can run in parall
    progress record. Do not keep a second checklist.
 7. Run the new tests and `RefusalCorpusTest` through `tools/test-ledger/run.sh` (see `Test/CLAUDE.md`).
 
-Follow the code comment budget: the `// Tier N (...)` header that test files carry is that file's
-one comment.
+Follow the code comment budget: a `// Tier N (...)` header, if present, is that file's one comment.
+The runnable trait is required; a tier comment is not a substitute. Existing tests outside the
+migration may stay unclassified.
 
 ## Finish line
 

@@ -16,6 +16,11 @@ namespace Mist.ProgramAnalysis.Rules;
 /// </summary>
 internal static class UnheldCopies
 {
+    internal static bool Exists(IMistType from, IMistType to)
+    {
+        return (Recorded(from, to) ?? Recorded(to, from)) is not null;
+    }
+
     public static bool Report(AnalysisContext context, IMistType from, IMistType to, SyntaxNode at, IReadOnlyList<Expression> about)
     {
         if((Recorded(from, to) ?? Recorded(to, from)) is not { } found)

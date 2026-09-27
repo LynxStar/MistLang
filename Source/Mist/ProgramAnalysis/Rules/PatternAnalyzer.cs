@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
@@ -111,77 +112,87 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
     private static void JudgeTypeTest(AnalysisContext context, TypeTestPattern test, IMistType input, Expression about)
     {
         var tested = test.Constituent ?? test.NarrowedType;
+        var finding = TypeFinding(test, input, context.Model.TypeInterner);
+
+        if(finding is { } descriptor)
+        {
+            var held = OptionalLifting.NonVoidPortion(input, context.Model.TypeInterner);
+            var described = ConversionRelation.CopiesAClone(held, tested) || ConversionRelation.CopiesAClone(tested, held) ? held : input;
+            context.Report(descriptor, test.Node, [about], TypeDisplay.Mist(described), TypeDisplay.Mist(tested));
+        }
+    }
+
+    internal static DiagnosticDescriptor? TypeFinding(TypeTestPattern test, IMistType input, TypeInterner interner)
+    {
+        var tested = test.Constituent ?? test.NarrowedType;
 
         if(tested is UnknownType && !IsIndeterminate(input))
         {
-            context.Report(ProgramAnalysisDiagnostics.PatternNarrowsToUnknown, test.Node, [about]);
-            return;
+            return ProgramAnalysisDiagnostics.PatternNarrowsToUnknown;
         }
 
-        var held = OptionalLifting.NonVoidPortion(input, context.Model.TypeInterner);
+        var held = OptionalLifting.NonVoidPortion(input, interner);
 
         if(ConversionRelation.CopiesAClone(held, tested) || ConversionRelation.CopiesAClone(tested, held))
         {
-            context.Report(
-                ProgramAnalysisDiagnostics.PatternNeverMatches, test.Node, [about],
-                TypeDisplay.Mist(held), TypeDisplay.Mist(tested));
-
-            return;
+            return ProgramAnalysisDiagnostics.PatternNeverMatches;
         }
 
         if(OptionalUnion.IsVoid(tested) || input is UnionType || tested is UnionType || IsIndeterminate(input) || IsIndeterminate(tested))
         {
-            return;
+            return null;
         }
 
-        if(!Possible(input, tested, context))
-        {
-            context.Report(
-                ProgramAnalysisDiagnostics.PatternNeverMatches, test.Node, [about],
-                TypeDisplay.Mist(input), TypeDisplay.Mist(tested));
-        }
+        return Possible(input, tested, interner) ? null : ProgramAnalysisDiagnostics.PatternNeverMatches;
     }
 
     private static void JudgeComparison(AnalysisContext context, ComparisonPattern comparison, IMistType input, Expression about)
     {
+        if(ComparisonFinding(comparison, input, context.Model.TypeInterner) is { } descriptor)
+        {
+            var expressions = descriptor.Id == ProgramAnalysisDiagnostics.PatternNotComparable.Id ? new[] { about } : [about, comparison.Bound];
+            var args = descriptor.Id == ProgramAnalysisDiagnostics.PatternNotComparable.Id
+                ? new object?[] { TypeDisplay.Mist(input) }
+                : [TypeDisplay.Mist(comparison.Bound.Type), TypeDisplay.Mist(input)];
+            context.Report(descriptor, comparison.Node, expressions, args);
+        }
+    }
+
+    internal static DiagnosticDescriptor? ComparisonFinding(ComparisonPattern comparison, IMistType input, TypeInterner interner)
+    {
         if(IsIndeterminate(input) || input is UnionType || comparison.Bound.Type is ErrorType)
         {
-            return;
+            return null;
         }
 
         if(!IsConstant(comparison.Bound))
         {
-            context.Report(ProgramAnalysisDiagnostics.PatternBoundNotConstant, comparison.Node, [about, comparison.Bound]);
-            return;
+            return ProgramAnalysisDiagnostics.PatternBoundNotConstant;
         }
 
         if(comparison.Kind == ComparisonKind.Equal)
         {
-            var kind = ConversionClassifier.Classify(comparison.Bound.Type, input, context.Model.TypeInterner);
-            var reverse = ConversionClassifier.Classify(input, comparison.Bound.Type, context.Model.TypeInterner);
+            var kind = ConversionClassifier.Classify(comparison.Bound.Type, input, interner);
+            var reverse = ConversionClassifier.Classify(input, comparison.Bound.Type, interner);
 
             if(kind is ConversionKind.None && reverse is ConversionKind.None && !Fits(comparison.Bound, input))
             {
-                context.Report(
-                    ProgramAnalysisDiagnostics.PatternConstantMismatch, comparison.Node, [about, comparison.Bound],
-                    TypeDisplay.Mist(comparison.Bound.Type), TypeDisplay.Mist(input));
+                return ProgramAnalysisDiagnostics.PatternConstantMismatch;
             }
 
-            return;
+            return null;
         }
 
         if(!Comparability.Supports(input))
         {
-            context.Report(
-                ProgramAnalysisDiagnostics.PatternNotComparable, comparison.Node, [about],
-                TypeDisplay.Mist(input));
+            return ProgramAnalysisDiagnostics.PatternNotComparable;
         }
         else if(!Comparability.Supports(comparison.Bound.Type))
         {
-            context.Report(
-                ProgramAnalysisDiagnostics.PatternConstantMismatch, comparison.Node, [about, comparison.Bound],
-                TypeDisplay.Mist(comparison.Bound.Type), TypeDisplay.Mist(input));
+            return ProgramAnalysisDiagnostics.PatternConstantMismatch;
         }
+
+        return null;
     }
 
     private static void JudgeUnreachable(AnalysisContext context, SwitchExpression switchExpression)
@@ -190,9 +201,9 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
 
         foreach(var arm in switchExpression.Arms)
         {
-            if(covering.Any(earlier => Covers(earlier, arm.Pattern, context)))
+            if(ArmFinding(covering, arm.Pattern, context.Model.TypeInterner) is { } descriptor)
             {
-                context.Report(ProgramAnalysisDiagnostics.SwitchArmUnreachable, arm.Node, [switchExpression.Scrutinee]);
+                context.Report(descriptor, arm.Node, [switchExpression.Scrutinee]);
             }
 
             if(arm.Guard is null)
@@ -202,13 +213,18 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static bool Covers(Pattern earlier, Pattern later, AnalysisContext context)
+    internal static DiagnosticDescriptor? ArmFinding(IEnumerable<Pattern> earlier, Pattern later, TypeInterner interner)
+    {
+        return earlier.Any(pattern => Covers(pattern, later, interner)) ? ProgramAnalysisDiagnostics.SwitchArmUnreachable : null;
+    }
+
+    private static bool Covers(Pattern earlier, Pattern later, TypeInterner interner)
     {
         return earlier switch
         {
             CatchAllPattern => true,
             TypeTestPattern { Refinement: null } wide when later is TypeTestPattern narrow
-                => ConversionClassifier.Classify(narrow.Constituent ?? narrow.NarrowedType, wide.Constituent ?? wide.NarrowedType, context.Model.TypeInterner)
+                => ConversionClassifier.Classify(narrow.Constituent ?? narrow.NarrowedType, wide.Constituent ?? wide.NarrowedType, interner)
                     is ConversionKind.Identity or ConversionKind.Implicit,
             ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: { } first } }
                 when later is ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: { } second } }
@@ -217,10 +233,8 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         };
     }
 
-    private static bool Possible(IMistType input, IMistType tested, AnalysisContext context)
+    private static bool Possible(IMistType input, IMistType tested, TypeInterner interner)
     {
-        var interner = context.Model.TypeInterner;
-
         if(ConversionClassifier.Classify(input, tested, interner) is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified
             || ConversionClassifier.Classify(tested, input, interner) is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified)
         {

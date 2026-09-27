@@ -112,6 +112,10 @@ ProgramModel is tested like every other part of v2, by the testing philosophy, `
 
 After a batch, build, then run the tests that cover what you changed (`--filter`).
 
+Every new or migrated test declares its tier with `[Trait("Tier", "N")]` following
+`Test/CLAUDE.md`, "Test tier classification". Existing unclassified tests may remain unmarked;
+classify the implementation and its helpers before assigning a tag.
+
 - Run the full test suite (`tools/test-ledger/run.sh`, see `Test/CLAUDE.md`) only when:
   - Changes touch files outside ProgramModel (grammar, emitter, CLI, etc.)
   - You are at a natural checkpoint before presenting results to the user

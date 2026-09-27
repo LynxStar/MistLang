@@ -61,7 +61,7 @@ see things like a dropped `sealed` modifier.
 | `backlog/analysis-v2-capability-progression.yaml` | **Source of truth for Stage 5**, the analysis phase. The 91 `analysis_phase_tasks` from the emitter register, reordered into the order a checker can be built in, with the invariants that gate them. Each rule cites the emitter order it came from. |
 | `backlog/program-model-body-tasks.yaml` | The other axis: what the binder does not yet understand, by language construct. **Not valid YAML** despite the extension. |
 | `backlog/flaky-tests.yaml` | Flake register. Recording a flake is mandatory (see `Test/CLAUDE.md`). |
-| `backlog/refusal-corpus-migration.md` | The plan for moving `refusals/` down to Tier 1–2 and deleting `RefusalCorpusTest`: measurements, order, per-directory procedure. |
+| `backlog/refusal-corpus-migration.md` | Refusal test migration: measurements, tier choices and verification procedure. |
 | `backlog/general.md` | Issues outside any active spec. |
 | `backlog/inventory-<date>.md` | Dated snapshots of what v2 still needs, counted from the registers above. |
 
@@ -77,11 +77,6 @@ passes it. That gap is closed beside each rule, at the tiers the testing philoso
 (`.claude/skills/testing-philosophy/SKILL.md`, `/testing-philosophy`) assigns: Tier 1 against the
 rule's decision, Tier 2 when the rule walks a body (flow, ownership), Tier 3 rarely. See
 `Source/Mist/ProgramAnalysis/CLAUDE.md`.
-
-**`refusals/` and `RefusalCorpusTest` completely ignored the testing philosophy.** Each of their
-759 cases compiles a whole program to check what one stage reports: Tier 4–5 machinery for a
-Tier 1–2 invariant, where Tier 4 allows a handful per boundary. Together they are about 12 of the
-suite's 13 minutes (measured 2026-09-26). Stop making it worse: add nothing to `refusals/`.
 
 ## Commands
 
@@ -136,10 +131,23 @@ infrastructure at hand pick the tier.
 | 5 System | One sample, whole pipeline | Sparse, justified per test | More than one test per sample; generated programs; coverage a lower tier already has |
 | 6 Full system | `AllFeatures`, `AllFeaturesV2` | Exactly 2, ever | A third orchestrator |
 
+Every new or migrated test must declare its tier in runnable test metadata. With xUnit, use
+`[Trait("Tier", "1")]` through `[Trait("Tier", "6")]`: exactly one effective tier per test.
+Tag a class only when every test in it shares that tier; use method traits for mixed classes.
+Existing unclassified tests may remain unmarked until audited or migrated. An absent trait means
+unclassified; a folder, test name or `// Tier N` comment is not a classifier. The convention and
+audit procedure live in `Test/CLAUDE.md` under "Test tier classification".
+
+Review the implementation, including helpers and fixtures, against the claimed tier. A mismatch
+is a defect to resolve, and a tag never permits infrastructure forbidden at that tier. Before
+adding higher-tier coverage beyond the pyramid's limits, explain the invariant, case count,
+expected cost and why lower tiers cannot prove it, and get explicit human approval for the
+exception. Count theory cases and repeated pipeline executions, not just classes or methods.
+
 - **The most common violation** is running the whole pipeline, or most of it, to check what one
   stage does: a test that parses source and asserts on one property of the result.
   `CompilerDriver.Compile` runs every stage, so a test that calls it is Tier 4 or above however
-  small its program is. `RefusalCorpusTest` is this violation 759 times over; see Stage 5 above.
+  small its program is.
 - **A diagnostic is owned by the rule that reports it**, and is proven at that rule's tier: Tier 1,
   or Tier 2 when the rule walks a body. A refusal is worth testing because `AllFeatures` cannot see
   one; that says nothing about compiling a program to watch it fail.

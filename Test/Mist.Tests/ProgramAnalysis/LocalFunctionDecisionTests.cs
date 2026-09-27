@@ -1,6 +1,6 @@
 // Tier 3 (Component): what a local function binds to, and the shapes the local-functions spec
 // deliberately admits -- a call before the declaration, recursion, captures, the definite-assignment
-// admits -- with the refusals kept in refusals/. A write inside the function does not count as
+// admits. A write inside the function does not count as
 // assigning the local at the call, as a write inside a lambda does not (spec Req 5.4), so the read
 // after such a call is the one finding pinned here. WHY each is admitted is recorded on
 // .kiro/specs/local-functions/design.md and on orders 9, 10 and 11 of

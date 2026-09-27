@@ -2,11 +2,7 @@ namespace Mist.CLI.Layout;
 
 public sealed record LexArtifacts(string TokensPath, string SourcePath);
 
-/// <summary>
-/// Paths are resolved against the working directory, as the file APIs that clean and write the
-/// output and bin directories resolve them, so a relative <c>--output</c> names the same tree here
-/// that the clean deletes; a folder called <c>out</c> is only excluded while it is that tree.
-/// </summary>
+/// <summary>Paths resolve against the working directory so a relative <c>--output</c> or <c>--bin</c> names the tree the clean deletes.</summary>
 public sealed class ProjectLayout
 {
     private readonly string workingDirectory;

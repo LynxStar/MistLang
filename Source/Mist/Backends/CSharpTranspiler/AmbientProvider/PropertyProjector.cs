@@ -35,6 +35,11 @@ internal static class PropertyProjector
                 memberType.Scope,
                 ClrNullability.ResultIsNonNull(prop, prop),
                 TupleElementNames.Of(prop, prop.PropertyType));
+            if(resolvedType is ErrorType or NotProjectedType)
+            {
+                continue;
+            }
+
             var getter = CreateGetter(prop);
             var setter = CreateSetter(prop);
 

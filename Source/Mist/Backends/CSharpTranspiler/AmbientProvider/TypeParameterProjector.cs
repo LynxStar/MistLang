@@ -1,118 +1,69 @@
-using System.Reflection;
-using Mist.ProgramModel.Model;
-using Mist.ProgramModel.Model.Enums;
-using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Projects CLR generic type parameters and their constraints onto a Mist MemberType.
-/// Uses an <see cref="AmbientTypeResolver"/> to look up constraint types.
-/// </summary>
 internal static class TypeParameterProjector
 {
-    /// <summary>
-    /// Projects CLR generic type parameters onto the projected type.
-    /// Creates TypeParameter instances, adds them to the type's TypeParametersList,
-    /// and registers them in the type's scope for name resolution.
-    /// For nested types, only the type's own type parameters are projected —
-    /// inherited parameters from the declaring type are accessible via scope parentage.
-    /// </summary>
-    public static void Project(MemberType projectedType, Type clrType, AmbientTypeResolver resolver)
+    public static bool Project(MemberType projectedType, Type clrType, AmbientTypeResolver resolver)
     {
-        if(!clrType.IsGenericTypeDefinition)
+        return Initialize(projectedType, clrType) && ProjectConstraints(projectedType, clrType, resolver);
+    }
+
+    public static bool Initialize(MemberType projectedType, Type clrType)
+    {
+        try
         {
-            return;
+            if(!clrType.IsGenericTypeDefinition)
+            {
+                return true;
+            }
+
+            var clrTypeParams = clrType.GetGenericArguments();
+            var inheritedCount = clrType.DeclaringType?.GetGenericArguments().Length ?? 0;
+            for(var i = inheritedCount; i < clrTypeParams.Length; i++)
+            {
+                projectedType.TypeParametersList.Add(new TypeParameter(
+                    clrTypeParams[i].Name, i - inheritedCount, projectedType.Scope, projectedType));
+            }
+
+            return true;
         }
-
-        var clrTypeParams = clrType.GetGenericArguments();
-
-        // For nested types, CLR reports all type parameters including those inherited
-        // from the declaring type. Only project the nested type's own parameters.
-        var inheritedCount = clrType.DeclaringType?.GetGenericArguments().Length ?? 0;
-        var ownCount = clrTypeParams.Length - inheritedCount;
-
-        // If the nested type has no parameters of its own, nothing to project.
-        if(ownCount == 0)
+        catch(Exception exception) when(GenericConstraintProjector.IsMetadataFailure(exception))
         {
-            return;
-        }
-
-        // Pass 1: Create all type parameters and register them in scope.
-        // This must happen before constraint resolution so that cross-parameter
-        // constraints (where T : U) can find their targets.
-        for(var i = 0; i < ownCount; i++)
-        {
-            var clrParam = clrTypeParams[inheritedCount + i];
-            var typeParam = new TypeParameter(clrParam.Name, i, projectedType.Scope, projectedType);
-            projectedType.TypeParametersList.Add(typeParam);
-        }
-
-        // Pass 2: Resolve constraints now that all type parameters are in scope.
-        for(var i = 0; i < ownCount; i++)
-        {
-            ProjectConstraints(projectedType.TypeParametersList[i], clrTypeParams[inheritedCount + i], projectedType.Scope, resolver);
+            return false;
         }
     }
 
-    /// <summary>
-    /// Maps CLR generic parameter constraints to Mist TypeParameterConstraint instances.
-    /// </summary>
-    private static void ProjectConstraints(TypeParameter typeParam, Type clrParam, Scope scope, AmbientTypeResolver resolver)
+    public static bool ProjectConstraints(MemberType projectedType, Type clrType, AmbientTypeResolver resolver)
     {
-        var attributes = clrParam.GenericParameterAttributes;
-        var specialConstraints = attributes & GenericParameterAttributes.SpecialConstraintMask;
-
-        // struct constraint (NotNullableValueTypeConstraint)
-        if((specialConstraints & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0)
+        try
         {
-            typeParam.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Struct));
-        }
-
-        // class constraint (ReferenceTypeConstraint)
-        if((specialConstraints & GenericParameterAttributes.ReferenceTypeConstraint) != 0)
-        {
-            typeParam.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Class));
-        }
-
-        // new() constraint (DefaultConstructorConstraint)
-        if((specialConstraints & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
-        {
-            typeParam.ConstraintsList.Add(new ConstructorConstraint([]));
-        }
-
-        // Base type and interface constraints from GetGenericParameterConstraints().
-        var constraintTypes = clrParam.GetGenericParameterConstraints();
-        foreach(var constraintType in constraintTypes)
-        {
-            // System.ValueType appears as a constraint for struct-constrained params — skip it.
-            if(constraintType.FullName == "System.ValueType")
+            if(!clrType.IsGenericTypeDefinition)
             {
-                continue;
+                return true;
             }
 
-            var resolved = ResolveConstraintType(constraintType, scope, resolver);
-            if(resolved is not null)
+            var clrTypeParams = clrType.GetGenericArguments();
+            var inheritedCount = clrType.DeclaringType?.GetGenericArguments().Length ?? 0;
+            foreach(var parameter in projectedType.TypeParametersList)
             {
-                typeParam.ConstraintsList.Add(new TypeConstraint(resolved));
+                parameter.ConstraintsList.Clear();
             }
-        }
-    }
 
-    /// <summary>
-    /// Resolves a CLR constraint type through the ambient resolver.
-    /// Returns null for sentinel types (ErrorType, NotProjectedType) that
-    /// should not become constraints.
-    /// </summary>
-    private static MistType? ResolveConstraintType(Type constraintType, Scope scope, AmbientTypeResolver resolver)
-    {
-        var resolved = resolver.Resolve(constraintType, scope);
-        if(resolved is ErrorType or NotProjectedType)
+            for(var i = 0; i < projectedType.TypeParametersList.Count; i++)
+            {
+                if(!GenericConstraintProjector.Project(
+                    projectedType.TypeParametersList[i], clrTypeParams[inheritedCount + i], projectedType.Scope, resolver))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch(Exception exception) when(GenericConstraintProjector.IsMetadataFailure(exception))
         {
-            return null;
+            return false;
         }
-
-        return resolved;
     }
 }

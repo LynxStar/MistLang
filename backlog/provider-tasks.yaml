@@ -469,3 +469,43 @@ missing_stdlib_types:
     - [ ] names inside a non-Func/Action delegate's signature -- FunctionShape reads Invoke unnamed and the delegate's names are skipped
     - [ ] System.Tuple (reference tuples) stays nominal; no language requirement asks otherwise
   - [ ] Union type Standard Library representation
+
+generic_constraint_availability_v2:
+  status: delivered
+  requirements: ambient-type-provider-v2 9.8, 10.3, 10.5
+  evidence: >
+    Workstream 10, 2026-09-27, revalidated on main bb4f345e. TypeParameterProjector,
+    MethodProjector and ExtensionProjector discarded failed constraints; nested constructed
+    arguments could retain ErrorType; all shells were registered. AmbientTypeAvailability now
+    determines constraint availability before member publication, propagates failures through
+    constraint, parent, base and interface dependencies, and removes excluded nested links.
+    Every surviving type's parameter scope exists before constraint resolution. A metadata read
+    failure remains a failure, including one after dependency scanning; valid dependency cycles,
+    F-bounds, sibling parameters and nested generic scopes remain available. Tuple/Nullable
+    constraint shapes require their elements rather than nominal wrapper shells. Existing gaps
+    in unrelated base/interface projection do not seed this constraint pass.
+
+    GenericConstraintProjector shares the failure result across type, method and extension
+    projection; AmbientTypeResolver propagates nested argument failures before interning and
+    rejects explicitly unavailable declarations even through delegate reshaping. Focused field
+    and property checks omit signatures referencing newly hidden types. Standard aliases retain
+    their existing identity and unavailable constraint metadata emits no eager diagnostic.
+
+    New fixture: Test/Mist.Tests.InteropFixtures/ConstraintProjection/ConstraintProjectionFixtures.cs.
+    AmbientConstraintAvailabilityDecisionTests has 3 Tier 1 cases; AmbientConstraintProjectionTests
+    has 14 Tier 2 cases using deliberately omitted shells and seeded aliases; one Tier 3
+    AmbientConstraintRegistrationTests case checks the public registration seam. All 18 cases and
+    the 7 existing tuple projector cases pass in ledger 20260927-151301. Independent mutations
+    removing nested argument failure propagation, accepting failed extension constraints, and
+    retaining an excluded nested link each fail their targeted regression (ledgers
+    20260927-150749, 20260927-150802, 20260927-150819); all source mutations are restored.
+
+    Final command: UseSharedCompilation=false tools/test-ledger/run.sh Mist.slnx --filter
+    'FullyQualifiedName~Mist.Tests.Backend.Ambient'. Ledger 20260927-152125 builds the full solution
+    with 0 warnings and 0 errors, then passes all 145 ambient tests (including the 18 new cases).
+    Changed-file and unrestricted solution dotnet format --verify-no-changes both pass with no
+    diagnostics after all solution projects are restored. Validation uses
+    UseSharedCompilation=false after CS0016 from the shared compiler's generated-output writes.
+    Tier-filtered discovery also passes all 18 new cases in ledger 20260927-152456:
+    LEDGER_NO_BUILD=1 tools/test-ledger/run.sh Test/Mist.Tests --filter
+    'FullyQualifiedName~AmbientConstraint&(Tier=1|Tier=2|Tier=3)'.

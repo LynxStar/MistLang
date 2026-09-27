@@ -1,6 +1,4 @@
 using System.Reflection;
-using Mist.ProgramModel.Model;
-using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -54,7 +52,10 @@ internal static class MethodProjector
         var typeParameters = new List<TypeParameter>();
         if(method.IsGenericMethodDefinition)
         {
-            ProjectMethodTypeParameters(method, methodScope, memberType, typeParameters, resolver);
+            if(!ProjectMethodTypeParameters(method, methodScope, memberType, typeParameters, resolver))
+            {
+                return null;
+            }
         }
 
         // Resolve return type.
@@ -103,72 +104,37 @@ internal static class MethodProjector
     /// them in the method scope, then resolves constraints (so cross-parameter
     /// constraints like <c>where T : U</c> can resolve).
     /// </summary>
-    private static void ProjectMethodTypeParameters(
+    private static bool ProjectMethodTypeParameters(
         MethodInfo method,
         ITypeNameScope methodScope,
         MemberType declaringType,
         List<TypeParameter> typeParameters,
         AmbientTypeResolver resolver)
     {
-        var clrTypeParams = method.GetGenericArguments();
-
-        // Pass 1: Create type parameters and register in scope.
-        for(var i = 0; i < clrTypeParams.Length; i++)
+        try
         {
-            var clrParam = clrTypeParams[i];
-            var typeParam = new TypeParameter(clrParam.Name, i, (Scope)methodScope, declaringType);
-            typeParameters.Add(typeParam);
-            methodScope.DeclareType(clrParam.Name, typeParam);
-        }
-
-        // Pass 2: Resolve constraints.
-        for(var i = 0; i < clrTypeParams.Length; i++)
-        {
-            ProjectConstraints(typeParameters[i], clrTypeParams[i], (Scope)methodScope, resolver);
-        }
-    }
-
-    /// <summary>
-    /// Maps CLR generic parameter constraints to Mist constraint instances.
-    /// Mirrors the logic in <see cref="TypeParameterProjector"/>.
-    /// </summary>
-    private static void ProjectConstraints(
-        TypeParameter typeParam,
-        Type clrParam,
-        Scope scope,
-        AmbientTypeResolver resolver)
-    {
-        var attributes = clrParam.GenericParameterAttributes;
-        var specialConstraints = attributes & GenericParameterAttributes.SpecialConstraintMask;
-
-        if((specialConstraints & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0)
-        {
-            typeParam.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Struct));
-        }
-
-        if((specialConstraints & GenericParameterAttributes.ReferenceTypeConstraint) != 0)
-        {
-            typeParam.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Class));
-        }
-
-        if((specialConstraints & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
-        {
-            typeParam.ConstraintsList.Add(new ConstructorConstraint([]));
-        }
-
-        var constraintTypes = clrParam.GetGenericParameterConstraints();
-        foreach(var constraintType in constraintTypes)
-        {
-            if(constraintType.FullName == "System.ValueType")
+            var clrTypeParams = method.GetGenericArguments();
+            for(var i = 0; i < clrTypeParams.Length; i++)
             {
-                continue;
+                var clrParam = clrTypeParams[i];
+                var typeParam = new TypeParameter(clrParam.Name, i, (Scope)methodScope, declaringType);
+                typeParameters.Add(typeParam);
+                methodScope.DeclareType(clrParam.Name, typeParam);
             }
 
-            var resolved = resolver.Resolve(constraintType, scope);
-            if(resolved is not ErrorType and not NotProjectedType)
+            for(var i = 0; i < clrTypeParams.Length; i++)
             {
-                typeParam.ConstraintsList.Add(new TypeConstraint(resolved));
+                if(!GenericConstraintProjector.Project(typeParameters[i], clrTypeParams[i], (Scope)methodScope, resolver))
+                {
+                    return false;
+                }
             }
+
+            return true;
+        }
+        catch(Exception exception) when(GenericConstraintProjector.IsMetadataFailure(exception))
+        {
+            return false;
         }
     }
 

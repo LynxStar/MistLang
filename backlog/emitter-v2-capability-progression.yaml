@@ -7814,6 +7814,24 @@ capabilities:
       and ICollection, each naming the previous one's parameter, and a substitution extended without
       closing its arguments stopped one step short. The arguments are now closed through the substitution
       so far at each step. Verified by the collection-usage snippet.
+
+      UNRESOLVABLE GENERIC CONSTRAINTS, 2026-09-27 (workstream 10, ambient-type-provider-v2
+      9.8/10.3/10.5). Projection previously dropped failed type/method constraints, including
+      failures inside constructed type arguments, and still registered the declarations.
+      Constraint availability is now settled before publishing members, with failure propagation
+      through constraints, declaring types and inheritance dependencies; valid cycles are retained
+      and excluded nested links are removed. Methods and extensions share the same failure result.
+      Standard alias identity is preserved; unavailable metadata reports no eager diagnostic.
+      Proof: 3 Tier 1 dependency cases, 14 Tier 2 projector cases over task-specific CLR fixtures and
+      seeded/omitted shells, and 1 Tier 3 registration case; all 18 plus 7 existing tuple cases pass
+      (ledger 20260927-151301). Lost nested failure signals, extension leaks and retained invalid
+      nested links each fail an independent mutation check (150749/150802/150819). This closes the
+      constraint-hiding contract, not all CLR projection or the other residue recorded above.
+      Final validation: full solution build, 0 warnings/0 errors; all 145 ambient regression tests
+      pass in ledger 20260927-152125 (UseSharedCompilation=false tools/test-ledger/run.sh Mist.slnx
+      --filter 'FullyQualifiedName~Mist.Tests.Backend.Ambient'). Both changed-file and unrestricted
+      solution formatting pass with no diagnostics. No new runtime sample or output baseline is
+      used for this metadata contract.
     unlocks: [ArityOverloads]
 
   - id: clr-byref-parameter-projection

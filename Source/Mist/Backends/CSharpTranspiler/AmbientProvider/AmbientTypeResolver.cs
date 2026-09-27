@@ -12,14 +12,14 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// type projection. Checks the current scope (for type parameters), well-known
 /// types (Standard Library), and projected shells — in that order.
 /// Handles closed generics by interning <see cref="ConstructedType"/> instances.
-/// Emits a diagnostic and returns <see cref="ErrorType"/> for unresolvable types.
+/// Returns <see cref="ErrorType"/> silently for unresolvable metadata types.
 /// </summary>
 internal sealed class AmbientTypeResolver
 {
     private readonly Dictionary<string, DeclaredType> shells;
     private readonly Dictionary<string, IMistType> wellKnownTypes;
     private readonly TypeInterner typeInterner;
-    private readonly DiagnosticBag diagnostics;
+    private readonly HashSet<string> unavailable = [];
 
     public AmbientTypeResolver(
         Dictionary<string, DeclaredType> shells,
@@ -30,7 +30,7 @@ internal sealed class AmbientTypeResolver
         this.shells = shells;
         this.wellKnownTypes = wellKnownTypes;
         this.typeInterner = typeInterner;
-        this.diagnostics = diagnostics;
+        _ = diagnostics;
     }
 
     /// <summary>
@@ -40,6 +40,12 @@ internal sealed class AmbientTypeResolver
     /// </summary>
     public MistType Resolve(Type clrType, Scope scope, TupleElementNames? names = null)
     {
+        if(!clrType.IsGenericParameter && !clrType.HasElementType
+            && unavailable.Contains(BuildFQN(clrType.IsGenericType ? clrType.GetGenericTypeDefinition() : clrType)))
+        {
+            return ErrorType.Instance;
+        }
+
         // Pointer types (int*, void*, T**) are unsafe and have no Mist representation.
         // Returning ErrorType causes the owning member to be skipped.
         if(clrType.IsPointer)
@@ -116,7 +122,7 @@ internal sealed class AmbientTypeResolver
     /// to a function type by their own route; taking them here instead would bypass the pack that
     /// makes a single declaration cover seventeen CLR arities.
     /// </summary>
-    private FunctionType? FunctionShape(Type clrType, Scope scope)
+    private MistType? FunctionShape(Type clrType, Scope scope)
     {
         if(clrType.IsGenericParameter || !IsDelegate(clrType) || IsWellKnown(clrType))
         {
@@ -139,6 +145,12 @@ internal sealed class AmbientTypeResolver
                 ? wellKnownTypes["System.Void"]
                 : ResolveInbound(
                     invoke.ReturnType, scope, ClrNullability.ResultIsNonNull(invoke.ReturnParameter, invoke));
+
+        if(parameters.Any(parameter => parameter is ErrorType or NotProjectedType)
+            || returnType is ErrorType or NotProjectedType)
+        {
+            return ErrorType.Instance;
+        }
 
         return typeInterner.GetOrCreateFunctionType(parameters, returnType);
     }
@@ -183,9 +195,8 @@ internal sealed class AmbientTypeResolver
     /// Resolves a generic type parameter (e.g., T, TKey) by name, walking the scope
     /// parent chain. A parameter declared on a declaring type stays visible to its
     /// nested types through scope parentage.
-    /// Returns <see cref="ErrorType"/> and emits a diagnostic if not found.
     /// </summary>
-    private MistType ResolveTypeParameter(Type clrParam, Scope scope)
+    private static MistType ResolveTypeParameter(Type clrParam, Scope scope)
     {
         // Members are excluded: a type parameter can only be a type name, and admitting fields
         // or methods would let one shadow the parameter being looked for. No location node --
@@ -196,18 +207,12 @@ internal sealed class AmbientTypeResolver
             return resolved;
         }
 
-        diagnostics.Report(
-            BackendDiagnostics.UnresolvedAmbientType,
-            default,
-            "<ambient>",
-            (object?)clrParam.Name);
         return ErrorType.Instance;
     }
 
     /// <summary>
     /// Resolves a type by its pre-built fully qualified name (CLR-format key).
     /// Checks well-known types first, then projected shells.
-    /// Returns <see cref="ErrorType"/> and emits a diagnostic if not found.
     /// </summary>
     private MistType ResolveByFQN(string fqn)
     {
@@ -237,7 +242,7 @@ internal sealed class AmbientTypeResolver
     /// ("Namespace.Outer.Inner"); for top-level types the loop is a no-op and it
     /// degenerates to "Namespace.Name". Raw CLR names (with backtick arity) are used.
     /// </summary>
-    private static string BuildFQN(Type clrType)
+    internal static string BuildFQN(Type clrType)
     {
         // Walk any nesting chain from innermost outward: [Inner, Middle, ...].
         var chain = new List<string>();
@@ -276,16 +281,32 @@ internal sealed class AmbientTypeResolver
         var definitionClrType = clrType.GetGenericTypeDefinition();
         var definition = Resolve(definitionClrType, scope);
 
+        if(definition is ErrorType or NotProjectedType)
+        {
+            return definition;
+        }
+
         var clrArgs = clrType.GetGenericArguments();
         var inherited = definitionClrType.DeclaringType?.GetGenericArguments().Length ?? 0;
         var enclosing = inherited == 0
             ? null
             : Resolve(definitionClrType.DeclaringType!.MakeGenericType(clrArgs[..inherited]), scope, names) as ConstructedType;
+        if(inherited > 0 && enclosing is null)
+        {
+            return ErrorType.Instance;
+        }
+
         var resolvedArgs = new List<IMistType>(clrArgs.Length - inherited);
 
         foreach(var clrArg in clrArgs[inherited..])
         {
-            resolvedArgs.Add(Resolve(clrArg, scope, names));
+            var argument = Resolve(clrArg, scope, names);
+            if(argument is ErrorType or NotProjectedType)
+            {
+                return argument;
+            }
+
+            resolvedArgs.Add(argument);
         }
 
         // A span's Mist declaration carries a length the CLR one has no slot for (WellKnownTypeMap says
@@ -423,6 +444,11 @@ internal sealed class AmbientTypeResolver
         }
 
         return typeInterner.GetOrCreateUnionType([inner, ResolveByFQN("System.Void")]);
+    }
+
+    internal void MarkUnavailable(IEnumerable<string> names)
+    {
+        unavailable.UnionWith(names);
     }
 
     private static bool IsReferenceType(Type clrType)

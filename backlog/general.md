@@ -847,3 +847,28 @@ Without lex artifacts, the same project builds and runs (`alpha`, `beta`, `helpe
    - No checkout on this machine held such files on 2026-09-27.
    - The fix belongs to the Driver's owner: exclude the referenced project's default `out/` and `bin/`. For the Driver to share `ProjectLayout`, it would have to move from `Mist.CLI` into `Mist`.
 2. Files left in a directory that an earlier invocation used as output, under different flags, are still discovered. Requirement 2's amendment note says so.
+
+
+---
+
+## 🟢 Project-reference names bypass validation on repeated edges, and invalid manifests load repeatedly
+
+**Closed (2026-09-27):** `ProjectReferenceResolver` caches each canonical path's manifest load, including null failures, within one resolution. It validates every edge to a successfully loaded target before completed/active traversal checks. A mismatched edge skips dependencies without preventing a later valid edge from traversing them. DFS cycle chains, dependency-first ordering, partial results and sibling-error collection remain intact. The public entry point, parser, records, descriptors and source discovery policy are unchanged; the resolver has an internal manifest/source-loader seam for direct graph tests. Its XML contract now describes partial results and named `[references]` syntax.
+
+**Defect revalidated:** on the starting `main` commit `2ef14e1d`, after extracting only injectable loaders while retaining the original DFS, the Tier 2 ledger run `20260927-144647` passed 7/17 and failed 10/17. The correct-first diamond omitted the alias mismatch; wrong-first reloaded the target; three edges to a failed load produced three manifest diagnostics. Distinct aliases after completion and mismatched edges to active targets also bypassed name validation. These graph cases use hand-built configurations and stub loaders, with no parser, filesystem, compiler or processes.
+
+**Actual verification:**
+
+```sh
+tools/test-ledger/run.sh Test/Mist.Tests --filter 'FullyQualifiedName~ProjectReferenceGraphTests&Tier=2'
+tools/test-ledger/run.sh Test/Mist.Tests --filter '(FullyQualifiedName~ProjectReferenceGraphTests&Tier=2)|(FullyQualifiedName~ProjectReferenceManifestSeamTests&Tier=4)|FullyQualifiedName~ProjectReferenceResolverTests|FullyQualifiedName~ProjectReferencePropertyTests'
+dotnet format whitespace Mist.slnx --no-restore --include Source/Mist/Driver/ProjectReferenceResolver.cs Test/Mist.Tests/Driver/ProjectReferenceGraphTests.cs Test/Mist.Tests/Driver/ProjectReferenceManifestSeamTests.cs
+dotnet format Mist.slnx --verify-no-changes --report TestResults/project-reference-format-report
+git diff --check
+```
+
+The final ledger `20260927-145107` passed 37/37, with 0 build warnings and 0 errors: 17 new Tier 2 graph cases, 3 new Tier 4 parser/filesystem seam cases, and 17 existing resolver/property cases. New tests each have exactly one class-level Tier trait and private task-specific fixtures. Coverage includes either diamond order, skipped traversal, later valid edges, distinct aliases, ordinal name matching, successful/failed cache scope, exact root/self/longer cycle chains, normalized named-manifest paths, real malformed TOML and missing-name diagnostics, and existing missing-target/path errors. Formatting exited 0 with an empty report after correcting local-function names and enabling restore; the earlier no-restore solution check lacked assets for other test projects. `git diff --check` passed.
+
+**Limits and integration:** no full-solution build or full ledger checkpoint was run; verification builds the Mist test project and its dependencies. Other lanes advanced `main` during this work, so the branch remains based on the clean starting commit above. The purity lane's committed and working changed-file lists were inspected read-only; no source/test ownership overlap or implementation dependency was found. This appended backlog evidence is the only shared-file integration point. Root back-edges retain cycle diagnostics without reloading the root; the entry point receives the root folder and references rather than its configuration.
+
+**Integration verification (2026-09-27):** merged current `main` at `bb4f345e`; only the appended backlog entries conflicted, and both were preserved. The same filtered ledger command above passed 37/37 in `20260927-150424`, with 0 build warnings and 0 errors. `dotnet format Mist.slnx --verify-no-changes --report TestResults/project-reference-main-format-report` exited 0 with an empty report; `git diff --check` passed.

@@ -239,3 +239,24 @@ Lowering gives the literal a synthetic token, `__SYNTH_SEMI`, because it looks f
 token by that synthetic name rather than by its text. The lexer then produces the declared `SEMI`,
 which wins the tie on declaration order, so the synthetic token never appears. `Mist.storm` writes
 no literal in a rule, so the shipped parser is unaffected.
+
+**Fixed, 2026-09-27.** Lowering now resolves a literal by its text: the first declared default-mode
+token whose pattern is exactly that string, also through a fragment, is the token the literal names,
+and no synthetic token is made for it. A literal no declared token spells keeps its synthetic token.
+A hidden token counts, being what the lexer produces for the text: the literal names it just as
+writing its name would. A token of another mode does not: the synthetic token is lexed in the
+default mode, where that token is no rival. `a;` now parses as `Item` to position 2.
+`RuleLiteralTokenReuseTests` holds it -- Tier 1 on `DeclaredTokenSpelling` (8 cases), Tier 3 on
+lowering from grammar text (3), Tier 4 on a compiled parser (2) -- and each of seven mutations is
+caught. The generated Mist sources are byte-identical.
+
+**Residue**, each reproduced on the fixed generator:
+
+- A literal that a pattern token also admits still never matches, its synthetic token losing the
+  tie. With `token IDENT = [a-z]+;`, `rule Cond = "if" name:IDENT;` yields no node on `if a`; with
+  `token SEMI = [;];`, `name:IDENT ";"` yields none on `a;`.
+- A rule element naming a hidden token never matches, the parser reading only the default channel,
+  and nothing refuses it: with `hidden token SP = " ";`, `name:IDENT SP other:IDENT` and
+  `name:IDENT " " other:IDENT` both yield no node on `a b`.
+- `ReachabilityPass` keys a literal by its text and a token by its name, so `SEMI as A | ";" as B`
+  draws no `STORM0006` although `SEMI as A | SEMI as B` does, and the two now lower alike.

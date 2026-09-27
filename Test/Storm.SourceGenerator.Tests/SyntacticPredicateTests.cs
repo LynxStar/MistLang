@@ -132,8 +132,6 @@ public class SyntacticPredicateTests
     [InlineData("rule R = IDENT &(x:SEMI);", "Label 'x' inside a predicate")]
     [InlineData("rule R = IDENT &(IDENT*);", "A predicate body must be")]
     [InlineData("rule R = IDENT &(SEMI | COMMA COMMA);", "A predicate body must be")]
-    [InlineData("rule R = held:(IDENT &SEMI);", "A predicate inside the labelled element 'held'")]
-    [InlineData("rule R = held:(IDENT &SEMI)?;", "A predicate inside the labelled element 'held'")]
     public void APredicateTheParserCouldNotHonourIsRefusedWhereItIsWritten(string rule, string message)
     {
         _ = Lower(Tokens + rule, out var diagnostics);
@@ -187,6 +185,17 @@ public class SyntacticPredicateTests
     public void APredicateInsideAnUnlabelledOptionalGuardsIt(string input, int consumed)
     {
         const string grammar = Tokens + "rule Item = head:IDENT (COMMA &IDENT)?;\nrule Start = Item;\n";
+
+        Assert.Equal(consumed, ParseItem(grammar, memoized: false, input).Position);
+    }
+
+    [Theory]
+    [Trait("Tier", "4")]
+    [InlineData("a,b", 2)]
+    [InlineData("a,", 1)]
+    public void APredicateInsideALabelledOptionalGuardsIt(string input, int consumed)
+    {
+        const string grammar = Tokens + "rule Item = head:IDENT held:(COMMA &IDENT)?;\nrule Start = Item;\n";
 
         Assert.Equal(consumed, ParseItem(grammar, memoized: false, input).Position);
     }

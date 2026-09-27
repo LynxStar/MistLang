@@ -57,16 +57,8 @@ internal enum GroupFieldKind
     /// </summary>
     RuleRef,
 
-    /// <summary>
-    /// A nested anonymous group projected as a nested struct field. Not constructed by
-    /// the wave-4 parser (which handles only <c>*</c>/<c>+</c> struct groups).
-    /// </summary>
     NestedGroup,
 
-    /// <summary>
-    /// Any other labelled element (mixed alternation, optional, repetition) typed via
-    /// the generic field derivation. Not constructed by the wave-4 parser.
-    /// </summary>
     Other,
 }
 
@@ -401,7 +393,8 @@ public static partial class AstEmitter
             .ToList();
 
         var groupPropName = EnsureUnique("Group" + group.GroupIndex, usedNames);
-        properties.Add(GroupPropertyForModifier(groupPropName, structName, group.Modifier, nodeFieldNames));
+        properties.Add(GroupPropertyForModifier(groupPropName, structName, group.Modifier, nodeFieldNames)
+            .FilledBy(group.Sequence, group.Modifier is GroupModifier.ZeroOrMore or GroupModifier.OneOrMore));
 
         if(emitObsoleteShims)
         {

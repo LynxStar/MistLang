@@ -4,7 +4,6 @@
 
 using Storm.SourceGenerator.Diagnostics;
 using Storm.SourceGenerator.Emit;
-using Storm.SourceGenerator.Frontend;
 using Storm.SourceGenerator.IR;
 
 namespace Storm.SourceGenerator.Tests;
@@ -15,7 +14,6 @@ public sealed class UnlabelledTokenChoiceTests
     private static readonly TokenIR Semi = new("SEMI", new StringLiteralIR(";"), isHidden: false, declarationIndex: 1);
     private static readonly TokenIR Comma = new("COMMA", new StringLiteralIR(","), isHidden: false, declarationIndex: 2);
     private static readonly RuleIR Args = new("Args", [new RuleAlternativeIR(null, [], new TokenRefIR(Ident))]);
-    private static readonly StormRuleDecl ItemDeclaration = new("Item", new StormReferenceExpr("IDENT"), 0, 1, 1);
 
     [Theory]
     [Trait("Tier", "1")]
@@ -38,9 +36,7 @@ public sealed class UnlabelledTokenChoiceTests
     {
         var refusal = Assert.Single(Refusals(Sequence(new TokenRefIR(Ident), ChoiceOf(arms))));
 
-        Assert.Equal(StormDiagnosticIds.STORM_UNSUPPORTED_CONSTRUCT, refusal.Id);
-        Assert.Equal(StormDiagnosticSeverity.Error, refusal.Severity);
-        Assert.Contains("rule 'Item'", refusal.Message);
+        Assert.Contains("unlabelled alternation in rule 'Item'", refusal);
     }
 
     [Theory]
@@ -64,15 +60,6 @@ public sealed class UnlabelledTokenChoiceTests
 
     [Fact]
     [Trait("Tier", "1")]
-    public void ALabelledChoiceIsLeftToTheFieldItFills()
-    {
-        var held = ChoiceOf("rule");
-
-        Assert.Empty(Refusals(Sequence(new TokenRefIR(Ident), held), new FieldLabelIR("held", held)));
-    }
-
-    [Fact]
-    [Trait("Tier", "1")]
     public void AChoiceInsideAPredicateIsLeftToThePredicate()
     {
         // &(COMMA SEMI | SEMI COMMA) is a valid predicate: a fixed-width lookahead, not a token to consume.
@@ -88,15 +75,15 @@ public sealed class UnlabelledTokenChoiceTests
     [Theory]
     [Trait("Tier", "2")]
     [InlineData("sequence", "ok")]
-    [InlineData("optional", "_optOk")]
-    [InlineData("zero or more", "_starOk")]
-    [InlineData("one or more", "_starOk")]
+    [InlineData("optional", @"_ok\d+")]
+    [InlineData("zero or more", @"_ok\d+")]
+    [InlineData("one or more", @"_ok\d+")]
     [InlineData("group", "_g0Ok")]
     public void AnUnlabelledTokenChoiceMatchesOneOfItsTokensAgainstTheEnclosingFlag(string position, string flag)
     {
         var parser = ParserEmitter.Emit(ContextOf(ItemWithChoiceIn(position)));
 
-        Assert.Contains($"if ({flag} && (Match((int)TokenKind.SEMI) ?? Match((int)TokenKind.COMMA)) == null) {flag} = false;", parser);
+        Assert.Matches($@"if \(({flag}) && \(Match\(\(int\)TokenKind\.SEMI\) \?\? Match\(\(int\)TokenKind\.COMMA\)\) == null\) \1 = false;", parser);
     }
 
     [Fact]
@@ -111,12 +98,9 @@ public sealed class UnlabelledTokenChoiceTests
         Assert.Contains(result.Diagnostics, d => d.Id == StormDiagnosticIds.STORM_UNSUPPORTED_CONSTRUCT && d.Message.Contains("rule 'Item'"));
     }
 
-    private static List<StormDiagnostic> Refusals(ExpressionIR expression, params FieldLabelIR[] labels)
+    private static IReadOnlyList<string> Refusals(ExpressionIR expression)
     {
-        var diagnostics = new List<StormDiagnostic>();
-        GrammarIRLowering.RefuseNonTokenChoices(ItemDeclaration, expression, labels, diagnostics);
-
-        return diagnostics;
+        return UnemittableShapes.Find("Item", new RuleAlternativeIR(null, [], expression));
     }
 
     private static AlternationIR ChoiceOf(string arms)

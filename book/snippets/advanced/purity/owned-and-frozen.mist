@@ -1,0 +1,49 @@
+using Standard;
+
+namespace PurityInputs;
+
+public struct Point
+{
+    public int X;
+    public int Y;
+}
+
+public class Program
+{
+    public static pure int Seeded()
+    {
+        owned var items = new List<int>();
+        items.Add(1);
+        items.Add(2);
+        items.Add(3);
+        return items.Count;
+    }
+
+    public static pure int Size(frozen List<int> xs)
+    {
+        return xs.Count;
+    }
+
+    public static pure int Shifted(Point p)
+    {
+        p.X = p.X + 10;
+        return p.X + p.Y;
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine($"Seeded()={Seeded()}");
+
+        owned var xs = new List<int>();
+        xs.Add(4);
+        xs.Add(5);
+        Console.WriteLine($"Size(xs)={Size(xs)}");
+        xs.Add(6);
+        Console.WriteLine($"Size(xs) after Add={Size(xs)}");
+
+        var p = new Point();
+        p.X = 1;
+        p.Y = 2;
+        Console.WriteLine($"Shifted(p)={Shifted(p)} p.X={p.X}");
+    }
+}

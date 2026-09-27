@@ -1,7 +1,12 @@
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
+
+internal readonly record struct EnumerationMembers(Method? GetEnumerator, Method? MoveNext, Property? Current);
 
 /// <summary>
 /// What a <c>foreach</c> hands out one of, resolved from the collection's type.
@@ -25,6 +30,52 @@ internal static class EnumerableElement
         }
 
         return Search(collection, TypeSubstitution.Empty, depth: 0);
+    }
+
+    public static EnumerationMembers Members(IMistType collection, TypeInterner interner)
+    {
+        if(Declaring(collection) is not { } declaring
+            || declaring is ConcreteType { IsIntrinsic: true }
+            || Find(declaring, "GetEnumerator") is not MethodGroupResult group
+            || Parameterless(group) is not { } getEnumerator)
+        {
+            return default;
+        }
+
+        var path = group.Paths is { } paths && paths.TryGetValue(getEnumerator, out var reached) ? reached : null;
+        var enumerator = TypeSubstitution.ForPath(collection as ConstructedType, path, interner).Apply(getEnumerator.ReturnType, interner);
+
+        if(Declaring(enumerator) is not { } enumerating)
+        {
+            return new EnumerationMembers(getEnumerator, null, null);
+        }
+
+        var moveNext = Find(enumerating, "MoveNext") is MethodGroupResult moving ? Parameterless(moving) : null;
+        var current = Find(enumerating, "Current") as PropertyResult;
+
+        return new EnumerationMembers(getEnumerator, moveNext, current?.Property);
+    }
+
+    private static LookupResult Find(MistType declaring, string name)
+    {
+        return TypeMemberLookup.Find(declaring, LookupRequest.Member(name, MemberVisibility.InstanceOnly, null));
+    }
+
+    private static Method? Parameterless(MethodGroupResult group)
+    {
+        return group.Methods.FirstOrDefault(method => method.ParametersList.Count == 0 && !method.Modifiers.IsStatic);
+    }
+
+    private static MistType? Declaring(IMistType type)
+    {
+        return type switch
+        {
+            TypeAlias { AliasedType: { } aliased } => Declaring(aliased),
+            RefinedType refined => Declaring(refined.BaseType),
+            ConstructedType constructed => Declaring(constructed.Definition),
+            MistType declared => declared,
+            _ => null,
+        };
     }
 
     /// <summary>

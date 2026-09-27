@@ -18,6 +18,6 @@ public class PrivilegeRemovalDemo
 
     public string Describe()
     {
-        return $"PrivilegeRemovalDemo(X={X}, Y={Y})";
+        return System.FormattableString.Invariant($"PrivilegeRemovalDemo(X={X}, Y={Y})");
     }
 }

@@ -7,7 +7,7 @@ public class ReadonlyRefDemo
     public static void ReadPair(ref readonly Snippet.Pair p)
     {
         int sum = p.X + p.Y;
-        System.Console.WriteLine($"readonly ref sum={sum}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"readonly ref sum={sum}"));
     }
 
     public static void Run()

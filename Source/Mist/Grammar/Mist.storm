@@ -205,6 +205,8 @@ rule Modifier
     | STATIC     as StaticModifier
     | INTRINSIC  as IntrinsicModifier
     | READONLY   as ReadonlyModifier
+    | PURE       as PureModifier
+    | LOCAL      as LocalModifier
     | STAMPABLE  as StampableModifier
     | OWNED      as OwnedModifier
     | AFFINE     as AffineModifier
@@ -275,15 +277,23 @@ rule PropertyDeclaration
     ;
 
 rule AccessorDeclaration
-    = accessorModifier:Modifier? GET SEMICOLON                                    as AutoGetAccessor
-    | accessorModifier:Modifier? GET body:Block                                   as BlockGetAccessor
-    | accessorModifier:Modifier? GET SUCH_THAT expression:Expression SEMICOLON    as ExpressionGetAccessor
-    | accessorModifier:Modifier? SET SEMICOLON                                    as AutoSetAccessor
-    | accessorModifier:Modifier? SET body:Block                                   as BlockSetAccessor
-    | accessorModifier:Modifier? SET SUCH_THAT expression:Expression SEMICOLON    as ExpressionSetAccessor
-    | accessorModifier:Modifier? INIT SEMICOLON                                   as AutoInitAccessor
-    | accessorModifier:Modifier? INIT body:Block                                  as BlockInitAccessor
-    | accessorModifier:Modifier? INIT SUCH_THAT expression:Expression SEMICOLON   as ExpressionInitAccessor
+    = promise:AccessorPromise? accessorModifier:Modifier? GET SEMICOLON                                    as AutoGetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? GET body:Block                                   as BlockGetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? GET SUCH_THAT expression:Expression SEMICOLON    as ExpressionGetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? SET SEMICOLON                                    as AutoSetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? SET body:Block                                   as BlockSetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? SET SUCH_THAT expression:Expression SEMICOLON    as ExpressionSetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? INIT SEMICOLON                                   as AutoInitAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? INIT body:Block                                  as BlockInitAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? INIT SUCH_THAT expression:Expression SEMICOLON   as ExpressionInitAccessor
+    ;
+
+// The promise stands ahead of the accessibility (purity spec Req 1.5): `local readonly get;`,
+// `local private set;`. Written after it, as `private pure get;`, it is a parse error.
+rule AccessorPromise
+    = LOCAL READONLY as LocalReadonlyAccessorPromise
+    | LOCAL          as LocalAccessorPromise
+    | PURE           as PureAccessorPromise
     ;
 
 rule IndexerDeclaration : HasModifiers = attributes:AttributeList* modifiers:Modifier* type:TypeReference THIS
@@ -398,17 +408,17 @@ rule ArrayRankSuffix
 // between `new int[3]` (create array of int with size 3) and `new int[3][...]`
 // (create array of int[3] — which would be a sized array type as element).
 rule ElementTypeRef
-    = primitiveType:PrimitiveType as PrimitiveElementTypeRef
+    = pure:PURE? primitiveType:PrimitiveType as PrimitiveElementTypeRef
     | UNKNOWN as UnknownElementTypeRef
-    | name:QualifiedIdentifier typeArgs:TypeArgumentList? as NamedElementTypeRef
-    | FUNC typeArgs:TypeArgumentList as FuncElementTypeRef
+    | pure:PURE? name:QualifiedIdentifier typeArgs:TypeArgumentList? as NamedElementTypeRef
+    | pure:PURE? FUNC typeArgs:TypeArgumentList as FuncElementTypeRef
     ;
 
 @memo
 rule TypeReference = first:SingleTypeRef (PIPE rest:SingleTypeRef)*;
 
 rule SingleTypeRef
-    = primitiveType:PrimitiveType arrayRank:ArrayRankSuffix? optional:QUESTION?  as PrimitiveSingleTypeRef
+    = pure:PURE? primitiveType:PrimitiveType arrayRank:ArrayRankSuffix? optional:QUESTION?  as PrimitiveSingleTypeRef
     | VOID as VoidSingleTypeRef
     | UNKNOWN as UnknownSingleTypeRef
     | name:QualifiedIdentifier ELLIPSIS as SpreadSingleTypeRef
@@ -416,10 +426,10 @@ rule SingleTypeRef
     // that one takes the arguments and stops, leaving `.Wrapper` unread; this one commits only when
     // `>` is followed by `.`, which no named reference can be, so it takes nothing from it.
     | outer:QualifiedIdentifier outerArgs:TypeArgumentList DOT nested:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION? as NestedGenericSingleTypeRef
-    | name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION? as NamedSingleTypeRef
+    | pure:PURE? name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION? as NamedSingleTypeRef
     | LEFT_PARENTHESIS inner:TypeReference RIGHT_PARENTHESIS arrayRank:ArrayRankSuffix? as ParenthesizedTypeRef
     | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS as TupleSingleTypeRef
-    | FUNC typeArgs:TypeArgumentList arrayRank:ArrayRankSuffix? optional:QUESTION? as FuncSingleTypeRef
+    | pure:PURE? FUNC typeArgs:TypeArgumentList arrayRank:ArrayRankSuffix? optional:QUESTION? as FuncSingleTypeRef
     ;
 
 rule TupleTypeElement = type:TypeReference name:IDENTIFIER?;
@@ -691,6 +701,8 @@ rule LambdaExpression
 rule LambdaModifier
     = STATIC as StaticLambdaModifier
     | ASYNC  as AsyncLambdaModifier
+    | PURE   as PureLambdaModifier
+    | LOCAL  as LocalLambdaModifier
     ;
 
 rule LambdaParameterList

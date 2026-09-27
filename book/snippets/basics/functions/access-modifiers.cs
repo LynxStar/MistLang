@@ -30,6 +30,6 @@ public class Account
     {
         Snippet.Account acct = new Snippet.Account(100);
         acct.Deposit(50);
-        System.Console.WriteLine($"Balance: {acct.GetBalance()}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Balance: {acct.GetBalance()}"));
     }
 }

@@ -58,8 +58,9 @@ public sealed class DeclarationBindingRefusalTests
                 new ConcreteTypeBuilder(f.Builder, f.Builder.Resolver).Build(intrinsic);
                 break;
             case "static-property-with-an-init-accessor":
-                var setter = new AccessorBuilder(f.Builder).BuildInitAccessor(null, "P", HandBuiltModel.Node(30),
-                    isAbstract: false, isStatic: true, isAuto: true, body: null, expression: null);
+                var setter = new AccessorBuilder(f.Builder).BuildInitAccessor(null, null,
+                    new AccessorSite("P", new MemberModifiers { IsStatic = true }, null, IsAbstract: false), HandBuiltModel.Node(30),
+                    isAuto: true, body: null, expression: null);
                 Assert.NotNull(setter);
                 Assert.False(setter.IsInit);
                 break;

@@ -8,7 +8,7 @@ public class Program
     {
         (int, object) source = (7, "seven");
         (int num, object data) = source;
-        System.Console.WriteLine($"num={num}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"num={num}"));
         {
             if (data is string ds)
             {

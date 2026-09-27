@@ -90,7 +90,7 @@ internal static class EnumEmitter
                     $"if(ReferenceEquals(this, {Q(type, member)})) return \"{member.Name}\";");
             }
 
-            writer.WriteLine("return Value.ToString();");
+            writer.WriteLine($"return {InvariantCulture.ObjectText("Value", type.UnderlyingType!)};");
         }
     }
 

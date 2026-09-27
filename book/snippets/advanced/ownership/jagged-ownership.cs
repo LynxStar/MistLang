@@ -17,7 +17,7 @@ public class Connection
 
     public string Describe()
     {
-        return $"Connection(handle={Handle}, label={Label}, retries={RetryCount})";
+        return System.FormattableString.Invariant($"Connection(handle={Handle}, label={Label}, retries={RetryCount})");
     }
 }
 

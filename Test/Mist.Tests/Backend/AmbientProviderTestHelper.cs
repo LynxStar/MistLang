@@ -1,4 +1,5 @@
 using Mist.ProgramModel;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -49,6 +50,7 @@ internal static class AmbientProviderTestHelper
                 {
                     IsIntrinsic = true,
                     IsReadonly = readonlyNames.Contains(type.Name),
+                    IsPure = readonlyNames.Contains(type.Name),
                 };
             }
 
@@ -129,6 +131,8 @@ internal static class AmbientProviderTestHelper
                 WellKnownTypes.ReadOnlySpan.Name, WellKnownTypes.ReadOnlySpan.Namespace, scope, null, null!),
             "T");
 
+        RegisterList(programModel, scope, register);
+
         // Func family (arity 1-17).
         for(var arity = 1; arity <= 17; arity++)
         {
@@ -143,5 +147,61 @@ internal static class AmbientProviderTestHelper
             var commas = arity > 1 ? new string(',', arity - 1) : "";
             register(new ClassType($"Action<{commas}>", "Standard", scope, null, null!));
         }
+    }
+
+    /// <summary>
+    /// The List shell, carrying the promises Standard/List.mist declares on the members a probe
+    /// reaches -- a pure constructor, local readonly reads, local writes -- so a purity or readonly
+    /// verdict over a list is the one a real compilation gives.
+    /// </summary>
+    private static void RegisterList(ProgramModelClass programModel, Scope scope, Action<MistType> register)
+    {
+        var list = new ClassType("List<>", "Standard", scope, null, null!);
+        var element = new TypeParameter("T", 0, list.Scope, list);
+        list.TypeParametersList.Add(element);
+        list.BaseAbstractTypes.Add(programModel.TypeInterner.GetOrCreateConstructedType(programModel.TypesByFQN["Standard.IEnumerable<>"], [element]));
+
+        var int32 = programModel.TypesByFQN["Standard.Int32"];
+        var boolean = programModel.TypesByFQN["Standard.Boolean"];
+        var voidType = programModel.TypesByFQN["Standard.Void"];
+
+        static MemberModifiers promise(bool isPure = false, bool isLocal = false, bool isReadonly = false)
+        {
+            return new MemberModifiers
+            {
+                Accessibility = Accessibility.Public,
+                IsIntrinsic = true,
+                IsPure = isPure,
+                IsReadonly = isReadonly || isPure,
+                IsLocal = isLocal,
+            };
+        }
+
+        list.ConstructorsList.Add(new Constructor("List", list, [], promise(isPure: true)) { DeclaringType = list });
+        list.PropertiesList.Add(new Property("Count", int32, promise(isLocal: true, isReadonly: true)) { DeclaringType = list, Getter = new PropertyAccessor { IsAuto = true } });
+        list.IndexersList.Add(new Indexer(element, [new Parameter("index", int32)], promise())
+        {
+            DeclaringType = list,
+            Getter = new PropertyAccessor { IsAuto = true, OwnModifiers = promise(isLocal: true, isReadonly: true) },
+            Setter = new PropertyAccessor { IsAuto = true, OwnModifiers = promise(isLocal: true) },
+        });
+
+        foreach(var (name, returns, parameters, modifiers) in new (string, IMistType, List<Parameter>, MemberModifiers)[]
+        {
+            ("Contains", boolean, [new Parameter("item", element)], promise(isLocal: true, isReadonly: true)),
+            ("IndexOf", int32, [new Parameter("item", element)], promise(isLocal: true, isReadonly: true)),
+            ("Add", voidType, [new Parameter("item", element)], promise(isLocal: true)),
+            ("Insert", voidType, [new Parameter("index", int32), new Parameter("item", element)], promise(isLocal: true)),
+            ("Remove", boolean, [new Parameter("item", element)], promise(isLocal: true)),
+            ("RemoveAt", voidType, [new Parameter("index", int32)], promise(isLocal: true)),
+            ("Clear", voidType, [], promise(isLocal: true)),
+            ("Sort", voidType, [], promise(isLocal: true)),
+            ("Reverse", voidType, [], promise(isLocal: true)),
+        })
+        {
+            list.MethodsList.Add(new Method(name, returns, parameters, modifiers) { DeclaringType = list });
+        }
+
+        register(list);
     }
 }

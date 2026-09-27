@@ -10,8 +10,8 @@ public class Program
         int? noValue = null;
         int result1 = hasValue ?? 0;
         int result2 = noValue ?? 42;
-        System.Console.WriteLine($"hasValue ?? 0={result1}");
-        System.Console.WriteLine($"noValue ?? 42={result2}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"hasValue ?? 0={result1}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"noValue ?? 42={result2}"));
     }
 
     public Program()

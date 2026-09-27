@@ -86,7 +86,7 @@ internal sealed class LambdaTrials(BindingContext ctx, BuilderContext context) :
             && Same(leftShape.ParameterTypes, rightShape.ParameterTypes)
             && ResultType(lambda, leftShape.ParameterTypes) is { } result and not ErrorType)
         {
-            return interner.GetOrCreateFunctionType(leftShape.ParameterTypes, result);
+            return interner.GetOrCreateFunctionType(leftShape.ParameterTypes, result, leftShape.IsPure || rightShape.IsPure);
         }
 
         return UnboundLambdaType.Instance;

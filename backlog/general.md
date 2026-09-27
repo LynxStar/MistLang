@@ -807,6 +807,339 @@ Second, through inheritance: with `Inner<U> where U : IRank<T>`, `new Inner<Scor
 2. Decide how a simple name reached through a constructed base carries the base's instantiation -- the scope lookup would have to return the base construction it came through, as `TypeMemberLookup`'s `BaseConstructions` already does for members.
 3. Record in `nested-type-declarations` of the emitter register.
 
+## A Mist `func` overload beside a CLR delegate overload of the same shape is ambiguous in the emitted C#
+
+Observed 2026-09-26 while reviewing pure function types (v2):
+
+```mist
+static string N(func<int, bool> f) { return "func"; }
+static string N(System.Predicate<int> f) { return "delegate"; }
+
+// in Main
+N(n => n > 1);
+```
+
+Mist resolves the call (no diagnostic), but the lambda is emitted bare, so Roslyn reports the call ambiguous between `N(Func<int, bool>)` and `N(Predicate<int>)` (MIST_CS_ERROR). The same holds for a method group argument. Nothing about purity is involved; a `pure func` overload beside the delegate one now ranks the pure overload first at the Mist level (LambdaTrials.ComparedType keeps the purity of either side) and meets the same C# ambiguity.
+
+**Action:** when the selected overload has a same-shaped delegate sibling, emit the argument target-typed (`new System.Func<int, bool>(...)` or a cast), and pin it at Tier 4.
+
+## An extension method is shadowed by a CLR instance member Standard leaves undeclared
+
+Found 2026-09-27 by the purity adversarial rounds (v2). The emitter writes extension calls in dot
+notation, so where the receiver's CLR type has an instance member of the same name and a matching
+signature that Standard's intrinsic declaration omits (`Array.SetValue`), Roslyn binds the instance
+member and the Mist extension never runs. The analysis judges the extension Mist bound, so a pure
+scope can run an unjudged CLR member.
+
+**Action:** emit the call through the extension's carrier class. That needs a link from the method to
+its block, which the model records only on closed generic copies (`ClosedBlock`), not on the methods
+of a non-generic block.
+
+## A regex full match admits a trailing newline
+
+Found 2026-09-27 by the culture review of purity (v2); not about culture.
+
+```mist
+var s = "abc\n";
+Console.WriteLine($"{`abc`.IsFullMatch(s)} {s is `abc`}");
+```
+
+Observed: `True True`. Expected: `False False` -- a full match is meant to match the whole string. Cause:
+`RegexLowering.FullMatchPattern` anchors as `"^(?:" + p + ")$"`, and .NET's `$` also matches before a
+final newline; `LiteralPredicates.Match` anchors the same way when a refinement is checked at compile time.
+
+**Action:** anchor with `\A(?:...)\z` in both, if Mist's full match is exact, and pin the trailing-newline
+case at Tier 3 on the emitted pattern and at Tier 1 on `LiteralPredicates`.
+
+## An absent optional's `ToString()` is "" but its interpolation is "Void"
+
+Found 2026-09-27 by the culture review of purity (v2); not about culture.
+
+```mist
+var none = Find(false);           // Box?, absent
+var b = none?.V.ToString();
+Console.WriteLine($"[{b}] [{none?.V}]");
+```
+
+Observed: `b` is the empty string (`b is string` holds), while the same absent value interpolated prints
+`Void`. Classic refuses the program (`MIST_TC_0073`, `ToString` is not on every constituent of
+`Double | Void`). Cause: an explicit universal `ToString` on a value whose text is decided at runtime is
+emitted as `MistInvariant.Text(...)`, which answers "" for null; before culture-invariant emission the
+emitted `none?.V.ToString()` answered null inside a string typed non-optional.
+
+**Action:** decide the text an absent optional's `ToString` gives -- "Void", as interpolation does -- or
+refuse `ToString` on an optional as classic does; then make `MistInvariant.Text` and the interpolation
+agree.
+
+## A newtype over a tuple does not compile
+
+Found 2026-09-27 by the culture review of purity (v2); not about culture.
+
+```mist
+type Pair = new (double, int);
+Pair p = (Pair)(1.5, -2);
+```
+
+Observed: `MIST_CS_ERROR: The type or namespace name 'Pair' could not be found`. Expected: the clone is
+emitted, or the frontend refuses a newtype over a tuple. Cause, read from the missing type rather than
+traced: nothing emits a clone of a tuple source, while the frontend admits the declaration and its casts.
+
+**Action:** decide whether a newtype over a tuple is admitted (newtypes spec); refuse it in the frontend
+or emit it, and pin the choice at Tier 3.
+
+## A newtype over a struct interpolates as its type name
+
+Found 2026-09-27 by the culture review of purity (v2); not about culture.
+
+```mist
+public struct Money { public decimal Amount; ... public string ToString() { return $"{Amount} EUR"; } }
+type Price = new Money;
+
+Price p = (Price)new Money(2.5m);
+Console.WriteLine($"{p}");
+Console.WriteLine(p.ToString());
+Console.WriteLine($"{new Money(2.5m)}");
+```
+
+Observed: `Hunt.Price`, then `2.5 EUR`, then `Hunt.Money`. The newtype is not the cause: the source struct
+interpolates as its type name too. Cause: a declared parameterless `ToString` is emitted as
+`public readonly string ToString()`, which hides `ValueType.ToString` rather than overriding it, so an
+explicit call reaches it and interpolation, concatenation and `Console` do not. Expected: undecided --
+Mist has no overriding, so whether formatting a value reaches the `ToString` its type declares has not
+been stated.
+
+**Action:** compare classic's output for the three lines, decide whether a declared `ToString` is what
+formatting uses, and if so emit it (and a clone's forwarded one) as `override`; pin at Tier 3.
+
+## An unsuffixed integer literal beyond `int` reaches Roslyn, and every hex literal is `int`
+
+Found 2026-09-27 by the culture review of purity (v2); not about culture.
+
+```mist
+var z = 5000000000;
+int h = 0x1_0000_0000;
+```
+
+Observed: no Mist diagnostic. The emitted code is `int z = 5000000000;` and `int h = 4294967296;`, and the
+build fails with `MIST_CS_ERROR` ("Cannot implicitly convert type long to int"). Expected: C#'s rule, under
+which an unsuffixed literal is the first of `int`, `uint`, `long` and `ulong` that holds it, or a Mist
+refusal. Cause: `LiteralBinder.IntegerValue` and `HexValue` parse every unsuffixed literal as a `long` and
+type it `Int32`, so `MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE` fires only past `long`, and its message then says
+"outside the range of 'int'" for a range that was `long`'s.
+
+Hex is silent as well. Found 2026-09-27 by the literal review of purity's culture work; not caused by it:
+the merge base 13b67c0e reads `0xFFFFFFFFFFFFFFFF` as -1 too, and bound the forms written with `_` or a
+suffix as 0.
+
+```mist
+var x = 0xFFFF_FFFF_FFFF_FFFF;
+var u = 0xFFFF_FFFF_FFFF_FFFFUL;
+long y = 0x8000_0000_0000_0000;
+ulong h = 0x8000_0000_0000_0000UL;
+Console.WriteLine($"{0xFFFF_FFFF_FFFF_FFFF} {0x7FFF_FFFF} {0x8000_0000_0000_0000}");
+```
+
+Observed: `x` and `u` print -1, and `y` compiles and prints -9223372036854775808. `h` is refused with
+`MIST_PA_NO_IMPLICIT_CONVERSION` ("'int' to 'ulong'"), and the interpolation prints
+`-1 2147483647 -9223372036854775808`. The same reading reaches a dependent type argument
+(`new Wide<0xFFFF_FFFF_FFFF_FFFF>().Get()` gives -1) and a refinement (`type Neg = long < 0;` admits
+`Neg n = 0xFFFF_FFFF_FFFF_FFFF;`). Expected, as classic prints: 18446744073709551615 for `x` and `u`,
+`18446744073709551615 2147483647 9223372036854775808` for the interpolation, and `y` refused, since C#
+types that literal `ulong`. Cause: `LiteralBinder.BindHexLiteral` types every hex literal `Int32`, whatever
+its value or suffix, and `HexValue` parses the digits with `long.TryParse` and `AllowHexSpecifier`, which
+reads sixteen digits with the top bit set as a negative two's-complement `long`. `ScopeResolver`'s
+type-argument lift calls the same `HexValue`.
+
+**Action:** type an unsuffixed decimal or hex literal as C# does (or refuse one past `int`, if Mist's
+literals are meant to be `int` unless suffixed), make the message name the range checked, and pin each
+form at Tier 1 in `LiteralCultureInvarianceTests` beside the rows that already name the overclaim
+(`AnIntegerLiteralItsTypeCannotHold_HasNoValue`). For hex (and binary), parse the digits as a `ulong`,
+take the first of `int`, `uint`, `long` and `ulong` that holds the value, narrowed by the `u`/`l` suffix,
+and refuse past `ulong` (past `long` in a type argument, while `LiftedType` holds a `long`). Pin
+`0xFFFF_FFFF_FFFF_FFFF`, `0x8000_0000` and a `UL`-suffixed hex at Tier 1, and the type argument at Tier 2.
+
+## A `u` literal past `uint` is truncated without a diagnostic
+
+Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
+13b67c0e prints the same.
+
+```mist
+var u = 5000000000u;
+Console.WriteLine(u);
+Console.WriteLine($"{4294967296u}");
+```
+
+Observed: `705032704`, then `0`, with no diagnostic. The emitted code is `uint u = 705032704U;`, and
+`enum Un : uint { A = 5000000000u }` gives 705032704 the same way. Expected: `5000000000` and
+`4294967296`, as classic prints, since C# types a `u` literal past `uint` as `ulong` (for the enum value,
+classic and C# refuse the conversion from `ulong` to `uint`). Cause: `LiteralBinder.IntegerValue` types a
+`u` literal `UInt32` but checks its range only against `long`, and `BodyEmitter.EmitIntegerLiteral`
+writes it through `(uint)value`, which wraps.
+
+**Action:** type a `u` literal as C# does -- `uint` when it fits, otherwise `ulong` -- or refuse one past
+`uint` with `MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE` naming `uint`. Never narrow with a cast in
+`EmitIntegerLiteral`. Pin at Tier 1 beside `LiteralCultureInvarianceTests` and at Tier 3 on the emitted
+literal.
+
+## A `char` literal's escape reads as its backslash
+
+Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
+13b67c0e behaves the same, and `backlog/program-model-body-tasks.yaml` notes the caveat on its char
+literal row.
+
+```mist
+char nl = '\n';
+char tab = '\t';
+char bs = '\\';
+char q = '\'';
+char z = '\0';
+int n = new Ch<'\n'>().Get();      // public class Ch<C:char> { public char Get() { return C; } }
+```
+
+Observed, by position. In an expression the emitted code is `char nl = '\';`, and the build fails with
+`MIST_CS_ERROR`. In a switch, arms `'\n'` and `'\\'` both bind to the backslash, so the second is
+`MIST_PA_SWITCH_ARM_UNREACHABLE`. An enum value `Line = '\n'` emits `new Sep('\')` and fails in Roslyn. A
+refinement bound is misread: `type AboveTab = char > '\t';` refuses `AboveTab a = ' ';` with "does not
+satisfy refinement '>= 93'". A dependent type argument is silent: `new Ch<'\n'>().Get()` answers 92, and
+its carrier is `Const_Char_0x005c`. Expected, as classic prints: `10 9 92 39 0` for the five locals,
+`newline` for the switch, and 10 for the enum value and the type argument. Classic refuses the refinement
+too (`MIST_TC_0097`, quoting the bound as `'> ?'`), so that position has no classic contract, but `' '`
+(32) is above `'\t'` (9). Cause: `LiteralBinder.BindCharLiteral` and `ScopeResolver.LiftCharLiteral` both
+take the character after the opening quote (`lexeme[1]`), and `BodyEmitter.EmitLiteral` writes a `char`
+back between quotes unescaped.
+
+**Action:** decode the grammar's escape sequences in one helper that `BindCharLiteral` and
+`LiftCharLiteral` share, and emit a `char` escaped (`\uXXXX`, as `DependentCarrierNames` already spells
+one). Pin the value at Tier 2 in each position and the emitted text at Tier 3.
+
+## A binary literal in an expression is not bound
+
+Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
+13b67c0e behaves the same, and `backlog/program-model-body-tasks.yaml` records the missing arm.
+
+```mist
+var b = 0b101;
+Console.WriteLine(b);
+int c = 0b1111_0000;
+Console.WriteLine(c);
+```
+
+Observed: `MIST_PM_UNRESOLVABLE_OVERLOAD` on `WriteLine`, since the literal binds as an unresolved
+expression. On its own (`int b = 0b101;`) it is emitted as
+`/* unsupported: BinaryLiteralExpressionPrimaryNode */` and reported as `MIST_BE_UNSUPPORTED_EXPRESSION`.
+In a type argument it is read (`Narrow<0b1_01>` lifts 5). Expected: `5` and `240`, as classic prints.
+Cause: `ExpressionBinder.BindPrimary` has no arm for a binary literal; `LiteralBinder.BinaryValue` exists,
+and only `ScopeResolver`'s type-argument lift calls it.
+
+**Action:** add the arm, binding through `LiteralBinder.BinaryValue` and typed by the hex rule (see the
+unsuffixed-literal entry), refusing on overflow. Pin at Tier 2 beside `NumericLiteralBindingTests`.
+
+## A sized array type's length written with `_` or a suffix reads as 0
+
+Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
+13b67c0e behaves the same.
+
+```mist
+int[1_0] tens = new int[10];
+
+public static int[3u] Three()
+{
+    return [1, 2, 3];
+}
+```
+
+Observed: `MIST_PA_NO_IMPLICIT_CONVERSION`, "Cannot implicitly convert type 'int[10]' to 'int[0]'", for
+the first. For the second, the same against `int[3]`, and "Index 2 is outside the bounds of 't', which
+needs nothing" (`MIST_PA_INDEX_OUT_OF_BOUNDS`) where the result is indexed. `int[10]` works on both
+pipelines. Expected: `int[1_0]` is `int[10]`, since the grammar's rank takes an `INTEGER_LITERAL`, which
+admits `_` and suffixes, and a suffix is either read or refused, never 0. Classic sets no contract here:
+it fails on both forms ("The input string '1_0' was not in a correct format", `MIST_SEMANTIC_ERROR`; and
+`MIST_SEMANTIC_FAILURE` for '3u'). Cause: `ScopeResolver.ResolveArrayType` parses the size with
+`int.TryParse` and uses 0 when that fails; `TypeParameterPopulator.FixedLength` does the same and answers
+null.
+
+**Action:** read the size through `LiteralBinder.IntegerValue`, which drops `_`, and refuse a suffix or a
+value past `int` with `MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE` or a size diagnostic, in both places. Pin at
+Tier 2.
+
+## An explicit `ToString()` is refused on a Mist class that declares only `ToString(string, IFormatProvider)`
+
+Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
+13b67c0e behaves the same.
+
+```mist
+public class Temp : IFormattable
+{
+    public string ToString(string format, IFormatProvider provider)
+    {
+        return "formatted";
+    }
+}
+
+Console.WriteLine("[explicit ToString] " + new Temp().ToString());
+```
+
+Observed: `MIST_PM_NO_APPLICABLE_OVERLOAD`, "There is no overload of method 'ToString' accepting 0
+argument(s). Declared arities: 2." Expected: `[explicit ToString] Hunt.Temp`, as classic prints: C# binds
+`object.ToString()` when none of the type's own `ToString` overloads applies. Cause: the class's own
+two-argument `ToString` group hides the universal parameterless `ToString`, so overload resolution never
+sees it.
+
+**Action:** when none of a type's own `ToString` members applies, fall back to the universal `ToString`,
+as C# falls back to `object.ToString()`. The culture lowering already routes that call, a Mist type
+implementing `IFormattable` through `MistInvariant.Text`. Pin the binding at Tier 3 and the printed name
+at Tier 4.
+
+## A `ulong` dependent parameter takes values only up to `long.MaxValue`
+
+Found 2026-09-27 by the literal review of purity's culture work (v2). The limit predates it: the merge
+base 13b67c0e lifts a literal past `long` as 0 with no diagnostic, and this branch refuses it instead.
+
+```mist
+public class U<N:ulong>
+{
+    public ulong Get()
+    {
+        return N;
+    }
+}
+
+Console.WriteLine(new U<18446744073709551615UL>().Get());
+ulong x = 18446744073709551615UL;
+```
+
+Observed: `MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE`, "The literal '18446744073709551615UL' is outside the
+range of 'long'", on the type argument, while the local compiles; `U<9223372036854775807>` works. The
+merge base printed 0. Expected: 18446744073709551615, since `book/src/type-system/dependent-types.md`
+admits `ulong` as a dependent parameter's type. Classic sets no contract: it cannot compile the program
+(`MIST_CS_ERROR`, "Type expected"). Cause: `LiftedType` holds its value as a `long`, and `ScopeResolver`'s
+lift refuses what no `long` holds; `NumericLiteralBindingTests.ADependentValueTypeArgumentNoLongHolds_IsRefused`
+pins the refusal.
+
+**Action:** carry a `ulong` dependent value (a `LiftedType` value and a carrier name wide enough for it),
+or state in the dependent-types spec that a `ulong` parameter is limited to `long`'s range and make the
+refusal say so.
+
+## `-(-x)` is emitted as the pre-decrement `--x`
+
+Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
+13b67c0e prints the same. A separate task was raised to fix it.
+
+```mist
+int x = 5;
+int y = -(-x);
+Console.WriteLine($"{x} {y}");
+```
+
+Observed: `4 4`, with no diagnostic. The emitted code is `int y = --x;`, a C# pre-decrement, which also
+changes `x`. `-(-5)` becomes `--5` and fails as `MIST_CS_ERROR`. Expected: `5 5`, as classic prints.
+Cause: `BodyEmitter`'s unary arm writes the operand of a negation without its parentheses, and nothing
+separates the two adjacent minus signs.
+
+**Action:** keep a space or the parentheses between two adjacent `-` operators, and check `+(+x)`, which
+has the same shape; pin `-(-x)` and `-(-5)` at Tier 3 on the emitted text and at Tier 4 on the printed
+value.
+
 ---
 
 ## 🟡 The CLI no longer reads its own output back as source, but the Driver still does for a referenced project

@@ -3,31 +3,31 @@ namespace Standard;
 intrinsic public readonly owned struct SByte : IClonable<SByte>
 {
     // IClonable base case — value-type identity copy (Requirement 8.6)
-    intrinsic public owned SByte Clone();
+    intrinsic public pure owned SByte Clone();
 
     // Binary arithmetic operators — Requirement 3.1
-    intrinsic public static SByte operator +(SByte a, SByte b);
-    intrinsic public static SByte operator -(SByte a, SByte b);
-    intrinsic public static SByte operator *(SByte a, SByte b);
-    intrinsic public static SByte operator /(SByte a, SByte b);
-    intrinsic public static SByte operator %(SByte a, SByte b);
+    intrinsic public pure static SByte operator +(SByte a, SByte b);
+    intrinsic public pure static SByte operator -(SByte a, SByte b);
+    intrinsic public pure static SByte operator *(SByte a, SByte b);
+    intrinsic public pure static SByte operator /(SByte a, SByte b);
+    intrinsic public pure static SByte operator %(SByte a, SByte b);
 
     // Comparison operators — Requirement 3.2
-    intrinsic public static Boolean operator <(SByte a, SByte b);
-    intrinsic public static Boolean operator >(SByte a, SByte b);
-    intrinsic public static Boolean operator <=(SByte a, SByte b);
-    intrinsic public static Boolean operator >=(SByte a, SByte b);
-    intrinsic public static Boolean operator ==(SByte a, SByte b);
-    intrinsic public static Boolean operator !=(SByte a, SByte b);
+    intrinsic public pure static Boolean operator <(SByte a, SByte b);
+    intrinsic public pure static Boolean operator >(SByte a, SByte b);
+    intrinsic public pure static Boolean operator <=(SByte a, SByte b);
+    intrinsic public pure static Boolean operator >=(SByte a, SByte b);
+    intrinsic public pure static Boolean operator ==(SByte a, SByte b);
+    intrinsic public pure static Boolean operator !=(SByte a, SByte b);
 
     // Unary negation — Requirement 3.3
-    intrinsic public static SByte operator -(SByte a);
+    intrinsic public pure static SByte operator -(SByte a);
 
     // Implicit widening conversions
-    intrinsic public static implicit operator Int16(SByte value);
-    intrinsic public static implicit operator Int32(SByte value);
-    intrinsic public static implicit operator Int64(SByte value);
-    intrinsic public static implicit operator Single(SByte value);
-    intrinsic public static implicit operator Double(SByte value);
-    intrinsic public static implicit operator Decimal(SByte value);
+    intrinsic public pure static implicit operator Int16(SByte value);
+    intrinsic public pure static implicit operator Int32(SByte value);
+    intrinsic public pure static implicit operator Int64(SByte value);
+    intrinsic public pure static implicit operator Single(SByte value);
+    intrinsic public pure static implicit operator Double(SByte value);
+    intrinsic public pure static implicit operator Decimal(SByte value);
 }

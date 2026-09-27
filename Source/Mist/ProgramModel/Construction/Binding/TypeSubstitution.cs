@@ -413,8 +413,8 @@ internal sealed class TypeSubstitution
         }
 
         return interner is null
-            ? new FunctionType(parameters, returnType)
-            : interner.GetOrCreateFunctionType(parameters, returnType)
+            ? new FunctionType(parameters, returnType, function.IsPure)
+            : interner.GetOrCreateFunctionType(parameters, returnType, function.IsPure)
             ;
     }
 

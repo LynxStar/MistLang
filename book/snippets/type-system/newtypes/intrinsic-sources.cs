@@ -10,7 +10,7 @@ public class Program
         Snippet.UserId next = first + ((Snippet.UserId)(1));
         int raw = next;
         object boxed = next;
-        System.Console.WriteLine($"next={next} value={next.Value} even={next.IsEven()} raw={raw}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"next={next} value={next.Value} even={next.IsEven()} raw={raw}"));
         System.Console.WriteLine($"is UserId={boxed is Snippet.UserId} is int={boxed is int}");
     }
 

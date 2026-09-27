@@ -1,0 +1,24 @@
+using Standard;
+
+namespace PurityAccessors;
+
+public class Dial
+{
+    public int Level { local readonly get; local set; }
+}
+
+public class Program
+{
+    public static pure int Turned(int by)
+    {
+        owned var dial = new Dial();
+        dial.Level = 4;
+        dial.Level = dial.Level + by;
+        return dial.Level;
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine($"Turned(3)={Turned(3)}");
+    }
+}

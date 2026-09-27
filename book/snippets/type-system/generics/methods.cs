@@ -11,7 +11,7 @@ public class Utilities
 
     public static void PrintItem<T>(T item)
     {
-        System.Console.WriteLine($"Item: {item}");
+        System.Console.WriteLine($"Item: {MistInvariant.Text(item)}");
     }
 
     public Utilities()

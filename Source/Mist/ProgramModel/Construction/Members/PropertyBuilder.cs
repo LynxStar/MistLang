@@ -98,6 +98,7 @@ internal sealed class PropertyBuilder
             IntrinsicMemberValidation.Validate(host.IsIntrinsic, host.Name, modifiers.Accessibility == Accessibility.Public, blockProp, context.Diagnostics);
         }
 
+        var site = new AccessorSite(name, modifiers, host as MemberType, isAbstract);
         PropertyAccessor? getter = null;
         PropertyAccessor? setter = null;
 
@@ -125,20 +126,20 @@ internal sealed class PropertyBuilder
 
             getter = accessor switch
             {
-                AutoGetAccessorAccessorDeclarationNode autoGet => accessorBuilder.BuildGetter(autoGet.AccessorModifier, name, autoGet, isAbstract, isAuto: true, body: null, expression: null),
-                BlockGetAccessorAccessorDeclarationNode blockGet => accessorBuilder.BuildGetter(blockGet.AccessorModifier, name, blockGet, isAbstract, isAuto: false, body: blockGet.Body, expression: null),
-                ExpressionGetAccessorAccessorDeclarationNode exprGet => accessorBuilder.BuildGetter(exprGet.AccessorModifier, name, exprGet, isAbstract, isAuto: false, body: null, expression: exprGet.Expression),
+                AutoGetAccessorAccessorDeclarationNode autoGet => accessorBuilder.BuildGetter(autoGet.Promise, autoGet.AccessorModifier, site, autoGet, isAuto: true, body: null, expression: null),
+                BlockGetAccessorAccessorDeclarationNode blockGet => accessorBuilder.BuildGetter(blockGet.Promise, blockGet.AccessorModifier, site, blockGet, isAuto: false, body: blockGet.Body, expression: null),
+                ExpressionGetAccessorAccessorDeclarationNode exprGet => accessorBuilder.BuildGetter(exprGet.Promise, exprGet.AccessorModifier, site, exprGet, isAuto: false, body: null, expression: exprGet.Expression),
                 _ => getter,
             };
 
             setter = accessor switch
             {
-                AutoSetAccessorAccessorDeclarationNode autoSet => accessorBuilder.BuildSetter(autoSet.AccessorModifier, name, autoSet, isAbstract, isAuto: true, isInit: false, body: null, expression: null),
-                BlockSetAccessorAccessorDeclarationNode blockSet => accessorBuilder.BuildSetter(blockSet.AccessorModifier, name, blockSet, isAbstract, isAuto: false, isInit: false, body: blockSet.Body, expression: null),
-                ExpressionSetAccessorAccessorDeclarationNode exprSet => accessorBuilder.BuildSetter(exprSet.AccessorModifier, name, exprSet, isAbstract, isAuto: false, isInit: false, body: null, expression: exprSet.Expression),
-                AutoInitAccessorAccessorDeclarationNode autoInit => accessorBuilder.BuildInitAccessor(autoInit.AccessorModifier, name, autoInit, isAbstract, modifiers.IsStatic, isAuto: true, body: null, expression: null),
-                BlockInitAccessorAccessorDeclarationNode blockInit => accessorBuilder.BuildInitAccessor(blockInit.AccessorModifier, name, blockInit, isAbstract, modifiers.IsStatic, isAuto: false, body: blockInit.Body, expression: null),
-                ExpressionInitAccessorAccessorDeclarationNode exprInit => accessorBuilder.BuildInitAccessor(exprInit.AccessorModifier, name, exprInit, isAbstract, modifiers.IsStatic, isAuto: false, body: null, expression: exprInit.Expression),
+                AutoSetAccessorAccessorDeclarationNode autoSet => accessorBuilder.BuildSetter(autoSet.Promise, autoSet.AccessorModifier, site, autoSet, isAuto: true, isInit: false, body: null, expression: null),
+                BlockSetAccessorAccessorDeclarationNode blockSet => accessorBuilder.BuildSetter(blockSet.Promise, blockSet.AccessorModifier, site, blockSet, isAuto: false, isInit: false, body: blockSet.Body, expression: null),
+                ExpressionSetAccessorAccessorDeclarationNode exprSet => accessorBuilder.BuildSetter(exprSet.Promise, exprSet.AccessorModifier, site, exprSet, isAuto: false, isInit: false, body: null, expression: exprSet.Expression),
+                AutoInitAccessorAccessorDeclarationNode autoInit => accessorBuilder.BuildInitAccessor(autoInit.Promise, autoInit.AccessorModifier, site, autoInit, isAuto: true, body: null, expression: null),
+                BlockInitAccessorAccessorDeclarationNode blockInit => accessorBuilder.BuildInitAccessor(blockInit.Promise, blockInit.AccessorModifier, site, blockInit, isAuto: false, body: blockInit.Body, expression: null),
+                ExpressionInitAccessorAccessorDeclarationNode exprInit => accessorBuilder.BuildInitAccessor(exprInit.Promise, exprInit.AccessorModifier, site, exprInit, isAuto: false, body: null, expression: exprInit.Expression),
                 _ => setter,
             };
         }

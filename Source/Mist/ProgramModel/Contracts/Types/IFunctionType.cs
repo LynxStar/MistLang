@@ -21,4 +21,11 @@ public interface IFunctionType : IMistType
     /// The resolved result type. A void result is the unit type, not an absence.
     /// </summary>
     IMistType ReturnType { get; }
+
+    /// <summary>
+    /// Whether the type was written <c>pure</c>: part of the identity, so the same shape with and
+    /// without it are two types. Which converts to which is
+    /// <see cref="Construction.Binding.ConversionRelation"/>'s.
+    /// </summary>
+    bool IsPure { get; }
 }

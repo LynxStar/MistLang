@@ -29,9 +29,9 @@ public class WithAnnotationDemo
     public static void Run()
     {
         Snippet.Resource res = new Snippet.Resource(42, 1);
-        System.Console.WriteLine($"peek={res.PeekId()}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"peek={res.PeekId()}"));
         res.Upgrade();
-        System.Console.WriteLine($"after upgrade={res.PeekId()}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"after upgrade={res.PeekId()}"));
     }
 
     public WithAnnotationDemo()

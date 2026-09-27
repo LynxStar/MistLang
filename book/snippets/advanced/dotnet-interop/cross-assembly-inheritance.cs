@@ -11,7 +11,7 @@ public class Program
         memory.WriteByte(65);
         memory.WriteByte(66);
         System.IO.Stream stream = memory;
-        System.Console.WriteLine($"length={stream.Length}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"length={stream.Length}"));
         System.Console.WriteLine($"canRead={stream.CanRead}");
     }
 

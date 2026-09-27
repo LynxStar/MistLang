@@ -12,7 +12,7 @@ public class Program
             {
                 break;
             }
-            System.Console.WriteLine($"i = {i}");
+            System.Console.WriteLine(System.FormattableString.Invariant($"i = {i}"));
         }
     }
 

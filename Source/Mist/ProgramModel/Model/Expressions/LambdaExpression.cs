@@ -42,5 +42,9 @@ internal sealed class LambdaExpression(
     /// </summary>
     public bool IsAsync { get; init; }
 
+    public bool IsPure { get; init; }
+
+    public bool IsLocal { get; init; }
+
     public override IMistType Type { get; } = type;
 }

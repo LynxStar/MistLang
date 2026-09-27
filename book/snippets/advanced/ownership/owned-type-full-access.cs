@@ -18,7 +18,7 @@ public class Accumulator
 
     public string Describe()
     {
-        return $"Accumulator(Total={Total})";
+        return System.FormattableString.Invariant($"Accumulator(Total={Total})");
     }
 }
 

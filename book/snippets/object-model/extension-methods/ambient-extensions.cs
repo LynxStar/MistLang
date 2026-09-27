@@ -10,8 +10,8 @@ public class Program
         int[] numbers = new int[] { 1, 2, 3, 4, 5 };
         int count = numbers.Count();
         int first = numbers.First();
-        System.Console.WriteLine($"Count: {count}");
-        System.Console.WriteLine($"First: {first}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Count: {count}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"First: {first}"));
     }
 
     public Program()

@@ -20,6 +20,6 @@ public class Point
 
     public string Describe()
     {
-        return $"Point({this.x}, {this.y})";
+        return System.FormattableString.Invariant($"Point({this.x}, {this.y})");
     }
 }

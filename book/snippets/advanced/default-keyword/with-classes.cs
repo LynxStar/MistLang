@@ -26,7 +26,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Config cfg = Snippet.Config.__CreateDefault();
-        System.Console.WriteLine($"MaxRetries={cfg.MaxRetries} Verbose={cfg.Verbose} Label={cfg.Label}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"MaxRetries={cfg.MaxRetries} Verbose={cfg.Verbose} Label={cfg.Label}"));
     }
 
     public Program()

@@ -9,7 +9,7 @@ public class Program
         int count = 0;
         while (count < 3)
         {
-            System.Console.WriteLine($"Count: {count}");
+            System.Console.WriteLine(System.FormattableString.Invariant($"Count: {count}"));
             count = count + 1;
         }
     }

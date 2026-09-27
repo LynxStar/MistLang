@@ -84,6 +84,10 @@ token STAMPABLE = "stampable";
 token READONLY = "readonly";
 token MUTABLE  = "mutable";
 
+// Purity keywords
+token PURE  = "pure";
+token LOCAL = "local";
+
 // Ownership keywords
 token OWNED    = "owned";
 token FROZEN   = "frozen";

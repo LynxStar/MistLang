@@ -15,7 +15,12 @@ namespace Mist.ProgramAnalysis.Rules;
 /// an enum's lookup -- the value can be passed to, so that no cast can fail at runtime. That rules
 /// out every conversion C# would check when it ran: a downcast, a numeric narrowing, a union narrowed
 /// to one constituent, a value typed <c>unknown</c> narrowed to anything. Narrowing is what an
-/// <c>is</c> pattern is for.
+/// <c>is</c> pattern is for. A pure function type is a promise the emitted program erases, so a cast
+/// or an <c>as</c> that would have the runtime test for one -- directly, in a union constituent or in
+/// a type argument -- is refused unless the operand's static type already states that same type
+/// (purity Requirement 16.5); <see cref="PatternAnalyzer"/> asks <see cref="HidesPurity"/> of a type
+/// test for the same reason, and at every closing of a type parameter the target names and the
+/// operand's type does not.
 /// </summary>
 internal sealed class CastAnalyzer : IProgramAnalyzer
 {
@@ -25,11 +30,105 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
     {
         foreach(var node in context.Nodes)
         {
-            if(node is CastExpression cast && !Converts(context, cast))
+            switch(node)
             {
-                Refuse(context, cast);
+                case CastExpression cast when !Converts(context, cast):
+                    Refuse(context, cast);
+                    break;
+
+                case CastExpression cast when Tests(context, cast) && HidesPurity(cast.Operand.Type, cast.TargetType):
+                    RefuseHiddenPurity(context, cast, cast.Operand, cast.TargetType);
+                    break;
+
+                case AsExpression { Kind: AsConversionKind.Narrowing or AsConversionKind.UnionExtraction } converted
+                    when HidesPurity(converted.Operand.Type, converted.TargetType):
+                    RefuseHiddenPurity(context, converted, converted.Operand, converted.TargetType);
+                    break;
             }
         }
+    }
+
+    internal static bool Tests(AnalysisContext context, CastExpression cast)
+    {
+        return cast.ParameterType is null
+            && ConversionClassifier.Classify(cast.Operand.Type, cast.TargetType, context.Model.TypeInterner)
+                is not (ConversionKind.Identity or ConversionKind.Implicit);
+    }
+
+    internal static bool HidesPurity(IMistType from, IMistType to)
+    {
+        var stated = PureFunctions(from).Select(function => function.FullyQualifiedName).ToHashSet(StringComparer.Ordinal);
+
+        return PureFunctions(to).Any(promised => !stated.Contains(promised.FullyQualifiedName));
+    }
+
+    internal static IFunctionType? PureFunctionIn(IMistType type)
+    {
+        return PureFunctions(type).FirstOrDefault();
+    }
+
+    internal static IEnumerable<TypeParameter> HiddenParameters(IMistType from, IMistType to)
+    {
+        var seen = new HashSet<TypeParameter>(TypeParameters(from), ReferenceEqualityComparer.Instance);
+
+        return TypeParameters(to).Where(seen.Add).ToList();
+    }
+
+    internal static IEnumerable<TypeParameter> TypeParameters(IMistType type)
+    {
+        if(type is TypeParameter parameter)
+        {
+            yield return parameter;
+        }
+
+        if(type is ConstructedType { Definition: TypeParameter definition })
+        {
+            yield return definition;
+        }
+
+        foreach(var inner in Nested(type).SelectMany(TypeParameters))
+        {
+            yield return inner;
+        }
+    }
+
+    private static IEnumerable<IFunctionType> PureFunctions(IMistType type)
+    {
+        if(type is IFunctionType { IsPure: true } pure)
+        {
+            yield return pure;
+        }
+
+        foreach(var inner in Nested(type).SelectMany(PureFunctions))
+        {
+            yield return inner;
+        }
+    }
+
+    private static IEnumerable<IMistType> Nested(IMistType type)
+    {
+        return type switch
+        {
+            IFunctionType function => function.ParameterTypes.Append(function.ReturnType),
+            UnionType union => union.Constituents,
+            ConstructedType constructed => constructed.TypeArguments,
+            LiftedType lifted => [lifted.Type],
+            INamedTupleType named => [named.Underlying],
+            ITupleType tuple => tuple.ElementTypes,
+            TypeAlias { AliasedType: { } aliased } => [aliased],
+            RefinedType refined => [refined.BaseType],
+            _ => [],
+        };
+    }
+
+    private static void RefuseHiddenPurity(AnalysisContext context, Expression at, Expression operand, IMistType target)
+    {
+        context.Report(
+            ProgramAnalysisDiagnostics.PureFunctionTypeUntestable,
+            at.Node,
+            [at, operand],
+            TypeDisplay.Mist(operand.Type),
+            TypeDisplay.Mist(target));
     }
 
     internal static bool Converts(AnalysisContext context, CastExpression cast)

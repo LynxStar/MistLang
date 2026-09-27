@@ -325,19 +325,22 @@ public sealed class PredicateDeclarationRefusalTests
             var left = new Property("Size", integer, DeclarationFragments.Public) { DeclaringType = owner, Getter = leftGetter };
             var right = new Property("Other", integer, DeclarationFragments.Public) { DeclaringType = owner, Getter = rightGetter };
             leftGetter.ExpressionBody = new PropertyReferenceExpression(HandBuiltModel.Node(), right);
-            rightGetter.ExpressionBody = new PropertyReferenceExpression(HandBuiltModel.Node(), left);
+            rightGetter.ExpressionBody = new BinaryExpression(HandBuiltModel.Node(), new PropertyReferenceExpression(HandBuiltModel.Node(), left),
+                BinaryOperatorKind.Add, value, integer);
             owner.PropertiesList.Add(right);
             return leftGetter;
         }
 
         if(name == "refinement-over-a-getter-that-assigns")
         {
-            var local = new LocalVariable("held", integer);
+            var held = new Field("held", integer, OwnershipKind.Unrestricted, DeclarationFragments.Public) { DeclaringType = owner };
+            var stored = new Field("size", integer, OwnershipKind.Unrestricted, DeclarationFragments.Public with { IsReadonly = true }) { DeclaringType = owner };
             return new PropertyAccessor
             {
-                Body = HandBuiltModel.Block(new LocalDeclarationStatement(local, HandBuiltModel.Literal(integer, 0L)),
-                    new ExpressionStatement(new AssignmentExpression(HandBuiltModel.Node(), new LocalReferenceExpression(HandBuiltModel.Node(), local),
-                        value, integer)), new ReturnStatement(new LocalReferenceExpression(HandBuiltModel.Node(), local), integer)),
+                Body = HandBuiltModel.Block(
+                    new ExpressionStatement(new AssignmentExpression(HandBuiltModel.Node(), new FieldReferenceExpression(HandBuiltModel.Node(), held),
+                        new FieldReferenceExpression(HandBuiltModel.Node(), stored), integer)),
+                    new ReturnStatement(new FieldReferenceExpression(HandBuiltModel.Node(), held), integer)),
             };
         }
 
@@ -397,18 +400,31 @@ public sealed class PredicateDeclarationRefusalTests
         else if(name.Contains("declared-conversion", StringComparison.Ordinal) || name.Contains("declared-operator", StringComparison.Ordinal))
         {
             var coin = fragment.Class("Coin");
+            var bias = new Field("Bias", integer, OwnershipKind.Unrestricted, DeclarationFragments.Public with { IsStatic = true }) { DeclaringType = coin };
+            var biased = new MemberAccessExpression(HandBuiltModel.Node(), new TypeReferenceExpression(HandBuiltModel.Node(), coin), "Bias", integer,
+                member: new FieldResult(bias, coin, []));
             var held = new Field("coin", coin, OwnershipKind.Unrestricted, DeclarationFragments.Public with { IsReadonly = true });
             var left = new FieldReferenceExpression(HandBuiltModel.Node(), held);
 
             if(name.Contains("declared-conversion", StringComparison.Ordinal))
             {
-                var conversion = HandBuiltModel.Conversion(coin, coin, integer, isImplicit: false);
+                var conversion = new CastOperator(integer, new Parameter("coin", coin), false, DeclarationFragments.Public with { IsStatic = true })
+                {
+                    DeclaringType = coin,
+                    Body = DeclarationFragments.Returning(biased),
+                };
+                coin.CastOperatorsList.Add(conversion);
                 value = new CastExpression(HandBuiltModel.Node(), left, integer, [new ConversionFunction(conversion, coin, integer)], integer);
             }
             else
             {
                 returns = coin;
-                var op = new Operator(OperatorKind.Plus, coin, [new Parameter("a", coin), new Parameter("b", coin)], DeclarationFragments.Public);
+                var op = new Operator(OperatorKind.Plus, coin, [new Parameter("a", coin), new Parameter("b", coin)], DeclarationFragments.Public with { IsStatic = true })
+                {
+                    DeclaringType = coin,
+                    Body = DeclarationFragments.Returning(new NewExpression(HandBuiltModel.Node(), coin, [biased], null, [], null)),
+                };
+                coin.OperatorsList.Add(op);
                 value = new BinaryExpression(HandBuiltModel.Node(), left, BinaryOperatorKind.Add,
                     new FieldReferenceExpression(HandBuiltModel.Node(), held), coin)
                 { Operator = op };

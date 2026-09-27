@@ -79,9 +79,11 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             }
         }
 
+        var purity = new PurityInference(context);
+
         foreach(var declared in DeclaredPredicates.Of(context))
         {
-            CheckPredicate(context, declared.Predicate, declared.Constrained);
+            CheckPredicate(context, declared.Predicate, declared.Constrained, purity);
         }
     }
 
@@ -203,7 +205,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void CheckPredicate(AnalysisContext context, Pattern? predicate, string constrained)
+    private static void CheckPredicate(AnalysisContext context, Pattern? predicate, string constrained, PurityInference purity)
     {
         if(Comparability.Misordered(predicate) is { } comparison)
         {
@@ -212,13 +214,13 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                 constrained, TypeDisplay.Mist(comparison.NarrowedType));
         }
 
-        foreach(var unstable in UnstableMembers(predicate))
+        foreach(var unstable in UnstableMembers(predicate, purity))
         {
             Report(context, unstable.Node, ProgramAnalysisDiagnostics.RefinementOverMutableMember, constrained, unstable.MemberName);
         }
     }
 
-    private static IEnumerable<PropertySubpattern> UnstableMembers(Pattern? predicate)
+    private static IEnumerable<PropertySubpattern> UnstableMembers(Pattern? predicate, PurityInference purity)
     {
         var operands = predicate switch
         {
@@ -228,19 +230,19 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             _ => [],
         };
 
-        foreach(var found in operands.SelectMany(UnstableMembers))
+        foreach(var found in operands.SelectMany(operand => UnstableMembers(operand, purity)))
         {
             yield return found;
         }
 
         foreach(var subpattern in (predicate as PropertyPattern)?.Subpatterns ?? [])
         {
-            if(!StableMembers.IsStable(subpattern.Member))
+            if(!StableMembers.IsStable(subpattern.Member, purity))
             {
                 yield return subpattern;
             }
 
-            foreach(var nested in UnstableMembers(subpattern.Pattern))
+            foreach(var nested in UnstableMembers(subpattern.Pattern, purity))
             {
                 yield return nested;
             }

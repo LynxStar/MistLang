@@ -27,7 +27,7 @@ public readonly struct Vec2
 
     public string Describe()
     {
-        return $"({this.x}, {this.y})";
+        return System.FormattableString.Invariant($"({this.x}, {this.y})");
     }
 }
 

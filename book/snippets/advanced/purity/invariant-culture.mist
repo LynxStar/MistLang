@@ -1,0 +1,28 @@
+using Standard;
+
+namespace PurityCulture;
+
+public class Program
+{
+    public static pure string Shout(string s)
+    {
+        return s.ToUpper();
+    }
+
+    public static pure string Price(double amount)
+    {
+        return $"{amount} EUR";
+    }
+
+    public static pure int Parsed(string digits)
+    {
+        return Convert.ToInt32(digits) + 1;
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine($"Shout(istanbul)={Shout("istanbul")}");
+        Console.WriteLine($"Price(1.5)={Price(1.5)}");
+        Console.WriteLine($"Parsed(41)={Parsed("41")}");
+    }
+}

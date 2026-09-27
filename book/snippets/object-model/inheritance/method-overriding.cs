@@ -25,7 +25,7 @@ public class Animal
 
     public string Describe()
     {
-        return $"{name} (age {age})";
+        return System.FormattableString.Invariant($"{name} (age {age})");
     }
 }
 
@@ -45,7 +45,7 @@ public class Dog : Snippet.Animal
 
     public string DescribeDog()
     {
-        return $"{GetName()} is a {breed}, age {GetAge()}";
+        return System.FormattableString.Invariant($"{GetName()} is a {breed}, age {GetAge()}");
     }
 }
 
@@ -60,6 +60,6 @@ public class GuideDog : Snippet.Dog
 
     public string DescribeGuideDog()
     {
-        return $"{GetName()} is a {GetBreed()} guide dog, age {GetAge()}, handler: {handler}";
+        return System.FormattableString.Invariant($"{GetName()} is a {GetBreed()} guide dog, age {GetAge()}, handler: {handler}");
     }
 }

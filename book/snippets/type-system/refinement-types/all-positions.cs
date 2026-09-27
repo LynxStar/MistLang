@@ -18,7 +18,7 @@ public class Program
 {
     private static string DescribeAge(int age)
     {
-        return $"Adult age is {age}";
+        return System.FormattableString.Invariant($"Adult age is {age}");
     }
 
     private static int GetDefaultAge()

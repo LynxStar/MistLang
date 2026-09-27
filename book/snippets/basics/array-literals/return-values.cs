@@ -12,7 +12,7 @@ public class Program
     public static void Main(string[] args)
     {
         int[] values = GetDefaults();
-        System.Console.WriteLine($"Count: {values.Length}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Count: {values.Length}"));
     }
 
     public Program()

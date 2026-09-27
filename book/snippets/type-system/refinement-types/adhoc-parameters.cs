@@ -6,12 +6,12 @@ public class Validator
 {
     public static string Process(int x)
     {
-        return $"Process({x}) accepted";
+        return System.FormattableString.Invariant($"Process({x}) accepted");
     }
 
     public static string Range(int min, int max)
     {
-        return $"Range({min}, {max}) accepted";
+        return System.FormattableString.Invariant($"Range({min}, {max}) accepted");
     }
 
     public Validator()

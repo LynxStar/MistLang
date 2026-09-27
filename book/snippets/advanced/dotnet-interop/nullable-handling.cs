@@ -12,7 +12,7 @@ public class Program
         if (dict.ContainsKey("answer"))
         {
             int value = dict["answer"];
-            System.Console.WriteLine($"Found={value}");
+            System.Console.WriteLine(System.FormattableString.Invariant($"Found={value}"));
         }
     }
 

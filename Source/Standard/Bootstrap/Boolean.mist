@@ -3,14 +3,14 @@ namespace Standard;
 intrinsic public readonly owned struct Boolean : IClonable<Boolean>
 {
     // IClonable base case — value-type identity copy (Requirement 8.6)
-    intrinsic public owned Boolean Clone();
+    intrinsic public pure owned Boolean Clone();
 
     // Logical operators — Requirement 3.5
-    intrinsic public static Boolean operator &&(Boolean a, Boolean b);
-    intrinsic public static Boolean operator ||(Boolean a, Boolean b);
-    intrinsic public static Boolean operator !(Boolean a);
+    intrinsic public pure static Boolean operator &&(Boolean a, Boolean b);
+    intrinsic public pure static Boolean operator ||(Boolean a, Boolean b);
+    intrinsic public pure static Boolean operator !(Boolean a);
 
     // Equality operators — Requirement 3.6
-    intrinsic public static Boolean operator ==(Boolean a, Boolean b);
-    intrinsic public static Boolean operator !=(Boolean a, Boolean b);
+    intrinsic public pure static Boolean operator ==(Boolean a, Boolean b);
+    intrinsic public pure static Boolean operator !=(Boolean a, Boolean b);
 }

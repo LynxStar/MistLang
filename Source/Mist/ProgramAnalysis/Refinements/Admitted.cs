@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 
 namespace Mist.ProgramAnalysis.Refinements;
 
@@ -184,10 +185,10 @@ internal sealed class Admitted : IEquatable<Admitted>
         return (interval.Low, interval.High) switch
         {
             (long.MinValue, long.MaxValue) => "anything",
-            (long.MinValue, var high) => $"<= {high}",
-            (var low, long.MaxValue) => $">= {low}",
-            (var low, var high) when low == high => $"== {low}",
-            (var low, var high) => $">= {low} and <= {high}",
+            (long.MinValue, var high) => string.Create(CultureInfo.InvariantCulture, $"<= {high}"),
+            (var low, long.MaxValue) => string.Create(CultureInfo.InvariantCulture, $">= {low}"),
+            (var low, var high) when low == high => string.Create(CultureInfo.InvariantCulture, $"== {low}"),
+            (var low, var high) => string.Create(CultureInfo.InvariantCulture, $">= {low} and <= {high}"),
         };
     }
 

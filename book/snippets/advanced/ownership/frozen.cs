@@ -7,7 +7,7 @@ public class FrozenDemo
     public static void FreezeAndRead(Snippet.Pair p)
     {
         int sum = p.X + p.Y;
-        System.Console.WriteLine($"frozen sum={sum}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"frozen sum={sum}"));
     }
 
     public static void Run()

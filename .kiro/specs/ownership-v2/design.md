@@ -55,7 +55,7 @@ graph TD
 
 The flow-sensitive truth-table machinery (Live/LentReadonly/LentFrozen/LentRef/Moved) is **retained verbatim** from v1 — the `TruthTable` dictionary, `MethodFlowState`, `VariableOwnershipState`, and `AccessKind` are unchanged (Req 7, Req 9).
 
-**Phase 4 — C# Emission.** `CSharpEmitter` continues to erase ownership annotations (Req 14 AC 1–5). The one addition: where the resolver decided a clone is required, the emitter emits an explicit `.Clone()` call at the assignment/argument site, except for pure-struct value types where it may be optimized away (Req 8 AC 8, Req 14 AC 7).
+**Phase 4 — C# Emission.** `CSharpEmitter` continues to erase ownership annotations (Req 14 AC 1–5). The one addition: where the resolver decided a clone is required, the emitter emits an explicit `.Clone()` call at the assignment/argument site, except for value types where it may be optimized away (Req 8 AC 8, Req 14 AC 7).
 
 ### Pass mapping: v1 → v2
 
@@ -345,7 +345,7 @@ For all sources e that are already owned (constructor call, owned-returning call
 **Validates: Requirements 6.1, 6.2, 6.3**
 
 ### Property 3: Non-owned clonable source implies exactly one clone (Req 6 AC 9, Req 8 AC 3)
-For all non-owned reference sources e whose type implements `IClonable<T>`, `Resolve(e) == ImplicitClone`, and the emitter inserts exactly one `.Clone()` at that site (unless pure-struct optimization applies, Req 8 AC 8).
+For all non-owned reference sources e whose type implements `IClonable<T>`, `Resolve(e) == ImplicitClone`, and the emitter inserts exactly one `.Clone()` at that site (unless value-type optimization applies, Req 8 AC 8).
 
 **Validates: Requirements 6.9, 8.2, 8.3**
 
@@ -497,7 +497,7 @@ This section enumerates exactly what v1 code and artifacts are deleted or change
 14. Add `samples/Ownership/` with the proof code from Req 16, plus AllFeatures wiring.
 
 ### Emitter changes in `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs`
-15. Emit `.Clone()` at resolver-marked clone sites (Req 14 AC 7), with pure-struct optimization (Req 8 AC 8). Continue erasing `owned` (Req 14 AC 3). `__CreateDefault` machinery reused for `default`-as-owned-source — no change needed there.
+15. Emit `.Clone()` at resolver-marked clone sites (Req 14 AC 7), with value-type optimization (Req 8 AC 8). Continue erasing `owned` (Req 14 AC 3). `__CreateDefault` machinery reused for `default`-as-owned-source — no change needed there.
 
 ### Book / docs (Req 18)
 16. Add `book/src/advanced/ownership.md` as the single authoritative ownership chapter; reference it in `SUMMARY.md`. Compiled snippets per the Book Snippet Policy.
@@ -515,7 +515,7 @@ When `owned var x = new NonOwnedType(sharedAlias)` runs, the constructor body of
 ### LD-2: Statics as field-assignment sources in owned types
 For `owned` types, the `CooperationContractVerifier` must reject field assignments whose source is a static or global read (e.g. `this.Field = SomeType.SharedInstance`). A static read yields neither an owned value (it's a shared global) nor a fresh graph, and treating it as clonable would silently duplicate global state. The verifier therefore routes static/global reads through the resolver, which returns `Error` (falls through to `MIST_OWN_CONTRACT_VIOLATION`). This keeps the owned graph free of aliases into mutable global state. (Non-owned types in owned bindings are unaffected because they cannot call mutable methods anyway, Req 2.)
 
-### LD-3: Pure-struct clone elision
+### LD-3: Value-type clone elision
 For value types whose copy semantics already produce independent values, the emitter may elide the emitted `.Clone()` (Req 8 AC 8). This is an optimization, not a correctness requirement; the resolver still reports `ImplicitClone`/`ValueCopy` and the observable behavior is identical.
 
 ## Dependencies

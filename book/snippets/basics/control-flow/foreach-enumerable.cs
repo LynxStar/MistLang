@@ -66,7 +66,7 @@ public class Program
         Snippet.Countdown countdown = new Snippet.Countdown(3);
         foreach (int n in countdown)
         {
-            System.Console.WriteLine($"T-{n}");
+            System.Console.WriteLine(System.FormattableString.Invariant($"T-{n}"));
         }
         System.Console.WriteLine("Liftoff!");
     }

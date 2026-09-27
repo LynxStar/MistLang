@@ -9,7 +9,7 @@ public class Program
         {
             if (value.AsInt32OrNull is int n)
             {
-                System.Console.WriteLine($"  int: {n}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"  int: {n}"));
             }
         }
         {

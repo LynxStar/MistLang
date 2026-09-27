@@ -26,7 +26,7 @@ public sealed class OperandParenthesesEmissionTests
     [InlineData("int negated = -(maybe ?? b);", "int negated = -(maybe ?? b);")]
     [InlineData("bool inverted = !(flag ?? false);", "bool inverted = !(flag ?? false);")]
     [InlineData("bool either = (flag ?? false) || true;", "bool either = (flag ?? false) || true;")]
-    [InlineData("string upper = (text ?? \"abc\").ToUpper();", "string upper = (text ?? \"abc\").ToUpper();")]
+    [InlineData("string upper = (text ?? \"abc\").ToUpper();", "string upper = (text ?? \"abc\").ToUpperInvariant();")]
     [InlineData("int first = (xs ?? ys)[0];", "int first = (xs ?? ys)[0];")]
     [InlineData("int identity = ((maybe ?? b) as int) + b;", "int identity = (maybe ?? b) + b;")]
     public void ACoalescingOperand_KeepsItsParentheses(string statement, string expected)
@@ -37,7 +37,7 @@ public sealed class OperandParenthesesEmissionTests
     [Theory]
     [InlineData("int subtracted = a - (b - c);", "int subtracted = a - (b - c);")]
     [InlineData("int divided = a / (b / c);", "int divided = a / (b / c);")]
-    [InlineData("string joined = \"n=\" + (b + c);", "string joined = \"n=\" + (b + c);")]
+    [InlineData("string joined = \"n=\" + (b + c);", "string joined = \"n=\" + (b + c).ToString(System.Globalization.CultureInfo.InvariantCulture);")]
     public void ARightOperandOfTheSamePrecedence_KeepsItsParentheses(string statement, string expected)
     {
         Assert.Contains(expected, Emit(Locals + statement), StringComparison.Ordinal);

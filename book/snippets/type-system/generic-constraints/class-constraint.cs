@@ -14,6 +14,6 @@ internal class RefOnly<T>
 
     public string Show()
     {
-        return $"RefOnly: {Item}";
+        return $"RefOnly: {MistInvariant.Text(Item)}";
     }
 }

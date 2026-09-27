@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
@@ -105,7 +106,7 @@ internal static class BodyEmitter
         {
             var type = TypeNameEmitter.Emit(binding.ContextType);
 
-            writer.WriteLine($"var {binding.Identifier} = ({type})MistContext.Peek<{type}>();");
+            writer.WriteLine($"var {binding.Identifier} = ({type})MistContext.Peek<{TypeNameEmitter.EmitContextKey(binding.ContextType)}>();");
         }
     }
 
@@ -364,6 +365,50 @@ internal static class BodyEmitter
     /// ones. The type arguments come off the CALLEE rather than being re-derived, so an inferred one
     /// reaches here already substituted -- the emitter runs no inference of its own.
     /// </summary>
+    private static void EmitOperand(
+        Expression operand, Operator? declared, int position, int precedence, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(declared is { Modifiers.IsIntrinsic: false } && position < declared.ParametersList.Count
+            && OverloadPinning.CastFor(operand, declared.ParametersList[position], declared) is { } pinned)
+        {
+            writer.Append($"(({pinned})");
+            EmitSubExpression(operand, PrefixPrecedence, writer, diagnostics);
+            writer.Append(")");
+            return;
+        }
+
+        EmitSubExpression(operand, precedence, writer, diagnostics);
+    }
+
+    private static string Concatenated(Expression operand, int precedence, DiagnosticBag diagnostics)
+    {
+        return InvariantCulture.Fixes(operand.Type)
+            ? RenderAt(operand, precedence, diagnostics)
+            : InvariantCulture.Text(RenderAt(operand, PostfixPrecedence, diagnostics), operand.Type);
+    }
+
+    private static void EmitCarrierCall(
+        InvocationExpression call, MemberAccessExpression callee, string carrier, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(AsyncPromotion.IsPromoted(call.Method))
+        {
+            writer.Append("await ");
+        }
+
+        var (arguments, parameters) = ExtensionBlockEmitter.CallTypeArguments(call.Method, callee.TypeArguments);
+        writer.Append($"{carrier}.{CalleeName(call.Method!.Name, arguments, parameters)}{EmitTypeArguments(arguments, parameters)}(");
+        EmitExpression(callee.Receiver, writer, diagnostics);
+
+        if(call.Arguments.Count > 0 || (callee.TypeArguments.Count > 0 && DefaultConstraintWitness.Arguments(call.Method.TypeParametersList, callee.TypeArguments).Count > 0))
+        {
+            writer.Append(", ");
+        }
+
+        EmitWitnesses(call, writer, diagnostics);
+        EmitArguments(call.Arguments, call.Method.ParametersList, writer, diagnostics, call.Method);
+        writer.Append(")");
+    }
+
     private static void EmitWitnesses(
         InvocationExpression invocation, CSharpWriter writer, DiagnosticBag diagnostics)
     {
@@ -404,7 +449,8 @@ internal static class BodyEmitter
         IReadOnlyList<Expression> arguments,
         IReadOnlyList<Parameter>? parameters,
         CSharpWriter writer,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Method? callee = null)
     {
         // The call site is FLAT and the parameter is one tuple, which is the whole of what `params`
         // means on the value side. C# has no such convention, so the arguments the pack absorbs are
@@ -432,6 +478,20 @@ internal static class BodyEmitter
             if(arguments[i] is SpreadExpression spread && TupleWidth(spread.Operand.Type) is { } width)
             {
                 EmitTupleElements(spread.Operand, width, writer, diagnostics);
+                continue;
+            }
+
+            if(parameters is not null && i < parameters.Count && InvariantCulture.Writes(callee, parameters[i]) && InvariantCulture.WritesText(arguments[i].Type))
+            {
+                writer.Append(InvariantCulture.Written(RenderAt(arguments[i], PostfixPrecedence, diagnostics), arguments[i].Type));
+                continue;
+            }
+
+            if(parameters is not null && i < parameters.Count && OverloadPinning.CastFor(arguments[i], parameters[i], callee) is { } pinned)
+            {
+                writer.Append($"(({pinned})");
+                EmitSubExpression(arguments[i], PrefixPrecedence, writer, diagnostics);
+                writer.Append(")");
                 continue;
             }
 
@@ -610,7 +670,7 @@ internal static class BodyEmitter
         // The KEY the value is filed under, which a form may have written and which is not the
         // value's own type -- see WithBlockStatement.KeyType. The drop below still asks the VALUE
         // what it owes, those being different questions about the same instance.
-        var type = TypeNameEmitter.Emit(withBlock.KeyType);
+        var type = TypeNameEmitter.EmitContextKey(withBlock.KeyType);
 
         EmitSequenced(withBlock.Value, $"var {bound} = ", writer, diagnostics);
         writer.WriteLine($"MistContext.Push<{type}>({bound});");
@@ -880,13 +940,29 @@ internal static class BodyEmitter
                         respelled.Method!,
                         access is null ? null : RenderAt(access.Receiver, PostfixPrecedence, diagnostics),
                         access?.Receiver.Type,
-                        [.. respelled.Arguments.Select(argument => RenderAt(argument, PostfixPrecedence, diagnostics))]));
+                        [.. respelled.Arguments.Select(argument => RenderAt(argument, PostfixPrecedence, diagnostics))],
+                        access is { IsConditional: true }));
                     break;
                 }
 
             case InvocationExpression { Method: { Modifiers.IsIntrinsic: true } unsupplied } missing
                 when !IntrinsicSupply.Supplies(unsupplied):
                 ReportMissingIntrinsic(IntrinsicSupply.Describe(unsupplied), missing.Node, writer, diagnostics);
+                break;
+
+            case InvocationExpression { Receiver: MemberAccessExpression { IsConditional: false } extended } extension
+                when ExtensionCalls.Carrier(extension.Method) is { } carrier:
+                EmitCarrierCall(extension, extended, carrier, writer, diagnostics);
+                break;
+
+            case InvocationExpression { Receiver: MemberAccessExpression { IsConditional: false } formatted } formatting
+                when InvariantCulture.FormatsItself(formatting.Method):
+                writer.Append(InvariantCulture.ObjectText(RenderAt(formatted.Receiver, PostfixPrecedence, diagnostics), formatted.Receiver.Type));
+                break;
+
+            case InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } conditioned } conditionalFormatting
+                when InvariantCulture.FormatsItself(conditionalFormatting.Method) && !InvariantCulture.FixesPresent(conditioned.Receiver.Type):
+                writer.Append(InvariantCulture.ConditionalText(RenderAt(conditioned.Receiver, PostfixPrecedence, diagnostics), conditioned.Receiver.Type));
                 break;
 
             case InvocationExpression invocation:
@@ -922,7 +998,7 @@ internal static class BodyEmitter
 
                 writer.Append("(");
                 EmitWitnesses(invocation, writer, diagnostics);
-                EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, writer, diagnostics);
+                EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, writer, diagnostics, invocation.Method);
                 writer.Append(")");
                 break;
 
@@ -953,6 +1029,12 @@ internal static class BodyEmitter
                     Render(binary.Right, diagnostics)));
                 break;
 
+            case BinaryExpression concatenation when InvariantCulture.Concatenates(concatenation):
+                writer.Append(
+                    $"{Concatenated(concatenation.Left, GetPrecedence(concatenation.OperatorKind), diagnostics)} + "
+                    + Concatenated(concatenation.Right, GetPrecedence(concatenation.OperatorKind) + 1, diagnostics));
+                break;
+
             // Every binary operator Mist has is left-associative, so a right operand of the same precedence is
             // one the source parenthesized: `a - (b - c)` written bare is `(a - b) - c`.
             case BinaryExpression binary when NarrowArithmetic.Promotes(binary.Type):
@@ -962,9 +1044,9 @@ internal static class BodyEmitter
                 break;
 
             case BinaryExpression binary:
-                EmitSubExpression(binary.Left, GetPrecedence(binary.OperatorKind), writer, diagnostics);
+                EmitOperand(binary.Left, binary.Operator, 0, GetPrecedence(binary.OperatorKind), writer, diagnostics);
                 writer.Append($" {MapBinaryOperator(binary.OperatorKind)} ");
-                EmitSubExpression(binary.Right, GetPrecedence(binary.OperatorKind) + 1, writer, diagnostics);
+                EmitOperand(binary.Right, binary.Operator, 1, GetPrecedence(binary.OperatorKind) + 1, writer, diagnostics);
                 break;
 
             case UnaryExpression unary when NarrowArithmetic.Promotes(unary.Type):
@@ -974,7 +1056,7 @@ internal static class BodyEmitter
 
             case UnaryExpression unary:
                 writer.Append(MapUnaryOperator(unary.OperatorKind));
-                EmitSubExpression(unary.Operand, PrefixPrecedence, writer, diagnostics);
+                EmitOperand(unary.Operand, unary.Operator, 0, PrefixPrecedence, writer, diagnostics);
                 break;
 
             case IsPatternExpression isPattern:
@@ -1058,7 +1140,19 @@ internal static class BodyEmitter
             case IndexExpression elementAccess:
                 EmitSubExpression(elementAccess.Receiver, PostfixPrecedence, writer, diagnostics);
                 writer.Append("[");
-                EmitExpression(elementAccess.Index, writer, diagnostics);
+
+                if(elementAccess.Indexer is { ParametersList: [var slot] } indexer
+                    && OverloadPinning.CastFor(elementAccess.Index, slot.Type, OverloadPinning.Overloaded(indexer)) is { } pinnedIndex)
+                {
+                    writer.Append($"(({pinnedIndex})");
+                    EmitSubExpression(elementAccess.Index, PrefixPrecedence, writer, diagnostics);
+                    writer.Append(")");
+                }
+                else
+                {
+                    EmitExpression(elementAccess.Index, writer, diagnostics);
+                }
+
                 writer.Append("]");
                 break;
 
@@ -1120,36 +1214,7 @@ internal static class BodyEmitter
                 break;
 
             case InterpolatedStringExpression interpolated:
-                writer.Append("$\"");
-                foreach(var part in interpolated.Parts)
-                {
-                    switch(part)
-                    {
-                        case InterpolatedStringText text:
-                            writer.Append(text.Text);
-                            break;
-                        case InterpolatedStringHole hole:
-                            writer.Append("{");
-
-                            // An optional's absence lowers to null, which interpolation prints
-                            // as the empty string; Mist prints it as the unit value's name.
-                            if(OptionalUnion.IsOptional(TypeNameEmitter.Closed(hole.Expression.Type)))
-                            {
-                                writer.Append("(object?)");
-                                EmitExpression(hole.Expression, writer, diagnostics);
-                                writer.Append(" ?? \"Void\"");
-                            }
-                            else
-                            {
-                                EmitExpression(hole.Expression, writer, diagnostics);
-                            }
-
-                            writer.Append("}");
-                            break;
-                    }
-                }
-
-                writer.Append("\"");
+                writer.Append(InterpolationEmitter.Emit(interpolated, hole => Render(hole, diagnostics)));
                 break;
 
             // Outside an argument list a spread stands for the whole value, which is what a
@@ -1178,6 +1243,12 @@ internal static class BodyEmitter
             case FunctionReferenceExpression functionRef
                 when UnsafeReach.Function(functionRef, operand => RenderAt(operand, PostfixPrecedence, diagnostics)) is { } reachedFunction:
                 writer.Append(reachedFunction);
+                break;
+
+            case FunctionReferenceExpression respelledGroup when RespelledGroups.Applies(respelledGroup):
+                writer.Append(RespelledGroups.Lambda(
+                    respelledGroup,
+                    respelledGroup.Receiver is { } groupReceiver && !respelledGroup.Method.Modifiers.IsStatic ? Render(groupReceiver, diagnostics) : null));
                 break;
 
             case FunctionReferenceExpression functionRef:
@@ -2317,6 +2388,12 @@ internal static class BodyEmitter
             return;
         }
 
+        if(RegexLowering.Is(newExpression.Type) && newExpression.Arguments is [var pattern])
+        {
+            writer.Append(RegexLowering.Construct(Render(pattern, diagnostics)));
+            return;
+        }
+
         var target = newExpression.Type is TypeParameter && newExpression.Arguments.Count > 0
             ? $"{TypeNameEmitter.Emit(newExpression.Type)}.{ConstructorConstraintInterfaces.MemberName}("
             : UnsafeReach.Construction(newExpression) is { } reachedConstructor
@@ -2333,7 +2410,7 @@ internal static class BodyEmitter
 
         writer.Append(target);
         EmitArguments(
-            newExpression.Arguments, newExpression.Constructor?.ParametersList, writer, diagnostics);
+            newExpression.Arguments, newExpression.Constructor?.ParametersList, writer, diagnostics, newExpression.Constructor);
         writer.Append(")");
 
         if(initialized is { } entries)
@@ -2399,7 +2476,7 @@ internal static class BodyEmitter
         // read it off.
         if(PackArity(memberAccess) is { } arity)
         {
-            writer.Append(arity.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            writer.Append(arity.ToString(CultureInfo.InvariantCulture));
             return;
         }
 
@@ -2634,13 +2711,13 @@ internal static class BodyEmitter
         {
             string s => $"\"{s}\"",
             long l => EmitIntegerLiteral(l, literal.Type),
-            int i => i.ToString(),
-            float f => $"{f}f",
+            int i => i.ToString(CultureInfo.InvariantCulture),
+            float f => $"{f.ToString("R", CultureInfo.InvariantCulture)}f",
             double d => EmitDoubleLiteral(d),
-            decimal m => $"{m}m",
+            decimal m => $"{m.ToString(CultureInfo.InvariantCulture)}m",
             bool b => b ? "true" : "false",
             char c => $"'{c}'",
-            _ => literal.Value.ToString()!,
+            _ => Convert.ToString(literal.Value, CultureInfo.InvariantCulture)!,
         };
     }
 
@@ -2655,10 +2732,10 @@ internal static class BodyEmitter
         var typeName = type is MemberType mt ? mt.Name : "";
         return typeName switch
         {
-            "UInt64" => $"{(ulong)value}UL",
-            "Int64" => $"{value}L",
-            "UInt32" => $"{(uint)value}U",
-            _ => value.ToString(),
+            "UInt64" => $"{((ulong)value).ToString(CultureInfo.InvariantCulture)}UL",
+            "Int64" => $"{value.ToString(CultureInfo.InvariantCulture)}L",
+            "UInt32" => $"{((uint)value).ToString(CultureInfo.InvariantCulture)}U",
+            _ => value.ToString(CultureInfo.InvariantCulture),
         };
     }
 
@@ -2668,7 +2745,7 @@ internal static class BodyEmitter
     /// </summary>
     private static string EmitDoubleLiteral(double d)
     {
-        var text = d.ToString("G");
+        var text = d.ToString("R", CultureInfo.InvariantCulture);
         if(!text.Contains('.') && !text.Contains('E'))
         {
             return text + ".0";
@@ -2705,6 +2782,7 @@ internal static class BodyEmitter
             BinaryExpression or UnaryExpression when NarrowArithmetic.Promotes(expression.Type) => int.MaxValue,
             BinaryExpression binary => GetPrecedence(binary.OperatorKind),
             UnaryExpression => PrefixPrecedence,
+            LiteralExpression negative when EmitLiteral(negative).StartsWith('-') => PrefixPrecedence,
             InvocationExpression drop when TaskResult.Dropped(drop) is not null => PrefixPrecedence,
             IsPatternExpression => RelationalPrecedence,
             AsExpression { Kind: AsConversionKind.Identity } identity => GetPrecedence(identity.Operand),

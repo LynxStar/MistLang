@@ -85,7 +85,7 @@ public sealed class UnitHoistingEmissionTests
 
     [Theory]
     [InlineData("var called = Log.G(Log.F(), Log.H());", "Probe.Log.F();\nstring called = Probe.Log.G(Standard.Void.Instance, Probe.Log.H());")]
-    [InlineData("var hole = $\"hole={Log.F()} {Log.H()}\";", "Probe.Log.F();\nstring hole = $\"hole={Standard.Void.Instance} {Probe.Log.H()}\";")]
+    [InlineData("var hole = $\"hole={Log.F()} {Log.H()}\";", "Probe.Log.F();\nstring hole = System.FormattableString.Invariant($\"hole={Standard.Void.Instance} {Probe.Log.H()}\");")]
     [InlineData("void unit = void; unit = Log.F();", "Probe.Log.F();\nunit = Standard.Void.Instance;")]
     [InlineData("var seen = \"x\"; var read = Log.Read(seen, Log.F());", "Probe.Log.F();\nstring read = Probe.Log.Read(seen, Standard.Void.Instance);")]
     public void ACallYieldingNothingAsAValue_RunsAheadOfItsStatementWithTheUnitInItsPlace(string statements, string expected)

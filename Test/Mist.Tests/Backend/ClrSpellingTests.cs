@@ -65,7 +65,7 @@ public sealed class ClrSpellingTests : IDisposable
     {
         var emitted = EmitBody("Console.WriteLine(Math.Abs(-1));");
 
-        Assert.Contains("System.Console.WriteLine(System.Math.Abs(-1))", emitted, StringComparison.Ordinal);
+        Assert.Contains("System.Console.WriteLine(System.Math.Abs(-1).ToString(System.Globalization.CultureInfo.InvariantCulture))", emitted, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class ClrSpellingTests : IDisposable
         var usings = probe.Split('\n').Select(line => line.Trim()).Where(line => line.StartsWith("using ", StringComparison.Ordinal)).ToList();
 
         Assert.Equal(["using Standard;"], usings);
-        Assert.Contains("System.Console.WriteLine(1);", probe, StringComparison.Ordinal);
+        Assert.Contains("System.Console.WriteLine(1.ToString(System.Globalization.CultureInfo.InvariantCulture));", probe, StringComparison.Ordinal);
     }
 
     private static void AssertClean(ImmutableArray<Diagnostic> diagnostics)

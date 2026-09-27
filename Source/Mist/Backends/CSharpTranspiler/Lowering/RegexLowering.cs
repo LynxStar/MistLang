@@ -37,7 +37,7 @@ internal static class RegexLowering
     /// </summary>
     public static string Construct(string csharpPatternExpression)
     {
-        return $"new {ClrType}({csharpPatternExpression}, {ClrType}Options.Compiled)";
+        return $"new {ClrType}({csharpPatternExpression}, {ClrType}Options.Compiled | {InvariantCulture.RegexOption})";
     }
 
     /// <summary>
@@ -60,6 +60,6 @@ internal static class RegexLowering
 
     public static string IsFullMatch(string inputExpression, string patternExpression)
     {
-        return $"{ClrType}.IsMatch({inputExpression}, {FullMatchPattern(patternExpression)})";
+        return $"{ClrType}.IsMatch({inputExpression}, {FullMatchPattern(patternExpression)}, {InvariantCulture.RegexOption})";
     }
 }

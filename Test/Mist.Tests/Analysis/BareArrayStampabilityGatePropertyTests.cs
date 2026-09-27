@@ -82,7 +82,7 @@ public sealed class BareArrayStampabilityGatePropertyTests
         Primitive,
 
         /// <summary>A user-defined struct with only primitive fields — stampable.</summary>
-        PureStruct,
+        StampableStruct,
 
         /// <summary>A user-defined struct with a class-typed field — NOT stampable.</summary>
         StructWithClassField,
@@ -116,7 +116,7 @@ public sealed class BareArrayStampabilityGatePropertyTests
     private static readonly string[] PrimitiveTypes =
         ["int", "bool", "char", "float", "double", "long", "short", "byte"];
 
-    private static readonly string[] PureStructNames =
+    private static readonly string[] StampableStructNames =
         ["Vector", "Coord", "Dims", "Pair", "Offset"];
 
     private static readonly string[] NonStampableStructNames =
@@ -131,7 +131,7 @@ public sealed class BareArrayStampabilityGatePropertyTests
     {
         return Gen.Elements(
             ElementTypeCategory.Primitive,
-            ElementTypeCategory.PureStruct,
+            ElementTypeCategory.StampableStruct,
             ElementTypeCategory.StructWithClassField,
             ElementTypeCategory.ClassType,
             ElementTypeCategory.StringType)
@@ -144,7 +144,7 @@ public sealed class BareArrayStampabilityGatePropertyTests
         return category switch
         {
             ElementTypeCategory.Primitive => GenPrimitiveScenario(),
-            ElementTypeCategory.PureStruct => GenPureStructScenario(),
+            ElementTypeCategory.StampableStruct => GenStampableStructScenario(),
             ElementTypeCategory.StructWithClassField => GenStructWithClassFieldScenario(),
             ElementTypeCategory.ClassType => GenClassTypeScenario(),
             ElementTypeCategory.StringType => Gen.Constant(GenStringScenario()),
@@ -160,13 +160,13 @@ public sealed class BareArrayStampabilityGatePropertyTests
                select new BareArrayScenario(source, primType, ElementTypeCategory.Primitive, true);
     }
 
-    private static Gen<BareArrayScenario> GenPureStructScenario()
+    private static Gen<BareArrayScenario> GenStampableStructScenario()
     {
-        return from structName in Gen.Elements(PureStructNames)
+        return from structName in Gen.Elements(StampableStructNames)
                from fieldCount in Gen.Choose(1, 4)
                from size in Gen.Choose(1, 10)
-               let source = BuildPureStructSource(structName, fieldCount, size)
-               select new BareArrayScenario(source, structName, ElementTypeCategory.PureStruct, true);
+               let source = BuildStampableStructSource(structName, fieldCount, size)
+               select new BareArrayScenario(source, structName, ElementTypeCategory.StampableStruct, true);
     }
 
     private static Gen<BareArrayScenario> GenStructWithClassFieldScenario()
@@ -215,7 +215,7 @@ public sealed class BareArrayStampabilityGatePropertyTests
             """;
     }
 
-    private static string BuildPureStructSource(string structName, int fieldCount, int size)
+    private static string BuildStampableStructSource(string structName, int fieldCount, int size)
     {
         var fields = new List<string>();
         var primitives = PrimitiveTypes;
@@ -315,7 +315,7 @@ public sealed class BareArrayStampabilityGatePropertyTests
 
     /// <summary>
     /// Property 4: The bare-array creation <c>new T[size]</c> succeeds if and
-    /// only if <c>T</c> is stampable (primitive or pure struct). For non-stampable
+    /// only if <c>T</c> is stampable (primitive or stampable struct). For non-stampable
     /// types (class, string, struct with class field), exactly one
     /// <c>MIST_ARRAY_REQUIRES_INITIALIZER</c> diagnostic is emitted.
     ///

@@ -1,6 +1,7 @@
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -69,6 +70,7 @@ internal sealed class MethodBuilder
         var resolvedMethod = new Method(name, returnType, common.Parameters, common.Modifiers)
         {
             DeclaringType = host as MemberType,
+            DeclaringBlock = host as ExtensionBlock,
             DeclarationNode = methodDecl,
             Body = common.Body,
             ReturnOwnership = returnOwnership,

@@ -6,7 +6,7 @@ public class Program
 {
     private static void PrintUserId(int id)
     {
-        System.Console.WriteLine(id);
+        System.Console.WriteLine(id.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     public static void Main(string[] args)

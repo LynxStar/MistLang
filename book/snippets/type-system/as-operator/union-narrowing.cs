@@ -11,7 +11,7 @@ public class Program
         {
             if (maybeInt is int n)
             {
-                System.Console.WriteLine($"Got int: {n}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"Got int: {n}"));
             }
             else
             {

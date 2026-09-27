@@ -66,6 +66,12 @@ internal static class ModifierBuilder
                 case ReadonlyModifierModifierNode:
                     result = result with { IsReadonly = true };
                     break;
+                case PureModifierModifierNode:
+                    result = result with { IsPure = true, IsReadonly = true };
+                    break;
+                case LocalModifierModifierNode:
+                    result = result with { IsLocal = true };
+                    break;
                 case StampableModifierModifierNode:
                     result = result with { IsStampable = true };
                     break;
@@ -109,24 +115,131 @@ internal static class ModifierBuilder
             diagnostics.ReportAtNode(ProgramModelDiagnostics.StampableRequiresStruct, node, null);
         }
 
+        ValidatePurity(node, diagnostics, modifiers, result);
+
         return result;
     }
 
     /// <summary>
     /// A MEMBER's modifiers, which inherit the declaring type's <c>readonly</c>: the readonly-contexts
     /// spec makes every member of a readonly type readonly (Req 8.1), and a member that did not record
-    /// it could not be judged as the context it is. Kept apart from <see cref="Build"/> because that one
+    /// it could not be judged as the context it is. A pure type's <c>pure</c> and a local type's
+    /// <c>local</c> reach members the same way (purity spec Req 15.2), combined with what the member
+    /// wrote as though both were written on it. Kept apart from <see cref="Build"/> because that one
     /// also builds a nested TYPE's modifiers, where the same parameter is the ENCLOSING type and
-    /// readonly does not reach through it.
+    /// none of these reaches through it.
     /// </summary>
     public static MemberModifiers ForMember<TNode>(TNode node, DiagnosticBag diagnostics, MistType? declaringType)
         where TNode : SyntaxNode, IHasModifiersNode
     {
         var modifiers = Build(node, diagnostics, declaringType);
 
-        return declaringType is MemberType { IsReadonly: true }
-            ? modifiers with { IsReadonly = true }
+        if(declaringType is not MemberType type)
+        {
+            return modifiers;
+        }
+
+        if(type.Modifiers.IsPure && node is not FieldDeclarationNode)
+        {
+            if(modifiers.IsLocal && !modifiers.IsPure)
+            {
+                diagnostics.ReportAtNode(ProgramModelDiagnostics.PureAndLocal, node, null);
+            }
+            else if(!modifiers.IsPure && Wrote<ReadonlyModifierModifierNode>(node.Modifiers))
+            {
+                diagnostics.ReportAtNode(ProgramModelDiagnostics.ReadonlyImpliedByPure, node, null);
+            }
+
+            return modifiers with { IsPure = true, IsReadonly = true };
+        }
+
+        if(type.IsReadonly)
+        {
+            modifiers = modifiers with { IsReadonly = true };
+        }
+
+        return type.Modifiers.IsLocal && !modifiers.IsStatic && !modifiers.IsPure && InheritsLocal(node)
+            ? modifiers with { IsLocal = true }
             : modifiers;
+    }
+
+    private static bool InheritsLocal(SyntaxNode node)
+    {
+        return node is MethodDeclarationNode
+            or BlockPropertyPropertyDeclarationNode
+            or ExpressionBodiedPropertyPropertyDeclarationNode
+            or IndexerDeclarationNode;
+    }
+
+    private static void ValidatePurity(
+        SyntaxNode node, DiagnosticBag diagnostics, ImmutableArray<ModifierNode> modifiers, MemberModifiers result)
+    {
+        var wrotePure = Wrote<PureModifierModifierNode>(modifiers);
+        var wroteLocal = Wrote<LocalModifierModifierNode>(modifiers);
+
+        if(wrotePure && wroteLocal)
+        {
+            diagnostics.ReportAtNode(ProgramModelDiagnostics.PureAndLocal, node, null);
+        }
+
+        if(wrotePure && Wrote<ReadonlyModifierModifierNode>(modifiers))
+        {
+            diagnostics.ReportAtNode(ProgramModelDiagnostics.ReadonlyImpliedByPure, node, null);
+        }
+
+        if(wrotePure && Misplaced(node, isLocal: false) is { } purePlace)
+        {
+            diagnostics.ReportAtNode(ProgramModelDiagnostics.PurityModifierPlacement, node, null, "pure", purePlace, AliasHint(node));
+        }
+
+        if(!wroteLocal)
+        {
+            return;
+        }
+
+        if(Misplaced(node, isLocal: true) is { } localPlace)
+        {
+            diagnostics.ReportAtNode(ProgramModelDiagnostics.PurityModifierPlacement, node, null, "local", localPlace, string.Empty);
+        }
+        else if(node is ConstructorDeclarationNode || result.IsStatic)
+        {
+            diagnostics.ReportAtNode(ProgramModelDiagnostics.LocalRequiresInstance, node, null);
+        }
+    }
+
+    private static string? Misplaced(SyntaxNode node, bool isLocal)
+    {
+        return node switch
+        {
+            TypeBodyDeclarationNode
+                or MethodDeclarationNode
+                or ConstructorDeclarationNode
+                or BlockPropertyPropertyDeclarationNode
+                or ExpressionBodiedPropertyPropertyDeclarationNode
+                or IndexerDeclarationNode
+                or LocalFunctionDeclarationNode => null,
+            OperatorDeclarationNode => isLocal ? "an operator" : null,
+            CastOperatorDeclarationNode => isLocal ? "a cast operator" : null,
+            FieldDeclarationNode => "a field",
+            TypeAliasDeclarationNode => "a type alias",
+            NewtypeDeclarationNode => "a newtype",
+            EnumDeclarationNode => "an enum",
+            AssociatedTypeSlotDeclarationNode => "an associated type",
+            _ => "this declaration",
+        };
+    }
+
+    private static string AliasHint(SyntaxNode node)
+    {
+        return node is FieldDeclarationNode or TypeAliasDeclarationNode
+            ? " A pure function type is written after the type's name, 'type Step = pure func<int, int>;', and a field names the alias."
+            : string.Empty;
+    }
+
+    private static bool Wrote<TModifier>(ImmutableArray<ModifierNode> modifiers)
+        where TModifier : ModifierNode
+    {
+        return !modifiers.IsDefaultOrEmpty && modifiers.Any(modifier => modifier is TModifier);
     }
 
     /// <summary>

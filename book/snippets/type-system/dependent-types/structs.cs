@@ -22,7 +22,7 @@ public struct FixedSpan<TLength>
 
     public readonly string Describe()
     {
-        return $"FixedSpan<{TLength.Value}>";
+        return $"FixedSpan<{MistInvariant.Text(TLength.Value)}>";
     }
 
     public FixedSpan()

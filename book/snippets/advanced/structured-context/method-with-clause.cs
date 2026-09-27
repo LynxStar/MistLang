@@ -8,7 +8,7 @@ public class Service
     {
         var name = (string)MistContext.Peek<string>();
         var count = (int)MistContext.Peek<int>();
-        return $"name={name}, count={count}";
+        return System.FormattableString.Invariant($"name={name}, count={count}");
     }
 
     public Service()

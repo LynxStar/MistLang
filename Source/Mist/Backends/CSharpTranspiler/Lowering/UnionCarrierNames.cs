@@ -7,9 +7,9 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// <summary>
 /// Names for the synthesized union carrier structs, shared by the generator and every
 /// use-site spelling so the two agree by construction: <c>Union_</c> plus the constituent
-/// names sorted ordinally, e.g. <c>Union_Int32_String</c>. Refinements erase to their base
-/// and an array names its element, because the carrier exists at the CLR level where
-/// neither survives.
+/// names sorted ordinally, e.g. <c>Union_Int32_String</c>. Refinements erase to their base,
+/// an array names its element and a function type is named by its shape alone, without its
+/// purity, because the carrier exists at the CLR level where none of the three survives.
 /// </summary>
 internal static class UnionCarrierNames
 {
@@ -44,6 +44,9 @@ internal static class UnionCarrierNames
                     + string.Join("_", constructed.TypeArguments.Select(ConstituentName)),
             LiftedType lifted => ConstituentName(lifted.Type),
             UnknownValueType unknownValue => ConstituentName(unknownValue.Domain),
+            IFunctionType function
+                => $"Func_{function.ParameterTypes.Count + 1}_"
+                    + string.Join("_", function.ParameterTypes.Append(function.ReturnType).Select(ConstituentName)),
             _ => MistType.StripArity(type.Name),
         };
     }

@@ -153,7 +153,7 @@ public sealed class UnitHoistingRuntimeTests : IDisposable
         {
             public string Value = Log.Show(Log.F());
 
-            public Seeded()
+            public Seeded(int seed)
             {
             }
         }
@@ -233,7 +233,7 @@ public sealed class UnitHoistingRuntimeTests : IDisposable
 
                 Console.WriteLine(Line("getter", $"{Log.Shown} {Log.Shown}"));
 
-                Console.WriteLine(Line("initializer", $"{new Seeded().Value} {new Seeded().Value}"));
+                Console.WriteLine(Line("initializer", $"{new Seeded(0).Value} {new Seeded(0).Value}"));
 
                 Console.WriteLine(Line("chain", new Derived(3).Seen));
 

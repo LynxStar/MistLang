@@ -109,6 +109,7 @@ public class Program
         CallableInference.Program.RunDemo();
         GenericExtensionMethods.Program.RunDemo();
         ConstructorConstraintSignatures.Program.RunDemo();
+        Purity.Program.RunDemo();
         NestedBlockNamespaces.Program.RunDemo();
     }
 }

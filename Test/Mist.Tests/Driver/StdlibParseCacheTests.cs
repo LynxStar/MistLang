@@ -44,9 +44,11 @@ public sealed class StdlibParseCacheTests : IDisposable
         _ = CreateDriver(new MistLexer(), capture, cache).Compile(options);
 
         var stdlibUnitCount = capture.Units.Count(u => u.IsStdlib);
+        var whole = StdlibLoader.LoadFor(new CSharpTranspilerBackend(), new DiagnosticBag());
         Assert.NotEqual(0, stdlibUnitCount);
         Assert.Equal(capture.Units.Length, capture.AstCount);
-        Assert.Equal(stdlibUnitCount, cache.TryGet(stdlibUnitCount)?.Asts.Length);
+        Assert.Equal(whole.Length, cache.TryGet(whole.Length)?.Asts.Length);
+        Assert.Equal(whole.Count(u => !u.IsExperimentalOnly), stdlibUnitCount);
     }
 
     [Fact]

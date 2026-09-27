@@ -20,7 +20,7 @@ public class Counter
     {
         Snippet.Counter c1 = new Snippet.Counter();
         Snippet.Counter c2 = new Snippet.Counter();
-        System.Console.WriteLine($"Total: {Snippet.Counter.GetTotalCreated()}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Total: {Snippet.Counter.GetTotalCreated()}"));
     }
 
     private Counter(Mist.Emission.CSharp.__DefaultInit marker)

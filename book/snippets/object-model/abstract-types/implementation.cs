@@ -20,6 +20,6 @@ public class Person : Snippet.IDescribable
 
     public string Describe()
     {
-        return $"Person: {name}, age {age}";
+        return System.FormattableString.Invariant($"Person: {name}, age {age}");
     }
 }

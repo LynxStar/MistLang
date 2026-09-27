@@ -18,6 +18,13 @@ namespace Mist.ProgramAnalysis.Rules;
 /// that is indeterminate, <c>unknown</c> above all, admits any test, since that is what a test of it
 /// is for. A test of an unsealed class against an abstract is possible whichever side is which,
 /// because a derivation may implement it, which is C#'s rule and classic's verdict.
+/// <para>
+/// A type test, an <c>as</c> or a cast whose target names a type parameter the operand's static type
+/// does not is judged once more at every closing of that parameter (purity Requirement 16.5): the
+/// erased runtime test would read a plain function value as a pure one, so no closing may hand the
+/// parameter a type holding a pure function type -- through a forwarding closing of an enclosing
+/// generic's parameter included.
+/// </para>
 /// </summary>
 internal sealed class PatternAnalyzer : IProgramAnalyzer
 {
@@ -25,88 +32,154 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
+        var tests = new Dictionary<TypeParameter, TypeTest>(ReferenceEqualityComparer.Instance);
+
         foreach(var node in context.Nodes)
         {
             switch(node)
             {
                 case IsPatternExpression test:
-                    Walk(context, test.Pattern, test.Scrutinee.Type, test.Scrutinee);
+                    Judge(context, test.Pattern, test.Scrutinee.Type, test.Scrutinee, tests);
                     break;
 
                 case SwitchExpression switchExpression:
                     foreach(var arm in switchExpression.Arms)
                     {
-                        Walk(context, arm.Pattern, switchExpression.Scrutinee.Type, switchExpression.Scrutinee);
+                        Judge(context, arm.Pattern, switchExpression.Scrutinee.Type, switchExpression.Scrutinee, tests);
                     }
 
                     JudgeUnreachable(context, switchExpression);
+                    break;
+
+                case AsExpression { Kind: AsConversionKind.Narrowing or AsConversionKind.UnionExtraction } converted:
+                    Note(tests, converted.Operand.Type, converted.TargetType);
+                    break;
+
+                case CastExpression cast when CastAnalyzer.Tests(context, cast):
+                    Note(tests, cast.Operand.Type, cast.TargetType);
+                    break;
+            }
+        }
+
+        JudgeClosings(context, tests);
+    }
+
+    private static void Judge(AnalysisContext context, Pattern root, IMistType input, Expression about, Dictionary<TypeParameter, TypeTest> tests)
+    {
+        foreach(var (pattern, flowing) in Flatten(root, input))
+        {
+            switch(pattern)
+            {
+                case TypeTestPattern test:
+                    Note(tests, flowing, test.NarrowedType);
+                    JudgeTypeTest(context, test, flowing, about);
+                    break;
+
+                case ComparisonPattern comparison:
+                    JudgeComparison(context, comparison, flowing, about);
                     break;
             }
         }
     }
 
-    private static void Walk(AnalysisContext context, Pattern pattern, IMistType input, Expression about)
+    private static IEnumerable<(Pattern Pattern, IMistType Input)> Flatten(Pattern pattern, IMistType input)
     {
-        switch(pattern)
+        yield return (pattern, input);
+
+        var nested = pattern switch
         {
-            case TypeTestPattern test:
-                JudgeTypeTest(context, test, input, about);
+            TypeTestPattern { Refinement: { } refinement } test when Comparability.Misordered(refinement) is null
+                => Flatten(refinement, test.NarrowedType),
+            ConjunctionPattern conjunction => Conjuncts(conjunction, input),
+            DisjunctionPattern disjunction => disjunction.Operands.SelectMany(operand => Flatten(operand, input)),
+            NegatedPattern negated => Flatten(negated.Operand, input),
+            PropertyPattern property
+                => (property.TypeTest is { } typeTest ? Flatten(typeTest, input) : [])
+                    .Concat(property.Subpatterns.SelectMany(subpattern => Flatten(subpattern.Pattern, subpattern.MemberType))),
+            TuplePattern tuple when Elements(input) is { } elements && elements.Count == tuple.Elements.Count
+                => tuple.Elements.SelectMany((element, i) => Flatten(element, elements[i])),
+            _ => [],
+        };
 
-                if(test.Refinement is { } refinement && Comparability.Misordered(refinement) is null)
-                {
-                    Walk(context, refinement, test.NarrowedType, about);
-                }
-
-                break;
-
-            case ComparisonPattern comparison:
-                JudgeComparison(context, comparison, input, about);
-                break;
-
-            case ConjunctionPattern conjunction:
-                var narrowed = input;
-
-                foreach(var operand in conjunction.Operands)
-                {
-                    Walk(context, operand, narrowed, about);
-                    narrowed = operand.NarrowedType;
-                }
-
-                break;
-
-            case DisjunctionPattern disjunction:
-                foreach(var operand in disjunction.Operands)
-                {
-                    Walk(context, operand, input, about);
-                }
-
-                break;
-
-            case NegatedPattern negated:
-                Walk(context, negated.Operand, input, about);
-                break;
-
-            case PropertyPattern property:
-                if(property.TypeTest is { } typeTest)
-                {
-                    Walk(context, typeTest, input, about);
-                }
-
-                foreach(var subpattern in property.Subpatterns)
-                {
-                    Walk(context, subpattern.Pattern, subpattern.MemberType, about);
-                }
-
-                break;
-
-            case TuplePattern tuple when Elements(input) is { } elements && elements.Count == tuple.Elements.Count:
-                for(var i = 0; i < elements.Count; i++)
-                {
-                    Walk(context, tuple.Elements[i], elements[i], about);
-                }
-
-                break;
+        foreach(var entry in nested)
+        {
+            yield return entry;
         }
+    }
+
+    private static IEnumerable<(Pattern Pattern, IMistType Input)> Conjuncts(ConjunctionPattern conjunction, IMistType input)
+    {
+        var narrowed = input;
+
+        foreach(var operand in conjunction.Operands)
+        {
+            foreach(var entry in Flatten(operand, narrowed))
+            {
+                yield return entry;
+            }
+
+            narrowed = operand.NarrowedType;
+        }
+    }
+
+    private static void Note(Dictionary<TypeParameter, TypeTest> tests, IMistType from, IMistType to)
+    {
+        foreach(var parameter in CastAnalyzer.HiddenParameters(from, to))
+        {
+            _ = tests.TryAdd(parameter, new TypeTest(parameter, from, to));
+        }
+    }
+
+    private static void JudgeClosings(AnalysisContext context, Dictionary<TypeParameter, TypeTest> tests)
+    {
+        var registry = context.Model.ConstructorConstraintClosures;
+        var forwarding = registry.Closings.Concat(registry.OpenClosings).ToList();
+
+        for(var grew = tests.Count > 0; grew;)
+        {
+            grew = false;
+
+            foreach(var closing in forwarding)
+            {
+                if(tests.TryGetValue(closing.Parameter, out var test))
+                {
+                    grew |= CastAnalyzer.TypeParameters(closing.Argument).Aggregate(false, (added, forwarded) => tests.TryAdd(forwarded, test) || added);
+                }
+            }
+        }
+
+        var reported = new HashSet<(object, TypeParameter)>();
+
+        foreach(var closing in registry.Closings)
+        {
+            if(!tests.TryGetValue(closing.Parameter, out var test)
+                || CastAnalyzer.PureFunctionIn(closing.Argument) is not { } promised
+                || !reported.Add((closing.Node, closing.Parameter)))
+            {
+                continue;
+            }
+
+            context.Report(
+                ProgramAnalysisDiagnostics.PureFunctionTypeUntestableClosing, closing.Node, [],
+                closing.Parameter.Name, GenericName(closing.Parameter, context), TypeDisplay.Mist(closing.Argument),
+                GenericName(test.Parameter, context), TypeDisplay.Mist(test.From), TypeDisplay.Mist(test.To), TypeDisplay.Mist(promised));
+        }
+    }
+
+    private static string GenericName(TypeParameter parameter, AnalysisContext context)
+    {
+        if(parameter.DeclaringType is MemberType type)
+        {
+            var method = type.MethodsList.Find(candidate => candidate.TypeParametersList.Exists(own => ReferenceEquals(own, parameter)));
+
+            return method is null ? TypeDisplay.Mist(type) : $"{TypeDisplay.Mist(type)}.{method.Name}";
+        }
+
+        var extension = context.Extensions
+            .SelectMany(block => block.MethodsList)
+            .FirstOrDefault(candidate => candidate.TypeParametersList.Exists(own => ReferenceEquals(own, parameter)));
+
+        return extension?.Name ?? parameter.Name;
     }
 
     private static void JudgeTypeTest(AnalysisContext context, TypeTestPattern test, IMistType input, Expression about)
@@ -125,6 +198,11 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
     internal static DiagnosticDescriptor? TypeFinding(TypeTestPattern test, IMistType input, TypeInterner interner)
     {
         var tested = test.Constituent ?? test.NarrowedType;
+
+        if(CastAnalyzer.HidesPurity(input, test.NarrowedType))
+        {
+            return ProgramAnalysisDiagnostics.PureFunctionTypeUntestable;
+        }
 
         if(tested is UnknownType && !IsIndeterminate(input))
         {
@@ -286,4 +364,6 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
             _ => null,
         };
     }
+
+    private readonly record struct TypeTest(TypeParameter Parameter, IMistType From, IMistType To);
 }

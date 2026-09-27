@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -210,7 +211,9 @@ internal static class ArgumentBinder
     /// <paramref name="candidates"/> holds exactly one member of the right arity. The target is
     /// substituted against <paramref name="receiverConstructed"/> and any <paramref name="typeArguments"/>
     /// the call states, so an argument to <c>new Result&lt;void&gt;(...)</c> sees Void, not T -- target-typed
-    /// forms such as the void literal, and a lambda's parameters, read the slot's CLOSED type.
+    /// forms such as the void literal, and a lambda's parameters, read the slot's CLOSED type. A
+    /// homogeneous params slot targets what it collects with its ELEMENT type: every argument once the
+    /// count says the call is in expanded form, and a lambda always, since a lambda is never the array.
     /// </summary>
     internal static IReadOnlyList<Expression> Bind<T>(
         ArgumentListNode? argumentList,
@@ -233,9 +236,7 @@ internal static class ArgumentBinder
             substitution = substitution.Extend(TypeSubstitution.ForMethod(sole, typeArguments));
         }
 
-        var targets = sole?.ParametersList
-            .Select(parameter => substitution.Apply(parameter.Type, interner))
-            .ToList();
+        var targets = sole is null ? null : Targets(sole.ParametersList, argumentList, substitution, interner);
 
         var settled = sole is null
             || (typeArguments is null && sole.TypeParametersList.Count > 0 && ValuePack.FlattenedSlot(sole.ParametersList) is null);
@@ -287,7 +288,7 @@ internal static class ArgumentBinder
 
         foreach(var candidate in candidates)
         {
-            if(candidate.ParametersList.Count != argumentCount
+            if(!Fills(candidate.ParametersList, argumentCount)
                 || (typeArguments is not null && candidate.TypeParametersList.Count != typeArguments.Count))
             {
                 continue;
@@ -302,5 +303,38 @@ internal static class ArgumentBinder
         }
 
         return sole;
+    }
+
+    private static bool Fills(IReadOnlyList<Parameter> parameters, int argumentCount)
+    {
+        return parameters.Count == argumentCount
+            || (ValuePack.FlattenedSlot(parameters) is { } flattened
+                && ValuePack.ElementOf(parameters[flattened]) is not null
+                && ValuePack.AcceptsCount(parameters, argumentCount));
+    }
+
+    private static List<IMistType> Targets(
+        IReadOnlyList<Parameter> parameters, ArgumentListNode? argumentList, TypeSubstitution substitution, TypeInterner interner)
+    {
+        if(argumentList is null)
+        {
+            return [];
+        }
+
+        var expressions = argumentList.GetAllExpressions();
+        var targets = new List<IMistType>(expressions.Length);
+
+        for(var i = 0; i < expressions.Length; i++)
+        {
+            var parameter = parameters[ValuePack.SlotOf(parameters, expressions.Length, i)];
+            var target = ValuePack.ElementOf(parameter) is { } element
+                && (expressions.Length != parameters.Count || expressions[i] is LambdaFormExpressionNode)
+                    ? element
+                    : parameter.Type;
+
+            targets.Add(substitution.Apply(target, interner));
+        }
+
+        return targets;
     }
 }

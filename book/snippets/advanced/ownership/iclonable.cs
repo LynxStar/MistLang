@@ -18,7 +18,7 @@ public class Tag : Standard.IClonable<Snippet.Tag>
 
     public string Describe()
     {
-        return $"Tag({Code})";
+        return System.FormattableString.Invariant($"Tag({Code})");
     }
 }
 

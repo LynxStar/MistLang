@@ -8,7 +8,7 @@ public class Program
     {
         foreach (int item in items)
         {
-            System.Console.WriteLine(item);
+            System.Console.WriteLine(item.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
     }
 

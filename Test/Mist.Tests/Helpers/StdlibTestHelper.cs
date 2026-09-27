@@ -100,14 +100,27 @@ internal static class StdlibTestHelper
         var userSourceText = new SourceText("test.mist", source);
         var userUnit = new CompilationUnit(userSourceText);
 
-        var allUnits = stdlibUnits.Add(userUnit);
-        var allAsts = stdlibAsts.Add(userAst);
+        // The classic pipeline compiles without Standard/Experimental/, as CompilerDriver drops it.
+        var allUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
+        var allAsts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
 
-        var compilation = new MistCompilation(allUnits);
+        for(var index = 0; index < stdlibUnits.Length; index++)
+        {
+            if(!stdlibUnits[index].IsExperimentalOnly)
+            {
+                allUnits.Add(stdlibUnits[index]);
+                allAsts.Add(stdlibAsts[index]);
+            }
+        }
+
+        allUnits.Add(userUnit);
+        allAsts.Add(userAst);
+
+        var compilation = new MistCompilation(allUnits.ToImmutable());
         var diagnostics = new DiagnosticBag();
         var builder = new SemanticModelBuilder();
         var model = builder.Build(
-            compilation, allAsts, ambientTypeResolver,
+            compilation, allAsts.ToImmutable(), ambientTypeResolver,
             namespaceRoot: "TestProject", projectFolder: "/test", diagnostics);
 
         return (model, diagnostics.ToImmutableArray());

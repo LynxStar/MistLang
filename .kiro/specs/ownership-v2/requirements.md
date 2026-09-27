@@ -164,7 +164,7 @@ The following truth table defines the permitted actions for each variable owners
 5. WHEN the source of a move into an owned destination is a value held in a lent tier (`borrowed`, `frozen`, or `readonly ref`) whose type implements `IClonable<T>`, THE Compiler SHALL implicitly insert a `.Clone()` call to produce a fresh owned value. Cloning from a lent reference SHALL NOT consume or move the underlying value — the lender retains its value after the lend returns.
 6. THE Compiler SHALL auto-derive `IClonable<T>` for a type if ALL of its fields have types that implement `IClonable<T>`. The bootstrap value types (`Int32`, `Boolean`, `Float64`, etc.) and `String` SHALL implement `IClonable<T>` as base cases. This rule applies recursively — a struct whose fields all implement `IClonable<T>` auto-derives it, regardless of whether those fields are structs or classes.
 7. WHEN a type has any field whose type does NOT implement `IClonable<T>`, THE Compiler SHALL NOT auto-derive `IClonable<T>` for that type — the developer must implement it manually or the type is not clonable.
-8. THE CSharp_Emitter SHALL emit `.Clone()` calls where implicit cloning occurs, except for pure-struct types where the compiler may optimize away the call (value semantics already provide the copy).
+8. THE CSharp_Emitter SHALL emit `.Clone()` calls where implicit cloning occurs, except for value types where the compiler may optimize away the call (value semantics already provide the copy).
 
 ### Requirement 9: Interaction with Existing Lending Tiers
 

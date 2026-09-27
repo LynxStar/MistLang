@@ -20,7 +20,7 @@ public class Pair
 
     public string Describe()
     {
-        return $"Pair({X}, {Y})";
+        return System.FormattableString.Invariant($"Pair({X}, {Y})");
     }
 
     public void SetX(int x)
@@ -34,7 +34,7 @@ public class FrozenDemo
     public static void FreezeAndRead(Snippet.Pair p)
     {
         int sum = p.Sum();
-        System.Console.WriteLine($"frozen sum={sum}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"frozen sum={sum}"));
     }
 
     public static void Main(string[] args)

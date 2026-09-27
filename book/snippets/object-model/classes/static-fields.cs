@@ -22,6 +22,6 @@ public class Counter
     {
         Snippet.Counter a = new Snippet.Counter("Alpha");
         Snippet.Counter b = new Snippet.Counter("Beta");
-        System.Console.WriteLine($"Total created: {Snippet.Counter.GetTotalCreated()}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Total created: {Snippet.Counter.GetTotalCreated()}"));
     }
 }

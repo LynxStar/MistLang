@@ -142,7 +142,7 @@ public sealed class NoHiddenArrayFillPropertyTests
         /// <summary>Bare <c>new T[size]</c> for a primitive type (stampable, zero-fill).</summary>
         BareStampablePrimitive,
 
-        /// <summary>Bare <c>new T[size]</c> for a pure struct (stampable, zero-fill).</summary>
+        /// <summary>Bare <c>new T[size]</c> for a stampable struct (zero-fill).</summary>
         BareStampableStruct,
 
         /// <summary><c>new Array&lt;T, Size&gt;(fn)</c> for a class type (initializer path).</summary>
@@ -175,7 +175,7 @@ public sealed class NoHiddenArrayFillPropertyTests
 
     private static readonly string[] PrimitiveTypes = ["int", "bool", "char", "float", "double", "long"];
 
-    private static readonly string[] PureStructNames = ["Vec2", "Point", "Dims", "Pair"];
+    private static readonly string[] StampableStructNames = ["Vec2", "Point", "Dims", "Pair"];
 
     private static Gen<NoFillScenario> GenNoFillScenario()
     {
@@ -221,7 +221,7 @@ public sealed class NoHiddenArrayFillPropertyTests
 
     private static Gen<NoFillScenario> GenBareStampableStruct()
     {
-        return from structName in Gen.Elements(PureStructNames)
+        return from structName in Gen.Elements(StampableStructNames)
                from fieldCount in Gen.Choose(1, 3)
                from size in Gen.Choose(1, 20)
                let fields = string.Join("\n",

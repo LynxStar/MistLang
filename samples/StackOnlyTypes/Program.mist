@@ -5,7 +5,7 @@ using System;
 
 namespace StackOnlyTypes;
 
-// PROOF: a pure struct with only primitive fields is stampable,
+// PROOF: a struct with only primitive fields is stampable,
 // so it is a legal stackalloc element type
 public struct Point
 {

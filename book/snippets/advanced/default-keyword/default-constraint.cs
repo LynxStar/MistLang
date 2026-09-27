@@ -41,7 +41,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Pair p = Snippet.Factory.Create<Snippet.Pair>(() => Snippet.Pair.__CreateDefault());
-        System.Console.WriteLine($"X={p.X} Y={p.Y}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"X={p.X} Y={p.Y}"));
     }
 
     public Program()

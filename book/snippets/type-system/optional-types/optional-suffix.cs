@@ -8,7 +8,7 @@ public class Program
     {
         int? maybeInt = 42;
         string maybeStr = "hello";
-        System.Console.WriteLine($"maybeInt={(object?)maybeInt ?? "Void"}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"maybeInt={(object?)maybeInt ?? "Void"}"));
         System.Console.WriteLine($"maybeStr={(object?)maybeStr ?? "Void"}");
     }
 

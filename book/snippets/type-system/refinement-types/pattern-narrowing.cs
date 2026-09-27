@@ -10,18 +10,18 @@ public class Program
         if (x >= 18)
         {
             int narrowed = x;
-            System.Console.WriteLine($"Narrowed to AdultAge: {narrowed}");
+            System.Console.WriteLine(System.FormattableString.Invariant($"Narrowed to AdultAge: {narrowed}"));
         }
         int userInput = 21;
         {
             if (userInput is int and >= 21 and var validAge)
             {
-                System.Console.WriteLine($"Valid drinking age: {validAge}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"Valid drinking age: {validAge}"));
             }
         }
         int age = 30;
         int baseValue = age;
-        System.Console.WriteLine($"Widened to int: {baseValue}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Widened to int: {baseValue}"));
     }
 
     public Program()

@@ -23,10 +23,14 @@ internal static class CastLowering
 {
     public static string Argument(CastExpression cast, string operand)
     {
-        return cast.ParameterType is { } parameter
-            ? Step(cast.Operand.Type, parameter, operand)
-            : operand
-            ;
+        if(cast.ParameterType is not { } parameter)
+        {
+            return operand;
+        }
+
+        return cast.Operator is { Modifiers.IsIntrinsic: false } && OverloadPinning.CastFor(cast.Operand, parameter, overloaded: true) is { } pinned
+            ? $"({pinned})({operand})"
+            : Step(cast.Operand.Type, parameter, operand);
     }
 
     public static string Implicit(ImplicitConversionExpression conversion, string operand)
@@ -36,7 +40,9 @@ internal static class CastLowering
             return operand;
         }
 
-        var argument = Step(conversion.Operand.Type, parameter, operand);
+        var argument = !called.Modifiers.IsIntrinsic && OverloadPinning.CastFor(conversion.Operand, parameter, overloaded: true) is { } pinned
+            ? $"({pinned})({operand})"
+            : Step(conversion.Operand.Type, parameter, operand);
         var result = ReadsPattern(called, parameter)
             ? Pattern(argument)
             : $"(({TypeNameEmitter.Emit(conversion.Type)})({argument}))";

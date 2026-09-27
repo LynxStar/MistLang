@@ -5,6 +5,7 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -109,6 +110,20 @@ public sealed class StructuredContextTests : ProgramModelProbe
 
         Assert.Equal("Probe.Shape", scope.KeyType.FullyQualifiedName);
         Assert.Equal("Probe.Circle", scope.Value.Type.FullyQualifiedName);
+    }
+
+    /// <summary>
+    /// The written key is the value's target as a typed local's type is: a lambda written there takes the
+    /// pure function type it is filed under, and so is judged as one, instead of its natural plain type.
+    /// </summary>
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ALambdaWrittenUnderAPureFunctionKeyTakesTheKeysType()
+    {
+        var body = BodyIn("with Step g = (int x) => x + 1;", "type Step = pure func<int, int>;");
+        var scope = Assert.IsType<WithBlockStatement>(body.Statements.Single());
+
+        Assert.True(scope.Value.Type is IFunctionType { IsPure: true }, TypeDisplay.Mist(scope.Value.Type));
     }
 
     /// <summary>

@@ -13,7 +13,7 @@ public class Container
 
     public string Describe()
     {
-        return $"Container({Value})";
+        return System.FormattableString.Invariant($"Container({Value})");
     }
 }
 

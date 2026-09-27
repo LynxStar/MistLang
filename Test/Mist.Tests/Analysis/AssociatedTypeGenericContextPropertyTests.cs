@@ -232,7 +232,7 @@ public class AssociatedTypeGenericContextPropertyTests
 
             TypePosition.LocalVariableType =>
                 $"    void {scenario.MethodName}<{tp}>(input: {slot}) {constraint} {{\n" +
-                $"        {slot} local = input;\n" +
+                $"        {slot} held = input;\n" +
                 "    }",
 
             TypePosition.ParameterAndReturnType =>

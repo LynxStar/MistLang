@@ -2108,6 +2108,29 @@ Mixed<Widget, string>:   Widget(int 7, string m)
 Boxed<Widget, int>:      Widget(Box 8)
 Build<Widget, int>:      Widget(int 9)
 Build<Widget, string>:   Widget(string b)
+=== Purity Sample ===
+[core] Seeded()=3
+[core] Size(xs)=2
+[core] Size(xs) after Add=3
+[core] Counted(3, 4)=17
+[functions] Twice(n => n + 1, 3)=5
+[functions] Twice(AddTen, 1)=21
+[functions] Chain(n => n * 2, n => n - 1, 5)=9
+[functions] Twice(tripler, 2)=18
+[functions] Twice(shift, 1)=201
+[functions] plain(41)=42
+[functions] predicate(6)=True predicate(7)=False
+[defaults] first.V.X=70 second.V.X=7
+[defaults] default(Basket).Items.Count=2 new Basket().Items.Count=1
+[types] TotalCents(250, 175)=425
+[types] Turned(3)=7
+[types] Spread()=6
+[inference] SumOfSquares(3, 4)=25
+[readonly] Evens()=0,2,4 Count=3
+[readonly] Scaled().X=50
+[culture] Shout(istanbul)=ISTANBUL
+[culture] Half()=1.5
+=== Purity Done ===
 === Nested Block Namespaces Sample ===
 ancestor: 11
 repeated: 12

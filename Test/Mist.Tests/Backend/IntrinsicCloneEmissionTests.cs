@@ -30,7 +30,7 @@ public sealed class IntrinsicCloneEmissionTests
         Assert.Contains("readonly struct Age", emitted);
         Assert.Contains("public readonly int Value;", emitted);
         Assert.Contains("public Age(int value)", emitted);
-        Assert.Contains("public override string ToString() => Value.ToString();", emitted);
+        Assert.Contains("public override string ToString() => Value.ToString(System.Globalization.CultureInfo.InvariantCulture);", emitted);
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class IntrinsicCloneEmissionTests
         Assert.Contains("=> new Probe.Age((a.Value + b.Value));", age);
         Assert.Contains("=> (a.Value < b.Value);", age);
         Assert.Contains("=> new Probe.Age(Value);", age);
-        Assert.Contains("=> new Probe.Label(Value.ToUpper());", label);
+        Assert.Contains("=> new Probe.Label(Value.ToUpperInvariant());", label);
         Assert.Contains("Length => Value.Length;", label);
     }
 

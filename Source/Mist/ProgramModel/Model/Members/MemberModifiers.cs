@@ -23,6 +23,15 @@ public record struct MemberModifiers
     /// <summary>Whether the declaration has <c>readonly</c>.</summary>
     public bool IsReadonly { get; init; }
 
+    /// <summary>
+    /// Whether the declaration has <c>pure</c>, written or inherited from a pure type. Always set
+    /// together with <see cref="IsReadonly"/>, so a rule that asks only about readonly sees a pure
+    /// member without being told.
+    /// </summary>
+    public bool IsPure { get; init; }
+
+    public bool IsLocal { get; init; }
+
     public bool IsStampable { get; init; }
 
     /// <summary>Whether the declaration has <c>async</c>.</summary>

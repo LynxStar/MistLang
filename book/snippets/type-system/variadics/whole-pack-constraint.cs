@@ -66,7 +66,7 @@ public class Program
     public static void Main(string[] cmdArgs)
     {
         ShapePair_2<Snippet.Circle, Snippet.Square> pair = new ShapePair_2<Snippet.Circle, Snippet.Square>((new Snippet.Circle(), new Snippet.Square()));
-        System.Console.WriteLine($"area={pair.TotalArea()}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"area={pair.TotalArea()}"));
     }
 
     public Program()

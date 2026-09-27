@@ -11,9 +11,9 @@ public class Program
         {
             if (IsEven(n))
             {
-                return $"{n} is even";
+                return System.FormattableString.Invariant($"{n} is even");
             }
-            return $"{n} is odd";
+            return System.FormattableString.Invariant($"{n} is odd");
         }
         bool IsEven(int n)
         {
@@ -26,12 +26,12 @@ public class Program
         }
         Count();
         Count();
-        System.Console.WriteLine($"calls={calls}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"calls={calls}"));
         static int Square(int x)
         {
             return x * x;
         }
-        System.Console.WriteLine(Square(7));
+        System.Console.WriteLine(Square(7).ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     public Program()

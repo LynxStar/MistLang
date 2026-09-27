@@ -78,7 +78,7 @@ public sealed class EnumVariantIdentityTests : ProgramModelProbe
 
     private static string ToStringBody(string emitted)
     {
-        return Section(emitted, "public override string ToString()", "return Value.ToString();");
+        return Section(emitted, "public override string ToString()", "return Value.ToString(");
     }
 
     private static string ConversionBody(string emitted)

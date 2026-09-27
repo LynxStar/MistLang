@@ -1,5 +1,7 @@
 # Implementation Plan: `default` Keyword
 
+> **Superseded** by [`defaultability`](../defaultability/requirements.md) (2026-09-26), which states the rules as they now stand and governs wherever the two differ. This document is kept so references to it by requirement number still resolve; the new spec's appendix maps each requirement here to where it now lives.
+
 ## Overview
 
 This plan implements the `default` keyword feature across the Mist compiler pipeline. Tasks follow the pipeline order: grammar → pretty-printer → semantic model → type checker → emitter → diagnostics → tooling. Each task builds on previous tasks, and property-based tests are placed close to the implementation they validate. All tests use in-process compilation via `CompilerDriver` with a shared driver instance — no per-iteration process spawning.

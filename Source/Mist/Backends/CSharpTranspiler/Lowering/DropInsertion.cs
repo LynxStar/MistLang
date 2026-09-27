@@ -1,3 +1,4 @@
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -363,49 +364,47 @@ internal static class DropInsertion
         return type is ConstructedType constructed ? constructed.Definition : type;
     }
 
-    private static bool Moves(Statement statement, Func<Expression, bool> isTarget)
-    {
-        return statement switch
-        {
-            ReturnStatement { Value: { } returned } =>
-                IsReference(returned, isTarget) || Moves(returned, isTarget),
-            ExpressionStatement expression => Moves(expression.Expression, isTarget),
-            LocalDeclarationStatement { Initializer: { } initializer } => Moves(initializer, isTarget),
-            Block block => block.Statements.Any(nested => Moves(nested, isTarget)),
-            IfStatement branch => Moves(branch.Condition, isTarget)
-                || Moves(branch.ThenBranch, isTarget)
-                || (branch.ElseBranch is { } otherwise && Moves(otherwise, isTarget)),
-            WhileStatement loop => Moves(loop.Condition, isTarget) || Moves(loop.Body, isTarget),
-            ForEachStatement loop => Moves(loop.Collection, isTarget) || Moves(loop.Body, isTarget),
-            WithBlockStatement scope => Moves(scope.Value, isTarget) || Moves(scope.Body, isTarget),
-            _ => false,
-        };
-    }
-
     /// <summary>
-    /// A reference in a moving POSITION anywhere in the expression. The receiver of a call is walked
-    /// but not itself a move, except where the call is the value's own Drop -- an explicit drop
-    /// consumes the binding exactly as handing it away does.
+    /// A reference in a moving POSITION anywhere under the statement, nested lambdas and local functions
+    /// aside: an argument a call or construction takes by value, a returned value, or the receiver of the
+    /// value's own Drop. Walked over every node rather than a list of shapes because the purity judge,
+    /// which reads what the scope's exit drops call, counts a move wherever one is written, and the two
+    /// must agree on which drops run.
     /// </summary>
-    private static bool Moves(Expression expression, Func<Expression, bool> isTarget)
+    private static bool Moves(object root, Func<Expression, bool> isTarget)
     {
-        return expression switch
+        var pending = new Stack<object>();
+        pending.Push(root);
+
+        while(pending.Count > 0)
         {
-            InvocationExpression invocation => MovesThroughArguments(invocation, isTarget)
-                || IsExplicitDrop(invocation, isTarget)
-                || invocation.Arguments.Any(argument => Moves(argument, isTarget))
-                || Moves(invocation.Receiver, isTarget),
-            AsyncExpression lifted => Moves(lifted.Operand, isTarget),
-            MemberAccessExpression access => Moves(access.Receiver, isTarget),
-            NewExpression creation =>
-                creation.Arguments.Any(argument => IsReference(argument, isTarget))
-                || creation.Arguments.Any(argument => Moves(argument, isTarget)),
-            BinaryExpression binary => Moves(binary.Left, isTarget) || Moves(binary.Right, isTarget),
-            InterpolatedStringExpression interpolated => interpolated.Parts
-                .OfType<InterpolatedStringHole>()
-                .Any(hole => Moves(hole.Expression, isTarget)),
-            _ => false,
-        };
+            var node = pending.Pop();
+
+            var moved = node switch
+            {
+                ReturnStatement { Value: { } returned } => IsReference(returned, isTarget),
+                InvocationExpression invocation => MovesThroughArguments(invocation, isTarget) || IsExplicitDrop(invocation, isTarget),
+                NewExpression creation => creation.Arguments.Any(argument => IsReference(argument, isTarget)),
+                _ => false,
+            };
+
+            if(moved)
+            {
+                return true;
+            }
+
+            if(node is LambdaExpression or LocalFunctionStatement or AsyncBlockExpression)
+            {
+                continue;
+            }
+
+            foreach(var child in BodyWalker.ChildrenOf(node))
+            {
+                pending.Push(child);
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

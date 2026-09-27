@@ -25,8 +25,8 @@ public class Program
         Snippet.Item absent = null;
         int? result1 = present?.GetValue();
         int? result2 = absent?.GetValue();
-        System.Console.WriteLine($"present?.GetValue()={(object?)result1 ?? "Void"}");
-        System.Console.WriteLine($"absent?.GetValue()={(object?)result2 ?? "Void"}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"present?.GetValue()={(object?)result1 ?? "Void"}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"absent?.GetValue()={(object?)result2 ?? "Void"}"));
     }
 
     public Program()

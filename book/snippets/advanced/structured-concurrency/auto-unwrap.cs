@@ -6,7 +6,7 @@ async System.Threading.Tasks.Task<int> FetchData()
 }
 async System.Threading.Tasks.Task<string> FormatData(int value)
 {
-    return "Value: " + value.ToString();
+    return "Value: " + value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 async System.Threading.Tasks.Task Main()
 {

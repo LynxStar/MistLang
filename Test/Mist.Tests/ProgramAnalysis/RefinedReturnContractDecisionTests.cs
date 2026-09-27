@@ -86,7 +86,7 @@ public sealed class RefinedReturnContractDecisionTests
     [Theory]
     [InlineData("int", "public int Make() { return -1; }")]
     [InlineData("int", "public bool Flag; public int Make() { if(Flag) { return 1; } return -1; }")]
-    [InlineData("int", "public int Make() { int local = 1; return local; }")]
+    [InlineData("int", "public int Make() { int held = 1; return held; }")]
     [InlineData("int", "public int Make() { return 1 + 1; }")]
     [InlineData("double", "public double Make() { return -1.0; }")]
     [InlineData("double", "public double Make() { return 1.0; }")]

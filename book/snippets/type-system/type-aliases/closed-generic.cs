@@ -13,7 +13,7 @@ public class GenericBox<T>
 
     public string Describe()
     {
-        return $"Box({this.value})";
+        return $"Box({MistInvariant.Text(this.value)})";
     }
 }
 

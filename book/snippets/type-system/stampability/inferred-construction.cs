@@ -28,7 +28,7 @@ public class Program
     public static void Main(string[] args)
     {
         StampableInference.Box<int>[] numbers = new StampableInference.Box<int>[2];
-        System.Console.WriteLine($"numbers[0].Item={numbers[0].Item}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"numbers[0].Item={numbers[0].Item}"));
         StampableInference.Box<string> text = new StampableInference.Box<string>("ready");
         System.Console.WriteLine($"text.Item={text.Item}");
     }

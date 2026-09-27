@@ -34,14 +34,14 @@ internal static class LambdaBinder
             return new ErrorExpression(node);
         }
 
-        return Bind(node, target?.ParameterTypes, target?.ReturnType, ctx, context);
+        return Bind(node, target?.ParameterTypes, target?.ReturnType, target?.IsPure ?? false, ctx, context);
     }
 
     internal static Expression BindWithParameters(
         LambdaExpressionNode node, IReadOnlyList<IMistType> parameterTypes, BindingContext ctx, BuilderContext context)
     {
         return parameterTypes.Count == DeclaredParameterCount(node)
-            ? Bind(node, parameterTypes, returnType: null, ctx, context)
+            ? Bind(node, parameterTypes, returnType: null, targetIsPure: false, ctx, context)
             : new ErrorExpression(node);
     }
 
@@ -61,6 +61,7 @@ internal static class LambdaBinder
         LambdaExpressionNode node,
         IReadOnlyList<IMistType>? parameterTypes,
         IMistType? returnType,
+        bool targetIsPure,
         BindingContext ctx,
         BuilderContext context)
     {
@@ -68,7 +69,16 @@ internal static class LambdaBinder
 
         var isAsync = modifiers.Any(modifier => modifier is AsyncLambdaModifierLambdaModifierNode);
         var isStatic = modifiers.Any(modifier => modifier is StaticLambdaModifierLambdaModifierNode);
+        var promises = new LambdaPromises(
+            modifiers.Any(modifier => modifier is PureLambdaModifierLambdaModifierNode),
+            modifiers.Any(modifier => modifier is LocalLambdaModifierLambdaModifierNode),
+            targetIsPure);
         var declared = ParameterNodes(parameterList);
+
+        if(promises.IsLocal && (promises.IsPure || promises.TargetIsPure))
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.PureAndLocal, node, null);
+        }
 
         var enclosing = ctx.Scope;
         var scope = new BodyScope(enclosing);
@@ -98,9 +108,9 @@ internal static class LambdaBinder
             {
                 return expressionBody is not null
                     ? BindExpressionBodied(
-                        node, expressionBody, parameters, isStatic, isAsync, returnType, bodyTarget, ctx, context)
+                        node, expressionBody, parameters, isStatic, isAsync, promises, returnType, bodyTarget, ctx, context)
                     : BindBlockBodied(
-                        node, blockBody!, parameters, isStatic, isAsync, returnType, bodyTarget, ctx, context)
+                        node, blockBody!, parameters, isStatic, isAsync, promises, returnType, bodyTarget, ctx, context)
                     ;
             }
             finally
@@ -121,6 +131,7 @@ internal static class LambdaBinder
         List<LocalVariable> parameters,
         bool isStatic,
         bool isAsync,
+        LambdaPromises promises,
         IMistType? returnType,
         IMistType? bodyTarget,
         BindingContext ctx,
@@ -137,9 +148,11 @@ internal static class LambdaBinder
 
         return new LambdaExpression(
             node, parameters, result, body: null, isStatic,
-            FunctionTypeOf(parameters, declared, context))
+            FunctionTypeOf(parameters, declared, promises, context))
         {
             IsAsync = isAsync,
+            IsPure = promises.IsPure,
+            IsLocal = promises.IsLocal,
         };
     }
 
@@ -153,6 +166,7 @@ internal static class LambdaBinder
         List<LocalVariable> parameters,
         bool isStatic,
         bool isAsync,
+        LambdaPromises promises,
         IMistType? returnType,
         IMistType? bodyTarget,
         BindingContext ctx,
@@ -185,18 +199,26 @@ internal static class LambdaBinder
 
         return new LambdaExpression(
             node, parameters, result: null, body, isStatic,
-            FunctionTypeOf(parameters, lambdaReturn, context))
+            FunctionTypeOf(parameters, lambdaReturn, promises, context))
         {
             IsAsync = isAsync,
+            IsPure = promises.IsPure,
+            IsLocal = promises.IsLocal,
         };
     }
 
+    /// <summary>
+    /// Pure when written so or when the target is: the type is the pure one either way, so a lambda in a
+    /// pure slot needs no conversion into it, and one written <c>pure</c> in a plain slot converts out.
+    /// </summary>
     private static IMistType FunctionTypeOf(
-        List<LocalVariable> parameters, IMistType returnType, BuilderContext context)
+        List<LocalVariable> parameters, IMistType returnType, LambdaPromises promises, BuilderContext context)
     {
         return context.ProgramModel.TypeInterner.GetOrCreateFunctionType(
-            parameters.ConvertAll(parameter => parameter.Type), returnType);
+            parameters.ConvertAll(parameter => parameter.Type), returnType, promises.IsPure || promises.TargetIsPure);
     }
+
+    private readonly record struct LambdaPromises(bool IsPure, bool IsLocal, bool TargetIsPure);
 
     /// <summary>
     /// The type a braced body produces, read off its own <c>return</c> statements. Shared with the

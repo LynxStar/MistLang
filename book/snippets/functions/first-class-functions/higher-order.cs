@@ -17,9 +17,9 @@ public class Program
     public static void Main(string[] args)
     {
         int result = Apply(10, (int x) => x + 5);
-        System.Console.WriteLine($"Apply(10, x=>x+5)={result}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Apply(10, x=>x+5)={result}"));
         System.Func<int, int> triple = MakeMultiplier(3);
-        System.Console.WriteLine($"triple(7)={triple(7)}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"triple(7)={triple(7)}"));
     }
 
     public Program()

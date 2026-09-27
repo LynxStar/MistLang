@@ -1,5 +1,7 @@
 # Implementation Plan: Optional Defaultability
 
+> **Superseded** by [`defaultability`](../defaultability/requirements.md) (2026-09-26), which states the rules as they now stand and governs wherever the two differ. This document is kept so references to it by requirement number still resolve; the new spec's appendix maps each requirement here to where it now lives.
+
 ## Overview
 
 This plan implements optional defaultability for the Mist compiler — making it so types with constructors are no longer required to be defaultable. The implementation spans parser changes (default constraint, enum default modifier), semantic model updates (ComputeDefaultability rewrite, enum/union defaultability), type checker additions (definite assignment analysis, constraint satisfaction), emitter gating, standard library constraint, TextMate grammar, book documentation, and the sample application.

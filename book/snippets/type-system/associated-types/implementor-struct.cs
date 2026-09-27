@@ -52,7 +52,7 @@ public class Program
     {
         Snippet.RangeIterator iter = new Snippet.RangeIterator();
         Snippet.RangeIterator.Cursor cursor = iter.CreateCursor(42);
-        System.Console.WriteLine($"cursor.Position={cursor.Position}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"cursor.Position={cursor.Position}"));
     }
 
     public Program()

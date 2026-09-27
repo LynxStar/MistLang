@@ -63,6 +63,7 @@
 - [Substructural Field Discipline](advanced/substructural-field-discipline.md)
 - [Ref Parameters](advanced/ref-parameters.md)
 - [Readonly Contexts](advanced/readonly-contexts.md)
+- [Pure and Local Members](advanced/purity.md)
 - [Structured Context](advanced/structured-context.md)
 - [The Unknown Type](advanced/unknown-type.md)
 - [Default Keyword](advanced/default-keyword.md)

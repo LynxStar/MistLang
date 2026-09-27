@@ -40,6 +40,12 @@ internal sealed class ConstraintClosureRegistry
     /// </summary>
     public IReadOnlyList<TypeArgumentClosing> Closings => closings;
 
+    /// <summary>
+    /// The closings whose argument is itself a type parameter: an enclosing declaration forwarding its
+    /// own, which a rule about what a closing lets through has to follow to that declaration's closings.
+    /// </summary>
+    public IReadOnlyList<TypeArgumentClosing> OpenClosings => openClosings;
+
     public IEnumerable<TypeArgumentClosing> StampableOpenClosings => openClosings.Where(closing =>
         closing.Parameter.ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable));
 

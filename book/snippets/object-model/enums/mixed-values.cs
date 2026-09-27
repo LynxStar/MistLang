@@ -29,6 +29,6 @@ public sealed record class HttpStatus(int Value)
         if(ReferenceEquals(this, HttpStatus.BadRequest)) return "BadRequest";
         if(ReferenceEquals(this, HttpStatus.NotFound)) return "NotFound";
         if(ReferenceEquals(this, HttpStatus.InternalError)) return "InternalError";
-        return Value.ToString();
+        return Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 }

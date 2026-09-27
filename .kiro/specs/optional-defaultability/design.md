@@ -1,5 +1,7 @@
 # Design Document: Optional Defaultability
 
+> **Superseded** by [`defaultability`](../defaultability/requirements.md) (2026-09-26), which states the rules as they now stand and governs wherever the two differ. This document is kept so references to it by requirement number still resolve; the new spec's appendix maps each requirement here to where it now lives.
+
 ## Overview
 
 This design specifies the internal compiler changes needed to make defaultability optional in Mist. Currently, the compiler forces every concrete type to be defaultable — emitting `MIST_DEFAULT_REQUIRES_BINDING` when a type has non-defaultable fields without type bindings, even when the type has user-defined constructors that properly initialize those fields.

@@ -3783,6 +3783,46 @@ rules:
       The merged sources remain unchanged after the full build; only this evidence is amended.
       V2 isolation, whitespace and YAML checks pass. No warning suppression or flaky rerun occurs.
       This checkpoint validates promotion of the combined merge to Main; the limits below remain open.
+
+      SOURCE ENUM CONSTANT PROOFS (2026-09-27), based on Main 49b330b3. The historical gap was
+      revalidated with direct model inputs before the fix: ledger 20260927-134819 failed all four
+      new rows, Green and Blue as UNPROVEN, Red as UNPROVEN instead of VIOLATED, and the sparse/negative
+      extraction row as null. No new runtime/source-pipeline reproduction was added. Requirement now
+      reads a resolved source EnumMemberResult through EnumConstants, using the stored initializer,
+      including synthesized literals, guarded negation, clones and member references. It never derives
+      a value from a variant's name or declaration position. Expression identity guards recursive
+      references; only supported integral/character bases and constants within their range and signed
+      long are read. User operators, conversions, arithmetic initializers, missing/unresolved values,
+      unsupported bases and oversized unsigned constants remain unknown. Negation cannot overflow,
+      and flow arithmetic cannot treat a declared operator as a numeric shift. An unknown enum does
+      not satisfy a predicate just because its intervals cover the entire signed domain: direct and
+      copied/joined ulong.MaxValue against <= a stored long.MaxValue are UNPROVEN. Extraction-only
+      ledger 20260927-135442 caught both of those boundary failures before that guard was added.
+      Nominal compatibility still comes from the existing conversion/assignability decisions; equal
+      numbers in Color and Priority do not supply an implicit conversion. Duplicate-value admission
+      remains unchanged, including the current enums Requirement 4.4 acceptance policy; classic's
+      historical declaration refusals above are not this lane's policy.
+      The 68 new cases have exactly one effective Tier trait each: 53 Tier 1 extraction/decision rows,
+      15 Tier 2 bodies for aliases, copies, assignments, guards, joins and unknown results. They use
+      dedicated EnumRefinementModel inputs, no upstream stages, CLR fixtures, processes or shared
+      helper edits. Ledger 20260927-135813 passed all 1,091 classified Tier 1-2 tests in 2 seconds,
+      including all 68 enum cases; its build had zero warnings/errors. Full-solution formatting
+      verification exited 0 with an empty /private/tmp/mist-enum-refinement-format.log.
+      Full ledger 20260927-140039 passed all 9,569 tests (8,793 compiler, 68 CLI, 708 source generator),
+      both sample baselines included, with zero failures/skips and an empty failures.txt. The build
+      completed in 7.51 seconds with zero warnings/errors; tests finished in 161 seconds. The run was
+      started between other sessions' active build/test checkpoints; only reusable MSBuild/compiler
+      servers were recorded at startup. Main advanced to 2ef14e1d during verification with order 10's
+      pattern-assignment change; this branch remains based on the Main head used at task start.
+      LIMITS AND INTEGRATION: CLR enum proof, source declaration validation, emission, arbitrary
+      initializer evaluation and numeric-domain redesign are unchanged. Inspection of the current
+      LiteralBinder.ParseIntegerLiteral finds long.TryParse followed by a zero fallback, so a source
+      unsigned literal above long.MaxValue can lose its value before this reader sees the model.
+      Making that source case conservatively unproven requires preserving an unsupported value or
+      reporting overflow in that central binder, outside this lane; stored oversized ulong values
+      are covered here. Purity's committed and working changed-file lists were checked read-only;
+      no owned production file overlaps, but its Admitted and RefinementFindings edits need the usual
+      combined verification on integration. Its worktree and analysis order 13 are untouched.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -3815,7 +3855,8 @@ rules:
         refusal for an unrefined input slot versus a refined filler remains unchanged; adhoc R17.8's
         exception conflicts with that banked behavior and requires a separate policy decision.
       - >
-        An enum refinement is never proven. Requirement reads an enum variant bound as nothing it can
+        HISTORICAL ENUM GAP, closed for supported source constants by the evidence above: Requirement
+        reads an enum variant bound as nothing it can
         decide, so since the unreadable predicates were refused (2026-09-19) every use is UNPROVEN, the valid
         ones too: over `type Warm = Color >= Color.Green`, `Warm a = Color.Red` and `Warm b = Color.Blue`
         are both MIST_PA_REFINEMENT_UNPROVEN (measured 2026-09-15 they both ran). Reading a variant bound

@@ -1142,9 +1142,9 @@ value.
 
 ---
 
-## 🟡 The CLI no longer reads its own output back as source, but the Driver still does for a referenced project
+## 🟢 The CLI and the Driver no longer read generated output back as source, except output written under other flags
 
-**Severity: medium** -- corrected in the CLI on 2026-09-27. What remains is the same exclusion for referenced projects, which the Driver owns: lexing any sample that `AllFeatures` or `AllFeaturesV2` references breaks both orchestrators in that checkout until its `out/` is deleted.
+**Severity: low** -- corrected in the CLI on 2026-09-27, and for referenced projects in the Driver the same day (item 1 of "What remains"). Before the second correction, lexing any sample that `AllFeatures` or `AllFeaturesV2` references broke both orchestrators in that checkout until its `out/` was deleted. What remains is output an earlier invocation wrote under flags the current one cannot know (items 2 and 3).
 
 **What was wrong.** `Source/Mist.CLI/Program.cs` held three copies of `Directory.EnumerateFiles(projectFolder, "*.mist", AllDirectories)` (build, run, test), each run before the output and bin directories were cleaned. Lex mode writes a reconstructed `.mist` beside each token dump in `<output>/lexer/`, so the next invocation discovered those files, cleaned them away, and then tried to read them. Lex output was also flattened to the file name, so `Alpha/Foo.mist` and `Beta/Foo.mist` wrote the same two artifacts. Measured at 13b67c0e on a four-file project (`Program.mist`, `Alpha/Foo.mist`, `Beta/Foo.mist`, `util/Helper.mist`):
 - The first lex left one `Foo.*` pair.
@@ -1175,11 +1175,28 @@ Without lex artifacts, the same project builds and runs (`alpha`, `beta`, `helpe
 - The overlap refusal was run by hand, on a disposable nested copy only. The spellings were `--output <project>`, `<project>/`, `<project>/Alpha/..` and `.`, and `--bin <parent>` and `<project>/../`, plus the same refusal through `run`, `test` and lex. Every one exited 1, and the tree was unchanged, including a sentinel file in the parent.
 
 **What remains.**
-1. `ProjectReferenceResolver` (`Source/Mist/Driver/ProjectReferenceResolver.cs:194`) still takes every `.mist` file under a referenced project, and the referencing build does not clean that project's `out/`.
+1. **Closed (2026-09-27).** `ProjectReferenceResolver` (`Source/Mist/Driver/ProjectReferenceResolver.cs:194`) still takes every `.mist` file under a referenced project, and the referencing build does not clean that project's `out/`.
    - Measured on disposable copies: `mist build HelloMist --mode lex`, then an experimental build of a project referencing HelloMist, fails with `MIST_PM_DUPLICATE_TYPE` on `HelloMist/out/lexer/Color.mist`, `Point.mist` and `Program.mist`.
    - No checkout on this machine held such files on 2026-09-27.
    - The fix belongs to the Driver's owner: exclude the referenced project's default `out/` and `bin/`. For the Driver to share `ProjectLayout`, it would have to move from `Mist.CLI` into `Mist`.
+   - **Correction.** The resolver still enumerates every `.mist` file under a referenced project, then keeps what `SourcePathSelection.ForReferencedProject` (`Source/Mist/Driver/SourcePathSelection.cs`) selects: the files outside the `out/` and `bin/` directly beneath that project's own folder, in ordinal order. Containment is decided on normalized full paths and whole segments. The referencing invocation's `--output` and `--bin` play no part.
+     - Selection runs inside the traversal, over whatever the injected enumerator returns, so the stub-loader seam covers it. Manifest caching, per-edge name checks, cycle reporting, partial results and dependency-first order are unchanged.
+     - The containment decision moved into `Mist` instead of `ProjectLayout` moving. `ProjectLayout.SelectSources` and `DirectoryHoldingProject` delegate to it; their public API and the CLI's invocation-specific rule are unchanged.
+     - `project-references` Requirement 5.6 records the policy, with an amendment note.
+   - **Verification.**
+     - Revalidated first at `666c596c`, over disposable copies of `HelloMist` and a `Consumer` that references it. The consumer ran. `build HelloMist --mode lex` wrote `out/lexer/{Color,Optional,Point,Program}.mist`, and `build Consumer --pipeline experimental` then exited 1 with `MIST_PM_DUPLICATE_TYPE` on `Color.mist`, `Point.mist` and `Program.mist`.
+     - With the fix, over the same lexed tree, that build exits 0 with no diagnostics, and `run` exits 0 on both pipelines. Their 31 lines are identical and equal the HelloMist slice of `AllFeaturesV2.out` from line 68. All 13 files under the dependency had the same SHA-256 and timestamp before and after.
+     - `SourcePathSelectionTests` (Tier 1, 11 cases, strings only) and `ReferencedProjectSourceTests` (Tier 2, 2 cases) pass. The Tier 2 cases are a direct-plus-transitive graph through the resolver's stub loaders, and one disposable tree through the real enumerator with a stub manifest loader, which also asserts that no file changed. The 37 existing resolver, graph, seam and property cases pass beside them (50/50), as do all 89 `Mist.CLI.Tests`.
+     - Seven mutations each fail the tests aimed at them:
+       - no exclusion: 11 cases;
+       - excluding every segment named `out` or `bin`: 6, one of them the existing `CorrectRepeatedEdges` graph test, whose fixture paths lie under the test run's own `bin/`;
+       - prefix match without a segment boundary: 2;
+       - unnormalized string prefix: 5;
+       - the resolver skipping selection: 2;
+       - the resolver judging against the consumer's folder: 2;
+       - no ordinal order: 4.
 2. Files left in a directory that an earlier invocation used as output, under different flags, are still discovered. Requirement 2's amendment note says so.
+3. The same limit holds for references, and `project-references` Requirement 5.6's amendment note says so. A reference records no output location, so `.mist` files that an invocation of the referenced project wrote under a custom `--output` or `--bin` inside its own folder are compiled into every build that references it. Closing that would need an output marker or a manifest option, which the correction deliberately does not add. Files in an `out/` or `bin/` deeper than the project's root are sources by design.
 
 
 ---

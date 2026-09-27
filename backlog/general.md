@@ -1205,3 +1205,83 @@ The final ledger `20260927-145107` passed 37/37, with 0 build warnings and 0 err
 **Limits and integration:** no full-solution build or full ledger checkpoint was run; verification builds the Mist test project and its dependencies. Other lanes advanced `main` during this work, so the branch remains based on the clean starting commit above. The purity lane's committed and working changed-file lists were inspected read-only; no source/test ownership overlap or implementation dependency was found. This appended backlog evidence is the only shared-file integration point. Root back-edges retain cycle diagnostics without reloading the root; the entry point receives the root folder and references rather than its configuration.
 
 **Integration verification (2026-09-27):** merged current `main` at `bb4f345e`; only the appended backlog entries conflicted, and both were preserved. The same filtered ledger command above passed 37/37 in `20260927-150424`, with 0 build warnings and 0 errors. `dotnet format Mist.slnx --verify-no-changes --report TestResults/project-reference-main-format-report` exited 0 with an empty report; `git diff --check` passed.
+
+---
+
+## 🟢 A cached SDK reference path answered every target framework
+
+**Closed (2026-09-27).** SDK reference paths are now cached per target framework. A cached path answers only the exact framework it was discovered for.
+
+**What was wrong.** Revalidated at `main` `666c596c`. `SdkDiscovery` cached one in-process path and one line in `~/.mist/sdk-ref-path.cache`, and neither recorded a framework. `FindReferenceAssemblyPath` returned either one whenever its directory existed, and the requested framework reached `RunFullDiscovery` only after both missed. So once `net10.0` resolved, a `net8.0` request received `net10.0`'s reference assemblies: in the same process from memory, and in any later process from the file. If `net8.0`'s pack was absent, the `MIST_SDK_NO_FRAMEWORK` error was suppressed as well. `RegenerateDiskCache` wrote `net10.0`'s path as that unqualified line.
+
+**Correction.**
+- `Source/Mist/Driver/SdkReferencePathCache.cs` is an instance with injected discovery, directory-existence, read and write operations. `SdkDiscovery` holds one and delegates to it, and its public signatures and diagnostics are unchanged.
+- Identity is the complete requested TFM, compared ordinally. `net10.0-windows` is not `net10.0`, and `NET10.0` is a separate entry, because framework spelling policy is outside this change.
+- The in-memory cache and the file each look up the requested framework. A hit is used only if its directory still exists; a stale entry is rediscovered for that framework alone. A failed discovery is not cached, so its diagnostic appears on every request.
+- The file holds one `tfm<TAB>path` line per framework. A publication reads the file, updates its own entry and rewrites the rest unchanged, all under one lock. A framework or path that cannot be written as a single line stays in memory only.
+- `SdkReferencePathCacheFile` writes a staged file and moves it over the cache, so a reader never sees a truncated path. A truncated path could name an existing ancestor directory, such as `...\dotnet\packs`.
+- Persistence is best effort. A read or write that throws is a miss or a skipped write, never a failed discovery.
+- `RegenerateDiskCache` forces discovery of `net10.0` and publishes it as the `net10.0` entry only.
+- The internal `ResetInProcessCache` had no callers, and nothing replaces it.
+
+**Compatibility choice.** An existing single-line cache holds a bare path. It is read as a miss for every framework, not recognised from its `ref/<tfm>` layout. The first discovery after upgrading rewrites the file with a framework on each line.
+
+On this machine, `~/.mist/sdk-ref-path.cache` held `C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Ref\10.0.9\ref\net10.0` (dated 2026-07-11). The first run on this branch, through the production `SdkDiscovery` wiring, rewrote it at 16:47:49 as `net10.0<TAB>` followed by the same path.
+
+An older binary reads the new file as one nonexistent path. It rediscovers and writes its own format back, and the new code then treats that as a miss. Each switch costs at most one discovery per process and framework, and neither reading can return another framework's path.
+
+**Verification.**
+- `SdkReferencePathCacheTests` (Tier 1, 27 cases, fakes only, no filesystem or processes) cover:
+  - either request order;
+  - reuse from memory and from the store;
+  - memory and store each refusing another framework's entry;
+  - a same-major framework;
+  - an unavailable framework still failing with `MIST_SDK_NO_FRAMEWORK` beside a cached one;
+  - failures not being cached;
+  - stale memory and stale store entries;
+  - the legacy line;
+  - eight malformed stores;
+  - a throwing reader and a throwing writer;
+  - regeneration;
+  - the single-line guard;
+  - two discoveries held at a barrier, and 300 parallel requests over three frameworks.
+- `SdkReferencePathCacheFileTests` (Tier 2, 5 cases, one private temp directory, never `~/.mist`) cover:
+  - a missing file;
+  - directory creation and whole-file replacement, with no staging file left behind;
+  - two frameworks, with a Windows path containing spaces, surviving a reopen;
+  - a cache path that is a directory, and one under a regular file, where discovery still succeeds.
+- `SdkVersionSelectionPropertyTests` are unchanged, and pass.
+- Nine mutants of `SdkReferencePathCache` each fail a different set of the 32 new cases:
+
+  | Mutant | Cases failed |
+  |---|---|
+  | Memory ignores the TFM | 10 |
+  | File ignores the TFM | 11 |
+  | Both ignore it (the original defect) | 12 |
+  | Keyed by major version | 7 |
+  | Publication drops other entries | 5 |
+  | No single-line guard | 1 |
+  | Store exceptions propagate | 4 |
+  | A stale remembered path is trusted | 1 |
+  | A bare line is read from its layout | 2 |
+
+  Each mutant was built and run through the ledger, from `20260927-164419` to `20260927-164637`. The restored file was byte-identical to the original.
+
+```sh
+tools/test-ledger/run.sh Test/Mist.Tests --filter 'FullyQualifiedName~SdkReferencePathCache|FullyQualifiedName~SdkVersionSelectionPropertyTests'
+tools/test-ledger/run.sh Test/Mist.Tests --filter 'FullyQualifiedName~Mist.Tests.Driver|FullyQualifiedName~Mist.Tests.Backend.Ambient|FullyQualifiedName~Mist.Tests.Backend.Clr|FullyQualifiedName~IntrinsicSupplyTests|FullyQualifiedName~SequenceLengthDecisionTests|FullyQualifiedName~ExperimentalRepresentationIntegrationTests'
+dotnet build Mist.slnx --no-incremental
+dotnet format Mist.slnx --verify-no-changes --report TestResults/sdk-cache-format-report
+```
+
+- The first command passed 35/35 (`20260927-164305`).
+- The second passed 424/424 (`20260927-164739`), with 0 build warnings.
+- The full rebuild had 0 warnings and 0 errors.
+- Formatting reported one finding, and it is not in this change: IDE0047 at `Test/Mist.Tests/Backend/ClrSpellingTests.cs:30`, which is unmodified here and was committed in `66ac194b`.
+- The full ledger `20260927-165112` passed 10,626 of 10,627 tests: `Mist.CLI.Tests` 89/89, `Storm.SourceGenerator.Tests` 787/787 and `Mist.Tests` 9,750/9,751.
+  - The one failure, `CultureInvariantEmissionTests.AProgramRunUnderTurkishAndGermanCultures_PrintsTheInvariantText`, is unmodified here and fails the same way on every run (again in `20260927-165445`).
+  - Its program printed `en-US` where `tr-TR` was expected, and every other line matched. The test selects the child's culture through `LANG`/`LC_ALL`, which .NET on Windows ignores, and this machine's OS culture is `en-US`.
+
+**Limits.**
+- No test drives the static `SdkDiscovery` wiring, since that would spawn `dotnet` and write `~/.mist`. The rewrite of the real cache above is the only evidence for that wiring.
+- Two processes that publish at the same moment can each rewrite the file without the other's new entry. The lost entry is a later miss, never a wrong answer.

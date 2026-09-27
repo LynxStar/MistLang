@@ -12,17 +12,17 @@ namespace Mist.Driver;
 /// </summary>
 public static partial class SdkDiscovery
 {
-    private static readonly string CacheFilePath =
+    private static readonly SdkReferencePathCacheFile CacheFile = new(
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".mist",
-            "sdk-ref-path.cache");
+            "sdk-ref-path.cache"));
 
-    // In-process cache: avoids even the disk read on repeated calls
-    // within the same process lifetime.
-    private static string? inProcessCache;
-    private static bool inProcessCacheInitialized;
-    private static readonly object CacheLock = new();
+    private static readonly SdkReferencePathCache ReferencePathCache = new(
+        RunFullDiscovery,
+        Directory.Exists,
+        CacheFile.Read,
+        CacheFile.Write);
 
     /// <summary>
     /// Timeout for the <c>dotnet --list-sdks</c> process spawn.
@@ -41,87 +41,16 @@ public static partial class SdkDiscovery
     /// </summary>
     public static string? FindReferenceAssemblyPath(string targetFramework, DiagnosticBag diagnostics)
     {
-        // 1. In-process cache (instant)
-        lock(CacheLock)
-        {
-            if(inProcessCacheInitialized)
-            {
-                if(inProcessCache is not null && Directory.Exists(inProcessCache))
-                {
-                    return inProcessCache;
-                }
-
-                // Cached value is stale — fall through to rediscovery.
-                inProcessCacheInitialized = false;
-                inProcessCache = null;
-            }
-        }
-
-        // 2. Disk cache (file read, validated by Directory.Exists)
-        var diskCached = ReadDiskCache();
-        if(diskCached is not null && Directory.Exists(diskCached))
-        {
-            lock(CacheLock)
-            {
-                inProcessCache = diskCached;
-                inProcessCacheInitialized = true;
-            }
-
-            return diskCached;
-        }
-
-        // 3. Full discovery
-        var discovered = RunFullDiscovery(targetFramework, diagnostics);
-        if(discovered is not null)
-        {
-            lock(CacheLock)
-            {
-                inProcessCache = discovered;
-                inProcessCacheInitialized = true;
-            }
-
-            WriteDiskCache(discovered);
-        }
-
-        return discovered;
+        return ReferencePathCache.Find(targetFramework, diagnostics);
     }
 
     /// <summary>
-    /// Regenerates the disk cache by running full SDK discovery.
+    /// Regenerates the disk cache's <c>net10.0</c> entry by running full SDK discovery.
     /// Called by the publish script to warm the cache after SDK updates.
     /// </summary>
     public static void RegenerateDiskCache()
     {
-        // Clear in-process cache so full discovery runs.
-        lock(CacheLock)
-        {
-            inProcessCache = null;
-            inProcessCacheInitialized = false;
-        }
-
-        var diagnostics = new DiagnosticBag();
-        var path = RunFullDiscovery("net10.0", diagnostics);
-        if(path is not null)
-        {
-            WriteDiskCache(path);
-            lock(CacheLock)
-            {
-                inProcessCache = path;
-                inProcessCacheInitialized = true;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Resets the in-process cache. Intended for testing only.
-    /// </summary>
-    internal static void ResetInProcessCache()
-    {
-        lock(CacheLock)
-        {
-            inProcessCache = null;
-            inProcessCacheInitialized = false;
-        }
+        _ = ReferencePathCache.Regenerate("net10.0", new DiagnosticBag());
     }
 
     private static string? RunFullDiscovery(string targetFramework, DiagnosticBag diagnostics)
@@ -406,41 +335,5 @@ public static partial class SdkDiscovery
         }
 
         return null;
-    }
-
-    private static string? ReadDiskCache()
-    {
-        try
-        {
-            if(!File.Exists(CacheFilePath))
-            {
-                return null;
-            }
-
-            var cached = File.ReadAllText(CacheFilePath).Trim();
-            return string.IsNullOrEmpty(cached) ? null : cached;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static void WriteDiskCache(string path)
-    {
-        try
-        {
-            var dir = Path.GetDirectoryName(CacheFilePath);
-            if(dir is not null && !Directory.Exists(dir))
-            {
-                _ = Directory.CreateDirectory(dir);
-            }
-
-            File.WriteAllText(CacheFilePath, path);
-        }
-        catch
-        {
-            // Best effort — cache write failure is non-fatal.
-        }
     }
 }

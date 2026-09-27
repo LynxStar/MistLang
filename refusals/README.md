@@ -1,10 +1,15 @@
 # refusals
 
-The programs Mist must **not** compile, and the diagnostic each one must produce.
+**This directory and `RefusalCorpusTest` completely ignored the testing philosophy**
+(`.claude/skills/testing-philosophy/SKILL.md`, `/testing-philosophy`). Every case is a full compile
+of a whole program to check what one stage reports, so this directory is 759 Tier 4–5 tests of
+Tier 1–2 invariants, which the philosophy names as "the most common violation". `RefusalCorpusTest`
+is about 12 of the suite's 13 minutes (measured 2026-09-26).
 
-`samples/` is the other half of the same ledger: those are the programs that must run, asserted on
-stdout. Nothing there can measure a refusal, because every sample is a valid program — so an analyzer
-that reports nothing passes every test in `samples/`. This directory is where a refusal is recorded.
+**Stop making it worse: add nothing here.** A rule's refusals are proven at Tier 1–2 beside the
+rule; see `Source/Mist/ProgramAnalysis/CLAUDE.md`.
+
+The programs Mist must **not** compile, and the diagnostic each one must produce.
 
 Walked by one test, `RefusalCorpusTest`, which compiles each program in-process on the experimental
 pipeline and holds it to two claims:
@@ -40,13 +45,6 @@ A file with no markers fails: a case that does not say what it is for is not a c
 
 ## What belongs here
 
-Any program the compiler must refuse, whichever stage refuses it. The corpus is seeded with Stage 4
-binder refusals because those were the ones that existed when it was built — the ledger does not care
-which stage said no, only that the program was refused and for the stated reason.
-
-Grouped one directory per rule in `backlog/analysis-v2-capability-progression.yaml`, plus `binding/`
-for refusals the binder already makes. The directory name is what a failure reports, so it is worth
-keeping it the register's own id.
-
-Keep each program minimal and ASCII-only (`Test/CLAUDE.md`), and keep it to ONE refusal where the rule
-allows — a case proving two things at once proves neither when it fails.
+Nothing new; see the top of this file. The existing cases are grouped one directory per rule in
+`backlog/analysis-v2-capability-progression.yaml`, plus `binding/` for the binder's refusals. The
+directory name is what a failure reports.

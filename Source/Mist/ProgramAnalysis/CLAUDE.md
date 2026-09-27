@@ -43,6 +43,27 @@ diagnostic ids and messages are observable behaviour and may be matched; its cod
 
 ## Proving a rule
 
-A rule is not done until `refusals/<rule-id>/` holds a case for each thing it reports (see
-`refusals/README.md`), and each thing it deliberately does **not** report is pinned by a Tier 3 test.
-The 75 banked samples are the false-positive half: a rule that fires on a working program is wrong.
+Every test of a rule follows the testing philosophy, `.claude/skills/testing-philosophy/SKILL.md`
+(`/testing-philosophy`), strictly. Each thing a rule reports, and each thing it deliberately does
+**not** report, is a test at:
+
+- **Tier 1, by default.** Call the rule's decision with inputs built directly —
+  `Assignability.Judge(from, to, interner)` takes two types and returns the diagnostic or null. No
+  lexer, no parser, no source text.
+- **Tier 2** when the rule walks a body — `Flow/` rules, ownership and borrow checking — over a body
+  or graph built by hand, not parsed.
+- **Tier 3, rarely**, when the finding exists only over a whole model.
+
+A decision that cannot be called without compiling a program is a rule to refactor, not a reason to
+climb a tier.
+
+The one claim that crosses stages is no-cascade — one mistake, one complaint, across Stages 4 and 5.
+That is the Stage 4→5 seam: a handful of Tier 4 tests in total, never one per rule or per case.
+
+**`refusals/` and `RefusalCorpusTest` completely ignored the testing philosophy.** Each of their 759
+cases compiles a whole program to check one rule's diagnostic: Tier 4–5 machinery for a Tier 1–2
+invariant, about 12 of the suite's 13 minutes (measured 2026-09-26). Stop making it worse: never add
+a case there. A rule's refusals go in its Tier 1–2 tests.
+
+The samples banked in `AllFeaturesV2` are the false-positive half: a rule that fires on a working
+program fails the Tier 6 baseline.

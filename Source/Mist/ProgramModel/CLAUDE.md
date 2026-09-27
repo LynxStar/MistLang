@@ -106,14 +106,13 @@ Only build between changes if:
 
 These do NOT need individual build+test cycles.
 
-## Full Test Suite
+## Tests
 
-There are no unit tests specifically for ProgramModel — that is intentional. The ProgramModel is exercised indirectly through integration tests that compile and run Mist programs end-to-end.
+ProgramModel is tested like every other part of v2, by the testing philosophy, `.claude/skills/testing-philosophy/SKILL.md` (`/testing-philosophy`), strictly. There is no exemption: ProgramModel is not "exercised indirectly through end-to-end tests". One binder method is Tier 1; a binder's dispatch chain is Tier 2; `ProgramModelBuilder.Build` over a minimal source with the real ambient provider is Tier 3. A program compiled end to end is not a binder test, and a sample does not verify the binder.
 
-This means:
+After a batch, build, then run the tests that cover what you changed (`--filter`).
 
-- If your changes are **contained exclusively to `Source/Mist/ProgramModel/`**, a successful `dotnet build` is sufficient verification. You do not need to run the full test suite.
-- Run the full test suite (`dotnet test Mist.slnx`) only when:
+- Run the full test suite (`tools/test-ledger/run.sh`, see `Test/CLAUDE.md`) only when:
   - Changes touch files outside ProgramModel (grammar, emitter, CLI, etc.)
   - You are at a natural checkpoint before presenting results to the user
   - The user explicitly asks

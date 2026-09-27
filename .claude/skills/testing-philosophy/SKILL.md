@@ -1,10 +1,12 @@
 ---
 name: testing-philosophy
-description: The 6-tier test pyramid for MistLang - what tier a test belongs at, what infrastructure each tier may use, and what is forbidden at each. Use when writing, moving, or reviewing any test, or when deciding whether a test should exist at all. Strict adherence is required for the experimental (v2) pipeline.
+description: The 6-tier test pyramid for MistLang in full - what tier a test belongs at, what infrastructure each tier may use, what is forbidden at each, and why. The binding rules are summarized in the root CLAUDE.md under "Tests". Use when writing, moving, or reviewing any test, or when deciding whether a test should exist at all. Strict adherence is required for the experimental (v2) pipeline.
 ---
 
 
 # Testing Philosophy
+
+The binding rules are summarized in the root `CLAUDE.md` under `## Tests`, which is always loaded. This is the full text: every tier's allowed and forbidden infrastructure, and the reasoning behind each rule.
 
 ## Core Principle
 
@@ -243,7 +245,7 @@ Do not write another system test to cover the edge case. Push it down.
 
 - **Language-guaranteed behavior.** The type system already proves it.
 - **Framework/library behavior.** Assume xUnit, Roslyn, and the BCL work.
-- **Positive behavior already proven by AllFeatures** -- unless the invariant is negative (rejection/diagnostic) which AllFeatures structurally cannot cover.
+- **Positive behavior already proven by AllFeatures** -- unless the invariant is negative (rejection/diagnostic) which AllFeatures structurally cannot cover. That exception says a refusal is worth testing, not where: a diagnostic is owned by the rule that reports it, so it is proven at that rule's tier -- Tier 1, or Tier 2 when the rule walks a body. Compiling a program to watch it fail is Tier 4+ for a single-stage invariant, the most common violation above.
 - **Upstream stages.** If you're testing stage N, do not re-verify stages 1 through N-1. Their own tests cover them.
 
 ## Deciding Where a Test Belongs

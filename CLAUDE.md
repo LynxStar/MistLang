@@ -70,10 +70,17 @@ that walk a finished model and judge it belong to Stage 5 and are recorded as
 `analysis_phase_tasks`, however early classic reports the equivalent. Getting this wrong
 once cost an implementation that was written and reverted.
 
-**Stage 5 is now open** and has its own register. The two arcs measure opposite things: the
-emitter arc's ledger is `samples/AllFeaturesV2`, a stdout baseline over 80 valid programs,
-which is structurally blind to a refusal. An analyzer that reports nothing passes every test
-in the repo, so Stage 5's first order is a ledger of its own.
+**Stage 5 is now open** and has its own register. `samples/AllFeaturesV2` is a stdout baseline
+over valid programs, so it is structurally blind to a refusal: an analyzer that reports nothing
+passes it. That gap is closed beside each rule, at the tiers the testing philosophy
+(`.claude/skills/testing-philosophy/SKILL.md`, `/testing-philosophy`) assigns: Tier 1 against the
+rule's decision, Tier 2 when the rule walks a body (flow, ownership), Tier 3 rarely. See
+`Source/Mist/ProgramAnalysis/CLAUDE.md`.
+
+**`refusals/` and `RefusalCorpusTest` completely ignored the testing philosophy.** Each of their
+759 cases compiles a whole program to check what one stage reports: Tier 4–5 machinery for a
+Tier 1–2 invariant, where Tier 4 allows a handful per boundary. Together they are about 12 of the
+suite's 13 minutes (measured 2026-09-26). Stop making it worse: add nothing to `refusals/`.
 
 ## Commands
 
@@ -108,6 +115,40 @@ suppression is approved, add a comment saying why. Never suppress silently.
 
 Run `dotnet format --verify-no-changes` after touching `Source/` or `Test/`. If it crashes on
 a namespace mismatch (IDE0130), fix that by hand first.
+
+## Tests
+
+These are the binding rules of the testing philosophy,
+`.claude/skills/testing-philosophy/SKILL.md` (`/testing-philosophy`) — strict on v2, a guideline
+for classic. The skill holds the full per-tier detail and the reasoning.
+
+A test exists only to encode an invariant the language cannot guarantee. Decide its tier from
+the invariant — which stage owns it — then use only what that tier allows. Never let the
+infrastructure at hand pick the tier.
+
+| Tier | Scope | How many | Forbidden |
+|---|---|---|---|
+| 1 Unit | One function, input built directly | Most: hundreds to thousands | Lexer, parser, any upstream stage; file I/O; processes; Roslyn; the real ambient provider or scope resolver |
+| 2 Functional | One module's internal chain | Many: tens to low hundreds | Running upstream stages to make input; processes; Roslyn; another module's behavior |
+| 3 Component | One whole phase, real collaborators | Moderate: tens | Stages outside the domain; processes; Roslyn; asserting on stdout; property tests over 50 iterations |
+| 4 Integration | The seam between named stages | A handful per boundary, ~10–20 at most | Boundaries not under test; high-iteration property tests |
+| 5 System | One sample, whole pipeline | Sparse, justified per test | More than one test per sample; generated programs; coverage a lower tier already has |
+| 6 Full system | `AllFeatures`, `AllFeaturesV2` | Exactly 2, ever | A third orchestrator |
+
+- **The most common violation** is running the whole pipeline, or most of it, to check what one
+  stage does: a test that parses source and asserts on one property of the result.
+  `CompilerDriver.Compile` runs every stage, so a test that calls it is Tier 4 or above however
+  small its program is. `RefusalCorpusTest` is this violation 759 times over; see Stage 5 above.
+- **A diagnostic is owned by the rule that reports it**, and is proven at that rule's tier: Tier 1,
+  or Tier 2 when the rule walks a body. A refusal is worth testing because `AllFeatures` cannot see
+  one; that says nothing about compiling a program to watch it fail.
+- **Push down, never up.** When a system test fails, prove the fix at a lower tier; do not add
+  another system test. High-iteration property tests belong at Tier 1–2 only.
+- **Don't test** what the language guarantees, what xUnit, Roslyn or the BCL do, or upstream stages:
+  a test of stage N does not re-verify stages 1 to N-1.
+
+**These rules win.** A directory's CLAUDE.md, a register entry or a spec's `tasks.md` that asks for
+a test at a tier these rules forbid is wrong. Do not follow it: flag the conflict to the user.
 
 ## Code comments
 
@@ -160,8 +201,8 @@ These load when you work in the directory:
 - `Source/Mist/ProgramModel/CLAUDE.md` — v2 isolation rule and verification policy
 - `Source/Mist/ProgramAnalysis/CLAUDE.md` — Stage 5: the analyzer contract, and how a rule proves itself
 - `samples/CLAUDE.md` — sample integrity, and how to bank a sample on v2
-- `Test/CLAUDE.md` — test tiers, process spawning, encoding, failure triage
+- `Test/CLAUDE.md` — compile cost, process spawning, encoding, failure triage (tiers: `## Tests` above)
 - `book/CLAUDE.md` — book snippet policy
 
-Skills: `/testing-philosophy` for the 6-tier test pyramid, `/code-comment-rationale` for the
-reasoning behind the comment budget.
+Skills: `/testing-philosophy` for the full per-tier detail and the reasoning behind `## Tests`,
+`/code-comment-rationale` for the reasoning behind the comment budget.

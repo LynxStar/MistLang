@@ -1,9 +1,23 @@
 # Tests
 
-Three policies apply to everything under `Test/`. For which tier a test belongs at and what
-each tier may use, run `/testing-philosophy` — strict adherence is required for the
-experimental (v2) pipeline; for classic it is a guideline, since classic and its tests get
-deleted with the old world.
+Three policies apply to everything under `Test/`. Before adding or moving a test, read the testing
+philosophy, `.claude/skills/testing-philosophy/SKILL.md` (`/testing-philosophy`), and decide its
+tier from the invariant it encodes — strict adherence is
+required for the experimental (v2) pipeline; for classic it is a guideline, since classic and its
+tests get deleted with the old world.
+
+# Compiling a Program Is Tier 4 or Above
+
+`CompilerDriver.Compile` runs every stage, so a test that calls it is at Tier 4 or above however
+small its program is. A test whose assertion is about one stage — a diagnostic, a binding, an
+emitted string — belongs at Tier 1–3 and does not compile a program. The patterns below make a
+legitimate Tier 4–6 test cheaper. They never make a compile acceptable at a lower tier, and
+"in-process" is not a licence to compile hundreds of programs.
+
+**`RefusalCorpusTest` and `refusals/` completely ignored the testing philosophy.** The test compiles
+759 programs one after another, each to check what one stage reports. On v2 one in-process compile
+costs about a second, so it is about 12 of the suite's 13 minutes (measured 2026-09-26). Stop making
+it worse: add nothing to `refusals/`, and do not write another test shaped like it.
 
 # Test Process Spawning Policy
 

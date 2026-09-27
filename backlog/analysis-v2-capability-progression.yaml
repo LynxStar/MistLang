@@ -95,7 +95,8 @@ rules:
       progress un-loseable the way the baseline did; the probe style wins on keeping the reason for each
       refusal next to it. Neither is obviously right and the choice shapes every rule below it.
       [CORRECTED 2026-09-26: Arthur never approved one Tier 4-5 test per refusal. The corpus design
-      below is withdrawn; see the WITHDRAWN task at the end of this order.]
+      below is withdrawn; see the WITHDRAWN task at the end of this order. Migration completed
+      2026-09-26: the corpus and runner are deleted; the corpus references in this evidence are historical.]
       BOTH, WITH THE CORPUS AS THE SPINE -- Arthur's call. `refusals/` holds the programs Mist must not
       compile, one directory per rule below, walked by one test (RefusalCorpusTest, Tier 5). The Tier 3
       probe classes stay for the cases where the reasoning matters more than the count: decisions,
@@ -239,19 +240,30 @@ rules:
         Keep the 72 banked samples as the FALSE-POSITIVE half. A new analyzer that refuses OR WARNS on a
         working program fails AllFeaturesV2 -- the warning half enforced since order 2.
       - >
-        Re-measure the per-case cost around 30 cases, and decide then rather than now whether the
-        corpus needs a cheaper provider.
+        WITHDRAWN 2026-09-26: the proposed per-case provider optimization is superseded by the
+        completed refusal migration; no whole-program corpus remains to optimize.
       - >
-        WITHDRAWN 2026-09-26, and the task above was never done. This order COMPLETELY IGNORED THE
-        TESTING PHILOSOPHY (.claude/skills/testing-philosophy/SKILL.md): every corpus case is a full
-        in-process compile, so `refusals/` is 759 Tier 4-5 tests of Tier 1-2 invariants, the
-        philosophy's "most common violation", and calling that Tier 5 does not make it one. Measured on
-        ledger 20260926-191851: RefusalCorpusTest took 697s of a 754s test run; every other test
-        finished by 173s. Stop making it worse: `refusals/` is frozen. Each rule's cases
-        move down beside the rule -- Tier 1 against its decision, Tier 2 for rules that walk a body
-        (flow, ownership), Tier 3 rarely -- and the no-cascade claim keeps a handful of Tier 4 tests at
-        the Stage 4-to-5 seam. RefusalCorpusTest and the directory are deleted once they are empty.
-        The plan, with the per-case measurements: backlog/refusal-corpus-migration.md.
+        WITHDRAWN 2026-09-26; the former provider-optimization task was never done. This order
+        COMPLETELY IGNORED THE TESTING PHILOSOPHY (.claude/skills/testing-philosophy/SKILL.md): every
+        corpus case was a full in-process compile, 759 Tier 4-5 tests of Tier 1-2 invariants, the
+        philosophy's "most common violation". Measured on ledger 20260926-191851: RefusalCorpusTest
+        took 697s of a 754s test run; every other test finished by 173s. The corpus was frozen.
+        COMPLETED 2026-09-26: all 759 originals and 764 diagnostic obligations have named replacement
+        rows. The 1,020 classified cases comprise 443 Tier 1 decisions, 570 Tier 2 hand-built analysis
+        or binder fragments, and seven Tier 4 binding-to-analysis cases, each with exactly one effective
+        xUnit Tier trait. Ledger 20260926-221712 records 878 expected failures under 61 grouped mutations
+        in 47 production files; the audit matched failing refusal rows for 759/759 original cases.
+        All production files match their restored copies. Ledger 20260926-225317 passed all 1,020
+        classified tests in a 1s test phase, with passing rows for 759/759 originals, before deletion.
+        The 759 files, README, corpus directories and RefusalCorpusTest are deleted. The final rebuild
+        had zero warnings/errors (5.26s), and full-solution formatting passed. Unfiltered ledger
+        20260926-225427 passed 9,491 tests (Mist.Tests 8,715, CLI 68, source generator 708), both sample
+        baselines included, with zero failures/skips and empty failures.txt. Test wall time was 162s
+        (2m42s), main assembly 161s, with the build measured separately. This run used an 18-CPU macOS
+        host; the original 13m08s full-run measurement used 32 CPUs, so these are not controlled
+        same-hardware speedup measurements. Evidence is local and Git-ignored under TestResults/ledger;
+        the named tests retain coverage without a second per-case checklist. The completed plan and
+        measurement details are in backlog/refusal-corpus-migration.md.
 
   - id: analyzer-contract
     name: The v2 analyzer contract and runner

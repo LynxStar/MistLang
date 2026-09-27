@@ -10,11 +10,11 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 2: bind hand-built expression and statement syntax, including failed values passed onward.
-[Trait("Tier", "2")]
+// Bind hand-built syntax; the struct-local case also checks the resulting value at the analysis boundary.
 public sealed class MemberBindingRefusalTests
 {
     [Theory]
+    [Trait("Tier", "2")]
     [InlineData("unresolved-identifier", "MIST_PM_UNRESOLVED_IDENTIFIER")]
     [InlineData("unresolved-receiver-called-as-argument", "MIST_PM_UNRESOLVED_IDENTIFIER")]
     [InlineData("refused-member-access-as-an-argument", "MIST_PM_UNRESOLVED_MEMBER")]
@@ -100,6 +100,7 @@ public sealed class MemberBindingRefusalTests
     }
 
     [Theory]
+    [Trait("Tier", "4")]
     [InlineData("struct-local-missing-member-does-not-cascade")]
     public void StructLocalMissingMemberDoesNotCascade(string refusal)
     {

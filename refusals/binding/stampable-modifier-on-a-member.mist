@@ -1,7 +1,0 @@
-namespace Refusal;
-
-public struct Box
-{
-    // REFUSE: MIST_PM_STAMPABLE_REQUIRES_STRUCT
-    public stampable int Item;
-}

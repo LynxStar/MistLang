@@ -2663,8 +2663,8 @@ capabilities:
       the first bound fails six, dropping the refinement tier one, dropping the not-inferred
       precedence one, dropping the conflict from the choice two, judging the first tier by
       ConversionRelation.IsWithin one, ignoring stated type arguments one, and refusing whenever any
-      candidate is open one. refusals/binding/type-argument-bounds-with-no-dominant.mist holds the
-      refusal.
+      candidate is open one. OverloadBindingRefusalTests holds the
+      type-argument-bounds-with-no-dominant refusal.
 
       A GENERIC EXTENSION RECEIVER CLOSES ONLY ON AGREEMENT. Unify shared the fold, so
       `<T> extension(Duo<T, T> self)` matched a `Duo<int, long>` receiver with T fixed to long, and
@@ -2756,8 +2756,8 @@ capabilities:
       constructor; the registry a losing candidate's trial leaves untouched; and eight calls whose
       callables cannot complete, each one diagnostic -- by two GenericMethodGroupEmissionTests rows
       (`Probe.Api.Twice<int>(3, Probe.Api.Same<int>)` and `Probe.Api.Pass<int, bool>(3, (int x) =>
-      x > 1)`), and by four corpus cases under refusals/binding. samples/CallableInference, banked V2-ONLY,
-      prints eighteen lines from `lambda: 2 | stated: 2` to `Labeled(string) 4`, each derived by hand first.
+      x > 1)`), and by four named rows in LambdaBindingRefusalTests. samples/CallableInference,
+      banked V2-ONLY, prints eighteen lines from `lambda: 2 | stated: 2` to `Labeled(string) 4`, each derived by hand first.
       EIGHTEEN MUTATIONS, EACH CAUGHT BY NAME: the callable phase removed (20 rows); the late bound let
       through (the mixed-result row -- the Grow row alone survived it, a result naming only fixed
       parameters skipping the trial); the blocking conflict dropped; the stated-parameter bounds; the
@@ -3492,7 +3492,7 @@ capabilities:
         reports no target.
       - >
         DONE 2026-09-12. `new Shape()` on an abstract is refused at binding with
-        MIST_PM_ABSTRACT_CONSTRUCTED (refusals/binding/abstract-constructed.mist); measured first, v2
+        MIST_PM_ABSTRACT_CONSTRUCTED (SyntaxBindingRefusalTests, abstract-constructed); measured first, v2
         reported nothing and classic left it to Roslyn's CS0144 against the generated file.
     unlocks: [TargetTypedNew]
 
@@ -6907,7 +6907,8 @@ capabilities:
       on a generic receiver, the three refusals, the plain overload preferred, the type-parameter position,
       and the instantiation recorded from a local and from a call that settles its group late),
       GenericMethodGroupEmissionTests (the five spellings and the one inside generic code),
-      DeclarationShapeDecisionTests (the constraint held and satisfied) and two corpus cases under refusals/.
+      DeclarationShapeDecisionTests (the constraint held and satisfied), ConstraintRefusalTests and
+      MethodGroupBindingRefusalTests (the named generic-method-group refusals).
       samples/OpenUnions prints `inferred values: T 6 | T z | absent` through two per-instantiation methods.
       Eleven mutations, each caught by name; a twelfth, applying the receiver's arguments before matching,
       survived as an equivalent -- they can mention none of the method's parameters -- and the code that
@@ -10220,7 +10221,7 @@ capabilities:
       operator on an abstract, through MIST_PM_MEMBER_NOT_ALLOWED_ON_ABSTRACT. Measured before the fix:
       the declaration bound, emitted nothing, and a use of it then failed as MIST_CS_ERROR against
       generated C# -- an error about code the author never wrote, which is exactly what the
-      language-rules discipline exists to prevent. A corpus case under refusals/binding/ holds it.
+      language-rules discipline exists to prevent. DeclarationBindingRefusalTests holds operator-on-abstract.
     unlocks: []
 
   - id: intrinsic-member-declarations
@@ -10309,8 +10310,8 @@ capabilities:
       standard-library spec reserves the marker (Req 5.6 and 5.13) and nothing enforced it, so
       ConcreteTypeBuilder now refuses a type-level `intrinsic` outside the Standard assembly
       (MIST_PM_INTRINSIC_RESERVED). The member-level marker needs no separate check: the pairing rule
-      (Req 5.15) already requires an intrinsic container. A corpus case under refusals/binding/ holds it,
-      and Standard's own types are unaffected -- AllFeaturesV2 is byte-identical.
+      (Req 5.15) already requires an intrinsic container. DeclarationBindingRefusalTests holds
+      intrinsic-reserved-for-standard, and Standard's own types are unaffected -- AllFeaturesV2 is byte-identical.
 
       THE CONTRACT IS NOW CHECKABLE (2026-09-12). IntrinsicSupply classifies every intrinsic member
       Standard declares -- 250 of them, 195 operators, 3 indexers and 52 named members and constructors;
@@ -12004,7 +12005,7 @@ samples:
       - Doubled prints the same whether it was promoted to async or blocked; only the emitted text
         shows the promotion.
       - Half's parameter `where` is met by a literal that satisfies it, so a where that was never
-        proven passes identically; the refusal half lives in refusals/refinement-proving.
+        proven passes identically; RefinementValueRefusalTests holds local-function-where-violated.
       - The capture is written and read once, so a capture by copy that happened to print 2 is not
         distinguished from a capture by reference.
 
@@ -12175,9 +12176,9 @@ samples:
         compiles; SelectionRecordingTests and ListPatternResolutionTests pin the choice itself.
       - >
         The `where` on Ledger's int indexer is met by every literal index, so a where that was never proven
-        passes identically; indexer-constraint-violated-on-the-selected-overload in
-        refusals/refinement-proving holds the refusal. The from-end index and the list pattern's positions
-        are not proven against it at all: measured 2026-09-15 on a scratch Ledger whose Count is 9,
+        passes identically; RefinementValueRefusalTests holds
+        indexer-constraint-violated-on-the-selected-overload. The from-end index and the list pattern's
+        positions are not proven against it at all: measured 2026-09-15 on a scratch Ledger whose Count is 9,
         `ledger[^1]` and a nine-element list pattern each reached position 8 over `where entry >= 0 and < 3`
         with no diagnostic. Ledger's Count is its array's Length, which is why this sample's run is sound.
         A from-end index into a receiver whose length IS a number is proven since 2026-09-15 (analysis order
@@ -12310,7 +12311,7 @@ samples:
       - >
         Every refusal is absent, a sample being a valid program: a conflict between an argument and a
         stated lambda parameter, a lambda whose parameter nothing fixes, two overloads a lambda fits
-        alike, a body broken under the parameter inference fixed. refusals/binding holds one case each.
+        alike, a body broken under the parameter inference fixed. LambdaBindingRefusalTests holds one case each.
 
   - name: GenericExtensionMethods
     intro_order: 100
@@ -12335,7 +12336,7 @@ samples:
       - >
         A constraint that only restricts is invisible here: every call meets Put's `where U : T`, and a
         carrier without it prints the same. Store's `T stored = item` needs it to compile, and the refusals
-        are analysis's, in refusals/declaration-shape-checks.
+        are analysis's, in ConstraintRefusalTests.
       - >
         Blank<Point>() prints the field initializers because v2's `default` of a struct is its synthesized
         default, as a plain `Point p = default;` also prints; classic cannot compile a struct with field

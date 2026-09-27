@@ -1,12 +1,44 @@
 # Refusal corpus migration
 
-**Goal:** move every case in `refusals/` down to the tier the testing philosophy assigns it, then
-delete `refusals/` and `RefusalCorpusTest`. The 759 cases are valuable negatives, and none may be
-lost. What goes is the cost of checking them: a whole-program compile each, one after another.
+**Completed 2026-09-26.** All 759 original cases and their 764 diagnostic obligations have named
+replacement rows at the owning decision or fragment. The verified corpus, its README and
+`RefusalCorpusTest` are deleted. Refusal coverage uses hand-built inputs at Tier 1 or Tier 2,
+with seven Tier 4 cases for the binding-to-analysis boundary.
+
+The measurements and original migration procedure below explain the tier choices and deletion gates.
 
 Read first: the `## Tests` section of the root `CLAUDE.md` (binding), the testing philosophy
 (`.claude/skills/testing-philosophy/SKILL.md`), and `Source/Mist/ProgramAnalysis/CLAUDE.md`,
 "Proving a rule". Commit `02f57db9` froze the corpus and records why.
+
+## Verification at completion
+
+- Original corpus plus replacements: ledger `20260926-214517`, 1,017 passed. The original
+  diagnostic behavior held against the production refactoring before deletion.
+- Grouped mutation evidence: ledger `20260926-221712`, 61 mutations in 47 production files,
+  878 expected failures. Every original negative case had all matching refusal rows fail
+  (759/759); the five positive exhaustiveness rows were excluded from that negative audit.
+  All 47 production files match their restored copies byte for byte.
+- Final classified run before deletion: ledger `20260926-225317`, 1,020 passed in a 1s test
+  phase. The passing-row audit matched all 759 originals to 829 named rows, including site
+  and silence coverage. All 764 original diagnostic IDs and multiplicities are retained.
+- Tier audit: every new or migrated test has exactly one effective xUnit Tier trait. The
+  classified cases are 443 Tier 1, 570 Tier 2 and seven Tier 4. Tier 1 invokes decisions over
+  direct values; Tier 2 walks hand-built model or binder syntax fragments with stub ambient
+  dependencies. Six boundary cases run binding into the complete analysis runner; the seventh
+  binds a failed struct-local member and checks that definite-assignment analysis stays silent.
+  Existing unclassified tests remain unmarked.
+- After deletion: build passed with zero warnings and errors in 5.26s; full-solution
+  `dotnet format --verify-no-changes --no-restore` passed. Ledger `20260926-225427` ran the
+  unfiltered solution with current binaries: **9,491 passed, zero failed, zero skipped**
+  (Mist.Tests 8,715, CLI 68, source generator 708), including both AllFeatures baselines.
+  Test wall time was **162s (2m42s)**; the main assembly took 161s. Build time is separate.
+  `failures.txt` is empty, and no rerun was needed.
+
+The final run used an 18-CPU macOS host; the original 13m08s full-run measurement below used
+32 CPUs. These are observed timings, not a controlled comparison on identical hardware.
+Ledger evidence is local under `TestResults/ledger/` and ignored by Git; the committed named
+replacement tests are the durable coverage record. There is no second per-case checklist.
 
 ## Why
 
@@ -50,7 +82,7 @@ Rules that walk a body — `flow-framework`, `ownership-borrow-checking` — tak
 claim too, over a body or flow graph built by hand, not parsed. Tier 3 is rare, and needs a reason
 the lower tiers cannot give.
 
-## What is available
+## Starting point before migration
 
 - **Hand-built types work today.** `new TypeInterner()` and
   `new ClassType("Int32", "Standard", new Scope(null), null, null)`, as in
@@ -71,7 +103,7 @@ the lower tiers cannot give.
   *rule* has a Tier 1 test yet. Even the `*DecisionTests` files parse over real Standard and call
   themselves Tier 3. The pilot below makes the first one.
 
-## Order
+## Original migration order
 
 Case counts per directory, 759 in total:
 
@@ -109,22 +141,20 @@ Follow the code comment budget: a `// Tier N (...)` header, if present, is that 
 The runnable trait is required; a tier comment is not a substitute. Existing tests outside the
 migration may stay unclassified.
 
-## Finish line
+## Completed cleanup
 
-- `refusals/` is empty except the Tier 4 set, which becomes ordinary Tier 4 tests. The directory,
-  its README and `RefusalCorpusTest` are deleted.
-- The call-outs naming `refusals/` and `RefusalCorpusTest` are removed, since there is nothing left
-  to add to: root `CLAUDE.md` (Stage 5 paragraph and `## Tests`),
-  `Source/Mist/ProgramAnalysis/CLAUDE.md` and `Test/CLAUDE.md`. The rules they back stay.
+- The 759 `.mist` files, corpus README, directories and legacy runner are deleted after their
+  replacement rows passed and the saved mutation evidence was audited.
+- Root `CLAUDE.md`, `Source/Mist/ProgramAnalysis/CLAUDE.md` and `Test/CLAUDE.md` retain the testing
+  rules without instructing contributors to add corpus files. Active emitter-register references
+  name the replacement tests; dated historical evidence remains.
 - The `rejection-ledger` WITHDRAWN task in `backlog/analysis-v2-capability-progression.yaml` records
-  the migration as done, with the suite time measured afterwards.
+  completion and the measured unfiltered suite result.
 
-## Open decision: ask Arthur before doing it
+## Stopgap not needed
 
-**Stopgap.** Splitting `RefusalCorpusTest` into one test class per directory lets xunit run the
-directories in parallel. The longest, `refinement-proving`, would take about 165s, bringing the suite
-to about 4 minutes while the migration runs. It keeps a forbidden test alive, just faster, so it is
-worth doing only if the migration will take more than a few days. It is deleted with the directory.
+The proposed per-directory split of `RefusalCorpusTest` was not implemented. The migration finished
+without keeping the whole-program refusal harness alive as a parallel runner.
 
 ## Environment notes
 

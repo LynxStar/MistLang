@@ -63,60 +63,62 @@ No separate `.First` / `.Rest` split. Consumers just iterate the one collection.
 
 ## Labelled element inside a repetition emits a spurious scalar property
 
-A label applied to an element *inside* a `( ... )*` group makes the generator emit **both**
-the expected list property and a bogus scalar property. The scalar is populated with the
-last value parsed by the loop, and it is yielded from `Children()`.
+A label on a rule reference *inside* a `( ... )*` or `( ... )+` group makes the generator emit
+**both** the list and a scalar. Each round of the loop that reaches the reference assigns the
+scalar; each round that completes also adds the node to the list.
 
 ```storm
-rule ArrayElementList = first:Expression (COMMA rest:Expression)* COMMA?;
+rule BaseList = first:BaseTypeRef (COMMA rest:BaseTypeRef)*;
 ```
-
-Generated AST — note `Rest` alongside `Expressions`:
 
 ```csharp
-public ExpressionNode First { get; set; } = default!;
-public ExpressionNode Rest { get; set; } = default!;   // spurious
-public ImmutableArray<ExpressionNode> Expressions { get; set; } = ImmutableArray<ExpressionNode>.Empty;
-
-public override IEnumerable<SyntaxNode> Children()
-{
-    yield return First;
-    yield return Rest;                                 // unconditional
-    foreach (var child in Expressions) { yield return child; }
-}
+public BaseTypeRefNode First { get; set; } = default!;
+public BaseTypeRefNode Rest { get; set; } = default!;   // the scalar
+public ImmutableArray<BaseTypeRefNode> BaseTypeRefs { get; set; } = ImmutableArray<BaseTypeRefNode>.Empty;
 ```
 
-Generated parser — one local declared outside the loop and reassigned each iteration, then
-assigned to the property:
+**`Children()` fixed 2026-09-27.** It yielded the scalar unconditionally beside the list, so zero
+rounds gave `[First, null]` -- every non-union `TypeReference` in every program had a null child
+-- and `[1, 2, 3]` gave `[1, 3, 2, 3]`. It now yields the lead and the list: each real child once,
+in source order. A reference repeated with no separator, `(rest:X)*`, and an unlabelled `X*` beside
+a lead were worse off: the parser looked for the repeated reference only inside a sequence, so their
+list stayed empty and every repeated child was lost. Both now fill the list.
 
-```csharp
-ExpressionNode _Rest = null!;          // outside the while
-while (!_hasError)
-{
-    ...
-    _Rest = _ParseExpression();        // overwritten every pass
-    ...
-}
-node.Rest = _Rest;                     // ends up as the LAST element, or null
-```
+Reproduced on a small independent grammar at `13b67c0e`, memoization off and on agreeing:
 
-**Symptoms:**
+| Rule, input | Before | After |
+|---|---|---|
+| `first:Elem (COMMA rest:Elem)*`, `a` | `[a, null]` | `[a]` |
+| same, `a,b,c` | `[a, c, b, c]` | `[a, b, c]` |
+| same, `a,b,` | `[a, null, b]` | `[a, b]` |
+| `first:Elem (rest:Elem)*`, `a b c` | `[a, null]`, list empty | `[a, b, c]` |
+| `first:Elem Elem*`, `a b c` | `[a]`, list empty | `[a, b, c]` |
+| `LP first:Elem COMMA rest:Elem (COMMA additional:Elem)* RP`, `(a,b,c,d)` | `[a, b, d, c, d]` | `[a, b, c, d]` |
 
-- Zero iterations — `[1]` yields `Children() == [First, null]`. Any walker that does not
-  null-check throws.
-- Multiple iterations — `[1, 2, 3]` yields `[1, 3, 2, 3]`. The last element is duplicated
-  and out of order.
+For Mist the generated parser, lexer and runtime are byte-identical, and the AST differs by exactly
+the thirteen `yield return` lines of the rules below. `RepeatedRuleReferenceTests` (Tiers 1-2) and
+`GeneratedParserFidelityTests` (Tier 4, memoization off and on) hold it; each of seven mutations
+across the two emitters is caught.
 
-**Why it has gone unnoticed:** nothing reads the scalar, and every tree walker in the
-repository is already null-tolerant because the defect is pervasive — a walker that
-recurses over `Children()` has to guard each child or it throws on the zero-iteration
-case. Union detection likewise cannot use `Rest` as a signal, because the scalar is a
-non-nullable codegen artifact rather than a real parse result; the PIPE-separated tail
-collection is the only trustworthy indicator. Both workarounds predate this note, which is
-why the bug survived: the tooling that would have exposed it was written around it
-instead.
+**Residue: the scalar stays.** Building the solution without it gives 239 compile errors in
+`Mist.Core`, one per read, before any test project compiles: `TypeCheckerAnalyzer` 88,
+`CSharpEmitter` 71, `SemanticModelBuilder` 39, `RefinementPredicate` 28, `MistPrettyPrinter` 6,
+`SemanticModel` 2, and the v2 binders `OperatorBinder` 3 and `PatternBinder` 2 through `IsBare`.
+Every one is a `.Right` on
+`LogicalOr`, `LogicalAnd`, `VoidCoalescing`, `OrPattern` or `AndPattern`, read as the last operand;
+the other eight rules' scalars have no reader there. Tests read it as well (`ParserRuleTests`) and
+assign it (`RefinementComparisonEnginePropertyTests`). So it keeps its type, setter and value and is
+only no longer a child. It holds the list's last node when the loop stopped at a separator; null
+when no round ran or the failing round's reference did not parse, so `(rest:X)*` always ends null;
+and a discarded node when something after the reference failed (`(COMMA rest:X SEMI)*` on
+`a,b;,c` holds `c`, which is in neither the list nor `Children()`). Removing it means moving those
+reads onto the list first -- v2's `GrammarRepetition` already reads the list alone -- and then
+emitting no scalar for a label inside a repetition.
 
-**Scope — every rule with a label inside a repetition:**
+A reference nested deeper in the repeated body, in a nested group or an optional, is neither
+collected into a list nor excluded from `Children()`. No Mist rule has that shape.
+
+**Scope — every rule with a rule-reference label inside a repetition:**
 
 | Rule | Construct |
 |---|---|
@@ -133,23 +135,19 @@ instead.
 | `TupleLiteralExpression` | `(COMMA additional:TupleLiteralElement)*` |
 | `TuplePositionalPattern` | `(COMMA additional:Pattern)*` |
 | `TypedTupleDeconstruction` | `(COMMA additional:TupleDeconstructionElement)*` |
-| `VarTupleDeconstruction` | `(COMMA restNames:IDENTIFIER)*` |
 
-`TypeReference` is the worst case: a non-union type reference leaves the scalar null, so
-practically every type reference in every program yields a null child.
-
-**Fix:** the generator should not emit a scalar property for a label inside a repetition —
-the label should only contribute to the list, and `Children()` should not yield it.
+`VarTupleDeconstruction`'s `(COMMA restNames:IDENTIFIER)*` labels a token, which becomes an
+`ImmutableArray<Token>` and was never a child.
 
 **Workaround (verified):** drop the label. `ArrayElementList` was changed from
 `(COMMA rest:Expression)*` to `(COMMA Expression)*`; the scalar disappeared, the list kept
-its `Expressions` name, `Children()` became correct, and nothing needed re-threading
-because nothing read the scalar. Storm names the list from the rule name regardless, which
-is why the unlabelled `ArgumentList` and `TypeArgumentList` never had the defect.
+its `Expressions` name, and nothing needed re-threading because nothing read that scalar.
+Storm names the list from the rule name regardless, which is why the unlabelled
+`ArgumentList` and `TypeArgumentList` never had the defect.
 
 **Before removing labels elsewhere,** check per rule whether any consumer reads the scalar
-believing it meaningful — for the operator-chain rules a `.Right` read would compile and
-silently mean "last operand", which would be a live bug rather than dead weight.
+believing it meaningful — for the operator-chain rules every read above means "last operand",
+so removing the label would break them rather than drop dead weight.
 
 **Related:** the `storm-parser-repetition-bugs` spec fixed `OptionalIR(SequenceIR(...))`
 generating a `Token?` instead of a node property. This is the same family — a labelled
@@ -200,3 +198,44 @@ is matched, the `TokenRefIR` case existing. `Mist.storm` has no such shape today
 wrong in the shipped parser, but a grammar author who writes one gets an alternative that accepts
 anything. The same silent default is why a predicate needed emission of its own rather than a
 reuse of "emit this expression". Either give the emitter the arm or refuse the shape at lowering.
+
+**Both, 2026-09-27.** Revalidated first at `13b67c0e` on independent grammars, memoization off and
+on agreeing: `a<b>;`, `a<b>(` and `a<b>` all parsed as `Grouped` to position 4, the follower unread.
+The same silent default sat in the body of an unlabelled `?`, `*` and `+` -- `(SEMI | COMMA)?` never
+consumed, and `(SEMI | COMMA)+` could never match, its loop making no progress -- and the structural
+elements of a struct-projected group skipped any alternation.
+
+A choice between single tokens is now matched in all four places against the flag around it,
+`if (ok && (Match((int)TokenKind.SEMI) ?? Match((int)TokenKind.COMMA)) == null) ok = false;`. It
+consumes the token it chose, consumes nothing when none fits, and leaves the restore to the
+alternative, optional or loop that holds it: `a<b>;` and `a<b>,` parse as `Grouped` to position 5,
+and `a<b>(` and `a<b>` fall back to `Plain` at 1, also when a memoized read replays them. Any other
+unlabelled alternation -- a rule-reference arm, a sequence arm, a nested alternation -- is
+`STORM0008` at lowering, naming its rule, since the emitter can match only tokens there. A labelled
+alternation and a predicate body keep their own paths, but an alternation *inside* a labelled
+optional or repetition is checked like any other, so `held:(SEMI | Args)?`, which never matched,
+is now refused. `Mist.storm` has no unlabelled alternation, and the generated Mist parser is
+byte-identical. `UnlabelledTokenChoiceTests` (Tiers 1-3) and `GeneratedParserFidelityTests`
+(Tier 4) hold it; each of eleven mutations is caught.
+
+**Residue -- the generator-wide audit this does not do.** Paths that still pass over element kinds
+they do not know, each reproduced on the fixed generator:
+
+- A labelled optional sequence (`EmitAtomicSequenceBody`) skips a choice inside it:
+  `held:(COMMA (SEMI | LP) RP)?` reads the optional as absent on `a,;)` and stops at 1.
+- A labelled alternation (`EmitAlternationExprParse`) never matches a rule-reference arm:
+  `held:(SEMI | Args)` reads `a<b>` as the next alternative -- the known limitation noted in
+  `AstEmitter.GetPropertyInfo`.
+- An unlabelled optional or repetition nested in the body of another
+  (`EmitFullExprParseAssignOnly`) is dropped: `first:Elem (LT (COMMA rest:Elem)* GT)?` reads `a<>`
+  but stops at 1 on `a<,b,c>`.
+- An unlabelled optional among a struct-projected group's elements (`EmitConsumeStructuralElement`)
+  is skipped: `head:IDENT (key:IDENT COMMA? value:IDENT)*` stops at 1 on `a b,c`.
+
+## A rule literal that repeats a declared token's text never matches
+
+Found 2026-09-27: with `token SEMI = ";";` declared, `rule Item = name:IDENT ";";` fails on `a;`.
+Lowering gives the literal a synthetic token, `__SYNTH_SEMI`, because it looks for an existing
+token by that synthetic name rather than by its text. The lexer then produces the declared `SEMI`,
+which wins the tie on declaration order, so the synthetic token never appears. `Mist.storm` writes
+no literal in a rule, so the shipped parser is unaffected.

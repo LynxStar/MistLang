@@ -2515,7 +2515,7 @@ rules:
       THE CUSTOMER. DefiniteAssignmentAnalyzer's lattice is the set of what is assigned: intersection
       at a join, a declaration without an initializer removing its local, an assignment adding its
       target, a read adding the local it read so one unassigned local is one complaint per path. Locals
-      are tracked only when declared without an initializer, every other way a local comes to be giving
+      were initially tracked only when declared without an initializer, every other way a local comes to be giving
       it a value. The initial implementation counted a struct field write as writing the whole local;
       the per-field extension measured below closes that gap. Classic's own analyzer reports NONE of the local cases: it emits
       `int x;` and Roslyn refuses with CS0165, measured on a 27-shape probe compiled through the
@@ -2624,7 +2624,7 @@ rules:
       with the sets of every local function it calls or names, to a fixpoint; at each invocation of the
       function through its name, and at each conversion of the name to a func value, every tracked local
       in the set that the state does not hold reports MIST_PA_LOCAL_FUNCTION_READS_UNASSIGNED, and the
-      transfer adds the set so one unassigned local is one complaint per path. The body itself is judged
+      transfer adds the set so one unassigned local is one complaint per path. The body itself was initially judged
       with every tracked local taken as assigned, since the entries cover the captures, and its own `int y;`
       is removed by its Declare step as anywhere. An assignment inside the function does not count at the
       call, as one inside a lambda does not. The set is flow-insensitive within a body: a function that
@@ -2701,6 +2701,56 @@ rules:
       AllFeaturesV2 run matched all 2,057 baseline lines with empty stderr. The full corpus now has
       605 files; the last full-corpus run above covered the earlier 574-file snapshot.
 
+      PATTERN DEFINITE ASSIGNMENT, 2026-09-27. Revalidated against current main 13b67c0e in an
+      isolated worktree. Before the fix, the Tier 2 PatternAssignmentTests ledger 20260927-133212
+      failed 30/56 cases because pattern reads produced no finding; all 26 negative controls passed.
+      A scratch experimental CLI build of `if(Log.No() || o is Log l) { l.Poke(void); }`
+      independently reproduced MIST_CS_ERROR, "Use of unassigned local variable 'l'", in emitted C#.
+      After the fix, that same build reports MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT at the Mist read
+      of l, Program.mist(12,38), before emission. The corresponding `&&` control remains admitted.
+
+      DefiniteAssignmentAnalyzer tracks each pattern Binding by local identity alongside bare local
+      declarations and assigns its storage slots at the existing successful Bind step. The shared CFG,
+      LocalAssignmentSlots, Captures and LocalFunctionReads are unchanged. A local-function body starts
+      with captured slots assigned, preserving entry-site diagnostics, but excludes its own and its
+      nested bodies' pattern slots; those have no Declare reset. Lambda and async bodies retain the
+      assignment state at creation. Existing read recovery and failed-expression suppression apply.
+
+      COVERAGE. PatternAssignmentTests has 56 cases with one effective Tier=2 trait and a dedicated
+      hand-built PatternAssignmentFixture, calling only the definite-assignment rule and shared flow
+      machinery. Coverage includes bypassed `||`, successful `is`/`&&`, expression negation, condition
+      reads, joins, returns, while/for paths, switch guards, var/tuple/property/conjunction/list/slice
+      bindings, nested lambda/async/local-function bodies, captured patterns at calls and conversions,
+      hoisted and transitive function entries, struct slots, diagnostic names/sites, repeated reads,
+      unreachable code, failed reads, and ordinary declaration/foreach/deconstruction/with/parameter
+      controls. No refusal corpus, parser-driven matrix, descriptor, or analysis order was added.
+      Focused ledger 20260927-133646 passed all 383 pattern, flow, local-function and graph cases,
+      with zero build warnings/errors. A separate mutation restoring all-assigned local-function
+      entry while retaining pattern tracking and Bind transfer failed five targeted Tier 2 cases
+      (ledger 20260927-133928); the original source was restored before the final rebuild.
+      Integration remains within the rule; the purity branch's changed-file list was inspected
+      read-only and no implementation file overlaps it.
+
+      FINAL BUILD, ledger 20260927-134003: the entire solution built with zero warnings/errors in
+      13.51 seconds. Its test run was stopped after an unchanged ASP.NET delegate sample stalled
+      under the sandbox; the ledger records no failure before interruption and no completed Mist
+      TRX, so it is not counted as a complete run. The same emitted delegate assembly completed
+      immediately outside the sandbox. Whole-solution formatter verification passed with no
+      diagnostics (TestResults/pattern-assignment-format.log); git diff --check and YAML parsing passed.
+
+      FINAL FULL LEDGER 20260927-134542, `LEDGER_NO_BUILD=1 tools/test-ledger/run.sh`, outside the
+      sandbox after the unchanged solution rebuild: 9,547/9,547 passed, no failures/skips (Mist 8,771,
+      Storm 708, CLI 68), in 155 seconds. The TRX confirms all 56 PatternAssignmentTests and both
+      AllFeatures/AllFeaturesV2 compile/run/stdout baselines; failures.txt is empty. No unchanged-test
+      flakes were observed. The initial branch starts at 13b67c0e; main's subsequent namespace commit 49b330b3
+      has no changed-file overlap. The shared analysis register needs the usual small evidence merge
+      with concurrent lanes, and there is no implementation integration dependency.
+
+      MAIN INTEGRATION, 2026-09-27. Rebased cleanly onto origin/main 49b330b3. Full ledger
+      20260927-135403 passed 9,557/9,557 tests (Mist 8,781, Storm 708, CLI 68), with no failures/skips
+      and zero build warnings/errors. Whole-solution formatter verification passed without diagnostics
+      (TestResults/pattern-assignment-integration-format.log). No implementation changes were needed.
+
     tasks:
       - >
         The definite-assignment spec is stricter than classic: Req 1.1 refuses any read of an
@@ -2724,12 +2774,6 @@ rules:
         The worklist's iteration to a fixpoint is exercised by every loop in the corpus but cannot be
         told apart from a single pass on an intersection lattice, whose back edges only remove. The
         first customer whose lattice grows along a back edge is the one that will observe it.
-      - >
-        A pattern variable read where it is not definitely assigned passes Stage 5 and is refused by the
-        emitted C# as CS0165: `if(Log.No() || o is Log l) { l.Poke(void); }` is MIST_CS_ERROR on v2, measured
-        2026-09-26 (classic fails the same way). The binding is in scope in the then-branch but assigned only
-        where the `is` held, so the analyzer needs pattern bindings on the graph with the state an `is`
-        leaves when true.
   - id: ownership-borrow-checking
     name: Tiers, moves, lending and the substructural counts
     order: 11
@@ -3783,6 +3827,54 @@ rules:
       The merged sources remain unchanged after the full build; only this evidence is amended.
       V2 isolation, whitespace and YAML checks pass. No warning suppression or flaky rerun occurs.
       This checkpoint validates promotion of the combined merge to Main; the limits below remain open.
+
+      SOURCE ENUM CONSTANT PROOFS (2026-09-27), based on Main 49b330b3. The historical gap was
+      revalidated with direct model inputs before the fix: ledger 20260927-134819 failed all four
+      new rows, Green and Blue as UNPROVEN, Red as UNPROVEN instead of VIOLATED, and the sparse/negative
+      extraction row as null. No new runtime/source-pipeline reproduction was added. Requirement now
+      reads a resolved source EnumMemberResult through EnumConstants, using the stored initializer,
+      including synthesized literals, guarded negation, clones and member references. It never derives
+      a value from a variant's name or declaration position. Expression identity guards recursive
+      references; only supported integral/character bases and constants within their range and signed
+      long are read. User operators, conversions, arithmetic initializers, missing/unresolved values,
+      unsupported bases and oversized unsigned constants remain unknown. Negation cannot overflow,
+      and flow arithmetic cannot treat a declared operator as a numeric shift. An unknown enum does
+      not satisfy a predicate just because its intervals cover the entire signed domain: direct and
+      copied/joined ulong.MaxValue against <= a stored long.MaxValue are UNPROVEN. Extraction-only
+      ledger 20260927-135442 caught both of those boundary failures before that guard was added.
+      Nominal compatibility still comes from the existing conversion/assignability decisions; equal
+      numbers in Color and Priority do not supply an implicit conversion. Duplicate-value admission
+      remains unchanged, including the current enums Requirement 4.4 acceptance policy; classic's
+      historical declaration refusals above are not this lane's policy.
+      The 68 new cases have exactly one effective Tier trait each: 53 Tier 1 extraction/decision rows,
+      15 Tier 2 bodies for aliases, copies, assignments, guards, joins and unknown results. They use
+      dedicated EnumRefinementModel inputs, no upstream stages, CLR fixtures, processes or shared
+      helper edits. Ledger 20260927-135813 passed all 1,091 classified Tier 1-2 tests in 2 seconds,
+      including all 68 enum cases; its build had zero warnings/errors. Full-solution formatting
+      verification exited 0 with an empty /private/tmp/mist-enum-refinement-format.log.
+      Full ledger 20260927-140039 passed all 9,569 tests (8,793 compiler, 68 CLI, 708 source generator),
+      both sample baselines included, with zero failures/skips and an empty failures.txt. The build
+      completed in 7.51 seconds with zero warnings/errors; tests finished in 161 seconds. The run was
+      started between other sessions' active build/test checkpoints; only reusable MSBuild/compiler
+      servers were recorded at startup. Main advanced to 2ef14e1d during verification with order 10's
+      pattern-assignment change; this branch remains based on the Main head used at task start.
+      LIMITS AND INTEGRATION: CLR enum proof, source declaration validation, emission, arbitrary
+      initializer evaluation and numeric-domain redesign are unchanged. Inspection of the current
+      LiteralBinder.ParseIntegerLiteral finds long.TryParse followed by a zero fallback, so a source
+      unsigned literal above long.MaxValue can lose its value before this reader sees the model.
+      Making that source case conservatively unproven requires preserving an unsupported value or
+      reporting overflow in that central binder, outside this lane; stored oversized ulong values
+      are covered here. Purity's committed and working changed-file lists were checked read-only;
+      no owned production file overlaps, but its Admitted and RefinementFindings edits need the usual
+      combined verification on integration. Its worktree and analysis order 13 are untouched.
+      MAIN INTEGRATION (2026-09-27): merged with origin/main 37facf27, preserving the intervening
+      definite-assignment, CLI discovery and Storm changes without conflicts. Full ledger
+      20260927-144303 on merge candidate a25e2082 passed all 9,686 tests (8,849 compiler, 89 CLI,
+      748 source generator), all 68 enum cases and both sample baselines included, with zero
+      failures/skips and an empty failures.txt. The build had zero warnings/errors (11.68s);
+      tests finished in 157s. The code under verification is unchanged by this evidence append.
+      Full dotnet format verification exited 0 with an empty
+      /private/tmp/mist-enum-refinement-main-format.log.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -3815,7 +3907,8 @@ rules:
         refusal for an unrefined input slot versus a refined filler remains unchanged; adhoc R17.8's
         exception conflicts with that banked behavior and requires a separate policy decision.
       - >
-        An enum refinement is never proven. Requirement reads an enum variant bound as nothing it can
+        HISTORICAL ENUM GAP, closed for supported source constants by the evidence above: Requirement
+        reads an enum variant bound as nothing it can
         decide, so since the unreadable predicates were refused (2026-09-19) every use is UNPROVEN, the valid
         ones too: over `type Warm = Color >= Color.Green`, `Warm a = Color.Red` and `Warm b = Color.Blue`
         are both MIST_PA_REFINEMENT_UNPROVEN (measured 2026-09-15 they both ran). Reading a variant bound

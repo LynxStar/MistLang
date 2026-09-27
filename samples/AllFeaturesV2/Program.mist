@@ -110,5 +110,6 @@ public class Program
         GenericExtensionMethods.Program.RunDemo();
         ConstructorConstraintSignatures.Program.RunDemo();
         Purity.Program.RunDemo();
+        NestedBlockNamespaces.Program.RunDemo();
     }
 }

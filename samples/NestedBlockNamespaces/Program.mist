@@ -1,0 +1,107 @@
+// V2-ONLY: nested block identity follows nested-scoping 5.2; classic cannot resolve these namespace paths.
+using Standard;
+using NestedBlockNamespaces.Tree.Inner.Qualified.Leaf;
+
+namespace NestedBlockNamespaces
+{
+    public class Program
+    {
+        public static void Main()
+        {
+            RunDemo();
+        }
+
+        public static void RunDemo()
+        {
+            Console.WriteLine("=== Nested Block Namespaces Sample ===");
+            Console.WriteLine($"ancestor: {Tree.Inner.First.Read()}");
+            Console.WriteLine($"repeated: {Tree.Inner.Second.Read()}");
+            Console.WriteLine($"qualified repeat: {Tree.Inner.Third.Read()}");
+            Console.WriteLine($"imported leaf: {Value.Read()}");
+            Console.WriteLine($"sibling: {Tree.Inner.Sibling.Value.Read()}");
+            Console.WriteLine($"eight levels: {N1.N2.N3.N4.N5.N6.N7.Deep.Read()}");
+        }
+    }
+
+    namespace Tree
+    {
+        public class Root
+        {
+            public static int Read() { return 10; }
+        }
+
+        namespace Inner
+        {
+            public class First
+            {
+                public static int Read() { return Root.Read() + 1; }
+            }
+
+            namespace Qualified.Leaf
+            {
+                public class Value
+                {
+                    public static int Read() { return Third.Read() + 1; }
+                }
+            }
+
+            namespace Sibling
+            {
+                public class Value
+                {
+                    public static int Read() { return 20; }
+                }
+            }
+        }
+    }
+
+    namespace N1
+    {
+        namespace N2
+        {
+            namespace N3
+            {
+                namespace N4
+                {
+                    namespace N5
+                    {
+                        namespace N6
+                        {
+                            namespace N7
+                            {
+                                public class Deep
+                                {
+                                    public static int Read() { return 8; }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    namespace Empty { }
+}
+
+namespace NestedBlockNamespaces
+{
+    namespace Tree
+    {
+        namespace Inner
+        {
+            public class Second
+            {
+                public static int Read() { return First.Read() + 1; }
+            }
+        }
+    }
+}
+
+namespace NestedBlockNamespaces.Tree.Inner
+{
+    public class Third
+    {
+        public static int Read() { return Second.Read() + 1; }
+    }
+}

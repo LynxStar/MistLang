@@ -2131,3 +2131,10 @@ Build<Widget, string>:   Widget(string b)
 [culture] Shout(istanbul)=ISTANBUL
 [culture] Half()=1.5
 === Purity Done ===
+=== Nested Block Namespaces Sample ===
+ancestor: 11
+repeated: 12
+qualified repeat: 13
+imported leaf: 14
+sibling: 20
+eight levels: 8

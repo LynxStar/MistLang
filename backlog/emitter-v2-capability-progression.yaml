@@ -4312,32 +4312,42 @@ capabilities:
     order: 75
     layer: nested-declarations
     requires: [namespace-block-form, nested-type-declarations]
-    v2_status: partial
+    v2_status: done
     verified_by: v2-semantics
     evidence: >
-      TWO FORMS UNDER ONE NAME, and only one of them is outstanding. REPEATED block namespaces of the
-      same name work and are banked: BlockNamespaces.mist declares
+      REPEATED top-level block namespaces remain banked: BlockNamespaces.mist declares
       `namespace NestedScoping.Utilities` twice and resolves StringHelper and MathHelper across the
-      two, in NestedScoping, byte-identical to classic. NESTED block namespaces do not.
+      two, in NestedScoping, byte-identical to classic.
 
-      RECLASSIFIED FROM `missing`, which broke this file's own invariant rather than being merely
-      imprecise: NestedScoping is banked and lists this capability, and a sample may sit over a
-      `partial` whose residue it avoids but never over a `missing`. The status said nothing here
-      worked while half of it was carrying a green sample.
+      Measured 2026-09-27 from main 13b67c0e: NamespaceBuilder now recursively registers blocks,
+      and TypeBuilder composes their names with the enclosing block's full name, sharing one
+      token-based BlockNamespaceName helper. No resolver, grammar, Driver or emitter changes.
+      NamespaceConstructionTests supplies hand-built ASTs at Tier 2 with stub ambient types:
+      10 cases fail before the fix and pass after it. They assert simple and qualified inner
+      names (including a repeated segment), eight levels, empty block registration, full-name
+      lookup, imports, ancestor visibility and shadowing, repeated declarations across files,
+      qualified/nested equivalence, sibling isolation and existing top-level block behavior.
 
-      THE RESIDUE IS THE TRULY NESTED FORM, `namespace Outer { namespace Inner { } }`, and the sample
-      documents avoiding it in BlockNamespaces.mist -- it spells `namespace NestedScoping.Networking.Protocol`
-      qualified instead, which is namespace-block-form and already done. Measured on both pipelines:
-      classic emits C# that does not compile, doubling the prefix so `Inner` is looked for inside
-      `Outer.Inner`; v2 fails earlier, never binding the nested path at all.
-    tasks:
-      - >
-        Bind and emit a block namespace nested inside a block namespace. Both pipelines refuse
-        `Outer.Inner.Deep.Value()` (measured 2026-09-12): classic twice as MIST_UNDEFINED_IDENTIFIER, v2
-        once as MIST_PM_UNRESOLVED_IDENTIFIER at the first segment, which is the right place for the
-        complaint now that a failed receiver no longer cascades into the enclosing call. Still unbound
-        on both; the diagnostic is no longer misleading.
-    unlocks: []
+      NestedBlockNamespaces is banked in AllFeaturesV2. Its calls produce ancestor 11,
+      repeated 12, qualified repeat 13, imported leaf 14, sibling 20 and eight levels 8.
+      Captured stdout was reviewed against the call chain by hand. Emitted Program.cs was
+      inspected: six distinct full namespace declarations, each exactly once, First/Second/Third
+      merged under NestedBlockNamespaces.Tree.Inner, no doubled or lost prefix, empty block omitted.
+      These emission observations are system/sample evidence, not Tier 2 assertions.
+
+      Verification: dotnet build Mist.slnx --no-restore -p:UseSharedCompilation=false succeeds
+      with zero warnings/errors; dotnet format Mist.slnx --verify-no-changes --no-restore passes.
+      Filtered ledger 20260927-133250 passes all 10 construction cases; full solution ledger
+      20260927-133445 passes 9501 tests (8725 Mist, 708 Storm, 68 CLI), including both AllFeatures
+      baseline guards, in 194 seconds. The pre-fix failing ledger is 20260927-133016.
+
+      V2-ONLY: classic still reports MIST_UNDEFINED_IDENTIFIER for Tree and N1 on this sample;
+      before the fix v2 reports MIST_PM_UNRESOLVED_IDENTIFIER for Value, N1, Third and Second.
+      Nested-scoping requirements 5.2-5.3, 6 and 11 supply the nested-block contract. Mixed
+      file-scoped/block namespaces remain outside this measurement because 3 and 5.4 conflict.
+      Extension/newtype emission within nested blocks is not exercised by this class-based sample.
+    tasks: []
+    unlocks: [NestedBlockNamespaces]
 
   # ===================================================================
   # Layer N -- unions, optionals and the unknown top type.
@@ -11098,6 +11108,18 @@ samples:
       - No implementor fills a slot with a type that violates its constraint, so constraint
         validation is unexercised across all twelve patterns.
 
+  - name: NestedBlockNamespaces
+    intro_order: 75
+    threshold: nested-block-namespaces
+    requires: [nested-block-namespaces, namespace-block-form, class-declaration,
+               methods-static-and-instance, string-interpolation]
+    untested:
+      - >
+        V2-ONLY: classic cannot resolve Tree and N1 (MIST_UNDEFINED_IDENTIFIER), while
+        nested-scoping 5.2 requires recursive namespace identity. The seven stdout lines
+        were captured from v2 and reviewed by hand: calls yield 11, 12, 13, 14, 20 and 8.
+      - Mixed file-scoped/block namespaces and nested extension/newtype emission are not covered.
+
   - name: NestedScoping
     intro_order: 46
     threshold: enum-variant-value-inference
@@ -12697,8 +12719,9 @@ uncovered_constructs:
 
   - construct: NamespaceNamespaceItemNamespaceBodyItemNode
     what: A namespace nested inside a namespace body
-    disposition: needs-sample
+    disposition: covered
     capability: nested-block-namespaces
+    note: NestedBlockNamespaces exercises simple and qualified inner declarations through eight levels on v2.
 
   - construct: NestedNewtypeMemberMemberDeclarationNode
     what: A newtype nested inside a type

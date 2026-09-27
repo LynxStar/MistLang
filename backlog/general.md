@@ -822,6 +822,7 @@ N(n => n > 1);
 Mist resolves the call (no diagnostic), but the lambda is emitted bare, so Roslyn reports the call ambiguous between `N(Func<int, bool>)` and `N(Predicate<int>)` (MIST_CS_ERROR). The same holds for a method group argument. Nothing about purity is involved; a `pure func` overload beside the delegate one now ranks the pure overload first at the Mist level (LambdaTrials.ComparedType keeps the purity of either side) and meets the same C# ambiguity.
 
 **Action:** when the selected overload has a same-shaped delegate sibling, emit the argument target-typed (`new System.Func<int, bool>(...)` or a cast), and pin it at Tier 4.
+
 ## An extension method is shadowed by a CLR instance member Standard leaves undeclared
 
 Found 2026-09-27 by the purity adversarial rounds (v2). The emitter writes extension calls in dot
@@ -1138,3 +1139,69 @@ separates the two adjacent minus signs.
 **Action:** keep a space or the parentheses between two adjacent `-` operators, and check `+(+x)`, which
 has the same shape; pin `-(-x)` and `-(-5)` at Tier 3 on the emitted text and at Tier 4 on the printed
 value.
+
+---
+
+## 🟡 The CLI no longer reads its own output back as source, but the Driver still does for a referenced project
+
+**Severity: medium** -- corrected in the CLI on 2026-09-27. What remains is the same exclusion for referenced projects, which the Driver owns: lexing any sample that `AllFeatures` or `AllFeaturesV2` references breaks both orchestrators in that checkout until its `out/` is deleted.
+
+**What was wrong.** `Source/Mist.CLI/Program.cs` held three copies of `Directory.EnumerateFiles(projectFolder, "*.mist", AllDirectories)` (build, run, test), each run before the output and bin directories were cleaned. Lex mode writes a reconstructed `.mist` beside each token dump in `<output>/lexer/`, so the next invocation discovered those files, cleaned them away, and then tried to read them. Lex output was also flattened to the file name, so `Alpha/Foo.mist` and `Beta/Foo.mist` wrote the same two artifacts. Measured at 13b67c0e on a four-file project (`Program.mist`, `Alpha/Foo.mist`, `Beta/Foo.mist`, `util/Helper.mist`):
+- The first lex left one `Foo.*` pair.
+- The second relexed `out/lexer/Foo.mist` and `out/lexer/Program.mist`, then exited 1 on `Failed to read 'out\lexer\Helper.mist'`. That file sorts after `out/`, so the clean had deleted it before discovery's list reached it.
+- `build --pipeline experimental` then failed with `MIST_FILE_ERROR` for the three deleted files.
+
+Without lex artifacts, the same project builds and runs (`alpha`, `beta`, `helper`).
+
+**Correction.** `Source/Mist.CLI/Layout/ProjectLayout.cs` is the one discovery policy, and build, run, test and lex all use it. A `.mist` file is a source unless it lies inside the effective output or bin directory. That is decided on full paths resolved against the working directory, as the clean resolves them, so a relative `--output` is not reinterpreted against the project. It is also decided on whole segments, so `out-other` stays a source folder.
+- Lex artifacts keep the source's project-relative path (`<output>/lexer/Alpha/Foo.tokens`).
+- An output or bin directory that is, or contains, the project is refused before anything is cleaned. Before this, such a directory was cleaned like any other, deleting the project.
+- Requirements 2.4-2.5, 4.6 and 8.5 of `project-based-build-model` record the policy, each with an amendment note.
+
+**Verification.**
+- These pass:
+  - `ProjectLayoutTests` (Tier 1, 22 cases, no I/O).
+  - `MistFileDiscoveryTests` (Tier 2, one temp tree). It replaces three tests that exercised `Directory.EnumerateFiles` itself.
+  - `RepeatedCliInvocationTests` (Tier 5: lex, lex, experimental build over one temp project, about 5 s).
+  - All 89 `Mist.CLI.Tests`.
+  - Through the rebuilt CLI: `AllFeatures`, `AllFeaturesV2`, `Testing` under `mist test`, and `NestedBuildBanTest`.
+- With `Program.cs` reverted to 13b67c0e, the Tier 5 test fails on the second lex (exit 1, `Failed to read ...\out\lexer\Helper.mist`).
+- Five mutations of `ProjectLayout` each fail the tests aimed at them:
+  - no exclusion: 9 cases, including the Tier 2 tree;
+  - flattened lex names: 2;
+  - prefix match without a segment boundary: 3;
+  - relative overrides resolved against the project: 10;
+  - unnormalized string prefix: 6.
+- The overlap refusal was run by hand, on a disposable nested copy only. The spellings were `--output <project>`, `<project>/`, `<project>/Alpha/..` and `.`, and `--bin <parent>` and `<project>/../`, plus the same refusal through `run`, `test` and lex. Every one exited 1, and the tree was unchanged, including a sentinel file in the parent.
+
+**What remains.**
+1. `ProjectReferenceResolver` (`Source/Mist/Driver/ProjectReferenceResolver.cs:194`) still takes every `.mist` file under a referenced project, and the referencing build does not clean that project's `out/`.
+   - Measured on disposable copies: `mist build HelloMist --mode lex`, then an experimental build of a project referencing HelloMist, fails with `MIST_PM_DUPLICATE_TYPE` on `HelloMist/out/lexer/Color.mist`, `Point.mist` and `Program.mist`.
+   - No checkout on this machine held such files on 2026-09-27.
+   - The fix belongs to the Driver's owner: exclude the referenced project's default `out/` and `bin/`. For the Driver to share `ProjectLayout`, it would have to move from `Mist.CLI` into `Mist`.
+2. Files left in a directory that an earlier invocation used as output, under different flags, are still discovered. Requirement 2's amendment note says so.
+
+
+---
+
+## 🟢 Project-reference names bypass validation on repeated edges, and invalid manifests load repeatedly
+
+**Closed (2026-09-27):** `ProjectReferenceResolver` caches each canonical path's manifest load, including null failures, within one resolution. It validates every edge to a successfully loaded target before completed/active traversal checks. A mismatched edge skips dependencies without preventing a later valid edge from traversing them. DFS cycle chains, dependency-first ordering, partial results and sibling-error collection remain intact. The public entry point, parser, records, descriptors and source discovery policy are unchanged; the resolver has an internal manifest/source-loader seam for direct graph tests. Its XML contract now describes partial results and named `[references]` syntax.
+
+**Defect revalidated:** on the starting `main` commit `2ef14e1d`, after extracting only injectable loaders while retaining the original DFS, the Tier 2 ledger run `20260927-144647` passed 7/17 and failed 10/17. The correct-first diamond omitted the alias mismatch; wrong-first reloaded the target; three edges to a failed load produced three manifest diagnostics. Distinct aliases after completion and mismatched edges to active targets also bypassed name validation. These graph cases use hand-built configurations and stub loaders, with no parser, filesystem, compiler or processes.
+
+**Actual verification:**
+
+```sh
+tools/test-ledger/run.sh Test/Mist.Tests --filter 'FullyQualifiedName~ProjectReferenceGraphTests&Tier=2'
+tools/test-ledger/run.sh Test/Mist.Tests --filter '(FullyQualifiedName~ProjectReferenceGraphTests&Tier=2)|(FullyQualifiedName~ProjectReferenceManifestSeamTests&Tier=4)|FullyQualifiedName~ProjectReferenceResolverTests|FullyQualifiedName~ProjectReferencePropertyTests'
+dotnet format whitespace Mist.slnx --no-restore --include Source/Mist/Driver/ProjectReferenceResolver.cs Test/Mist.Tests/Driver/ProjectReferenceGraphTests.cs Test/Mist.Tests/Driver/ProjectReferenceManifestSeamTests.cs
+dotnet format Mist.slnx --verify-no-changes --report TestResults/project-reference-format-report
+git diff --check
+```
+
+The final ledger `20260927-145107` passed 37/37, with 0 build warnings and 0 errors: 17 new Tier 2 graph cases, 3 new Tier 4 parser/filesystem seam cases, and 17 existing resolver/property cases. New tests each have exactly one class-level Tier trait and private task-specific fixtures. Coverage includes either diamond order, skipped traversal, later valid edges, distinct aliases, ordinal name matching, successful/failed cache scope, exact root/self/longer cycle chains, normalized named-manifest paths, real malformed TOML and missing-name diagnostics, and existing missing-target/path errors. Formatting exited 0 with an empty report after correcting local-function names and enabling restore; the earlier no-restore solution check lacked assets for other test projects. `git diff --check` passed.
+
+**Limits and integration:** no full-solution build or full ledger checkpoint was run; verification builds the Mist test project and its dependencies. Other lanes advanced `main` during this work, so the branch remains based on the clean starting commit above. The purity lane's committed and working changed-file lists were inspected read-only; no source/test ownership overlap or implementation dependency was found. This appended backlog evidence is the only shared-file integration point. Root back-edges retain cycle diagnostics without reloading the root; the entry point receives the root folder and references rather than its configuration.
+
+**Integration verification (2026-09-27):** merged current `main` at `bb4f345e`; only the appended backlog entries conflicted, and both were preserved. The same filtered ledger command above passed 37/37 in `20260927-150424`, with 0 build warnings and 0 errors. `dotnet format Mist.slnx --verify-no-changes --report TestResults/project-reference-main-format-report` exited 0 with an empty report; `git diff --check` passed.

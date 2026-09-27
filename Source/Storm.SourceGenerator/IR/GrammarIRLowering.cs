@@ -392,7 +392,8 @@ public static class GrammarIRLowering
 
     /// <summary>
     /// Walks a rule expression and collects all anonymous string literals,
-    /// creating synthetic <see cref="TokenIR"/> entries for each unique literal.
+    /// creating synthetic <see cref="TokenIR"/> entries for each unique literal
+    /// that no declared token spells.
     /// </summary>
     private static void CollectAnonymousStringLiterals(
         StormExpression expr,
@@ -404,7 +405,7 @@ public static class GrammarIRLowering
         {
             case StormStringLiteralExpr strExpr:
                 var synthName = SyntheticTokenName(strExpr.Value);
-                if(!syntheticTokens.ContainsKey(synthName) && !existingTokens.ContainsKey(synthName))
+                if(DeclaredTokenSpelling(strExpr.Value, existingTokens.Values) == null && !syntheticTokens.ContainsKey(synthName) && !existingTokens.ContainsKey(synthName))
                 {
                     var synthToken = new TokenIR(
                         synthName,
@@ -484,6 +485,30 @@ public static class GrammarIRLowering
             default:
                 break;
         }
+    }
+
+    /// <summary>
+    /// A synthetic token is lexed in the default mode after every declared token, so a declared default-mode token
+    /// spelled exactly like the literal always wins the tie and the synthetic one never appears. The literal names that
+    /// token instead, a hidden one included, just as writing its name would. A token of another mode never competes,
+    /// and a pattern that merely admits the text is not recognised here.
+    /// </summary>
+    internal static TokenIR? DeclaredTokenSpelling(string literal, IEnumerable<TokenIR> tokens)
+    {
+        return tokens
+            .Where(token => !token.IsSynthetic && token.Mode == "default" && Spells(token.Expression, literal))
+            .OrderBy(token => token.DeclarationIndex)
+            .FirstOrDefault();
+    }
+
+    private static bool Spells(ExpressionIR pattern, string literal)
+    {
+        return pattern switch
+        {
+            StringLiteralIR text => text.Value == literal,
+            InlineFragmentIR fragment => Spells(fragment.Body, literal),
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -664,6 +689,12 @@ public static class GrammarIRLowering
                 return new StringLiteralIR("");
 
             case StormStringLiteralExpr strExpr:
+                var declaredToken = DeclaredTokenSpelling(strExpr.Value, tokensByName.Values);
+                if(declaredToken != null)
+                {
+                    return new TokenRefIR(declaredToken);
+                }
+
                 // Replace with a reference to the synthetic token
                 var synthName = SyntheticTokenName(strExpr.Value);
                 if(syntheticTokens.TryGetValue(synthName, out var synthToken))

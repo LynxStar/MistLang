@@ -1,0 +1,193 @@
+using System.Collections.Immutable;
+using System.Diagnostics;
+using Mist.Analysis.Builtin;
+using Mist.Analysis.Contracts;
+using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
+using Mist.Common.Diagnostics;
+using Mist.Driver;
+using Mist.Driver.Contracts;
+using Mist.Semantics.Model;
+
+namespace Mist.Tests.Integration;
+
+/// <summary>
+/// Tier 4, the boundary from emitted C# to the runtime: purity Requirement 13.2 says the members Standard
+/// declares pure read no process state, and the current culture is process state the environment sets before
+/// the program starts. The emitted text names the invariant culture (InvariantCultureEmissionTests); only
+/// running the program under a culture that formats, orders and case-maps differently shows the CLR honoring
+/// it. One compile, two runs, and each run first prints the culture it got, so a machine without ICU or one
+/// that ignores LANG fails here instead of passing for nothing.
+/// </summary>
+[Trait("Tier", "4")]
+public sealed class CultureInvariantEmissionTests : IDisposable
+{
+    private const string Program = """
+        using Standard;
+        using System.Globalization;
+
+        namespace Invariant;
+
+        public class Program
+        {
+            public static pure string Up(string s)
+            {
+                return s.ToUpper();
+            }
+
+            public static pure string Shown(double d)
+            {
+                return $"{d}";
+            }
+
+            public static pure int Parsed(string s)
+            {
+                return Convert.ToInt32(s);
+            }
+
+            public static pure string Sorted()
+            {
+                owned var words = new List<string>();
+                words.Add("b");
+                words.Add("a");
+                words.Add("B");
+                words.Add("I");
+                words.Add("i");
+                words.Sort();
+                return words[0] + words[1] + words[2] + words[3] + words[4];
+            }
+
+            public static pure bool Insensitive(string s)
+            {
+                return `(?i)i`.IsMatch(s);
+            }
+
+            public static string Held<T>(T value)
+            {
+                return $"{value}";
+            }
+
+            public static T Least<T>(List<T> items)
+            {
+                items.Sort();
+                return items[0];
+            }
+
+            public static void Main()
+            {
+                Console.WriteLine(CultureInfo.CurrentCulture.Name);
+                Console.WriteLine(Up("i"));
+                Console.WriteLine(Shown(1.5));
+                Console.WriteLine(Parsed("1234"));
+                Console.WriteLine(Sorted());
+                Console.WriteLine(Insensitive("I"));
+                Console.WriteLine("d=" + -2.5);
+                Console.WriteLine(Held((1.5, -2)));
+                Console.WriteLine(3.25);
+                var letters = new List<string>();
+                letters.Add("I");
+                letters.Add("i");
+                Console.WriteLine(Least(letters));
+                var pairs = new List<(string, int)>();
+                pairs.Add(("I", 1));
+                pairs.Add(("i", 2));
+                pairs.Sort();
+                Console.WriteLine($"{pairs[0]}");
+            }
+        }
+        """;
+
+    private static readonly string[] Invariant = ["I", "1.5", "1234", "abBiI", "True", "d=-2.5", "(1.5, -2)", "3.25", "i", "(i, 2)"];
+
+    private readonly string scratchDir;
+
+    public CultureInvariantEmissionTests()
+    {
+        scratchDir = Path.Combine(Path.GetTempPath(), "mist-culture-invariant-" + Guid.NewGuid().ToString("N"));
+        _ = Directory.CreateDirectory(scratchDir);
+    }
+
+    public void Dispose()
+    {
+        if(Directory.Exists(scratchDir))
+        {
+            try { Directory.Delete(scratchDir, recursive: true); } catch(IOException) { }
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    [Fact]
+    public void AProgramRunUnderTurkishAndGermanCultures_PrintsTheInvariantText()
+    {
+        var artifact = Compile();
+
+        Assert.Equal(["tr-TR", .. Invariant], Run(artifact, "tr_TR.UTF-8"));
+        Assert.Equal(["de-DE", .. Invariant], Run(artifact, "de_DE.UTF-8"));
+    }
+
+    private string Compile()
+    {
+        var sourcePath = Path.Combine(scratchDir, "Program.mist");
+        File.WriteAllText(sourcePath, Program);
+
+        var driver = new CompilerDriver(
+            new Mist.Lexing.MistLexer(),
+            new Mist.Parsing.MistParser(),
+            new SemanticModelBuilder(),
+            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
+            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+
+        var result = driver.Compile(new CompilerOptions(
+            ProjectFolder: scratchDir,
+            SourcePaths: ImmutableArray.Create(sourcePath),
+            Backend: new BackendId("csharp"),
+            OutputDirectory: Path.Combine(scratchDir, "out"),
+            BinDirectory: Path.Combine(scratchDir, "bin"),
+            ProjectName: "Invariant",
+            NamespaceRoot: "Invariant",
+            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
+            Pipeline: PipelineMode.Experimental));
+
+        var errors = result.Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .Select(d => $"  {d.Id.Value}: {d.Message}")
+            .ToList();
+
+        Assert.True(errors.Count == 0, $"Compilation failed:\n{string.Join("\n", errors)}");
+        Assert.NotNull(result.PrimaryOutputArtifactPath);
+
+        return result.PrimaryOutputArtifactPath;
+    }
+
+    private static string[] Run(string artifact, string locale)
+    {
+        var start = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        start.ArgumentList.Add(artifact);
+        start.Environment["LANG"] = locale;
+        start.Environment["LC_ALL"] = locale;
+        _ = start.Environment.Remove("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT");
+
+        using var process = Process.Start(start);
+
+        Assert.NotNull(process);
+
+        var stdout = process.StandardOutput.ReadToEnd();
+        var stderr = process.StandardError.ReadToEnd();
+        _ = process.WaitForExit(60000);
+
+        Assert.True(process.ExitCode == 0, stderr);
+
+        return stdout.ReplaceLineEndings("\n").TrimEnd().Split('\n');
+    }
+}

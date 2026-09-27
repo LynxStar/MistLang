@@ -1,0 +1,63 @@
+using Standard;
+
+namespace PurityTypes;
+
+public local class Tally
+{
+    private int total;
+
+    public pure Tally(int start)
+    {
+        total = start;
+    }
+
+    public void Add(int n)
+    {
+        total = total + n;
+    }
+
+    public readonly int Total
+    {
+        get { return total; }
+    }
+}
+
+public pure class Money
+{
+    public int Cents;
+
+    public Money(int cents)
+    {
+        Cents = cents;
+    }
+
+    public Money Plus(Money other)
+    {
+        return new Money(Cents + other.Cents);
+    }
+}
+
+public class Program
+{
+    public static pure int Counted(int a, int b)
+    {
+        owned var tally = new Tally(10);
+        tally.Add(a);
+        tally.Add(b);
+        return tally.Total;
+    }
+
+    public static pure int Combined(Money a, Money b)
+    {
+        return a.Plus(b).Cents;
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine($"Counted(3, 4)={Counted(3, 4)}");
+
+        var price = new Money(250);
+        var tax = new Money(20);
+        Console.WriteLine($"Combined(price, tax)={Combined(price, tax)}");
+    }
+}

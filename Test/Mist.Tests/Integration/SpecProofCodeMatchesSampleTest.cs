@@ -58,6 +58,15 @@ public class SpecProofCodeMatchesSampleTest
         ("delegate-func-conversion", 0),
     ];
 
+    /// <summary>
+    /// Blocks whose sample is V2-ONLY: referenced from AllFeaturesV2 alone, so their output is a slice
+    /// of that baseline instead.
+    /// </summary>
+    private static readonly HashSet<(string Spec, int Block)> ExperimentalOnly =
+    [
+        ("purity", 0),
+    ];
+
     [Fact]
     public void EveryProofCodeBlock_AppearsVerbatim_InItsDesignatedSample()
     {
@@ -134,6 +143,7 @@ public class SpecProofCodeMatchesSampleTest
         Assert.True(File.Exists(baselineFile), $"Baseline not found: {baselineFile}");
 
         var baseline = File.ReadAllText(baselineFile).Replace("\r\n", "\n");
+        var experimentalBaseline = File.ReadAllText(Path.Combine(repoRoot, "samples", "__baselines__", "AllFeaturesV2.out")).Replace("\r\n", "\n");
         var checkedBlocks = 0;
         var failures = new List<string>();
 
@@ -157,10 +167,11 @@ public class SpecProofCodeMatchesSampleTest
 
                 checkedBlocks++;
                 var expected = blocks[i].Groups[1].Value.Replace("\r\n", "\n").Trim('\n');
+                var experimental = ExperimentalOnly.Contains((spec, i));
 
-                if(!baseline.Contains(expected, StringComparison.Ordinal))
+                if(!(experimental ? experimentalBaseline : baseline).Contains(expected, StringComparison.Ordinal))
                 {
-                    failures.Add($"{spec} block {i} expected output is not a slice of AllFeatures.out");
+                    failures.Add($"{spec} block {i} expected output is not a slice of {(experimental ? "AllFeaturesV2.out" : "AllFeatures.out")}");
                 }
             }
         }

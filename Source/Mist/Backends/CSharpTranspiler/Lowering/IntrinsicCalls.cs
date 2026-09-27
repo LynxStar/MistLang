@@ -15,7 +15,9 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// not listed: it is the one call spelled as a statement form rather than a call, `await`, which
 /// <c>BodyEmitter.EmitTaskDrop</c> owns. An array's GetEnumerator constructs the struct the backend
 /// generates, see <see cref="ArrayEnumeration"/>. A regex's full match and Pattern are derived from
-/// members the CLR has. The task combinators and array generation are runtime helpers.
+/// members the CLR has. The task combinators and array generation are runtime helpers. String's case
+/// mapping, Convert's text conversions and List's Sort name the invariant culture, see
+/// <see cref="InvariantCulture"/>.
 /// <para>
 /// <see cref="IntrinsicSupply"/> reads <see cref="Respells"/> and <see cref="RespellsProperty"/> to
 /// tell a kept promise from an unkept one, which is what makes this list the whole of the
@@ -39,6 +41,12 @@ internal static class IntrinsicCalls
         ArrayGeneration,
 
         ArrayEnumerator,
+
+        InvariantCase,
+
+        InvariantConversion,
+
+        InvariantOrder,
     }
 
     public static bool Respells(Method? callee)
@@ -57,8 +65,10 @@ internal static class IntrinsicCalls
     }
 
     public static string Rewrite(
-        Method callee, string? receiver, IMistType? receiverType, IReadOnlyList<string> arguments)
+        Method callee, string? receiver, IMistType? receiverType, IReadOnlyList<string> arguments, bool conditional = false)
     {
+        var access = conditional ? "?." : ".";
+
         return Classify(callee) switch
         {
             Respelling.TypeOf => $"{arguments[0]}.GetType()",
@@ -69,6 +79,9 @@ internal static class IntrinsicCalls
             Respelling.TaskCombinator => TaskCombinators.Rewrite(callee, arguments),
             Respelling.RegexFullMatch => RegexLowering.IsFullMatch(
                 arguments[0], RegexLowering.PatternOf(Receiver(callee, receiver))),
+            Respelling.InvariantCase => $"{Receiver(callee, receiver)}{access}{callee.Name}Invariant()",
+            Respelling.InvariantConversion => $"System.Convert.{callee.Name}({string.Join(", ", arguments)}, {InvariantCulture.Provider})",
+            Respelling.InvariantOrder => $"{Receiver(callee, receiver)}{access}Sort({InvariantCulture.Order(receiverType)})",
             _ => throw new InvalidOperationException(
                 $"ICE: '{callee.Name}' is not an invocation the backend respells."),
         };
@@ -102,8 +115,23 @@ internal static class IntrinsicCalls
                 when declaring?.FullyQualifiedName == WellKnownTypes.Type.FullyQualifiedName => Respelling.TypeOf,
             { Name: "Clone", ParametersList.Count: 0 } when ClonesAsItself(declaring) => Respelling.CloneAsSelf,
             { Name: "IsFullMatch", ParametersList.Count: 1 } when RegexLowering.Is(declaring) => Respelling.RegexFullMatch,
+            { Name: "ToUpper" or "ToLower", ParametersList.Count: 0 } when Declares(declaring, WellKnownTypes.String.FullyQualifiedName)
+                => Respelling.InvariantCase,
+            { Modifiers.IsStatic: true } when Declares(declaring, "Standard.Convert") && ConvertsText(callee) => Respelling.InvariantConversion,
+            { Name: "Sort", ParametersList.Count: 0 } when Declares(declaring, "Standard.List<>") => Respelling.InvariantOrder,
             _ when TaskCombinators.Combines(callee) => Respelling.TaskCombinator,
             _ => Respelling.None,
         };
+    }
+
+    private static bool Declares(MemberType? declaring, string fullyQualifiedName)
+    {
+        return declaring?.FullyQualifiedName == fullyQualifiedName;
+    }
+
+    private static bool ConvertsText(Method callee)
+    {
+        return callee.ParametersList.Any(parameter => parameter.Type.FullyQualifiedName == WellKnownTypes.String.FullyQualifiedName)
+            || callee.ReturnType.FullyQualifiedName == WellKnownTypes.String.FullyQualifiedName;
     }
 }

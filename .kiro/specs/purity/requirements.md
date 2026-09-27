@@ -6,7 +6,7 @@ This document specifies what a member may do beyond its own scope, stated by thr
 
 The language already needs this in several places without having had a name for it: a default must start in the same state every time it is taken, a refinement predicate may only read what cannot change under it, and a pure scope that builds a collection must be able to call `Add` on it.
 
-> **DRAFT.** The model is settled. What waits on something Mist does not have yet is listed under Deferred at the end.
+> **Delivered** 2026-09-27 on the isolated v2 compiler. The Deferred section names what waits on a promise Mist does not have yet; the analysis register records the adversarial hunt as open work.
 
 ### What `pure` means
 
@@ -180,7 +180,7 @@ int Count(List<int> xs)
 
 1. A pure scope MAY read literals, `void`, enum variants, what it owns, the state of a `frozen` input, and any Stable_Field of any object it can reach, including a `readonly` static.
 2. A pure scope SHALL NOT read a field that is not a Stable_Field of an External object that is not a `frozen` input: reading the current contents of a reference it does not hold frozen is not pure, because the same reference can show different contents at different times.
-3. A pure scope SHALL NOT read any state outside the program -- the clock, randomness, the environment, files.
+3. A pure scope SHALL NOT read any state outside the program -- the clock, randomness, the environment, the current culture, files.
 4. A pure scope MAY create a lambda. The lambda's body is judged when it is called, or where it converts to a Pure_Function_Type (Requirement 16), not when it is created.
 
 ### Requirement 8: Declaration and Inference
@@ -230,6 +230,7 @@ int Count(List<int> xs)
 #### Acceptance Criteria
 
 1. None of these modifiers SHALL change the emitted program's behavior. THE C# backend MAY emit `[System.Diagnostics.Contracts.Pure]` on a Readonly_Member as documentation, C#'s attribute promising what `readonly` does.
+2. THE C# backend SHALL emit every conversion between a value and text, every text comparison and case mapping, and every regular expression that Mist performs on the program's behalf with the invariant culture, so the members Requirement 9.3 declares pure read no process state. A culture-aware form, if one is wanted, is a separate member that does not make the promise.
 
 ### Requirement 14: Editor Support
 
@@ -273,6 +274,93 @@ Twice(n => { Console.WriteLine(n); return n; }, 3);   // error: the lambda write
 6. As a type argument, the promise SHALL be part of the type: `List<pure func<int, int>>` and `List<func<int, int>>` are different types, and neither converts to the other.
 7. THE Compiler SHALL report an error for two overloads whose signatures differ only in whether a function type is pure. The promise is erased on emission (Requirement 13), so both would emit the same C# signature.
 8. WHEN a conversion to a Pure_Function_Type is refused, THE Compiler SHALL report an error at the operation in the lambda or method that breaks purity, as Requirement 10 does for a declared promise.
+
+### Requirement 17: Sample
+
+**User Story:** As a Mist developer, I want one program that uses every promise in this document where the spec admits it, so that its output shows each admission compiled and run.
+
+#### Acceptance Criteria
+
+1. A sample project SHALL exist at `samples/Purity/Program.mist` with a `mist.toml` where `name = "Purity"`.
+2. The sample SHALL exercise: a pure scope owning a list it builds and adds to; a pure scope reading a `frozen` input lent from an owned binding; a Local_Type driven by a pure scope through an owned binding; a pure higher-order member given a lambda, a `pure` lambda and a method group; a Pure_Function_Type named through an alias, converted to the plain function type and to a CLR delegate; a pure lambda capturing a `readonly` local; a constructorless type whose field initializer calls a pure constructor, defaulted twice and shown independent, and one holding a `List<T>`, taken by `default` and by `new` (Requirement 12.1); a Pure_Type called on a receiver the scope neither owns nor holds frozen; accessors stating their own promises; a `local readonly` local function; a pure member calling a member whose promise is inferred (Requirement 8.2); a readonly member changing what it created (Requirement 11); and case mapping and number formatting in a pure scope (Requirement 13.2).
+3. Each demonstration SHALL print a labelled line, so a wrong value is visible.
+4. The sample SHALL expose `public static void RunDemo()` in `Purity.Program`. It SHALL be referenced from `samples/AllFeaturesV2` alone: classic's Standard declares no `List<T>`, and classic binds no local function.
+5. The sample SHALL compile and run with no diagnostic of any severity.
+
+#### Proof Code
+
+```mist
+// PROOF: `local` on a type makes every instance member promise to touch only its instance: Add is
+// local, and Count, also written `readonly`, is local readonly. `local` does not reach a constructor,
+// which states its own `pure`.
+public local class Counter
+{
+    private int total;
+
+    public pure Counter(int start)
+    {
+        total = start;
+    }
+
+    public void Add(int n)
+    {
+        total = total + n;
+    }
+
+    public readonly int Count
+    {
+        get { return total; }
+    }
+}
+
+// PROOF: a pure scope may change what it owns -- a list it built, a Counter through an owned binding --
+// and may read a list it holds frozen. The loan ends with the call, so the owner adds again and the
+// next loan reads the new count.
+public class CoreDemo
+{
+    public static pure int Seeded()
+    {
+        owned var l = new List<int>();
+        l.Add(1);
+        l.Add(2);
+        l.Add(3);
+        return l.Count;
+    }
+
+    public static pure int Size(frozen List<int> xs)
+    {
+        return xs.Count;
+    }
+
+    public static pure int Counted(int a, int b)
+    {
+        owned var c = new Counter(10);
+        c.Add(a);
+        c.Add(b);
+        return c.Count;
+    }
+
+    public static void Run()
+    {
+        Console.WriteLine($"[core] Seeded()={Seeded()}");
+        owned var xs = new List<int>();
+        xs.Add(4);
+        xs.Add(5);
+        Console.WriteLine($"[core] Size(xs)={Size(xs)}");
+        xs.Add(6);
+        Console.WriteLine($"[core] Size(xs) after Add={Size(xs)}");
+        Console.WriteLine($"[core] Counted(3, 4)={Counted(3, 4)}");
+    }
+}
+```
+
+**Expected output:**
+```
+[core] Seeded()=3
+[core] Size(xs)=2
+[core] Size(xs) after Add=3
+[core] Counted(3, 4)=17
+```
 
 ## Deferred
 

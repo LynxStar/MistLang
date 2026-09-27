@@ -1,6 +1,6 @@
 # Requirements Document
 
-> **Amended** by [`purity`](../purity/requirements.md) Requirement 11 (draft, 2026-09-26): a readonly context may change what it owns -- write a field or index of, or call a setter of, what it created -- and may call a `local` member on an instance it owns, which base rules 6, 7 and 9 below do not yet say. That spec also defines `local` and `pure`, and makes every pure member readonly.
+> **Amended** by [`purity`](../purity/requirements.md) Requirement 11 (2026-09-26): a readonly context may change what it owns -- write a field or index of, or call a setter of, what it created -- and may call a `local` member on an instance it owns, which base rules 6, 7 and 9 below do not yet say. That spec also defines `local` and `pure`, and makes every pure member readonly.
 
 ## Introduction
 

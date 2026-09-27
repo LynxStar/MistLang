@@ -379,6 +379,13 @@ internal static class BodyEmitter
         EmitSubExpression(operand, precedence, writer, diagnostics);
     }
 
+    private static string Concatenated(Expression operand, int precedence, DiagnosticBag diagnostics)
+    {
+        return InvariantCulture.Fixes(operand.Type)
+            ? RenderAt(operand, precedence, diagnostics)
+            : InvariantCulture.Text(RenderAt(operand, PostfixPrecedence, diagnostics), operand.Type);
+    }
+
     private static void EmitCarrierCall(
         InvocationExpression call, MemberAccessExpression callee, string carrier, CSharpWriter writer, DiagnosticBag diagnostics)
     {
@@ -470,6 +477,12 @@ internal static class BodyEmitter
             if(arguments[i] is SpreadExpression spread && TupleWidth(spread.Operand.Type) is { } width)
             {
                 EmitTupleElements(spread.Operand, width, writer, diagnostics);
+                continue;
+            }
+
+            if(parameters is not null && i < parameters.Count && InvariantCulture.Writes(callee, parameters[i]) && !InvariantCulture.Fixes(arguments[i].Type))
+            {
+                writer.Append(InvariantCulture.Text(RenderAt(arguments[i], PostfixPrecedence, diagnostics), arguments[i].Type));
                 continue;
             }
 
@@ -926,7 +939,8 @@ internal static class BodyEmitter
                         respelled.Method!,
                         access is null ? null : RenderAt(access.Receiver, PostfixPrecedence, diagnostics),
                         access?.Receiver.Type,
-                        [.. respelled.Arguments.Select(argument => RenderAt(argument, PostfixPrecedence, diagnostics))]));
+                        [.. respelled.Arguments.Select(argument => RenderAt(argument, PostfixPrecedence, diagnostics))],
+                        access is { IsConditional: true }));
                     break;
                 }
 
@@ -938,6 +952,11 @@ internal static class BodyEmitter
             case InvocationExpression { Receiver: MemberAccessExpression { IsConditional: false } extended } extension
                 when ExtensionCalls.Carrier(extension.Method) is { } carrier:
                 EmitCarrierCall(extension, extended, carrier, writer, diagnostics);
+                break;
+
+            case InvocationExpression { Receiver: MemberAccessExpression { IsConditional: false } formatted } formatting
+                when InvariantCulture.FormatsItself(formatting.Method):
+                writer.Append(InvariantCulture.ObjectText(RenderAt(formatted.Receiver, PostfixPrecedence, diagnostics), formatted.Receiver.Type));
                 break;
 
             case InvocationExpression invocation:
@@ -1002,6 +1021,12 @@ internal static class BodyEmitter
                     binary.OperatorKind,
                     Render(binary.Left, diagnostics),
                     Render(binary.Right, diagnostics)));
+                break;
+
+            case BinaryExpression concatenation when InvariantCulture.Concatenates(concatenation):
+                writer.Append(
+                    $"{Concatenated(concatenation.Left, GetPrecedence(concatenation.OperatorKind), diagnostics)} + "
+                    + Concatenated(concatenation.Right, GetPrecedence(concatenation.OperatorKind) + 1, diagnostics));
                 break;
 
             // Every binary operator Mist has is left-associative, so a right operand of the same precedence is
@@ -1183,36 +1208,7 @@ internal static class BodyEmitter
                 break;
 
             case InterpolatedStringExpression interpolated:
-                writer.Append("$\"");
-                foreach(var part in interpolated.Parts)
-                {
-                    switch(part)
-                    {
-                        case InterpolatedStringText text:
-                            writer.Append(text.Text);
-                            break;
-                        case InterpolatedStringHole hole:
-                            writer.Append("{");
-
-                            // An optional's absence lowers to null, which interpolation prints
-                            // as the empty string; Mist prints it as the unit value's name.
-                            if(OptionalUnion.IsOptional(TypeNameEmitter.Closed(hole.Expression.Type)))
-                            {
-                                writer.Append("(object?)");
-                                EmitExpression(hole.Expression, writer, diagnostics);
-                                writer.Append(" ?? \"Void\"");
-                            }
-                            else
-                            {
-                                EmitExpression(hole.Expression, writer, diagnostics);
-                            }
-
-                            writer.Append("}");
-                            break;
-                    }
-                }
-
-                writer.Append("\"");
+                writer.Append(InterpolationEmitter.Emit(interpolated, hole => Render(hole, diagnostics)));
                 break;
 
             // Outside an argument list a spread stands for the whole value, which is what a
@@ -2377,6 +2373,12 @@ internal static class BodyEmitter
             && !IntrinsicSupply.Supplies(constructor))
         {
             ReportMissingIntrinsic(IntrinsicSupply.Describe(constructor), newExpression.Node, writer, diagnostics);
+            return;
+        }
+
+        if(RegexLowering.Is(newExpression.Type) && newExpression.Arguments is [var pattern])
+        {
+            writer.Append(RegexLowering.Construct(Render(pattern, diagnostics)));
             return;
         }
 

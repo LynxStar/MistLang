@@ -52,7 +52,20 @@ Ordered choice already gives Requirement 16.2 for free: every declaration that a
 
 ### Emission
 
-Nothing. `TypeNameEmitter.EmitFunction` reads parameters and result only; the modifiers are not read. `[Pure]` is not emitted.
+The modifiers change nothing: `TypeNameEmitter.EmitFunction` reads parameters and result only, and `[Pure]` is not emitted.
+
+Culture is what emission does change (Requirement 13.2). Mist is culture-invariant: every conversion between a value and text, every text comparison and case mapping, and every regular expression the emitted program performs on Mist's behalf names the invariant culture at the call. It is per call rather than a process-wide default, which the program could change, so a culture-aware member can later sit beside these without making the promise. The invariant culture rather than an ordinal comparison keeps the linguistic order the baselines were captured with. `Lowering/InvariantCulture` holds the rule, and it covers:
+
+- `String.ToUpper` and `ToLower`: `ToUpperInvariant` and `ToLowerInvariant`.
+- `Convert`'s conversions to and from text (`ToInt32(String)`): the overload taking `CultureInfo.InvariantCulture`.
+- Regular expressions -- a literal, a cast from `String`, `new Regex(p)`, a clone's backing regex, `IsFullMatch`, and a regex pattern in `is` or `switch`: `RegexOptions.CultureInvariant`.
+- An interpolated string with a numeric hole: `System.FormattableString.Invariant($"...")`. Not `string.Create`, whose handler cannot be held across an `await` in a hole. A `char` span in such a string is written as `new string(span)`, since a `FormattableString` boxes its holes.
+- A numeric operand of a string concatenation, a numeric argument to `Console.Write` or `WriteLine`, and a call to the object's own `ToString` on a numeric: `ToString(CultureInfo.InvariantCulture)`.
+- A value whose text is decided at runtime -- a type parameter, `unknown`, a tuple, an optional of one of these, a CLR type, a Mist type implementing `IFormattable` -- wherever it is formatted: `MistInvariant.Text`, a helper emitted into `__Invariant.g.cs` when used, which formats an `IFormattable` with the invariant culture and a tuple element by element, as `ValueTuple.ToString` would with the current one.
+- A newtype over a numeric primitive: its `ToString` formats the backing value with the invariant culture.
+- `List<T>.Sort()`: `StringComparer.InvariantCulture` for `string` elements, `MistInvariant.Comparer<T>()` for a type parameter or `unknown`, which orders two strings invariantly and anything else as `Comparer<T>.Default` does, and `MistInvariant.Elements<T>(...)` for a tuple holding text, which compares element by element with each element's comparer.
+
+An anonymous object is not covered: it formats through C#'s generated `ToString`, which reads the current culture. The judge refuses one as a hole in a pure scope (`FormatsByType`), so no pure member depends on it.
 
 ## Analysis phase
 

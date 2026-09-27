@@ -1,0 +1,343 @@
+// Purity -- `readonly`, `local` and `pure` state what a member may do beyond its own scope: a pure
+// scope changes only what it owns and reads only what cannot change, a local one touches only its own
+// instance, and a readonly one writes nothing it was given. Each section below runs such scopes where
+// the purity spec admits them and prints what they compute.
+//
+// V2-ONLY. Classic refuses this program (measured 2026-09-27): its Standard declares no List<T>
+// (MIST_UNDEFINED_TYPE), and it binds no local function (MIST_UNDEFINED_IDENTIFIER on `Widest`).
+
+using Standard;
+
+namespace Purity;
+
+type Step = pure func<int, int>;
+type Test = pure func<int, bool>;
+
+// PROOF: `local` on a type makes every instance member promise to touch only its instance: Add is
+// local, and Count, also written `readonly`, is local readonly. `local` does not reach a constructor,
+// which states its own `pure`.
+public local class Counter
+{
+    private int total;
+
+    public pure Counter(int start)
+    {
+        total = start;
+    }
+
+    public void Add(int n)
+    {
+        total = total + n;
+    }
+
+    public readonly int Count
+    {
+        get { return total; }
+    }
+}
+
+// PROOF: a pure scope may change what it owns -- a list it built, a Counter through an owned binding --
+// and may read a list it holds frozen. The loan ends with the call, so the owner adds again and the
+// next loan reads the new count.
+public class CoreDemo
+{
+    public static pure int Seeded()
+    {
+        owned var l = new List<int>();
+        l.Add(1);
+        l.Add(2);
+        l.Add(3);
+        return l.Count;
+    }
+
+    public static pure int Size(frozen List<int> xs)
+    {
+        return xs.Count;
+    }
+
+    public static pure int Counted(int a, int b)
+    {
+        owned var c = new Counter(10);
+        c.Add(a);
+        c.Add(b);
+        return c.Count;
+    }
+
+    public static void Run()
+    {
+        Console.WriteLine($"[core] Seeded()={Seeded()}");
+        owned var xs = new List<int>();
+        xs.Add(4);
+        xs.Add(5);
+        Console.WriteLine($"[core] Size(xs)={Size(xs)}");
+        xs.Add(6);
+        Console.WriteLine($"[core] Size(xs) after Add={Size(xs)}");
+        Console.WriteLine($"[core] Counted(3, 4)={Counted(3, 4)}");
+    }
+}
+
+// PROOF: a pure higher-order helper calls the function it is handed; a lambda and a method group
+// convert to its pure parameter, and an alias names the pure function type where a type is read.
+public class FunctionDemo
+{
+    public static pure int Twice(pure func<int, int> f, int x)
+    {
+        return f(f(x));
+    }
+
+    public static pure int Chain(Step first, Step second, int x)
+    {
+        return second(first(x));
+    }
+
+    public static pure int AddTen(int n)
+    {
+        return n + 10;
+    }
+
+    public static void Run()
+    {
+        Console.WriteLine($"[functions] Twice(n => n + 1, 3)={Twice(n => n + 1, 3)}");
+        Console.WriteLine($"[functions] Twice(AddTen, 1)={Twice(AddTen, 1)}");
+        Console.WriteLine($"[functions] Chain(n => n * 2, n => n - 1, 5)={Chain(n => n * 2, n => n - 1, 5)}");
+
+        var tripler = pure (int n) => n * 3;
+        Console.WriteLine($"[functions] Twice(tripler, 2)={Twice(tripler, 2)}");
+
+        // PROOF: a pure lambda may read a captured local nothing can assign after the capture.
+        readonly var offset = 100;
+        Step shift = n => n + offset;
+        Console.WriteLine($"[functions] Twice(shift, 1)={Twice(shift, 1)}");
+
+        // PROOF: a pure function value converts to the plain function type and to a CLR delegate.
+        Step inc = n => n + 1;
+        func<int, int> plain = inc;
+        Console.WriteLine($"[functions] plain(41)={plain(41)}");
+        Test even = n => n % 2 == 0;
+        System.Predicate<int> predicate = even;
+        Console.WriteLine($"[functions] predicate(6)={predicate(6)} predicate(7)={predicate(7)}");
+    }
+}
+
+public class Vec
+{
+    public int X;
+
+    public pure Vec(int x)
+    {
+        X = x;
+    }
+}
+
+// PROOF: a default evaluates its field initializers as pure expressions, so a constructorless type
+// may hold a value built by a pure constructor -- a Vec, or Standard's List -- and every default,
+// taken by `default` or by `new`, gets a fresh one.
+public class Holder
+{
+    public Vec V = new Vec(7);
+}
+
+public class Basket
+{
+    public List<int> Items = new List<int>();
+}
+
+public class DefaultDemo
+{
+    public static void Run()
+    {
+        var first = default(Holder);
+        var second = default(Holder);
+        first.V.X = 70;
+        Console.WriteLine($"[defaults] first.V.X={first.V.X} second.V.X={second.V.X}");
+
+        var defaulted = default(Basket);
+        var constructed = new Basket();
+        defaulted.Items.Add(1);
+        defaulted.Items.Add(2);
+        constructed.Items.Add(3);
+        Console.WriteLine($"[defaults] default(Basket).Items.Count={defaulted.Items.Count} new Basket().Items.Count={constructed.Items.Count}");
+    }
+}
+
+// PROOF: every member of a pure type is pure, constructor included, so a pure scope may call one on a
+// receiver it neither owns nor holds frozen.
+public pure class Money
+{
+    public int Cents;
+
+    public Money(int cents)
+    {
+        Cents = cents;
+    }
+
+    public Money Plus(Money other)
+    {
+        return new Money(Cents + other.Cents);
+    }
+}
+
+public class Dial
+{
+    public int Level { local readonly get; local set; }
+}
+
+public class TypeDemo
+{
+    public static pure int TotalCents(Money a, Money b)
+    {
+        return a.Plus(b).Cents;
+    }
+
+    // PROOF: each accessor states its own promise, so a pure scope reads and writes a dial it owns.
+    public static pure int Turned(int by)
+    {
+        owned var d = new Dial();
+        d.Level = 4;
+        d.Level = d.Level + by;
+        return d.Level;
+    }
+
+    // PROOF: a local readonly local function reads what it captured, which the pure scope owns.
+    public static pure int Spread()
+    {
+        var xs = new List<int>();
+        xs.Add(3);
+        xs.Add(9);
+        xs.Add(4);
+
+        local readonly int Widest()
+        {
+            var lo = xs[0];
+            var hi = xs[0];
+            for (var i = 1; i < xs.Count; i = i + 1)
+            {
+                if (xs[i] < lo)
+                {
+                    lo = xs[i];
+                }
+                if (xs[i] > hi)
+                {
+                    hi = xs[i];
+                }
+            }
+            return hi - lo;
+        }
+
+        return Widest();
+    }
+
+    public static void Run()
+    {
+        var a = new Money(250);
+        var b = new Money(175);
+        Console.WriteLine($"[types] TotalCents(250, 175)={TotalCents(a, b)}");
+        Console.WriteLine($"[types] Turned(3)={Turned(3)}");
+        Console.WriteLine($"[types] Spread()={Spread()}");
+    }
+}
+
+// PROOF: a member that declares nothing is inferred to keep the promises its body keeps, so a
+// declared pure caller may call it.
+public class InferenceDemo
+{
+    public static pure int SumOfSquares(int a, int b)
+    {
+        return Square(a) + Square(b);
+    }
+
+    public static int Square(int n)
+    {
+        return n * n;
+    }
+
+    public static void Run()
+    {
+        Console.WriteLine($"[inference] SumOfSquares(3, 4)={SumOfSquares(3, 4)}");
+    }
+}
+
+// PROOF: a readonly member may change what it created -- a local call on a fresh list, a field write
+// on a fresh object -- because readonly restricts only what it was given.
+public class Ruler
+{
+    private int marks;
+
+    public Ruler(int marks)
+    {
+        this.marks = marks;
+    }
+
+    public readonly List<int> Evens()
+    {
+        var evens = new List<int>();
+        for (var i = 0; i < marks; i = i + 1)
+        {
+            if (i % 2 == 0)
+            {
+                evens.Add(i);
+            }
+        }
+        return evens;
+    }
+
+    public readonly Vec Scaled()
+    {
+        var v = new Vec(0);
+        v.X = marks * 10;
+        return v;
+    }
+}
+
+public class ReadonlyDemo
+{
+    public static void Run()
+    {
+        var ruler = new Ruler(5);
+        var evens = ruler.Evens();
+        Console.WriteLine($"[readonly] Evens()={evens[0]},{evens[1]},{evens[2]} Count={evens.Count}");
+        Console.WriteLine($"[readonly] Scaled().X={ruler.Scaled().X}");
+    }
+}
+
+// PROOF: text conversion and case mapping in a pure scope use the invariant culture, so the same
+// input prints the same text whatever culture the process runs under.
+public class CultureDemo
+{
+    public static pure string Shout(string s)
+    {
+        return s.ToUpper();
+    }
+
+    public static pure string Half()
+    {
+        return $"{1.5}";
+    }
+
+    public static void Run()
+    {
+        Console.WriteLine($"[culture] Shout(istanbul)={Shout("istanbul")}");
+        Console.WriteLine($"[culture] Half()={Half()}");
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Purity Sample ===");
+        CoreDemo.Run();
+        FunctionDemo.Run();
+        DefaultDemo.Run();
+        TypeDemo.Run();
+        InferenceDemo.Run();
+        ReadonlyDemo.Run();
+        CultureDemo.Run();
+        Console.WriteLine("=== Purity Done ===");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

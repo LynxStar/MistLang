@@ -3890,3 +3890,269 @@ rules:
         A property or indexer accessor with a Mist body forgets every non-readonly field fact, whether or
         not it writes one; ReadonlyInference already answers whether a getter writes, and consulting it
         (for calls too) would keep a guard across a pure accessor. Sound, imprecise.
+
+# ===================================================================
+# Order 13 -- purity. Specified after the 91 tasks were ordered, from
+# a spec of its own; it closes one of them.
+# ===================================================================
+
+  - id: purity-checking
+    name: What a member may touch beyond its own scope -- readonly, local and pure
+    order: 13
+    subsystem: purity
+    requires: [ownership-borrow-checking, declaration-shape-checks, refinement-proving]
+    status: done
+    from: >
+      order 50 (default-value-synthesis), its analysis task "Report a field initializer of a defaultable
+      type, and a default block entry, that is not a pure expression"; and the purity spec
+      (.kiro/specs/purity), which states the rest and which no emitter task needed
+    evidence: >
+      THREE PROMISES AND ONE TYPE. `readonly` existed. `local` promises that a member touches only its own
+      instance, and `pure` promises no side effects and a deterministic result, with allocation allowed.
+      Both are new keywords, admitted on members, types, accessors, local functions and lambdas, and
+      `pure func<...>` is a function type. Commit e1c03a6a added the syntax and the model:
+      MemberModifiers.IsPure, which sets IsReadonly, and IsLocal, inherited from a type per Requirement
+      15; FunctionType.IsPure, interned separately and erased in overload signatures; and
+      LambdaExpression.IsPure and IsLocal. The binder reports MIST_PM_PURE_AND_LOCAL,
+      MIST_PM_READONLY_IMPLIED_BY_PURE (info), MIST_PM_LOCAL_REQUIRES_INSTANCE,
+      MIST_PM_PURITY_MODIFIER_PLACEMENT and MIST_PM_PURE_REQUIRES_FUNCTION_TYPE. Emission reads none of
+      the promises.
+
+      WHAT THE JUDGE REFUSES AND ADMITS. PurityJudge walks one body under Pure, Local or LocalReadonly.
+      Every answer goes through Origins, which says what the scope owns, what it holds frozen and what is
+      external. A scope owns a construction, an owned binding or parameter, a local that is fresh at every
+      assignment, a struct held by value, and a capture that its enclosing scope owns. A reference field
+      is external unless it is owned and reached through an owning reference. The judge refuses: writing
+      anything frozen or external; reading non-stable state of anything external; calling a readonly or
+      unmarked member; calling a local member on anything the scope does not own; calling a function value
+      that is not pure; `new` through a constructor that is not pure; storing a frozen or external
+      reference of a mutable type into an owned instance; and await, async blocks and with blocks. It
+      admits: anything done to what the scope owns; a stable field of anything; a pure member on anything;
+      a local readonly member on what the scope owns or holds frozen; a pure function value; and
+      allocating an array, tuple, anonymous object or lambda. Its analysis ids are
+      MIST_PA_PURE_SCOPE_WRITES, _READS_MUTABLE, _CALLS_IMPURE and _STORES_UNOWNED;
+      MIST_PA_LOCAL_SCOPE_READS_ARGUMENT; MIST_PA_PURE_FUNCTION_REQUIRED; MIST_PA_DEFAULT_NOT_CONSISTENT;
+      MIST_PA_PURITY_CONTRACT_NOT_MET, for an implementation that breaks its abstract's declared promise;
+      and MIST_PA_PURE_FUNCTION_TYPE_UNTESTABLE, for a runtime test or cast to a pure function type. The
+      ownership side adds MIST_PA_OWNED_RETURN_NOT_OWNED, MIST_PA_SLOT_RETURN_NOT_OWNED and
+      MIST_PA_OWNED_SOURCE_NOT_OWNED. PurityAnalyzer reports declared promises only. A member that
+      declares nothing is consulted only as a callee, so an inferred promise is never reported
+      (Requirement 3). A member declared pure or local readonly is judged by PurityAnalyzer alone, not by
+      ReadonlyAnalyzer as well: one mistake, one complaint.
+
+      THE WHOLE-PROGRAM FIXPOINT (Requirement 8). PurityInference starts every member that has a body with
+      all three promises. Each round re-judges every body against its callees' current promises and drops
+      what the body breaks: readonly first, then pure, then local. The rounds repeat until nothing
+      changes. PurityInference owns ReadonlyInference, because the two depend on each other: Local needs
+      Readonly, and Readonly's Requirement 11 admission needs Local. A bodiless member keeps what it
+      declares (Requirement 9.1). An abstract member keeps what it declares, or else the meet of every
+      implementation in the program, found through ConformanceAnalyzer.Fillers. A CLR interface slot with
+      no Mist implementer keeps nothing. Getters that only read each other keep pure, as a greatest
+      fixpoint must (Requirement 8.3). Cost, measured when the analysis landed and under load from other
+      sessions: building AllFeaturesV2 on v2 went from 15.4 s to 16.7 s, about 8%. On an idle machine it
+      took 4.5 s.
+
+      THE AMENDMENTS. Requirement 11 amends readonly-contexts. A readonly context may write a field, index
+      or element of what it owns, and may call a local member on it. It counts as a write anything done
+      through a ref parameter, an element of an array parameter, an object initializer's setter, a
+      property pattern, an extension property or a conversion operator
+      (MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_REF is new). For Requirement 12.2, StableMembers admits a
+      getter that PurityInference proves pure; local readonly is not enough. This admits order 6's
+      "refused for want of analysis" getter, which calls a method that reads only readonly state.
+
+      STANDARD'S PROMISES (Requirement 9.3). The 13 intrinsic primitives, String and Regex keep `readonly`
+      on the type and declare every member `pure`. `pure` cannot replace `readonly` on these types,
+      because classic parses the keyword and ignores it, and it judges enum bases by the type's
+      `readonly`. Replacing it was measured: classic reports MIST_TC_0102 and 0103 on
+      EnumReadonlyRestriction. Math, Convert, Index and Range are pure types; Console, Task, Type and Span
+      state nothing. List<T> is declared in Source/Standard/Experimental/List.mist, which only the
+      experimental pipeline loads, so classic's baseline holds. It is an intrinsic over
+      System.Collections.Generic.List<T> and is never `owned`. Its constructor is pure. Count, Contains,
+      IndexOf, ToArray, GetEnumerator and the indexer's getter are local readonly. Add, Insert, Remove,
+      RemoveAt, Clear, Sort, Reverse and the indexer's setter are local. On its Enumerator, MoveNext is
+      local and Current is local readonly. Its comparisons judge the element's Equals and CompareTo
+      (ElementComparisons).
+
+      ACCESSOR PROMISES. An accessor may state its own promise ahead of its accessibility, as in
+      `{ local readonly get; local set; }`. It is written through the grammar rule AccessorPromise and
+      recorded on PropertyAccessor.OwnModifiers, and it replaces the declaration's promise for that
+      accessor wherever a promise is read (commit 34f77aef). `private pure get` is a parse error. List's
+      indexer is why this exists: its getter and setter keep different promises.
+
+      CULTURE-INVARIANT EMISSION, DECISION A (Arthur, 2026-09-27). Several of Standard's pure members read
+      the current culture at run time: String.ToUpper, Convert.ToInt32(String), Regex construction and
+      matching, numeric interpolation and concatenation, and List<string>.Sort. These were 11 of the 13
+      holes the adversarial rounds left open. There were two ways out: withdraw promises the spec
+      mandates, or emit with the invariant culture, which changes output against classic under any culture
+      that is not invariant. The decision was to emit invariant. If a culture-aware form is ever wanted,
+      it will be a separate overload that is not pure. Requirement 13.2 states the rule, and
+      Lowering/InvariantCulture holds it. ToUpperInvariant, Convert's overload taking InvariantCulture,
+      and RegexOptions.CultureInvariant are emitted for those members. A numeric hole is wrapped in
+      System.FormattableString.Invariant. A numeric operand, Console argument or ToString gets
+      ToString(CultureInfo.InvariantCulture). A value whose text is decided at run time goes through
+      MistInvariant.Text, and a sort gets StringComparer.InvariantCulture, MistInvariant.Comparer<T>() or
+      MistInvariant.Elements<T>(...). The MistInvariant helper is emitted into __Invariant.g.cs only when
+      used. Measured: AllFeaturesV2 prints output byte-identical to its baseline under tr_TR, de_DE and
+      sv_SE; before the change, its 11 decimal lines would have printed commas.
+      InvariantCultureEmissionTests (Tier 3, 18 rows) pins each emitted form.
+      CultureInvariantEmissionTests (Tier 4) compiles one program, runs it under tr_TR.UTF-8 and
+      de_DE.UTF-8, and checks as a control which culture the run actually got. Removing the
+      FormattableString wrapper fails it on "1,5"; dropping the sort comparers fails it on "abBIi". Seven
+      existing expectations changed on purpose, to the invariant spellings: ClrSpellingTests (2),
+      IntrinsicCloneEmissionTests (2), OperandParenthesesEmissionTests (2) and UnitHoistingEmissionTests
+      (1). This work was uncommitted when the entry was written.
+
+      THE TESTS. Tier 2 rows run over hand-built fragments on HandBuiltModel. The fragment helpers are
+      PurityFragments and its Contexts, RoundThree, RoundFour(.Dispatch) and RoundFive(.Sites, .Emission)
+      partials; PuritySpecFragments and its Contracts, Defaults, Functions, Getters, Inference and Returns
+      partials; PurityJudgeFragments; PuritySoundnessFragments(.Contracts); ReadonlyContextFragments;
+      AccessorPromiseFragments; and PureFunctionTypeFragments. The Tier 2 classes, with case counts:
+      ProgramAnalysis/PurityJudgeTests (144), PurityRefusalTests (53), PuritySiteTests (13),
+      PuritySoundnessTests (12), PuritySoundnessRoundTwoTests (36), PurityRoundThreeTests (43),
+      PurityRoundFourTests (53), PurityRoundFiveTests (64), AccessorPromiseRefusalTests (23),
+      ReadonlyContextGapTests (16), ReadonlyOwnedWritesTests (12) and PureFunctionTypeRefusalTests (3);
+      and Backend/DefaultConsistencyTests (19), OwnedReturnProvenanceTests (8), StablePureGetterTests (9),
+      PurityInferenceTests (20), PurityContractTests (11) and PureFunctionConversionTests (23). Tier 1 is
+      PureFunctionTypeDecisionTests (3), over Assignability.Judge. Tier 3 is kept for syntax and model
+      shape, and each class says why: PuritySyntaxTests (53), AccessorPromiseSyntaxTests (14),
+      PurityModifierTests (51), PureFunctionTypeTests (11), AccessorPromiseTests (8),
+      PurityBindingRefusalTests (5), ParamsLambdaBindingTests (2), DefaultableInitializerEmissionTests
+      (4), ReadonlyEmissionDecisionTests (1), and StandardListPurityTests (3), which reads the real
+      List.mist. Every test class the branch adds declares exactly one Tier trait.
+
+      THE TIER 2 MIGRATION (commit 0141cb26). The branch had written 59 refusal-corpus cases, 40 of them
+      under purity-checking, and a number of ProgramModelProbe rows that judged a rule. Each became a Tier
+      2 row over a fragment or a Tier 1 call of the decision, and was checked to assert the same id.
+      Before the migration, a purity check had to run RefusalCorpusTest over the whole corpus, which took
+      6 m 1 s against 23 s for the other 1,535 tests of that run. The seven probe suites' 172 rows summed
+      to 3.1 s, of which 2.51 s was StandardListPurityTests, with a CompilerDriver, Roslyn and a process
+      per row. After the migration, 173 rows sum to 0.61 s, and the purity filter runs 3,519 tests in 10 s
+      wall. Six one-line mutations of the rules were tried, and each failed named rows. Admitting writes
+      on a frozen holder failed 6 rows; making inference's readonly gate unreachable failed 31.
+
+      THE SIX ROWS MAIN PINNED THAT THIS SPEC FLIPS. Requirement 12.2 now admits five getters as pure:
+      refinement-over-a-getter-that-assigns, -that-calls-a-method, -using-a-declared-conversion,
+      -using-a-declared-operator, and refinement-over-getters-that-read-each-other, the last through the
+      greatest fixpoint. Requirement 11.1 admits the sixth, readonly-method-sets-indexer-on-local. Each
+      was rewritten to a shape that still refuses; the indexer case now sets through a parameter. Each
+      admission is pinned beside its refusal, in PredicateDeclarationRefusalTests, StablePureGetterTests,
+      ReadonlyOwnedWritesTests and OwnershipRefusalTests.AReadonlyMethodMaySetALocalIndexerOnWhatItOwns.
+
+      BANKED SAMPLES. Every AllFeaturesV2 sample was run one by one, and the libraries were measured
+      through the composite. Two judge defects were found and fixed. FirstClassFunctions raised an ICE on
+      a curried lambda's Origins. NewtypeClones was refused with MIST_PA_DEFAULT_NOT_CONSISTENT on
+      `public Age Years = 18;`, which order 50's task records. No banked sample is refused. Two runtime
+      fixtures pinned an initializer running once on a constructorless type: FieldInitializerRuntimeTests
+      and UnitHoistingRuntimeTests. They now use types that cannot be defaulted. The constructorless case
+      is pinned on the emitted C#.
+
+      THE SAMPLE. samples/Purity (Requirement 17; uncommitted when this entry was written) is V2-ONLY. It
+      is composed last into AllFeaturesV2 and adds 23 lines to the baseline. Its 12 PROOF comments say
+      what each section proves. Seventeen one-line mutations across twelve of its demonstrations were run
+      by hand, each to the refusal expected; the emitter register's Purity entry lists them. The
+      [culture] lines were checked by running the built sample under tr_TR.UTF-8 and de_DE.UTF-8. The
+      spec's Proof Code block is checked against AllFeaturesV2.out by SpecProofCodeMatchesSampleTest,
+      through its ExperimentalOnly set.
+
+      LEDGERS. In ledger 20260927-035235, 10,047 of 10,049 tests passed. The two failures were
+      classic-side stdlib tests reading Standard/Experimental, which commit 0a535fca fixed. In ledger
+      20260927-091615, all 10,210 tests passed: 9,434 compiler, 68 CLI and 708 source generator, with the
+      tests taking 151 s. That ledger ran at commit 41f9a02f, before the culture emission and the sample.
+      The final ledger, over both, runs after this entry and is recorded in the spec's tasks.md. Every
+      build had zero warnings and the formatter was clean.
+    residue: >
+      THE ADVERSARIAL HUNT IS OPEN WORK. Arthur decided on 2026-09-27 to record it rather than finish it.
+      The hunt worked like this: independent agents, each given one angle (aliasing, dispatch, Standard,
+      inference), wrote small Mist programs that the analysis ADMITTED even though they break a promise
+      the spec makes. Examples are a pure method that ends up printing, one that writes through a frozen
+      input, or one that reads state that can change. Each agent compiled and ran its programs, and
+      reported every one of them as a hole. Three rounds reported 31, 50 and 44 holes, 125 in all. They
+      are the branch's rounds three to five, hence PurityRoundThree/Four/FiveTests; rounds one and two
+      were reviews, closed in commits 6afd4d17 and 34f77aef. 112 holes were closed, each with a Tier 2
+      row. 11 of the other 13 were the current culture, which decision A closes (see the evidence's
+      culture paragraph), and the last 2 are the DECISIONS LEFT below. The count per round did not fall,
+      so the hunt has not converged, and nothing shows that another round would find fewer. It stops here
+      because it was recorded, not because it ran dry. The later holes were narrower.
+      They included static constructors run through a method group, a computed static property, an
+      operator or a conversion; an enumerator's Dispose at the end of a foreach; list patterns and
+      index-from-end running Count and the indexer; and the emitter re-resolving an overload in restated,
+      flattened and specialized bodies, so that what ran was not what was judged. They sit where the
+      language turns one construct into calls the judge does not see written. That is where the next round
+      should look first.
+
+      CATEGORIES STILL OPEN. First, calls inserted by desugaring. User conversions in conditions and array
+      sizes were found in round five; other positions are unmeasured. Second, aliasing through arguments.
+      Aliasing of owned bindings is tracked for stores into non-local targets, tuples, anonymous objects
+      and initializer entries. It is not tracked for non-owned call arguments or for what a callee returns
+      (`Keep(o)`, `var alias = Id(o)`). Treating every non-owned argument as an alias would refuse
+      `Print(o); Bump(o);`. Third, readonly formatting. Only holes of Mist types that implement
+      IFormattable are judged in readonly contexts. A type parameter instantiated with an impure Mist
+      IFormattable stays unjudged; judging it refused samples/OpenUnions. Fourth,
+      ExtensionSpecialization.Close does not copy a generic extension method's body, so a call to one is
+      judged as bodiless. Fifth, a readonly class that holds nothing changeable counts as unchangeable,
+      although a class that is not readonly may derive from it. That is sound only because narrowing from
+      it to a changeable type answers External and Mist has no overriding; refusing the derivation instead
+      would be a language decision. Sixth, a pure
+      function type keys its ambient context separately, and keys must match exactly. A plain `with func`
+      push does not satisfy a `with Step` clause, and a pure push no longer satisfies a plain `with func`
+      clause. Nothing refuses an unsatisfied clause at compile time, so the mismatch shows at run time as
+      a KeyNotFoundException. Last, some losses of precision are recorded as sound: a frozen binding that
+      is ever reassigned answers External; in a readonly context a ref returned by a call is External; and
+      reading any static runs its type's static initializers, so a stable static of a type with an impure
+      static initializer is refused.
+
+      DECISIONS LEFT. (1) An owned binding stored into a non-owning holder is not a move. Storing one into
+      an owned field or property is now a move (ownership-v2 Req 4.1 and 6.9), which classic does not
+      treat as one. A store into a field that does not own leaves the alias alive after the binding moves
+      into a pure scope. Classic admits it. Making that store a move, or refusing it, is an ownership-v2
+      decision. (2) An extension shadowed by a CLR instance member (backlog/general.md). v2 now emits
+      calls to extensions from Mist blocks in carrier (static) form, so the extension Mist bound is the
+      one that runs; classic runs the CLR member, and v2's output differs where one shadows the other.
+      ToString/0, GetHashCode/0 and Equals/1 keep the instance spelling. An extension method group
+      converted to a delegate is still spelled in instance form, where Roslyn can re-bind it. Whether that
+      divergence from classic is the answer has not been decided. general.md's Action, "emit the call
+      through the extension's carrier class", describes the part that has shipped.
+
+      ALSO OPEN. An accessor may state only its promise: a getter takes no other modifier, and a setter
+      takes only `private`. `readonly` alone has no accessor spelling, only `local readonly` or `pure`,
+      and no other accessor-level modifier has been specified. A plain function value in a readonly
+      context is refused: a declared readonly member may now call only a pure function value
+      (MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE on `f(...)`), because no function type states readonly.
+      Whether Mist wants a readonly function type, or wants to admit the call, is undecided.
+
+      CULTURE, WHAT DECISION A LEAVES. The compiler itself reads the culture. LiteralBinder parses
+      decimal, float and double literals with TryParse without a provider, and BodyEmitter formats them
+      without one. Measured: `mist run` under LANG=de_DE.UTF-8 turns 1.5 into 15.0, and the program prints
+      15. This needs its own task. An anonymous object in a hole formats through C#'s generated ToString,
+      which uses the current culture; the judge refuses one as a hole in a pure scope. A tuple held at run
+      time in an `unknown` or T element compares through ValueTuple.CompareTo, which uses the current
+      culture, and a list of optional tuples keeps the plain Sort(). An explicit `d.ToString()` on a
+      primitive is still refused in a pure scope (Requirement 9.1), although emission is now invariant;
+      admitting it is a separate decision. An explicit `x.ToString()` on a type parameter or `unknown`
+      now goes through MistInvariant.Text, which answers "" for null where C#'s ToString throws
+      NullReferenceException, a runtime difference from classic. A CLR-projected Boolean, such as a
+      CLR Predicate's result, is classed as decided at run time and emits MistInvariant.Text: the output
+      is the same, the emitted C# noisier. Every numeric Console argument now carries a fully qualified
+      ToString(System.Globalization.CultureInfo.InvariantCulture), since an emitted file may carry only the
+      source's usings (ClrSpellingTests). OperandParenthesesEmissionTests' `"n=" + (b + c)` row gets its
+      parentheses from postfix rendering too, so it no longer isolates the same-precedence rule; the
+      subtraction and division rows still do. Regenerating the book snippets with SnippetEmitter would
+      update 220 of them to the invariant forms, and one of them, object-model/extension-methods/calling,
+      was already stale from round five's carrier-form change. They had not been regenerated when this
+      entry was written.
+
+      THE REST. The book chapter book/src/advanced/purity.md and its snippets were being written in
+      parallel when this entry was written, and are not measured here.
+      MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE, for a local Add on a list the scope does not own, says only
+      "it is not readonly". It does not name the owned receiver that would admit the call, as Requirement
+      10.2 asks; the pure-scope messages do. PurityAnalyzer does not merge findings that share a node, so
+      one root cause read twice, such as `inner` and `inner.v` through a pattern binding, is two
+      complaints. design.md lags the implementation in three places. It names Source/Standard/List.mist,
+      but the file is Source/Standard/Experimental/List.mist. Its Origins section says a construction and
+      a clone are always owned; a construction whose constructor leaks `this` is not, and neither is a
+      Clone that returns `this`. It says "An interpolated string is pure", but a hole whose ToString the
+      program cannot see is refused. SpecProofCodeMatchesSampleTest's
+      EveryExpectedOutputBlock_AppearsAsASlice_OfTheClassicBaseline now checks the blocks in its
+      ExperimentalOnly set against AllFeaturesV2.out, so its name overstates; and it skips the check,
+      silently, when a spec names a sample directory rather than a file, which is why Requirement 17 names
+      samples/Purity/Program.mist.

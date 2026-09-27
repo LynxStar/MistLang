@@ -2383,15 +2383,26 @@ capabilities:
         no factory and letting the use site fall to the backend sentinel. Classic's two diagnostics are
         the model. Also report a default block entry naming a member the type does not declare.
       - >
-        Report a field initializer of a defaultable type, and a default block entry, that is not a pure
-        expression (defaultability Requirement 6, drafted 2026-09-26; purity spec Requirements 6 and 7).
-        The rule is consistency, not constancy: `new Foo(7)` is admitted when `Foo(int)` is a pure
-        constructor, and `new(0, 0)` in TargetTypedNew passes because `Point(int, int)` only sets its own
-        fields. Waits on purity inference, which nothing implements yet. Classic reports only a
-        non-constant default block entry, as MIST_DEFAULT_NOT_CONSTANT, and refuses `default(T)` on a type
-        whose initializers are not constant as MIST_DEFAULT_NOT_SUPPORTED; v2 admits and runs both,
-        measured 2026-09-26 on `default { Seen = Log.Show(void) }` and on `default(Bare)` over
-        side-effecting initializers.
+        DONE 2026-09-27 by purity-checking (analysis order 13), as MIST_PA_DEFAULT_NOT_CONSISTENT. A field
+        initializer of a defaultable type, and a default block entry, is judged as a pure scope with no
+        inputs (defaultability Requirement 6; purity Requirement 12.1). Each operation the pure judge
+        refuses is reported where it happens, and the message names the field and the type. The rule is
+        consistency, not constancy. `new Vec(7)` through a pure constructor is admitted, and so is
+        `new List<int>()` through Standard's pure one, and every default gets objects of its own:
+        samples/Purity prints 70 and 7 for two defaults of one type. A type with no default, one with
+        only an argument-taking constructor, leaves its initializers unconstrained, and so does every
+        static initializer. Measured on every banked sample: none is refused. NewtypeClones'
+        `public Age Years = 18;` and its `Retires = 67` entry were refused at first, through the newtype's
+        copy conversion. That conversion is a bodiless value copy, and inference now answers it pure. The
+        holes the adversarial rounds closed around defaults include an owned-field initializer and a
+        default entry that alias a shared reference, a derived type's default running an impure base
+        constructor, and `default(C)` running C's static constructor. DefaultConsistencyTests (Tier 2:
+        9 admitted, 6 refused, 4 unconstrained) and PurityRefusalTests' default-entry-not-consistent and
+        default-initializer-not-consistent rows pin the rule. DefaultableInitializerEmissionTests (Tier 3)
+        pins that each initializer is emitted once, whether the value comes from `new` or from `default`.
+        Classic reports only a non-constant default block entry (MIST_DEFAULT_NOT_CONSTANT) and refuses
+        `default(T)` over non-constant initializers (MIST_DEFAULT_NOT_SUPPORTED). v2 does not adopt that
+        constant-only rule: a non-constant default that is pure is admitted and runs.
       - >
         Refuse `default(T)` on a class whose only constructor is a user-declared parameterless one and
         which has no default block: defaultability Requirement 3.6 (optional-defaultability 4.2) makes it
@@ -10552,7 +10563,7 @@ capabilities:
       restored from 3f24c741 and regenerated with zero failures; LocalFunctionEmissionTests on the
       emitted text; LocalFunctionDecisionTests on what binds and what is admitted; thirteen corpus
       cases for the refusals, recorded on orders 9, 10 and 11 of the analysis register.
-    unlocks: [LocalFunctions]
+    unlocks: [LocalFunctions, Purity]
 
 # =====================================================================
 # SAMPLES
@@ -11614,6 +11625,56 @@ samples:
       - >
         Arbitrary imported CLR structs remain conservatively non-stampable until ambient projection
         can establish complete private/backing-field and opaque reference-assembly storage proof.
+
+  - name: Purity
+    intro_order: 102
+    threshold: local-functions
+    requires: [class-declaration, constructors, methods-static-and-instance, statements-core,
+               namespace-file-scoped, standard-library-binding, literals-primitive, string-interpolation,
+               var-type-inference, instance-fields, field-initializers, this-expression, object-creation,
+               control-flow-basic, operators-arithmetic-comparison-logical,
+               property-declarations-and-accessors, type-parameters-and-constructed-types,
+               type-alias-declarations, func-structural-function-types, lambda-expressions,
+               lambda-closure-capture, method-group-conversion, delegate-func-conversion,
+               func-type-aliases-and-currying, clr-generic-construction-and-members, default-expression,
+               default-value-synthesis, defaultability-inference, readonly-locals-and-blocks,
+               readonly-member-and-type-contexts, readonly-inference, readonly-mutation-checking,
+               ownership-specifiers, intrinsic-member-declarations, local-functions]
+    untested:
+      - >
+        V2-ONLY. Classic cannot compile it. Its Standard declares no List<T> (MIST_UNDEFINED_TYPE), and it
+        binds no local function (MIST_UNDEFINED_IDENTIFIER on Widest). Both were measured 2026-09-27 on a
+        copy. The sample is referenced from AllFeaturesV2 alone, and its 23 lines were captured from v2
+        and read against the program by hand.
+      - >
+        Every refusal is absent, because a sample is a valid program. The 12 PROOF comments say what each
+        section proves. Seventeen one-line changes, each turning an admission into a refusal, were run by
+        hand when the sample was written, and nothing re-runs them: Counter.Add writing a static
+        (MIST_PA_PURE_SCOPE_WRITES), and Counted's Counter not owned (_CALLS_IMPURE on Add and Count);
+        Seeded printing; Size without `frozen`; Twice over a plain func (_CALLS_IMPURE at `f(f(x))`), and
+        the tripler lambda without `pure` (MIST_PA_NO_IMPLICIT_CONVERSION); the captured offset made
+        reassignable (_READS_MUTABLE); Vec's constructor unmarked and impure, and Basket's list taken from
+        a static (MIST_PA_DEFAULT_NOT_CONSISTENT); Money without `pure`; Dial's setter unmarked, and its
+        local readonly getter writing; Widest calling xs.Add, and reading a static; Square writing a
+        static; and Ruler over an external list or Vec (MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE,
+        MIST_PA_FIELD_ASSIGNED_IN_READONLY_MEMBER). The refusals are pinned at Tier 2: PurityJudgeTests,
+        PurityRefusalTests, DefaultConsistencyTests, AccessorPromiseRefusalTests and
+        PurityRoundThree/Four/FiveTests.
+      - >
+        Promises erase entirely, and inference has no observable effect. SumOfSquares prints 25 whether or
+        not Square is inferred pure; the line shows only that the program compiled. Emission reads no
+        declared promise either, so the lines do not change wherever the program still compiles without
+        them. Counter's type-level `local`, Vec's pure constructor and Dial's accessor promises all match
+        what inference finds, so deleting those keywords alone leaves the program compiling and printing
+        the same.
+      - >
+        Culture-invariance is visible only under another culture. The baseline was captured under the
+        default culture. There, `ToUpper` prints the same as `ToUpperInvariant`, and `$"{1.5}"` prints the
+        same with or without FormattableString.Invariant, so the [culture] lines prove nothing on that
+        machine. CultureInvariantEmissionTests (Tier 4) runs a compiled program under tr_TR.UTF-8 and
+        de_DE.UTF-8. InvariantCultureEmissionTests (Tier 3) pins each emitted form. The compiler itself
+        still parses `1.5` with the current culture: compiled under de_DE, this sample emits 15.0 and
+        prints 15.
 
   - name: StructInheritance
     intro_order: 53

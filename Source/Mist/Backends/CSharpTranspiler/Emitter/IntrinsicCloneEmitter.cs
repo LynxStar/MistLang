@@ -38,7 +38,7 @@ internal static class IntrinsicCloneEmitter
         }
 
         writer.WriteBlankLine();
-        writer.WriteLine("public override string ToString() => Value.ToString();");
+        writer.WriteLine($"public override string ToString() => {InvariantCulture.ObjectText("Value", clone.CloneSource!)};");
     }
 
     public static void EmitMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics)

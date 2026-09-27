@@ -1,7 +1,7 @@
 // Tier 3 (Component): what a constructorless, defaultable type emits for its field initializers. Purity
-// Requirement 12.1 holds them pure, so nothing observable can show how many times one runs; the emitted text
-// can, and this is where the "once" the runtime tests cannot see any more is pinned: each initialized field is
-// assigned exactly once, by its C# initializer, which both the implicit constructor and __CreateDefault run.
+// Requirement 12.1 holds them pure, so nothing observable at runtime can show how many times one runs; the
+// emitted text can: each initialized field is assigned exactly once, by its C# initializer, which both the
+// implicit constructor and __CreateDefault run.
 
 using System.Text.RegularExpressions;
 using Mist.Backends.CSharpTranspiler.Emitter;
@@ -12,6 +12,7 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
+[Trait("Tier", "3")]
 public sealed partial class DefaultableInitializerEmissionTests : ProgramModelProbe
 {
     public DefaultableInitializerEmissionTests()

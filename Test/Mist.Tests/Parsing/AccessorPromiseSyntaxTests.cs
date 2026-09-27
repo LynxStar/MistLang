@@ -11,6 +11,7 @@ using MistParser = Mist.Parsing.MistParser;
 
 namespace Mist.Tests.Parsing;
 
+[Trait("Tier", "3")]
 public sealed class AccessorPromiseSyntaxTests
 {
     private static readonly string[] Spellings =

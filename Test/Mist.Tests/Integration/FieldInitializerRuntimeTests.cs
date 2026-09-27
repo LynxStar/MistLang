@@ -19,6 +19,7 @@ namespace Mist.Tests.Integration;
 /// constructor is defaultable, and purity Requirement 12.1 holds its initializers pure, so the constructorless case
 /// can show its values here but leaves "once" to DefaultableInitializerEmissionTests, on the emitted text.
 /// </summary>
+[Trait("Tier", "4")]
 public sealed class FieldInitializerRuntimeTests : IDisposable
 {
     private const string LeavesATrail = """

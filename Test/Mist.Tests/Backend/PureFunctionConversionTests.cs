@@ -1,119 +1,87 @@
-// Tier 3 (Component): Requirement 16 -- a lambda converts to a pure function type only when it keeps
+// Tier 2 (Functional): Requirement 16 -- a lambda converts to a pure function type only when it keeps
 // Requirements 6 and 7 judged where it converts, a captured variable is readable only when nothing can
 // assign it after the capture, a method group only when its method is pure, and a pure function value is
-// callable from a pure scope where a plain one is not. Ops.Twice is under analysis in every row.
+// callable from a pure scope where a plain one is not. The purity rule judges each hand-built body.
 
-using Mist.Common.Diagnostics;
-using Mist.ProgramAnalysis;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-public sealed class PureFunctionConversionTests : ProgramModelProbe
+[Trait("Tier", "2")]
+public sealed class PureFunctionConversionTests
 {
     private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
     private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
     private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
     private const string FunctionRequired = "MIST_PA_PURE_FUNCTION_REQUIRED";
 
-    private static readonly string[] Ids =
-    [
-        Writes, ReadsMutable, CallsImpure, FunctionRequired,
-        "MIST_PA_LOCAL_SCOPE_READS_ARGUMENT", "MIST_PA_PURE_SCOPE_STORES_UNOWNED", "MIST_PA_DEFAULT_NOT_CONSISTENT",
-    ];
-
-    public PureFunctionConversionTests()
-        : base("MistPureFunctionConversion_")
-    {
-    }
-
-    protected override string Fixtures { get; } = """
-        public class Globals
-        {
-            public static int Counter;
-            public static readonly int Limit = 3;
-        }
-
-        public class Ops
-        {
-            public static pure int Inc(int n) { return n + 1; }
-
-            public static int Plain(int n) { return n + 1; }
-
-            public static int Bump(int n) { Globals.Counter = n; return n; }
-
-            public static pure int Twice(pure func<int, int> f, int x) { return f(f(x)); }
-        }
-        """;
-
-    protected override string Preamble { get; } = "";
-
     [Theory]
-    [InlineData("pure func<int, int> f = n => n + 1;")]
-    [InlineData("pure func<int, int> f = n => n + Globals.Limit;")]
-    [InlineData("var g = pure (int n) => n + 1;")]
-    [InlineData("pure func<int, int> f = n => { var xs = new int[1]; xs[0] = n; return xs[0]; };")]
-    [InlineData("var r = Ops.Twice(n => n + 1, 3);")]
+    [InlineData("lambda-adding-one-to-its-parameter")]
+    [InlineData("lambda-reading-a-readonly-static")]
+    [InlineData("pure-lambda-adding-one-to-its-parameter")]
+    [InlineData("lambda-writing-an-array-it-allocated")]
+    [InlineData("lambda-passed-to-a-pure-function-parameter")]
     public void ALambdaThatKeepsPurity_ConvertsToAPureFunctionType(string statement)
     {
-        Assert.Empty(Analyse(statement));
+        Assert.Empty(new PuritySpecFragments().Analyze(statement));
     }
 
     [Theory]
-    [InlineData("pure func<int, int> f = n => { Globals.Counter = n; return n; };")]
-    [InlineData("var g = pure (int n) => { Globals.Counter = n; return n; };")]
-    [InlineData("var r = Ops.Twice(n => { Globals.Counter = n; return n; }, 3);")]
+    [InlineData("lambda-writing-a-static")]
+    [InlineData("pure-lambda-writing-a-static")]
+    [InlineData("lambda-passed-to-a-pure-function-parameter-writing-a-static")]
     public void ALambdaThatWrites_IsRefusedAtTheOperationInItsBody(string statement)
     {
-        var finding = Assert.Single(Analyse(statement));
+        var finding = Assert.Single(new PuritySpecFragments().Analyze(statement));
 
         Assert.Equal(Writes, finding.Id.Value);
         Assert.Contains("lambda", finding.Message, StringComparison.Ordinal);
+        Assert.Equal(38, finding.Location.Start.Column);
     }
 
     [Theory]
-    [InlineData("pure func<int, int> f = n => n + Globals.Counter;")]
-    [InlineData("var g = pure (int n) => n + Globals.Counter;")]
+    [InlineData("lambda-reading-a-mutable-static")]
+    [InlineData("pure-lambda-reading-a-mutable-static")]
     public void ALambdaThatReadsAMutableStatic_IsRefused(string statement)
     {
-        Assert.Equal(ReadsMutable, Assert.Single(Analyse(statement)).Id.Value);
+        Assert.Equal(ReadsMutable, Assert.Single(new PuritySpecFragments().Analyze(statement)).Id.Value);
     }
 
     [Theory]
-    [InlineData("readonly var k = 1; pure func<int, int> f = n => n + k;")]
-    [InlineData("var k = 1; pure func<int, int> f = n => n + k;")]
-    [InlineData("readonly int k = 1; var g = pure (int n) => n + k;")]
+    [InlineData("lambda-capturing-a-readonly-local")]
+    [InlineData("lambda-capturing-a-local-nothing-reassigns")]
+    [InlineData("pure-lambda-capturing-a-readonly-local")]
     public void ALambdaCapturingALocalNothingReassigns_IsAdmitted(string statement)
     {
-        Assert.Empty(Analyse(statement));
+        Assert.Empty(new PuritySpecFragments().Analyze(statement));
     }
 
     [Theory]
-    [InlineData("var k = 1; k = 2; pure func<int, int> f = n => n + k;")]
-    [InlineData("var k = 1; pure func<int, int> f = n => n + k; k = 2;")]
+    [InlineData("lambda-capturing-a-local-reassigned-before-the-capture")]
+    [InlineData("lambda-capturing-a-local-reassigned-after-the-capture")]
     public void ALambdaCapturingAReassignedLocal_IsRefusedAsAMutableRead(string statement)
     {
-        var finding = Assert.Single(Analyse(statement));
+        var finding = Assert.Single(new PuritySpecFragments().Analyze(statement));
 
         Assert.Equal(ReadsMutable, finding.Id.Value);
         Assert.Contains("'k'", finding.Message, StringComparison.Ordinal);
     }
 
     [Theory]
-    [InlineData("pure func<int, int> m = Ops.Inc;")]
-    [InlineData("pure func<int, int> m = Ops.Plain;")]
-    [InlineData("var r = Ops.Twice(Ops.Inc, 3);")]
+    [InlineData("method-group-of-a-declared-pure-method")]
+    [InlineData("method-group-of-an-inferred-pure-method")]
+    [InlineData("method-group-passed-to-a-pure-function-parameter")]
     public void AMethodGroupOfAPureMethod_ConvertsToAPureFunctionType(string statement)
     {
-        Assert.Empty(Analyse(statement));
+        Assert.Empty(new PuritySpecFragments().Analyze(statement));
     }
 
     [Theory]
-    [InlineData("pure func<int, int> m = Ops.Bump;")]
-    [InlineData("var r = Ops.Twice(Ops.Bump, 3);")]
+    [InlineData("method-group-of-an-impure-method")]
+    [InlineData("method-group-of-an-impure-method-passed-to-a-pure-function-parameter")]
     public void AMethodGroupOfAnImpureMethod_IsRefused(string statement)
     {
-        var finding = Assert.Single(Analyse(statement));
+        var finding = Assert.Single(new PuritySpecFragments().Analyze(statement));
 
         Assert.Equal(FunctionRequired, finding.Id.Value);
         Assert.Contains("Bump", finding.Message, StringComparison.Ordinal);
@@ -122,13 +90,13 @@ public sealed class PureFunctionConversionTests : ProgramModelProbe
     [Fact]
     public void APureScopeMayInvokeAPureFunctionValueItWasGiven()
     {
-        Assert.Empty(Analyse("", "public class Host { public static pure int Twice(pure func<int, int> f, int x) { return f(f(x)); } }"));
+        Assert.Empty(new PuritySpecFragments().Analyze("pure-method-invoking-a-pure-function-value"));
     }
 
     [Fact]
     public void APureScopeMayNotInvokeAPlainFunctionValue()
     {
-        var finding = Assert.Single(Analyse("", "public class Host { public static pure int Apply(func<int, int> f, int x) { return f(x); } }"));
+        var finding = Assert.Single(new PuritySpecFragments().Analyze("pure-method-invoking-a-plain-function-value"));
 
         Assert.Equal(CallsImpure, finding.Id.Value);
         Assert.Contains("'Apply'", finding.Message, StringComparison.Ordinal);
@@ -137,17 +105,6 @@ public sealed class PureFunctionConversionTests : ProgramModelProbe
     [Fact]
     public void APureFunctionValueIsCallableFromALocalReadonlyScopeToo()
     {
-        Assert.Empty(Analyse("", "public class Host { public int n; public local readonly int Apply(pure func<int, int> f) { return f(n); } }"));
-    }
-
-    private List<Diagnostic> Analyse(string statement, string extraTypes = "")
-    {
-        var model = BuildModel(statement, extraTypes, "", out var diagnostics);
-        Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
-
-        var findings = new DiagnosticBag();
-        ProgramAnalysisRunner.Run(model, findings);
-
-        return [.. findings.ToImmutableArray().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && Ids.Contains(diagnostic.Id.Value))];
+        Assert.Empty(new PuritySpecFragments().Analyze("local-readonly-method-invoking-a-pure-function-value"));
     }
 }

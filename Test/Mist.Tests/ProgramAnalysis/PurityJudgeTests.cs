@@ -1,122 +1,19 @@
-// Tier 3 (Component): every row of the purity design's judge table, once per scope kind. The fixture
-// types are under analysis in every row, so Bag's local members, Vec's inherited pure ones and Holder's
-// storing members are silences proven by every row. WHY each row is admitted or refused is the table in
-// .kiro/specs/purity/design.md, and the ids are its findings list.
+// Tier 2 (Functional): every row of the purity design's judge table, once per scope kind, over a hand-built Host
+// world whose Bag, Vec, Holder, Loud, Res and Globals are consulted only as callees. WHY each row is admitted or
+// refused is the table in .kiro/specs/purity/design.md, and the ids are its findings list.
 
-using Mist.Common.Diagnostics;
-using Mist.ProgramAnalysis;
 using Mist.Tests.Helpers;
 
-namespace Mist.Tests.Backend;
+namespace Mist.Tests.ProgramAnalysis;
 
-public sealed class PurityJudgeTests : ProgramModelProbe
+[Trait("Tier", "2")]
+public sealed class PurityJudgeTests
 {
     private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
     private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
     private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
     private const string ReadsArgument = "MIST_PA_LOCAL_SCOPE_READS_ARGUMENT";
     private const string StoresUnowned = "MIST_PA_PURE_SCOPE_STORES_UNOWNED";
-
-    private static readonly string[] Ids =
-    [
-        Writes, ReadsMutable, CallsImpure, ReadsArgument, StoresUnowned,
-        "MIST_PA_PURE_FUNCTION_REQUIRED", "MIST_PA_DEFAULT_NOT_CONSISTENT",
-    ];
-
-    private const string HostOpen = """
-        public class Host
-        {
-            public int Count;
-            public readonly int Fixed;
-            public owned Bag Mine;
-            public Bag Shared;
-
-            public Host(int seed)
-            {
-                Count = 0;
-                Fixed = seed;
-                Mine = new Bag();
-                Shared = new Bag();
-            }
-
-            public local void Add(int x) { Count = Count + 1; }
-
-            public local readonly int Size() { return Count; }
-
-            public readonly int Peek() { return Count + Globals.Counter; }
-
-            public void Poke() { Count = 0; Globals.Counter = 1; }
-
-        """;
-
-    public PurityJudgeTests()
-        : base("MistPurityJudge_")
-    {
-    }
-
-    protected override string Fixtures { get; } = """
-        public class Bag
-        {
-            public int Count;
-
-            public pure Bag() { }
-
-            public local void Add(int x) { Count = Count + 1; }
-
-            public local readonly int Size() { return Count; }
-
-            public readonly int Peek() { return Count + Globals.Counter; }
-
-            public void Poke() { Count = 0; Globals.Counter = 1; }
-        }
-
-        public pure class Vec
-        {
-            public readonly int X;
-
-            public pure Vec(int x) { X = x; }
-
-            public int Doubled() { return X * 2; }
-        }
-
-        public struct Pt
-        {
-            public int X;
-        }
-
-        public class Holder
-        {
-            public Bag Item;
-            public string Text;
-            public Pt P;
-            public int N;
-
-            public local void Keep(Bag b) { Item = b; }
-
-            public local void Label(string s) { Text = s; }
-        }
-
-        public class Loud
-        {
-            public int V;
-
-            public Loud() { Globals.Counter = 1; }
-        }
-
-        public class Res
-        {
-            public void Drop() { Globals.Counter = 1; }
-        }
-
-        public class Globals
-        {
-            public static int Counter;
-            public static readonly int Limit = 3;
-            public static readonly Bag Pool = new Bag();
-        }
-        """;
-
-    protected override string Preamble { get; } = "";
 
     [Theory]
     [InlineData("public pure int M() { var b = new Bag(); b.Count = 1; return b.Count; }", null)]
@@ -219,6 +116,7 @@ public sealed class PurityJudgeTests : ProgramModelProbe
     [InlineData("public local int M() { var l = new Loud(); return l.V; }", CallsImpure)]
     [InlineData("public local void M() { Shared = Globals.Pool; }", StoresUnowned)]
     [InlineData("public local void M(frozen Bag f) { var h = new Holder(); h.Keep(f); }", StoresUnowned)]
+    [InlineData("public local void M(Bag other) { Mine = other; }", StoresUnowned)]
     [InlineData("public local void M(Bag other) { Shared = other; }", null)]
     [InlineData("public local void M(string s) { var h = new Holder(); h.Text = s; }", null)]
     [InlineData("public local void M(Pt p) { var h = new Holder(); h.P = p; }", null)]
@@ -279,26 +177,18 @@ public sealed class PurityJudgeTests : ProgramModelProbe
         Judge(member, expected);
     }
 
-    private void Judge(string member, string? expected)
+    private static void Judge(string member, string? expected)
     {
-        var model = BuildModel("", HostOpen + member + "\n}", "", out var diagnostics);
-        Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
-
-        var findings = new DiagnosticBag();
-        ProgramAnalysisRunner.Run(model, findings);
-
-        var reported = findings.ToImmutableArray()
-            .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && Ids.Contains(diagnostic.Id.Value))
-            .ToList();
+        var findings = new PurityJudgeFragments().Analyze(member);
 
         if(expected is null)
         {
-            Assert.Empty(reported);
+            Assert.Empty(findings);
             return;
         }
 
-        var finding = Assert.Single(reported);
-        Assert.Equal(expected, finding.Id.Value);
+        var finding = Assert.Single(findings);
+        Assert.True(finding.Id.Value == expected, $"{member}: expected {expected}, got {finding.Id.Value}");
         Assert.Contains("'M'", finding.Message, StringComparison.Ordinal);
     }
 }

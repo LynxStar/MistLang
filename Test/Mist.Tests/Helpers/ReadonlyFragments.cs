@@ -101,12 +101,20 @@ internal sealed class ReadonlyFragments
             case "readonly-method-reads-mutable-indexer":
                 root = new IndexExpression(HandBuiltModel.Node(37), explicitThis, HandBuiltModel.Literal(integer, 0L), integer) { Indexer = indexer };
                 break;
-            case "readonly-method-sets-indexer-on-local":
-                var indexed = new IndexExpression(HandBuiltModel.Node(37), new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("grid", owner)),
-                    HandBuiltModel.Literal(integer, 0L), integer)
-                { Indexer = indexer };
-                root = Write(indexed);
+            case "readonly-method-sets-indexer-on-parameter":
+                var handed = new LocalVariable("grid", owner) { Parameter = new Parameter("grid", owner) };
+                root = Write(new IndexExpression(HandBuiltModel.Node(37), new LocalReferenceExpression(HandBuiltModel.Node(), handed), HandBuiltModel.Literal(integer, 0L), integer)
+                { Indexer = indexer });
                 break;
+            case "readonly-method-sets-indexer-on-fresh-local":
+                var fresh = new LocalVariable("grid", owner);
+                var allocated = new Constructor("Counter", owner, [], new MemberModifiers { IsPure = true, IsReadonly = true }) { DeclaringType = owner };
+                var filling = HandBuiltModel.Block(
+                    new LocalDeclarationStatement(fresh, new NewExpression(HandBuiltModel.Node(), owner, [], allocated, [], [])),
+                    new ExpressionStatement(Write(new IndexExpression(HandBuiltModel.Node(37), new LocalReferenceExpression(HandBuiltModel.Node(), fresh), HandBuiltModel.Literal(integer, 0L), integer)
+                    { Indexer = indexer })));
+                var filler = new Method("Fill", integer, [], new MemberModifiers { IsReadonly = true }) { Body = filling, DeclaringType = owner };
+                return model.Analyze(new ReadonlyAnalyzer(), filling, owner: owner, member: filler);
             case "readonly-method-writes-through-index":
                 var array = model.Interner.GetOrCreateConstructedType(model.Type("Array<,>"), [integer]);
                 var cells = new Field("cells", array, default, default) { DeclaringType = owner };

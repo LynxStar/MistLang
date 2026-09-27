@@ -1,92 +1,42 @@
-// Tier 3 (Component): purity Requirement 12.1 and defaultability Requirement 6 -- a field initializer of a
+// Tier 2 (Functional): purity Requirement 12.1 and defaultability Requirement 6 -- a field initializer of a
 // DEFAULTABLE type and a default-block entry are pure scopes with no inputs, and a type with no default
 // (an argument-taking constructor and no block) leaves its initializers as ordinary construction-time
-// code. The fixture types are under analysis in every row, so Globals' static initializers are silences.
+// code. The purity rule judges each hand-built type's initializers and entries.
 
-using Mist.Common.Diagnostics;
-using Mist.ProgramAnalysis;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-public sealed class DefaultConsistencyTests : ProgramModelProbe
+[Trait("Tier", "2")]
+public sealed class DefaultConsistencyTests
 {
     private const string NotConsistent = "MIST_PA_DEFAULT_NOT_CONSISTENT";
 
-    private static readonly string[] Ids =
-    [
-        NotConsistent, "MIST_PA_PURE_SCOPE_WRITES", "MIST_PA_PURE_SCOPE_READS_MUTABLE", "MIST_PA_PURE_SCOPE_CALLS_IMPURE",
-        "MIST_PA_LOCAL_SCOPE_READS_ARGUMENT", "MIST_PA_PURE_SCOPE_STORES_UNOWNED", "MIST_PA_PURE_FUNCTION_REQUIRED",
-    ];
-
-    public DefaultConsistencyTests()
-        : base("MistDefaultConsistency_")
-    {
-    }
-
-    protected override string Fixtures { get; } = """
-        public class Globals
-        {
-            public static int Counter;
-            public static readonly int Limit = 3;
-        }
-
-        public class Bag
-        {
-            public int Count;
-
-            public pure Bag() { }
-        }
-
-        public pure class Vec
-        {
-            public readonly int X;
-
-            public pure Vec(int x) { X = x; }
-        }
-
-        public class Loud
-        {
-            public int V;
-
-            public Loud() { Globals.Counter = 1; }
-        }
-
-        public class Quiet
-        {
-            public int V;
-
-            public Quiet(int v) { V = v; }
-        }
-        """;
-
-    protected override string Preamble { get; } = "";
-
     [Theory]
-    [InlineData("public class Box { public Vec V = new Vec(7); }")]
-    [InlineData("public class Box { public Bag B = new Bag(); }")]
-    [InlineData("public class Box { public Quiet Q = new Quiet(7); }")]
-    [InlineData("public class Box { public int N = Globals.Limit; }")]
-    [InlineData("public class Box { public int N = 1 + 2; }")]
-    [InlineData("public class Box { public int[] Xs = [1, 2]; }")]
-    [InlineData("public struct Box { public int N = Globals.Limit; }")]
-    [InlineData("public class Box { public int N; public Box(int n) { N = n; } default { N = Globals.Limit } }")]
-    [InlineData("public class Box { public Vec V; public Box(Vec v) { V = v; } default { V = new Vec(7) } }")]
+    [InlineData("initializer-allocating-through-a-pure-constructor-of-a-pure-type")]
+    [InlineData("initializer-allocating-through-a-pure-constructor")]
+    [InlineData("initializer-allocating-through-an-inferred-pure-constructor")]
+    [InlineData("initializer-reading-a-readonly-static")]
+    [InlineData("initializer-adding-two-literals")]
+    [InlineData("initializer-of-an-array-literal")]
+    [InlineData("struct-initializer-reading-a-readonly-static")]
+    [InlineData("default-entry-reading-a-readonly-static")]
+    [InlineData("default-entry-allocating-through-a-pure-constructor")]
     public void AConsistentInitializerOrEntry_IsAdmitted(string declaration)
     {
-        Assert.Empty(Analyse(declaration));
+        Assert.Empty(new PuritySpecFragments().Analyze(declaration));
     }
 
     [Theory]
-    [InlineData("public class Box { public int N = Globals.Counter; }", "N")]
-    [InlineData("public class Box { public Loud L = new Loud(); }", "L")]
-    [InlineData("public struct Box { public int N = Globals.Counter; }", "N")]
-    [InlineData("public class Box { public int N { get; set; } = Globals.Counter; }", "N")]
-    [InlineData("public class Box { public int N; public Box(int n) { N = n; } default { N = Globals.Counter } }", "N")]
-    [InlineData("public class Box { public Loud L; public Box(Loud l) { L = l; } default { L = new Loud() } }", "L")]
+    [InlineData("initializer-reading-a-mutable-static", "N")]
+    [InlineData("initializer-allocating-through-an-impure-constructor", "L")]
+    [InlineData("struct-initializer-reading-a-mutable-static", "N")]
+    [InlineData("property-initializer-reading-a-mutable-static", "N")]
+    [InlineData("default-entry-reading-a-mutable-static", "N")]
+    [InlineData("default-entry-allocating-through-an-impure-constructor", "L")]
     public void AnInconsistentInitializerOrEntry_IsRefusedNamingTheFieldAndTheType(string declaration, string field)
     {
-        var finding = Assert.Single(Analyse(declaration));
+        var finding = Assert.Single(new PuritySpecFragments().Analyze(declaration));
 
         Assert.Equal(NotConsistent, finding.Id.Value);
         Assert.Contains($"'{field}'", finding.Message, StringComparison.Ordinal);
@@ -94,23 +44,12 @@ public sealed class DefaultConsistencyTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("public class Box { public int N = Globals.Counter; public Box(int n) { N = n; } }")]
-    [InlineData("public class Box { public Loud L = new Loud(); public Box(int n) { } }")]
-    [InlineData("public struct Box { public int N = Globals.Counter; public Box(int n) { N = n; } }")]
-    [InlineData("public class Box { public static int N = Globals.Counter; }")]
+    [InlineData("initializer-of-a-type-with-only-an-argument-taking-constructor")]
+    [InlineData("impure-allocation-in-an-initializer-of-a-type-with-only-an-argument-taking-constructor")]
+    [InlineData("struct-initializer-of-a-type-with-only-an-argument-taking-constructor")]
+    [InlineData("static-initializer-reading-a-mutable-static")]
     public void ATypeWithNoDefault_LeavesItsInitializersUnconstrained(string declaration)
     {
-        Assert.Empty(Analyse(declaration));
-    }
-
-    private List<Diagnostic> Analyse(string extraTypes)
-    {
-        var model = BuildModel("", extraTypes, "", out var diagnostics);
-        Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
-
-        var findings = new DiagnosticBag();
-        ProgramAnalysisRunner.Run(model, findings);
-
-        return [.. findings.ToImmutableArray().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && Ids.Contains(diagnostic.Id.Value))];
+        Assert.Empty(new PuritySpecFragments().Analyze(declaration));
     }
 }

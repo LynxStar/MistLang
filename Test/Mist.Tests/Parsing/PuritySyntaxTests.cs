@@ -7,6 +7,7 @@ using MistParser = Mist.Parsing.MistParser;
 
 namespace Mist.Tests.Parsing;
 
+[Trait("Tier", "3")]
 public sealed class PuritySyntaxTests
 {
     [Theory]

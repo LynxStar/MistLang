@@ -31,6 +31,10 @@ diagnostic ids and messages are observable behaviour and may be matched; its cod
 - Where predicates are declared has one home as well: `DeclaredPredicates` yields every alias, parameter
   and dependent-parameter predicate -- extension blocks and local functions included -- with the type it
   counts as and how far it is visible. A rule that walks declarations for predicates itself will miss one.
+- Where a type is NAMED has one home as well: the binder records every written name it resolves to a
+  declared type on `ProgramModel.TypeNamings`, with the type and assembly whose code the name sits in,
+  because resolution expands an alias and keeps only what a qualified name reached. A rule about a type
+  name reads `AnalysisContext.Namings` (the program pass only), never the resolved types a model holds.
 - A target the binder knew but the model dropped — a return's, an argument's, a chain's, an
   initializer entry's — is recorded ON the model (`ReturnStatement.TargetType`,
   `InvocationExpression.ParameterTypes`, `Constructor.ChainParameterTypes`) rather than re-derived by
@@ -39,6 +43,26 @@ diagnostic ids and messages are observable behaviour and may be matched; its cod
 
 ## Proving a rule
 
-A rule is not done until `refusals/<rule-id>/` holds a case for each thing it reports (see
-`refusals/README.md`), and each thing it deliberately does **not** report is pinned by a Tier 3 test.
-The 75 banked samples are the false-positive half: a rule that fires on a working program is wrong.
+Every test of a rule follows the testing philosophy, `.claude/skills/testing-philosophy/SKILL.md`
+(`/testing-philosophy`), strictly. Each thing a rule reports, and each thing it deliberately does
+**not** report, is a test at:
+
+- **Tier 1, by default.** Call the rule's decision with inputs built directly —
+  `Assignability.Judge(from, to, interner)` takes two types and returns the diagnostic or null. No
+  lexer, no parser, no source text.
+- **Tier 2** when the rule walks a body — `Flow/` rules, ownership and borrow checking — over a body
+  or graph built by hand, not parsed.
+- **Tier 3, rarely**, when the finding exists only over a whole model.
+
+A decision that cannot be called without compiling a program is a rule to refactor, not a reason to
+climb a tier.
+
+Every new or migrated rule test declares its tier with `[Trait("Tier", "N")]`, as specified in
+`Test/CLAUDE.md` under "Test tier classification". Class traits apply only to classes whose tests
+all share a tier; mixed classes use method traits. Existing unclassified tests may remain unmarked.
+
+The one claim that crosses stages is no-cascade — one mistake, one complaint, across Stages 4 and 5.
+That is the Stage 4→5 seam: a handful of Tier 4 tests in total, never one per rule or per case.
+
+The samples banked in `AllFeaturesV2` are the false-positive half: a rule that fires on a working
+program fails the Tier 6 baseline.

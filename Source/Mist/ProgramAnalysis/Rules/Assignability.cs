@@ -45,6 +45,11 @@ internal static class Assignability
             ;
     }
 
+    public static DiagnosticDescriptor? JudgeSelection(int implicitOperatorCount)
+    {
+        return implicitOperatorCount > 1 ? ProgramAnalysisDiagnostics.AmbiguousImplicitConversion : null;
+    }
+
     private static bool AwaitsRefinementProof(IMistType from, IMistType to, TypeInterner interner)
     {
         var constituents = to is UnionType union ? union.Constituents : [to];

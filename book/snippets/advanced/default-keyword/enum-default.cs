@@ -36,7 +36,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        Direction dir = Direction.__CreateDefault();
+        Snippet.Direction dir = Snippet.Direction.__CreateDefault();
         System.Console.WriteLine($"direction={dir}");
     }
 

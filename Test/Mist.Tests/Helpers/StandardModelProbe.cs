@@ -11,6 +11,7 @@ using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
 using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Contracts;
 using CompilationUnit = Mist.Driver.Contracts.CompilationUnit;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
@@ -20,11 +21,11 @@ internal static class StandardModelProbe
 {
     /// <summary>
     /// Wraps <paramref name="statements"/> in a probe method, builds the model alongside Standard's own
-    /// sources, and hands back both. The ambient provider adds nothing: a CLR projection would answer
-    /// with members these tests are not about.
+    /// sources, and hands back both. The default ambient provider adds nothing; callers judging CLR
+    /// declarations supply their own provider.
     /// </summary>
     public static ProgramModelClass Build(
-        string statements, out ImmutableArray<Diagnostic> diagnostics, string extraTypes = "")
+        string statements, out ImmutableArray<Diagnostic> diagnostics, string extraTypes = "", IAmbientTypeProvider? ambient = null)
     {
         var source = $$"""
             using Standard;
@@ -74,7 +75,7 @@ internal static class StandardModelProbe
             stdlibAsts.Add(parseResult.Root),
             options,
             buildDiagnostics,
-            NullAmbientTypeProvider.Instance);
+            ambient ?? NullAmbientTypeProvider.Instance);
 
         diagnostics = buildDiagnostics.ToImmutableArray();
         return Assert.IsType<ProgramModelClass>(model);

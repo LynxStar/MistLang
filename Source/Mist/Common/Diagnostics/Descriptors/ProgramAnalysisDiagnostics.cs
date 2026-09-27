@@ -82,6 +82,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "'{0}' is inaccessible due to its protection level: {1} members are accessible only {2}.");
 
+    public static readonly DiagnosticDescriptor InaccessibleType = new(
+        new DiagnosticId("MIST_PA_INACCESSIBLE_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The type '{0}' is inaccessible here: {1} types are accessible only {2}.");
+
     public static readonly DiagnosticDescriptor InconsistentAccessibility = new(
         new DiagnosticId("MIST_PA_INCONSISTENT_ACCESSIBILITY"),
         DiagnosticSeverity.Error,
@@ -633,4 +639,10 @@ public static partial class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "'{0}' constrains parameter '{1}' more than the member it implements: '{2}' does not imply '{3}'.");
+
+    public static readonly DiagnosticDescriptor RefinementReturnUnproven = new(
+        new DiagnosticId("MIST_PA_REFINEMENT_RETURN_UNPROVEN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Member '{0}' produces '{1}', which is not proven to satisfy the refinement contract '{2}' required by '{3}'.");
 }

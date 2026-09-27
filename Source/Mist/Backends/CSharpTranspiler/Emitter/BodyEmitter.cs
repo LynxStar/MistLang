@@ -1501,6 +1501,12 @@ internal static class BodyEmitter
         return (scratch.ToString(), hoisted);
     }
 
+    private static string RenderPatternCondition(Pattern pattern, string value, DiagnosticBag diagnostics)
+    {
+        var (text, hoisted) = RenderPattern(pattern, diagnostics);
+        return $"({value} is {text}{string.Concat(hoisted.Select(test => $" && {test.Text}"))})";
+    }
+
     private static void EmitHoistedTests(
         List<HoistedTest> hoisted, string lead, CSharpWriter writer, DiagnosticBag diagnostics)
     {
@@ -1563,9 +1569,21 @@ internal static class BodyEmitter
             return;
         }
 
+        var (text, hoisted) = RenderPattern(isPattern.Pattern, diagnostics);
+
+        if(hoisted.Count > 0)
+        {
+            writer.Append("(");
+        }
+
         EmitSubExpression(isPattern.Scrutinee, PrefixPrecedence, writer, diagnostics);
-        writer.Append($".{UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent))} is ");
-        EmitPattern(isPattern.Pattern, 0, hoisted: null, writer, diagnostics);
+        writer.Append($".{UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent))} is {text}");
+
+        if(hoisted.Count > 0)
+        {
+            EmitHoistedTests(hoisted, " && ", writer, diagnostics);
+            writer.Append(")");
+        }
     }
 
     /// <summary>
@@ -1620,7 +1638,7 @@ internal static class BodyEmitter
 
         if(narrowed is { } union)
         {
-            EmitUnionArmPattern(arm.Pattern, union, writer, diagnostics);
+            EmitUnionArmPattern(arm.Pattern, union, hoisted, writer, diagnostics);
         }
         else if(EnumVariantTested(arm.Pattern) is { } variant)
         {
@@ -1666,7 +1684,7 @@ internal static class BodyEmitter
     /// </para>
     /// </summary>
     private static void EmitUnionArmPattern(
-        Pattern pattern, UnionType union, CSharpWriter writer, DiagnosticBag diagnostics)
+        Pattern pattern, UnionType union, List<HoistedTest> hoisted, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         if(pattern is CatchAllPattern)
         {
@@ -1683,7 +1701,7 @@ internal static class BodyEmitter
         }
 
         writer.Append($"{{ {UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent))}: ");
-        EmitPattern(pattern, 0, hoisted: null, writer, diagnostics);
+        EmitPattern(pattern, 0, hoisted, writer, diagnostics);
         writer.Append(" }");
     }
 
@@ -1901,11 +1919,9 @@ internal static class BodyEmitter
     }
 
     /// <summary>
-    /// <paramref name="hoisted"/> null means an enum variant nested in this pattern may NOT be lifted
-    /// into a condition beside it, which <c>or</c> and <c>not</c> impose: the element position would have
-    /// to bind for the comparison to read it, and neither establishes a binding. Cleared rather than
-    /// checked afterwards so the element falls to <see cref="EmitComparison"/> and is refused there,
-    /// instead of emitting a pattern whose comparison silently went nowhere.
+    /// A predicate requiring a call or numeric promotion travels as a guard on a captured value.
+    /// <see cref="BooleanPatternConditions"/> keeps those guards inside their Boolean branch;
+    /// structural patterns retain C# pattern precedence and bindings.
     /// </summary>
     private static void EmitPattern(
         Pattern pattern,
@@ -1914,6 +1930,15 @@ internal static class BodyEmitter
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
+        if(hoisted is not null && BooleanPatternConditions.Requires(pattern))
+        {
+            var bound = TemporaryName();
+            writer.Append($"var {bound}");
+            hoisted.Add(new HoistedTest(BooleanPatternConditions.Render(pattern, bound,
+                (nested, value) => RenderPatternCondition(nested, value, diagnostics), expression => Render(expression, diagnostics))));
+            return;
+        }
+
         var parenthesize = PatternPrecedence(pattern) < combinatorPrecedence;
 
         if(parenthesize)
@@ -2114,7 +2139,7 @@ internal static class BodyEmitter
                 if(element.Subpattern is { } slice)
                 {
                     writer.Append(" ");
-                    EmitPattern(slice, 0, hoisted: null, writer, diagnostics);
+                    EmitPattern(slice, 0, hoisted, writer, diagnostics);
                 }
 
                 continue;
@@ -2190,7 +2215,7 @@ internal static class BodyEmitter
         EmitList.Separated(property.Subpatterns, ", ", writer, subpattern =>
         {
             writer.Append($"{subpattern.MemberName}: ");
-            EmitPattern(subpattern.Pattern, 0, hoisted: null, writer, diagnostics);
+            EmitPattern(subpattern.Pattern, 0, hoisted, writer, diagnostics);
         });
 
         if(property.Subpatterns.Count > 0)

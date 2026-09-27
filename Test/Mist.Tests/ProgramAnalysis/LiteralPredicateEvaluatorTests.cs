@@ -58,6 +58,21 @@ public sealed class LiteralPredicateEvaluatorTests
         Assert.Equal(intrinsic, LiteralValue.Of(unary) is not null);
     }
 
+    [Theory]
+    [InlineData(true, null)]
+    [InlineData(false, true)]
+    public void AReachableUnsupportedRegexBranch_RemainsUnproven(bool regexFirst, bool? expected)
+    {
+        var type = new ClassType("String", "Standard", null, null, null);
+        var invalid = new RegexPattern(null!, type, "[");
+        var satisfied = new ComparisonPattern(null!, type, ComparisonKind.Equal, new LiteralExpression(null!, "x", type));
+        var target = new RefinedType(type, null!, "Choice")
+        {
+            Predicate = new DisjunctionPattern(null!, type, regexFirst ? [invalid, satisfied] : [satisfied, invalid]),
+        };
+        Assert.Equal(expected, LiteralPredicates.Decide(target, new LiteralValue("x", type.FullyQualifiedName)));
+    }
+
     [Fact]
     public void AMalformedRegex_ProvidesNoPredicateDecision()
     {

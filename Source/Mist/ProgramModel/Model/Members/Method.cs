@@ -25,6 +25,8 @@ internal class Method(
 
     public MemberModifiers Modifiers { get; } = modifiers;
 
+    public SequenceLengthOperation SequenceLengthOperation { get; init; }
+
     /// <summary>
     /// The attributes applied to this method.
     /// </summary>

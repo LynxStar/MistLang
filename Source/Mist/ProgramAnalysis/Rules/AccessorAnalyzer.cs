@@ -20,8 +20,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// <c>this</c> in an instance constructor or an init accessor of the type or a derivation. A get-only
 /// auto-property stays assignable in its own type's constructor body alone, where the write lands on the
 /// backing field. A lambda or local function in either body is a body of its own and gets neither
-/// privilege. Whether the member itself is accessible is <see cref="AccessibilityAnalyzer"/>'s to say, so
-/// nothing more is said here about an accessor of a member out of reach.
+/// privilege. Whether the member and its type are accessible is <see cref="AccessibilityAnalyzer"/>'s to say,
+/// so nothing more is said here about an accessor of either out of reach.
 /// </summary>
 internal sealed class AccessorAnalyzer : IProgramAnalyzer
 {
@@ -76,55 +76,35 @@ internal sealed class AccessorAnalyzer : IProgramAnalyzer
 
     private static void Judge(AnalysisContext context, Use use, Slot slot, Construction construction)
     {
+        var owner = context.OwnerOf(use.Site);
+        var assembly = context.AssemblyOf(use.Site);
         if(use.Direction.HasFlag(AccessDirection.Read))
         {
-            if(slot.Getter is null)
+            if(AccessorDecision.Read(slot.Getter, owner, assembly, slot.Accessibility, slot.Declaring) is { } descriptor)
             {
-                context.Report(ProgramAnalysisDiagnostics.NoGetAccessor, use.At, use.About, slot.Name);
-            }
-            else
-            {
-                _ = Reaches(context, use, slot, slot.Getter, "get");
+                Report(context, use, slot, descriptor, slot.Getter, "get");
             }
         }
 
-        if(!use.Direction.HasFlag(AccessDirection.Write) || construction.HasFlag(Construction.BackingField))
+        if(use.Direction.HasFlag(AccessDirection.Write)
+            && AccessorDecision.Write(slot.Setter, construction.HasFlag(Construction.BackingField), construction.HasFlag(Construction.Init),
+                owner, assembly, slot.Accessibility, slot.Declaring) is { } written)
         {
-            return;
-        }
-
-        if(slot.Setter is not { } setter)
-        {
-            context.Report(ProgramAnalysisDiagnostics.NoSetAccessor, use.At, use.About, slot.Name);
-        }
-        else if(Reaches(context, use, slot, setter, setter.IsInit ? "init" : "set") && setter.IsInit && !construction.HasFlag(Construction.Init))
-        {
-            context.Report(ProgramAnalysisDiagnostics.InitOnlyAssignment, use.At, use.About, slot.Name);
+            Report(context, use, slot, written, slot.Setter, slot.Setter is { IsInit: true } ? "init" : "set");
         }
     }
 
-    private static bool Reaches(AnalysisContext context, Use use, Slot slot, PropertyAccessor accessor, string keyword)
+    private static void Report(AnalysisContext context, Use use, Slot slot, DiagnosticDescriptor descriptor, PropertyAccessor? accessor, string keyword)
     {
-        if(slot.Declaring is not { } declaring)
+        if(descriptor == ProgramAnalysisDiagnostics.InaccessibleAccessor)
         {
-            return true;
+            context.Report(descriptor, use.At, use.About,
+                keyword, slot.Name, accessor!.Accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(accessor.Accessibility));
         }
-
-        if(!AccessDomains.Admits(context, use.Site, slot.Accessibility, declaring))
+        else
         {
-            return false;
+            context.Report(descriptor, use.At, use.About, slot.Name);
         }
-
-        if(AccessDomains.Admits(context, use.Site, accessor.Accessibility, declaring))
-        {
-            return true;
-        }
-
-        context.Report(
-            ProgramAnalysisDiagnostics.InaccessibleAccessor, use.At, use.About,
-            keyword, slot.Name, accessor.Accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(accessor.Accessibility));
-
-        return false;
     }
 
     private static Construction ConstructionAt(AnalysisContext context, Expression access, Property property, HashSet<object> nested)

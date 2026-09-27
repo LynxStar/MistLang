@@ -56,9 +56,9 @@ public class Program
 {
     public static void Main()
     {
-        string perm = Permission.Read;
+        string perm = Enums.Permission.Read;
         System.Console.WriteLine(perm);
-        string env = Environment.Staging;
+        string env = Enums.Environment.Staging;
         System.Console.WriteLine(env);
     }
 

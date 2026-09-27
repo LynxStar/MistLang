@@ -8,6 +8,8 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
+using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -16,7 +18,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_INACCESSIBLE_MEMBER", "MIST_PA_INCONSISTENT_ACCESSIBILITY", "MIST_PA_SEALED_BASE_TYPE",
+        "MIST_PA_INACCESSIBLE_MEMBER", "MIST_PA_INACCESSIBLE_TYPE", "MIST_PA_INCONSISTENT_ACCESSIBILITY", "MIST_PA_SEALED_BASE_TYPE",
         "MIST_PA_NEWTYPE_OVER_SEALED_TYPE", "MIST_PA_SEALED_TYPE_ALIAS", "MIST_PA_ENUM_BASE_NOT_READONLY",
         "MIST_PA_ENUM_DUPLICATE_VALUE", "MIST_PA_DEFAULT_ENTRY_NOT_A_FIELD", "MIST_PA_CONSTRAINT_NOT_SATISFIED",
         "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED", "MIST_PA_NOT_DEFAULTABLE",
@@ -217,6 +219,36 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         public class Flagged<F:bool> where F true { }
         """;
 
+    private const string Library = """
+        namespace Probe
+        {
+            internal class Secret
+            {
+                public static int Make() { return 1; }
+            }
+
+            internal type Small = int < 3;
+
+            public class Open
+            {
+                internal static int Quiet() { return 4; }
+            }
+        }
+
+        namespace Hushed
+        {
+            internal class Hush
+            {
+                public static int Make() { return 2; }
+            }
+
+            public class Heard
+            {
+                public static int Make() { return 3; }
+            }
+        }
+        """;
+
     protected override string Preamble { get; } = """
         Owner owner = new Owner();
         Derived derived = new Derived();
@@ -322,6 +354,162 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     public void ARefinementNoMoreAccessibleThanTheMembersItReads_IsDeclared(string extraTypes)
     {
         AssertBoundAndSilent("int unused = 1;", extraTypes);
+    }
+
+    [Theory]
+    [InlineData("""
+        public class Keeper
+        {
+            private class Hidden { public int n = 1; }
+            private type Count = int;
+            private enum Mode { On, Off }
+            private class Pack<params Ts> { }
+
+            private Hidden? kept;
+
+            private static Hidden Make() { return new Hidden(); }
+
+            public int Own()
+            {
+                Hidden h = Keeper.Make();
+                kept = h;
+                Count c = h.n;
+                func<Hidden, int> read = (Hidden x) => x.n;
+                int Local(Hidden y) { return y.n; }
+                unknown o = h;
+                bool tested = o is Keeper.Hidden { n: 1 } && Mode.On is Keeper.Mode.On;
+                var pack = new Keeper.Pack<int, string>();
+                return c + read(h) + Local(h) + Keeper.Twin.Twice();
+            }
+
+            private class Twin
+            {
+                public static int Twice() { return 2; }
+            }
+        }
+        """)]
+    [InlineData("""
+        public class Keeper
+        {
+            private class Hidden { public int n = 1; }
+
+            public class Peer
+            {
+                private class Tiny { }
+
+                private Hidden? kept;
+
+                public int Read() { Keeper.Hidden h = new Hidden(); Tiny t = new Tiny(); kept = h; return h.n; }
+            }
+        }
+        """)]
+    [InlineData("""
+        public class Keeper
+        {
+            protected class Shared { public int n = 2; }
+        }
+
+        public class Heir : Keeper
+        {
+            private class Own : Shared { }
+
+            private int Take(Shared s) { return s.n; }
+
+            public int Read() { Keeper.Shared t = new Own(); return Take(new Shared()) + t.n; }
+
+            public class Inner
+            {
+                public int Read() { return new Keeper.Shared().n; }
+            }
+        }
+        """)]
+    [InlineData("""
+        public class Box<T>
+        {
+            private class Hidden { }
+
+            public int Make() { Box<T>.Hidden h = new Hidden(); return 1; }
+        }
+        """)]
+    [InlineData("""
+        public class Keeper
+        {
+            private class Hidden { public int n = 1; }
+
+            public int Read() { Hidden h = new Hidden(); return h.n; }
+        }
+
+        public type Wrap = new Keeper;
+        """)]
+    public void ATypeNamedInsideItsDomain_IsAdmitted(string extraTypes)
+    {
+        AssertBoundAndSilent("int unused = 1;", extraTypes);
+    }
+
+    [Fact]
+    public void AnInternalTypeNamedAnywhereInItsCompilation_IsAdmitted()
+    {
+        AssertBoundAndSilent(
+            "int n = new Keeper.Mine().n + new Unmarked().Get(); Keeper.Mine m = new Keeper.Mine();",
+            "public class Keeper { internal class Mine { public int n = 3; } }");
+    }
+
+    [Fact]
+    public void AnInternalTypeNamedFromAnotherCompilation_IsBlockedAtTheInternalLevel()
+    {
+        var model = BuildModel("int unused = 1;", "public class Keeper { internal class Mine { } }", extraPreamble: "", out _);
+        var unmarked = (MistType)model.TypesByFQN["Probe.Unmarked"];
+        var mine = (MistType)model.TypesByFQN["Probe.Keeper.Mine"];
+
+        Assert.Null(AccessDomains.Blocking(owner: null, unmarked.Assembly, unmarked));
+        Assert.Null(AccessDomains.Blocking(owner: null, mine.Assembly, mine));
+        Assert.Same(unmarked, AccessDomains.Blocking(owner: null, MistAssembly.Ambient, unmarked));
+        Assert.Same(mine, AccessDomains.Blocking(owner: null, MistAssembly.Ambient, mine));
+    }
+
+    [Theory]
+    [InlineData("Secret s;", "")]
+    [InlineData("Small s = 1;", "")]
+    [InlineData("int n = Secret.Make();", "")]
+    [InlineData("int n = Hushed.Hush.Make();", "")]
+    [InlineData("int unused = 1;", "public class Measured<N:Small> { }")]
+    public void AnInternalTypeOfAnotherCompilation_IsRefusedWhereItIsNamed(string statement, string extraTypes)
+    {
+        var finding = Assert.Single(Analyse(statement, extraTypes, Library));
+
+        Assert.Equal("MIST_PA_INACCESSIBLE_TYPE", finding.Id.Value);
+    }
+
+    [Fact]
+    public void ATypeOutOfReachAtTwoLevels_IsNamedAtTheOutermost()
+    {
+        var finding = Assert.Single(Analyse(
+            "Keeper.Vault.Box b;", "public class Keeper { private class Vault { private class Box { } } }"));
+
+        Assert.Equal(
+            "The type 'Keeper.Vault' is inaccessible here: private types are accessible only within the declaring type.",
+            finding.Message);
+    }
+
+    [Fact]
+    public void ANameRecordedTwiceAtOneNode_IsReportedOnce()
+    {
+        _ = Assert.Single(Analyse(
+            "Keeper.Box<int>.Hidden h;", "public class Keeper { private class Box<T> { private class Hidden { } } }"));
+    }
+
+    [Fact]
+    public void AnInternalMemberOfAnotherCompilation_IsRefusedWhereItIsUsed()
+    {
+        var finding = Assert.Single(Analyse("int n = Open.Quiet();", referenced: Library));
+
+        Assert.Equal("MIST_PA_INACCESSIBLE_MEMBER", finding.Id.Value);
+    }
+
+    [Fact]
+    public void APublicTypeOfAnotherCompilation_IsAdmitted()
+    {
+        Assert.Empty(Analyse("Open o = new Open(); int n = Hushed.Heard.Make();", referenced: Library));
     }
 
     [Theory]
@@ -586,9 +774,9 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         return [.. diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.Message)];
     }
 
-    private List<Diagnostic> Analyse(string statement, string extraTypes = "")
+    private List<Diagnostic> Analyse(string statement, string extraTypes = "", string? referenced = null)
     {
-        var model = BuildModel(statement, extraTypes, extraPreamble: "", out _);
+        var model = BuildModel(statement, extraTypes, extraPreamble: "", out _, referenced);
         var findings = new DiagnosticBag();
 
         ProgramAnalysisRunner.Run(model, findings);

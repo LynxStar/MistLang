@@ -4,7 +4,6 @@ using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -59,7 +58,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         foreach(var concrete in context.Types.OfType<ConcreteType>())
         {
-            JudgeImplementations(context, concrete);
+            RefinementContracts.Judge(context, concrete, lifted);
 
             foreach(var constructor in concrete.ConstructorsList)
             {
@@ -72,45 +71,9 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void JudgeImplementations(AnalysisContext context, ConcreteType concrete)
-    {
-        var fillers = ConformanceAnalyzer.Fillers(concrete).ToList();
-
-        foreach(var (abstractType, substitution) in ConformanceAnalyzer.Reached(concrete.BaseAbstractTypes, context.Model.TypeInterner))
-        {
-            foreach(var slot in abstractType.MethodsList)
-            {
-                var filler = fillers.FirstOrDefault(candidate => candidate.Method is { } method
-                    && method.Name == slot.Name && SlotSignatures.Answers(slot, method, substitution, context.Model.TypeInterner))?.Method;
-
-                if(filler is null || filler.DeclaringType != concrete || filler.DeclarationNode is null)
-                {
-                    continue;
-                }
-
-                for(var i = 0; i < slot.ParametersList.Count && i < filler.ParametersList.Count; i++)
-                {
-                    if(Requirement.OfType(filler.ParametersList[i].Type) is not { } demanded)
-                    {
-                        continue;
-                    }
-
-                    var promised = Requirement.OfType(slot.ParametersList[i].Type) ?? Requirement.Anything;
-
-                    if(!promised.Values.IsSubsetOf(demanded.Values))
-                    {
-                        context.Report(
-                            ProgramAnalysisDiagnostics.ConstraintStrengthened, filler.DeclarationNode, [],
-                            filler.Name, filler.ParametersList[i].Name, promised.Values, demanded.Values);
-                    }
-                }
-            }
-        }
-    }
-
     private static void JudgeClosing(AnalysisContext context, TypeParameter parameter, IMistType argument, Storm.Runtime.SyntaxNode at)
     {
-        if(Demanded(parameter) is not { } required || required.Values.IsEverything)
+        if(DependentFinding(parameter, argument) is null || Demanded(parameter) is not { } required)
         {
             return;
         }
@@ -129,6 +92,22 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         }
     }
 
+    public static DiagnosticDescriptor? DependentFinding(TypeParameter parameter, IMistType argument)
+    {
+        if(Demanded(parameter) is not { } required || required.Values.IsEverything)
+        {
+            return null;
+        }
+
+        return argument switch
+        {
+            LiftedType { Value: long value } when !required.Values.Contains(value) => ProgramAnalysisDiagnostics.DependentArgumentViolated,
+            TypeParameter forwarded when !(Demanded(forwarded)?.Values ?? Admitted.Everything).IsSubsetOf(required.Values)
+                => ProgramAnalysisDiagnostics.DependentForwardUnproven,
+            _ => null,
+        };
+    }
+
     private static Requirement? Demanded(TypeParameter parameter)
     {
         var declared = Requirement.Of(parameter.Refinement);
@@ -143,7 +122,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         };
     }
 
-    private sealed class Proving(AnalysisContext context, LiftedReturns lifted, IReadOnlySet<LocalVariable> unseenWrites)
+    private sealed class Proving(AnalysisContext context, LiftedReturns lifted, IReadOnlySet<object> unseenWrites)
     {
         public void Judge(FlowGraph graph, ImmutableDictionary<object, Knowledge> entry)
         {
@@ -224,16 +203,17 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private void NeedIndex(ImmutableDictionary<object, Knowledge> state, IndexExpression index)
         {
-            if(RefinementFlow.Refused(state, index.Receiver))
+            if(RefinementFlow.Refused(state, index.Receiver, lifted))
             {
                 return;
             }
 
             var receiverType = index.Receiver.Type is TypeAlias { AliasedType: { } aliased } ? aliased : index.Receiver.Type;
 
-            if(receiverType is ConstructedType { Definition: var definition, TypeArguments.Count: 2 } && Lengths.IsIndexable(definition))
+            if((receiverType is ConstructedType { Definition: var definition, TypeArguments.Count: 2 } && Lengths.IsIndexable(definition))
+                || (receiverType.FullyQualifiedName == "Standard.String" && RangeBound.IsIndex(index.Index.Type)))
             {
-                var length = RefinementFlow.Length(state, index.Receiver);
+                var length = RefinementFlow.Length(state, index.Receiver, lifted);
 
                 if(Lengths.IsRangeSlice(index))
                 {
@@ -261,7 +241,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             if(Lengths.IsRangeSlice(index))
             {
-                NeedRange(state, index, RefinementFlow.Length(state, index.Receiver));
+                NeedRange(state, index, RefinementFlow.Length(state, index.Receiver, lifted));
                 return;
             }
 
@@ -284,7 +264,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private void NeedRange(ImmutableDictionary<object, Knowledge> state, IndexExpression index, Admitted? length)
         {
-            if(RefinementFlow.Refused(state, index.Receiver) || RefinementFlow.Range(state, index.Index) is not { } range || Lengths.SafetyOf(range, length) != RangeSafety.Violated)
+            if(RefinementFlow.Refused(state, index.Receiver, lifted) || RefinementFlow.Range(state, index.Index, lifted) is not { } range || Lengths.SafetyOf(range, length) != RangeSafety.Violated)
             {
                 return;
             }
@@ -300,12 +280,24 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         // any other index, and never learns what `^` means. Null for an index the slot's type refuses.
         private Knowledge? Reaching(ImmutableDictionary<object, Knowledge> state, IndexExpression index, Admitted? length)
         {
-            if(index.Index is not UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset })
+            if(index.Index is not UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd } && !RangeBound.IsIndex(index.Index.Type))
             {
                 return EntersBounds(index) ? Known(state, index.Index) : null;
             }
 
-            var back = Known(state, offset).Values;
+            var captured = RangeKnowledge.Index(state, index.Index, lifted);
+
+            if(captured is null)
+            {
+                return RangeBound.IsIndex(index.Index.Type) ? Knowledge.Unknown : EntersBounds(index) ? Known(state, index.Index) : null;
+            }
+
+            if(!captured.FromEnd)
+            {
+                return new Knowledge(captured.Values, ImmutableHashSet<Bound>.Empty);
+            }
+
+            var back = captured.Values;
 
             if(length is null || back.Low is not { } nearest)
             {
@@ -342,7 +334,8 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return;
             }
 
-            if(onConstraint is not null && Requirement.IsAnonymous(target) && !LiteralPredicates.Applies(target) && Requirement.OfType(target) is { } constrained)
+            if(onConstraint is not null && Requirement.IsAnonymous(target) && !LiteralPredicates.Applies(target)
+                && Requirement.OfType(target) is { Bounds.Length: > 0 } constrained)
             {
                 Need(state, value, constrained, at, onConstraint, measured: measured);
                 return;
@@ -352,7 +345,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             var literal = LiteralValue.Of(value, held => state.TryGetValue(held, out var exact) ? exact.Literal : null);
 
-            if(AnySatisfied(known, considered, value.Type, measured, Length(state, measured), literal, value))
+            var decided = considered.All(constituent => Requirement.OfType(constituent) is not { Bounds.Length: > 0 });
+
+            if(decided
+                ? RefinementDecision.Judge(value, target, known.Values, literal, known.Real, onConstraint is not null) is null
+                : AnySatisfied(known, considered, value.Type, measured, Length(state, measured), literal, value))
             {
                 return;
             }
@@ -366,7 +363,8 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             else if(Requirement.OfType(considered[0]) is { } required)
             {
                 RefinementFindings.Report(
-                    context, known.Values, value, Stated(Read(required, proving: false), Length(state, measured)), TypeDisplay.Mist(target), at, onConstraint: null);
+                    context, known.Values, value, Stated(Read(required, proving: false), Length(state, measured)), TypeDisplay.Mist(target), at,
+                    onConstraint: Requirement.IsAnonymous(target) ? onConstraint : null);
             }
             else
             {
@@ -446,6 +444,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         {
             return considered.Any(constituent => LiteralPredicates.Applies(constituent)
                 ? LiteralPredicates.Satisfied(constituent, valueType, literal, expression)
+                    || (LiteralPredicates.Decide(constituent, literal) is null && RealKnowledge.Satisfied(known.Real, constituent))
                 : Requirement.OfType(constituent) is { } required
                 ? Satisfied(known, Read(required, proving: true), measured, length)
                 : !Requirement.IsUnreadable(constituent) || ReferenceEquals(Requirement.Refined(valueType), Requirement.Refined(constituent)));
@@ -540,9 +539,9 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 ;
         }
 
-        private static Admitted? Length(ImmutableDictionary<object, Knowledge> state, Expression? measured)
+        private Admitted? Length(ImmutableDictionary<object, Knowledge> state, Expression? measured)
         {
-            return measured is null ? null : Lengths.Typed(measured.Type) ?? RefinementFlow.Held(state, measured);
+            return RefinementFlow.Length(state, measured, lifted);
         }
 
         private static Requirement Stated(Requirement required, Admitted? length)
@@ -589,12 +588,12 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             if(value is not LocalReferenceExpression local)
             {
-                return new Knowledge(typed, ImmutableHashSet<Bound>.Empty);
+                return new Knowledge(typed, ImmutableHashSet<Bound>.Empty) { Real = RealKnowledge.Of(state, value) };
             }
 
             var flow = state.TryGetValue(local.Local, out var known) ? known : Knowledge.Unknown;
 
-            return new Knowledge(flow.Values.And(typed), flow.Bounds);
+            return new Knowledge(flow.Values.And(typed), flow.Bounds) { Real = RealKnowledge.Of(state, value) };
         }
 
         private static bool Accepts(IMistType constituent, IMistType valueType)

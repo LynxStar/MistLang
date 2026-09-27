@@ -41,6 +41,7 @@ internal static class ExtensionSpecialization
             Scope = method.Scope,
             BlockClosing = substitution,
             ClosedBlock = block,
+            SequenceLengthOperation = method.SequenceLengthOperation,
         };
 
         closed.TypeParametersList.AddRange(method.TypeParametersList);

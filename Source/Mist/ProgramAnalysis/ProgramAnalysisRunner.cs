@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -46,7 +47,7 @@ internal static class ProgramAnalysisRunner
         var refusals = CloneConversionRefusals.Judge(conversions, root =>
         {
             var findings = new DiagnosticBag();
-            Analyze(model, new AnalysisScope([], [root], []), sourcePaths, findings, CloneConversionRefusals.None);
+            Analyze(model, new AnalysisScope([], [root], [], []), sourcePaths, findings, CloneConversionRefusals.None);
 
             return findings.ToImmutableArray();
         });
@@ -54,7 +55,8 @@ internal static class ProgramAnalysisRunner
         var program = new AnalysisScope(
             [.. SourceTypes.Of(model).Where(type => !IsClone(type))],
             [.. bodies.Where(root => !IsClone(root.Owner))],
-            [.. SourceTypes.ExtensionsOf(model)]);
+            [.. SourceTypes.ExtensionsOf(model)],
+            model.TypeNamings.Namings);
 
         Analyze(model, program, sourcePaths, diagnostics, refusals);
 
@@ -62,7 +64,7 @@ internal static class ProgramAnalysisRunner
             clones,
             clone => Analyze(
                 model,
-                new AnalysisScope([clone], [.. bodies.Where(root => root.Owner == clone).Except(conversions)], []),
+                new AnalysisScope([clone], [.. bodies.Where(root => root.Owner == clone).Except(conversions)], [], []),
                 sourcePaths,
                 diagnostics,
                 refusals),
@@ -109,4 +111,5 @@ internal static class ProgramAnalysisRunner
 internal sealed record AnalysisScope(
     IReadOnlyList<MistType> Types,
     IReadOnlyList<SourceRoot> Bodies,
-    IReadOnlyList<ExtensionBlock> Extensions);
+    IReadOnlyList<ExtensionBlock> Extensions,
+    IReadOnlyList<TypeNaming> Namings);

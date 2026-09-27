@@ -76,6 +76,15 @@ public sealed class LiteralPredicateDecisionTests : ProgramModelProbe
     [InlineData("string Take(Letters p) { return p; } var value = Take(\"abc\");")]
     [InlineData("double Take(double p) where p > 0.0 { return p; } var value = Take(2.5);")]
     [InlineData("string Take(string p) where p `[a-z]+` { return p; } var value = Take(\"abc\");")]
+    [InlineData("FloatTenth value = 0.05f;")]
+    [InlineData("NotLetters value = \"123\";")]
+    [InlineData("LetterOrDigit value = \"abc\";")]
+    [InlineData("LetterOrDigit value = \"123\";")]
+    [InlineData("string number = \"123\"; var copy = number; NotLetters value = copy;")]
+    [InlineData("NotLetters first = \"123\"; NotLetters value = first;")]
+    [InlineData("NotLetters Make() { return \"123\"; } NotLetters value = Make();")]
+    [InlineData("string Take(LetterOrDigit p) { return p; } var value = Take(\"abc\");")]
+    [InlineData("float Take(FloatTenth p) { return p; } var value = Take(0.05f);")]
     public void AConstantThatMeetsThePredicate_IsAdmitted(string statement)
     {
         Assert.Empty(Analyse(statement));
@@ -102,6 +111,12 @@ public sealed class LiteralPredicateDecisionTests : ProgramModelProbe
     [InlineData("double Take(Positive p) { return p; } var value = Take(-2.5);", "MIST_PA_REFINEMENT_VIOLATED")]
     [InlineData("double Take(double p) where p > 0.0 { return p; } var value = Take(-2.5);", "MIST_PA_CONSTRAINT_VIOLATED")]
     [InlineData("string Take(string p) where p `[a-z]+` { return p; } var value = Take(\"123\");", "MIST_PA_CONSTRAINT_VIOLATED")]
+    [InlineData("FloatTenth value = 0.1f;", "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData("NotLetters value = \"abc\";", "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData("LetterOrDigit value = \"abc1\";", "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData("NotLetters Make() { return \"abc\"; }", "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData("string Take(LetterOrDigit p) { return p; } var value = Take(\"abc1\");", "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData("float Take(FloatTenth p) { return p; } var value = Take(0.1f);", "MIST_PA_REFINEMENT_VIOLATED")]
     public void AConstantThatFailsThePredicate_IsRefusedAsViolated(string statement, string expected)
     {
         Assert.Equal(expected, Assert.Single(Analyse(statement)).Id.Value);
@@ -111,16 +126,15 @@ public sealed class LiteralPredicateDecisionTests : ProgramModelProbe
     [InlineData("Positive value = input;")]
     [InlineData("void Forward(Positive first) { Positive value = -first; }")]
     [InlineData("Letters value = inputText;")]
-    [InlineData("FloatTenth value = 0.1f;")]
-    [InlineData("double number = 0.5; if(flag) { number = 0.75; } Unit value = number;")]
+    [InlineData("double number = 0.5; if(flag) { number = -0.75; } Unit value = number;")]
     [InlineData("double number = 2.5; var write = () => { number = -1.0; }; write(); Positive value = number;")]
-    [InlineData("NotLetters value = \"123\";")]
-    [InlineData("LetterOrDigit value = \"abc\";")]
     [InlineData("IgnoreCase value = \"I\";")]
     [InlineData("GlobalIgnoreCase value = \"I\";")]
-    [InlineData("if(input > 0.0) { Positive value = input; }")]
+    [InlineData("if(input >= 0.0) { Positive value = input; }")]
     [InlineData("void Forward(Positive first) { Unit value = first; }")]
     [InlineData("double Special() { return input; } var number = Special(); Positive value = number;")]
+    [InlineData("NotLetters value = inputText;")]
+    [InlineData("LetterOrDigit value = inputText;")]
     public void AValueWithoutASoundLiteralProof_IsStillUnproven(string statement)
     {
         Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(Analyse(statement)).Id.Value);

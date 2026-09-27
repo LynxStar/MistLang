@@ -92,6 +92,7 @@ internal static class TypeNameEmitter
             TupleType tuple => EmitTuple(tuple.ElementTypes, elementNames: null),
             FunctionType function => EmitFunction(function),
             MemberType memberType => MapMemberType(memberType),
+            EnumType enumType => ShouldQualify(enumType) ? Qualified(enumType) : enumType.Name,
             PackElementType element => Emit(
                 Monomorph.InScope()?.Element(element.Pack, element.Index) ?? element.Pack),
             TypeParameter typeParameter => DependentCarrierNames.Parameter(typeParameter),
@@ -438,13 +439,13 @@ internal static class TypeNameEmitter
     /// Built segment by segment because <see cref="IMistType.FullyQualifiedName"/> keeps the arity
     /// marker a generic segment is registered under, leaving a nesting path that is not a C# name.
     /// </summary>
-    private static string Qualified(MemberType type)
+    private static string Qualified(DeclaredType type)
     {
-        var segment = type.TypeParametersList.Count > 0
-            ? $"{MistType.StripArity(type.Name)}<{string.Join(", ", type.TypeParametersList.Select(p => p.Name))}>"
+        var segment = type is MemberType { TypeParametersList.Count: > 0 } generic
+            ? $"{MistType.StripArity(generic.Name)}<{string.Join(", ", generic.TypeParametersList.Select(p => p.Name))}>"
             : type.Name;
 
-        if(type.DeclaringType is MemberType declaring)
+        if(type.DeclaringType is DeclaredType declaring)
         {
             return $"{Qualified(declaring)}.{segment}";
         }
@@ -461,23 +462,23 @@ internal static class TypeNameEmitter
     /// reference such as <c>Simpliest.Program</c> emitted as <c>Program</c> inside
     /// <c>namespace AllFeaturesV2;</c> silently binds to <c>AllFeaturesV2.Program</c>.
     /// </summary>
-    private static bool ShouldQualify(MemberType memberType)
+    private static bool ShouldQualify(DeclaredType type)
     {
-        if(string.IsNullOrEmpty(memberType.NamespaceName))
+        if(string.IsNullOrEmpty(type.NamespaceName))
         {
             return false;
         }
 
         // Synthetic types have no declaration to qualify against. An AMBIENT type is qualified like
         // any other, since EmitUsings writes only what the source imported.
-        if(!memberType.Assembly.HasMistSource && memberType.Assembly.Kind != MistAssemblyKind.Ambient)
+        if(!type.Assembly.HasMistSource && type.Assembly.Kind != MistAssemblyKind.Ambient)
         {
             return false;
         }
 
         // A generic definition is named through its construction, in EmitConstructed; a bare one
         // keeps its arity marker, having no C# name.
-        return !memberType.Name.Contains('<');
+        return !type.Name.Contains('<');
     }
 
     private sealed record Frame(TypeSubstitution Substitution, Frame? Outer);

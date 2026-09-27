@@ -80,7 +80,7 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
     /// captured from v2 and read against the program by hand.
     /// </para>
     /// <para>
-    /// See <c>.kiro/steering/testing-philosophy.md</c>, Tier 6.
+    /// See <c>.claude/skills/testing-philosophy/SKILL.md</c>, Tier 6.
     /// </para>
     /// </summary>
     [Fact]

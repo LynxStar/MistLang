@@ -1,4 +1,3 @@
-using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
@@ -85,9 +84,9 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     CheckDeconstruction(context, deconstruction);
                     break;
 
-                case ImplicitConversionExpression { AmbiguousOperators.Count: > 0 } conversion:
+                case ImplicitConversionExpression conversion when Assignability.JudgeSelection(conversion.AmbiguousOperators.Count) is { } ambiguity:
                     context.Report(
-                        ProgramAnalysisDiagnostics.AmbiguousImplicitConversion,
+                        ambiguity,
                         conversion.Node,
                         [conversion, conversion.Operand],
                         TypeDisplay.Mist(conversion.Operand.Type),

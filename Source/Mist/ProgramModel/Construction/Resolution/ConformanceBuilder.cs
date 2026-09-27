@@ -226,6 +226,7 @@ internal sealed class ConformanceBuilder
         var closed = new Method(method.Name, returnType, parameters, method.Modifiers)
         {
             Scope = method.Scope,
+            SequenceLengthOperation = method.SequenceLengthOperation,
             ReturnOwnership = method.ReturnOwnership,
             DeclaredThisTier = method.DeclaredThisTier,
             DeclaringType = method.DeclaringType,

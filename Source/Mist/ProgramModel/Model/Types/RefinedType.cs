@@ -14,8 +14,6 @@ namespace Mist.ProgramModel.Model.Types;
 /// </summary>
 internal sealed class RefinedType : MistType, IRefinedType
 {
-    private readonly RefinedType root;
-
     private Pattern? boundPredicate;
 
     public RefinedType(IMistType baseType, SyntaxNode predicateNode, string? name = null)
@@ -24,7 +22,7 @@ internal sealed class RefinedType : MistType, IRefinedType
         BaseType = baseType;
         PredicateNode = predicateNode;
         IsAnonymous = name is null;
-        root = this;
+        Declaration = this;
     }
 
     /// <summary>
@@ -38,10 +36,12 @@ internal sealed class RefinedType : MistType, IRefinedType
         : this(baseType, declared.PredicateNode, declared.IsAnonymous ? null : declared.Name)
     {
         IsSubstituted = true;
-        root = declared.root;
+        Declaration = declared.Declaration;
     }
 
     public bool IsAnonymous { get; }
+
+    public RefinedType Declaration { get; }
 
     public bool IsSubstituted { get; }
 
@@ -60,8 +60,8 @@ internal sealed class RefinedType : MistType, IRefinedType
 
     public Pattern? Predicate
     {
-        get => root.boundPredicate;
-        internal set => root.boundPredicate = value;
+        get => Declaration.boundPredicate;
+        internal set => Declaration.boundPredicate = value;
     }
 
     IMistType IRefinedType.BaseType => BaseType;

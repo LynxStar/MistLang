@@ -170,6 +170,7 @@ internal static class ExtensionProjector
         var projected = new Method(method.Name, returnType, parameters, modifiers)
         {
             Scope = methodScope,
+            SequenceLengthOperation = ClrSequenceLengths.Of(method),
         };
 
         projected.TypeParametersList.AddRange(methodTypeParameters);

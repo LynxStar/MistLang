@@ -94,6 +94,9 @@ rules:
       class in the probe style, extended to admit whole compilation units. The corpus wins on making
       progress un-loseable the way the baseline did; the probe style wins on keeping the reason for each
       refusal next to it. Neither is obviously right and the choice shapes every rule below it.
+      [CORRECTED 2026-09-26: Arthur never approved one Tier 4-5 test per refusal. The corpus design
+      below is withdrawn; see the WITHDRAWN task at the end of this order. Migration completed
+      2026-09-26: the corpus and runner are deleted; the corpus references in this evidence are historical.]
       BOTH, WITH THE CORPUS AS THE SPINE -- Arthur's call. `refusals/` holds the programs Mist must not
       compile, one directory per rule below, walked by one test (RefusalCorpusTest, Tier 5). The Tier 3
       probe classes stay for the cases where the reasoning matters more than the count: decisions,
@@ -237,8 +240,30 @@ rules:
         Keep the 72 banked samples as the FALSE-POSITIVE half. A new analyzer that refuses OR WARNS on a
         working program fails AllFeaturesV2 -- the warning half enforced since order 2.
       - >
-        Re-measure the per-case cost around 30 cases, and decide then rather than now whether the
-        corpus needs a cheaper provider.
+        WITHDRAWN 2026-09-26: the proposed per-case provider optimization is superseded by the
+        completed refusal migration; no whole-program corpus remains to optimize.
+      - >
+        WITHDRAWN 2026-09-26; the former provider-optimization task was never done. This order
+        COMPLETELY IGNORED THE TESTING PHILOSOPHY (.claude/skills/testing-philosophy/SKILL.md): every
+        corpus case was a full in-process compile, 759 Tier 4-5 tests of Tier 1-2 invariants, the
+        philosophy's "most common violation". Measured on ledger 20260926-191851: RefusalCorpusTest
+        took 697s of a 754s test run; every other test finished by 173s. The corpus was frozen.
+        COMPLETED 2026-09-26: all 759 originals and 764 diagnostic obligations have named replacement
+        rows. The 1,020 classified cases comprise 443 Tier 1 decisions, 570 Tier 2 hand-built analysis
+        or binder fragments, and seven Tier 4 binding-to-analysis cases, each with exactly one effective
+        xUnit Tier trait. Ledger 20260926-221712 records 878 expected failures under 61 grouped mutations
+        in 47 production files; the audit matched failing refusal rows for 759/759 original cases.
+        All production files match their restored copies. Ledger 20260926-225317 passed all 1,020
+        classified tests in a 1s test phase, with passing rows for 759/759 originals, before deletion.
+        The 759 files, README, corpus directories and RefusalCorpusTest are deleted. The final rebuild
+        had zero warnings/errors (5.26s), and full-solution formatting passed. Unfiltered ledger
+        20260926-225427 passed 9,491 tests (Mist.Tests 8,715, CLI 68, source generator 708), both sample
+        baselines included, with zero failures/skips and empty failures.txt. Test wall time was 162s
+        (2m42s), main assembly 161s, with the build measured separately. This run used an 18-CPU macOS
+        host; the original 13m08s full-run measurement used 32 CPUs, so these are not controlled
+        same-hardware speedup measurements. Evidence is local and Git-ignored under TestResults/ledger;
+        the named tests retain coverage without a second per-case checklist. The completed plan and
+        measurement details are in backlog/refusal-corpus-migration.md.
 
   - id: analyzer-contract
     name: The v2 analyzer contract and runner
@@ -1830,6 +1855,88 @@ rules:
       The full suite -- 7000, 708 and 68 tests, AllFeaturesV2's baseline among them -- passed with no failure
       and no rerun on 2026-09-26, together with emitter order 111's extension carriers; the build and `dotnet
       format` were clean.
+      A TYPE IS JUDGED WHEREVER IT IS NAMED (2026-09-26), decided by Arthur: a name denoting a type outside
+      its accessibility domain is refused, as C# refuses it (CS0122) -- the full-accessibility-model spec's
+      Requirement 11.2, a nested type's domain being its own intersected with its enclosing type's (11.1).
+      MEASURED FIRST on both pipelines, one probe per position, over a private class and a private alias
+      nested in a public Gauge and named from another type: a local's type, `new`, a cast, `as`, `is`, a
+      typed property pattern, a type argument of a construction and of a generic method, a type in value
+      position, a static receiver, `default(T)`, an array, optional, union, tuple and function type, a
+      foreach's and a lambda's parameter, a parameter, return, field and property type of another type, a
+      top-level alias, refinement and newtype over the private one, a protected nested type outside a
+      derivation, a public type nested in a private one, a private enum's variant in a pattern, and an
+      extension block's receiver -- and, once main's named-element fix (emitter order 11) resolved it, an
+      array creation's element type, which the element resolution records like any other name. Classic refuses every one, as MIST_UNDEFINED_TYPE (MIST_UNDEFINED_TYPE_ARGUMENT
+      for a type argument, MIST_TC_0170 for a static receiver). v2 ADMITTED the aliases, which erase --
+      `Gauge.Count c = 3` printed 3, and `public type Leak = Gauge.Count` and a newtype over the private
+      class compiled -- refused the public signatures for the wrong reason (inconsistent accessibility), and
+      left the rest for Roslyn to refuse against the generated file.
+      THE NAME DOES NOT SURVIVE RESOLUTION: ScopeResolver expands an alias where it resolves one, and a
+      qualified or nested name leaves only the type it reached, so no model node holds anything to judge.
+      The binder records each naming as it resolves it instead -- TypeNamingRegistry, a registry on the model
+      like OptionalApplications, of the declared type, the node, and the type and assembly whose code the
+      name is written in, read off the scope chain -- at every point a written name becomes a declared type:
+      ScopeResolver's named-type lookup (every type position, and the `new`, pattern, attribute-literal and
+      with-declaration names that go through it), the variadic probe beside it, each segment of a nested
+      generic (`Box<int>.Hidden`), the expression binders (a bare name, a namespace-qualified one, a type
+      nested off a type), an enum variant's type in a pattern, an attribute's class, and a dependent
+      parameter's domain -- recorded at its declaration, the domain resolver keeping no syntax on a
+      parameter by design. A clone's members are its source's text bound again under a CloneScope and record
+      nothing, the source's binding having recorded them; the registry is swapped out with the others under
+      Discarding. AccessibilityAnalyzer judges the namings in the program pass alone -- AnalysisScope
+      carries them, empty in the clone and clone-conversion passes, since a conversion's pass reads any error
+      as that conversion's refusal -- once per node, as MIST_PA_INACCESSIBLE_TYPE naming the OUTERMOST level
+      that shuts the site out, which is C#'s choice: `new Gauge.Outer.Inner()` over a private Outer is "The
+      type 'Gauge.Outer' is inaccessible here: private types are accessible only within the declaring type."
+      A NEW ID rather than MIST_PA_INACCESSIBLE_MEMBER: the finding is about a type, judged along its nesting
+      rather than at one level, and a program filtering on either should not be handed the other. Classic's
+      MIST_UNDEFINED_TYPE is not matched, the type being defined -- saying otherwise is what CS0122 exists to
+      avoid. A top-level type's own level is judged against the compilation; a private or protected
+      top-level DECLARATION is the task below, not this rule's.
+      ONE MISTAKE, ONE COMPLAINT: a member of a type the site cannot reach is not judged again for its own
+      accessibility, its accessor's, or as a predicate's member, and a declaration exposing a type it cannot
+      reach is not also inconsistent -- AccessDomains.Reaches, structural as Effective is, the two now
+      sharing Declarations.Parts. So a private constructor, static method or setter of an unreachable type,
+      a private field in a pattern or a predicate over one, and a public method or field whose type names
+      one, each get the one complaint, at the name. Exposure still catches a type reached WITHOUT being named
+      out of reach: `public type Shown = Hidden` inside Gauge is refused at Shown, and `Take(Gauge.Shown s)`
+      elsewhere is then silent. A second name in one statement is a second complaint, as it is in C#.
+      PROVED BY forty-six corpus cases -- one per position above, and one per one-complaint shape (a private
+      constructor, static method or setter of an unreachable type, a private field in its pattern or its
+      refinement, a public parameter or optional field naming one, two blocked levels at one name, and a
+      naming beside a clone conversion, whose pass must not see it) -- and a forty-seventh pinning the
+      Declarations.Parts refactor: a public method returning List<Hidden> inside Hidden's own type is still
+      inconsistent. Admit rows, each asserting its build bound before asserting silence: a private class,
+      alias, enum and variadic class named from their type's own body, signatures, lambda, local function,
+      pattern and static receiver; a private type named from a nested type, and a private type nested in a
+      nested type named from that one, so the innermost type is the owner; a protected nested type from a
+      derivation, its base list and a type nested in it; a private type through its own generic
+      instantiation; a newtype cloning a type whose body names its private type; and an internal nested and
+      top-level type named anywhere in the compilation. ProgramModelProbe now builds a referenced project into
+      an assembly of its own, so rows also refuse another compilation's internal type named as a local's
+      type, an erased alias, a bare receiver, a namespace-qualified one and a dependent domain, refuse its
+      internal member, and admit its public ones -- the only way to reach the bare and namespace-qualified
+      binders and the domain resolver, since within one compilation a simple name finds nothing out of reach.
+      A row names the outermost blocked level in the message, and one counts the findings at a name reached
+      twice, because the corpus cannot see a duplicate: Diagnostic is a record, so one expectation claims two
+      identical findings. THIRTY-ONE MUTATIONS, each on a confirmed build. Twenty-nine caught by what was
+      written for them: each recording site left out in turn (the named-type lookup failing thirty-five
+      cases; the variadic probe, a nested generic's segment, a type nested off a type, the enum variant and
+      the attribute their own; the bare name, the namespace-qualified one and the domain the cross-compilation
+      rows alone), the clone skip removed (the clone row), the owner read as the outermost type (the
+      nested-in-nested row), the assembly lost (every exposure case and the internal rows), the namings left
+      unjudged, reported per record (the counting row), named flat or at the innermost level (the message
+      row), the top level and the nesting left unjudged, each of the four silences removed (its one-complaint
+      cases), the structural reach made shallow (the optional field and the refinement), private, protected
+      and internal shut and internal opened in turn, Parts dropping a construction's arguments (the
+      constructed case), and the clone-conversion pass handed the namings (its case). Two survive, both
+      unobservable by construction: the registry left in place under Discarding, a trial resolving the same
+      names in the same scopes, which the per-node rule collapses; and the clone passes handed the namings,
+      CloneDiagnostics dropping a finding the program pass already made. AllFeaturesV2 run by hand was
+      byte-identical and reported nothing, every sample built standalone on v2 reported nothing, all 721
+      corpus cases held after the rebase onto main, and the full suite -- 7473, 708 and 68 tests,
+      AllFeaturesV2's baseline and RefusalCorpusTest among them -- passed with no failure and no rerun; the
+      build and `dotnet format` were clean.
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
@@ -1842,9 +1949,6 @@ rules:
         A protected instance member reached through a base-typed receiver from a derived type is
         admitted, where C# demands the receiver be of the accessing type. Permissive on purpose until a
         program shows it matters.
-      - >
-        Internal is judged within one compilation and a sample proves the referenced-project case; no
-        Tier 3 test can build two assemblies, so the assembly comparison is pinned by the sweep alone.
       - >
         The unknown default-entry refusal and the constraint checks at field initializers are stricter
         than classic's analyzer; the first Roslyn refuses anyway, the second classic itself refuses one
@@ -1877,16 +1981,6 @@ rules:
         `Describe(int a)` and `Describe(int b)` in one `extension(int self)` block is MIST_SB_0073 on
         classic and MIST_CS_ERROR on v2. In two blocks for int, v2's binder already refuses the second as
         MIST_PM_DUPLICATE_EXTENSION_MEMBER, and classic as SB_0073.
-      - >
-        A TYPE NAMED where it is not accessible is not refused: accessibility is judged for members and
-        exposure, never for a type name at a use. Measured 2026-09-26 on v2: `new Gauge.Hidden()` and `o is
-        Gauge.Hidden` over a private nested class reach Roslyn as CS0122, and `Gauge.Count c = 3` over a
-        private nested alias of int is ADMITTED AND RUNS, printing 3, because an alias erases. Classic refuses
-        all three as MIST_UNDEFINED_TYPE. It matters most for refinements: the predicate rule above holds a
-        private member only to a private alias, which is sound only if a private alias cannot be named
-        outside its type -- and `g is Gauge.Low` from outside Gauge is admitted and inlines `{ level: < 3 }`
-        where Roslyn refuses it. DECIDED 2026-09-26 by Arthur: a type named where it is not accessible is
-        refused, as C# refuses it.
       - >
         A nested generic's constraint naming its enclosing type's parameter is judged unsubstituted where
         the binder builds the nested type without its enclosing instantiation: `new Inner<Score>()` inside
@@ -3569,6 +3663,126 @@ rules:
       output and byte-exact stdout. Classic AllFeatures remains 52,791 bytes; current AllFeaturesV2 is
       59,745 bytes after main's inherited-conformance sample additions. Range/span/predicate/decoded probes
       retain their earlier exact outputs. No source or test changed after the final integration build.
+      NEXT THREE-TRACK CHECKPOINT (2026-09-26): isolated range/Index, real-domain and predicate-emission
+      work is combined locally on Main 7ac5e7a5. Stored Index snapshots preserve from-end markers;
+      numeric member bounds use declared or supported lifted values, and genuine Length bounds keep
+      declaration/receiver identity until an exact value makes it unnecessary. Separate equivalent
+      expressions retain matching descriptors at joins; differing bounds/receivers/markers still drop
+      knowledge. Ref aliases, ref/out calls and captured writes exclude owned field snapshots as well
+      as locals. No source-text equality, member-body Index lift or new arithmetic proof is used.
+      Typed Single, Double and Decimal sets track finite intervals, NaN and both infinities separately.
+      Assignments, copies, direct/mirrored/negated guards, joins and widening use the existing flow
+      framework. Arithmetic cannot reuse an operand's refined type; casts retain separately judged
+      conversion obligations. Nonfinite comparison-pattern bounds remain unreadable. Real abstract
+      method parameter contracts now check promised-set inclusion, with 27 same/looser/stricter cases,
+      including NaN-sensitive refusals and Single-versus-Double thresholds.
+      Regex-bearing not/or predicates retain their hoisted condition, nested pattern composition,
+      short circuiting and one scrutinee evaluation. Float predicates with Double bounds use ordinary
+      promoted comparisons. The runtime seam test checks 67 observations against C# operator oracles,
+      including signed zero, NaN and infinities; malformed/timeouts/ignore-case/culture remain unknown.
+      Prerequisite length hardening follows resolved Standard/CLR operation identities and signatures,
+      rather than names. User Slice/AsSpan/ToArray/ToCharArray lookalikes cannot supply lengths. The
+      initial full ledger 20260926-155938 recorded a real AllFeaturesV2 AsSpan regression and was stopped
+      after 634 seconds before completion to rebuild the corrected integration. Runtime-only metadata
+      tests had missed the SDK reference assemblies used by the compiler. The fix retains signed
+      assembly/type identity, explicitly recognizes the verified reference declarations, and adds both
+      reference-pack and actual ambient-model coverage. Ledger 20260926-161349 passes 17 checks including
+      both unchanged baselines; zero warnings/errors. New fixture import and identity failures were
+      corrected before that run; no warning was suppressed and no flake was observed.
+      FINAL FOCUSED LEDGER 20260926-161730 rebuilds with zero warnings/errors and passes all 1,374 selected
+      checks: analysis, real contracts, range/Index capture, literal/predicate runtime seams, trusted CLR
+      identities and Main's generic extension/constructor constraints. Full-solution formatting exits 0
+      without diagnostics after correcting the rebase's final-newline artifact; log is
+      /private/tmp/mist-refinement-next-format-verify.log. No source or test changed after these checks
+      except that whitespace correction. Eleven sequential runtime checks pass with exit 0, empty
+      diagnostics and byte-exact stdout: classic AllFeatures (52,791 bytes), current AllFeaturesV2
+      (61,466 bytes), captured-range probes on both pipelines (55 bytes each), erased-span probes on both
+      (22 bytes each), literal predicates (64 bytes), decoded-string slicing (9 bytes), stored Index/member
+      bounds (20 bytes), real flow (34 bytes) and supported CLR sequence calls (14 bytes). Runtime script
+      and outputs are /private/tmp/mist-refinement-next-runtime-checks.py and
+      /private/tmp/mist-refinement-next-runtime. An extra one-argument Span.Slice probe reports
+      MIST_PM_NO_APPLICABLE_OVERLOAD: Standard currently declares only the two-argument shape; the final
+      CLR runtime probe uses supported calls. Samples and their baselines remain unchanged by this batch.
+      FULL PRE-FINAL LEDGER 20260926-162443 rebuilds with zero warnings/errors and passes 8,432 of
+      8,433 tests: 7,656 of 7,657 compiler, all 68 CLI and all 708 source-generator tests; no skips.
+      The sole failure is the corpus's new stored-Index marker-disagreement fixture, which still used
+      an unsupported int-to-Index assignment. The fixture now captures ^1 in a Range and joins it with
+      0..4, preserving the intended equal-result-length/different-marker refusal already covered by
+      the component row. An isolated CLI compile reports only MIST_PA_INDEX_UNPROVEN at slice[0].
+      No compiler or C# test code changes for this correction, and the original differing-range refusal
+      programs remain untouched. The final full ledger uses the current zero-warning binaries from
+      this build, with LEDGER_NO_BUILD=1; the source and test assemblies are unchanged.
+      FINAL FULL LEDGER 20260926-163749 passes all 8,433 tests: 7,657 compiler, 68 CLI and 708
+      source-generator tests; zero failures or skips, with empty failures.txt. The full corpus checks
+      all 698 refusal programs, including the corrected marker disagreement, owned-field alias writes,
+      new real/regex refusals and the unchanged differing-range cases. No source or C# test changed
+      between the zero-warning build and this full rerun. Final isolation and comment audits are clean;
+      the analysis register parses as valid YAML. The combined branch and evidence remain local for
+      the user's requested review before deciding whether to update/push Main.
+      SEPARATE OBSERVED LIMIT: an abstract slot returning a refined type can be filled by a method
+      returning the unrefined base. An abstract-typed caller then trusts the advertised refinement.
+      The isolated /private/tmp/mist-refined-return-slot-probe prints -1 for both PositiveReal and
+      PositiveInt on this integration and on the freshly rebuilt original base b9ab98a3, both exit 0
+      without diagnostics. The baseline CLI build has zero warnings/errors. This return-covariance
+      check is broader than the new real parameter-contract check and remains a separate task.
+      REFINED ABSTRACT CONTRACT CHECKPOINT (2026-09-26): the subsequent round now judges the
+      selected filler against the abstract promise. ConformanceAnswers is shared by conformance
+      and refinement checking, with separate abstract/filler substitutions; each concrete base is
+      closed before following the next, retaining two-level inherited generic contracts. Methods,
+      actual replacements of defaults, inherited fillers, with mappings and property getters prove
+      covariant outputs from whole declared integral/real predicates, refinement declaration identity,
+      or the existing R18 integral-only lift. A missing default filler owes nothing. Setter inputs
+      remain contravariant. Embedded refinements, including a nested type's enclosing construction,
+      and mutable ref parameters/returns require invariance; a ref return never relies on a current
+      value lift. Unknown symbolic conjuncts cannot disappear into their numeric intervals.
+      MIST_PA_REFINEMENT_RETURN_UNPROVEN reports an unproved output at the direct filler, or at the
+      concrete/with declaration for inherited/mapped obligations. Existing CONSTRAINT_STRENGTHENED
+      covers inputs and setters, including a symbolic bound in its message. No source text is compared.
+      New observable baseline witnesses on the pre-change CLI print -1 through a refined default
+      replacement, through Box<Positive> filled by Box<int>, and through a ref Positive slot filled
+      by a ref int writer. They are /private/tmp/mist-refined-default-slot-probe,
+      /private/tmp/mist-refined-nested-slot-probe and /private/tmp/mist-refined-out-slot-probe (the last
+      uses ref; own out declarations are unavailable in the grammar). Classic refuses the original
+      scalar return witness with MIST_SM_0022; no classic implementation source was read.
+      Coverage adds 120 Tier 3 cases plus three direct implication tests, and 14 refusal programs.
+      Focused ledger 20260926-173004 passes 1,463 component tests with zero warnings/errors.
+      An in-process harness checks all 14 new refusal markers; its first configured run exposed
+      two mapping anchors, corrected to the with declaration, and the final marker run passes all.
+      The initial combined ledger 20260926-172808 stopped on a missing TypeInterner import with
+      zero warnings; that import was fixed before the passing focused ledgers. No flaky rerun or
+      warning suppression occurred. Full ledger 20260926-173515 passes all 8,556 tests: 7,780 compiler,
+      68 CLI and 708 source-generator; zero failures/skips, with an empty failures.txt and a
+      zero-warning/error full build. The corpus includes all 712 refusal programs, retaining the
+      original differing-range cases. Final full dotnet format verification exits 0 with no diagnostics
+      (/private/tmp/mist-refined-contract-format-verify.log). Twelve runtime checks all exit 0 with
+      empty diagnostics and byte-exact stdout: AllFeatures classic (52,791 bytes), AllFeaturesV2
+      (61,466 bytes), the earlier range/span/predicate/decoded-string/Index/member/real-flow/CLR
+      length probes, and the new 26-byte contract witness covering safe method/getter/default/mapped
+      dispatch, integral lift and ref writing alongside the original != guard and equal-range join.
+      Script/output paths are /private/tmp/mist-refined-contract-runtime-checks.py and
+      /private/tmp/mist-refined-contract-next-runtime. Final v2 isolation, ASCII, comment-budget,
+      newline and YAML audits pass; samples, baselines and legacy implementations are untouched.
+      The full ledger records an unrelated external worktree test run; no timing failure occurred.
+      At the end of that round, both completed rounds were committed locally for review, before
+      updating Main or the remote.
+      MAIN INTEGRATION CHECKPOINT (2026-09-26): the reviewed refinement head d32f5e51 is combined with
+      Main dde4dc355, preserving four intervening commits for type-name accessibility, nested enum
+      emission and book snippets. The automatic merge has no conflicts; a read-only seam audit finds
+      no material integration issue. Accessibility's naming registry preserves the declaration and
+      receiver identities used by range/Index/Length proofs, and its new diagnostic remains distinct
+      from REFINEMENT_RETURN_UNPROVEN. No additional source repair is needed.
+      Full integration ledger 20260926-175733 passes all 8,575 tests: 7,799 compiler, 68 CLI and 708
+      source-generator tests, with zero failures/skips and an empty failures.txt. Its full build has
+      zero warnings/errors; tests finish in 587 seconds, with no unrelated dotnet process recorded at
+      startup. All 759 refusal programs are checked, including the original differing-range cases.
+      Full dotnet format verification exits 0 with an empty /private/tmp/mist-refinement-main-format.log.
+      Twelve runtime checks re-run with the rebuilt CLI all exit 0, report no diagnostics and match
+      byte-exact stdout, including both full sample baselines, actual slicing, the != guard/equal-range
+      join and the refined abstract contract witness. Script/output paths are
+      /private/tmp/mist-refinement-main-runtime-checks.py and /private/tmp/mist-refinement-main-runtime.
+      The merged sources remain unchanged after the full build; only this evidence is amended.
+      V2 isolation, whitespace and YAML checks pass. No warning suppression or flaky rerun occurs.
+      This checkpoint validates promotion of the combined merge to Main; the limits below remain open.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -3580,12 +3794,26 @@ rules:
         a constant by any integral constituent it fits; a runtime `is` against a union of refinements
         narrows to a constituent (Req 10.3) and is not judged beyond order 8's pattern rules.
       - >
-        Dynamic real-valued refinement implication and real guards are not proven: the interval set is
-        over long, and exact literal evaluation does not supply a real interval lattice. Property-pattern
-        refinements remain unproven, as the comparison engine spec says.
+        Typed single, double and decimal intervals now prove supported dynamic real implication and
+        guards, with separate NaN and infinity facts. Symbolic real bounds, arithmetic relationships,
+        user operators and unsupported numeric conversions remain unknown; decimal representation
+        gaps can conservatively refuse an implication. Nonfinite comparison-pattern bounds remain
+        unreadable until their emission is verified. Property-pattern refinements remain unproven,
+        as the comparison engine spec says.
       - >
         A refined return through a lambda, an `async` result, or a `switch` arm is judged where the
         binder recorded a target; a refined field initialiser is judged as a declaration is.
+      - >
+        Selected abstract fillers now prove supported whole refined output contracts, including
+        inherited/generic/mapped/default/property surfaces and invariant embedded/ref storage
+        refinements. Symbolic/dependent predicate implication beyond declaration identity remains
+        unproven. R18 deliberately supplies no real/string/regex body lift; an unrefined real method
+        returning a positive constant is still refused for a refined slot. Differing tuple/function/
+        union nominal signatures retain their existing signature refusal. Readonly-ref returns remain
+        backend-refused, and own out declarations remain outside the grammar. Broader nominal and
+        member-modifier conformance is separate from this refinement proof. The existing stricter
+        refusal for an unrefined input slot versus a refined filler remains unchanged; adhoc R17.8's
+        exception conflicts with that banked behavior and requires a separate policy decision.
       - >
         An enum refinement is never proven. Requirement reads an enum variant bound as nothing it can
         decide, so since the unreadable predicates were refused (2026-09-19) every use is UNPROVEN, the valid
@@ -3605,33 +3833,32 @@ rules:
         local function's `where` and another parameter being the shapes that must stay unread. Sound,
         imprecise, and nothing banked writes one. Classic runs both calls.
       - >
-        FOUND WHILE PROVING THE EXTENSION `where`, none of it this rule's (measured 2026-09-19). A VALID
-        dependent argument on an extension method does not emit: `jar.Sized<5>()` over
-        `Sized<N:int>() where N >= 3` in a block is MIST_CS_ERROR ("The name 'TN' does not exist"), where
-        the same method declared on the class prints 5 -- an emitter gap, and classic cannot name N in a
-        block at all. A `using` naming no namespace reaches Roslyn on v2 (MIST_CS_ERROR) where classic is
-        MIST_UNDEFINED_NAMESPACE. A generic local function that USES its type parameter is four complaints
+        Generic extension methods now retain their block and method type arguments through emission,
+        including dependent parameters, as Main's carrier checks verify (2026-09-26). The earlier
+        extension `where` investigation also found unrelated remaining binder gaps: a `using` naming
+        no namespace reaches Roslyn on v2 (MIST_CS_ERROR) where classic is MIST_UNDEFINED_NAMESPACE.
+        A generic local function that USES its type parameter is four complaints
         for one mistake: MIST_PM_LOCAL_FUNCTION_GENERIC, then MIST_PM_UNRESOLVED_TYPE twice for
         `T Same<T>(T x)` and MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH at `Same<int>(2)`; the banked case uses
         neither. A static extension member cannot be called on either pipeline (program-model-body-tasks
         already carries it).
       - >
         An array returned from a method is unknown by design and wants a guard, as FirstClassFunctions and
-        StandardSurface took one. Lengths.Of names the CLR members it follows (`AsSpan`, `ToArray`,
-        `ToCharArray`, `Slice`); any other member's result is unknown. A method's returned LENGTH is not
-        lifted by refinement-types R18, which lifts integral values only.
+        StandardSurface took one. Lengths.Of follows only supported resolved Standard or CLR
+        declarations and signatures for AsSpan, ToArray, ToCharArray and Slice; spelling alone supplies
+        no proof. Other methods and static CLR call forms remain unknown. A method's returned LENGTH
+        is not lifted by refinement-types R18, which lifts integral values only.
       - >
         The lift reads no flow (tabled by Arthur until the four items closed): `var n = 7; return n;` and
         `if (x > 3) { return x; }` leave the member at its declared type. The natural next step is to lift
         from what RefinementFlow knows at each return rather than from the returned expression's type.
       - >
         Literal regex evaluation stays UNPROVEN for timeout, malformed patterns and ignore-case options,
-        whose ambient culture can differ between compiler and runtime. Regex inside `not` or `or` also
-        stays UNPROVEN: emitted pattern composition does not preserve the hoisted regex condition there.
-        A float predicate with a double comparison bound is UNPROVEN because emission produces an
-        incompatible C# relational pattern. These emitter seams need their own fixes before the prover
-        admits them. A readonly field states no value either, so `< limit` over `readonly int limit = 3`
-        is still unproven at every use.
+        whose ambient culture can differ between compiler and runtime. Supported regex not/or
+        composition and float predicates with double comparison bounds now preserve the ordinary
+        runtime comparison semantics; dynamic regex and unsupported union composition remain unknown.
+        A readonly field states no value either, so `< limit` over `readonly int limit = 3` is still
+        unproven at every use.
       - >
         A symbolic bound naming neither a member nor an array's or a span's Length has nothing to read it
         through. A `where` naming another parameter (`where lo < hi`) does not bind on v2
@@ -3644,19 +3871,21 @@ rules:
         classic refuses it too (MIST_TC_0157, measured 2026-09-26). Erased Length typing is recovered,
         without recovering a compile-time size, as the evidence above records.
       - >
-        Range capture supports integral constants and non-ref numeric local/parameter offsets. Stored
-        Index values carry no known from-end marker; member-valued bounds, arithmetic and other unsupported
-        expressions stay unknown. Joins retain matching bound descriptors, not different ranges with the
-        same resulting length. Unknown endpoint validity remains a runtime slicing check.
+        Range capture supports integral constants, non-ref numeric local/parameter offsets, captured
+        Index markers, declared or lifted numeric member bounds, and genuine sequence Length bounds.
+        Non-exact bounds retain declaration and receiver identity. Index-returning getters/calls,
+        user conversions/operators, ref/deep receivers and arithmetic remain unknown; implicit int
+        assignment to Index still reports MIST_PA_NO_IMPLICIT_CONVERSION. Writes through field aliases
+        exclude affected snapshots conservatively. Joins retain matching bound descriptors, not
+        different ranges with the same resulting length. Unknown endpoint validity remains a runtime
+        slicing check.
       - >
         User Range indexers are refused by IndexBinder before analysis, whose intrinsic SliceType only
-        supports Standard arrays, spans and strings. Separately, Lengths.OfCall still trusts the member
-        names Slice, ToArray, AsSpan and ToCharArray without verifying the declaring type; user methods
-        with those names can fabricate result-length knowledge. This is a pre-existing inference limit
-        measured on v2 on 2026-09-26: a user Slice(0, 3) returning [10] admits result[2], prints
-        Length 1, then throws IndexOutOfRangeException. The scratch program is
-        /private/tmp/mist-existing-slice-name-inference. This is separate from the range-capture changes
-        and needs declaration-identity checks before those method names supply length facts.
+        supports Standard arrays, spans and strings. Resolved operation identity now gates method
+        length facts, including the SDK reference-assembly declarations used by the real compiler.
+        User methods or extensions named Slice, ToArray, AsSpan or ToCharArray supply no length fact.
+        Additional sequence operations need verified declaration and signature contracts before
+        analysis can follow them.
       - >
         A property or indexer accessor with a Mist body forgets every non-readonly field fact, whether or
         not it writes one; ReadonlyInference already answers whether a getter writes, and consulting it

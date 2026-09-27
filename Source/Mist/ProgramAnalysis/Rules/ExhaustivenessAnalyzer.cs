@@ -29,15 +29,20 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
     {
         foreach(var node in context.Nodes)
         {
-            if(node is SwitchExpression switchExpression && Missing(switchExpression) is { Count: > 0 } missing)
+            if(node is SwitchExpression switchExpression && Finding(switchExpression) is { } descriptor)
             {
                 context.Report(
-                    ProgramAnalysisDiagnostics.SwitchNotExhaustive,
+                    descriptor,
                     switchExpression.Node,
                     [switchExpression.Scrutinee],
-                    string.Join(", ", missing));
+                    string.Join(", ", Missing(switchExpression)!));
             }
         }
+    }
+
+    internal static DiagnosticDescriptor? Finding(SwitchExpression switchExpression)
+    {
+        return Missing(switchExpression) is { Count: > 0 } ? ProgramAnalysisDiagnostics.SwitchNotExhaustive : null;
     }
 
     private static IReadOnlyList<string>? Missing(SwitchExpression switchExpression)

@@ -8,7 +8,7 @@ When implementing a new feature causes a pre-existing sample or test to fail, yo
 The ONLY permitted modifications to other sample apps are:
 
 - Adding the new feature's `RunDemo()` call to `samples/AllFeatures/Program.mist` and its reference to `samples/AllFeatures/mist.toml`.
-- Adding a sample's `RunDemo()` call to `samples/AllFeaturesV2/Program.mist` and its reference to `samples/AllFeaturesV2/mist.toml`, when that sample starts working on the experimental pipeline. This is how v2 progress is recorded (see `testing-philosophy.md`, Tier 6).
+- Adding a sample's `RunDemo()` call to `samples/AllFeaturesV2/Program.mist` and its reference to `samples/AllFeaturesV2/mist.toml`, when that sample starts working on the experimental pipeline. This is how v2 progress is recorded (see the testing philosophy, `.claude/skills/testing-philosophy/SKILL.md`, Tier 6).
 
 No other changes to any other sample are allowed.
 
@@ -53,7 +53,7 @@ AcceptBuffer(b);  // compiles — same dependent value
 ### What "exercising" means concretely:
 
 1. **Use the feature's value** — if the feature introduces a value (like a dependent type parameter), read it, print it, pass it around. Don't just declare it and ignore it.
-2. **Prove type safety** — if the feature creates distinct types (like `FixedBuffer<5>` ≠ `FixedBuffer<6>`), demonstrate that the correct type is accepted and (if possible) show that mismatches are caught.
+2. **Prove type safety** — if the feature creates distinct types (like `FixedBuffer<5>` ≠ `FixedBuffer<6>`), demonstrate that the correct type is accepted. A sample cannot show a mismatch being caught (Rule 4).
 3. **Call through the feature** — if the feature generates properties/methods, call them and print their results.
 4. **Pass values through functions** — show that a function accepting the feature's type works when given the right argument.
 5. **Chain features** — show the feature interacting with other language features (inheritance, pattern matching, generics, etc.) in ways that would break if the implementation were wrong.
@@ -71,13 +71,14 @@ If a specific aspect of the feature cannot be exercised in the sample due to a k
 3. But the REST of the sample must still fully exercise everything that DOES work
 4. Report the limitation to the user — do not silently skip it
 
-## Rule 4: Samples Are Integration Tests
+## Rule 4: Samples Are System Tests
 
-Treat each sample as a proof that the feature works. The sample should fail to compile or produce wrong output if:
+A sample is Tier 5, and through `AllFeatures` or `AllFeaturesV2` Tier 6, in the testing philosophy (`.claude/skills/testing-philosophy/SKILL.md`). It proves that a valid program compiles and prints the right output, so it should fail to compile or produce wrong output if:
 - The parser doesn't recognize the syntax
 - The semantic model doesn't register the types correctly
-- The type checker doesn't enforce the rules
 - The emitter doesn't generate correct code
+
+It cannot prove a refusal. Every sample is a valid program, so a checker that enforces nothing passes it. What a rule refuses is proven at Tier 1–2 beside the rule, never with a sample or a program compiled to fail.
 
 A sample that compiles and prints correct output regardless of whether the feature is implemented correctly is worthless.
 

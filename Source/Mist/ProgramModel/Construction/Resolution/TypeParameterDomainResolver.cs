@@ -56,6 +56,11 @@ internal sealed class TypeParameterDomainResolver
 
             typeParameter.Domain = domain;
 
+            if(location is not null && typeParameter.DomainTypeName is not null)
+            {
+                context.ProgramModel.TypeNamings.Record(domain, typeParameter.Scope, location);
+            }
+
             // A pack is exempt because its domain is Type[] by construction rather than by
             // annotation, and what carries its identity is the element types it holds.
             if(location is not null

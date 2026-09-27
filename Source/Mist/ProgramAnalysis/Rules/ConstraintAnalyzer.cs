@@ -67,9 +67,33 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 
     private static void Judge(AnalysisContext context, TypeArgumentClosing closing, TypeParameterConstraint declared)
     {
-        if(Closed(declared, closing.Closing, context.Model.TypeInterner) is not { } constraint)
+        if(Decide(closing, declared, context.Model.TypeInterner) is not { } descriptor
+            || Closed(declared, closing.Closing, context.Model.TypeInterner) is not { } constraint)
         {
             return;
+        }
+
+        var argument = closing.Argument;
+
+        if(constraint is ConstructorConstraint required)
+        {
+            context.Report(
+                descriptor, closing.Node, [],
+                TypeDisplay.Mist(argument), string.Join(", ", required.ParameterTypes.Select(TypeDisplay.Mist)), closing.Parameter.Name);
+        }
+        else
+        {
+            context.Report(
+                descriptor, closing.Node, [],
+                TypeDisplay.Mist(argument), Spelling(constraint), closing.Parameter.Name);
+        }
+    }
+
+    internal static DiagnosticDescriptor? Decide(TypeArgumentClosing closing, TypeParameterConstraint declared, TypeInterner interner)
+    {
+        if(closing.Argument is ErrorType || Closed(declared, closing.Closing, interner) is not { } constraint)
+        {
+            return null;
         }
 
         var argument = closing.Argument;
@@ -77,30 +101,21 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 
         var satisfied = constraint switch
         {
-            TypeConstraint typed => ConversionClassifier.Classify(argument, typed.ConstraintType, context.Model.TypeInterner)
+            TypeConstraint typed => ConversionClassifier.Classify(argument, typed.ConstraintType, interner)
                 is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified,
-            ConstructorConstraint constructor => HasConstructor(argument, constructor.ParameterTypes, context.Model.TypeInterner),
+            ConstructorConstraint constructor => HasConstructor(argument, constructor.ParameterTypes, interner),
             KeywordConstraint keyword => Keyword(keyword.Kind, argument, definition),
             _ => true,
         };
 
         if(satisfied)
         {
-            return;
+            return null;
         }
 
-        if(constraint is ConstructorConstraint required)
-        {
-            context.Report(
-                ProgramAnalysisDiagnostics.ConstructorConstraintNotSatisfied, closing.Node, [],
-                TypeDisplay.Mist(argument), string.Join(", ", required.ParameterTypes.Select(TypeDisplay.Mist)), closing.Parameter.Name);
-        }
-        else
-        {
-            context.Report(
-                ProgramAnalysisDiagnostics.ConstraintNotSatisfied, closing.Node, [],
-                TypeDisplay.Mist(argument), Spelling(constraint), closing.Parameter.Name);
-        }
+        return constraint is ConstructorConstraint
+            ? ProgramAnalysisDiagnostics.ConstructorConstraintNotSatisfied
+            : ProgramAnalysisDiagnostics.ConstraintNotSatisfied;
     }
 
     /// <summary>

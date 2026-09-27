@@ -15,7 +15,6 @@ public class Account
 
     public Account()
     {
-        this.Owner = ((Snippet.UserId)(1));
     }
 
     public static Account __CreateDefault()

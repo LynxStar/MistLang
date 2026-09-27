@@ -73,7 +73,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
     private static void JudgeClosing(AnalysisContext context, TypeParameter parameter, IMistType argument, Storm.Runtime.SyntaxNode at)
     {
-        if(Demanded(parameter) is not { } required || required.Values.IsEverything)
+        if(DependentFinding(parameter, argument) is null || Demanded(parameter) is not { } required)
         {
             return;
         }
@@ -90,6 +90,22 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     forwarded.Name, parameter.Name, Demanded(forwarded) is { } own ? $"'{own.Values}'" : "an unconstrained parameter", required.Values);
                 break;
         }
+    }
+
+    public static DiagnosticDescriptor? DependentFinding(TypeParameter parameter, IMistType argument)
+    {
+        if(Demanded(parameter) is not { } required || required.Values.IsEverything)
+        {
+            return null;
+        }
+
+        return argument switch
+        {
+            LiftedType { Value: long value } when !required.Values.Contains(value) => ProgramAnalysisDiagnostics.DependentArgumentViolated,
+            TypeParameter forwarded when !(Demanded(forwarded)?.Values ?? Admitted.Everything).IsSubsetOf(required.Values)
+                => ProgramAnalysisDiagnostics.DependentForwardUnproven,
+            _ => null,
+        };
     }
 
     private static Requirement? Demanded(TypeParameter parameter)
@@ -318,7 +334,8 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return;
             }
 
-            if(onConstraint is not null && Requirement.IsAnonymous(target) && !LiteralPredicates.Applies(target) && Requirement.OfType(target) is { } constrained)
+            if(onConstraint is not null && Requirement.IsAnonymous(target) && !LiteralPredicates.Applies(target)
+                && Requirement.OfType(target) is { Bounds.Length: > 0 } constrained)
             {
                 Need(state, value, constrained, at, onConstraint, measured: measured);
                 return;
@@ -328,7 +345,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             var literal = LiteralValue.Of(value, held => state.TryGetValue(held, out var exact) ? exact.Literal : null);
 
-            if(AnySatisfied(known, considered, value.Type, measured, Length(state, measured), literal, value))
+            var decided = considered.All(constituent => Requirement.OfType(constituent) is not { Bounds.Length: > 0 });
+
+            if(decided
+                ? RefinementDecision.Judge(value, target, known.Values, literal, known.Real, onConstraint is not null) is null
+                : AnySatisfied(known, considered, value.Type, measured, Length(state, measured), literal, value))
             {
                 return;
             }
@@ -342,7 +363,8 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             else if(Requirement.OfType(considered[0]) is { } required)
             {
                 RefinementFindings.Report(
-                    context, known.Values, value, Stated(Read(required, proving: false), Length(state, measured)), TypeDisplay.Mist(target), at, onConstraint: null);
+                    context, known.Values, value, Stated(Read(required, proving: false), Length(state, measured)), TypeDisplay.Mist(target), at,
+                    onConstraint: Requirement.IsAnonymous(target) ? onConstraint : null);
             }
             else
             {

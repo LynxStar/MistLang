@@ -1,9 +1,78 @@
 # Tests
 
-Three policies apply to everything under `Test/`. For which tier a test belongs at and what
-each tier may use, run `/testing-philosophy` — strict adherence is required for the
-experimental (v2) pipeline; for classic it is a guideline, since classic and its tests get
-deleted with the old world.
+Before adding or moving a test under `Test/`, read the testing
+philosophy, `.claude/skills/testing-philosophy/SKILL.md` (`/testing-philosophy`), and decide its
+tier from the invariant it encodes — strict adherence is
+required for the experimental (v2) pipeline; for classic it is a guideline, since classic and its
+tests get deleted with the old world.
+
+# Test tier classification
+
+Every new or migrated test, on either pipeline, must carry a discoverable tier. Use xUnit's native
+`[Trait("Tier", "N")]`, with the exact key `Tier` and a value from `"1"` to `"6"`: Unit, Functional,
+Component, Integration, System and Full system respectively. Existing tests may stay unmarked
+until classified; missing metadata means unclassified, never Tier 1 by default.
+
+Each test has exactly one effective tier. Put the trait on a concrete test class when all its
+tests share a tier. In a mixed class, leave the class untagged and tag each test method. xUnit
+combines class and method traits, so a method trait does not override a class trait. Do not put
+tier defaults on assemblies or shared base fixtures. The convention covers `[Fact]`, `[Theory]`
+and FsCheck `[Property]`; all rows of a theory share its tier, so split cases that need different
+tiers into separate methods. Other feature/category traits and scheduling collections remain
+independent.
+
+```csharp
+[Trait("Tier", "1")]
+public sealed class LiteralDecisionTests
+{
+    [Fact]
+    public void OutOfRangeLiteralIsRefused()
+    {
+        // Directly construct the decision's inputs and assert its result.
+    }
+}
+```
+
+```csharp
+public sealed class BoundaryTests
+{
+    [Fact]
+    [Trait("Tier", "4")]
+    public void BindingFailureDoesNotCascadeIntoAnalysis()
+    {
+        // Exercise only the binding-to-analysis seam.
+    }
+}
+```
+
+Classify the invariant first, then check the implementation and every helper/fixture it invokes
+against that tier's permitted infrastructure. A Tier 1 label on a test that calls the compiler
+is an audit finding. Refactor it down or justify the higher-tier invariant and label it honestly;
+changing the tag alone does not make misplaced coverage acceptable. Names, folders and tier
+comments may explain intent, but runnable metadata is the classifier.
+
+Filter classified tests through the ledger, for example:
+
+```bash
+tools/test-ledger/run.sh Test/Mist.Tests --filter 'Tier=1'
+tools/test-ledger/run.sh Test/Mist.Tests --filter 'Tier=4|Tier=5|Tier=6'
+```
+
+A filtered run covers only classified tests matching that filter; use the unfiltered suite for
+full regression coverage while classification is incomplete. Audits compare the tier metadata
+with actual dependencies and with the pyramid's case budgets. Count theory rows and repeated
+pipeline executions as coverage/cost, even when one method hides hundreds of them. Higher-tier
+additions beyond the root `CLAUDE.md` limits need explicit human approval for a documented
+exception before adding them, with the invariant, case count, expected cost and lower-tier
+alternatives stated. Ordinary tests within those limits need no extra approval.
+
+# Compiling a Program Is Tier 4 or Above
+
+`CompilerDriver.Compile` runs every stage, so a test that calls it is at Tier 4 or above however
+small its program is. A test whose assertion is about one stage — a diagnostic, a binding, an
+emitted string — belongs at Tier 1–3 and does not compile a program. The patterns below make a
+legitimate Tier 4–6 test cheaper. They never make a compile acceptable at a lower tier, and
+"in-process" is not a licence to compile hundreds of programs.
 
 # Test Process Spawning Policy
 

@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -76,15 +77,23 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
 
         foreach(var naming in context.Namings)
         {
-            if(AccessDomains.Blocking(naming.Owner, naming.Assembly, naming.Named) is { } blocking && judged.Add(naming.Node))
+            if(DecideNaming(naming) is { } refusal && judged.Add(naming.Node))
             {
+                var blocking = refusal.Blocking;
                 var accessibility = Declarations.ModifiersOf(blocking)?.Accessibility ?? Accessibility.Public;
 
                 context.Report(
-                    ProgramAnalysisDiagnostics.InaccessibleType, naming.Node, [],
+                    refusal.Descriptor, naming.Node, [],
                     Qualified(blocking), accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(accessibility));
             }
         }
+    }
+
+    internal static (MistType Blocking, DiagnosticDescriptor Descriptor)? DecideNaming(TypeNaming naming)
+    {
+        return AccessDomains.Blocking(naming.Owner, naming.Assembly, naming.Named) is { } blocking
+            ? (blocking, ProgramAnalysisDiagnostics.InaccessibleType)
+            : null;
     }
 
     private static string Qualified(MistType type)

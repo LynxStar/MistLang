@@ -11,6 +11,29 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal static class RefinementContracts
 {
+    public static DiagnosticDescriptor? ReturnFinding(IMistType produced, IMistType promised, bool byReference = false, Admitted? lifted = null)
+    {
+        return (byReference ? ContractImplication.Invariant(produced, promised) : ContractImplication.Proves(produced, promised, lifted))
+            ? null : ProgramAnalysisDiagnostics.RefinementReturnUnproven;
+    }
+
+    public static DiagnosticDescriptor? ParameterFinding(IMistType promised, IMistType demanded, bool byReference = false)
+    {
+        var proven = byReference ? ContractImplication.Invariant(promised, demanded)
+            : RealRequirement.OfType(demanded) is { } realDemanded
+            ? (RealRequirement.OfType(promised) ?? RealSet.Everything(realDemanded.Kind)).IsSubsetOf(realDemanded)
+            : Requirement.OfType(demanded) is { } required
+            ? (Requirement.OfType(promised)?.Values ?? Admitted.Everything).IsSubsetOf(required.Values)
+                && (required.Bounds.Length == 0 || ContractImplication.Proves(promised, demanded))
+            : ContractImplication.Proves(promised, demanded);
+        return proven ? null : ProgramAnalysisDiagnostics.ConstraintStrengthened;
+    }
+
+    public static DiagnosticDescriptor? SetterFinding(IMistType promised, IMistType demanded)
+    {
+        return ContractImplication.Proves(promised, demanded) ? null : ProgramAnalysisDiagnostics.ConstraintStrengthened;
+    }
+
     public static void Judge(AnalysisContext context, ConcreteType concrete, LiftedReturns lifted)
     {
         if(concrete.DeclarationNode is not { } at)
@@ -59,11 +82,7 @@ internal static class RefinementContracts
             var produced = answer.Source.Apply(filler.ReturnType, interner);
             var promised = answer.Target.Apply(slot.ReturnType, interner);
 
-            var proven = slot.Modifiers.IsRef || filler.Modifiers.IsRef
-                ? ContractImplication.Invariant(produced, promised)
-                : ContractImplication.Proves(produced, promised, lifted.Of(filler));
-
-            if(!proven)
+            if(ReturnFinding(produced, promised, slot.Modifiers.IsRef || filler.Modifiers.IsRef, lifted.Of(filler)) is not null)
             {
                 ReportReturn(context, filler.Name, produced, promised, abstractType, node);
             }
@@ -83,16 +102,13 @@ internal static class RefinementContracts
             var produced = answer.Source.Apply(filler.Type, interner);
             var promised = answer.Target.Apply(slot.Type, interner);
 
-            var proven = slot.Modifiers.IsRef || filler.Modifiers.IsRef
-                ? ContractImplication.Invariant(produced, promised)
-                : ContractImplication.Proves(produced, promised, lifted.Of(filler));
-
-            if(slot.Getter is not null && filler.Getter is not null && !proven)
+            if(slot.Getter is not null && filler.Getter is not null
+                && ReturnFinding(produced, promised, slot.Modifiers.IsRef || filler.Modifiers.IsRef, lifted.Of(filler)) is not null)
             {
                 ReportReturn(context, filler.Name, produced, promised, abstractType, node);
             }
 
-            if(slot.Setter is not null && filler.Setter is not null && !ContractImplication.Proves(promised, produced))
+            if(slot.Setter is not null && filler.Setter is not null && SetterFinding(promised, produced) is not null)
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintStrengthened, node, [],
@@ -112,14 +128,16 @@ internal static class RefinementContracts
             var demandedType = answer.Source.Apply(filler.ParametersList[i].Type, interner);
             var promisedType = answer.Target.Apply(slot.ParametersList[i].Type, interner);
 
+            if(ParameterFinding(promisedType, demandedType, slot.ParametersList[i].Modifier.IsRef || filler.ParametersList[i].Modifier.IsRef) is null)
+            {
+                continue;
+            }
+
             if(slot.ParametersList[i].Modifier.IsRef || filler.ParametersList[i].Modifier.IsRef)
             {
-                if(!ContractImplication.Invariant(promisedType, demandedType))
-                {
-                    context.Report(
-                        ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                        filler.Name, filler.ParametersList[i].Name, TypeDisplay.Mist(promisedType), TypeDisplay.Mist(demandedType));
-                }
+                context.Report(
+                    ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
+                    filler.Name, filler.ParametersList[i].Name, TypeDisplay.Mist(promisedType), TypeDisplay.Mist(demandedType));
 
                 continue;
             }
@@ -128,39 +146,29 @@ internal static class RefinementContracts
             {
                 var realPromised = RealRequirement.OfType(promisedType) ?? RealSet.Everything(realDemanded.Kind);
 
-                if(!realPromised.IsSubsetOf(realDemanded))
-                {
-                    context.Report(
-                        ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                        filler.Name, filler.ParametersList[i].Name, realPromised, realDemanded);
-                }
+                context.Report(
+                    ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
+                    filler.Name, filler.ParametersList[i].Name, realPromised, realDemanded);
 
                 continue;
             }
 
             if(Requirement.OfType(demandedType) is not { } demanded)
             {
-                if(!ContractImplication.Proves(promisedType, demandedType))
-                {
-                    context.Report(
-                        ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                        filler.Name, filler.ParametersList[i].Name, TypeDisplay.Mist(promisedType), TypeDisplay.Mist(demandedType));
-                }
+                context.Report(
+                    ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
+                    filler.Name, filler.ParametersList[i].Name, TypeDisplay.Mist(promisedType), TypeDisplay.Mist(demandedType));
 
                 continue;
             }
 
             var promised = Requirement.OfType(promisedType) ?? Requirement.Anything;
 
-            if(!promised.Values.IsSubsetOf(demanded.Values)
-                || (demanded.Bounds.Length > 0 && !ContractImplication.Proves(promisedType, demandedType)))
-            {
-                context.Report(
-                    ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                    filler.Name, filler.ParametersList[i].Name,
-                    demanded.Bounds.Length > 0 ? RefinementFindings.Describe(promised) : promised.Values.ToString(),
-                    demanded.Bounds.Length > 0 ? RefinementFindings.Describe(demanded) : demanded.Values.ToString());
-            }
+            context.Report(
+                ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
+                filler.Name, filler.ParametersList[i].Name,
+                demanded.Bounds.Length > 0 ? RefinementFindings.Describe(promised) : promised.Values.ToString(),
+                demanded.Bounds.Length > 0 ? RefinementFindings.Describe(demanded) : demanded.Values.ToString());
         }
     }
 

@@ -94,6 +94,8 @@ rules:
       class in the probe style, extended to admit whole compilation units. The corpus wins on making
       progress un-loseable the way the baseline did; the probe style wins on keeping the reason for each
       refusal next to it. Neither is obviously right and the choice shapes every rule below it.
+      [CORRECTED 2026-09-26: Arthur never approved one Tier 4-5 test per refusal. The corpus design
+      below is withdrawn; see the WITHDRAWN task at the end of this order.]
       BOTH, WITH THE CORPUS AS THE SPINE -- Arthur's call. `refusals/` holds the programs Mist must not
       compile, one directory per rule below, walked by one test (RefusalCorpusTest, Tier 5). The Tier 3
       probe classes stay for the cases where the reasoning matters more than the count: decisions,
@@ -239,6 +241,17 @@ rules:
       - >
         Re-measure the per-case cost around 30 cases, and decide then rather than now whether the
         corpus needs a cheaper provider.
+      - >
+        WITHDRAWN 2026-09-26, and the task above was never done. This order COMPLETELY IGNORED THE
+        TESTING PHILOSOPHY (.claude/skills/testing-philosophy/SKILL.md): every corpus case is a full
+        in-process compile, so `refusals/` is 759 Tier 4-5 tests of Tier 1-2 invariants, the
+        philosophy's "most common violation", and calling that Tier 5 does not make it one. Measured on
+        ledger 20260926-191851: RefusalCorpusTest took 697s of a 754s test run; every other test
+        finished by 173s. Stop making it worse: `refusals/` is frozen. Each rule's cases
+        move down beside the rule -- Tier 1 against its decision, Tier 2 for rules that walk a body
+        (flow, ownership), Tier 3 rarely -- and the no-cascade claim keeps a handful of Tier 4 tests at
+        the Stage 4-to-5 seam. RefusalCorpusTest and the directory are deleted once they are empty.
+        The plan, with the per-case measurements: backlog/refusal-corpus-migration.md.
 
   - id: analyzer-contract
     name: The v2 analyzer contract and runner

@@ -1,6 +1,4 @@
-using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
-using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
@@ -29,15 +27,14 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
                     break;
 
                 case MemberAccessExpression { IsConditional: true } access
-                    when !OptionalUnion.AdmitsConditionalAccess(access.Receiver.Type):
+                    when OperatorDecision.Conditional(access.Receiver.Type) is { } conditional:
                     context.Report(
-                        ProgramAnalysisDiagnostics.ConditionalAccessOnNonOptional, access.Node, [access.Receiver],
+                        conditional, access.Node, [access.Receiver],
                         TypeDisplay.Mist(access.Receiver.Type));
                     break;
 
                 case MemberAccessExpression { Receiver.Type: UnknownType, Member: null or NotFoundResult, Type: ErrorType } access:
-                    context.Report(
-                        ProgramAnalysisDiagnostics.UnknownHasNoMembers, access.Node, [access.Receiver], access.MemberName);
+                    context.Report(OperatorDecision.Member(access.Receiver.Type)!.Value, access.Node, [access.Receiver], access.MemberName);
                     break;
             }
         }
@@ -50,14 +47,10 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
             return context.Model.TypesByFQN[type.FullyQualifiedName];
         }
 
-        if(OperatorAdmissibility.ResultType(binary.OperatorKind, binary.Left.Type, binary.Right.Type, wellKnown) is not null)
+        if(OperatorDecision.Binary(binary.OperatorKind, binary.Left.Type, binary.Right.Type, wellKnown) is not { } descriptor)
         {
             return;
         }
-
-        var descriptor = binary.Left.Type is UnknownType || binary.Right.Type is UnknownType
-            ? ProgramAnalysisDiagnostics.UnknownHasNoOperators
-            : ProgramAnalysisDiagnostics.OperatorNotApplicable;
 
         context.Report(
             descriptor, binary.Node, [binary.Left, binary.Right],

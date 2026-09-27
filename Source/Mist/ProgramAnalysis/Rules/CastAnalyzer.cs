@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
@@ -33,20 +34,40 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
 
     internal static bool Converts(AnalysisContext context, CastExpression cast)
     {
-        var interner = context.Model.TypeInterner;
+        return Judge(cast, context.Model.TypeInterner, context.ConversionRefusals) is null;
+    }
 
+    internal static DiagnosticDescriptor? Judge(
+        CastExpression cast, TypeInterner interner, IReadOnlyDictionary<CastOperator, ConversionRefusal> refusals)
+    {
         if(cast.AmbiguousOperators.Count > 0)
         {
-            return false;
+            return ProgramAnalysisDiagnostics.AmbiguousCast;
         }
 
         if(cast.ParameterType is { } parameter)
         {
-            return JudgeOperand(context, cast, parameter) is null && CloneRefusal(context, cast) is null;
+            if(JudgeOperand(cast, parameter, interner) is not null)
+            {
+                return cast.Operator is null ? ProgramAnalysisDiagnostics.EnumCastArgumentMismatch : ProgramAnalysisDiagnostics.CastArgumentMismatch;
+            }
+
+            return cast.Operator is { ClonesThrough: not null } through && refusals.ContainsKey(through)
+                ? ProgramAnalysisDiagnostics.CloneConversionDoesNotHold
+                : null;
         }
 
-        return ConversionClassifier.Classify(cast.Operand.Type, cast.TargetType, interner) != ConversionKind.None
-            || ConstantConversion.Fits(cast.Operand, cast.TargetType);
+        if(ConversionClassifier.Classify(cast.Operand.Type, cast.TargetType, interner) != ConversionKind.None
+            || ConstantConversion.Fits(cast.Operand, cast.TargetType))
+        {
+            return null;
+        }
+
+        return UnheldCopies.Exists(cast.Operand.Type, cast.TargetType)
+            ? ProgramAnalysisDiagnostics.CopyConversionDoesNotHold
+            : UncopiedSource(cast.Operand.Type, cast.TargetType) is not null
+                ? ProgramAnalysisDiagnostics.NewtypeSourceDefinesNoCopy
+                : ProgramAnalysisDiagnostics.CastHasNoConversion;
     }
 
     private static void Refuse(AnalysisContext context, CastExpression cast)
@@ -63,7 +84,7 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
         }
         else if(cast.ParameterType is { } parameter)
         {
-            if(JudgeOperand(context, cast, parameter) is null
+            if(JudgeOperand(cast, parameter, context.Model.TypeInterner) is null
                 && CloneRefusal(context, cast) is { } refusal && cast.Operator is { ClonesThrough: { } body })
             {
                 context.Report(
@@ -132,10 +153,8 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
     /// A conditional conversion's operand is judged by what it holds when it is present: absence
     /// short-circuits past the operator rather than reaching its parameter.
     /// </summary>
-    private static DiagnosticDescriptor? JudgeOperand(AnalysisContext context, CastExpression cast, IMistType parameter)
+    private static DiagnosticDescriptor? JudgeOperand(CastExpression cast, IMistType parameter, TypeInterner interner)
     {
-        var interner = context.Model.TypeInterner;
-
         return cast.IsConditional
             ? Assignability.Judge(OptionalLifting.NonVoidPortion(cast.Operand.Type, interner), parameter, interner)
             : Assignability.Judge(cast.Operand, parameter, interner)

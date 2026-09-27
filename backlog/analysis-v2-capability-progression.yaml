@@ -251,6 +251,7 @@ rules:
         move down beside the rule -- Tier 1 against its decision, Tier 2 for rules that walk a body
         (flow, ownership), Tier 3 rarely -- and the no-cascade claim keeps a handful of Tier 4 tests at
         the Stage 4-to-5 seam. RefusalCorpusTest and the directory are deleted once they are empty.
+        The plan, with the per-case measurements: backlog/refusal-corpus-migration.md.
 
   - id: analyzer-contract
     name: The v2 analyzer contract and runner

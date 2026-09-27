@@ -61,6 +61,7 @@ see things like a dropped `sealed` modifier.
 | `backlog/analysis-v2-capability-progression.yaml` | **Source of truth for Stage 5**, the analysis phase. The 91 `analysis_phase_tasks` from the emitter register, reordered into the order a checker can be built in, with the invariants that gate them. Each rule cites the emitter order it came from. |
 | `backlog/program-model-body-tasks.yaml` | The other axis: what the binder does not yet understand, by language construct. **Not valid YAML** despite the extension. |
 | `backlog/flaky-tests.yaml` | Flake register. Recording a flake is mandatory (see `Test/CLAUDE.md`). |
+| `backlog/refusal-corpus-migration.md` | The plan for moving `refusals/` down to Tier 1–2 and deleting `RefusalCorpusTest`: measurements, order, per-directory procedure. |
 | `backlog/general.md` | Issues outside any active spec. |
 | `backlog/inventory-<date>.md` | Dated snapshots of what v2 still needs, counted from the registers above. |
 

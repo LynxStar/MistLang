@@ -1,3 +1,5 @@
+using Mist.Driver;
+
 namespace Mist.CLI.Layout;
 
 public sealed record LexArtifacts(string TokensPath, string SourcePath);
@@ -29,12 +31,12 @@ public sealed class ProjectLayout
 
     public string? DirectoryHoldingProject()
     {
-        if(IsWithin(projectRoot, outputRoot))
+        if(SourcePathSelection.IsWithin(projectRoot, outputRoot))
         {
             return OutputDirectory;
         }
 
-        if(IsWithin(projectRoot, binRoot))
+        if(SourcePathSelection.IsWithin(projectRoot, binRoot))
         {
             return BinDirectory;
         }
@@ -49,10 +51,7 @@ public sealed class ProjectLayout
 
     public IReadOnlyList<string> SelectSources(IEnumerable<string> candidates)
     {
-        return candidates
-            .Where(candidate => !IsGenerated(Path.GetFullPath(candidate, workingDirectory)))
-            .OrderBy(candidate => candidate, StringComparer.Ordinal)
-            .ToList();
+        return SourcePathSelection.Select(candidates, workingDirectory, outputRoot, binRoot);
     }
 
     public LexArtifacts LexArtifactsFor(string sourceFile)
@@ -60,18 +59,5 @@ public sealed class ProjectLayout
         var relativePath = Path.GetRelativePath(projectRoot, Path.GetFullPath(sourceFile, workingDirectory));
         var sourcePath = Path.Combine(OutputDirectory, "lexer", relativePath);
         return new LexArtifacts(Path.ChangeExtension(sourcePath, ".tokens"), sourcePath);
-    }
-
-    private bool IsGenerated(string fullPath)
-    {
-        return IsWithin(fullPath, outputRoot) || IsWithin(fullPath, binRoot);
-    }
-
-    private static bool IsWithin(string fullPath, string directory)
-    {
-        var relativePath = Path.GetRelativePath(directory, fullPath);
-        return !(Path.IsPathRooted(relativePath)
-            || relativePath == ".."
-            || relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal));
     }
 }

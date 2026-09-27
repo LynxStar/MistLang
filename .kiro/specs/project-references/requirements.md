@@ -97,6 +97,18 @@ References are declared in the `mist.toml` project file using a `[[references]]`
 3. THE `Compiler_Driver` SHALL set each Referenced_Project `Compilation_Unit`'s `ProjectFolder` to the directory containing the Referenced_Project's `Resolved_Path`.
 4. THE `Compiler_Driver` SHALL include Referenced_Project `Compilation_Unit`s in the compilation before the Referencing_Project's own source units.
 5. WHEN multiple levels of references exist (A references B, B references C), THE `Compiler_Driver` SHALL load all transitively referenced projects' sources in dependency order (deepest dependency first).
+6. THE `Compiler_Driver` SHALL NOT load, under criterion 1, any file inside the Referenced_Project's default output directory (`out`) or default bin directory (`bin`) directly beneath its own folder. Containment SHALL be decided on normalized full paths and whole directory segments against that folder: a folder named `out` or `bin` deeper in the project, and a sibling such as `out-other`, still hold sources. The Referencing_Project's `--output` and `--bin` do not apply to a Referenced_Project.
+
+> **Amendment note (2026-09-27).** Criterion 1 said "all `.mist` source files", and the resolver
+> implemented it literally. Lex mode writes a reconstructed `.mist` beside each token dump in
+> `<folder>/out/lexer/`, and building a project that references the lexed one does not clean the
+> referenced project's output, so every type compiled twice (`MIST_PM_DUPLICATE_TYPE`). Criterion 6
+> is a clarification added with that fix; it was not part of the original design. It differs on
+> purpose from Source_Discovery for the project being built (`project-based-build-model`
+> Requirement 2.4–2.5), which excludes the current invocation's effective output and bin directories.
+> A reference records no output location, so only the defaults of `project-based-build-model`
+> Requirement 3 are excluded: `.mist` files that an invocation of the referenced project wrote under a
+> custom `--output` or `--bin` inside its folder are still loaded.
 
 ---
 

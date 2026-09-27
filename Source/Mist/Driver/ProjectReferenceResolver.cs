@@ -17,7 +17,7 @@ public static class ProjectReferenceResolver
         ImmutableArray<ProjectReference> references,
         DiagnosticBag diagnostics)
     {
-        return Resolve(rootProjectFolder, references, diagnostics, LoadManifest, FindSourcePaths);
+        return Resolve(rootProjectFolder, references, diagnostics, LoadManifest, EnumerateSources);
     }
 
     internal static ImmutableArray<ResolvedProjectReference> Resolve(
@@ -25,7 +25,7 @@ public static class ProjectReferenceResolver
         ImmutableArray<ProjectReference> references,
         DiagnosticBag diagnostics,
         Func<string, DiagnosticBag, ProjectConfiguration?> loadManifest,
-        Func<string, ImmutableArray<string>> findSourcePaths)
+        Func<string, ImmutableArray<string>> enumerateSources)
     {
         var loads = new Dictionary<string, ProjectConfiguration?>(StringComparer.Ordinal);
         var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -100,7 +100,7 @@ public static class ProjectReferenceResolver
                 canonicalTomlPath,
                 projectFolder,
                 config,
-                findSourcePaths(projectFolder)));
+                SourcePathSelection.ForReferencedProject(projectFolder, enumerateSources(projectFolder))));
 
             _ = visited.Add(canonicalTomlPath);
             _ = inProgress.Remove(canonicalTomlPath);
@@ -185,10 +185,8 @@ public static class ProjectReferenceResolver
         return config;
     }
 
-    private static ImmutableArray<string> FindSourcePaths(string projectFolder)
+    internal static ImmutableArray<string> EnumerateSources(string projectFolder)
     {
-        var sourcePaths = Directory.GetFiles(projectFolder, "*.mist", SearchOption.AllDirectories);
-        Array.Sort(sourcePaths, StringComparer.Ordinal);
-        return sourcePaths.ToImmutableArray();
+        return [.. Directory.EnumerateFiles(projectFolder, "*.mist", SearchOption.AllDirectories)];
     }
 }

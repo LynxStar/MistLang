@@ -9,7 +9,6 @@ namespace Mist.Driver.Contracts;
 /// <param name="CanonicalTomlPath">Canonical absolute path to the referenced <c>mist.toml</c>.</param>
 /// <param name="ProjectFolder">Directory containing the <c>mist.toml</c>.</param>
 /// <param name="Configuration">Parsed project configuration.</param>
-/// <param name="SourcePaths">All <c>.mist</c> files in <paramref name="ProjectFolder"/> (sorted, stable).</param>
 public sealed record ResolvedProjectReference(
     string CanonicalTomlPath,
     string ProjectFolder,

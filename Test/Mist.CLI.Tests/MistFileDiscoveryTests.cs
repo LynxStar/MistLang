@@ -1,79 +1,49 @@
+using Mist.CLI.Layout;
+
 namespace Mist.CLI.Tests;
 
-public class MistFileDiscoveryTests
+/// <summary>
+/// <see cref="ProjectLayout.DiscoverSources"/> over a real directory tree, which is what the path
+/// decisions in <see cref="Layout.ProjectLayoutTests"/> cannot show: that the walk is recursive, keeps
+/// to <c>.mist</c> files, and applies the exclusion to the paths the file system actually returns.
+/// </summary>
+[Trait("Tier", "2")]
+public sealed class MistFileDiscoveryTests : IDisposable
 {
-    [Fact]
-    public void DiscoverMistFiles_FindsFilesRecursively()
+    private readonly string project = Path.Combine(Path.GetTempPath(), $"mist_discovery_{Guid.NewGuid():N}");
+
+    public void Dispose()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
-        try
+        if(Directory.Exists(project))
         {
-            _ = Directory.CreateDirectory(tempDir);
-            _ = Directory.CreateDirectory(Path.Combine(tempDir, "sub"));
-
-            File.WriteAllText(Path.Combine(tempDir, "main.mist"), "// main");
-            File.WriteAllText(Path.Combine(tempDir, "sub", "lib.mist"), "// lib");
-            File.WriteAllText(Path.Combine(tempDir, "readme.txt"), "not a mist file");
-
-            var files = Directory.EnumerateFiles(tempDir, "*.mist", SearchOption.AllDirectories)
-                .OrderBy(f => f, StringComparer.Ordinal)
-                .ToList();
-
-            Assert.Equal(2, files.Count);
-            Assert.All(files, f => Assert.EndsWith(".mist", f));
-        }
-        finally
-        {
-            if(Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
-            }
+            Directory.Delete(project, recursive: true);
         }
     }
 
-    [Fact]
-    public void DiscoverMistFiles_EmptyDirectory_ReturnsEmpty()
+    private string Create(params string[] segments)
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
-        try
-        {
-            _ = Directory.CreateDirectory(tempDir);
-
-            var files = Directory.EnumerateFiles(tempDir, "*.mist", SearchOption.AllDirectories).ToList();
-
-            Assert.Empty(files);
-        }
-        finally
-        {
-            if(Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
-            }
-        }
+        var path = Path.Combine([project, .. segments]);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "// fixture");
+        return path;
     }
 
     [Fact]
-    public void DiscoverMistFiles_IgnoresNonMistFiles()
+    public void DiscoverSources_ReturnsTheProjectsOwnMistFilesAndNothingTheBuildGenerated()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");
-        try
-        {
-            _ = Directory.CreateDirectory(tempDir);
-            File.WriteAllText(Path.Combine(tempDir, "file.cs"), "// C#");
-            File.WriteAllText(Path.Combine(tempDir, "file.txt"), "text");
-            File.WriteAllText(Path.Combine(tempDir, "file.mist"), "// mist");
+        var program = Create("Program.mist");
+        var beta = Create("Beta", "Foo.mist");
+        var alpha = Create("Alpha", "Foo.mist");
+        var nested = Create("Alpha", "Deep", "Bar.mist");
+        var sibling = Create("out-other", "Kept.mist");
+        _ = Create("readme.txt");
+        _ = Create("Alpha", "Notes.cs");
+        _ = Create("out", "lexer", "Program.mist");
+        _ = Create("out", "lexer", "Alpha", "Foo.mist");
+        _ = Create("bin", "Stale.mist");
 
-            var files = Directory.EnumerateFiles(tempDir, "*.mist", SearchOption.AllDirectories).ToList();
+        var layout = new ProjectLayout(project, Path.Combine(project, "out"), Path.Combine(project, "bin"), Directory.GetCurrentDirectory());
 
-            _ = Assert.Single(files);
-            Assert.EndsWith(".mist", files[0]);
-        }
-        finally
-        {
-            if(Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
-            }
-        }
+        Assert.Equal([nested, alpha, beta, program, sibling], layout.DiscoverSources());
     }
 }

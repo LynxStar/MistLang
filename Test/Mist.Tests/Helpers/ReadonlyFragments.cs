@@ -63,6 +63,13 @@ internal sealed class ReadonlyFragments
                 var body = HandBuiltModel.Block(nested);
                 var constructor = new Constructor("Counter", owner, [], new MemberModifiers { IsReadonly = true }) { Body = body, DeclaringType = owner };
                 return model.Analyze(new ReadonlyAnalyzer(), body, owner: owner, member: constructor);
+            case "readonly-block-calls-mutable-method":
+                var guarded = HandBuiltModel.Block(new ExpressionStatement(new InvocationExpression(HandBuiltModel.Node(37),
+                    new MemberAccessExpression(HandBuiltModel.Node(), explicitThis, "Bump", integer), [], integer, mutable, [])));
+                guarded.IsReadonly = true;
+                var enclosing = HandBuiltModel.Block(guarded);
+                var plain = new Method("Tick", integer, [], default) { Body = enclosing, DeclaringType = owner };
+                return model.Analyze(new ReadonlyAnalyzer(), enclosing, owner: owner, member: plain);
             case "readonly-method-calls-mutable-method":
             case "readonly-parameter-calls-mutable-method":
                 var receiver = name == "readonly-parameter-calls-mutable-method" ? (Expression)throughParameter : explicitThis;

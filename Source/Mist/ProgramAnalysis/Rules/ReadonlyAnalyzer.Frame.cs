@@ -134,14 +134,21 @@ internal sealed partial class ReadonlyAnalyzer
 
         public string Describe()
         {
-            return Member switch
+            var scope = Member switch
             {
                 Constructor => "constructor",
                 Method method => $"method '{method.Name}'",
                 Property property => $"property '{property.Name}'",
                 Indexer => "indexer",
-                _ => "context",
+                _ => null,
             };
+
+            if(InReadonlyBlock)
+            {
+                return scope is null ? "block" : $"block in {scope}";
+            }
+
+            return scope ?? "context";
         }
 
         private static bool IsSetterBody(PropertyAccessor? setter, object root)

@@ -106,6 +106,17 @@ public sealed class OwnershipRefusalTests
         Assert.Equal(38, diagnostic.Location.Start.Column);
     }
 
+    [Theory]
+    [InlineData("readonly-block-calls-mutable-method", "readonly block in method 'Tick'")]
+    [InlineData("readonly-method-calls-mutable-method", "readonly method 'Peek'")]
+    public void ARefusalNamesTheReadonlyScopeItWasMadeIn(string caseName, string scope)
+    {
+        var diagnostic = Assert.Single(new OwnershipFragments().Analyze(caseName));
+
+        Assert.Equal("MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE", diagnostic.Id.Value);
+        Assert.Contains($"from {scope}:", diagnostic.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void AReadonlyMethodMaySetALocalIndexerOnWhatItOwns()
     {

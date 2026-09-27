@@ -60,6 +60,7 @@ All numeric types support the standard arithmetic operators (`+`, `-`, `*`, `/`,
 | Type | Category | Description |
 |------|----------|-------------|
 | `Array<T>` | Class | Generic fixed-size collection with a `Length` property. Created using bracket literal syntax (`[1, 2, 3]`). |
+| `List<T>` | Class | Growable collection over .NET's `List<T>`, declared on the experimental pipeline only. Its constructor is `pure`, its readers are `local readonly` and its adding and removing members are `local`, as [Standard's Promises](../advanced/purity.md#standards-promises) lists. |
 
 ### Pattern and Reflection Types
 

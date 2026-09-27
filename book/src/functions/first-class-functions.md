@@ -291,6 +291,12 @@ You can define type aliases for `func` types to give them meaningful names:
 
 Type aliases are structurally transparent — `Predicate<int>`, `func<int, bool>`, and `Func<int, bool>` are all the same type. Lambda inference sees through aliases, so you can assign a lambda to a `Predicate<int>` variable and the parameter type is inferred as `int`.
 
+## Pure Function Types
+
+Writing `pure` before a function type, as in `pure func<int, int>`, `pure Action<int>` or an alias of one, makes a promise part of the type: calling a value of that type is pure. A lambda converts to it only when its body keeps the pure rules, and a method group only when its method is `pure`. That is what lets a `pure` member call a function it was handed. A pure function type converts implicitly to the same type without `pure`, never the other way, and the promise is erased in the emitted C#.
+
+Before a member's return type, `pure` belongs to the member rather than the type, so a member that returns a pure function names it through an alias, such as `type Step = pure func<int, int>;`. [Pure Function Types](../advanced/purity.md#pure-function-types) in the purity chapter has the full rules and an example.
+
 ## Comparison with C#
 
 Mist's first-class functions are designed to be familiar to C# developers while simplifying the model:

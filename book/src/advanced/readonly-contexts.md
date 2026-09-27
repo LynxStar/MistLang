@@ -65,6 +65,8 @@ The `readonly { }` block creates a lexical scope where all field access is treat
 {{#endtab }}
 {{#endtabs }}
 
+The restriction is on what the block was given, not on what the method made. On an object the enclosing method owns, such as one it just created, the block may still assign fields, write through an index, and call `local` members, so it may `Add` to a list the method built. [Pure and Local Members](./purity.md#what-a-pure-scope-may-call) explains ownership and `local`.
+
 In the emitted C#, the `readonly` keyword is stripped and the block becomes a plain `{ }` scope. The immutability guarantee exists only at compile time — the Mist compiler rejects any mutation attempt inside the block before code generation.
 
 ## Readonly Blocks in Constructors

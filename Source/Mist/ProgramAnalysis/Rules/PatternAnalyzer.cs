@@ -228,9 +228,16 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
                     is ConversionKind.Identity or ConversionKind.Implicit,
             ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: { } first } }
                 when later is ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: { } second } }
-                => Equals(first, second),
+                => SameConstant(first, second),
             _ => false,
         };
+    }
+
+    private static bool SameConstant(object first, object second)
+    {
+        return IntegralConstant.Of(first) is { } left && IntegralConstant.Of(second) is { } right
+            ? left == right
+            : Equals(first, second);
     }
 
     private static bool Possible(IMistType input, IMistType tested, TypeInterner interner)

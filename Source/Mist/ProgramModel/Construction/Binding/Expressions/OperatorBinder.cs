@@ -302,6 +302,14 @@ internal static class OperatorBinder
 
             case NegateUnaryNode negate:
                 {
+                    // int.MinValue and long.MinValue have no literal of their own: each magnitude only fits the
+                    // next type up, so the minus written in front of it decides the type, as it does in C#.
+                    if(negate.Operand is PostfixExpressionUnaryNode { Primary: { Target: IntegerLiteralExpressionPrimaryNode literal, Suffix.IsEmpty: true } }
+                        && IntegerLiterals.ReadNegated(literal.IntegerLiteral.Lexeme) is (var boundary, var wellKnown))
+                    {
+                        return new LiteralExpression(node, boundary, context.Resolver.LookupWellKnown(wellKnown));
+                    }
+
                     var operand = BindUnary(negate.Operand, ctx, context);
                     return new UnaryExpression(
                         node, UnaryOperatorKind.Negate, operand,

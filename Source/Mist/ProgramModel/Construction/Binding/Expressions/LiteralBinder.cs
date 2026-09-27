@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
@@ -14,43 +15,58 @@ internal static class LiteralBinder
 {
     internal static Expression BindIntegerLiteral(SyntaxNode node, string lexeme, BuilderContext context)
     {
-        var (value, wellKnown) = ParseIntegerLiteral(lexeme);
-        var type = context.Resolver.LookupWellKnown(wellKnown);
-        return new LiteralExpression(node, value, type);
-    }
+        if(IntegerLiterals.Read(lexeme) is not (var value, var wellKnown))
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, lexeme, WellKnownTypes.UInt64.Keyword);
+            return new ErrorExpression(node);
+        }
 
-    internal static Expression BindHexLiteral(SyntaxNode node, string lexeme, BuilderContext context)
-    {
-        var hexStr = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? lexeme[2..] : lexeme;
-        var value = long.TryParse(hexStr, System.Globalization.NumberStyles.HexNumber, null, out var parsed) ? parsed : 0L;
-        var type = context.Resolver.LookupWellKnown(WellKnownTypes.Int32);
-        return new LiteralExpression(node, value, type);
+        return new LiteralExpression(node, value, context.Resolver.LookupWellKnown(wellKnown));
     }
 
     internal static Expression BindFloatLiteral(SyntaxNode node, string lexeme, BuilderContext context)
     {
-        var upper = lexeme.ToUpperInvariant();
-
-        if(upper.EndsWith("M", StringComparison.Ordinal))
+        var suffixed = char.IsAsciiLetter(lexeme[^1]);
+        var digits = (suffixed ? lexeme[..^1] : lexeme).Replace("_", "", StringComparison.Ordinal);
+        var (value, wellKnown) = (suffixed ? char.ToUpperInvariant(lexeme[^1]) : 'D') switch
         {
-            var digits = lexeme[..^1];
-            var value = decimal.TryParse(digits, out var parsed) ? parsed : 0m;
-            var type = context.Resolver.LookupWellKnown(WellKnownTypes.Decimal);
-            return new LiteralExpression(node, value, type);
+            'M' => (ParseDecimal(digits), WellKnownTypes.Decimal),
+            'F' => (ParseSingle(digits), WellKnownTypes.Single),
+            _ => (ParseDouble(digits), WellKnownTypes.Double),
+        };
+
+        if(value is null)
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, lexeme, wellKnown.Keyword);
+            return new ErrorExpression(node);
         }
 
-        if(upper.EndsWith("F", StringComparison.Ordinal))
-        {
-            var digits = lexeme[..^1];
-            var value = float.TryParse(digits, out var parsed) ? parsed : 0f;
-            var type = context.Resolver.LookupWellKnown(WellKnownTypes.Single);
-            return new LiteralExpression(node, value, type);
-        }
+        return new LiteralExpression(node, value, context.Resolver.LookupWellKnown(wellKnown));
+    }
 
-        // Default: double
-        var dValue = double.TryParse(lexeme.TrimEnd('d', 'D'), out var dParsed) ? dParsed : 0.0;
-        var dType = context.Resolver.LookupWellKnown(WellKnownTypes.Double);
-        return new LiteralExpression(node, dValue, dType);
+    private static object? ParseDecimal(string digits)
+    {
+        return decimal.TryParse(digits, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
+    }
+
+    private static object? ParseSingle(string digits)
+    {
+        return float.TryParse(digits, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value)
+            && float.IsFinite(value)
+                ? value
+                : null;
+    }
+
+    private static object? ParseDouble(string digits)
+    {
+        return double.TryParse(digits, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value)
+            && double.IsFinite(value)
+                ? value
+                : null;
     }
 
     internal static Expression BindCharLiteral(SyntaxNode node, string lexeme, BuilderContext context)
@@ -242,25 +258,5 @@ internal static class LiteralBinder
         }
 
         return candidate;
-    }
-
-    /// <summary>
-    /// Parses a decimal integer literal lexeme into its value and the well-known type
-    /// it maps to, honouring the u/l suffixes.
-    /// </summary>
-    private static (object Value, WellKnownType Type) ParseIntegerLiteral(string lexeme)
-    {
-        var upper = lexeme.ToUpperInvariant();
-        var wellKnown = upper switch
-        {
-            _ when upper.EndsWith("UL", StringComparison.Ordinal) || upper.EndsWith("LU", StringComparison.Ordinal) => WellKnownTypes.UInt64,
-            _ when upper.EndsWith("L", StringComparison.Ordinal) => WellKnownTypes.Int64,
-            _ when upper.EndsWith("U", StringComparison.Ordinal) => WellKnownTypes.UInt32,
-            _ => WellKnownTypes.Int32,
-        };
-
-        var digits = lexeme.TrimEnd('u', 'U', 'l', 'L');
-        var value = long.TryParse(digits, out var parsed) ? parsed : 0L;
-        return (value, wellKnown);
     }
 }

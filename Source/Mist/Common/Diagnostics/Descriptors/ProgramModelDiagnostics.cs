@@ -677,6 +677,12 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'this' is not valid in a static member because a static member has no instance to refer to.");
 
+    public static readonly DiagnosticDescriptor NumericLiteralOutOfRange = new(
+        new DiagnosticId("MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The literal '{0}' is outside the range of type '{1}'.");
+
     // ── Array literal inference ──────────────────────────────────────────
 
     /// <summary>

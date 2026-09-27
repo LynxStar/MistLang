@@ -377,9 +377,9 @@ statements:
 expressions:
 # =============================================================================
   literals:
-    - [x] integer literal -> type from suffix (int / uint / long / ulong) -- ParseIntegerLiteral. NOTE: the value is always boxed as long, so ulong literals above long.MaxValue parse to 0
-    - [~] hex literal / binary literal (same suffix-based typing) -- MISSING: both halves. Hex binds but is HARDCODED to Int32 regardless of suffix; binary literals have no case in BindPrimary -> UnresolvedExpression
-    - [x] float literal -> type from suffix (double / float / decimal)
+    - [x] integer literal -> the suffix's type, or the next that holds the value (int / uint / long / ulong), separators ignored -- IntegerLiterals.Read (2026-09-27). The value is boxed as its own type's primitive (IntegralConstant), no longer a long that parsed a ulong past long.MaxValue, or any literal with a separator, to 0
+    - [x] hex literal / binary literal (same reader, same typing) -- 2026-09-27. Hex was hardcoded to Int32 and ignored its suffix; binary had no case in BindPrimary
+    - [x] float literal -> type from suffix (double / float / decimal), separators ignored, parsed culture-invariantly -- a literal no type holds is MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE, as an integer past ulong is
     - [x] string literal -> string -- NOTE: only the outer quotes are stripped; escape sequences stay raw in the constant value
     - [x] char literal -> char -- same escape caveat: `'\n'` yields the backslash
     - [ ] regex literal -> regex -- no case in BindPrimary -> UnresolvedExpression. The regex TYPE keyword does resolve (ScopeResolver.ResolveReservedAlias); only the literal is missing
@@ -691,7 +691,7 @@ binding_pass_integration:
     - [ ] expression-bodied property (`prop such that expr`) -- PropertyBuilder stores an UnresolvedExpression
     - [ ] indexer accessors (block + expression-bodied) -- same AccessorBuilder path
     - [ ] field initializers (`= expr`) -- ConcreteTypeBuilder stores an UnresolvedExpression, never rebound; same for Property.Initializer
-    - [ ] enum member values (`= expr`) -- EnumTypeBuilder stores an UnresolvedExpression. EnumMember.Value's doc says "stashed for later evaluation"; Phase 3 does not evaluate it either
+    - [x] enum member values (`= expr`) -- EnumMemberBinder binds the written ones in Phase 3 and synthesizes the omitted ones; since 2026-09-27 it counts exactly (a ulong base past long.MaxValue) and counts on from a written value's folded arithmetic (enums Requirement 4.3)
     - [ ] default blocks (default field/type initializers) -- ConcreteTypeBuilder stores UnresolvedExpressions and DefaultBlock retains its DeclarationNode for later evaluation
   top_level:
     - [ ] top-level statements (enclosing type null; integer exit-code return contract) -- NOT MODELLED AT ALL, upstream of binding: the grammar has statement:Statement as StatementItem, but TypeBuilder.Build's switch handles only TypeItem/ExtensionItem/WithItem/NamespaceItem, so StatementItemTopLevelItemNode is never matched anywhere in ProgramModel/. This is also why BindingContext.EnclosingType's documented "null for top-level statements" case is unreachable

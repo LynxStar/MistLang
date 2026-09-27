@@ -123,9 +123,9 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
     {
         return value switch
         {
-            LiteralExpression { Value: long constant } => constant,
             LiteralExpression { Value: string text } => text,
-            UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operand: LiteralExpression { Value: long constant } } => -constant,
+            LiteralExpression literal => IntegralConstant.Of(literal.Value),
+            UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operand: LiteralExpression literal } => -IntegralConstant.Of(literal.Value),
             _ => null,
         };
     }

@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -168,8 +169,7 @@ internal static class TypeParameterPopulator
     private static int? FixedLength(ArrayRankSuffixNode arrayRank)
     {
         return arrayRank is SizedArrayRankArrayRankSuffixNode sized
-            && int.TryParse(sized.Size.Lexeme, out var length)
-                ? length
-                : null;
+            ? IntegerLiterals.Length(sized.Size.Lexeme)
+            : null;
     }
 }

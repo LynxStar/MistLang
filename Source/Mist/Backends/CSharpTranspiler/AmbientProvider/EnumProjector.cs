@@ -25,8 +25,8 @@ internal static class EnumProjector
         var fields = clrType.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
         foreach(var field in fields)
         {
-            // The raw metadata constant, boxed as the base's own primitive: GetValue is refused under a
-            // MetadataLoadContext, and the long a Mist literal carries cannot hold a ulong past long.MaxValue.
+            // The raw metadata constant, already boxed as the base's own primitive as IntegralConstant expects
+            // of every integral constant: GetValue would box an enum instance, and a MetadataLoadContext refuses it.
             var value = new LiteralExpression(null!, field.GetRawConstantValue(), underlying);
             var member = new EnumMember(field.Name, isDefault: false, value);
             enumType.MembersList.Add(member);

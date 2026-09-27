@@ -2633,13 +2633,12 @@ internal static class BodyEmitter
         return literal.Value switch
         {
             string s => $"\"{s}\"",
-            long l => EmitIntegerLiteral(l, literal.Type),
-            int i => i.ToString(),
             float f => $"{f}f",
             double d => EmitDoubleLiteral(d),
             decimal m => $"{m}m",
             bool b => b ? "true" : "false",
             char c => $"'{c}'",
+            var value when IntegralConstant.Of(value) is { } integral => EmitIntegerLiteral(integral, literal.Type),
             _ => literal.Value.ToString()!,
         };
     }
@@ -2650,15 +2649,16 @@ internal static class BodyEmitter
     /// literals as <c>int</c>, which fails to compile when the target type requires
     /// a wider or unsigned representation (e.g., <c>ulong x = 3000000000;</c>).
     /// </summary>
-    private static string EmitIntegerLiteral(long value, IMistType type)
+    private static string EmitIntegerLiteral(Int128 value, IMistType type)
     {
+        var digits = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var typeName = type is MemberType mt ? mt.Name : "";
         return typeName switch
         {
-            "UInt64" => $"{(ulong)value}UL",
-            "Int64" => $"{value}L",
-            "UInt32" => $"{(uint)value}U",
-            _ => value.ToString(),
+            "UInt64" => $"{digits}UL",
+            "Int64" => $"{digits}L",
+            "UInt32" => $"{digits}U",
+            _ => digits,
         };
     }
 

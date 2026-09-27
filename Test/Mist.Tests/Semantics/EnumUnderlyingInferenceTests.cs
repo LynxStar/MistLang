@@ -66,8 +66,8 @@ public sealed class EnumUnderlyingInferenceTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("enum E { A = 200, B }", "int", 1, 201L)]
-    [InlineData("enum E { A, B = 20 }", "int", 0, 0L)]
+    [InlineData("enum E { A = 200, B }", "int", 1, 201)]
+    [InlineData("enum E { A, B = 20 }", "int", 0, 0)]
     [InlineData("enum E { A = \"N\", B }", "string", 1, "B")]
     public void AnOmittedValue_IsInferredOverTheBaseTheWrittenValuesDecide(
         string declaration, string expected, int omitted, object value)

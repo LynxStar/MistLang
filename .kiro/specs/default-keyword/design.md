@@ -1,5 +1,7 @@
 # Design Document: `default` Keyword
 
+> **Superseded** by [`defaultability`](../defaultability/requirements.md) (2026-09-26), which states the rules as they now stand and governs wherever the two differ. This document is kept so references to it by requirement number still resolve; the new spec's appendix maps each requirement here to where it now lives.
+
 ## Overview
 
 This design adds the `default` keyword to the Mist programming language compiler. Unlike C#'s `default` (which produces zeroed-out values or `null`), Mist's `default` is a value-based mechanism where every concrete type has a fully-computed compile-time default value. The feature spans all compiler pipeline stages:

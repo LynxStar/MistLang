@@ -23,6 +23,6 @@ public sealed record class Color(byte Value)
         if(ReferenceEquals(this, Color.Red)) return "Red";
         if(ReferenceEquals(this, Color.Green)) return "Green";
         if(ReferenceEquals(this, Color.Blue)) return "Blue";
-        return Value.ToString();
+        return Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 }

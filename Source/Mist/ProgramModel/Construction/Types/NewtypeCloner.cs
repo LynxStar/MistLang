@@ -130,7 +130,7 @@ internal static class NewtypeCloner
     internal static bool Cloneable(IEnumerable<ModifierNode> modifiers)
     {
         return !modifiers.Any(modifier => modifier is IntrinsicModifierModifierNode)
-            || modifiers.Any(modifier => modifier is ReadonlyModifierModifierNode);
+            || modifiers.Any(modifier => modifier is ReadonlyModifierModifierNode or PureModifierModifierNode);
     }
 
     private static string Stem(QualifiedIdentifierNode name)

@@ -33,6 +33,7 @@ public sealed class IntegerLiteralReadingTests
     [InlineData("0x1_0000_0000", 4294967296L)]
     [InlineData("0x8000_0000_0000_0000", 9223372036854775808UL)]
     [InlineData("0xFFFF_FFFF_FFFF_FFFF", 18446744073709551615UL)]
+    [InlineData("0xFFFF_FFFF_FFFF_FFFFUL", 18446744073709551615UL)]
     [InlineData("0XffL", 255L)]
     [InlineData("0xFFu", 255U)]
     [InlineData("0b1010", 10)]

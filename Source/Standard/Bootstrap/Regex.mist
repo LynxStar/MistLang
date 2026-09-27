@@ -2,11 +2,11 @@ namespace Standard;
 
 public readonly intrinsic owned class Regex
 {
-    intrinsic public Regex(string pattern);
-    intrinsic public string Pattern { get; }
-    intrinsic public bool IsMatch(string input);
-    intrinsic public bool IsFullMatch(string input);
+    intrinsic public pure Regex(string pattern);
+    intrinsic public pure string Pattern { get; }
+    intrinsic public pure bool IsMatch(string input);
+    intrinsic public pure bool IsFullMatch(string input);
 
-    intrinsic public static implicit operator String(Regex r);
-    intrinsic public static explicit operator Regex(String s);
+    intrinsic public pure static implicit operator String(Regex r);
+    intrinsic public pure static explicit operator Regex(String s);
 }

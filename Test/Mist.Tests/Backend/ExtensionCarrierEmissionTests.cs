@@ -47,9 +47,9 @@ public sealed class ExtensionCarrierEmissionTests
     private static readonly Lazy<(string Calls, string Carriers)> Emitted = new(Emit);
 
     [Theory]
-    [InlineData("int stated = box.Put<Probe.Animal, Probe.Dog>(new Probe.Dog());")]
-    [InlineData("int inferred = box.Put<Probe.Animal, Probe.Dog>(new Probe.Dog());")]
-    [InlineData("int widened = box.Put<Probe.Animal, Probe.Animal>(new Probe.Dog());")]
+    [InlineData("int stated = Probe.BoxExtensions_Probe_0.Put<Probe.Animal, Probe.Dog>(box, new Probe.Dog());")]
+    [InlineData("int inferred = Probe.BoxExtensions_Probe_0.Put<Probe.Animal, Probe.Dog>(box, new Probe.Dog());")]
+    [InlineData("int widened = Probe.BoxExtensions_Probe_0.Put<Probe.Animal, Probe.Animal>(box, new Probe.Dog());")]
     [InlineData("System.Func<Probe.Dog, int> grouped = box.Put<Probe.Animal, Probe.Dog>;")]
     public void AGenericBlocksMethodCalledWithItsOwnTypeArguments_IsWrittenTheBlocksToo(string written)
     {

@@ -16,7 +16,7 @@ public class ReadonlyBlockDemo
         string result = "";
         {
             int v = Value;
-            result = $"SafeRead={v}";
+            result = System.FormattableString.Invariant($"SafeRead={v}");
         }
         return result;
     }
@@ -29,6 +29,6 @@ public class ReadonlyBlockDemo
         {
             after = Value;
         }
-        return $"before={before}, after={after}";
+        return System.FormattableString.Invariant($"before={before}, after={after}");
     }
 }

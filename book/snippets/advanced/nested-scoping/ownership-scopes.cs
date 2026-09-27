@@ -13,7 +13,7 @@ public class Resource
 
     public string Describe()
     {
-        return $"Resource({Id})";
+        return System.FormattableString.Invariant($"Resource({Id})");
     }
 
     public void Update(int id)

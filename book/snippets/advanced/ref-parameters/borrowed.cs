@@ -20,7 +20,7 @@ public class Pair
 
     public string Describe()
     {
-        return $"Pair({X}, {Y})";
+        return System.FormattableString.Invariant($"Pair({X}, {Y})");
     }
 }
 

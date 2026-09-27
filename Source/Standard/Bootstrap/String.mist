@@ -4,21 +4,21 @@ intrinsic public readonly owned class String : IClonable<String>
 {
     // IClonable base case — String is immutable, so Clone() returns the same
     // reference (observationally independent) (Requirement 8.6)
-    intrinsic public owned String Clone();
+    intrinsic public pure owned String Clone();
 
     // Concatenation — Requirement 3.8
-    intrinsic public static String operator +(String a, String b);
+    intrinsic public pure static String operator +(String a, String b);
 
     // Equality — Requirement 3.9
-    intrinsic public static Boolean operator ==(String a, String b);
-    intrinsic public static Boolean operator !=(String a, String b);
+    intrinsic public pure static Boolean operator ==(String a, String b);
+    intrinsic public pure static Boolean operator !=(String a, String b);
 
     // Instance members migrated from the former System.String ambient type —
     // Requirement 9.12.
-    intrinsic public Int32 Length { get; }
-    intrinsic public Char this[Int32 index] { get; }
-    intrinsic public String Substring(Int32 startIndex);
-    intrinsic public Boolean Contains(String value);
-    intrinsic public String ToUpper();
-    intrinsic public Char[] ToCharArray();
+    intrinsic public pure Int32 Length { get; }
+    intrinsic public pure Char this[Int32 index] { get; }
+    intrinsic public pure String Substring(Int32 startIndex);
+    intrinsic public pure Boolean Contains(String value);
+    intrinsic public pure String ToUpper();
+    intrinsic public pure Char[] ToCharArray();
 }

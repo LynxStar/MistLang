@@ -27,6 +27,6 @@ public struct Pair<A, B>
 
     public readonly string Describe()
     {
-        return $"({First}, {Second})";
+        return $"({MistInvariant.Text(First)}, {MistInvariant.Text(Second)})";
     }
 }

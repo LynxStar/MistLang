@@ -509,7 +509,7 @@ public static partial class AstEmitter
         writer.WriteBlock("public override IEnumerable<SyntaxNode> Children()", () =>
         {
             var hasChildren = false;
-            foreach(var prop in properties)
+            foreach(var prop in properties.Where(prop => prop.IsChild))
             {
                 if(prop.IsGroup)
                 {
@@ -662,6 +662,12 @@ public static partial class AstEmitter
         var alternationsInsideRepetition = new HashSet<ExpressionIR>();
         CollectAlternationsInsideRepetition(alt.Expression, false, alternationsInsideRepetition);
 
+        var repeatedRuleRefs = new HashSet<RuleRefIR>();
+        CollectRepeatedRuleRefs(alt.Expression, repeatedRuleRefs);
+
+        var insideRepetition = new HashSet<ExpressionIR>();
+        CollectInsideRepetition(alt.Expression, false, insideRepetition);
+
         // First, add properties from field labels. Labels that live inside an
         // anonymous group are excluded here — they become fields on the group
         // struct (or the collapsed pure-token property) instead (Task 3.4).
@@ -678,7 +684,7 @@ public static partial class AstEmitter
             if(tokensInsideRepetition.Contains(label.Expression))
             {
                 // The labeled token is inside a * or + repetition — generate a list property
-                propInfo = new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
+                propInfo = new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;").FilledBy(label.Expression, true);
             }
             else if(alternationsInsideRepetition.Contains(label.Expression)
                 && IsPureTokenAlternation(new List<FieldLabelIR> { label }))
@@ -689,21 +695,29 @@ public static partial class AstEmitter
                 // inGroupLabels); promote it to a token list on the parent, mirroring the
                 // bare-token promotion above (design Property 5). A mixed alternation fails
                 // the pure-token gate and falls through to its existing scalar promotion.
-                propInfo = new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
+                propInfo = new PropertyInfo(propName, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;").FilledBy(label.Expression, true);
             }
             else if(exprsInsideOptional.Contains(label.Expression))
             {
                 // The labeled expression is inside an optional group — make it nullable
-                propInfo = GetPropertyInfo(label.Expression, propName) switch
+                propInfo = (GetPropertyInfo(label.Expression, propName) switch
                 {
                     var p when p.TypeName == "Token" => new PropertyInfo(propName, "Token?", true, false, false, ""),
                     var p when !p.IsNullable && p.IsNodeType => new PropertyInfo(propName, p.TypeName + "?", true, true, false, ""),
                     var p => p,
-                };
+                }).FilledBy(label.Expression, false);
+            }
+            else if(label.Expression is RuleRefIR repeated && repeatedRuleRefs.Contains(repeated))
+            {
+                // Kept beside the list only because consumers still read it (backlog/storm.md).
+                propInfo = new PropertyInfo(propName, repeated.Rule.Name + "Node", false, true, false, " = default!;", isChild: false).FilledBy(repeated, false);
             }
             else
             {
-                propInfo = GetPropertyInfo(label.Expression, propName);
+                propInfo = label.Expression is RuleRefIR or OptionalIR && insideRepetition.Contains(label.Expression)
+                    ? RepeatedLabelProperty(label.Expression, propName, alt.FieldLabels, groupSequences)
+                    : GetPropertyInfo(label.Expression, propName)
+                        .FilledBy(Representative(label.Expression, alt.FieldLabels, groupSequences), label.Expression is ZeroOrMoreIR or OneOrMoreIR);
             }
 
             properties.Add(propInfo);
@@ -859,6 +873,56 @@ public static partial class AstEmitter
         }
     }
 
+    internal static RuleRefIR? RepeatedRuleRef(ExpressionIR repetitionInner)
+    {
+        return repetitionInner switch
+        {
+            RuleRefIR ruleRef => ruleRef,
+            SequenceIR sequence => sequence.Elements.OfType<RuleRefIR>().FirstOrDefault(),
+            _ => null,
+        };
+    }
+
+    private static void CollectRepeatedRuleRefs(ExpressionIR expr, HashSet<RuleRefIR> result)
+    {
+        switch(expr)
+        {
+            case SequenceIR sequence:
+                foreach(var element in sequence.Elements)
+                {
+                    CollectRepeatedRuleRefs(element, result);
+                }
+
+                break;
+            case AlternationIR alternation:
+                foreach(var alternative in alternation.Alternatives)
+                {
+                    CollectRepeatedRuleRefs(alternative, result);
+                }
+
+                break;
+            case OptionalIR optional:
+                CollectRepeatedRuleRefs(optional.Inner, result);
+                break;
+            case ZeroOrMoreIR zeroOrMore:
+                AddRepeatedRuleRef(zeroOrMore.Inner, result);
+                CollectRepeatedRuleRefs(zeroOrMore.Inner, result);
+                break;
+            case OneOrMoreIR oneOrMore:
+                AddRepeatedRuleRef(oneOrMore.Inner, result);
+                CollectRepeatedRuleRefs(oneOrMore.Inner, result);
+                break;
+        }
+    }
+
+    private static void AddRepeatedRuleRef(ExpressionIR repetitionInner, HashSet<RuleRefIR> result)
+    {
+        if(RepeatedRuleRef(repetitionInner) is { } repeated)
+        {
+            _ = result.Add(repeated);
+        }
+    }
+
     /// <summary>
     /// Walks an expression to find elements that don't have field labels
     /// and generates auto-named properties for them. Repetition/optional wrappers
@@ -876,6 +940,7 @@ public static partial class AstEmitter
         // Skip expressions that are already covered by field labels
         if(labels.Any(l => ReferenceEquals(l.Expression, expr)))
         {
+            CollectNestedProperties(expr, labels, properties, usedNames, groupSequences, repeated: false, fed: null);
             return;
         }
 
@@ -894,7 +959,7 @@ public static partial class AstEmitter
                 {
                     var propName = PascalCase(tokenRef.Token.Name);
                     propName = EnsureUnique(propName, usedNames);
-                    properties.Add(new PropertyInfo(propName, "Token", false, false, false, " = default;"));
+                    properties.Add(new PropertyInfo(propName, "Token", false, false, false, " = default;").FilledBy(tokenRef, false));
                 }
 
                 break;
@@ -905,7 +970,7 @@ public static partial class AstEmitter
                     var propName = PascalCase(ruleRef.Rule.Name);
                     propName = EnsureUnique(propName, usedNames);
                     var typeName = ruleRef.Rule.Name + "Node";
-                    properties.Add(new PropertyInfo(propName, typeName, false, true, false, " = default!;"));
+                    properties.Add(new PropertyInfo(propName, typeName, false, true, false, " = default!;").FilledBy(ruleRef, false));
                 }
 
                 break;
@@ -919,12 +984,13 @@ public static partial class AstEmitter
                 }
 
                 // The inner expression becomes nullable
-                var optProp = GetPropertyInfoForOptional(opt.Inner, usedNames);
+                var optProp = GetPropertyInfoForOptional(opt.Inner, usedNames, labels);
                 if(optProp != null && !labels.Any(l => ReferenceEquals(l.Expression, opt)))
                 {
                     properties.Add(optProp);
                 }
 
+                CollectNestedProperties(opt.Inner, labels, properties, usedNames, groupSequences, repeated: false, fed: optProp?.Source);
                 break;
 
             case ZeroOrMoreIR zom:
@@ -939,6 +1005,7 @@ public static partial class AstEmitter
                     properties.Add(zomProp);
                 }
 
+                CollectNestedProperties(zom.Inner, labels, properties, usedNames, groupSequences, repeated: true, fed: zomProp?.Source);
                 break;
 
             case OneOrMoreIR oom:
@@ -953,6 +1020,7 @@ public static partial class AstEmitter
                     properties.Add(oomProp);
                 }
 
+                CollectNestedProperties(oom.Inner, labels, properties, usedNames, groupSequences, repeated: true, fed: oomProp?.Source);
                 break;
 
             case AlternationIR alt:
@@ -973,31 +1041,24 @@ public static partial class AstEmitter
             OptionalIR opt => GetPropertyInfoForOptionalInner(opt.Inner, propName),
             ZeroOrMoreIR zom => GetPropertyInfoForListInner(zom.Inner, propName),
             OneOrMoreIR oom => GetPropertyInfoForListInner(oom.Inner, propName),
-            // Known limitation (design.md, Error Handling / Edge Cases): a labelled
-            // MIXED alternation such as choice:(A | Y) -- where at least one alternative
-            // is a rule reference -- falls through to Token here, discarding the rule-ref
-            // alternative. Modelling it faithfully needs a discriminated union, which the
-            // AST has no representation for. This shape does not occur in the Mist grammar,
-            // so the fallback is left as-is. A labelled PURE-token alternation is handled
-            // before reaching this fallback (as a list inside a repetition, a Token? inside
-            // an optional, or a Token field on a struct-projected group).
+            // Any choice reaching here is between tokens: UnemittableShapes refuses the rest.
             _ => new PropertyInfo(propName, "Token", false, false, false, " = default;"),
         };
     }
 
-    private static PropertyInfo? GetPropertyInfoForOptional(ExpressionIR inner, HashSet<string> usedNames)
+    private static PropertyInfo? GetPropertyInfoForOptional(ExpressionIR inner, HashSet<string> usedNames, IReadOnlyList<FieldLabelIR> labels)
     {
         switch(inner)
         {
             case TokenRefIR tokenRef:
                 {
                     var name = EnsureUnique(PascalCase(tokenRef.Token.Name), usedNames);
-                    return new PropertyInfo(name, "Token?", true, false, false, "");
+                    return new PropertyInfo(name, "Token?", true, false, false, "").FilledBy(tokenRef, false);
                 }
             case RuleRefIR ruleRef:
                 {
                     var name = EnsureUnique(PascalCase(ruleRef.Rule.Name), usedNames);
-                    return new PropertyInfo(name, ruleRef.Rule.Name + "Node?", true, true, false, "");
+                    return new PropertyInfo(name, ruleRef.Rule.Name + "Node?", true, true, false, "").FilledBy(ruleRef, false);
                 }
             case SequenceIR seq:
                 {
@@ -1005,14 +1066,15 @@ public static partial class AstEmitter
                     if(seqRuleRef != null)
                     {
                         var name = EnsureUnique(PascalCase(seqRuleRef.Rule.Name), usedNames);
-                        return new PropertyInfo(name, seqRuleRef.Rule.Name + "Node?", true, true, false, "");
+                        var labelled = labels.Any(label => ReferenceEquals(label.Expression, seqRuleRef));
+                        return new PropertyInfo(name, seqRuleRef.Rule.Name + "Node?", true, true, false, "").FilledBy(labelled ? null : seqRuleRef, false);
                     }
 
                     var seqTokenRef = seq.Elements.OfType<TokenRefIR>().LastOrDefault();
                     if(seqTokenRef != null)
                     {
                         var name = EnsureUnique(PascalCase(seqTokenRef.Token.Name), usedNames);
-                        return new PropertyInfo(name, "Token?", true, false, false, "");
+                        return new PropertyInfo(name, "Token?", true, false, false, "").FilledBy(seqTokenRef, false);
                     }
 
                     return null;
@@ -1051,13 +1113,13 @@ public static partial class AstEmitter
             case TokenRefIR tokenRef:
                 {
                     var name = EnsureUnique(PascalCase(tokenRef.Token.Name) + "s", usedNames);
-                    return new PropertyInfo(name, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
+                    return new PropertyInfo(name, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;").FilledBy(tokenRef, true);
                 }
             case RuleRefIR ruleRef:
                 {
                     var name = EnsureUnique(PascalCase(ruleRef.Rule.Name) + "s", usedNames);
                     var elementType = ruleRef.Rule.Name + "Node";
-                    return new PropertyInfo(name, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
+                    return new PropertyInfo(name, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;").FilledBy(ruleRef, true);
                 }
             case SequenceIR seq:
                 {
@@ -1066,14 +1128,14 @@ public static partial class AstEmitter
                     {
                         var name = EnsureUnique(PascalCase(seqRuleRef.Rule.Name) + "s", usedNames);
                         var elementType = seqRuleRef.Rule.Name + "Node";
-                        return new PropertyInfo(name, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;");
+                        return new PropertyInfo(name, $"ImmutableArray<{elementType}>", false, true, true, $" = ImmutableArray<{elementType}>.Empty;").FilledBy(seqRuleRef, true);
                     }
 
                     var seqTokenRef = seq.Elements.OfType<TokenRefIR>().LastOrDefault();
                     if(seqTokenRef != null)
                     {
                         var name = EnsureUnique(PascalCase(seqTokenRef.Token.Name) + "s", usedNames);
-                        return new PropertyInfo(name, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;");
+                        return new PropertyInfo(name, "ImmutableArray<Token>", false, false, true, " = ImmutableArray<Token>.Empty;").FilledBy(seqTokenRef, true);
                     }
 
                     return null;
@@ -1208,7 +1270,13 @@ public static partial class AstEmitter
 
         public bool IsGroup => GroupNodeFieldNames != null;
 
-        public PropertyInfo(string name, string typeName, bool isNullable, bool isNodeType, bool isList, string defaultValue, IReadOnlyList<string>? groupNodeFieldNames = null)
+        public bool IsChild { get; }
+
+        public ExpressionIR? Source { get; private set; }
+
+        public bool Appends { get; private set; }
+
+        public PropertyInfo(string name, string typeName, bool isNullable, bool isNodeType, bool isList, string defaultValue, IReadOnlyList<string>? groupNodeFieldNames = null, bool isChild = true)
         {
             Name = name;
             TypeName = typeName;
@@ -1217,6 +1285,14 @@ public static partial class AstEmitter
             IsList = isList;
             DefaultValue = defaultValue;
             GroupNodeFieldNames = groupNodeFieldNames;
+            IsChild = isChild;
+        }
+
+        public PropertyInfo FilledBy(ExpressionIR? source, bool appends)
+        {
+            Source = source;
+            Appends = appends;
+            return this;
         }
     }
 }

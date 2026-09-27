@@ -2,7 +2,7 @@
 namespace Mist.Common.Diagnostics;
 #pragma warning restore IDE0130
 
-public static class ProgramAnalysisDiagnostics
+public static partial class ProgramAnalysisDiagnostics
 {
     /// <summary>
     /// A switch expression some value of its scrutinee reaches no arm of. A WARNING, which is classic's
@@ -164,7 +164,7 @@ public static class ProgramAnalysisDiagnostics
         new DiagnosticId("MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
-        "The refinement predicate on '{0}' reads '{1}', which can answer differently after a value was proven. A predicate reads only a readonly field, or a property with no 'set' accessor whose getter reads only such members.");
+        "The refinement predicate on '{0}' reads '{1}', which can answer differently after a value was proven. A predicate reads only a readonly field, or a property with no 'set' accessor whose getter is pure.");
 
     public static readonly DiagnosticDescriptor DuplicateSignature = new(
         new DiagnosticId("MIST_PA_DUPLICATE_SIGNATURE"),
@@ -207,6 +207,12 @@ public static class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "'{0}' does not fill slot '{1}' of '{2}': its '{3}' has a different signature.");
+
+    public static readonly DiagnosticDescriptor SlotReturnNotOwned = new(
+        new DiagnosticId("MIST_PA_SLOT_RETURN_NOT_OWNED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' does not fill slot '{1}' of '{2}': its '{3}' does not return owned, and a call through the slot hands its caller a value nothing else holds.");
 
     public static readonly DiagnosticDescriptor ReadonlyContractNotMet = new(
         new DiagnosticId("MIST_PA_READONLY_CONTRACT_NOT_MET"),
@@ -544,11 +550,29 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot allocate '{0}' from readonly {1}: its constructor is not readonly.");
 
+    public static readonly DiagnosticDescriptor ReadonlyContextWritesThroughRef = new(
+        new DiagnosticId("MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_REF"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot write through '{0}' from readonly {1}: it aliases storage outside what the context owns, and a readonly context writes nothing external.");
+
     public static readonly DiagnosticDescriptor ReadonlyFieldAssigned = new(
         new DiagnosticId("MIST_PA_READONLY_FIELD_ASSIGNED"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Cannot assign to readonly field '{0}' outside a constructor of '{1}'.");
+
+    public static readonly DiagnosticDescriptor OwnedReturnNotOwned = new(
+        new DiagnosticId("MIST_PA_OWNED_RETURN_NOT_OWNED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' returns owned but this value is not: {1}. An owned return is a construction, a clone, a call returning owned, a move from an owned binding, or a value of a type that cannot change.");
+
+    public static readonly DiagnosticDescriptor OwnedSourceNotOwned = new(
+        new DiagnosticId("MIST_PA_OWNED_SOURCE_NOT_OWNED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot move this value into {0}: {1}. An owned destination takes only what nothing else holds: a construction, a clone, a call returning owned, a move from an owned binding, or a value of a type that cannot change.");
 
     public static readonly DiagnosticDescriptor StackSpanReturned = new(
         new DiagnosticId("MIST_PA_STACK_SPAN_RETURNED"),

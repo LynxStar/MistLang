@@ -6,7 +6,7 @@ public class Program
 {
     public static async System.Threading.Tasks.Task<string> FetchData(int id)
     {
-        return $"data-{id}";
+        return System.FormattableString.Invariant($"data-{id}");
     }
 
     public static async System.Threading.Tasks.Task Main(string[] args)

@@ -36,10 +36,10 @@ public class Program
     public static void Main(string[] args)
     {
         int[] counts = new int[4];
-        System.Console.WriteLine($"counts[0]={counts[0]}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"counts[0]={counts[0]}"));
         Snippet.Vector2[] positions = new Snippet.Vector2[3];
-        System.Console.WriteLine($"positions[0].X={positions[0].X}");
-        System.Console.WriteLine($"positions[1].Y={positions[1].Y}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"positions[0].X={positions[0].X}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"positions[1].Y={positions[1].Y}"));
     }
 
     public Program()

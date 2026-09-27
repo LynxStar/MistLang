@@ -10,7 +10,7 @@ public class Program
         {
             if (numbers is [> 0, var _, var third])
             {
-                System.Console.WriteLine($"third={third}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"third={third}"));
             }
         }
     }

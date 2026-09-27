@@ -11,7 +11,7 @@ internal class Program
         {
             if ((box is not null and var __e1 && ((dynamic)__e1).X is var x && ((dynamic)__e1).Y is var y))
             {
-                System.Console.WriteLine($"X={x} Y={y}");
+                System.Console.WriteLine($"X={MistInvariant.Text(x)} Y={MistInvariant.Text(y)}");
             }
         }
     }

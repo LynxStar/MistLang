@@ -13,9 +13,9 @@ public class Program
             return counter;
         }
 ;
-        System.Console.WriteLine($"increment()={increment()}");
-        System.Console.WriteLine($"increment()={increment()}");
-        System.Console.WriteLine($"counter={counter}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"increment()={increment()}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"increment()={increment()}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"counter={counter}"));
     }
 
     public Program()

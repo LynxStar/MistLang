@@ -122,6 +122,7 @@ public static class StdlibLoader
             units.Add(new CompilationUnit(sourceText)
             {
                 IsStdlib = true,
+                IsExperimentalOnly = Path.GetRelativePath(stdlibRoot, path).StartsWith("Experimental" + Path.DirectorySeparatorChar, StringComparison.Ordinal),
                 NamespaceRoot = "Standard",
                 ProjectFolder = stdlibRoot,
             });

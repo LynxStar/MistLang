@@ -42,7 +42,7 @@ public readonly struct UserId : Standard.IClonable<Snippet.UserId>
         Value = value;
     }
 
-    public override string ToString() => Value.ToString();
+    public override string ToString() => Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private UserId(int p0, Mist.Emission.CSharp.__StructInit marker)
     {

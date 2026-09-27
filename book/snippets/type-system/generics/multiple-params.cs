@@ -25,6 +25,6 @@ public class KeyValueStore<K, V>
 
     public string Describe()
     {
-        return $"{key} => {value}";
+        return $"{MistInvariant.Text(key)} => {MistInvariant.Text(value)}";
     }
 }

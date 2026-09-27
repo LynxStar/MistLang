@@ -1,0 +1,31 @@
+using Standard;
+
+namespace PurityFunctions;
+
+type Step = pure func<int, int>;
+
+public class Program
+{
+    public static pure int Twice(pure func<int, int> f, int x)
+    {
+        return f(f(x));
+    }
+
+    public static pure int AddTen(int n)
+    {
+        return n + 10;
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine($"Twice(n => n + 1, 3)={Twice(n => n + 1, 3)}");
+        Console.WriteLine($"Twice(AddTen, 1)={Twice(AddTen, 1)}");
+
+        readonly var offset = 100;
+        Step shift = n => n + offset;
+        Console.WriteLine($"Twice(shift, 1)={Twice(shift, 1)}");
+
+        func<int, int> plain = shift;
+        Console.WriteLine($"plain(1)={plain(1)}");
+    }
+}

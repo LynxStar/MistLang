@@ -29,20 +29,20 @@ public class Program
             MistContext.Push<int>(count);
             try
             {
-                System.Console.WriteLine(Snippet.Consumers.GetInt());
+                System.Console.WriteLine(Snippet.Consumers.GetInt().ToString(System.Globalization.CultureInfo.InvariantCulture));
                 {
                     var __e1 = 99;
                     MistContext.Push<int>(__e1);
                     try
                     {
-                        System.Console.WriteLine(Snippet.Consumers.GetInt());
+                        System.Console.WriteLine(Snippet.Consumers.GetInt().ToString(System.Globalization.CultureInfo.InvariantCulture));
                     }
                     finally
                     {
                         MistContext.Pop<int>();
                     }
                 }
-                System.Console.WriteLine(Snippet.Consumers.GetInt());
+                System.Console.WriteLine(Snippet.Consumers.GetInt().ToString(System.Globalization.CultureInfo.InvariantCulture));
             }
             finally
             {

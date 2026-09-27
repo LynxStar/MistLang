@@ -65,7 +65,7 @@ Each constituent in the union carries its own predicate. The literal `5` satisfi
 
 ## Property Pattern Refinements
 
-A refinement type can constrain properties of a class or struct type using property pattern syntax. This lets you express structural invariants on complex types. Only `readonly` fields can participate in property pattern refinements — mutable fields could change after validation, breaking the invariant.
+A refinement type can constrain properties of a class or struct type using property pattern syntax. This lets you express structural invariants on complex types. A predicate may read only what cannot change once a value has been proven: a `readonly` field, or a property with no `set` accessor whose getter is pure, an `init`-only auto-property among them. A mutable field could change after validation, breaking the invariant, and so could a getter that reads one. A computed getter qualifies when it is pure, as `Interval.Length` is in [Where Mist Requires Purity](../advanced/purity.md#where-mist-requires-purity).
 
 {{#tabs }}
 {{#tab name="Mist" }}

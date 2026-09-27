@@ -1,6 +1,6 @@
 // Feature: ownership-v2, Task 12.3
-// Unit tests for clone emission and pure-struct elision.
-// Assert .Clone() emitted for clonable class sources; assert elided for pure-struct value types.
+// Unit tests for clone emission and value-type elision.
+// Assert .Clone() emitted for clonable class sources; assert elided for value types.
 // _Requirements: 14.7, 8.8_
 
 using System.Collections.Immutable;
@@ -17,7 +17,7 @@ namespace Mist.Tests.Backend;
 /// <summary>
 /// Unit tests verifying that the C# emitter inserts <c>.Clone()</c> at implicit-clone
 /// sites for clonable class (reference-type) sources assigned to owned destinations,
-/// and elides <c>.Clone()</c> for pure-struct (value-type) sources where copy semantics
+/// and elides <c>.Clone()</c> for value-type sources where copy semantics
 /// already provide independence (Requirement 14 AC 7, Requirement 8 AC 8).
 /// </summary>
 public sealed class CloneEmissionAndStructElisionTests
@@ -183,12 +183,12 @@ public sealed class CloneEmissionAndStructElisionTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Pure-struct elision: value-type source → .Clone() NOT present
+    // Value-type elision: value-type source -> .Clone() NOT present
     // Requirements: 14.7, 8.8
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void PureStructSource_OwnedBindingInit_DoesNotEmitClone()
+    public void ValueTypeSource_OwnedBindingInit_DoesNotEmitClone()
     {
         // A struct (value type) copied into an owned binding — .Clone() should be
         // elided because value semantics already produce independence.
@@ -216,7 +216,7 @@ public sealed class CloneEmissionAndStructElisionTests
     }
 
     [Fact]
-    public void PureStructSource_OwnedFieldAssignment_DoesNotEmitClone()
+    public void ValueTypeSource_OwnedFieldAssignment_DoesNotEmitClone()
     {
         // A struct assigned to a field of an owned-bound instance — no .Clone() needed.
         const string source = """

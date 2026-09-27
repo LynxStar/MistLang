@@ -30,7 +30,7 @@ public class Program
         {
             if (shape is Snippet.Circle c)
             {
-                System.Console.WriteLine($"Narrowed to Circle, radius = {c.Radius}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"Narrowed to Circle, radius = {c.Radius}"));
                 if (c is { Radius: > 5 })
                 {
                     System.Console.WriteLine("It's a big circle");

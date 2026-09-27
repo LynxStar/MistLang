@@ -23,7 +23,7 @@ This feature supersedes the interim "emit a default-fill loop for array creation
 - **Definite_Assignment**: A static dataflow property: a storage location (field, local, or array element) has been assigned a value on every control-flow path that reaches a given read of that location.
 - **Definite_Assignment_Analyzer**: The semantic analysis component that computes definite-assignment state and emits diagnostics for reads of not-definitely-assigned locations.
 - **Stampable_Type**: A type whose `default` value is a flat, copyable bit pattern with no heap identity, such that replicating it into N slots is a pure copy (no constructor/factory call, no aliasing). Primitive types and ordinary structs with recursively stampable instance storage qualify, including substituted constructed types and open types with sufficient `stampable` proof. Reference types and structs containing reference-bearing storage never qualify. The complete category rules and declaration guarantees are defined in [stampability](../stampability/requirements.md).
-- **Pure_Struct**: A struct type whose every field's type is transitively a primitive or another Pure_Struct (no reference-typed fields, no type-parameter fields that could bind to a reference type).
+- **Stampable_Struct**: A struct type whose every field's type is transitively a primitive or another Stampable_Struct (no reference-typed fields, no type-parameter fields that could bind to a reference type).
 - **Stamp_Fill**: Array initialization that replicates a single stampable default value into every slot via a bitwise/value copy, with no per-element constructor or factory invocation.
 - **Initializer_Array_Construction**: Array construction that supplies a value for every slot via an explicit index→value function passed to the `Array<TValue, Length>` constructor — `new Array<T, Size>(i => ...)` — so that no slot is ever observable without an assigned value. The constructor invokes the function once per index in `[0, Length)`, assigning result `i` to slot `i`.
 - **Read_Before_Assignment**: A read of a storage location on a control-flow path where that location has not been definitely assigned.
@@ -163,7 +163,7 @@ The following samples use bare `new T[size]` where `T` is a reference type (`str
 #### Acceptance Criteria
 
 1. A sample project SHALL exist at `samples/DefiniteAssignment/Program.mist`.
-2. The sample SHALL demonstrate every permutation defined in the preceding requirements, including but not limited to: constructor field assignment on all paths; local variable assignment before use; conditional-branch assignment that merges to definitely-assigned; bare `new T[size]` for a stampable pure struct; bare `new T[size]` for a primitive; initializer-based construction for a reference type; initializer-based construction for a non-stampable struct; an array literal of reference types.
+2. The sample SHALL demonstrate every permutation defined in the preceding requirements, including but not limited to: constructor field assignment on all paths; local variable assignment before use; conditional-branch assignment that merges to definitely-assigned; bare `new T[size]` for a stampable struct; bare `new T[size]` for a primitive; initializer-based construction for a reference type; initializer-based construction for a non-stampable struct; an array literal of reference types.
 3. Each demonstrated permutation SHALL print labeled output to stdout so correctness is observable.
 4. `samples/AllFeatures/Program.mist` SHALL call `DefiniteAssignment.Program.RunDemo()` to include the feature in the full-suite sample run.
 5. The sample SHALL compile and run without errors using the Mist compiler.
@@ -174,7 +174,7 @@ The following samples use bare `new T[size]` where `T` is a reference type (`str
 // PROOF: a constructor that assigns every field on all paths compiles
 // PROOF: a local assigned before use compiles and reads the assigned value
 // PROOF: bare new T[size] works for a primitive (stampable) element type
-// PROOF: bare new T[size] works for a pure struct (stampable) element type
+// PROOF: bare new T[size] works for a stampable struct element type
 // PROOF: initializer-based construction fills a reference-type array with no nulls
 // PROOF: an array literal of reference types is accepted (every element explicit)
 // PROOF: every array element read returns a real, assigned value
@@ -230,7 +230,7 @@ public class Program
         var ints = new int[3];
         Console.WriteLine($"[da] ints[0]={ints[0]} ints[2]={ints[2]}");
 
-        // Bare new T[size] for a pure struct (stampable) — zero-filled stamp.
+        // Bare new T[size] for a stampable struct — zero-filled stamp.
         var points = new Point[2];
         Console.WriteLine($"[da] points[0].X={points[0].X} points[1].Y={points[1].Y}");
 

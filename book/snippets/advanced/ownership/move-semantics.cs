@@ -13,7 +13,7 @@ public class Handle
 
     public string Describe()
     {
-        return $"Handle({Id})";
+        return System.FormattableString.Invariant($"Handle({Id})");
     }
 }
 

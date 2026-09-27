@@ -15,58 +15,49 @@ internal static class LiteralBinder
 {
     internal static Expression BindIntegerLiteral(SyntaxNode node, string lexeme, BuilderContext context)
     {
-        if(IntegerLiterals.Read(lexeme) is not (var value, var wellKnown))
-        {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, lexeme, WellKnownTypes.UInt64.Keyword);
-            return new ErrorExpression(node);
-        }
-
-        return new LiteralExpression(node, value, context.Resolver.LookupWellKnown(wellKnown));
+        var (value, wellKnown) = IntegerValue(lexeme);
+        return Numeric(node, lexeme, value, wellKnown, context);
     }
 
     internal static Expression BindFloatLiteral(SyntaxNode node, string lexeme, BuilderContext context)
     {
-        var suffixed = char.IsAsciiLetter(lexeme[^1]);
-        var digits = (suffixed ? lexeme[..^1] : lexeme).Replace("_", "", StringComparison.Ordinal);
-        var (value, wellKnown) = (suffixed ? char.ToUpperInvariant(lexeme[^1]) : 'D') switch
-        {
-            'M' => (ParseDecimal(digits), WellKnownTypes.Decimal),
-            'F' => (ParseSingle(digits), WellKnownTypes.Single),
-            _ => (ParseDouble(digits), WellKnownTypes.Double),
-        };
+        var (value, wellKnown) = RealValue(lexeme);
+        return Numeric(node, lexeme, value, wellKnown, context);
+    }
 
+    internal static (object? Value, WellKnownType Type) IntegerValue(string lexeme)
+    {
+        return IntegerLiterals.Read(lexeme) is (var value, var wellKnown) ? (value, wellKnown) : (null, WellKnownTypes.UInt64);
+    }
+
+    internal static (object? Value, WellKnownType Type) RealValue(string lexeme)
+    {
+        var digits = Digits(lexeme);
+        var number = digits.TrimEnd('m', 'M', 'f', 'F', 'd', 'D');
+
+        return char.ToUpperInvariant(digits[^1]) switch
+        {
+            'M' => (decimal.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out var m) ? m : null, WellKnownTypes.Decimal),
+            'F' => (float.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) && float.IsFinite(f) ? f : null, WellKnownTypes.Single),
+            _ => (double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && double.IsFinite(d) ? d : null, WellKnownTypes.Double),
+        };
+    }
+
+    private static string Digits(string lexeme)
+    {
+        return lexeme.Replace("_", "", StringComparison.Ordinal);
+    }
+
+    private static Expression Numeric(SyntaxNode node, string lexeme, object? value, WellKnownType wellKnown, BuilderContext context)
+    {
         if(value is null)
         {
             context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, lexeme, wellKnown.Keyword);
+                ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, lexeme, wellKnown.Keyword ?? wellKnown.Name);
             return new ErrorExpression(node);
         }
 
         return new LiteralExpression(node, value, context.Resolver.LookupWellKnown(wellKnown));
-    }
-
-    private static object? ParseDecimal(string digits)
-    {
-        return decimal.TryParse(digits, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : null;
-    }
-
-    private static object? ParseSingle(string digits)
-    {
-        return float.TryParse(digits, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value)
-            && float.IsFinite(value)
-                ? value
-                : null;
-    }
-
-    private static object? ParseDouble(string digits)
-    {
-        return double.TryParse(digits, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value)
-            && double.IsFinite(value)
-                ? value
-                : null;
     }
 
     internal static Expression BindCharLiteral(SyntaxNode node, string lexeme, BuilderContext context)

@@ -15,6 +15,6 @@ public class GameState
 
     public string Summary()
     {
-        return $"Level: {level}, Active: {active}";
+        return System.FormattableString.Invariant($"Level: {level}, Active: {active}");
     }
 }

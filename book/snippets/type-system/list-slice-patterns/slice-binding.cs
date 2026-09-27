@@ -10,10 +10,10 @@ public class Program
         {
             if (numbers is [var first, .. var middle, var last])
             {
-                System.Console.WriteLine($"first={first}");
-                System.Console.WriteLine($"last={last}");
-                System.Console.WriteLine($"middleLength={middle.Length}");
-                System.Console.WriteLine($"middleFirst={middle[0]}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"first={first}"));
+                System.Console.WriteLine(System.FormattableString.Invariant($"last={last}"));
+                System.Console.WriteLine(System.FormattableString.Invariant($"middleLength={middle.Length}"));
+                System.Console.WriteLine(System.FormattableString.Invariant($"middleFirst={middle[0]}"));
             }
         }
     }

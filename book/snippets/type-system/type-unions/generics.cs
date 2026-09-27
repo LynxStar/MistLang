@@ -22,7 +22,7 @@ public class Program
         {
             if (ok.AsInt32OrNull is int n)
             {
-                System.Console.WriteLine($"ok: {n}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"ok: {n}"));
             }
         }
         {

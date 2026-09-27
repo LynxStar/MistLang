@@ -8,7 +8,7 @@ public class Program
     {
         int day = 3;
         string dayName = day switch { 1 => "Monday", 2 => "Tuesday", 3 => "Wednesday", 4 => "Thursday", 5 => "Friday", var _ => "Weekend" };
-        System.Console.WriteLine($"Day {day} is {dayName}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Day {day} is {dayName}"));
         string command = "quit";
         string response = command switch { "start" => "Starting...", "stop" => "Stopping...", "quit" => "Goodbye!", var _ => "Unknown command" };
         System.Console.WriteLine($"Command '{command}' => {response}");

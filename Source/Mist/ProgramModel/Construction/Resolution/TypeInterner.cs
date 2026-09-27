@@ -15,7 +15,7 @@ internal sealed class TypeInterner
     private readonly Dictionary<ConstructedTypeKey, ConstructedType> constructedTypes = [];
     private readonly Dictionary<UnionTypeKey, UnionType> unionTypes = [];
     private readonly Dictionary<TypeListKey, TupleType> tupleTypes = [];
-    private readonly Dictionary<TypeListKey, FunctionType> functionTypes = [];
+    private readonly Dictionary<(TypeListKey Shape, bool IsPure), FunctionType> functionTypes = [];
     private readonly Dictionary<string, AnonymousType> anonymousTypes = [];
     private readonly Dictionary<LiftedTypeKey, LiftedType> liftedTypes = [];
     private readonly Dictionary<IMistType, UnknownValueType> unknownValueTypes = new(ReferenceEqualityComparer.Instance);
@@ -178,10 +178,10 @@ internal sealed class TypeInterner
     /// <summary>
     /// Returns the canonical <see cref="FunctionType"/> for the given parameter types and result.
     /// </summary>
-    public FunctionType GetOrCreateFunctionType(IReadOnlyList<IMistType> parameterTypes, IMistType returnType)
+    public FunctionType GetOrCreateFunctionType(IReadOnlyList<IMistType> parameterTypes, IMistType returnType, bool isPure = false)
     {
-        var function = new FunctionType(parameterTypes, returnType);
-        var key = new TypeListKey(function.TypeArgumentsInSourceOrder());
+        var function = new FunctionType(parameterTypes, returnType, isPure);
+        var key = (new TypeListKey(function.TypeArgumentsInSourceOrder()), isPure);
 
         if(functionTypes.TryGetValue(key, out var existing))
         {

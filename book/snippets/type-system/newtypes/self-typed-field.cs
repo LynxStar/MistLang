@@ -50,7 +50,7 @@ public class Program
         {
             while (cursor is Snippet.Chain here)
             {
-                text = $"{text} {here.Item}";
+                text = System.FormattableString.Invariant($"{text} {here.Item}");
                 cursor = here.Next;
             }
         }

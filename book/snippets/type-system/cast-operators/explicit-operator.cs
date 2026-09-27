@@ -33,6 +33,6 @@ public class Kelvin
 
     public string Describe()
     {
-        return $"{degrees} K";
+        return System.FormattableString.Invariant($"{degrees} K");
     }
 }

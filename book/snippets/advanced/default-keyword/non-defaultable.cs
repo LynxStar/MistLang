@@ -19,7 +19,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.DatabaseConnection db = new Snippet.DatabaseConnection("Server=localhost", 30);
-        System.Console.WriteLine($"conn={db.ConnectionString} timeout={db.Timeout}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"conn={db.ConnectionString} timeout={db.Timeout}"));
     }
 
     public Program()

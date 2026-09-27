@@ -27,7 +27,7 @@ name = "HelloMist"
 - **Project_File_Parser**: The component responsible for reading and parsing the Project_File into a structured representation.
 - **Output_Directory**: The directory where the compiler writes intermediate generated source code (emitted C# files, `.csproj`). This is temporary/intermediate output produced by the Backend emitter. Defaults to `<Project_Folder>/out`.
 - **Bin_Directory**: The directory where the compiler writes the final compiled artifact (e.g., the compiled DLL/executable). This is the final output produced by the compilation driver. Defaults to `<Project_Folder>/bin`.
-- **Source_Discovery**: The process of recursively finding all `.mist` files within the Project_Folder.
+- **Source_Discovery**: The process of recursively finding the `.mist` files within the Project_Folder that are the project's sources, which excludes whatever the CLI generates into the Output_Directory and the Bin_Directory (Requirement 2).
 - **Argument_Parser**: The `CliArgumentParser` component that parses raw command-line arguments into structured `CliArguments`.
 - **Compiler_Driver**: The `CompilerDriver` component that orchestrates the full compilation pipeline.
 - **Backend**: A pluggable code-generation component (e.g., `CSharpTranspilerBackend`) that emits intermediate source code into the Output_Directory and places the final compiled artifact into the Bin_Directory.
@@ -56,6 +56,16 @@ name = "HelloMist"
 1. WHEN a valid Project_Folder is resolved, THE Source_Discovery SHALL recursively enumerate all files with the `.mist` extension within the Project_Folder.
 2. WHEN Source_Discovery completes, THE Source_Discovery SHALL return the discovered files sorted in ordinal string order.
 3. IF Source_Discovery finds zero `.mist` files in the Project_Folder, THEN THE CLI SHALL report an error stating that no `.mist` source files were found in the project folder.
+4. THE Source_Discovery SHALL exclude every file inside the Output_Directory or the Bin_Directory. Containment SHALL be decided on normalized full paths and whole directory segments: `out/`, `out` and `sub/../out` name the same directory, and a sibling such as `out-other` or `output` is not inside `out`.
+5. WHEN the Output_Directory or the Bin_Directory is a relative path, THE Source_Discovery SHALL resolve it against the process working directory, where the Clean deletes it and the Backend writes it, and not against the Project_Folder. A folder named `out` inside the Project_Folder therefore holds sources whenever the Output_Directory is elsewhere.
+
+> **Amendment note (2026-09-27).** Criterion 1 said "all files with the `.mist` extension", without
+> exception, and the CLI implemented it literally. Lex mode (Requirement 8) writes reconstructed
+> `.mist` files into `<Output_Directory>/lexer/`, so the next build, run, test or lex discovered them,
+> cleaned the Output_Directory (Requirement 4), and then failed to read the files it had just deleted.
+> Criteria 4 and 5 are a clarification added with that fix; they were not part of the original design.
+> They cover the Output_Directory and Bin_Directory of the current invocation only: `.mist` files left
+> in a directory that an earlier invocation used as its output, under different flags, are still discovered.
 
 ### Requirement 3: Default Output and Bin Directories Inside the Project Folder
 
@@ -81,6 +91,12 @@ name = "HelloMist"
 3. WHEN a build begins and the Output_Directory does not exist, THE CLI SHALL proceed without attempting to clean the Output_Directory.
 4. WHEN a build begins and the Bin_Directory does not exist, THE CLI SHALL proceed without attempting to clean the Bin_Directory.
 5. IF the Clean operation fails on either directory due to a file system error, THEN THE CLI SHALL report an error describing the failure and abort the build.
+6. IF the Output_Directory or the Bin_Directory is the Project_Folder or contains it, THEN THE CLI SHALL report an error naming that directory and abort before discovering sources or cleaning either directory.
+
+> **Amendment note (2026-09-27).** Criterion 6 was added with Requirement 2's criteria 4 and 5. Before
+> it, such a directory was cleaned like any other, deleting the project's sources; with the exclusion
+> alone, every source would sit inside an excluded directory and the build would stop on criterion 2.3's
+> misleading "no source files" error instead.
 
 ### Requirement 5: Update CLI Usage and Help Text
 
@@ -123,6 +139,11 @@ name = "HelloMist"
 2. WHEN the compiler runs in lex mode, THE CLI SHALL write lex output into a `lexer` subdirectory of the Output_Directory.
 3. WHEN the compiler runs in lex mode, THE CLI SHALL clean the Output_Directory before writing lex output.
 4. WHEN the compiler runs in lex mode, THE CLI SHALL clean the Bin_Directory before writing lex output.
+5. WHEN the compiler runs in lex mode, THE CLI SHALL write each source file's token dump and reconstructed source at that file's path relative to the Project_Folder, under the `lexer` subdirectory, with `.tokens` replacing `.mist` for the token dump: `a/Foo.mist` produces `lexer/a/Foo.tokens` and `lexer/a/Foo.mist`, and a file at the Project_Folder root keeps its bare name.
+
+> **Amendment note (2026-09-27).** Criterion 5 was added with Requirement 2's criteria 4 and 5. Before
+> it, lex output was flattened to the file name, so `a/Foo.mist` and `b/Foo.mist` wrote the same two
+> artifacts and the second overwrote the first.
 
 ### Requirement 9: Backend Emits Intermediate Source to Output Directory and Final Artifact to Bin Directory
 

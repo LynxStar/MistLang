@@ -23,6 +23,6 @@ public class Car : Snippet.Vehicle
 
     public string Describe()
     {
-        return $"{model} going {speed} mph";
+        return System.FormattableString.Invariant($"{model} going {speed} mph");
     }
 }

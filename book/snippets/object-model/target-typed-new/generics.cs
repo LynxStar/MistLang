@@ -15,7 +15,7 @@ internal class Pair<T>
 
     public string Describe()
     {
-        return $"Pair({First}, {Second})";
+        return $"Pair({MistInvariant.Text(First)}, {MistInvariant.Text(Second)})";
     }
 }
 

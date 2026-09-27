@@ -23,7 +23,7 @@ public class Box<T>
 
     public Snippet.Box<string> Label()
     {
-        return new Snippet.Box<string>($"<{item}>");
+        return new Snippet.Box<string>($"<{MistInvariant.Text(item)}>");
     }
 }
 
@@ -48,7 +48,7 @@ internal class IntBox
 
     public Snippet.Box<string> Label()
     {
-        return new Snippet.Box<string>($"<{item}>");
+        return new Snippet.Box<string>(System.FormattableString.Invariant($"<{item}>"));
     }
 }
 
@@ -73,7 +73,7 @@ internal class Boxed<T>
 
     public Snippet.Boxed<string> Label()
     {
-        return new Snippet.Boxed<string>($"<{item}>");
+        return new Snippet.Boxed<string>($"<{MistInvariant.Text(item)}>");
     }
 }
 
@@ -86,7 +86,7 @@ public class Program
         Snippet.Box<string> label = box.Label();
         Snippet.Boxed<bool> boxed = new Snippet.Boxed<bool>(true);
         Snippet.Boxed<string> relabelled = boxed.Label();
-        System.Console.WriteLine($"again={again.Get()} label={label.Get()} relabelled={relabelled.Get()}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"again={again.Get()} label={label.Get()} relabelled={relabelled.Get()}"));
     }
 
     public Program()

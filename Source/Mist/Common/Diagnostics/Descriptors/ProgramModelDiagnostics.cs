@@ -251,6 +251,36 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "The 'stampable' modifier is only valid on a non-ref struct declaration.");
 
+    public static readonly DiagnosticDescriptor PureAndLocal = new(
+        new DiagnosticId("MIST_PM_PURE_AND_LOCAL"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A declaration cannot be both 'pure' and 'local': 'local' allows a member to change its own instance, which 'pure' forbids.");
+
+    public static readonly DiagnosticDescriptor ReadonlyImpliedByPure = new(
+        new DiagnosticId("MIST_PM_READONLY_IMPLIED_BY_PURE"),
+        DiagnosticSeverity.Info,
+        PipelineStage.SemanticModelConstruction,
+        "'readonly' is implied by 'pure' and can be omitted.");
+
+    public static readonly DiagnosticDescriptor LocalRequiresInstance = new(
+        new DiagnosticId("MIST_PM_LOCAL_REQUIRES_INSTANCE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'local' is only valid on an instance member: a static member or a constructor has no instance of its own.");
+
+    public static readonly DiagnosticDescriptor PurityModifierPlacement = new(
+        new DiagnosticId("MIST_PM_PURITY_MODIFIER_PLACEMENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is not valid on {1}.{2}");
+
+    public static readonly DiagnosticDescriptor PureRequiresFunctionType = new(
+        new DiagnosticId("MIST_PM_PURE_REQUIRES_FUNCTION_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'pure' can only qualify a function type, and '{0}' is not one.");
+
     /// <summary>The 'async' modifier is only valid on methods.</summary>
     public static readonly DiagnosticDescriptor AsyncOnlyOnMethods = new(
         new DiagnosticId("MIST_PM_ASYNC_NOT_ALLOWED"),
@@ -677,12 +707,6 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'this' is not valid in a static member because a static member has no instance to refer to.");
 
-    public static readonly DiagnosticDescriptor NumericLiteralOutOfRange = new(
-        new DiagnosticId("MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The literal '{0}' is outside the range of type '{1}'.");
-
     // ── Array literal inference ──────────────────────────────────────────
 
     /// <summary>
@@ -710,6 +734,12 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "The elements of the array literal have no common type ('{0}' and '{1}'). Annotate the target with an array type to select the element type explicitly.");
+
+    public static readonly DiagnosticDescriptor NumericLiteralOutOfRange = new(
+        new DiagnosticId("MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The literal '{0}' is outside the range of '{1}'.");
 
     // ── Target-typed new ─────────────────────────────────────────────────
 

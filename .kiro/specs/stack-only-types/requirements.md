@@ -109,7 +109,7 @@ As proof that the feature works end-to-end, a dedicated sample application exerc
 
 1. WHEN type-checking a Stackalloc_Expression `stackalloc T[n]`, THE Type_Checker SHALL determine whether the element type `T` is a Stampable_Type using the shared receiver-aware stampability proof that already gates bare `new T[size]` array creation, and SHALL accept the Stackalloc_Expression if and only if `T` is a Stampable_Type.
 2. WHERE the element type `T` is a primitive struct (e.g., `int`, `bool`, `char`, `float`), THE Type_Checker SHALL accept the Stackalloc_Expression and assign it the type determined by Requirement 4.
-3. WHERE the element type `T` is a pure struct whose instance fields are transitively all stampable, THE Type_Checker SHALL accept the Stackalloc_Expression and assign it the type determined by Requirement 4.
+3. WHERE the element type `T` is a struct whose instance fields are transitively all stampable, THE Type_Checker SHALL accept the Stackalloc_Expression and assign it the type determined by Requirement 4.
 4. IF the element type `T` of a Stackalloc_Expression is a reference type, THEN THE Type_Checker SHALL reject the Stackalloc_Expression, SHALL NOT assign it a `Span<T>` or `ReadOnlySpan<T>` type, and SHALL emit a diagnostic error, anchored at the element type `T`, indicating that the element type is a reference type and cannot be stack-allocated.
 5. IF the element type `T` of a Stackalloc_Expression is a struct with one or more non-stampable fields, THEN THE Type_Checker SHALL reject the Stackalloc_Expression, SHALL NOT assign it a `Span<T>` or `ReadOnlySpan<T>` type, and SHALL emit a diagnostic error, anchored at the element type `T`, indicating that the element type is not stampable.
 6. IF the element type `T` of a Stackalloc_Expression is a ref struct, THEN THE Type_Checker SHALL reject the Stackalloc_Expression, SHALL NOT assign it a `Span<T>` or `ReadOnlySpan<T>` type, and SHALL emit a diagnostic error, anchored at the element type `T`, indicating that a ref struct cannot be used as a span element type.
@@ -227,7 +227,7 @@ using Standard;
 
 namespace StackOnlyTypes;
 
-// PROOF: a pure struct with only primitive fields is stampable,
+// PROOF: a struct with only primitive fields is stampable,
 // so it is a legal stackalloc element type
 public struct Point
 {

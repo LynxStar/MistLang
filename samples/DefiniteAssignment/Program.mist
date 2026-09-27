@@ -1,7 +1,7 @@
 // PROOF: a constructor that assigns every field on all paths compiles
 // PROOF: a local assigned before use compiles and reads the assigned value
 // PROOF: bare new T[size] works for a primitive (stampable) element type
-// PROOF: bare new T[size] works for a pure struct (stampable) element type
+// PROOF: bare new T[size] works for a stampable struct element type
 // PROOF: initializer-based construction fills a reference-type array with no nulls
 // PROOF: an array literal of reference types is accepted (every element explicit)
 // PROOF: every array element read returns a real, assigned value
@@ -57,7 +57,7 @@ public class Program
         var ints = new int[3];
         Console.WriteLine($"[da] ints[0]={ints[0]} ints[2]={ints[2]}");
 
-        // Bare new T[size] for a pure struct (stampable) — zero-filled stamp.
+        // Bare new T[size] for a stampable struct — zero-filled stamp.
         var points = new Point[2];
         Console.WriteLine($"[da] points[0].X={points[0].X} points[1].Y={points[1].Y}");
 

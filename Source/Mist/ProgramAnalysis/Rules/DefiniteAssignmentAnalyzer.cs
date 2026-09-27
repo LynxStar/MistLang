@@ -7,6 +7,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -17,8 +18,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// Reads of what nothing has yet assigned, on the assigned-set lattice: intersection at a join, a
 /// declaration without an initializer removing its slots, an assignment adding its target slots, and a
 /// read settling only the slots it needs, so repeated reads of the same unassigned path do not cascade.
-/// A local is tracked only when declared without an initializer, since every other way it comes to be
-/// gives it a value. A field is tracked only inside a constructor of
+/// A local is tracked when declared without an initializer or bound by a pattern, whose Bind step
+/// assigns its slots only on the successful path. A field is tracked only inside a constructor of
 /// its own type that does not chain to
 /// `this(...)`, when its type has no default and is not a type parameter, whose default is each
 /// instantiation's to decide; and only as classic tracks it: read through an explicit `this`, so that
@@ -43,7 +44,9 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
             var tracked = BodyWalker.DescendantsAndSelf(root.Root)
                 .OfType<LocalDeclarationStatement>()
                 .Where(declaration => declaration.Initializer is null)
-                .Select(declaration => declaration.Local);
+                .Select(declaration => declaration.Local)
+                .Concat(PatternLocals(root.Root))
+                .Distinct<LocalVariable>(ReferenceEqualityComparer.Instance);
 
             var graph = FlowGraphBuilder.Build(root.Root);
             var slots = new LocalAssignmentSlots(tracked, root.Root);
@@ -62,6 +65,12 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
                     NameOf(member), constructor.Name, TypeDisplay.Mist(TypeOf(member)));
             }
         }
+    }
+
+    private static IEnumerable<LocalVariable> PatternLocals(object body)
+    {
+        return BodyWalker.DescendantsAndSelf(body).OfType<Pattern>()
+            .Select(pattern => pattern.Binding).OfType<LocalVariable>();
     }
 
     private static List<object> Unassigned(ConcreteType owner)
@@ -140,7 +149,7 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
             {
                 { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: null } declaration }
                     => state.Except(slots.Required(new LocalStoragePath(declaration.Local))),
-                { Kind: FlowStepKind.Declare, Variable: { } declared }
+                { Kind: FlowStepKind.Declare or FlowStepKind.Introduce or FlowStepKind.Bind, Variable: { } declared }
                     => state.Union(slots.Written(new LocalStoragePath(declared))),
                 { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }
                     => state.Union(Written(assignment.Target)),
@@ -192,11 +201,10 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
                     _ = new DefiniteAssignment(context, slots, [], constructor: null, functionReads).Judge(nested, state);
                     break;
 
-                // Entered with every tracked local taken as assigned, because a captured read is judged
-                // at each entry into the function rather than inside it -- see LocalFunctionReads -- and
-                // the body's own declarations remove their locals again as they are reached.
-                case LocalFunctionStatement when graph.Nested.TryGetValue(step.Node, out var nested):
-                    _ = new DefiniteAssignment(context, slots, [], constructor: null, functionReads).Judge(nested, state.Union(slots.All));
+                case LocalFunctionStatement function when graph.Nested.TryGetValue(step.Node, out var nested):
+                    var entry = state.Union(slots.All).Except(PatternLocals(function.Body)
+                        .SelectMany(variable => slots.Required(new LocalStoragePath(variable))));
+                    _ = new DefiniteAssignment(context, slots, [], constructor: null, functionReads).Judge(nested, entry);
                     break;
 
                 case InvocationExpression or FunctionReferenceExpression

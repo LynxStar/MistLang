@@ -160,7 +160,7 @@ emit new T[size]:
         emit `new T[size]` then a replication of the non-zero stamp value into each slot (Req 4.1b)
 ```
 
-In Mist v1, a stampable pure struct's `default` is always the zero value (no `default {}` block can set non-zero on a pure struct without it ceasing to be the "all-zero" case; if a pure struct has a non-zero `default {}`, the replicate path applies). The common case emits bare `new T[size]` with no loop. **The `__CreateDefault()` array-fill loop is deleted** (Req 4.4) — its code in the typed and inferred variable-declaration emission paths (added in commit `30a85aa`) is removed.
+In Mist v1, a stampable struct's `default` is always the zero value (no `default {}` block can set non-zero on a stampable struct without it ceasing to be the "all-zero" case; if such a struct has a non-zero `default {}`, the replicate path applies). The common case emits bare `new T[size]` with no loop. **The `__CreateDefault()` array-fill loop is deleted** (Req 4.4) — its code in the typed and inferred variable-declaration emission paths (added in commit `30a85aa`) is removed.
 
 #### `new Array<T, Size>(fn)` → per-index loop
 
@@ -284,7 +284,7 @@ The six Correctness Properties above are each realized as a property-based test.
 
 - Field: assigned-on-all-branches (no diagnostic), assigned-on-one-branch (diagnostic), read-after-assign (no diagnostic), `this`-escape before full assignment (diagnostic), initializer/synthetic-default pre-assignment (no diagnostic), end-of-constructor not-assigned still fires.
 - Local: declared-with-initializer (no diagnostic), read-before-assign (diagnostic), conditional-merge assigned (no diagnostic), loop-body read (diagnostic), compound-assignment-before-assign (diagnostic).
-- Stampability: primitive struct (stampable), nested pure struct (stampable), struct-with-class-field (not), closed generic with substituted primitive storage (stampable), open generic with stampable proof (stampable), unresolved type-parameter storage without proof (not), struct-with-string-field (not, string is reference).
+- Stampability: primitive struct (stampable), nested stampable struct, struct-with-class-field (not), closed generic with substituted primitive storage (stampable), open generic with stampable proof (stampable), unresolved type-parameter storage without proof (not), struct-with-string-field (not, string is reference).
 - Array: bare stampable (compiles), bare reference (`MIST_ARRAY_REQUIRES_INITIALIZER`), bare non-stampable struct (error), `new Array<Class,N>(fn)` (compiles), array literal of reference types (compiles).
 - Emitter: bare stampable emits no fill loop; `new Array<T,N>(fn)` emits per-index `fn` loop; verify `__CreateDefault` is not emitted in any array path.
 

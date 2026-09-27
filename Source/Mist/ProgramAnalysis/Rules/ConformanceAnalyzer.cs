@@ -21,8 +21,10 @@ namespace Mist.ProgramAnalysis.Rules;
 /// does with a hiding interface member. A with block answers the slots of the abstract it names by its
 /// mappings or by the type's own members, and is redundant when the abstract is reached already. A slot
 /// that is `readonly`, which every slot of a readonly abstract is, is answered only by a member that
-/// writes nothing, by its modifier or by <see cref="ReadonlyInference"/>: readonly-contexts Requirement
-/// 13, which holds the member and not the conforming type, so a mutable type may meet it.
+/// writes nothing, by its modifier or by <see cref="PurityInference"/>: readonly-contexts Requirement
+/// 13, which holds the member and not the conforming type, so a mutable type may meet it. A slot that
+/// declares `local`, `local readonly` or `pure` is likewise answered only by a member that keeps that
+/// promise (purity Requirement 8.4), a default included once a conformer's own member replaces it.
 /// </summary>
 internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 {
@@ -30,7 +32,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
-        var inference = new ReadonlyInference();
+        var inference = new PurityInference(context);
 
         foreach(var type in context.Types)
         {
@@ -51,7 +53,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void CheckConformances(AnalysisContext context, ReadonlyInference inference, ConcreteType concrete, List<Filler> fillers)
+    private static void CheckConformances(AnalysisContext context, PurityInference inference, ConcreteType concrete, List<Filler> fillers)
     {
         var reached = concrete.BaseAbstractTypes.Select(Name).ToHashSet(StringComparer.Ordinal);
 
@@ -74,26 +76,36 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
     }
 
     private static void CheckSlots(
-        AnalysisContext context, ReadonlyInference inference, ConcreteType concrete, SyntaxNode at, AbstractType abstractType,
+        AnalysisContext context, PurityInference inference, ConcreteType concrete, SyntaxNode at, AbstractType abstractType,
         TypeSubstitution substitution, List<Filler> fillers, ConformanceDeclaration? mappings)
     {
         var interner = context.Model.TypeInterner;
 
-        foreach(var slot in abstractType.MethodsList.Where(method => method.Body is null && !method.Modifiers.IsStatic))
+        foreach(var slot in abstractType.MethodsList.Where(method => !method.Modifiers.IsStatic))
         {
             var answering = ConformanceAnswers.Method(slot, substitution, fillers, mappings, interner)?.Member;
 
             if(answering is not null)
             {
-                if(slot.Modifiers.IsReadonly && !inference.IsReadonly(answering))
+                if(SlotSignatures.ReturnsOwned(slot) && !SlotSignatures.ReturnsOwned(answering))
+                {
+                    context.Report(
+                        ProgramAnalysisDiagnostics.SlotReturnNotOwned, answering.DeclarationNode ?? at, [],
+                        TypeDisplay.Mist(concrete), SlotSignatures.Display(slot, substitution, interner), TypeDisplay.Mist(abstractType), answering.Name);
+                }
+                else if(slot is { Modifiers.IsReadonly: true } && !inference.IsReadonly(answering))
                 {
                     ReportContract(context, concrete, abstractType, answering.Name, answering.DeclarationNode ?? at);
+                }
+                else
+                {
+                    _ = CheckPromise(context, inference.ThroughSlot(slot, answering), concrete, abstractType, slot.Name, slot.Modifiers, answering.Name, answering.DeclarationNode ?? at);
                 }
 
                 continue;
             }
 
-            if(mappings?.UnresolvedTargets.Contains(slot.Name) == true)
+            if(slot.Body is not null || mappings?.UnresolvedTargets.Contains(slot.Name) == true)
             {
                 continue;
             }
@@ -153,8 +165,76 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
             if(slot is { Getter: not null, Modifiers.IsReadonly: true } && answer.Getter is not null && !inference.IsReadonlyGetter(answer))
             {
                 ReportContract(context, concrete, abstractType, answer.Name, answer.DeclarationNode ?? at);
+                continue;
+            }
+
+            CheckAccessors(context, inference, concrete, abstractType, slot.Name, slot.Modifiers, slot.Getter, slot.Setter, answer.Name, answer.Getter, answer.Setter, answer.DeclarationNode ?? at);
+        }
+
+        foreach(var slot in abstractType.IndexersList.Where(indexer => IsSlot(indexer.Getter, indexer.Setter)))
+        {
+            if(AnsweringIndexer(concrete, slot, substitution, interner) is not { } answer)
+            {
+                continue;
+            }
+
+            var name = SlotSignatures.Display(slot, substitution, interner);
+
+            if(slot is { Getter: not null, Modifiers.IsReadonly: true } && answer.Getter is not null && !inference.IsReadonlyGetter(answer))
+            {
+                ReportContract(context, concrete, abstractType, name, answer.DeclarationNode ?? at);
+                continue;
+            }
+
+            CheckAccessors(context, inference, concrete, abstractType, name, slot.Modifiers, slot.Getter, slot.Setter, name, answer.Getter, answer.Setter, answer.DeclarationNode ?? at);
+        }
+    }
+
+    private static void CheckAccessors(
+        AnalysisContext context, PurityInference inference, ConcreteType concrete, AbstractType abstractType,
+        string slot, MemberModifiers declared, PropertyAccessor? slotGetter, PropertyAccessor? slotSetter,
+        string member, PropertyAccessor? getter, PropertyAccessor? setter, SyntaxNode at)
+    {
+        foreach(var (required, answering) in AnsweringAccessors(slotGetter, slotSetter, getter, setter))
+        {
+            if(!CheckPromise(context, inference.Of(answering), concrete, abstractType, slot, required.OwnModifiers ?? declared, member, at))
+            {
+                break;
             }
         }
+    }
+
+    internal static Indexer? AnsweringIndexer(ConcreteType concrete, Indexer slot, TypeSubstitution substitution, TypeInterner interner)
+    {
+        var chain = TypeSubstitution.Empty;
+
+        for(IMistType? current = concrete; current is not null;)
+        {
+            var definition = current is ConstructedType constructed ? constructed.Definition : current;
+
+            if(definition is not ConcreteType type)
+            {
+                return null;
+            }
+
+            chain = chain.Extend(TypeSubstitution.ForReceiver(current as ConstructedType));
+            var applied = substitution.Extend(chain);
+
+            var answering = type.IndexersList.Find(candidate =>
+                candidate.Modifiers is { Accessibility: Accessibility.Public, IsStatic: false }
+                && candidate.ParametersList.Count == slot.ParametersList.Count
+                && SlotSignatures.Agree(applied.Apply(slot.Type, interner), candidate.Type)
+                && candidate.ParametersList.Zip(slot.ParametersList).All(pair => SlotSignatures.Agree(applied.Apply(pair.Second.Type, interner), pair.First.Type)));
+
+            if(answering is not null)
+            {
+                return answering;
+            }
+
+            current = type.BaseType;
+        }
+
+        return null;
     }
 
     private static void ReportContract(AnalysisContext context, ConcreteType concrete, AbstractType abstractType, string member, SyntaxNode at)
@@ -162,6 +242,42 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         context.Report(
             ProgramAnalysisDiagnostics.ReadonlyContractNotMet, at, [],
             member, TypeDisplay.Mist(concrete), TypeDisplay.Mist(abstractType));
+    }
+
+    private static bool CheckPromise(
+        AnalysisContext context, Promise kept, ConcreteType concrete, AbstractType abstractType,
+        string slot, MemberModifiers declared, string member, SyntaxNode at)
+    {
+        var required = Promise.Declared(declared);
+
+        if(required is not ({ Local: true } or { Pure: true }))
+        {
+            return true;
+        }
+
+        if(required.Meet(kept) == required)
+        {
+            return true;
+        }
+
+        context.Report(
+            ProgramAnalysisDiagnostics.PurityContractNotMet, at, [],
+            member, TypeDisplay.Mist(concrete), required.Display, slot, TypeDisplay.Mist(abstractType), kept.Display);
+        return false;
+    }
+
+    private static IEnumerable<(PropertyAccessor Required, PropertyAccessor Answering)> AnsweringAccessors(
+        PropertyAccessor? slotGetter, PropertyAccessor? slotSetter, PropertyAccessor? getter, PropertyAccessor? setter)
+    {
+        if(slotGetter is not null && getter is not null)
+        {
+            yield return (slotGetter, getter);
+        }
+
+        if(slotSetter is not null && setter is not null)
+        {
+            yield return (slotSetter, setter);
+        }
     }
 
     private static void CheckTypeSlots(
@@ -203,10 +319,14 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
     private static bool IsPropertySlot(Property property)
     {
-        return !property.Modifiers.IsStatic
-            && (property.Getter is not null || property.Setter is not null)
-            && property.Getter is not { Body: not null } and not { ExpressionBody: not null }
-            && property.Setter is not { Body: not null } and not { ExpressionBody: not null };
+        return !property.Modifiers.IsStatic && IsSlot(property.Getter, property.Setter);
+    }
+
+    private static bool IsSlot(PropertyAccessor? getter, PropertyAccessor? setter)
+    {
+        return (getter is not null || setter is not null)
+            && getter is not { Body: not null } and not { ExpressionBody: not null }
+            && setter is not { Body: not null } and not { ExpressionBody: not null };
     }
 
     private static IEnumerable<string> MissingAccessors(Property slot, Property answer)

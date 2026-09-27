@@ -48,7 +48,7 @@ public sealed class OwnershipRefusalTests
     [InlineData("readonly-method-calls-mutable-operator", "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE")]
     [InlineData("readonly-method-coalesces-property", "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY")]
     [InlineData("readonly-method-reads-mutable-indexer", "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE")]
-    [InlineData("readonly-method-sets-indexer-on-local", "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY")]
+    [InlineData("readonly-method-sets-indexer-on-parameter", "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY")]
     [InlineData("readonly-method-sets-property", "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY")]
     [InlineData("readonly-method-writes-through-index", "MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_INDEX")]
     [InlineData("readonly-parameter-calls-mutable-method", "MIST_PA_READONLY_PARAMETER_CALLS_MUTABLE")]
@@ -104,5 +104,22 @@ public sealed class OwnershipRefusalTests
 
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(38, diagnostic.Location.Start.Column);
+    }
+
+    [Theory]
+    [InlineData("readonly-block-calls-mutable-method", "readonly block in method 'Tick'")]
+    [InlineData("readonly-method-calls-mutable-method", "readonly method 'Peek'")]
+    public void ARefusalNamesTheReadonlyScopeItWasMadeIn(string caseName, string scope)
+    {
+        var diagnostic = Assert.Single(new OwnershipFragments().Analyze(caseName));
+
+        Assert.Equal("MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE", diagnostic.Id.Value);
+        Assert.Contains($"from {scope}:", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AReadonlyMethodMaySetALocalIndexerOnWhatItOwns()
+    {
+        Assert.Empty(new OwnershipFragments().Analyze("readonly-method-sets-indexer-on-fresh-local"));
     }
 }

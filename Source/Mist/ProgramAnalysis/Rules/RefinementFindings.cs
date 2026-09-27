@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
@@ -145,8 +146,9 @@ internal static class RefinementFindings
             FieldReferenceExpression field => field.Field.Name,
             ThisExpression => "this",
             MemberAccessExpression access => $"{Display(access.Receiver)}.{access.MemberName}",
-            LiteralExpression { Value: { } constant } => constant.ToString() ?? "",
+            LiteralExpression { Value: { } constant } => Convert.ToString(constant, CultureInfo.InvariantCulture) ?? "",
             UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset } => $"^{Display(offset)}",
+            UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operand: LiteralExpression { Value: not null } negated } => $"-{Display(negated)}",
             _ => TypeDisplay.Mist(expression.Type),
         };
     }

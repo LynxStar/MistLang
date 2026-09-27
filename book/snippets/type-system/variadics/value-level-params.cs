@@ -17,7 +17,7 @@ public class Program
     public static void Main(string[] cmdArgs)
     {
         int sum = SumAll(1, 2, 3, 4);
-        System.Console.WriteLine($"sum={sum}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"sum={sum}"));
     }
 
     public Program()

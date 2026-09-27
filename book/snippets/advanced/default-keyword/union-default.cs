@@ -7,7 +7,7 @@ public class Program
     public static void Main(string[] args)
     {
         int? maybeInt = null;
-        System.Console.WriteLine($"maybeInt={(object?)maybeInt ?? "Void"}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"maybeInt={(object?)maybeInt ?? "Void"}"));
     }
 
     public Program()

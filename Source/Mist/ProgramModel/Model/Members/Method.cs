@@ -87,6 +87,8 @@ internal class Method(
 
     public ExtensionBlock? ClosedBlock { get; init; }
 
+    public ExtensionBlock? DeclaringBlock { get; init; }
+
     IReadOnlyList<ITypeParameter> IGenericDeclaration.TypeParameters => TypeParametersList;
     IReadOnlyList<IContextBinding> IMethod.ContextBindings => ContextBindingsList;
     IReadOnlyList<IParameter> IMethod.Parameters => ParametersList;

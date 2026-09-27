@@ -82,7 +82,7 @@ public sealed class StackallocStampabilityGateParityPropertyTests
     private static readonly string[] PrimitiveTypes =
         ["int", "bool", "char", "float", "double", "long", "short", "byte"];
 
-    private static readonly string[] PureStructNames =
+    private static readonly string[] StampableStructNames =
         ["Vector", "Coord", "Dims", "Pair", "Offset"];
 
     private static readonly string[] NonStampableStructNames =
@@ -107,18 +107,18 @@ public sealed class StackallocStampabilityGateParityPropertyTests
     }
 
     /// <summary>
-    /// Generates a scenario where T is a pure struct (all-primitive fields, stampable).
+    /// Generates a scenario where T is a stampable struct (all-primitive fields).
     /// </summary>
-    private static Gen<StampabilityParityScenario> GenPureStructScenario()
+    private static Gen<StampabilityParityScenario> GenStampableStructScenario()
     {
-        return from structName in Gen.Elements(PureStructNames)
+        return from structName in Gen.Elements(StampableStructNames)
                from fieldCount in Gen.Choose(1, 4)
                from size in Gen.Choose(1, 10)
-               let structDecl = BuildPureStructDecl(structName, fieldCount)
+               let structDecl = BuildStampableStructDecl(structName, fieldCount)
                let stackallocSource = BuildStackallocSource(structName, size, structDecl)
                let arraySource = BuildArraySource(structName, size, structDecl)
                select new StampabilityParityScenario(
-                   stackallocSource, arraySource, structName, "PureStruct", true);
+                   stackallocSource, arraySource, structName, "StampableStruct", true);
     }
 
     /// <summary>
@@ -168,7 +168,7 @@ public sealed class StackallocStampabilityGateParityPropertyTests
     {
         return Gen.OneOf(
             GenPrimitiveScenario(),
-            GenPureStructScenario(),
+            GenStampableStructScenario(),
             GenStructWithClassFieldScenario(),
             GenClassTypeScenario(),
             GenStringScenario()).ToArbitrary();
@@ -202,7 +202,7 @@ public sealed class StackallocStampabilityGateParityPropertyTests
             """;
     }
 
-    private static string BuildPureStructDecl(string structName, int fieldCount)
+    private static string BuildStampableStructDecl(string structName, int fieldCount)
     {
         var fields = new List<string>();
         for(var i = 0; i < fieldCount; i++)

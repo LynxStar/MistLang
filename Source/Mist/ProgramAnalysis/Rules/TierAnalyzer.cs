@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -89,22 +90,37 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
                 _ => ThisTier.None,
             };
 
-            if(required == ThisTier.None || arguments[i] is not LocalReferenceExpression argument || ThisTiers.IsValue(argument.Type))
+            if(required == ThisTier.None || !RefusesLend(arguments[i], required) || arguments[i] is not LocalReferenceExpression argument)
             {
                 continue;
             }
 
-            var given = argument.Local.Parameter is null && argument.Local.Ownership == OwnershipKind.Unrestricted && !argument.Local.IsRef
-                ? ThisTier.None
-                : ThisTiers.Declared(argument.Local);
-
-            if(given < required)
-            {
-                context.Report(
-                    ProgramAnalysisDiagnostics.IncompatibleLend, argument.Node, [argument],
-                    ThisTiers.Display(given), argument.Local.Name, ThisTiers.Display(required), parameters[i].Name);
-            }
+            context.Report(
+                ProgramAnalysisDiagnostics.IncompatibleLend, argument.Node, [argument],
+                ThisTiers.Display(Given(argument.Local)), argument.Local.Name, ThisTiers.Display(required), parameters[i].Name);
         }
+    }
+
+    internal static bool RefusesLend(Expression argument, ThisTier required)
+    {
+        return argument is LocalReferenceExpression { Local: var local } && !ThisTiers.IsValue(argument.Type) && Given(local) < required;
+    }
+
+    internal static bool RefusesReceiver(Expression? receiver, ThisTier required)
+    {
+        return receiver switch
+        {
+            LocalReferenceExpression { Local: var local } => ThisTiers.Declared(local) < required,
+            FieldReferenceExpression { Field: var field } => !ThisTiers.IsOwned(field) && required > ThisTier.None,
+            _ => false,
+        };
+    }
+
+    private static ThisTier Given(LocalVariable local)
+    {
+        return local.Parameter is null && local.Ownership == OwnershipKind.Unrestricted && !local.IsRef
+            ? ThisTier.None
+            : ThisTiers.Declared(local);
     }
 
     private static string Display(Expression receiver)

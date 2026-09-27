@@ -30,7 +30,7 @@ Select a pipeline with `--pipeline experimental` (v2); omitting the flag runs cl
   of the rewrite is to not re-import that architecture.
 - Code under `Source/Mist/ProgramModel/` must not reference the legacy system at all — see
   the isolation rule in `Source/Mist/ProgramModel/CLAUDE.md`.
-- Specify behavior from the grammar and from `.kiro/specs/` — 119 delivered feature specs,
+- Specify behavior from the grammar and from `.kiro/specs/` — the delivered feature specs,
   each with `requirements.md` (formal acceptance criteria), `design.md` and `tasks.md`.
   These are the sanctioned input for a from-scratch implementation.
 - What v2 must match is the **observable output of the compiled program**. The emitted C#
@@ -57,8 +57,8 @@ see things like a dropped `sealed` modifier.
 
 | File | Role |
 |---|---|
-| `backlog/emitter-v2-capability-progression.yaml` | **Source of truth** for what v2 still needs and in what order. 187 ordered capabilities, 83 samples, stated invariants. Valid YAML. Large — grep it, don't read it whole. |
-| `backlog/analysis-v2-capability-progression.yaml` | **Source of truth for Stage 5**, the analysis phase. The 91 `analysis_phase_tasks` from the emitter register, reordered into the order a checker can be built in, with the invariants that gate them. Each rule cites the emitter order it came from. |
+| `backlog/emitter-v2-capability-progression.yaml` | **Source of truth** for what v2 still needs and in what order. Ordered capabilities, the samples each unlocks, and stated invariants. Valid YAML. Large — grep it, don't read it whole. |
+| `backlog/analysis-v2-capability-progression.yaml` | **Source of truth for Stage 5**, the analysis phase. The `analysis_phase_tasks` from the emitter register, reordered into the order a checker can be built in, with the invariants that gate them. Each rule cites the emitter order it came from. |
 | `backlog/program-model-body-tasks.yaml` | The other axis: what the binder does not yet understand, by language construct. **Not valid YAML** despite the extension. |
 | `backlog/flaky-tests.yaml` | Flake register. Recording a flake is mandatory (see `Test/CLAUDE.md`). |
 | `backlog/refusal-corpus-migration.md` | Refusal test migration: measurements, tier choices and verification procedure. |

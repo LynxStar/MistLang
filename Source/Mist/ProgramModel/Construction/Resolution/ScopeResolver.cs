@@ -192,12 +192,18 @@ internal sealed class ScopeResolver
         {
             VoidSingleTypeRefSingleTypeRefNode => LookupWellKnown(WellKnownTypes.Void),
             UnknownSingleTypeRefSingleTypeRefNode => UnknownType.Instance,
+            PrimitiveSingleTypeRefSingleTypeRefNode { Pure: not null } primitiveRef => PureFunctionReference.Apply(
+                ResolveReservedAlias(primitiveRef), primitiveRef, context),
             PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => ResolveReservedAlias(primitiveRef),
+            NamedSingleTypeRefSingleTypeRefNode { Pure: not null } namedRef => PureFunctionReference.Apply(
+                ResolveNamed(namedRef.Name, namedRef.TypeArgs, scope, namedRef), namedRef, context),
             NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef.Name, namedRef.TypeArgs, scope, namedRef),
             NestedGenericSingleTypeRefSingleTypeRefNode nestedRef => ResolveNestedGeneric(
                 nestedRef.Outer, nestedRef.OuterArgs, nestedRef.Nested, nestedRef.TypeArgs, scope, nestedRef),
             ParenthesizedTypeRefSingleTypeRefNode parenRef => Resolve(parenRef.Inner, scope),
             TupleSingleTypeRefSingleTypeRefNode tupleRef => ResolveTuple(tupleRef, scope),
+            FuncSingleTypeRefSingleTypeRefNode { Pure: not null } funcRef => PureFunctionReference.Apply(
+                ResolveFunction(funcRef.TypeArgs, scope, funcRef), funcRef, context),
             FuncSingleTypeRefSingleTypeRefNode funcRef => ResolveFunction(funcRef.TypeArgs, scope, funcRef),
             SpreadSingleTypeRefSingleTypeRefNode spread => ResolveSpread(spread, scope),
             _ => ReportUnsupported(singleRef),
@@ -792,7 +798,7 @@ internal sealed class ScopeResolver
         }
 
         context.Diagnostics.ReportAtNode(
-            ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, negated ? $"-{lexeme}" : lexeme, WellKnownTypes.Int64.Keyword);
+            ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, negated ? $"-{lexeme}" : lexeme, WellKnownTypes.Int64.Keyword ?? WellKnownTypes.Int64.Name);
         return ErrorType.Instance;
     }
 
@@ -964,9 +970,19 @@ internal sealed class ScopeResolver
     private IMistType ResolveArrayType(SingleTypeRefNode singleRef, IMistType elementType)
     {
         var rank = GetArrayRank(singleRef)!;
-        var length = rank is SizedArrayRankArrayRankSuffixNode sized
-            ? IntegerLiterals.Length(sized.Size.Lexeme) ?? 0
-            : (int?)null;
+        int? length = null;
+
+        if(rank is SizedArrayRankArrayRankSuffixNode sized)
+        {
+            length = IntegerLiterals.Length(sized.Size.Lexeme);
+
+            if(length is null)
+            {
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.NumericLiteralOutOfRange, sized, null, sized.Size.Lexeme, WellKnownTypes.Int32.Keyword ?? WellKnownTypes.Int32.Name);
+                return ErrorType.Instance;
+            }
+        }
 
         var arrayType = ConstructArray(elementType, length);
         if(arrayType is ErrorType)

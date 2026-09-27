@@ -63,60 +63,68 @@ No separate `.First` / `.Rest` split. Consumers just iterate the one collection.
 
 ## Labelled element inside a repetition emits a spurious scalar property
 
-A label applied to an element *inside* a `( ... )*` group makes the generator emit **both**
-the expected list property and a bogus scalar property. The scalar is populated with the
-last value parsed by the loop, and it is yielded from `Children()`.
+A label on a rule reference *inside* a `( ... )*` or `( ... )+` group makes the generator emit
+**both** the list and a scalar. Each round of the loop that reaches the reference assigns the
+scalar; each round that completes also adds the node to the list.
 
 ```storm
-rule ArrayElementList = first:Expression (COMMA rest:Expression)* COMMA?;
+rule BaseList = first:BaseTypeRef (COMMA rest:BaseTypeRef)*;
 ```
-
-Generated AST — note `Rest` alongside `Expressions`:
 
 ```csharp
-public ExpressionNode First { get; set; } = default!;
-public ExpressionNode Rest { get; set; } = default!;   // spurious
-public ImmutableArray<ExpressionNode> Expressions { get; set; } = ImmutableArray<ExpressionNode>.Empty;
-
-public override IEnumerable<SyntaxNode> Children()
-{
-    yield return First;
-    yield return Rest;                                 // unconditional
-    foreach (var child in Expressions) { yield return child; }
-}
+public BaseTypeRefNode First { get; set; } = default!;
+public BaseTypeRefNode Rest { get; set; } = default!;   // the scalar
+public ImmutableArray<BaseTypeRefNode> BaseTypeRefs { get; set; } = ImmutableArray<BaseTypeRefNode>.Empty;
 ```
 
-Generated parser — one local declared outside the loop and reassigned each iteration, then
-assigned to the property:
+**`Children()` fixed 2026-09-27.** It yielded the scalar unconditionally beside the list, so zero
+rounds gave `[First, null]` -- every non-union `TypeReference` in every program had a null child
+-- and `[1, 2, 3]` gave `[1, 3, 2, 3]`. It now yields the lead and the list: each real child once,
+in source order. A reference repeated with no separator, `(rest:X)*`, and an unlabelled `X*` beside
+a lead were worse off: the parser looked for the repeated reference only inside a sequence, so their
+list stayed empty and every repeated child was lost. Both now fill the list.
 
-```csharp
-ExpressionNode _Rest = null!;          // outside the while
-while (!_hasError)
-{
-    ...
-    _Rest = _ParseExpression();        // overwritten every pass
-    ...
-}
-node.Rest = _Rest;                     // ends up as the LAST element, or null
-```
+Reproduced on a small independent grammar at `13b67c0e`, memoization off and on agreeing:
 
-**Symptoms:**
+| Rule, input | Before | After |
+|---|---|---|
+| `first:Elem (COMMA rest:Elem)*`, `a` | `[a, null]` | `[a]` |
+| same, `a,b,c` | `[a, c, b, c]` | `[a, b, c]` |
+| same, `a,b,` | `[a, null, b]` | `[a, b]` |
+| `first:Elem (rest:Elem)*`, `a b c` | `[a, null]`, list empty | `[a, b, c]` |
+| `first:Elem Elem*`, `a b c` | `[a]`, list empty | `[a, b, c]` |
+| `LP first:Elem COMMA rest:Elem (COMMA additional:Elem)* RP`, `(a,b,c,d)` | `[a, b, d, c, d]` | `[a, b, c, d]` |
 
-- Zero iterations — `[1]` yields `Children() == [First, null]`. Any walker that does not
-  null-check throws.
-- Multiple iterations — `[1, 2, 3]` yields `[1, 3, 2, 3]`. The last element is duplicated
-  and out of order.
+For Mist the generated parser, lexer and runtime are byte-identical, and the AST differs by exactly
+the thirteen `yield return` lines of the rules below. `RepeatedRuleReferenceTests` (Tiers 1-2) and
+`GeneratedParserFidelityTests` (Tier 4) hold it; each of seven mutations across the two emitters
+is caught. (Its `Children()` rows ran with memoization off and on; since 2026-09-27 they run on the
+plain parser only, a memoized read returning the very node object the first read built.)
 
-**Why it has gone unnoticed:** nothing reads the scalar, and every tree walker in the
-repository is already null-tolerant because the defect is pervasive — a walker that
-recurses over `Children()` has to guard each child or it throws on the zero-iteration
-case. Union detection likewise cannot use `Rest` as a signal, because the scalar is a
-non-nullable codegen artifact rather than a real parse result; the PIPE-separated tail
-collection is the only trustworthy indicator. Both workarounds predate this note, which is
-why the bug survived: the tooling that would have exposed it was written around it
-instead.
+**Residue: the scalar stays.** Building the solution without it gives 239 compile errors in
+`Mist.Core`, one per read, before any test project compiles: `TypeCheckerAnalyzer` 88,
+`CSharpEmitter` 71, `SemanticModelBuilder` 39, `RefinementPredicate` 28, `MistPrettyPrinter` 6,
+`SemanticModel` 2, and the v2 binders `OperatorBinder` 3 and `PatternBinder` 2 through `IsBare`.
+Every one is a `.Right` on
+`LogicalOr`, `LogicalAnd`, `VoidCoalescing`, `OrPattern` or `AndPattern`, read as the last operand;
+the other eight rules' scalars have no reader there. Tests read it as well (`ParserRuleTests`) and
+assign it (`RefinementComparisonEnginePropertyTests`). So it keeps its type, setter and value and is
+only no longer a child. It held the list's last node when the loop stopped at a separator; null
+when no round ran or the failing round's reference did not parse, so `(rest:X)*` always ended null;
+and a discarded node when something after the reference failed (`(COMMA rest:X SEMI)*` on
+`a,b;,c` held `c`, which is in neither the list nor `Children()`). Since 2026-09-27 a round that
+fails puts back what it read (see "One recursive emitter" below), so it holds the list's last node,
+or null when the list is empty: `a,b;,c` gives `b`, and `(rest:X)*` ends on its last node. Every
+Mist rule in the table below has a separator before the label, whose round fails at the separator,
+so no Mist value changed. Removing it means moving those
+reads onto the list first -- v2's `GrammarRepetition` already reads the list alone -- and then
+emitting no scalar for a label inside a repetition.
 
-**Scope — every rule with a label inside a repetition:**
+A reference nested deeper in the repeated body, in a nested group or an optional, was neither
+collected into a list nor excluded from `Children()`. Since 2026-09-27 it is collected: see "One
+recursive emitter" below.
+
+**Scope — every rule with a rule-reference label inside a repetition:**
 
 | Rule | Construct |
 |---|---|
@@ -133,23 +141,19 @@ instead.
 | `TupleLiteralExpression` | `(COMMA additional:TupleLiteralElement)*` |
 | `TuplePositionalPattern` | `(COMMA additional:Pattern)*` |
 | `TypedTupleDeconstruction` | `(COMMA additional:TupleDeconstructionElement)*` |
-| `VarTupleDeconstruction` | `(COMMA restNames:IDENTIFIER)*` |
 
-`TypeReference` is the worst case: a non-union type reference leaves the scalar null, so
-practically every type reference in every program yields a null child.
-
-**Fix:** the generator should not emit a scalar property for a label inside a repetition —
-the label should only contribute to the list, and `Children()` should not yield it.
+`VarTupleDeconstruction`'s `(COMMA restNames:IDENTIFIER)*` labels a token, which becomes an
+`ImmutableArray<Token>` and was never a child.
 
 **Workaround (verified):** drop the label. `ArrayElementList` was changed from
 `(COMMA rest:Expression)*` to `(COMMA Expression)*`; the scalar disappeared, the list kept
-its `Expressions` name, `Children()` became correct, and nothing needed re-threading
-because nothing read the scalar. Storm names the list from the rule name regardless, which
-is why the unlabelled `ArgumentList` and `TypeArgumentList` never had the defect.
+its `Expressions` name, and nothing needed re-threading because nothing read that scalar.
+Storm names the list from the rule name regardless, which is why the unlabelled
+`ArgumentList` and `TypeArgumentList` never had the defect.
 
 **Before removing labels elsewhere,** check per rule whether any consumer reads the scalar
-believing it meaningful — for the operator-chain rules a `.Right` read would compile and
-silently mean "last operand", which would be a live bug rather than dead weight.
+believing it meaningful — for the operator-chain rules every read above means "last operand",
+so removing the label would break them rather than drop dead weight.
 
 **Related:** the `storm-parser-repetition-bugs` spec fixed `OptionalIR(SequenceIR(...))`
 generating a `Token?` instead of a node property. This is the same family — a labelled
@@ -172,7 +176,10 @@ sequence of them, or an alternation whose arms are the same width. The token for
 flag and the diagnostic count around one call. Anything else is `STORM0008` at lowering, as is a
 label inside a predicate and a predicate inside a LABELLED element: the emitter writes a labelled
 sequence, optional or list through paths that pass over element kinds they do not know and have no
-channel to say so, and a predicate dropped there would leave its alternative unguarded.
+channel to say so, and a predicate dropped there would leave its alternative unguarded. That last
+refusal is lifted since 2026-09-27, those paths being gone ("One recursive emitter" below):
+`held:(COMMA &IDENT)?` guards its optional as the unlabelled form does, and `held:(IDENT &SEMI)`
+falls under the refusal of a label on a group with no modifier.
 
 **Passes.** A predicate is nullable and its body is leftmost for `LeftRecursionPass` (`rule A =
 &A B` and `rule A = &B A` are both left recursion); names inside it are resolved; a rule it names
@@ -200,3 +207,170 @@ is matched, the `TokenRefIR` case existing. `Mist.storm` has no such shape today
 wrong in the shipped parser, but a grammar author who writes one gets an alternative that accepts
 anything. The same silent default is why a predicate needed emission of its own rather than a
 reuse of "emit this expression". Either give the emitter the arm or refuse the shape at lowering.
+
+**Both, 2026-09-27.** Revalidated first at `13b67c0e` on independent grammars, memoization off and
+on agreeing: `a<b>;`, `a<b>(` and `a<b>` all parsed as `Grouped` to position 4, the follower unread.
+The same silent default sat in the body of an unlabelled `?`, `*` and `+` -- `(SEMI | COMMA)?` never
+consumed, and `(SEMI | COMMA)+` could never match, its loop making no progress -- and the structural
+elements of a struct-projected group skipped any alternation.
+
+A choice between single tokens is now matched in all four places against the flag around it,
+`if (ok && (Match((int)TokenKind.SEMI) ?? Match((int)TokenKind.COMMA)) == null) ok = false;`. It
+consumes the token it chose, consumes nothing when none fits, and leaves the restore to the
+alternative, optional or loop that holds it: `a<b>;` and `a<b>,` parse as `Grouped` to position 5,
+and `a<b>(` and `a<b>` fall back to `Plain` at 1, also when a memoized read replays them. Any other
+unlabelled alternation -- a rule-reference arm, a sequence arm, a nested alternation -- is
+`STORM0008` at lowering, naming its rule, since the emitter can match only tokens there. A labelled
+alternation and a predicate body keep their own paths, but an alternation *inside* a labelled
+optional or repetition is checked like any other, so `held:(SEMI | Args)?`, which never matched,
+is now refused. `Mist.storm` has no unlabelled alternation, and the generated Mist parser is
+byte-identical. `UnlabelledTokenChoiceTests` (Tiers 1-3) and `GeneratedParserFidelityTests`
+(Tier 4) hold it; each of eleven mutations is caught.
+
+**Residue -- the generator-wide audit this does not do.** Paths that still pass over element kinds
+they do not know, each reproduced on the fixed generator:
+
+- A labelled optional sequence (`EmitAtomicSequenceBody`) skips a choice inside it:
+  `held:(COMMA (SEMI | LP) RP)?` reads the optional as absent on `a,;)` and stops at 1.
+- A labelled alternation (`EmitAlternationExprParse`) never matches a rule-reference arm:
+  `held:(SEMI | Args)` reads `a<b>` as the next alternative -- the known limitation noted in
+  `AstEmitter.GetPropertyInfo`.
+- An unlabelled optional or repetition nested in the body of another
+  (`EmitFullExprParseAssignOnly`) is dropped: `first:Elem (LT (COMMA rest:Elem)* GT)?` reads `a<>`
+  but stops at 1 on `a<,b,c>`.
+- An unlabelled optional among a struct-projected group's elements (`EmitConsumeStructuralElement`)
+  is skipped: `head:IDENT (key:IDENT COMMA? value:IDENT)*` stops at 1 on `a b,c`.
+
+**All four resolved 2026-09-27** by "One recursive emitter" below: the first, third and fourth now
+parse (`a,;)` to 4, `a<,b,c>` to 7 with children `a b c`, `a b,c` to 4); the second is refused at
+lowering, the AST having no union type for a choice with a rule-reference arm.
+
+## A rule literal that repeats a declared token's text never matches
+
+Found 2026-09-27: with `token SEMI = ";";` declared, `rule Item = name:IDENT ";";` fails on `a;`.
+Lowering gives the literal a synthetic token, `__SYNTH_SEMI`, because it looks for an existing
+token by that synthetic name rather than by its text. The lexer then produces the declared `SEMI`,
+which wins the tie on declaration order, so the synthetic token never appears. `Mist.storm` writes
+no literal in a rule, so the shipped parser is unaffected.
+
+**Fixed, 2026-09-27.** Lowering now resolves a literal by its text: the first declared default-mode
+token whose pattern is exactly that string, also through a fragment, is the token the literal names,
+and no synthetic token is made for it. A literal no declared token spells keeps its synthetic token.
+A hidden token counts, being what the lexer produces for the text: the literal names it just as
+writing its name would. A token of another mode does not: the synthetic token is lexed in the
+default mode, where that token is no rival. `a;` now parses as `Item` to position 2.
+`RuleLiteralTokenReuseTests` holds it -- Tier 1 on `DeclaredTokenSpelling` (8 cases), Tier 3 on
+lowering from grammar text (3), Tier 4 on a compiled parser (2) -- and each of seven mutations is
+caught. The generated Mist sources are byte-identical.
+
+**Residue**, each reproduced on the fixed generator:
+
+- A literal that a pattern token also admits still never matches, its synthetic token losing the
+  tie. With `token IDENT = [a-z]+;`, `rule Cond = "if" name:IDENT;` yields no node on `if a`; with
+  `token SEMI = [;];`, `name:IDENT ";"` yields none on `a;`.
+- A rule element naming a hidden token never matches, the parser reading only the default channel,
+  and nothing refuses it: with `hidden token SP = " ";`, `name:IDENT SP other:IDENT` and
+  `name:IDENT " " other:IDENT` both yield no node on `a b`. Refused at lowering since 2026-09-27
+  (`STORM0008`, "names the hidden token 'SP'"), in both spellings.
+- `ReachabilityPass` keys a literal by its text and a token by its name, so `SEMI as A | ";" as B`
+  draws no `STORM0006` although `SEMI as A | SEMI as B` does, and the two now lower alike.
+
+## One recursive emitter -- 2026-09-27
+
+The parser emitter wrote an element through one of several near-copies, chosen by where it stood:
+an alternative's body, the body of an unlabelled optional or repetition, a labelled element, a
+labelled optional, list or bare group, a labelled alternation, a struct group's field or structural
+element. Each ended in a silent default and each had its own idea of which property a value went
+to. Beyond the residue listed in the two entries above, an unlabelled optional reference
+(`name:IDENT Args?`, `(COMMA Args)?`) parsed its node and dropped it -- the AST declared the
+property and the parser never set it. Seventeen existing test grammars write that shape
+(`IDENT TypeArgumentList?`) and none looked at the node. A labelled optional group starting with a
+reference (`held:(Args COMMA)?`) never matched, and a struct group nested in another produced a
+parser that did not compile.
+
+**Now.** `AstEmitter.NodeSlots` records, for each property, the element that fills it and whether it
+assigns or appends. The parser declares one local per property and walks the alternative with a
+single recursive `ElementWriter`. Every element kind at every depth is matched against the flag of
+what holds it, and a matched value goes straight into the locals of the properties it fills. A
+failed optional or round of a repetition puts back the position, error flag and diagnostics, the
+lengths of the lists it appended to and the scalars it set, so no node from an abandoned attempt
+is kept. The AST's walk now reaches inside optionals and repetitions. A reference nested there gets
+a property of its own, nullable under optionals and a list under a repetition. That list is flat
+across rounds, so `(A (COMMA B)*)*` gives `As` and `Bs`; structure between them needs labels,
+which make a struct group. A label under a repetition that is not the repetition's collected
+reference is a list. Every shape that had a property before keeps its name and type. Lowering joins
+an unlabelled group written inside a sequence to it, so `(COMMA (LP Elem RP))*` collects `Elem` as
+`(COMMA LP Elem RP)*` does. Nested struct groups are built, and the refusal of a predicate inside a
+labelled element is lifted (see the predicates entry).
+
+`UnemittableShapes` is what stays refused, each as `STORM0008` at lowering naming its rule:
+
+- an unlabelled choice with an arm that is not a single token;
+- a labelled one -- the AST has no union type;
+- a label on a group with no modifier;
+- an unlabelled reference inside a struct group's unlabelled optional or repetition, where no field
+  keeps it -- labelling it makes a nested group;
+- a reference to a hidden token;
+- a character class, regular expression, fragment or inline block inside a rule body.
+
+Reproduced on independent grammars at `37facf27` and on this change, memoization off and on
+agreeing:
+
+| Rule, input | Before | After |
+|---|---|---|
+| `name:IDENT held:(COMMA (SEMI \| LP) RP)?`, `a,;)` | stops at 1 | 4, `Held` = `,` |
+| `first:Elem (LT (COMMA rest:Elem)* GT)?`, `a<,b,c>` | stops at 1 | 7, children `a b c` |
+| `head:IDENT (key:IDENT COMMA? value:IDENT)*`, `a b,c` | stops at 1 | 4 |
+| `first:Elem (COMMA (LP Elem RP))*`, `a,(b),(c)` | children `a` | children `a b c` |
+| `name:IDENT Args?`, `a<b>` | `Args` null, no child | `Args` kept, a child |
+| `head:IDENT (key:IDENT (LT value:IDENT GT)? SEMI)*` | does not compile | `a b<c>;d;` to 8 |
+| `first:Elem (COMMA rest:Elem SEMI)*`, `a,b;,c` | `Rest` = `c`, a discarded node | `Rest` = `b` |
+| `name:IDENT choice:(SEMI \| Args)` | never matches `Args` | refused |
+
+For Mist the generated AST, lexer and runtime are byte-identical, and the parser is rewritten.
+This holds for the grammar before and after the purity keywords landed. Every one of the
+repository's 605 `.mist` files parses with both the old and the new generated parser. Their
+trees, compared property by property with every `Children()` sequence, span and hidden token, are
+identical in 573 files. The other 32 differ only in four token properties the AST declared and
+the old parser never set, which now hold their token:
+
+- a trailing `COMMA?`, in `AnonymousPropertyList`, `ArrayElementList`, `EnumMemberList`,
+  `PropertyAssignmentList` and `SwitchArmList`;
+- `ForStatement.SEMICOLON2`;
+- `RIGHT_BRACE` in `DefaultTypeBinding`'s default field initializer;
+- `IDENTIFIERs` in `VarTupleDeconstruction`.
+
+Over the 596 files before purity landed, the new parser was about 12% faster: 2,039 ms against
+2,323 ms for five warm passes. `ParserEmitter` went from 2,787 lines to 894 plus the 467-line `ParserEmitter.Elements.cs`.
+
+The following hold it:
+
+- `NodeSlotTests` (Tier 1, 8 cases);
+- `UnemittableShapeTests` (Tier 1, 5 refused shapes and 5 shapes that used to be dropped; Tier 3,
+  1 case for the join);
+- `GeneratedParserFidelityTests` (Tier 4, 7 rows and 3 cases, one of them an inline block whose
+  prefix, parsed once, must reach whichever arm follows).
+
+Each of seventeen mutations is caught. The inline-prefix one survived until that last case was added.
+
+**Residue**, each reproduced on this change. The first four are deferred until classic is sunset
+(decided 2026-09-27): over a hundred classic and analysis walkers iterate `Children()` or read these
+properties, and a fix changes what they see.
+
+- `Children()` yields null for a labelled reference inside a labelled optional group that is
+  absent. `baseClause:(COLON baseList:BaseList)?` gives every type declaration without a base
+  clause a null child, and `typeAnnotation:(COLON type:TypeReference)?` does the same for every
+  enum without one. The property is declared non-nullable (`BaseListNode BaseList`). Mist's
+  walkers skip null children, which is why nothing fails. Guarding such properties in `Children()`
+  is the fix.
+- The outer label of such a group holds nothing: `BaseClause` and `TypeAnnotation` are always
+  null, the node going to the inner label alone. This is kept deliberately, since filling it would
+  give `Children()` the node twice. `MistPrettyPrinter` reads `enumDecl.TypeAnnotation`, so it
+  never prints an enum's underlying type. `SemanticModelBuilder` already reads `Type` instead, and
+  says why.
+- `ConstraintClause`, a label forwarded out of a struct group and read by v2's `TypeSlotBuilder`,
+  is the same node as the group's `Constraints` field, so `Children()` yields it twice.
+- `Children()` does not descend into a nested group struct's node fields.
+- `GeneratedParserFidelityTests` holds 21 cases (27 parses) at the generated-parser boundary, and
+  `RuleLiteralTokenReuseTests` another 2. That is at the top of the pyramid's ~10-20 per boundary,
+  so adding a row there should come with a case against removing one.

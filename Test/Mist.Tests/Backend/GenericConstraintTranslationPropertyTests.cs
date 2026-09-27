@@ -266,16 +266,25 @@ public sealed class GenericConstraintTranslationPropertyTests
             var clrParam = clrType.GetGenericArguments()[paramIndex];
             var clrConstraints = clrParam.GetGenericParameterConstraints();
 
-            // Get base class constraints (non-interface, non-ValueType)
+            // Get base class constraints (non-interface, non-ValueType, not a type parameter)
             var clrBaseClassConstraints = clrConstraints
-                .Where(c => !c.IsInterface && c != typeof(ValueType))
+                .Where(c => !c.IsInterface && !c.IsGenericParameter && c != typeof(ValueType))
+                .ToArray();
+            var clrTypeParameterConstraints = clrConstraints
+                .Where(c => c.IsGenericParameter)
                 .ToArray();
 
             var (projectedType, _) = projector.ProjectType(clrType, stdlib);
             var typeParams = GetTypeParameters(projectedType);
             var projectedParam = Assert.IsType<TypeParameterType>(typeParams[paramIndex]);
 
-            if(clrBaseClassConstraints.Length > 0)
+            if(clrBaseClassConstraints.Length == 0 && clrTypeParameterConstraints.Length > 0)
+            {
+                var named = Assert.IsType<TypeParameterType>(projectedParam.Constraints?.BaseClassConstraint);
+                Assert.Equal(clrTypeParameterConstraints[0].Name, named.DisplayName);
+                Assert.Equal(clrTypeParameterConstraints[0].GenericParameterPosition, named.Ordinal);
+            }
+            else if(clrBaseClassConstraints.Length > 0)
             {
                 Assert.NotNull(projectedParam.Constraints);
                 Assert.NotNull(projectedParam.Constraints!.BaseClassConstraint);

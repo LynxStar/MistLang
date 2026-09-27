@@ -4,7 +4,7 @@ The `default` keyword in Mist produces the default value for a given type. It co
 
 Not all types support `default`. Mist separates two distinct concepts:
 
-- **Default (data)**: A precomputed, deterministic zero-value template. No constructor runs — it is pure data stamping. Side-effect-free and instantaneous.
+- **Default (data)**: A deterministic template. The type's own constructors never run: a default is built from its field initializers and its `default` block, which must be [pure](./purity.md#where-mist-requires-purity), so taking a default has no side effects and every default of a type starts in the same state.
 - **Constructor / `new()` (behavior)**: Explicit initialization logic that may perform IO, fail, or depend on external state.
 
 A type that supports the `default` operator is called **defaultable**. A type that does not is **non-defaultable** — and that is a perfectly valid state. The compiler does not force every type to have a meaningful zero value.
@@ -139,6 +139,8 @@ Classes with field initializers (e.g., `public int Timeout = 30;`) also particip
 ```
 
 The `default` block is useful when you want default values that differ from field initializers, or when you want to centralize default logic separately from the field declarations.
+
+A field initializer of a defaultable type, and each entry of a `default` block, must be a pure expression. It may allocate, and call a pure constructor such as `new List<int>()`, so each default gets its own list. An initializer that calls a constructor which prints, or reads state that can change, is refused with `MIST_PA_DEFAULT_NOT_CONSISTENT`, naming the field and the operation that is not pure. A pure expression may still fail, the same way each time the default is taken. [Where Mist Requires Purity](./purity.md#where-mist-requires-purity) has an example.
 
 ## Defaultable vs. Non-Defaultable Types
 

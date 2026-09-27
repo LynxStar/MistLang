@@ -59,8 +59,8 @@ public class Program
     {
         StampableGuarantee.Point[] points = new StampableGuarantee.Point[2];
         StampableGuarantee.Box<StampableGuarantee.Point>[] boxes = new StampableGuarantee.Box<StampableGuarantee.Point>[2];
-        System.Console.WriteLine($"points[0].X={points[0].X}");
-        System.Console.WriteLine($"boxes[0].Item.Y={boxes[0].Item.Y}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"points[0].X={points[0].X}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"boxes[0].Item.Y={boxes[0].Item.Y}"));
     }
 
     public Program()

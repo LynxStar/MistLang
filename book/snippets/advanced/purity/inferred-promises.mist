@@ -1,0 +1,66 @@
+using Standard;
+
+namespace PurityInference;
+
+public class Vec
+{
+    public int X;
+
+    public Vec(int x)
+    {
+        X = x;
+    }
+}
+
+public class Holder
+{
+    public Vec Origin = new Vec(7);
+}
+
+public class Interval
+{
+    public readonly int Start;
+    public readonly int End;
+
+    public Interval(int start, int end)
+    {
+        Start = start;
+        End = end;
+    }
+
+    public int Length
+    {
+        get { return End - Start; }
+    }
+}
+
+type NonEmpty = Interval { Length: > 0 };
+
+public class Program
+{
+    public static int Square(int n)
+    {
+        return n * n;
+    }
+
+    public static pure int SumOfSquares(int a, int b)
+    {
+        return Square(a) + Square(b);
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine($"SumOfSquares(3, 4)={SumOfSquares(3, 4)}");
+
+        var first = default(Holder);
+        var second = default(Holder);
+        first.Origin.X = 70;
+        Console.WriteLine($"first.Origin.X={first.Origin.X} second.Origin.X={second.Origin.X}");
+
+        var span = new Interval(3, 8);
+        if (span is NonEmpty proven)
+        {
+            Console.WriteLine($"proven.Length={proven.Length}");
+        }
+    }
+}

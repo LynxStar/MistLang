@@ -5,7 +5,7 @@ namespace Mist.ProgramModel;
 
 /// <summary>
 /// An integral constant is held boxed as the CLR primitive of its own type, never in one carrier shared by
-/// all eight: the long they once shared cannot hold a ulong past long.MaxValue. Reading one widens it to
+/// all eight: no primitive holds both long.MinValue and ulong.MaxValue. Reading one widens it to
 /// Int128, which holds every value of every integral type and every sum or difference of two of them.
 /// </summary>
 internal static class IntegralConstant

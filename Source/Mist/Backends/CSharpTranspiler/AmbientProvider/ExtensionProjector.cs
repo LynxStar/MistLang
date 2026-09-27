@@ -73,7 +73,14 @@ internal static class ExtensionProjector
                 continue;
             }
 
-            ProjectExtensionMethod(method, namespaceName, resolver, programModel);
+            try
+            {
+                ProjectExtensionMethod(method, namespaceName, resolver, programModel);
+            }
+            catch(Exception exception) when(GenericConstraintProjector.IsMetadataFailure(exception))
+            {
+                continue;
+            }
         }
     }
 
@@ -128,6 +135,11 @@ internal static class ExtensionProjector
 
         var methodTypeParameters = ProjectTypeParameters(
             clrTypeParams, receiverClrType, extensionBlock, blockScope, methodScope, resolver);
+
+        if(methodTypeParameters is null)
+        {
+            return;
+        }
 
         // The receiver may only name block-level parameters, so it resolves against the block.
         var receiverType = resolver.Resolve(receiverClrType, blockScope, TupleElementNames.Of(receiverParam, receiverClrType));
@@ -204,7 +216,7 @@ internal static class ExtensionProjector
     /// because the constraint projection below indexes back into the flat CLR list by ordinal.
     /// </para>
     /// </summary>
-    private static List<TypeParameter> ProjectTypeParameters(
+    private static List<TypeParameter>? ProjectTypeParameters(
         Type[] clrTypeParams,
         Type receiverClrType,
         ExtensionBlock extensionBlock,
@@ -242,12 +254,18 @@ internal static class ExtensionProjector
         // Resolved against the method scope, which sees both levels through its parent.
         foreach(var typeParam in extensionBlock.TypeParametersList)
         {
-            ProjectConstraints(typeParam, clrTypeParams[typeParam.Ordinal], methodScope, resolver);
+            if(!GenericConstraintProjector.Project(typeParam, clrTypeParams[typeParam.Ordinal], methodScope, resolver))
+            {
+                return null;
+            }
         }
 
         foreach(var typeParam in methodTypeParameters)
         {
-            ProjectConstraints(typeParam, clrTypeParams[typeParam.Ordinal], methodScope, resolver);
+            if(!GenericConstraintProjector.Project(typeParam, clrTypeParams[typeParam.Ordinal], methodScope, resolver))
+            {
+                return null;
+            }
         }
 
         return methodTypeParameters;
@@ -282,7 +300,7 @@ internal static class ExtensionProjector
 
             foreach(var promoted in blockLevel.ToArray())
             {
-                foreach(var constraint in SafeConstraintsOf(promoted))
+                foreach(var constraint in promoted.GetGenericParameterConstraints())
                 {
                     foreach(var clrParam in clrTypeParams)
                     {
@@ -328,61 +346,6 @@ internal static class ExtensionProjector
         }
 
         return false;
-    }
-
-    private static Type[] SafeConstraintsOf(Type clrParam)
-    {
-        try
-        {
-            return clrParam.GetGenericParameterConstraints();
-        }
-        catch
-        {
-            return [];
-        }
-    }
-
-    /// <summary>
-    /// Maps CLR generic parameter constraints to Mist constraint instances.
-    /// </summary>
-    private static void ProjectConstraints(
-        TypeParameter typeParam,
-        Type clrParam,
-        Scope scope,
-        AmbientTypeResolver resolver)
-    {
-        var attributes = clrParam.GenericParameterAttributes;
-        var specialConstraints = attributes & GenericParameterAttributes.SpecialConstraintMask;
-
-        if((specialConstraints & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0)
-        {
-            typeParam.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Struct));
-        }
-
-        if((specialConstraints & GenericParameterAttributes.ReferenceTypeConstraint) != 0)
-        {
-            typeParam.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Class));
-        }
-
-        if((specialConstraints & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
-        {
-            typeParam.ConstraintsList.Add(new ConstructorConstraint([]));
-        }
-
-        var constraintTypes = clrParam.GetGenericParameterConstraints();
-        foreach(var constraintType in constraintTypes)
-        {
-            if(constraintType.FullName == "System.ValueType")
-            {
-                continue;
-            }
-
-            var resolved = resolver.Resolve(constraintType, scope);
-            if(resolved is not ErrorType and not NotProjectedType)
-            {
-                typeParam.ConstraintsList.Add(new TypeConstraint(resolved));
-            }
-        }
     }
 
     /// <summary>

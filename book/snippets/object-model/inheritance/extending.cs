@@ -25,7 +25,7 @@ public class Animal
 
     public string Describe()
     {
-        return $"{name} (age {age})";
+        return System.FormattableString.Invariant($"{name} (age {age})");
     }
 }
 

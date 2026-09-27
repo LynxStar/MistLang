@@ -13,7 +13,7 @@ public class Program
     {
         System.Func<int, int, int, int> add = (int a, int b, int c) => a + b + c;
         int result = Apply_3<int, int, int, int>(add, (2, 3, 4));
-        System.Console.WriteLine($"forward={result}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"forward={result}"));
     }
 
     public Program()

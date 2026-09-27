@@ -94,6 +94,13 @@ public sealed class CompilerDriver : ICompilerDriver
         var asts = parseResult.Asts;
         compilation = parseResult.Compilation;
 
+        // Dropped after parsing rather than at load because the stdlib parse cache pairs its
+        // syntax trees with the stdlib units by index and serves both pipelines.
+        if(options.Pipeline == PipelineMode.Classic)
+        {
+            (compilation, asts) = WithoutExperimentalStdlib(compilation, asts);
+        }
+
         // Dispatch to the compilation pipeline (Stages 4-6).
         var pipelineInput = new PipelineInput(
             compilation, asts, backend, resolvedAssemblyPaths,
@@ -105,6 +112,27 @@ public sealed class CompilerDriver : ICompilerDriver
             ;
 
         return pipeline.Execute(pipelineInput);
+    }
+
+    private static (MistCompilation Compilation, ImmutableArray<Storm.Runtime.SyntaxNode> Asts) WithoutExperimentalStdlib(
+        MistCompilation compilation, ImmutableArray<Storm.Runtime.SyntaxNode> asts)
+    {
+        var units = compilation.Units;
+
+        for(var index = units.Length - 1; index >= 0; index--)
+        {
+            if(units[index].IsExperimentalOnly)
+            {
+                units = units.RemoveAt(index);
+
+                if(index < asts.Length)
+                {
+                    asts = asts.RemoveAt(index);
+                }
+            }
+        }
+
+        return (compilation with { Units = units }, asts);
     }
 
     /// <summary>

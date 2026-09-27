@@ -14,6 +14,6 @@ public class TypedBuffer<T, TSize>
 
     public string Describe()
     {
-        return $"TypedBuffer<{TSize.Value}>(value={this.Value})";
+        return $"TypedBuffer<{MistInvariant.Text(TSize.Value)}>(value={MistInvariant.Text(this.Value)})";
     }
 }

@@ -20,17 +20,17 @@ public class Program
         numbers.Add(2);
         numbers.Add(3);
         System.Collections.Generic.List<int> positives = numbers.FindAll((int x) => x > 0);
-        System.Console.WriteLine($"positives={positives.Count}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"positives={positives.Count}"));
         System.Collections.Generic.List<int> alsoPositives = numbers.FindAll(IsPositive);
-        System.Console.WriteLine($"alsoPositives={alsoPositives.Count}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"alsoPositives={alsoPositives.Count}"));
         System.Func<int, bool> isEven = (int x) => x % 2 == 0;
         System.Predicate<int> predicate = new System.Predicate<int>(isEven);
         System.Collections.Generic.List<int> evens = numbers.FindAll(predicate);
-        System.Console.WriteLine($"evens={evens.Count}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"evens={evens.Count}"));
         System.Func<int, bool> backToFunc = new System.Func<int, bool>(predicate);
         System.Console.WriteLine($"backToFunc(4)={backToFunc(4)}");
-        System.Console.WriteLine($"predicate(6)={predicate(6)}");
-        System.Console.WriteLine($"predicate(7)={predicate(7)}");
+        System.Console.WriteLine($"predicate(6)={MistInvariant.Text(predicate(6))}");
+        System.Console.WriteLine($"predicate(7)={MistInvariant.Text(predicate(7))}");
     }
 
     public Program()

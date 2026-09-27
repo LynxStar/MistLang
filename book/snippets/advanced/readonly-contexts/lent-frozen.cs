@@ -25,7 +25,7 @@ public class Sensor
 
     public string Describe()
     {
-        return $"Sensor({Id}, {Reading})";
+        return System.FormattableString.Invariant($"Sensor({Id}, {Reading})");
     }
 }
 
@@ -33,7 +33,7 @@ public class LentFrozenDemo
 {
     public static void WithFrozenRef(Snippet.Sensor s)
     {
-        System.Console.WriteLine($"frozen view={s.GetReading()}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"frozen view={s.GetReading()}"));
     }
 
     public static void Main(string[] args)

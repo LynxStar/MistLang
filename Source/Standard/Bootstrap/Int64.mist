@@ -3,28 +3,28 @@ namespace Standard;
 intrinsic public readonly owned struct Int64 : IClonable<Int64>
 {
     // IClonable base case — value-type identity copy (Requirement 8.6)
-    intrinsic public owned Int64 Clone();
+    intrinsic public pure owned Int64 Clone();
 
     // Binary arithmetic operators — Requirement 3.1
-    intrinsic public static Int64 operator +(Int64 a, Int64 b);
-    intrinsic public static Int64 operator -(Int64 a, Int64 b);
-    intrinsic public static Int64 operator *(Int64 a, Int64 b);
-    intrinsic public static Int64 operator /(Int64 a, Int64 b);
-    intrinsic public static Int64 operator %(Int64 a, Int64 b);
+    intrinsic public pure static Int64 operator +(Int64 a, Int64 b);
+    intrinsic public pure static Int64 operator -(Int64 a, Int64 b);
+    intrinsic public pure static Int64 operator *(Int64 a, Int64 b);
+    intrinsic public pure static Int64 operator /(Int64 a, Int64 b);
+    intrinsic public pure static Int64 operator %(Int64 a, Int64 b);
 
     // Comparison operators — Requirement 3.2
-    intrinsic public static Boolean operator <(Int64 a, Int64 b);
-    intrinsic public static Boolean operator >(Int64 a, Int64 b);
-    intrinsic public static Boolean operator <=(Int64 a, Int64 b);
-    intrinsic public static Boolean operator >=(Int64 a, Int64 b);
-    intrinsic public static Boolean operator ==(Int64 a, Int64 b);
-    intrinsic public static Boolean operator !=(Int64 a, Int64 b);
+    intrinsic public pure static Boolean operator <(Int64 a, Int64 b);
+    intrinsic public pure static Boolean operator >(Int64 a, Int64 b);
+    intrinsic public pure static Boolean operator <=(Int64 a, Int64 b);
+    intrinsic public pure static Boolean operator >=(Int64 a, Int64 b);
+    intrinsic public pure static Boolean operator ==(Int64 a, Int64 b);
+    intrinsic public pure static Boolean operator !=(Int64 a, Int64 b);
 
     // Unary negation — Requirement 3.3
-    intrinsic public static Int64 operator -(Int64 a);
+    intrinsic public pure static Int64 operator -(Int64 a);
 
     // Implicit widening conversions
-    intrinsic public static implicit operator Single(Int64 value);
-    intrinsic public static implicit operator Double(Int64 value);
-    intrinsic public static implicit operator Decimal(Int64 value);
+    intrinsic public pure static implicit operator Single(Int64 value);
+    intrinsic public pure static implicit operator Double(Int64 value);
+    intrinsic public pure static implicit operator Decimal(Int64 value);
 }

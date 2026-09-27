@@ -25,8 +25,8 @@ public class Program
     {
         Snippet.Point p1 = new Snippet.Point();
         Snippet.Point p2 = Snippet.Point.__CreateDefault();
-        System.Console.WriteLine($"new: X={p1.X} Y={p1.Y}");
-        System.Console.WriteLine($"default: X={p2.X} Y={p2.Y}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"new: X={p1.X} Y={p1.Y}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"default: X={p2.X} Y={p2.Y}"));
     }
 
     public Program()

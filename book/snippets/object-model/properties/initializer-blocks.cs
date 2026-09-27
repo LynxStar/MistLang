@@ -32,7 +32,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Config cfg = new Snippet.Config() { Timeout = 60, Verbose = true, Name = "production" };
-        System.Console.WriteLine($"Timeout={cfg.Timeout}, Name={cfg.Name}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Timeout={cfg.Timeout}, Name={cfg.Name}"));
     }
 
     public Program()

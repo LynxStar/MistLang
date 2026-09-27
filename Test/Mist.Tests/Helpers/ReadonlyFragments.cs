@@ -63,6 +63,13 @@ internal sealed class ReadonlyFragments
                 var body = HandBuiltModel.Block(nested);
                 var constructor = new Constructor("Counter", owner, [], new MemberModifiers { IsReadonly = true }) { Body = body, DeclaringType = owner };
                 return model.Analyze(new ReadonlyAnalyzer(), body, owner: owner, member: constructor);
+            case "readonly-block-calls-mutable-method":
+                var guarded = HandBuiltModel.Block(new ExpressionStatement(new InvocationExpression(HandBuiltModel.Node(37),
+                    new MemberAccessExpression(HandBuiltModel.Node(), explicitThis, "Bump", integer), [], integer, mutable, [])));
+                guarded.IsReadonly = true;
+                var enclosing = HandBuiltModel.Block(guarded);
+                var plain = new Method("Tick", integer, [], default) { Body = enclosing, DeclaringType = owner };
+                return model.Analyze(new ReadonlyAnalyzer(), enclosing, owner: owner, member: plain);
             case "readonly-method-calls-mutable-method":
             case "readonly-parameter-calls-mutable-method":
                 var receiver = name == "readonly-parameter-calls-mutable-method" ? (Expression)throughParameter : explicitThis;
@@ -101,12 +108,20 @@ internal sealed class ReadonlyFragments
             case "readonly-method-reads-mutable-indexer":
                 root = new IndexExpression(HandBuiltModel.Node(37), explicitThis, HandBuiltModel.Literal(integer, 0L), integer) { Indexer = indexer };
                 break;
-            case "readonly-method-sets-indexer-on-local":
-                var indexed = new IndexExpression(HandBuiltModel.Node(37), new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("grid", owner)),
-                    HandBuiltModel.Literal(integer, 0L), integer)
-                { Indexer = indexer };
-                root = Write(indexed);
+            case "readonly-method-sets-indexer-on-parameter":
+                var handed = new LocalVariable("grid", owner) { Parameter = new Parameter("grid", owner) };
+                root = Write(new IndexExpression(HandBuiltModel.Node(37), new LocalReferenceExpression(HandBuiltModel.Node(), handed), HandBuiltModel.Literal(integer, 0L), integer)
+                { Indexer = indexer });
                 break;
+            case "readonly-method-sets-indexer-on-fresh-local":
+                var fresh = new LocalVariable("grid", owner);
+                var allocated = new Constructor("Counter", owner, [], new MemberModifiers { IsPure = true, IsReadonly = true }) { DeclaringType = owner };
+                var filling = HandBuiltModel.Block(
+                    new LocalDeclarationStatement(fresh, new NewExpression(HandBuiltModel.Node(), owner, [], allocated, [], [])),
+                    new ExpressionStatement(Write(new IndexExpression(HandBuiltModel.Node(37), new LocalReferenceExpression(HandBuiltModel.Node(), fresh), HandBuiltModel.Literal(integer, 0L), integer)
+                    { Indexer = indexer })));
+                var filler = new Method("Fill", integer, [], new MemberModifiers { IsReadonly = true }) { Body = filling, DeclaringType = owner };
+                return model.Analyze(new ReadonlyAnalyzer(), filling, owner: owner, member: filler);
             case "readonly-method-writes-through-index":
                 var array = model.Interner.GetOrCreateConstructedType(model.Type("Array<,>"), [integer]);
                 var cells = new Field("cells", array, default, default) { DeclaringType = owner };

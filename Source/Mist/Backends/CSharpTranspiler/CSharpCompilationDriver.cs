@@ -168,13 +168,13 @@ public sealed class CSharpCompilationDriver
             {
                 // Pick the highest version directory that exists.
                 var versionDirs = Directory.GetDirectories(sharedDir)
-                    .OrderByDescending(d => Path.GetFileName(d))
+                    .OrderByDescending(d => Path.GetFileName(d), StringComparer.Ordinal)
                     .ToArray();
 
                 // Prefer the version matching our runtime.
                 var runtimeVersion = Environment.Version.ToString();
                 var exactMatch = versionDirs.FirstOrDefault(d =>
-                    Path.GetFileName(d).StartsWith($"{Environment.Version.Major}.{Environment.Version.Minor}."));
+                    Path.GetFileName(d).StartsWith($"{Environment.Version.Major}.{Environment.Version.Minor}.", StringComparison.Ordinal));
 
                 var selectedDir = exactMatch ?? versionDirs.FirstOrDefault();
                 if(selectedDir is not null && Directory.Exists(selectedDir))
@@ -306,7 +306,7 @@ public sealed class CSharpCompilationDriver
                     BackendDiagnostics.CSharpError,
                     default,
                     location ?? "<unknown>",
-                    (object?)roslynDiag.GetMessage());
+                    (object?)roslynDiag.GetMessage(System.Globalization.CultureInfo.InvariantCulture));
             }
         }
 

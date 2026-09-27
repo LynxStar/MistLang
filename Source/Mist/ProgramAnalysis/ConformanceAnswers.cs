@@ -22,7 +22,7 @@ internal static class ConformanceAnswers
             }
         }
 
-        foreach(var filler in fillers)
+        foreach(var filler in SlotSignatures.ExactFirst(fillers, slot, substitution, interner))
         {
             if(filler.Method is { } method && method.Name == slot.Name
                 && SlotSignatures.Answers(slot, method, substitution, filler.Substitution, interner))

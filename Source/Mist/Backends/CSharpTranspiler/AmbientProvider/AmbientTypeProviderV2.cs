@@ -65,7 +65,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
 
         // Phase 2: Project type details onto shells (type params, base types, members).
         resolver = new AmbientTypeResolver(shells, wellKnownTypes, programModel.TypeInterner, diagnostics);
-        ProjectTypes(shells, clrTypes, resolver);
+        ProjectTypes(shells, clrTypes, resolver, wellKnownTypes);
 
         // Merge into ProgramModel FQN dictionary. This loop is the single funnel for
         // every projected shell, nested types included, so it is where they are
@@ -243,11 +243,16 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     }
 
     /// <summary>
-    /// Phase 2: Single pass over all types — dispatches to the appropriate projector
-    /// for type parameters, base types, interfaces, enum members, etc.
+    /// Establishes type availability and parameter scopes before publishing members.
     /// </summary>
-    private static void ProjectTypes(Dictionary<string, DeclaredType> shells, Dictionary<string, Type> clrTypes, AmbientTypeResolver resolver)
+    internal static void ProjectTypes(
+        Dictionary<string, DeclaredType> shells,
+        Dictionary<string, Type> clrTypes,
+        AmbientTypeResolver resolver,
+        Dictionary<string, IMistType> wellKnownTypes)
     {
+        AmbientTypeAvailability.Prepare(shells, clrTypes, wellKnownTypes, resolver);
+
         foreach(var (fqn, clrType) in clrTypes)
         {
             var shell = shells[fqn];
@@ -259,11 +264,6 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                     break;
 
                 case MemberType memberType:
-                    if(clrType.IsGenericTypeDefinition)
-                    {
-                        TypeParameterProjector.Project(memberType, clrType, resolver);
-                    }
-
                     BaseTypeProjector.Project(shell, clrType, resolver);
                     PropertyProjector.Project(memberType, clrType, resolver);
                     IndexerProjector.Project(memberType, clrType, resolver);

@@ -14,7 +14,7 @@ public class Program
         {
             if (Snippet.Program.ComputeScore() is var score and > 0)
             {
-                System.Console.WriteLine($"Positive score: {score}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"Positive score: {score}"));
             }
         }
     }

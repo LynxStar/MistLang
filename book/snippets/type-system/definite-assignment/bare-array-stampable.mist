@@ -14,7 +14,7 @@ public class Program
         var counts = new int[4];
         Console.WriteLine($"counts[0]={counts[0]}");
 
-        // Bare array of a pure struct — stampable, zero-filled
+        // Bare array of a stampable struct — zero-filled
         var positions = new Vector2[3];
         Console.WriteLine($"positions[0].X={positions[0].X}");
         Console.WriteLine($"positions[1].Y={positions[1].Y}");

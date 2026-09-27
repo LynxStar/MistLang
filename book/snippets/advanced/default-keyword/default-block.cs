@@ -26,7 +26,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.AppState state = Snippet.AppState.__CreateDefault();
-        System.Console.WriteLine($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"ErrorCount={state.ErrorCount} Ready={state.Ready} Status={state.Status}"));
     }
 
     public Program()

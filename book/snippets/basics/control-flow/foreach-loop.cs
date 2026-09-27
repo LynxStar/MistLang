@@ -12,7 +12,7 @@ public class Program
         numbers[2] = 30;
         foreach (int n in numbers)
         {
-            System.Console.WriteLine($"Element: {n}");
+            System.Console.WriteLine(System.FormattableString.Invariant($"Element: {n}"));
         }
     }
 

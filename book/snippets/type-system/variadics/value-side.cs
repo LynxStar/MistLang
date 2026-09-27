@@ -12,7 +12,7 @@ public class Program
     public static void Main(string[] cmdArgs)
     {
         int arity = Describe_3<int, string, bool>((1, "x", true));
-        System.Console.WriteLine($"arity={arity}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"arity={arity}"));
     }
 
     public Program()

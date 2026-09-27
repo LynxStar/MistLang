@@ -9,8 +9,8 @@ public class Program
         int? x = null;
         x ??= 100;
         int narrowed = x.Value;
-        System.Console.WriteLine($"x={x.Value}");
-        System.Console.WriteLine($"narrowed={narrowed}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"x={x.Value}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"narrowed={narrowed}"));
     }
 
     public Program()

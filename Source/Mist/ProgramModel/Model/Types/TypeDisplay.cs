@@ -27,7 +27,7 @@ internal static class TypeDisplay
             UnionType union => string.Join(" | ", union.Constituents.Select(Mist)),
             TupleType tuple => $"({string.Join(", ", tuple.ElementTypes.Select(Mist))})",
             NamedTupleType named => $"({string.Join(", ", named.ElementTypes.Select(Mist))})",
-            FunctionType function => $"func<{string.Join(", ", function.TypeArgumentsInSourceOrder().Select(Mist))}>",
+            FunctionType function => $"{(function.IsPure ? "pure " : string.Empty)}func<{string.Join(", ", function.TypeArgumentsInSourceOrder().Select(Mist))}>",
 
             // A dependent argument shows its domain, since its value is the thing not known.
             UnknownValueType unknownValue => Mist(unknownValue.Domain),
@@ -93,6 +93,6 @@ internal static class TypeDisplay
     /// </summary>
     private static string Rank(IMistType length)
     {
-        return length is LiftedType lifted ? $"[{lifted.Value}]" : "[]";
+        return length is LiftedType lifted ? $"[{lifted.Name}]" : "[]";
     }
 }

@@ -22,7 +22,7 @@ public class Counter
 
     public string Describe()
     {
-        return $"Counter '{name}' = {value}";
+        return System.FormattableString.Invariant($"Counter '{name}' = {value}");
     }
 
     public static void Main(string[] args)

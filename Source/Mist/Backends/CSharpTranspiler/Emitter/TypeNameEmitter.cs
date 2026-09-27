@@ -39,6 +39,9 @@ internal static class TypeNameEmitter
     [ThreadStatic]
     private static Frame? substituting;
 
+    [ThreadStatic]
+    private static bool keying;
+
     /// <summary>
     /// Spells every type parameter bound by <paramref name="substitution"/> as its argument for the
     /// scope's duration: how a member inherited from a generic base is written inside the struct that
@@ -103,6 +106,26 @@ internal static class TypeNameEmitter
             UnknownType => "object",
             _ => type.Name,
         };
+    }
+
+    /// <summary>
+    /// The runtime key an ambient value is filed under. A context is found by EXACT type, and erasing
+    /// a pure function type's promise would file a plain function under the key a <c>with</c> clause
+    /// requiring a pure one reads -- so a pure function type, at any depth, keys as its own marker.
+    /// </summary>
+    public static string EmitContextKey(IMistType type)
+    {
+        var outer = keying;
+        keying = true;
+
+        try
+        {
+            return Emit(type);
+        }
+        finally
+        {
+            keying = outer;
+        }
     }
 
     /// <summary>
@@ -202,6 +225,13 @@ internal static class TypeNameEmitter
     /// its no-argument case with an empty argument list.
     /// </summary>
     private static string EmitFunction(FunctionType function)
+    {
+        var spelled = EmitDelegate(function);
+
+        return keying && function.IsPure ? $"MistContext.Pure<{spelled}>" : spelled;
+    }
+
+    private static string EmitDelegate(FunctionType function)
     {
         var parameters = Expand(function.ParameterTypes).Select(Emit).ToList();
 
@@ -304,6 +334,11 @@ internal static class TypeNameEmitter
         if(TaskProjection.Emit(constructed, Emit) is { } task)
         {
             return task;
+        }
+
+        if(constructed.Definition is ConcreteType { IsIntrinsic: true } intrinsic && ClrSpelling.Spelling(intrinsic) is { } substituted)
+        {
+            return $"{substituted}<{string.Join(", ", constructed.TypeArguments.Select(Emit))}>";
         }
 
         // A construction reaching `unknown` anywhere in its arguments is spelled `dynamic`, NOT

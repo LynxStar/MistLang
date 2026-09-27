@@ -21,7 +21,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Connection conn = new Snippet.Connection("localhost", 8080);
-        System.Console.WriteLine($"host={conn.Host} port={conn.Port} secure={conn.Secure}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"host={conn.Host} port={conn.Port} secure={conn.Secure}"));
     }
 
     public Program()

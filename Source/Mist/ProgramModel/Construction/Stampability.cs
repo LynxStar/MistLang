@@ -34,7 +34,7 @@ internal static class Stampability
             ErrorType => null,
             RefinedType => "it is a refinement, whose zero need not satisfy its predicate",
             TypeAlias alias => AliasWhyNot(alias, null, visiting),
-            Newtype => "it is a newtype, neither a primitive nor a pure struct",
+            Newtype => "it is a newtype, neither a primitive nor a struct",
             EnumType => "it is an enum, whose zero need not be a variant",
             ITupleType tuple => tuple.ElementTypes.Select(element => WhyNot(element, visiting)).FirstOrDefault(reason => reason is not null),
             ConstructedType { Definition: StructType definition } constructed => StructWhyNot(definition, constructed, visiting),

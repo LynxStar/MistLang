@@ -10,7 +10,7 @@ public class Program
         {
             if (value.AsInt32OrNull is int n)
             {
-                System.Console.WriteLine($"It's an int: {n}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"It's an int: {n}"));
             }
         }
         {

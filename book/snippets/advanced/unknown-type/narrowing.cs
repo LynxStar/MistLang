@@ -11,7 +11,7 @@ public class Program
             if (maybeInt is int narrowed)
             {
                 int doubled = narrowed + narrowed;
-                System.Console.WriteLine($"narrowed int doubled: {doubled}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"narrowed int doubled: {doubled}"));
             }
         }
     }

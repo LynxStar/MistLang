@@ -86,7 +86,7 @@ internal static class LocalFunctionBinder
             yield return "intrinsic";
         }
 
-        if(modifiers.IsReadonly)
+        if(modifiers.IsReadonly && !modifiers.IsPure && !modifiers.IsLocal)
         {
             yield return "readonly";
         }

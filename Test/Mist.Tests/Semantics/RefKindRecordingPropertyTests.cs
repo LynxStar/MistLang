@@ -267,7 +267,7 @@ public class RefKindRecordingPropertyTests
         ["GetRef", "Lookup", "Access", "Find", "Retrieve", "Fetch"];
 
     private static readonly string[] VarNames =
-        ["a", "b", "c", "local", "temp", "alias", "ptr", "handle"];
+        ["a", "b", "c", "held", "temp", "alias", "ptr", "handle"];
 
     public static Arbitrary<RefParameterScenario> ArbitraryRefParameterScenarios()
     {

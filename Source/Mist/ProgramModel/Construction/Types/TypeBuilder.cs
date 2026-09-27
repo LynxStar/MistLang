@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Scaffolding;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -83,7 +82,7 @@ internal sealed class TypeBuilder
 
                 case NamespaceItemTopLevelItemNode nsItem
                     when nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode blockNs:
-                    ProcessBlockNamespace(fileScope, blockNs);
+                    ProcessBlockNamespace(fileScope, "", blockNs);
                     break;
 
                 case NamespaceItemTopLevelItemNode nsItem
@@ -181,9 +180,9 @@ internal sealed class TypeBuilder
     /// Processes types inside a block namespace. Creates a namespace level for the block and
     /// registers types under it.
     /// </summary>
-    private void ProcessBlockNamespace(Scope parentScope, BlockNamespaceNamespaceDeclarationNode blockNs)
+    private void ProcessBlockNamespace(Scope parentScope, string parentNamespace, BlockNamespaceNamespaceDeclarationNode blockNs)
     {
-        var blockNamespace = QualifiedNameHelper.Build(blockNs.Name);
+        var blockNamespace = BlockNamespaceName.Build(blockNs, parentNamespace);
         var blockScope = new NamespaceScope(parentScope, blockNamespace, context.ProgramModel);
 
         ProcessNamespaceBody(blockScope, blockNamespace, blockNs.Body, publishTo: null);
@@ -221,7 +220,7 @@ internal sealed class TypeBuilder
 
                 case NamespaceNamespaceItemNamespaceBodyItemNode nestedNsItem
                     when nestedNsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlockNs:
-                    ProcessBlockNamespace(parentScope, nestedBlockNs);
+                    ProcessBlockNamespace(parentScope, namespaceName, nestedBlockNs);
                     break;
             }
         }

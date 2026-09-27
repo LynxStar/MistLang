@@ -25,7 +25,7 @@ public class UniqueHandle
 
     public string Describe()
     {
-        return $"UniqueHandle(Id={Id}, RefCount={RefCount})";
+        return System.FormattableString.Invariant($"UniqueHandle(Id={Id}, RefCount={RefCount})");
     }
 }
 

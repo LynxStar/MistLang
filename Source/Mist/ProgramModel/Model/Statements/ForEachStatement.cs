@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 
 namespace Mist.ProgramModel.Model.Statements;
 
@@ -18,4 +19,15 @@ internal sealed class ForEachStatement(
     public ImplicitConversionExpression? ElementConversion { get; } = elementConversion;
 
     public Block Body { get; } = body;
+
+    /// <summary>
+    /// The members the loop calls, recorded because the emitted foreach lets Roslyn resolve them
+    /// again while a rule judging what the loop touches cannot. All null over an intrinsic sequence
+    /// -- an array, a span, a string -- whose iteration the target supplies.
+    /// </summary>
+    public Method? GetEnumerator { get; init; }
+
+    public Method? MoveNext { get; init; }
+
+    public Property? Current { get; init; }
 }

@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -91,13 +92,23 @@ internal static class Indexability
     private static List<(Indexer Indexer, IReadOnlyList<ConstructedType> Path)> Reachable(IMistType receiverType)
     {
         var found = new List<(Indexer, IReadOnlyList<ConstructedType>)>();
-        var seen = new HashSet<MemberType>();
+        var seen = new HashSet<object>(ReferenceEqualityComparer.Instance);
         var pending = new Queue<(IMistType Type, IReadOnlyList<ConstructedType> Path)>();
         pending.Enqueue((receiverType, []));
 
         while(pending.Count > 0)
         {
             var (type, path) = pending.Dequeue();
+
+            if(type is TypeParameter parameter && seen.Add(parameter))
+            {
+                foreach(var constraint in parameter.ConstraintsList.OfType<TypeConstraint>())
+                {
+                    pending.Enqueue((constraint.ConstraintType, constraint.ConstraintType is ConstructedType bound ? [.. path, bound] : path));
+                }
+
+                continue;
+            }
 
             if(((type as ConstructedType)?.Definition ?? type) is not MemberType member || !seen.Add(member))
             {

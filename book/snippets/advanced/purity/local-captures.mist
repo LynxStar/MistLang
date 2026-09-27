@@ -1,0 +1,40 @@
+using Standard;
+
+namespace PurityCaptures;
+
+public class Program
+{
+    public static pure int Spread()
+    {
+        var readings = new List<int>();
+        var record = local (int value) => readings.Add(value);
+
+        local readonly int Widest()
+        {
+            var lo = readings[0];
+            var hi = readings[0];
+            foreach (int r in readings)
+            {
+                if (r < lo)
+                {
+                    lo = r;
+                }
+                if (r > hi)
+                {
+                    hi = r;
+                }
+            }
+            return hi - lo;
+        }
+
+        record(3);
+        record(9);
+        record(4);
+        return Widest();
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine($"Spread()={Spread()}");
+    }
+}

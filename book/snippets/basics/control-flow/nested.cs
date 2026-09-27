@@ -20,7 +20,7 @@ public class Program
                 sum = sum + v;
             }
         }
-        System.Console.WriteLine($"Sum of values > 5: {sum}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Sum of values > 5: {sum}"));
     }
 
     public Program()

@@ -3,23 +3,23 @@ namespace Standard;
 intrinsic public readonly owned struct Decimal : IClonable<Decimal>
 {
     // IClonable base case — value-type identity copy (Requirement 8.6)
-    intrinsic public owned Decimal Clone();
+    intrinsic public pure owned Decimal Clone();
 
     // Binary arithmetic operators — Requirement 3.1
-    intrinsic public static Decimal operator +(Decimal a, Decimal b);
-    intrinsic public static Decimal operator -(Decimal a, Decimal b);
-    intrinsic public static Decimal operator *(Decimal a, Decimal b);
-    intrinsic public static Decimal operator /(Decimal a, Decimal b);
-    intrinsic public static Decimal operator %(Decimal a, Decimal b);
+    intrinsic public pure static Decimal operator +(Decimal a, Decimal b);
+    intrinsic public pure static Decimal operator -(Decimal a, Decimal b);
+    intrinsic public pure static Decimal operator *(Decimal a, Decimal b);
+    intrinsic public pure static Decimal operator /(Decimal a, Decimal b);
+    intrinsic public pure static Decimal operator %(Decimal a, Decimal b);
 
     // Comparison operators — Requirement 3.2
-    intrinsic public static Boolean operator <(Decimal a, Decimal b);
-    intrinsic public static Boolean operator >(Decimal a, Decimal b);
-    intrinsic public static Boolean operator <=(Decimal a, Decimal b);
-    intrinsic public static Boolean operator >=(Decimal a, Decimal b);
-    intrinsic public static Boolean operator ==(Decimal a, Decimal b);
-    intrinsic public static Boolean operator !=(Decimal a, Decimal b);
+    intrinsic public pure static Boolean operator <(Decimal a, Decimal b);
+    intrinsic public pure static Boolean operator >(Decimal a, Decimal b);
+    intrinsic public pure static Boolean operator <=(Decimal a, Decimal b);
+    intrinsic public pure static Boolean operator >=(Decimal a, Decimal b);
+    intrinsic public pure static Boolean operator ==(Decimal a, Decimal b);
+    intrinsic public pure static Boolean operator !=(Decimal a, Decimal b);
 
     // Unary negation — Requirement 3.3
-    intrinsic public static Decimal operator -(Decimal a);
+    intrinsic public pure static Decimal operator -(Decimal a);
 }

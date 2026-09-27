@@ -10,9 +10,9 @@ public class Program
         string dirValue = Snippet.Direction.North;
         byte colorValue = Snippet.Color.Red;
         Snippet.Vec2 upVec = Snippet.CardinalDir.Up;
-        System.Console.WriteLine($"HttpStatus.Ok as int = {statusValue}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"HttpStatus.Ok as int = {statusValue}"));
         System.Console.WriteLine($"Direction.North as string = {dirValue}");
-        System.Console.WriteLine($"Color.Red as byte = {colorValue}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Color.Red as byte = {colorValue}"));
         System.Console.WriteLine($"CardinalDir.Up as Vec2 = {upVec.Describe()}");
     }
 

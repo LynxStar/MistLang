@@ -91,14 +91,26 @@ internal static class ConversionRelation
         }
 
         return IsIdentity(from, to)
-            || WidensNumerically(from, to)
+            || WidensNumerically(from.FullyQualifiedName, to.FullyQualifiedName)
             || Inherits(from, to)
             || WidensIntoUnion(from, to)
             || WidensElementwise(from, to)
             || WidensToUnknownArguments(from, to)
             || WidensToBaseDelegate(from, to)
+            || DropsPurity(from, to)
             || (copying && LeavesClone(from, to))
             ;
+    }
+
+    /// <summary>
+    /// A pure function type is within the same shape without <c>pure</c>, and never the reverse: no
+    /// function value carries evidence of purity unless its type states it (purity spec Requirement 16.5).
+    /// </summary>
+    private static bool DropsPurity(IMistType from, IMistType to)
+    {
+        return from is IFunctionType { IsPure: true } source
+            && to is IFunctionType { IsPure: false } target
+            && DelegateShape.SameShape(source, target);
     }
 
     /// <summary>
@@ -300,10 +312,10 @@ internal static class ConversionRelation
             ;
     }
 
-    private static bool WidensNumerically(IMistType from, IMistType to)
+    public static bool WidensNumerically(string from, string to)
     {
-        return NumericWidening.TryGetValue(from.FullyQualifiedName, out var targets)
-            && Array.IndexOf(targets, to.FullyQualifiedName) >= 0
+        return NumericWidening.TryGetValue(from, out var targets)
+            && Array.IndexOf(targets, to) >= 0
             ;
     }
 

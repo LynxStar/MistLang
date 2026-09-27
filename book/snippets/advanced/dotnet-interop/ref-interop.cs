@@ -9,7 +9,7 @@ public class Program
     {
         int value = 42;
         int old = System.Threading.Interlocked.Exchange(ref value, 100);
-        System.Console.WriteLine($"old={old}, new={value}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"old={old}, new={value}"));
     }
 
     public Program()

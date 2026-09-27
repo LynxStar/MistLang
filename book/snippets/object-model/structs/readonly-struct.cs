@@ -32,6 +32,6 @@ public readonly struct Vector2
 
     public string Describe()
     {
-        return $"Vector2(X={X}, Y={Y})";
+        return System.FormattableString.Invariant($"Vector2(X={X}, Y={Y})");
     }
 }

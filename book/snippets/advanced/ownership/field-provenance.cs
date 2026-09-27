@@ -13,7 +13,7 @@ public class Node
 
     public string Describe()
     {
-        return $"Node({Id})";
+        return System.FormattableString.Invariant($"Node({Id})");
     }
 }
 
@@ -30,7 +30,7 @@ public class Slot
 
     public string Describe()
     {
-        return $"Slot(Current={Current.Describe()}, Count={Count})";
+        return System.FormattableString.Invariant($"Slot(Current={Current.Describe()}, Count={Count})");
     }
 }
 

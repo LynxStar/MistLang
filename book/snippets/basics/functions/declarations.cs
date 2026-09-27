@@ -17,7 +17,7 @@ public class MathUtils
     public static void Main(string[] args)
     {
         int result = Add(3, 4);
-        System.Console.WriteLine($"Add(3, 4) = {result}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Add(3, 4) = {result}"));
         System.Console.WriteLine(Greet("Mist"));
     }
 

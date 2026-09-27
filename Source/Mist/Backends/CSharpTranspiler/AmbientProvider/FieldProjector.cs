@@ -37,6 +37,11 @@ internal static class FieldProjector
                 concreteType.Scope,
                 ClrNullability.ResultIsNonNull(field, field),
                 TupleElementNames.Of(field, field.FieldType));
+            if(resolvedType is ErrorType or NotProjectedType)
+            {
+                continue;
+            }
+
             var modifiers = new MemberModifiers
             {
                 Accessibility = ClrAccessibilityMap.FromField(field),

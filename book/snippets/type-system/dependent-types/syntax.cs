@@ -12,7 +12,7 @@ public class FixedBuffer<TSize>
 
     public string Describe()
     {
-        return $"FixedBuffer<{TSize.Value}>";
+        return $"FixedBuffer<{MistInvariant.Text(TSize.Value)}>";
     }
 
     public FixedBuffer()

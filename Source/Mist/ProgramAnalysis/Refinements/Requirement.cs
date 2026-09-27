@@ -176,7 +176,9 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
                 => value >= long.MinValue && value <= long.MaxValue ? (long)value : null,
             LiteralExpression { Value: char value } => value,
             LiteralExpression { Value: bool value } => value ? 1 : 0,
-            UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operand: var operand } => -Constant(operand),
+            MemberAccessExpression { Member: EnumMemberResult } access => EnumConstants.Of(access),
+            UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true }, Operand: var operand }
+                when Constant(operand) is { } constant && constant != long.MinValue => -constant,
             CloneExpression clone => Constant(clone.Source),
             _ => null,
         };

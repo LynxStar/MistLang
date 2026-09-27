@@ -3,27 +3,27 @@ namespace Standard;
 intrinsic public readonly owned struct UInt64 : IClonable<UInt64>
 {
     // IClonable base case — value-type identity copy (Requirement 8.6)
-    intrinsic public owned UInt64 Clone();
+    intrinsic public pure owned UInt64 Clone();
 
     // Binary arithmetic operators — Requirement 3.1
-    intrinsic public static UInt64 operator +(UInt64 a, UInt64 b);
-    intrinsic public static UInt64 operator -(UInt64 a, UInt64 b);
-    intrinsic public static UInt64 operator *(UInt64 a, UInt64 b);
-    intrinsic public static UInt64 operator /(UInt64 a, UInt64 b);
-    intrinsic public static UInt64 operator %(UInt64 a, UInt64 b);
+    intrinsic public pure static UInt64 operator +(UInt64 a, UInt64 b);
+    intrinsic public pure static UInt64 operator -(UInt64 a, UInt64 b);
+    intrinsic public pure static UInt64 operator *(UInt64 a, UInt64 b);
+    intrinsic public pure static UInt64 operator /(UInt64 a, UInt64 b);
+    intrinsic public pure static UInt64 operator %(UInt64 a, UInt64 b);
 
     // Comparison operators — Requirement 3.2
-    intrinsic public static Boolean operator <(UInt64 a, UInt64 b);
-    intrinsic public static Boolean operator >(UInt64 a, UInt64 b);
-    intrinsic public static Boolean operator <=(UInt64 a, UInt64 b);
-    intrinsic public static Boolean operator >=(UInt64 a, UInt64 b);
-    intrinsic public static Boolean operator ==(UInt64 a, UInt64 b);
-    intrinsic public static Boolean operator !=(UInt64 a, UInt64 b);
+    intrinsic public pure static Boolean operator <(UInt64 a, UInt64 b);
+    intrinsic public pure static Boolean operator >(UInt64 a, UInt64 b);
+    intrinsic public pure static Boolean operator <=(UInt64 a, UInt64 b);
+    intrinsic public pure static Boolean operator >=(UInt64 a, UInt64 b);
+    intrinsic public pure static Boolean operator ==(UInt64 a, UInt64 b);
+    intrinsic public pure static Boolean operator !=(UInt64 a, UInt64 b);
 
     // No unary '-' on unsigned types — Requirement 3.4.
 
     // Implicit widening conversions
-    intrinsic public static implicit operator Single(UInt64 value);
-    intrinsic public static implicit operator Double(UInt64 value);
-    intrinsic public static implicit operator Decimal(UInt64 value);
+    intrinsic public pure static implicit operator Single(UInt64 value);
+    intrinsic public pure static implicit operator Double(UInt64 value);
+    intrinsic public pure static implicit operator Decimal(UInt64 value);
 }

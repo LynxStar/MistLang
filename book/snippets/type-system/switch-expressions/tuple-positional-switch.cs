@@ -26,7 +26,7 @@ public sealed record class Season(byte Value)
         if(ReferenceEquals(this, Season.Summer)) return "Summer";
         if(ReferenceEquals(this, Season.Autumn)) return "Autumn";
         if(ReferenceEquals(this, Season.Winter)) return "Winter";
-        return Value.ToString();
+        return Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 }
 

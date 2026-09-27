@@ -20,7 +20,7 @@ public class Tiger : Standard.IClonable<Snippet.Tiger>
 
     public string Describe()
     {
-        return $"stripes={stripes} made={made}";
+        return System.FormattableString.Invariant($"stripes={stripes} made={made}");
     }
 }
 
@@ -42,7 +42,7 @@ internal class Jaguar : Standard.IClonable<Snippet.Jaguar>
 
     public string Describe()
     {
-        return $"stripes={stripes} made={made}";
+        return System.FormattableString.Invariant($"stripes={stripes} made={made}");
     }
 
     public static explicit operator Snippet.Jaguar(Snippet.Tiger @this)

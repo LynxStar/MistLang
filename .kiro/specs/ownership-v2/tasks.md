@@ -188,7 +188,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
 
 - [x] 12. C# emitter: `.Clone()` insertion and ownership erasure
   - [x] 12.1 Emit `.Clone()` at resolver-marked clone sites and confirm erasure
-    - In `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs`, read the `ImplicitClone` annotations recorded by `MoveBoundaryResolver` and emit an explicit `.Clone()` call at the assignment/argument site; apply pure-struct optimization (elide `.Clone()` for value types whose copy semantics already produce independence)
+    - In `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs`, read the `ImplicitClone` annotations recorded by `MoveBoundaryResolver` and emit an explicit `.Clone()` call at the assignment/argument site; apply value-type optimization (elide `.Clone()` for value types whose copy semantics already produce independence)
     - Confirm `owned` keyword erasure, no runtime tracking, no move-nulling; `IClonable<T>` emits as a standard C# interface; `__CreateDefault` reuse for `default`-as-owned-source is unchanged
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7, 8.8_
 
@@ -198,8 +198,8 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
     - In-process compile, inspect emitted C# text
     - **Validates: Requirements 14.1, 14.3, 14.4**
 
-  - [x] 12.3 Write unit tests for clone emission and pure-struct elision
-    - Assert `.Clone()` emitted for clonable class sources; assert elided for pure-struct value types
+  - [x] 12.3 Write unit tests for clone emission and value-type elision
+    - Assert `.Clone()` emitted for clonable class sources; assert elided for value types
     - _Requirements: 14.7, 8.8_
 
 - [x] 13. Round-trip parsing support

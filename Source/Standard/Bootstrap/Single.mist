@@ -3,26 +3,26 @@ namespace Standard;
 intrinsic public readonly owned struct Single : IClonable<Single>
 {
     // IClonable base case — value-type identity copy (Requirement 8.6)
-    intrinsic public owned Single Clone();
+    intrinsic public pure owned Single Clone();
 
     // Binary arithmetic operators — Requirement 3.1
-    intrinsic public static Single operator +(Single a, Single b);
-    intrinsic public static Single operator -(Single a, Single b);
-    intrinsic public static Single operator *(Single a, Single b);
-    intrinsic public static Single operator /(Single a, Single b);
-    intrinsic public static Single operator %(Single a, Single b);
+    intrinsic public pure static Single operator +(Single a, Single b);
+    intrinsic public pure static Single operator -(Single a, Single b);
+    intrinsic public pure static Single operator *(Single a, Single b);
+    intrinsic public pure static Single operator /(Single a, Single b);
+    intrinsic public pure static Single operator %(Single a, Single b);
 
     // Comparison operators — Requirement 3.2
-    intrinsic public static Boolean operator <(Single a, Single b);
-    intrinsic public static Boolean operator >(Single a, Single b);
-    intrinsic public static Boolean operator <=(Single a, Single b);
-    intrinsic public static Boolean operator >=(Single a, Single b);
-    intrinsic public static Boolean operator ==(Single a, Single b);
-    intrinsic public static Boolean operator !=(Single a, Single b);
+    intrinsic public pure static Boolean operator <(Single a, Single b);
+    intrinsic public pure static Boolean operator >(Single a, Single b);
+    intrinsic public pure static Boolean operator <=(Single a, Single b);
+    intrinsic public pure static Boolean operator >=(Single a, Single b);
+    intrinsic public pure static Boolean operator ==(Single a, Single b);
+    intrinsic public pure static Boolean operator !=(Single a, Single b);
 
     // Unary negation — Requirement 3.3
-    intrinsic public static Single operator -(Single a);
+    intrinsic public pure static Single operator -(Single a);
 
     // Implicit widening conversions
-    intrinsic public static implicit operator Double(Single value);
+    intrinsic public pure static implicit operator Double(Single value);
 }

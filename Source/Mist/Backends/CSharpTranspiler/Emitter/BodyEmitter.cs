@@ -1051,12 +1051,12 @@ internal static class BodyEmitter
 
             case UnaryExpression unary when NarrowArithmetic.Promotes(unary.Type):
                 writer.Append(NarrowArithmetic.Spell(
-                    unary.Type, $"{MapUnaryOperator(unary.OperatorKind)}{RenderAt(unary.Operand, PrefixPrecedence, diagnostics)}"));
+                    unary.Type, Prefixed(unary.OperatorKind, RenderAt(unary.Operand, PrefixPrecedence, diagnostics))));
                 break;
 
             case UnaryExpression unary:
-                writer.Append(MapUnaryOperator(unary.OperatorKind));
-                EmitOperand(unary.Operand, unary.Operator, 0, PrefixPrecedence, writer, diagnostics);
+                writer.Append(Prefixed(
+                    unary.OperatorKind, RenderOperand(unary.Operand, unary.Operator, 0, PrefixPrecedence, diagnostics)));
                 break;
 
             case IsPatternExpression isPattern:
@@ -1928,6 +1928,25 @@ internal static class BodyEmitter
         var scratch = new CSharpWriter();
         EmitSubExpression(expression, operatorPrecedence, scratch, diagnostics);
         return scratch.ToString();
+    }
+
+    private static string RenderOperand(
+        Expression operand, Operator? declared, int position, int precedence, DiagnosticBag diagnostics)
+    {
+        var scratch = new CSharpWriter();
+        EmitOperand(operand, declared, position, precedence, scratch, diagnostics);
+        return scratch.ToString();
+    }
+
+    /// <summary>
+    /// C# lexes two adjacent minus signs as a decrement, so a negated operand that opens with a minus of
+    /// its own, a nested negation or a negative literal, is parenthesized rather than written bare.
+    /// </summary>
+    private static string Prefixed(UnaryOperatorKind kind, string operand)
+    {
+        var symbol = MapUnaryOperator(kind);
+
+        return symbol == "-" && operand.StartsWith('-') ? $"-({operand})" : symbol + operand;
     }
 
     private static void ReportMissingIntrinsic(

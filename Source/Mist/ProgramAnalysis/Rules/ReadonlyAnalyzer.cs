@@ -36,15 +36,28 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
 
         foreach(var root in context.Bodies)
         {
-            Walk(root.Root, Frame.For(root), context, inference);
+            var frame = Frame.For(root);
+            Walk(root.Root, frame, context, inference);
+
+            if(frame.IsReadonly)
+            {
+                JudgeExits(root.Root, root.Member, frame, context, inference);
+            }
         }
     }
 
     private static void Walk(object node, Frame frame, AnalysisContext context, PurityInference inference)
     {
-        if(node is Block { IsReadonly: true })
+        if(node is Block { IsReadonly: true } block)
         {
-            frame = frame.InsideReadonlyBlock();
+            var entered = frame.InsideReadonlyBlock();
+
+            if(entered.IsReadonly && !frame.IsReadonly)
+            {
+                JudgeExits(block, member: null, entered, context, inference);
+            }
+
+            frame = entered;
         }
 
         Judge(node, frame, context, inference);
@@ -52,6 +65,17 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
         foreach(var child in BodyWalker.ChildrenOf(node))
         {
             Walk(child, frame, context, inference);
+        }
+    }
+
+    private static void JudgeExits(object root, object? member, Frame frame, AnalysisContext context, PurityInference inference)
+    {
+        foreach(var exit in PurityJudge.ExitDrops(root, member))
+        {
+            if(!inference.IsReadonly(exit.Drop) && !inference.Of(exit.Drop).Local)
+            {
+                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, exit.At, [], exit.Drop.Name, frame.Describe());
+            }
         }
     }
 
@@ -63,6 +87,10 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
                 JudgeAssignment(assignment, frame, context, inference);
                 break;
 
+            case ObjectInitializerAssignment entry when frame.IsReadonly && ReadonlyInference.StoresUnowned(frame.Origins, entry):
+                ReportStore(entry.Value, frame, context);
+                break;
+
             case InvocationExpression invocation when frame.IsReadonly:
                 if(invocation.Method is { } callee && !inference.IsReadonly(callee) && !frame.CallsLocalOnOwn(invocation, callee, inference))
                 {
@@ -71,6 +99,10 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
                         callee.Name, frame.Describe());
                 }
 
+                break;
+
+            case ForEachStatement loop when frame.IsReadonly:
+                JudgeLoop(loop, frame, context, inference);
                 break;
 
             case InvocationExpression { Receiver: MemberAccessExpression { Receiver: LocalReferenceExpression { Local.Parameter.Modifier: { IsReadonly: true, IsRef: false } } through } } call
@@ -136,6 +168,35 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
         }
     }
 
+    private static void JudgeLoop(ForEachStatement loop, Frame frame, AnalysisContext context, PurityInference inference)
+    {
+        var collection = loop.Collection;
+
+        foreach(var method in new[] { loop.GetEnumerator, loop.MoveNext })
+        {
+            if(method is not null && !inference.IsReadonly(method) && !frame.LocalOn(collection, method, inference))
+            {
+                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, collection.Node, [collection], method.Name, frame.Describe());
+                return;
+            }
+        }
+
+        if(loop.Current is { } current
+            && !inference.IsReadonlyGetter(current)
+            && !(frame.Origins.Of(collection) is Origin.Own && current.Getter is { } getter && inference.Of(getter).Local))
+        {
+            context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, collection.Node, [collection], current.Name, frame.Describe());
+        }
+    }
+
+    private static void ReportStore(Expression value, Frame frame, AnalysisContext context)
+    {
+        var origin = frame.Origins.Of(value) is Origin.Frozen ? "a frozen input" : "external";
+        var named = value is LocalReferenceExpression local ? $"'{local.Local.Name}'" : "the value";
+
+        context.Report(ProgramAnalysisDiagnostics.PureScopeStoresUnowned, value.Node, [value], named, $"readonly {frame.Describe()}", origin);
+    }
+
     private static void JudgeAssignment(
         AssignmentExpression assignment, Frame frame, AnalysisContext context, PurityInference inference)
     {
@@ -159,6 +220,12 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
 
         var own = frame.Owns(assignment.Target);
 
+        if(frame.IsReadonly && ReadonlyInference.StoresUnowned(frame.Origins, assignment))
+        {
+            ReportStore(assignment.Value, frame, context);
+            return;
+        }
+
         if(ReadonlyInference.IndexedWriteTargetName(assignment.Target) is { } reached)
         {
             if(frame.IsReadonly && !own)
@@ -171,7 +238,7 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
             return;
         }
 
-        if(assignment.Target is IndexExpression { Indexer.Modifiers.IsReadonly: false } indexed)
+        if(assignment.Target is IndexExpression { Indexer: { Modifiers.IsReadonly: false } indexer } indexed)
         {
             if(indexed.Receiver is LocalReferenceExpression { Local.Parameter.Modifier: { IsReadonly: true, IsRef: false } } indexThrough)
             {
@@ -179,7 +246,7 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
                     ProgramAnalysisDiagnostics.ReadonlyParameterSetsProperty, assignment.Target.Node,
                     [assignment.Target], "this[]", indexThrough.Local.Name);
             }
-            else if(frame.IsReadonly && !own)
+            else if(frame.IsReadonly && !(own && LocalSetter(indexer.Setter, inference)))
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextSetsProperty, assignment.Target.Node,
@@ -191,7 +258,7 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
 
         if(SetProperty(assignment.Target) is { } set)
         {
-            if(frame.IsReadonly && !own && !frame.MaySet(set, inference))
+            if(frame.IsReadonly && !(own && LocalSetter(set.Setter, inference)) && !frame.MaySet(set, inference))
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextSetsProperty, assignment.Target.Node,
@@ -218,7 +285,7 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
             return;
         }
 
-        if(frame.InReadonlyBlock && !own)
+        if(frame.InReadonlyBlock && !own && (frame.IsReadonly || frame.SuspendedPrivilege(field)))
         {
             context.Report(
                 ProgramAnalysisDiagnostics.FieldAssignedInReadonlyBlock, assignment.Target.Node,
@@ -253,6 +320,11 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
             MemberAccessExpression { Member: PropertyResult found } => found.Property,
             _ => null,
         };
+    }
+
+    private static bool LocalSetter(PropertyAccessor? setter, PurityInference inference)
+    {
+        return setter is not null && inference.Of(setter).Local;
     }
 
     private static Field? Written(Expression target)
@@ -307,7 +379,14 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
 
         public Frame InsideReadonlyBlock()
         {
-            return this with { IsReadonly = true, Privileged = false, InReadonlyBlock = true };
+            var judgedByPurity = Modifiers is { IsPure: true } or { IsLocal: true, IsReadonly: true };
+
+            return this with { IsReadonly = IsReadonly || !judgedByPurity, Privileged = false, InReadonlyBlock = true };
+        }
+
+        public bool SuspendedPrivilege(Field field)
+        {
+            return Member is Constructor { DeclaringType: { } built } && ReferenceEquals(field.DeclaringType, built);
         }
 
         public bool Owns(Expression target)
@@ -317,10 +396,12 @@ internal sealed class ReadonlyAnalyzer : IProgramAnalyzer
 
         public bool CallsLocalOnOwn(InvocationExpression invocation, Method callee, PurityInference inference)
         {
-            return !callee.Modifiers.IsStatic
-                && ThisTiers.ReceiverOf(invocation) is { } receiver
-                && Origins.Of(receiver) is Origin.Own
-                && inference.Of(callee).Local;
+            return ThisTiers.ReceiverOf(invocation) is { } receiver && LocalOn(receiver, callee, inference);
+        }
+
+        public bool LocalOn(Expression receiver, Method callee, PurityInference inference)
+        {
+            return !callee.Modifiers.IsStatic && Origins.Of(receiver) is Origin.Own && inference.Of(callee).Local;
         }
 
         public bool LocalOnOwn(PropertyAccessor? getter, MemberModifiers owner, Expression at, PurityInference inference)

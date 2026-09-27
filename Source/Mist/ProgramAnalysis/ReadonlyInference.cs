@@ -1,6 +1,7 @@
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramAnalysis;
 
@@ -143,6 +144,14 @@ internal sealed class ReadonlyInference(Func<object, bool>? localMembers = null)
                     return true;
                 }
             }
+
+            foreach(var exit in PurityJudge.ExitDrops(root, member))
+            {
+                if(!IsLocalMember(exit.Drop, exit.Drop.Modifiers) && Unproven(exit.Drop, callees))
+                {
+                    return true;
+                }
+            }
         }
 
         return false;
@@ -153,32 +162,89 @@ internal sealed class ReadonlyInference(Func<object, bool>? localMembers = null)
     {
         return node switch
         {
-            AssignmentExpression assignment => Writes(assignment.Target, origins, member),
+            AssignmentExpression assignment => Writes(assignment.Target, origins, member) || StoresUnowned(origins, assignment),
+            ObjectInitializerAssignment entry => StoresUnowned(origins, entry),
             IndexExpression { Indexer: { } indexer } indexed =>
                 !OwnLocalCallee(indexer.Getter, indexer.Modifiers, origins.Of(indexed.Receiver))
                 && UnprovenGetter(indexer.Modifiers.IsReadonly, indexer.Getter, callees),
             BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } binaryOperator } => Unproven(binaryOperator, callees),
             UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator } => Unproven(unaryOperator, callees),
             InvocationExpression invocation => !OwnLocalCallee(invocation, origins) && Unproven(invocation.Method, callees),
-            NewExpression allocation => Unproven(allocation.Constructor, callees),
+            NewExpression { Constructor: { } constructor } => Unproven(constructor, callees),
             PropertyReferenceExpression { Property: { } read } => UnprovenGetter(read.Modifiers.IsReadonly, read.Getter, callees),
             MemberAccessExpression { Member: PropertyResult { Property: { } accessed } } access =>
                 !OwnLocalCallee(accessed.Getter, accessed.Modifiers, HolderOf(origins, access))
                 && UnprovenGetter(accessed.Modifiers.IsReadonly, accessed.Getter, callees),
+            ForEachStatement loop => LoopWrites(loop, origins, callees),
             _ => false,
         };
     }
 
-    private static bool Writes(Expression target, Origins origins, object member)
+    private bool Writes(Expression target, Origins origins, object member)
     {
         return target switch
         {
             _ when Target(target) is { } written => !Privileged(member, written) && HolderOf(origins, target) is not Origin.Own,
-            IndexExpression index => HolderOf(origins, target) is not Origin.Own && (IndexedWriteTargetName(target) is not null || index.Indexer is not null),
+            IndexExpression { Indexer: { } indexer } => HolderOf(origins, target) is not Origin.Own || !LocalSetter(indexer.Setter, indexer.Modifiers),
+            IndexExpression => HolderOf(origins, target) is not Origin.Own && IndexedWriteTargetName(target) is not null,
             BackingFieldReferenceExpression or PropertyReferenceExpression => true,
-            MemberAccessExpression { Member: PropertyResult } => HolderOf(origins, target) is not Origin.Own,
+            MemberAccessExpression { Member: PropertyResult { Property: var set } } => HolderOf(origins, target) is not Origin.Own || !LocalSetter(set.Setter, set.Modifiers),
             _ => false,
         };
+    }
+
+    private bool LoopWrites(ForEachStatement loop, Origins origins, List<object> callees)
+    {
+        var holder = origins.Of(loop.Collection);
+
+        foreach(var method in new[] { loop.GetEnumerator, loop.MoveNext })
+        {
+            if(method is not null && !(holder is Origin.Own && IsLocalMember(method, method.Modifiers)) && Unproven(method, callees))
+            {
+                return true;
+            }
+        }
+
+        return loop.Current is { } current
+            && !OwnLocalCallee(current.Getter, current.Modifiers, holder)
+            && UnprovenGetter(current.Modifiers.IsReadonly, current.Getter, callees);
+    }
+
+    /// <summary>
+    /// A store that would make the context's next read through an OWNED slot answer Own for an object
+    /// other references share: an external or frozen reference of a type that can change, into an owned
+    /// field or property of something the context owns. The write itself is admitted by the amendment;
+    /// this is the one write of what a context owns that it may not make.
+    /// </summary>
+    public static bool StoresUnowned(Origins origins, AssignmentExpression assignment)
+    {
+        var owned = assignment.Target switch
+        {
+            FieldReferenceExpression field => ThisTiers.IsOwned(field.Field),
+            MemberAccessExpression { Member: FieldResult found } => ThisTiers.IsOwned(found.Field),
+            PropertyReferenceExpression property => property.Property.Modifiers is { IsOwned: true, IsStatic: false },
+            MemberAccessExpression { Member: PropertyResult found } => found.Property.Modifiers is { IsOwned: true, IsStatic: false },
+            _ => false,
+        };
+
+        return owned && HolderOf(origins, assignment.Target) is Origin.Own && Unowned(origins, assignment.Value);
+    }
+
+    public static bool StoresUnowned(Origins origins, ObjectInitializerAssignment entry)
+    {
+        var owned = entry.Member switch
+        {
+            FieldResult found => ThisTiers.IsOwned(found.Field),
+            PropertyResult found => found.Property.Modifiers is { IsOwned: true, IsStatic: false },
+            _ => false,
+        };
+
+        return owned && Unowned(origins, entry.Value);
+    }
+
+    private static bool Unowned(Origins origins, Expression value)
+    {
+        return !Origins.IsUnchangeable(value.Type) && origins.Of(value) is not Origin.Own;
     }
 
     private bool OwnLocalCallee(InvocationExpression invocation, Origins origins)
@@ -192,6 +258,11 @@ internal sealed class ReadonlyInference(Func<object, bool>? localMembers = null)
     private bool OwnLocalCallee(PropertyAccessor? getter, MemberModifiers owner, Origin holder)
     {
         return getter is not null && !owner.IsStatic && holder is Origin.Own && IsLocalMember(getter, owner);
+    }
+
+    private bool LocalSetter(PropertyAccessor? setter, MemberModifiers owner)
+    {
+        return setter is not null && IsLocalMember(setter, owner);
     }
 
     public static Origin HolderOf(Origins origins, Expression target)
@@ -255,6 +326,15 @@ internal sealed class ReadonlyInference(Func<object, bool>? localMembers = null)
         {
             case Method { Body: { } body }:
                 yield return body;
+
+                if(member is Constructor constructor)
+                {
+                    foreach(var initializer in PurityInference.InstanceInitializers(constructor))
+                    {
+                        yield return initializer;
+                    }
+                }
+
                 break;
 
             case PropertyAccessor accessor:

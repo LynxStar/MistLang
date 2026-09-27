@@ -6,6 +6,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -24,6 +25,13 @@ namespace Mist.ProgramAnalysis.Rules;
 /// one mistake is one complaint per path; and a struct is never tracked, since a copy of it is a value
 /// of its own. The rest of what classic admits here -- a call as no move for a linear
 /// value, a frozen lender lent borrowed by call -- is recorded on order 11 of the register.
+/// <para>
+/// An owned return hands the caller a value nothing else holds (ownership-v2 Requirements 2.5 and
+/// 4.7), so a `return` in a method returning owned is judged by <see cref="Origins"/>, without flow: a
+/// construction, a clone, a call returning owned, an owned binding, a local fresh at every assignment,
+/// or a value of a type that cannot change; the receiver and its owned fields count once the method
+/// takes `this` owned. Anything else is refused at the value.
+/// </para>
 /// </summary>
 internal sealed class OwnershipAnalyzer : IProgramAnalyzer
 {
@@ -37,7 +45,76 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         {
             var graph = FlowGraphBuilder.Build(root.Root);
             new Ownership(context, tiers, DeclaringBlocks(root.Root)).Judge(graph, Ownership.Nothing);
+
+            if(root.Member is Method { Body: { } body } method && ReferenceEquals(body, root.Root) && ReturnsOwned(method))
+            {
+                JudgeOwnedReturns(context, method, body, new Origins(body, method, ScopeKind.Readonly));
+            }
         }
+    }
+
+    private static bool ReturnsOwned(Method method)
+    {
+        return method.Modifiers.IsOwned || method.ReturnOwnership == OwnershipKind.Owned;
+    }
+
+    private static void JudgeOwnedReturns(AnalysisContext context, Method method, object node, Origins origins)
+    {
+        foreach(var child in BodyWalker.ChildrenOf(node))
+        {
+            if(child is LambdaExpression or LocalFunctionStatement or AsyncBlockExpression)
+            {
+                continue;
+            }
+
+            if(child is ReturnStatement { Value: { } value } && !YieldsOwned(value, method, origins))
+            {
+                context.Report(ProgramAnalysisDiagnostics.OwnedReturnNotOwned, value.Node, [value], method.Name, Unowned(value));
+            }
+
+            JudgeOwnedReturns(context, method, child, origins);
+        }
+    }
+
+    private static bool YieldsOwned(Expression value, Method method, Origins origins)
+    {
+        if(Origins.IsUnchangeable(value.Type) || origins.Of(value) is Origin.Own)
+        {
+            return true;
+        }
+
+        return method.DeclaredThisTier == ThisTier.Owned && Unwrapped(value) switch
+        {
+            ThisExpression => true,
+            FieldReferenceExpression field => ThisTiers.IsOwned(field.Field),
+            MemberAccessExpression { Receiver: ThisExpression, Member: FieldResult found } => ThisTiers.IsOwned(found.Field),
+            _ => false,
+        };
+    }
+
+    private static string Unowned(Expression value)
+    {
+        return Unwrapped(value) switch
+        {
+            ThisExpression => "'this' is the receiver, which the caller still holds",
+            LocalReferenceExpression { Local: { Parameter: not null } parameter } => $"parameter '{parameter.Name}' is not owned, so the caller may still hold its value",
+            LocalReferenceExpression { Local: var local } => $"local '{local.Name}' is neither owned nor fresh at every assignment",
+            FieldReferenceExpression field => $"field '{field.Field.Name}' is storage other references reach",
+            MemberAccessExpression { Member: FieldResult found } => $"field '{found.Field.Name}' is storage other references reach",
+            InvocationExpression { Method: { } called } => $"'{called.Name}' does not return owned",
+            _ => "it is neither fresh, moved from an owned binding, nor of a type that cannot change",
+        };
+    }
+
+    private static Expression Unwrapped(Expression expression)
+    {
+        return expression switch
+        {
+            ImplicitConversionExpression { Operator: null } conversion => Unwrapped(conversion.Operand),
+            CastExpression { Operator: null } cast => Unwrapped(cast.Operand),
+            AsExpression converted => Unwrapped(converted.Operand),
+            _ => expression,
+        };
     }
 
     private static Dictionary<LocalVariable, Block> DeclaringBlocks(object root)

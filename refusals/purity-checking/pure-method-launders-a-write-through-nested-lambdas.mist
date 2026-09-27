@@ -1,0 +1,30 @@
+using Standard;
+
+namespace Refusal;
+
+public class Box
+{
+    public int N;
+}
+
+public class Launderer
+{
+    public static pure int Launder(Box b)
+    {
+        func<void> inner = () => { b.N = 1; };
+        func<void> outer = () => { inner(); };
+        // REFUSE: MIST_PA_PURE_SCOPE_CALLS_IMPURE
+        outer();
+        return 1;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var b = new Box();
+        var r = Launderer.Launder(b);
+        Console.WriteLine("unreachable");
+    }
+}

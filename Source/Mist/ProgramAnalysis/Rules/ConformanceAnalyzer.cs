@@ -22,7 +22,9 @@ namespace Mist.ProgramAnalysis.Rules;
 /// mappings or by the type's own members, and is redundant when the abstract is reached already. A slot
 /// that is `readonly`, which every slot of a readonly abstract is, is answered only by a member that
 /// writes nothing, by its modifier or by <see cref="PurityInference"/>: readonly-contexts Requirement
-/// 13, which holds the member and not the conforming type, so a mutable type may meet it.
+/// 13, which holds the member and not the conforming type, so a mutable type may meet it. A slot that
+/// declares `local`, `local readonly` or `pure` is likewise answered only by a member that keeps that
+/// promise (purity Requirement 8.4), a default included once a conformer's own member replaces it.
 /// </summary>
 internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 {
@@ -79,7 +81,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
     {
         var interner = context.Model.TypeInterner;
 
-        foreach(var slot in abstractType.MethodsList.Where(method => method.Body is null && !method.Modifiers.IsStatic))
+        foreach(var slot in abstractType.MethodsList.Where(method => !method.Modifiers.IsStatic))
         {
             var answering = mappings?.Mappings.OfType<MethodMapping>()
                 .FirstOrDefault(mapping => mapping.TargetName == slot.Name && SlotSignatures.Answers(slot, mapping.Source, substitution, interner))?.Source
@@ -87,15 +89,19 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
             if(answering is not null)
             {
-                if(slot.Modifiers.IsReadonly && !inference.IsReadonly(answering))
+                if(slot is { Body: null, Modifiers.IsReadonly: true } && !inference.IsReadonly(answering))
                 {
                     ReportContract(context, concrete, abstractType, answering.Name, answering.DeclarationNode ?? at);
+                }
+                else
+                {
+                    _ = CheckPromise(context, inference, concrete, abstractType, slot.Name, slot.Modifiers, answering.Name, answering, answering.DeclarationNode ?? at);
                 }
 
                 continue;
             }
 
-            if(mappings?.UnresolvedTargets.Contains(slot.Name) == true)
+            if(slot.Body is not null || mappings?.UnresolvedTargets.Contains(slot.Name) == true)
             {
                 continue;
             }
@@ -159,7 +165,11 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
             if(slot is { Getter: not null, Modifiers.IsReadonly: true } && answer.Getter is not null && !inference.IsReadonlyGetter(answer))
             {
                 ReportContract(context, concrete, abstractType, answer.Name, answer.DeclarationNode ?? at);
+                continue;
             }
+
+            _ = AnsweringAccessors(slot, answer).Any(accessor =>
+                !CheckPromise(context, inference, concrete, abstractType, slot.Name, slot.Modifiers, answer.Name, accessor, answer.DeclarationNode ?? at));
         }
     }
 
@@ -168,6 +178,43 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         context.Report(
             ProgramAnalysisDiagnostics.ReadonlyContractNotMet, at, [],
             member, TypeDisplay.Mist(concrete), TypeDisplay.Mist(abstractType));
+    }
+
+    private static bool CheckPromise(
+        AnalysisContext context, PurityInference inference, ConcreteType concrete, AbstractType abstractType,
+        string slot, MemberModifiers declared, string member, object answering, SyntaxNode at)
+    {
+        var required = Promise.Declared(declared);
+
+        if(required is not ({ Local: true } or { Pure: true }))
+        {
+            return true;
+        }
+
+        var kept = inference.Of(answering);
+
+        if(required.Meet(kept) == required)
+        {
+            return true;
+        }
+
+        context.Report(
+            ProgramAnalysisDiagnostics.PurityContractNotMet, at, [],
+            member, TypeDisplay.Mist(concrete), required.Display, slot, TypeDisplay.Mist(abstractType), kept.Display);
+        return false;
+    }
+
+    private static IEnumerable<PropertyAccessor> AnsweringAccessors(Property slot, Property answer)
+    {
+        if(slot.Getter is not null && answer.Getter is { } getter)
+        {
+            yield return getter;
+        }
+
+        if(slot.Setter is not null && answer.Setter is { } setter)
+        {
+            yield return setter;
+        }
     }
 
     private static void CheckTypeSlots(

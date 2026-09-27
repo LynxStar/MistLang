@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -149,7 +150,7 @@ internal static partial class PurityJudge
 
                     foreach(var subpattern in property.Subpatterns)
                     {
-                        JudgePattern(subpattern.Pattern, JudgeSubpattern(subpattern, scrutinee, about), about);
+                        JudgePattern(subpattern.Pattern, JudgeSubpattern(subpattern, scrutinee, about, property.NarrowedType), about);
                     }
 
                     break;
@@ -201,7 +202,7 @@ internal static partial class PurityJudge
             }
         }
 
-        private Origin JudgeSubpattern(PropertySubpattern subpattern, Origin scrutinee, Expression about)
+        private Origin JudgeSubpattern(PropertySubpattern subpattern, Origin scrutinee, Expression about, IMistType holderType)
         {
             switch(subpattern.Member)
             {
@@ -211,7 +212,7 @@ internal static partial class PurityJudge
                         JudgeStorageRead(field.Modifiers.IsStatic ? Origin.External : scrutinee, $"field '{field.Name}'", subpattern.Node, [about], chain: null);
                     }
 
-                    return Origins.Through(scrutinee, field);
+                    return Origins.Through(scrutinee, field, holderType);
 
                 case PropertyResult { Property: var property }:
                     JudgeGetter(property, property.Modifiers.IsStatic ? Origin.External : scrutinee, subpattern.Node, [about]);

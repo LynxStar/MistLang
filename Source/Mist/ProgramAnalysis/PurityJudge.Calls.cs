@@ -4,6 +4,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -11,9 +12,9 @@ namespace Mist.ProgramAnalysis;
 
 internal static partial class PurityJudge
 {
-    public static Finding? JudgeChain(Constructor constructor, ScopeDescription scope, Func<object, Promise> promiseOf)
+    public static Finding? JudgeChain(Constructor constructor, ScopeKind kind, ScopeDescription scope, Func<object, Promise> promiseOf)
     {
-        if((constructor.ChainedConstructor ?? ImplicitlyChained(constructor)) is not { } chained || promiseOf(chained).Pure)
+        if((constructor.ChainedConstructor ?? ImplicitlyChained(constructor)) is not { } chained || Admits(kind, promiseOf(chained), Origin.Own))
         {
             return null;
         }
@@ -24,7 +25,39 @@ internal static partial class PurityJudge
             ? null
             : new Finding(
                 ProgramAnalysisDiagnostics.PureScopeCallsImpure, at, [],
-                [$"chain to the constructor of '{chained.DeclaringType?.Name ?? chained.Name}'", scope, promiseOf(chained).Display, "a pure constructor"]);
+                [$"chain to the constructor of '{chained.DeclaringType?.Name ?? chained.Name}'", scope, promiseOf(chained).Display, Needed(kind, promiseOf(chained))]);
+    }
+
+    private static bool Admits(ScopeKind kind, Promise promise, Origin receiver)
+    {
+        if(promise.Pure)
+        {
+            return true;
+        }
+
+        if(promise is { Local: true, Readonly: true })
+        {
+            return receiver is Origin.Own || (receiver is Origin.Frozen && kind is ScopeKind.Pure);
+        }
+
+        return promise.Local && receiver is Origin.Own && kind is not ScopeKind.LocalReadonly;
+    }
+
+    private static string Needed(ScopeKind kind, Promise promise)
+    {
+        if(promise is { Local: true, Readonly: true })
+        {
+            return kind is ScopeKind.Pure ? "an owned or frozen receiver" : "an owned receiver";
+        }
+
+        if(promise.Local)
+        {
+            return kind is ScopeKind.LocalReadonly ? "a pure or local readonly callee" : "an owned receiver";
+        }
+
+        return kind is ScopeKind.LocalReadonly
+            ? "a pure callee, or a local readonly one on an owned receiver"
+            : "a pure callee, or a local one on an owned receiver";
     }
 
     private static Constructor? ImplicitlyChained(Constructor constructor)
@@ -52,7 +85,30 @@ internal static partial class PurityJudge
             var receiver = ReceiverOrigin(invocation, method);
             var name = IsAwait(invocation, method) ? "await a task" : $"call '{method.Name}'";
             var promise = JudgeCall(method, receiver, name, invocation.Node, [invocation]);
-            JudgeArguments(promise, receiver, invocation.Arguments);
+            JudgeArguments(promise, new Slot(receiver, Owned: false, ThisTiers.ReceiverOf(invocation) is null or ThisExpression), invocation.Arguments);
+        }
+
+        private void JudgeLoop(ForEachStatement loop)
+        {
+            var collection = loop.Collection;
+
+            if(loop.GetEnumerator is not { } getEnumerator)
+            {
+                JudgeStorageRead(origins.Of(collection), $"the elements of {Spell(collection)}", collection.Node, [collection], collection);
+                return;
+            }
+
+            var receiver = origins.Of(collection);
+
+            foreach(var (callee, operation) in new (object?, string)[] { (getEnumerator, "call 'GetEnumerator'"), (loop.MoveNext, "call 'MoveNext'"), (loop.Current?.Getter, "read 'Current'") })
+            {
+                if(callee is null || silenced.Contains(collection))
+                {
+                    continue;
+                }
+
+                _ = JudgeCall(callee, receiver, $"{operation} to iterate {Spell(collection)}", collection.Node, [collection]);
+            }
         }
 
         private void JudgeFunctionValue(InvocationExpression invocation)
@@ -66,7 +122,7 @@ internal static partial class PurityJudge
             {
                 var receiver = origins.OfCaptures(lambda);
                 var promise = JudgeCall(lambda, receiver, $"call the lambda held by '{holder.Name}'", invocation.Node, [invocation]);
-                JudgeArguments(promise, receiver, invocation.Arguments);
+                JudgeArguments(promise, new Slot(receiver, Owned: false, OfThis: false), invocation.Arguments);
                 return;
             }
 
@@ -83,65 +139,38 @@ internal static partial class PurityJudge
                 return;
             }
 
-            _ = JudgeCall(
-                constructor, Origin.Own, $"call the constructor of '{TypeDisplay.Mist(allocation.Type)}'",
-                allocation.Node, [allocation], needed: "a pure constructor");
+            var promise = promiseOf(constructor);
+
+            if(!promise.Pure)
+            {
+                Refuse(
+                    ProgramAnalysisDiagnostics.PureScopeCallsImpure, allocation.Node, [allocation],
+                    $"call the constructor of '{TypeDisplay.Mist(allocation.Type)}'", scope, promise.Display, "a pure constructor");
+            }
         }
 
-        private Promise JudgeCall(object callee, Origin receiver, string operation, SyntaxNode at, IReadOnlyList<Expression> about, string? needed = null)
+        private Promise JudgeCall(object callee, Origin receiver, string operation, SyntaxNode at, IReadOnlyList<Expression> about)
         {
             var promise = promiseOf(callee);
 
-            if(!Admits(promise, receiver))
+            if(!Admits(kind, promise, receiver))
             {
-                Refuse(ProgramAnalysisDiagnostics.PureScopeCallsImpure, at, about, operation, scope, promise.Display, needed ?? Needed(promise));
+                Refuse(ProgramAnalysisDiagnostics.PureScopeCallsImpure, at, about, operation, scope, promise.Display, Needed(kind, promise));
             }
 
             return promise;
         }
 
-        private bool Admits(Promise promise, Origin receiver)
+        private void JudgeArguments(Promise promise, Slot receiver, IReadOnlyList<Expression> arguments)
         {
-            if(promise.Pure)
-            {
-                return true;
-            }
-
-            if(promise is { Local: true, Readonly: true })
-            {
-                return receiver is Origin.Own || (receiver is Origin.Frozen && kind is ScopeKind.Pure);
-            }
-
-            return promise.Local && receiver is Origin.Own && kind is not ScopeKind.LocalReadonly;
-        }
-
-        private string Needed(Promise promise)
-        {
-            if(promise is { Local: true, Readonly: true })
-            {
-                return kind is ScopeKind.Pure ? "an owned or frozen receiver" : "an owned receiver";
-            }
-
-            if(promise.Local)
-            {
-                return kind is ScopeKind.LocalReadonly ? "a pure or local readonly callee" : "an owned receiver";
-            }
-
-            return kind is ScopeKind.LocalReadonly
-                ? "a pure callee, or a local readonly one on an owned receiver"
-                : "a pure callee, or a local one on an owned receiver";
-        }
-
-        private void JudgeArguments(Promise promise, Origin receiver, IReadOnlyList<Expression> arguments)
-        {
-            if(promise is not { Local: true, Readonly: false, Pure: false } || receiver is not Origin.Own)
+            if(promise is not { Local: true, Readonly: false, Pure: false } || receiver.Holder is not Origin.Own)
             {
                 return;
             }
 
             foreach(var argument in arguments)
             {
-                JudgeStore(argument);
+                JudgeStore(argument, receiver);
             }
         }
 

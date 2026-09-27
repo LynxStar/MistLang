@@ -73,7 +73,7 @@ A scope owns:
 
 A value is frozen when it is a `frozen` parameter or local, or `this` in a method declared `with frozen`.
 
-Everything else is external: `this` in a pure scope, an unrestricted or `readonly ref` parameter, a static, and any reference-typed field reached from anything -- an owned root included -- unless that field is itself owned (`ThisTiers.IsOwned`). A field hop through an unowned reference field is external because the object behind it may be shared, whatever holds the reference.
+Everything else is external: `this` in a pure scope, an unrestricted or `readonly ref` parameter, a static, a `ref` struct (a span is a view over memory the scope does not own, unless it came from `stackalloc`), and any reference-typed field reached from anything -- an owned root included -- unless that field is itself owned (`ThisTiers.IsOwned`) and the holder is an owning reference: through a by-value struct, `this` of a struct's own member included, an owned reference field is shared with every other copy and so external. A field hop through an unowned reference field is external because the object behind it may be shared, whatever holds the reference.
 
 ### `PurityInference`
 
@@ -129,11 +129,11 @@ Id `purity-checking`, order 13 of the analysis register. It walks every body who
 
 ## Standard
 
-- `pure` replaces `readonly` on the intrinsic primitives (`Boolean`, `Byte`, `Char`, `Decimal`, `Double`, `Int16`, `Int32`, `Int64`, `SByte`, `Single`, `UInt16`, `UInt32`, `UInt64`), `String` and `Regex`: every operation of a value type that cannot change is pure, `Clone` included.
+- The intrinsic primitives (`Boolean`, `Byte`, `Char`, `Decimal`, `Double`, `Int16`, `Int32`, `Int64`, `SByte`, `Single`, `UInt16`, `UInt32`, `UInt64`), `String` and `Regex` keep `readonly` on the type and declare every member `pure`: every operation of a value that cannot change is pure, `Clone` included. `pure` cannot replace `readonly` on the type while classic, which parses the keyword and ignores it, judges enum bases and readonly constraints by the type's `readonly`.
 - `Math`, `Convert`, `Index` and `Range` are declared `pure` types.
 - `Array` needs no declaration: element access is intrinsic and the judge reads it as a field of the receiver.
 - `Console`, `Task`, `Type` and `Span` state nothing.
-- Standard declares no collection, so the requirements' `List<T>` example is not yet writable against Standard: `List` is a CLR projection with no promise. A program that needs a collection in a pure scope declares its own `local` type. Promoting `List` into Standard is a separate decision, recorded in the register.
+- `Source/Standard/List.mist` declares `intrinsic public class List<T> : IEnumerable<T>` over `System.Collections.Generic.List<T>`, never `owned` (a container cannot keep the cooperation contract for what callers hand it): the constructor `pure`; `Count`, `Contains`, `IndexOf`, `ToArray`, `GetEnumerator` and the indexer's getter `local readonly`; `Add`, `Insert`, `Remove`, `RemoveAt`, `Clear`, `Sort`, `Reverse` and the indexer's setter `local`; its `Enumerator` struct's `MoveNext` local and `Current` local readonly. The surface is what the samples, tests and snippets use, found by measurement. The indexer's two accessors differ, which is why an accessor may state its own promise (Requirement 1.5): `PropertyAccessor.OwnModifiers` records it, and it replaces the declaration's for that accessor everywhere a promise is read.
 
 ## Verification
 

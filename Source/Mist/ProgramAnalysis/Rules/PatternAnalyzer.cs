@@ -112,6 +112,15 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
     {
         var tested = test.Constituent ?? test.NarrowedType;
 
+        if(CastAnalyzer.HidesPurity(input, test.NarrowedType))
+        {
+            context.Report(
+                ProgramAnalysisDiagnostics.PureFunctionTypeUntestable, test.Node, [about],
+                TypeDisplay.Mist(input), TypeDisplay.Mist(test.NarrowedType));
+
+            return;
+        }
+
         if(tested is UnknownType && !IsIndeterminate(input))
         {
             context.Report(ProgramAnalysisDiagnostics.PatternNarrowsToUnknown, test.Node, [about]);

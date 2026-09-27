@@ -105,7 +105,7 @@ internal static partial class PurityJudge
                 return;
             }
 
-            var nodes = Nodes(start).ToList();
+            var nodes = ScopeNodes(start).ToList();
 
             foreach(var assignment in nodes.OfType<AssignmentExpression>())
             {
@@ -116,27 +116,10 @@ internal static partial class PurityJudge
             {
                 JudgeNode(node);
             }
-        }
 
-        private static IEnumerable<object> Nodes(object start)
-        {
-            var pending = new Stack<object>();
-            pending.Push(start);
-
-            while(pending.Count > 0)
+            foreach(var exit in ExitDrops(root, origins.Member, nodes))
             {
-                var node = pending.Pop();
-                yield return node;
-
-                if(node is LambdaExpression or LocalFunctionStatement or AsyncBlockExpression)
-                {
-                    continue;
-                }
-
-                foreach(var child in BodyWalker.ChildrenOf(node).Reverse())
-                {
-                    pending.Push(child);
-                }
+                _ = JudgeCall(exit.Drop, Origin.Own, $"{(exit.IsAwait ? "await" : "drop")} '{exit.Name}' at scope exit", exit.At, []);
             }
         }
 
@@ -233,7 +216,7 @@ internal static partial class PurityJudge
                     break;
 
                 case ForEachStatement loop:
-                    JudgeStorageRead(origins.Of(loop.Collection), $"the elements of {Spell(loop.Collection)}", loop.Collection.Node, [loop.Collection], loop.Collection);
+                    JudgeLoop(loop);
                     break;
 
                 case IsPatternExpression test:
@@ -275,7 +258,7 @@ internal static partial class PurityJudge
                 case FieldReferenceExpression field:
                     if(JudgeWrite(HolderOf(field.Field, receiver: null), $"field '{field.Field.Name}'", target))
                     {
-                        JudgeStore(assignment.Value);
+                        JudgeStore(assignment.Value, SlotOf(field.Field, receiver: null));
                     }
 
                     break;
@@ -283,7 +266,7 @@ internal static partial class PurityJudge
                 case MemberAccessExpression { Member: FieldResult found } access:
                     if(JudgeWrite(HolderOf(found.Field, access.Receiver), $"field '{found.Field.Name}'", target))
                     {
-                        JudgeStore(assignment.Value);
+                        JudgeStore(assignment.Value, SlotOf(found.Field, access.Receiver));
                     }
 
                     break;
@@ -291,31 +274,45 @@ internal static partial class PurityJudge
                 case BackingFieldReferenceExpression backing:
                     if(JudgeWrite(HolderOf(backing.Property, receiver: null), "'field'", target))
                     {
-                        JudgeStore(assignment.Value);
+                        JudgeStore(assignment.Value, SlotOf(backing.Property, receiver: null));
                     }
 
                     break;
 
                 case PropertyReferenceExpression property:
-                    JudgeSet(property.Property.Setter, property.Property.Name, HolderOf(property.Property, receiver: null), target, assignment.Value);
+                    JudgeSet(property.Property.Setter, property.Property.Name, SlotOf(property.Property, receiver: null), target, assignment.Value);
                     break;
 
                 case MemberAccessExpression { Member: PropertyResult found } access:
-                    JudgeSet(found.Property.Setter, found.Property.Name, HolderOf(found.Property, access.Receiver), target, assignment.Value);
+                    JudgeSet(found.Property.Setter, found.Property.Name, SlotOf(found.Property, access.Receiver), target, assignment.Value);
+                    break;
+
+                case ExtensionPropertyAccessExpression extension:
+                    JudgeSet(extension.Property.Setter, extension.Property.Name, SlotOf(extension.Property, extension.Receiver), target, assignment.Value);
                     break;
 
                 case IndexExpression { Indexer: null } element:
                     if(JudgeWrite(origins.Of(element.Receiver), $"an element of {Spell(element.Receiver)}", target))
                     {
-                        JudgeStore(assignment.Value);
+                        JudgeStore(assignment.Value, new Slot(origins.Of(element.Receiver), Owned: false, OfThis: false));
                     }
 
                     break;
 
                 case IndexExpression { Indexer: { } indexer } indexed:
-                    JudgeSet(indexer.Setter, "this[]", origins.Of(indexed.Receiver), target, assignment.Value);
+                    JudgeSet(indexer.Setter, "this[]", new Slot(origins.Of(indexed.Receiver), Owned: false, indexed.Receiver is ThisExpression), target, assignment.Value);
                     break;
             }
+        }
+
+        private Slot SlotOf(Field field, Expression? receiver)
+        {
+            return new Slot(HolderOf(field, receiver), ThisTiers.IsOwned(field), receiver is null or ThisExpression);
+        }
+
+        private Slot SlotOf(Property property, Expression? receiver)
+        {
+            return new Slot(HolderOf(property, receiver), property.Modifiers.IsOwned && !property.Modifiers.IsStatic, receiver is null or ThisExpression);
         }
 
         private void JudgeLocalWrite(LocalReferenceExpression reference)
@@ -365,19 +362,19 @@ internal static partial class PurityJudge
             return false;
         }
 
-        private void JudgeSet(PropertyAccessor? setter, string name, Origin holder, Expression target, Expression value)
+        private void JudgeSet(PropertyAccessor? setter, string name, Slot slot, Expression target, Expression value)
         {
-            if(!JudgeWrite(holder, $"'{name}'", target))
+            if(!JudgeWrite(slot.Holder, $"'{name}'", target))
             {
                 return;
             }
 
             if(setter is not null)
             {
-                _ = JudgeCall(setter, holder, $"set '{name}'", target.Node, [target]);
+                _ = JudgeCall(setter, slot.Holder, $"set '{name}'", target.Node, [target]);
             }
 
-            JudgeStore(value);
+            JudgeStore(value, slot);
         }
 
         private void JudgeInitializerEntry(ObjectInitializerAssignment entry)
@@ -385,19 +382,32 @@ internal static partial class PurityJudge
             if(entry.Add is { } add)
             {
                 var promise = JudgeCall(add, Origin.Own, $"call '{add.Name}'", entry.Node, [entry.Value]);
-                JudgeArguments(promise, Origin.Own, [entry.Value]);
+                JudgeArguments(promise, new Slot(Origin.Own, Owned: false, OfThis: false), [entry.Value]);
                 return;
             }
+
+            var owned = entry.Member switch
+            {
+                PropertyResult { Property: var property } => property.Modifiers.IsOwned,
+                FieldResult { Field: var field } => ThisTiers.IsOwned(field),
+                _ => false,
+            };
 
             if(entry.Member is PropertyResult { Property.Setter: { } setter } found)
             {
                 _ = JudgeCall(setter, Origin.Own, $"set '{found.Property.Name}'", entry.Node, [entry.Value]);
             }
 
-            JudgeStore(entry.Value);
+            JudgeStore(entry.Value, new Slot(Origin.Own, owned, OfThis: false));
         }
 
-        private void JudgeStore(Expression value)
+        /// <summary>
+        /// Requirement 6.4 and the design's store row. A local scope may keep an argument it was handed
+        /// (Requirement 5.2), but only in an unowned slot of its own instance: an owned slot, or any slot
+        /// of something else the scope owns, would make the scope's next read through it answer Own for
+        /// an object other references share.
+        /// </summary>
+        private void JudgeStore(Expression value, Slot slot)
         {
             if(kind is ScopeKind.LocalReadonly || Origins.IsUnchangeable(value.Type))
             {
@@ -406,7 +416,7 @@ internal static partial class PurityJudge
 
             var origin = origins.Of(value);
 
-            if(origin is Origin.Own || (origin is Origin.External && kind is not ScopeKind.Pure && IsInput(value)))
+            if(origin is Origin.Own || (origin is Origin.External && kind is ScopeKind.Local && slot is { Owned: false, OfThis: true } && IsInput(value)))
             {
                 return;
             }
@@ -498,6 +508,8 @@ internal static partial class PurityJudge
         {
             return Path(expression) is { } path ? $"'{path}'" : "the value";
         }
+
+        private readonly record struct Slot(Origin Holder, bool Owned, bool OfThis);
 
         private static string? Path(Expression expression)
         {

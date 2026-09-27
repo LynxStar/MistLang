@@ -2,6 +2,7 @@ using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -152,6 +153,48 @@ internal sealed class PurityInference(AnalysisContext context)
             {
                 Register(member, root.Root);
             }
+
+            if(member is Constructor built && ReferenceEquals(built.Body, root.Root))
+            {
+                RegisterInitializers(built);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The instance initializers a constructor runs before its body -- every one of its type's, unless
+    /// it chains to another constructor of the same type, which runs them instead -- so they are roots
+    /// of its promise as its body is.
+    /// </summary>
+    public static IEnumerable<Expression> InstanceInitializers(Constructor constructor)
+    {
+        if(constructor.Modifiers.IsStatic || constructor.ChainKind == ConstructorChainKind.This || constructor.DeclaringType is not ConcreteType type)
+        {
+            yield break;
+        }
+
+        foreach(var field in type.FieldsList)
+        {
+            if(field is { Modifiers.IsStatic: false, Initializer: { } initializer })
+            {
+                yield return initializer;
+            }
+        }
+
+        foreach(var property in type.PropertiesList)
+        {
+            if(property is { Initializer: { } initializer, HasBackingStorage: true, Modifiers.IsStatic: false })
+            {
+                yield return initializer;
+            }
+        }
+    }
+
+    private void RegisterInitializers(Constructor constructor)
+    {
+        foreach(var initializer in InstanceInitializers(constructor))
+        {
+            Register(constructor, initializer);
         }
     }
 
@@ -205,7 +248,7 @@ internal sealed class PurityInference(AnalysisContext context)
             return PurityJudge.Judge(closure, kind, description, OriginsFor(closure, kind), Answer).Any();
         }
 
-        if(kind is ScopeKind.Pure && member is Constructor constructor && PurityJudge.JudgeChain(constructor, description, Answer) is not null)
+        if(member is Constructor constructor && PurityJudge.JudgeChain(constructor, kind, description, Answer) is not null)
         {
             return true;
         }
@@ -222,8 +265,8 @@ internal sealed class PurityInference(AnalysisContext context)
 
         var made = scope switch
         {
-            LambdaExpression lambda => new Origins(lambda, lambda, kind, OriginsFor(enclosingOf[lambda], kind)),
-            LocalFunctionStatement function => new Origins(function, function.Function, kind, OriginsFor(enclosingOf[function], kind)),
+            LambdaExpression lambda => new Origins(lambda, lambda, kind, OriginsFor(enclosingOf[lambda], kind), capturesAreInputs: kind is ScopeKind.Pure),
+            LocalFunctionStatement function => new Origins(function, function.Function, kind, OriginsFor(enclosingOf[function], kind), capturesAreInputs: kind is ScopeKind.Pure),
             _ => new Origins(scope, memberOfRoot[scope], kind),
         };
 
@@ -272,6 +315,8 @@ internal sealed class PurityInference(AnalysisContext context)
             {
                 Register(constructor, argument);
             }
+
+            RegisterInitializers(constructor);
         }
 
         return Answer(method);

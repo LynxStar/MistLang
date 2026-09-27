@@ -1,0 +1,23 @@
+using Standard;
+
+namespace Refusal;
+
+public class Box
+{
+    public int N;
+
+    public owned Box Same()
+    {
+        // REFUSE: MIST_PA_OWNED_RETURN_NOT_OWNED
+        return this;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var b = new Box();
+        Console.WriteLine("unreachable");
+    }
+}

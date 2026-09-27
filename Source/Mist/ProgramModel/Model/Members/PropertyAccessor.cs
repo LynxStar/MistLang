@@ -26,6 +26,12 @@ internal sealed class PropertyAccessor
     public Accessibility Accessibility { get; init; }
 
     /// <summary>
+    /// The promise the accessor states for itself (<c>{ local readonly get; local set; }</c>), which
+    /// replaces its declaration's wherever a promise is read; null when it states none.
+    /// </summary>
+    public MemberModifiers? OwnModifiers { get; init; }
+
+    /// <summary>
     /// The block body of this accessor, if it has one.
     /// Null for auto or expression-bodied accessors.
     /// </summary>

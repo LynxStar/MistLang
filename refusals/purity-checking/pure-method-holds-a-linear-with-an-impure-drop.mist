@@ -1,0 +1,42 @@
+using Standard;
+
+namespace Refusal;
+
+public class Log
+{
+    public static int Dropped;
+}
+
+public linear class Handle
+{
+    public int Fd;
+
+    public Handle(int fd)
+    {
+        this.Fd = fd;
+    }
+
+    public void Drop()
+    {
+        Log.Dropped = Log.Dropped + 1;
+    }
+}
+
+public class Opener
+{
+    public static pure int Open()
+    {
+        // REFUSE: MIST_PA_PURE_SCOPE_CALLS_IMPURE
+        var h = new Handle(1);
+        return h.Fd;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var r = Opener.Open();
+        Console.WriteLine("unreachable");
+    }
+}

@@ -38,7 +38,6 @@ internal enum ScopeKind
 /// </summary>
 internal sealed class Origins
 {
-    private readonly object? member;
     private readonly Origins? enclosing;
     private readonly bool capturesAreInputs;
     private readonly bool isClosure;
@@ -56,7 +55,7 @@ internal sealed class Origins
     public Origins(object root, object? member, ScopeKind kind, Origins? enclosing = null, bool capturesAreInputs = false)
     {
         Kind = kind;
-        this.member = member;
+        Member = member;
         this.enclosing = enclosing;
         this.capturesAreInputs = capturesAreInputs;
         isClosure = enclosing is not null && root is LambdaExpression or LocalFunctionStatement;
@@ -82,12 +81,15 @@ internal sealed class Origins
 
     public ScopeKind Kind { get; }
 
+    public object? Member { get; }
+
     public Origin This => isClosure ? ThisOfClosure() : ThisOfMember();
 
     public Origin Of(Expression expression)
     {
         return expression switch
         {
+            NewExpression allocation when IsView(allocation.Type) => Origin.External,
             NewExpression or ArrayCreationExpression or ArrayLiteralExpression or TupleLiteralExpression
                 or AnonymousObjectExpression or CloneExpression or StackallocExpression or LambdaExpression
                 or DefaultExpression or LiteralExpression or RegexLiteralExpression or InterpolatedStringExpression
@@ -105,33 +107,65 @@ internal sealed class Origins
             SwitchExpression chosen => chosen.Arms.Select(arm => Of(arm.Result)).Aggregate(Origin.Own, Worst),
             LocalReferenceExpression local => OfLocal(local.Local),
             ThisExpression => This,
-            FieldReferenceExpression field => Through(This, field.Field),
-            MemberAccessExpression { Member: FieldResult found } access => Through(Of(access.Receiver), found.Field),
+            FieldReferenceExpression field => Through(This, field.Field, holderType: null),
+            MemberAccessExpression { Member: FieldResult found } access => Through(Of(access.Receiver), found.Field, HolderTypeOf(access.Receiver)),
             MemberAccessExpression { Member: EnumMemberResult } => Origin.Own,
-            BackingFieldReferenceExpression backing => Through(This, backing.Property),
+            BackingFieldReferenceExpression backing => Through(This, backing.Property, holderType: null),
             IndexExpression { Indexer: null } element => ThisTiers.IsValue(element.Type) ? Of(element.Receiver) : Origin.External,
-            _ => ThisTiers.IsValue(expression.Type) ? Origin.Own : Origin.External,
+            _ => ThisTiers.IsValue(expression.Type) && !IsView(expression.Type) ? Origin.Own : Origin.External,
         };
     }
 
-    public static Origin Through(Origin holder, Field field)
+    /// <summary>
+    /// An owned reference field answers its holder's origin only through an owned REFERENCE -- an owned
+    /// or fresh object, or the instance itself, which is what a null <paramref name="holderType"/> names.
+    /// Through a struct held by value the answer is External: the copy's field still points at the one
+    /// object every copy shares.
+    /// </summary>
+    public static Origin Through(Origin holder, Field field, IMistType? holderType)
     {
         if(field.Modifiers.IsStatic)
         {
             return Origin.External;
         }
 
-        return ThisTiers.IsValue(field.Type) || ThisTiers.IsOwned(field) ? holder : Origin.External;
+        if(ThisTiers.IsValue(field.Type))
+        {
+            return holder;
+        }
+
+        return ThisTiers.IsOwned(field) && (holderType is null || !ThisTiers.IsValue(holderType)) ? holder : Origin.External;
     }
 
-    public static Origin Through(Origin holder, Property property)
+    public static Origin Through(Origin holder, Property property, IMistType? holderType)
     {
         if(property.Modifiers.IsStatic)
         {
             return Origin.External;
         }
 
-        return ThisTiers.IsValue(property.Type) || property.Modifiers.IsOwned ? holder : Origin.External;
+        if(ThisTiers.IsValue(property.Type))
+        {
+            return holder;
+        }
+
+        return property.Modifiers.IsOwned && (holderType is null || !ThisTiers.IsValue(holderType)) ? holder : Origin.External;
+    }
+
+    public static bool IsView(IMistType type)
+    {
+        return type switch
+        {
+            TypeAlias { AliasedType: { } aliased } => IsView(aliased),
+            RefinedType refined => IsView(refined.BaseType),
+            ConstructedType constructed => IsView(constructed.Definition),
+            _ => type is StructType { IsRef: true },
+        };
+    }
+
+    private static IMistType? HolderTypeOf(Expression receiver)
+    {
+        return receiver is ThisExpression ? null : receiver.Type;
     }
 
     public static Origin Worst(Origin left, Origin right)
@@ -166,6 +200,18 @@ internal sealed class Origins
             return known;
         }
 
+        var origin = OfCaptures(closure, new HashSet<object>(ReferenceEqualityComparer.Instance));
+        captures[closure] = origin;
+        return origin;
+    }
+
+    private Origin OfCaptures(object closure, HashSet<object> visited)
+    {
+        if(!visited.Add(closure))
+        {
+            return Origin.Own;
+        }
+
         var (parameters, inside) = closure switch
         {
             LambdaExpression lambda => (lambda.Parameters, Captures.Inside(lambda)),
@@ -183,13 +229,14 @@ internal sealed class Origins
                 LocalReferenceExpression reference when !names.Contains(reference.Local) => OfLocal(reference.Local),
                 ThisExpression or FieldReferenceExpression or PropertyReferenceExpression or BackingFieldReferenceExpression => This,
                 InvocationExpression { Method: { DeclaringType: not null, Modifiers.IsStatic: false } } call when ThisTiers.ReceiverOf(call) is null => This,
+                InvocationExpression { Method: { DeclaringType: null } called } when FunctionOf(called) is { } function => OfCaptures(function, visited),
+                InvocationExpression { Method: null, Receiver: LocalReferenceExpression { Local: var holder } } when LambdaHeldBy(holder) is { } held => OfCaptures(held, visited),
                 _ => Origin.Own,
             };
 
             origin = Worst(origin, captured);
         }
 
-        captures[closure] = origin;
         return origin;
     }
 
@@ -222,10 +269,7 @@ internal sealed class Origins
 
     private static bool ReturnsOwned(InvocationExpression call)
     {
-        return call.Method is { } method
-            && (method.Modifiers.IsOwned
-                || method.ReturnOwnership == OwnershipKind.Owned
-                || (method.Name == "Clone" && method.ParametersList.Count == 0));
+        return call.Method is { } method && (method.Modifiers.IsOwned || method.ReturnOwnership == OwnershipKind.Owned);
     }
 
     private bool InstanceIsOwn => Kind is ScopeKind.Local or ScopeKind.LocalReadonly;
@@ -247,7 +291,7 @@ internal sealed class Origins
             return Origin.Own;
         }
 
-        return (Kind, member) switch
+        return (Kind, Member) switch
         {
             (ScopeKind.Pure, Constructor) => Origin.Own,
             (ScopeKind.Pure, Method { DeclaredThisTier: ThisTier.Frozen }) => Origin.Frozen,
@@ -266,7 +310,7 @@ internal sealed class Origins
 
             if(capturesAreInputs)
             {
-                return !local.IsRef && ThisTiers.IsValue(local.Type) ? Origin.Own : Origin.External;
+                return !local.IsRef && IsOwnCopy(local.Type) && ReadableCapture(local) ? Origin.Own : Origin.External;
             }
 
             return enclosing!.OfLocal(local);
@@ -278,10 +322,25 @@ internal sealed class Origins
             { Ownership: OwnershipKind.Frozen } => Origin.Frozen,
             { IsRef: true, Parameter: null } => refTargets.TryGetValue(local, out var target) ? Of(target) : Origin.External,
             { IsRef: true } => Origin.External,
-            _ when bound.TryGetValue(local, out var source) => source.Hops.Aggregate(Of(source.Scrutinee), Through),
-            _ when fresh.Contains(local) || (ThisTiers.IsValue(local.Type) && !local.IsRef) => Origin.Own,
+            _ when bound.TryGetValue(local, out var source) => ThroughHops(Of(source.Scrutinee), source.Hops),
+            _ when fresh.Contains(local) || IsOwnCopy(local.Type) => Origin.Own,
             _ => Origin.External,
         };
+    }
+
+    private static bool IsOwnCopy(IMistType type)
+    {
+        return ThisTiers.IsValue(type) && !IsView(type);
+    }
+
+    private static Origin ThroughHops(Origin origin, IReadOnlyList<Hop> hops)
+    {
+        foreach(var (field, holderType) in hops)
+        {
+            origin = Through(origin, field, holderType);
+        }
+
+        return origin;
     }
 
     private void Survey(IReadOnlyList<object> inside)
@@ -317,8 +376,13 @@ internal sealed class Origins
 
                     break;
 
+                case AssignmentExpression { Target: var target }:
+                    MarkStructAssigned(ReceiverOf(target));
+                    break;
+
                 case InvocationExpression invocation:
                     MarkByRef(invocation.Arguments, invocation.Method?.ParametersList);
+                    MarkStructAssigned(ThisTiers.ReceiverOf(invocation));
                     break;
 
                 case NewExpression allocation:
@@ -376,7 +440,7 @@ internal sealed class Origins
         }
     }
 
-    private void BindPattern(Pattern? pattern, Expression scrutinee, IReadOnlyList<Field> hops)
+    private void BindPattern(Pattern? pattern, Expression scrutinee, IReadOnlyList<Hop> hops)
     {
         if(pattern?.Binding is { } binding)
         {
@@ -392,7 +456,7 @@ internal sealed class Origins
                 {
                     if(subpattern.Member is FieldResult { Field: var field })
                     {
-                        BindPattern(subpattern.Pattern, scrutinee, [.. hops, field]);
+                        BindPattern(subpattern.Pattern, scrutinee, [.. hops, new Hop(field, property.NarrowedType)]);
                     }
                 }
 
@@ -453,5 +517,37 @@ internal sealed class Origins
         }
     }
 
-    private sealed record Bound(Expression Scrutinee, IReadOnlyList<Field> Hops);
+    private void MarkStructAssigned(Expression? receiver)
+    {
+        if(receiver is not null && StructRoot(receiver) is { } root)
+        {
+            _ = assigned.Add(root);
+        }
+    }
+
+    private static LocalVariable? StructRoot(Expression expression)
+    {
+        return expression switch
+        {
+            LocalReferenceExpression reference when ThisTiers.IsValue(reference.Local.Type) => reference.Local,
+            MemberAccessExpression { Member: FieldResult } access when ThisTiers.IsValue(access.Receiver.Type) => StructRoot(access.Receiver),
+            IndexExpression { Indexer: null } index when ThisTiers.IsValue(index.Receiver.Type) => StructRoot(index.Receiver),
+            _ => null,
+        };
+    }
+
+    private static Expression? ReceiverOf(Expression target)
+    {
+        return target switch
+        {
+            MemberAccessExpression access => access.Receiver,
+            IndexExpression index => index.Receiver,
+            ExtensionPropertyAccessExpression extension => extension.Receiver,
+            _ => null,
+        };
+    }
+
+    private sealed record Bound(Expression Scrutinee, IReadOnlyList<Hop> Hops);
+
+    private readonly record struct Hop(Field Field, IMistType HolderType);
 }

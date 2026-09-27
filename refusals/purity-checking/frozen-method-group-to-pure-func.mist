@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+public class Cold
+{
+    public int Count;
+
+    public pure int Peek() with frozen
+    {
+        return Count;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        owned var c = new Cold();
+        // REFUSE: MIST_PA_PURE_FUNCTION_REQUIRED
+        pure func<int> f = c.Peek;
+        var r = f();
+        Console.WriteLine("unreachable");
+    }
+}

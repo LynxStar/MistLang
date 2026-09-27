@@ -566,6 +566,13 @@ internal static class StatementBinder
             ? ImplicitConversions.At(new ElementReadExpression(collection.Node, element), variableType, context.ProgramModel.TypeInterner) as ImplicitConversionExpression
             : null;
 
-        return new ForEachStatement(variable, collection, body, conversion);
+        var members = EnumerableElement.Members(collection.Type, context.ProgramModel.TypeInterner);
+
+        return new ForEachStatement(variable, collection, body, conversion)
+        {
+            GetEnumerator = members.GetEnumerator,
+            MoveNext = members.MoveNext,
+            Current = members.Current,
+        };
     }
 }

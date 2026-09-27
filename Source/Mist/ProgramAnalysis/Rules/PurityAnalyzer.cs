@@ -3,6 +3,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
@@ -16,7 +17,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// settled method group of pure function type, and -- purity Requirement 12.1 -- every field initializer
 /// and default entry of a defaultable type, as a pure scope with no inputs. An inferred promise is never
 /// reported (Requirement 3): a member that declares nothing is consulted only as a callee, through
-/// <see cref="PurityInference"/>. Order 13 of the analysis register.
+/// <see cref="PurityInference"/>.
 /// </summary>
 internal sealed class PurityAnalyzer : IProgramAnalyzer
 {
@@ -130,10 +131,20 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
             var scope = ScopeDescription.Of(kind, root.Member);
             Report(PurityJudge.Judge(root.Root, kind, scope, OriginsFor(root.Root, kind), inference.Of));
 
-            if(kind is ScopeKind.Pure
-                && root.Member is Constructor constructor
-                && ReferenceEquals(constructor.Body, root.Root)
-                && PurityJudge.JudgeChain(constructor, scope, inference.Of) is { } chain)
+            if(root.Member is not Constructor constructor || !ReferenceEquals(constructor.Body, root.Root))
+            {
+                return;
+            }
+
+            if(constructor.DeclaringType is ConcreteType type && !Defaultability.IsDefaultable(type))
+            {
+                foreach(var initializer in PurityInference.InstanceInitializers(constructor))
+                {
+                    Report(PurityJudge.Judge(initializer, kind, scope, new Origins(initializer, constructor, kind), inference.Of));
+                }
+            }
+
+            if(PurityJudge.JudgeChain(constructor, kind, scope, inference.Of) is { } chain)
             {
                 Report([chain]);
             }
@@ -173,6 +184,12 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
                 context.Report(
                     ProgramAnalysisDiagnostics.PureFunctionRequired, reference.Node, [reference],
                     reference.Method.Name, TypeDisplay.Mist(reference.Type), promise.Display);
+            }
+            else if(reference.Method.DeclaredThisTier == ThisTier.Frozen && reference.Receiver is { } receiver && !Origins.IsUnchangeable(receiver.Type))
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.PureFunctionRequired, reference.Node, [reference],
+                    reference.Method.Name, TypeDisplay.Mist(reference.Type), "pure only while its receiver is frozen, a loan the function value outlives");
             }
         }
 
@@ -244,7 +261,7 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
             var made = scope switch
             {
                 LambdaExpression lambda => new Origins(lambda, lambda, kind, OriginsFor(enclosingOf[lambda], kind), capturesAreInputs: kind is ScopeKind.Pure),
-                LocalFunctionStatement function => new Origins(function, function.Function, kind, OriginsFor(enclosingOf[function], kind)),
+                LocalFunctionStatement function => new Origins(function, function.Function, kind, OriginsFor(enclosingOf[function], kind), capturesAreInputs: kind is ScopeKind.Pure),
                 _ => new Origins(scope, context.MemberOf(scope), kind),
             };
 

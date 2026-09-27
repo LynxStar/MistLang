@@ -1,0 +1,32 @@
+using Standard;
+
+namespace Refusal;
+
+public class Clock
+{
+    public static int Ticks;
+}
+
+public abstract Shape
+{
+    pure int Area();
+}
+
+// REFUSE-FILE: MIST_PA_PURITY_CONTRACT_NOT_MET
+public class Noisy : Shape
+{
+    public int Area()
+    {
+        return Clock.Ticks;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var n = new Noisy();
+        var a = n.Area();
+        Console.WriteLine("unreachable");
+    }
+}

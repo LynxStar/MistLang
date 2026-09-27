@@ -73,7 +73,7 @@ Purity is judged against the reference a scope holds, not the object behind it. 
 ### Example
 
 ```mist
-public intrinsic owned class List<T>
+intrinsic public class List<T>
 {
     intrinsic public pure List();                        // a fresh, empty list
     intrinsic public local readonly int Count { get; }   // reads only this list, writes nothing
@@ -105,7 +105,7 @@ int Count(List<int> xs)
 - **Scope**: The body of a member, local function or lambda, during one evaluation of it.
 - **Owned (by a scope)**: What a scope created during its evaluation, what was moved into it through an `owned` parameter or binding, a struct it holds by value (but not what that struct's reference-typed fields point at), and, for a local function or lambda, what it captured that its enclosing scope owns.
 - **External**: Everything a scope does not own: its reference-typed and by-reference inputs, statics, and the world outside the program.
-- **Stable_Field**: A field that cannot change once its object is constructed: a `readonly` field, the backing field of an `init`-only property, or any field of a readonly type. A static field is stable when it is `readonly`.
+- **Stable_Field**: A field that cannot change once its object is constructed: a `readonly` field, the backing field of a property with no setter or an `init`-only one, or a field of a readonly type. The storage of a readonly type's property that declares a setter is not stable, since a readonly setter may write it (`readonly-contexts` base rule 12). A static field is stable when it is `readonly`.
 - **Own_Instance**: For an instance member, the instance it was called on and what that instance owns. For a local function or lambda, what it captured. Static members and constructors have none.
 - **Pure_Member**, **Local_Member**, **Local_Readonly_Member**, **Readonly_Member**: A member declared, or inferred (Requirement 8), to keep the corresponding promise.
 - **Pure_Type**, **Local_Type**, **Local_Readonly_Type**: A type declared with the corresponding modifier (Requirement 15). **Readonly_Type** is as the `readonly-contexts` spec defines it.
@@ -124,7 +124,7 @@ int Count(List<int> xs)
 2. THE Compiler SHALL accept these combinations on a member, and on a type (Requirement 15): `readonly`, `local`, `local readonly`, `pure`. Order among modifiers SHALL NOT matter.
 3. WHEN `pure` and `readonly` are both written, THE Compiler SHALL accept them and report an informational diagnostic that `readonly` is implied by `pure`.
 4. WHEN `pure` and `local` are both written, THE Compiler SHALL report an error: `local` allows a member to change its own instance, which `pure` forbids.
-5. `local` SHALL be admitted on instance methods, instance properties and indexers, local functions and lambdas, and SHALL be refused on static members and constructors, which have no Own_Instance. `pure` SHALL be admitted on methods, constructors, properties, indexers, local functions and lambdas, and on a function type (Requirement 16). On a property or indexer, a modifier applies to each accessor it declares. On a local function, `readonly` is admitted only within `local readonly` or through `pure`; a bare `readonly` stays refused, as the `local-functions` spec has it.
+5. `local` SHALL be admitted on instance methods, instance properties and indexers, local functions and lambdas, and SHALL be refused on static members and constructors, which have no Own_Instance. `pure` SHALL be admitted on methods, constructors, properties, indexers, local functions and lambdas, and on a function type (Requirement 16). On a property or indexer, a modifier applies to each accessor it declares; an accessor MAY state its own promise ahead of its accessibility, which replaces the declaration's for that accessor (`{ local readonly get; local set; }`). On a local function, `readonly` is admitted only within `local readonly` or through `pure`; a bare `readonly` stays refused, as the `local-functions` spec has it.
 6. THE Grammar SHALL admit these modifiers on intrinsic member declarations and on abstract members.
 7. THE Pretty_Printer SHALL preserve them, and parsing then printing then parsing SHALL produce an equivalent AST.
 
@@ -160,7 +160,7 @@ int Count(List<int> xs)
 #### Acceptance Criteria
 
 1. A Local_Member SHALL read and write only its Own_Instance and what it creates.
-2. A Local_Member MAY use its arguments as values -- store them, pass them on, compare them, read the contents of a struct passed by value -- and SHALL NOT read or write state reachable through a reference-typed or by-reference argument, which lies outside its Own_Instance.
+2. A Local_Member MAY use its arguments as values -- store them, pass them on, compare them, read the contents of a struct passed by value -- and SHALL NOT read or write state reachable through a reference-typed or by-reference argument, which lies outside its Own_Instance. It SHALL NOT store an argument it does not own into an owned field, or into any field of another instance it owns: an owned slot holds only what the scope owns or what cannot change (Requirement 6.4).
 3. A Local_Member SHALL call only Pure_Members, and Local_Members and Local_Readonly_Members on its Own_Instance or on what it creates. It SHALL perform no input or output and read no static that is not a Stable_Field.
 4. A local function or lambda declared `local` SHALL treat what it captured as its Own_Instance. What it writes through a captured reference is its own only if the enclosing scope owns what that reference points at; THE Compiler SHALL judge that where the local function or lambda is called, against the enclosing scope's ownership.
 5. A Local_Readonly_Member SHALL keep criteria 1 to 4 and SHALL write nothing, its Own_Instance included.
@@ -198,7 +198,7 @@ int Count(List<int> xs)
 
 1. A member with no Mist body -- intrinsic, CLR-projected or extern -- SHALL keep a promise only when its Mist declaration states it. The compiler cannot see what such a member touches, so one that states nothing SHALL be treated as touching anything and performing input or output.
 2. A CLR member with no Mist declaration SHALL keep no promise. To use one from a readonly, local or pure scope, Standard declares it as an intrinsic with its promise, or the program wraps it in a member of its own.
-3. THE Standard declarations SHALL state the promise of each member they declare that keeps one: the primitive types' and `String`'s operations as `pure`, `Regex` matching as `pure`, and for any collection Standard declares, its constructors `pure`, its read-only members `local readonly`, and its adding and removing members `local`.
+3. THE Standard declarations SHALL state the promise of each member they declare that keeps one: the primitive types' and `String`'s operations as `pure`, `Regex` matching as `pure`, and for any collection Standard declares, its constructors `pure`, its read-only members `local readonly`, and its adding and removing members `local`. Standard declares `List<T>` as such an intrinsic over the CLR list, with a pure constructor, so a constructorless type may hold one (defaultability Requirement 6).
 
 ### Requirement 10: Diagnostics
 
@@ -213,7 +213,7 @@ int Count(List<int> xs)
 
 #### Acceptance Criteria
 
-1. This requirement amends the `readonly-contexts` spec's Requirement 11 with a fifteenth rule: WHILE in a readonly context, THE Readonly_Analyzer SHALL permit writing a field of, writing through an index of, and calling a setter of what the context owns, and SHALL permit calling a Local_Member on an instance it owns.
+1. This requirement amends the `readonly-contexts` spec's Requirement 11 with a fifteenth rule: WHILE in a readonly context, THE Readonly_Analyzer SHALL permit writing a field of, writing through an index of, and calling a Local_Member -- a method, a getter or a setter -- on what the context owns; a member that is not local is admitted only as base rule 2 admits it. It SHALL count every write the context makes through anything External -- a `ref` parameter, an element of an array parameter, an object initializer's setter -- as a write (Requirement 4.1).
 2. The admission of an index write into an array the body just allocated, which the analyzer already makes, SHALL be read as a case of criterion 1 rather than a rule of its own.
 3. Base rule 10 SHALL admit allocation through a pure constructor, every pure constructor being readonly (Requirement 2).
 
@@ -268,7 +268,7 @@ Twice(n => { Console.WriteLine(n); return n; }, 3);   // error: the lambda write
 1. THE Compiler SHALL accept `pure` before any type that resolves to a Func_Type (`first-class-functions` spec), through `func`, `Func`, `Action` or an alias. The result SHALL be a Pure_Function_Type with the same parameter and return types.
 2. WHERE `pure` could belong to the enclosing declaration -- before the return type of a member or local function, or the type of a property or indexer -- it SHALL belong to the declaration. A Pure_Function_Type in those places SHALL be named through an alias (`type Step = pure func<int, int>;`).
 3. Invoking a value of a Pure_Function_Type SHALL count as calling a Pure_Member, which a pure scope may do on anything (Requirement 6 criterion 3).
-4. A lambda SHALL convert to a Pure_Function_Type only when it keeps Requirements 6 and 7. It SHALL be judged once, where it converts, as a pure scope whose captured variables are External inputs. It MAY read a captured variable only when nothing can assign that variable after the capture, and through that variable only what Requirement 7 admits for an External input. A method group SHALL convert only when its method is a Pure_Member.
+4. A lambda, or a local function's method group, SHALL convert to a Pure_Function_Type only when it keeps Requirements 6 and 7; a local function declared `pure` is held to the same. Each SHALL be judged once, where it converts or is declared, as a pure scope whose captured variables are External inputs. It MAY read a captured variable only when nothing can assign that variable after the capture, and through that variable only what Requirement 7 admits for an External input. A method group SHALL convert only when its method is a Pure_Member.
 5. A Pure_Function_Type SHALL convert implicitly to the same function type without `pure`. The reverse SHALL be refused, by a cast as well: no function value, CLR delegate included, carries evidence that it is pure unless its type states it.
 6. As a type argument, the promise SHALL be part of the type: `List<pure func<int, int>>` and `List<func<int, int>>` are different types, and neither converts to the other.
 7. THE Compiler SHALL report an error for two overloads whose signatures differ only in whether a function type is pure. The promise is erased on emission (Requirement 13), so both would emit the same C# signature.

@@ -586,6 +586,24 @@ public static class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "{0} would not give the same default every time: {2} Every default of '{1}' is evaluated as a pure scope with no inputs.");
 
+    public static readonly DiagnosticDescriptor PurityContractNotMet = new(
+        new DiagnosticId("MIST_PA_PURITY_CONTRACT_NOT_MET"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Member '{0}' in type '{1}' must be {2} to satisfy the {2} contract on '{3}' of abstract '{4}': it is {5}.");
+
+    public static readonly DiagnosticDescriptor PureFunctionTypeUntestable = new(
+        new DiagnosticId("MIST_PA_PURE_FUNCTION_TYPE_UNTESTABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' cannot be tested for or cast to '{1}': a pure function type is a promise the runtime cannot see, so only a value whose static type already states it can be read as one.");
+
+    public static readonly DiagnosticDescriptor OwnedReturnNotOwned = new(
+        new DiagnosticId("MIST_PA_OWNED_RETURN_NOT_OWNED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' returns owned but this value is not: {1}. An owned return is a construction, a clone, a call returning owned, a move from an owned binding, or a value of a type that cannot change.");
+
     public static readonly DiagnosticDescriptor StackSpanReturned = new(
         new DiagnosticId("MIST_PA_STACK_SPAN_RETURNED"),
         DiagnosticSeverity.Error,

@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+type Reader = pure func<int>;
+
+public class Probe
+{
+    public static void Main()
+    {
+        func<int> plain = () => 1;
+        object o = plain;
+        // REFUSE: MIST_PA_PURE_FUNCTION_TYPE_UNTESTABLE
+        if (o is Reader r)
+        {
+            Console.WriteLine(r());
+        }
+        Console.WriteLine("unreachable");
+    }
+}

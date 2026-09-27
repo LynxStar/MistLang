@@ -509,7 +509,7 @@ public static partial class AstEmitter
         writer.WriteBlock("public override IEnumerable<SyntaxNode> Children()", () =>
         {
             var hasChildren = false;
-            foreach(var prop in properties)
+            foreach(var prop in properties.Where(prop => prop.IsChild))
             {
                 if(prop.IsGroup)
                 {
@@ -662,6 +662,9 @@ public static partial class AstEmitter
         var alternationsInsideRepetition = new HashSet<ExpressionIR>();
         CollectAlternationsInsideRepetition(alt.Expression, false, alternationsInsideRepetition);
 
+        var repeatedRuleRefs = new HashSet<RuleRefIR>();
+        CollectRepeatedRuleRefs(alt.Expression, repeatedRuleRefs);
+
         // First, add properties from field labels. Labels that live inside an
         // anonymous group are excluded here — they become fields on the group
         // struct (or the collapsed pure-token property) instead (Task 3.4).
@@ -700,6 +703,11 @@ public static partial class AstEmitter
                     var p when !p.IsNullable && p.IsNodeType => new PropertyInfo(propName, p.TypeName + "?", true, true, false, ""),
                     var p => p,
                 };
+            }
+            else if(label.Expression is RuleRefIR repeated && repeatedRuleRefs.Contains(repeated))
+            {
+                // Holds the list's last node, null or a discarded node; consumers still read it (backlog/storm.md).
+                propInfo = new PropertyInfo(propName, repeated.Rule.Name + "Node", false, true, false, " = default!;", isChild: false);
             }
             else
             {
@@ -856,6 +864,56 @@ public static partial class AstEmitter
             case OneOrMoreIR oom:
                 CollectAlternationsInsideRepetition(oom.Inner, true, result);
                 break;
+        }
+    }
+
+    internal static RuleRefIR? RepeatedRuleRef(ExpressionIR repetitionInner)
+    {
+        return repetitionInner switch
+        {
+            RuleRefIR ruleRef => ruleRef,
+            SequenceIR sequence => sequence.Elements.OfType<RuleRefIR>().FirstOrDefault(),
+            _ => null,
+        };
+    }
+
+    private static void CollectRepeatedRuleRefs(ExpressionIR expr, HashSet<RuleRefIR> result)
+    {
+        switch(expr)
+        {
+            case SequenceIR sequence:
+                foreach(var element in sequence.Elements)
+                {
+                    CollectRepeatedRuleRefs(element, result);
+                }
+
+                break;
+            case AlternationIR alternation:
+                foreach(var alternative in alternation.Alternatives)
+                {
+                    CollectRepeatedRuleRefs(alternative, result);
+                }
+
+                break;
+            case OptionalIR optional:
+                CollectRepeatedRuleRefs(optional.Inner, result);
+                break;
+            case ZeroOrMoreIR zeroOrMore:
+                AddRepeatedRuleRef(zeroOrMore.Inner, result);
+                CollectRepeatedRuleRefs(zeroOrMore.Inner, result);
+                break;
+            case OneOrMoreIR oneOrMore:
+                AddRepeatedRuleRef(oneOrMore.Inner, result);
+                CollectRepeatedRuleRefs(oneOrMore.Inner, result);
+                break;
+        }
+    }
+
+    private static void AddRepeatedRuleRef(ExpressionIR repetitionInner, HashSet<RuleRefIR> result)
+    {
+        if(RepeatedRuleRef(repetitionInner) is { } repeated)
+        {
+            _ = result.Add(repeated);
         }
     }
 
@@ -1208,7 +1266,9 @@ public static partial class AstEmitter
 
         public bool IsGroup => GroupNodeFieldNames != null;
 
-        public PropertyInfo(string name, string typeName, bool isNullable, bool isNodeType, bool isList, string defaultValue, IReadOnlyList<string>? groupNodeFieldNames = null)
+        public bool IsChild { get; }
+
+        public PropertyInfo(string name, string typeName, bool isNullable, bool isNodeType, bool isList, string defaultValue, IReadOnlyList<string>? groupNodeFieldNames = null, bool isChild = true)
         {
             Name = name;
             TypeName = typeName;
@@ -1217,6 +1277,7 @@ public static partial class AstEmitter
             IsList = isList;
             DefaultValue = defaultValue;
             GroupNodeFieldNames = groupNodeFieldNames;
+            IsChild = isChild;
         }
     }
 }

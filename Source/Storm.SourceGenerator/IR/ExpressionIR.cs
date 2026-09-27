@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Storm.SourceGenerator.IR;
 
@@ -28,6 +29,8 @@ public sealed class SequenceIR : ExpressionIR
 public sealed class AlternationIR : ExpressionIR
 {
     public IReadOnlyList<ExpressionIR> Alternatives { get; }
+
+    public bool IsTokenChoice => Alternatives.All(alternative => alternative is TokenRefIR or StringLiteralIR);
 
     public AlternationIR(IReadOnlyList<ExpressionIR> alternatives)
     {

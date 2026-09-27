@@ -199,6 +199,11 @@ public static class GrammarIRLowering
         foreach(var (name, decl) in ruleOrder)
         {
             var alternatives = LowerRuleAlternatives(decl.Body, tokensByName, ruleShells, syntheticTokens, ruleDeclarations, diagnostics);
+            foreach(var alternative in alternatives)
+            {
+                RefuseNonTokenChoices(decl, alternative.Expression, alternative.FieldLabels, diagnostics);
+            }
+
             var shell = ruleShells[name];
             // The shell was created with a mutable List<RuleAlternativeIR>;
             // cast back and populate it so all existing RuleRefIR pointers
@@ -787,6 +792,48 @@ public static class GrammarIRLowering
             OneOrMoreIR oneOrMore => HoldsPredicate(oneOrMore.Inner),
             _ => false,
         };
+    }
+
+    internal static void RefuseNonTokenChoices(StormDeclaration rule, ExpressionIR expr, IReadOnlyList<FieldLabelIR> labels, List<StormDiagnostic> diagnostics)
+    {
+        switch(expr)
+        {
+            case AlternationIR alternation when !alternation.IsTokenChoice && !labels.Any(label => ReferenceEquals(label.Expression, alternation)):
+                diagnostics.Add(new StormDiagnostic(
+                    StormDiagnosticIds.STORM_UNSUPPORTED_CONSTRUCT,
+                    StormDiagnosticSeverity.Error,
+                    $"An unlabelled alternation in rule '{rule.Name}' must be a choice between single tokens: give any other choice a rule of its own",
+                    null, rule.Line, rule.Column));
+                break;
+
+            case AlternationIR alternation:
+                foreach(var alternative in alternation.Alternatives)
+                {
+                    RefuseNonTokenChoices(rule, alternative, labels, diagnostics);
+                }
+
+                break;
+
+            case SequenceIR sequence:
+                foreach(var element in sequence.Elements)
+                {
+                    RefuseNonTokenChoices(rule, element, labels, diagnostics);
+                }
+
+                break;
+
+            case OptionalIR optional:
+                RefuseNonTokenChoices(rule, optional.Inner, labels, diagnostics);
+                break;
+
+            case ZeroOrMoreIR zeroOrMore:
+                RefuseNonTokenChoices(rule, zeroOrMore.Inner, labels, diagnostics);
+                break;
+
+            case OneOrMoreIR oneOrMore:
+                RefuseNonTokenChoices(rule, oneOrMore.Inner, labels, diagnostics);
+                break;
+        }
     }
 
     private static bool IsFixedWidthTokenExpression(ExpressionIR expr)

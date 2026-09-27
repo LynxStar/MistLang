@@ -818,6 +818,10 @@ public static class ParserEmitter
                 EmitPredicate(writer, context, predicate, okVar);
                 break;
 
+            case AlternationIR alternation:
+                EmitTokenChoice(writer, context, alternation, okVar);
+                break;
+
             case OptionalIR opt:
                 {
                     // Unlabeled optional that may contain labeled sub-expressions.
@@ -914,13 +918,7 @@ public static class ParserEmitter
                         }
                     }
 
-                    // Detect if the inner SequenceIR contains a RuleRefIR that needs
-                    // accumulation into a list builder.
-                    RuleRefIR? starRuleRef = null;
-                    if(star.Inner is SequenceIR starSeq)
-                    {
-                        starRuleRef = starSeq.Elements.OfType<RuleRefIR>().FirstOrDefault();
-                    }
+                    var starRuleRef = AstEmitter.RepeatedRuleRef(star.Inner);
 
                     string? ruleBuilderVar = null;
                     string? parsedItemVar = null;
@@ -1073,13 +1071,7 @@ public static class ParserEmitter
                         }
                     }
 
-                    // Detect if the inner SequenceIR contains a RuleRefIR that needs
-                    // accumulation into a list builder.
-                    RuleRefIR? plusRuleRef = null;
-                    if(plus.Inner is SequenceIR plusSeq)
-                    {
-                        plusRuleRef = plusSeq.Elements.OfType<RuleRefIR>().FirstOrDefault();
-                    }
+                    var plusRuleRef = AstEmitter.RepeatedRuleRef(plus.Inner);
 
                     string? ruleBuilderVar = null;
                     string? parsedItemVar = null;
@@ -1455,15 +1447,19 @@ public static class ParserEmitter
     /// Consumes a structural (non-value-bearing) element of a group sequence -- a bare
     /// fixed token or string literal that the grammar matches but does not store.
     /// Mirrors the structural-token handling used elsewhere in the emitter: a mismatch
-    /// clears <paramref name="okFlag"/>, otherwise the token is eaten. An element with no
-    /// single guard token (e.g. an unlabelled alternation) carries no stored value and is
-    /// skipped, matching the existing behaviour for such shapes.
+    /// clears <paramref name="okFlag"/>, otherwise the token is eaten.
     /// </summary>
     private static void EmitConsumeStructuralElement(CodeWriter writer, EmissionContext context, ExpressionIR element, string okFlag)
     {
         if(element is PredicateIR predicate)
         {
             EmitPredicate(writer, context, predicate, okFlag);
+            return;
+        }
+
+        if(element is AlternationIR alternation)
+        {
+            EmitTokenChoice(writer, context, alternation, okFlag);
             return;
         }
 
@@ -1967,6 +1963,10 @@ public static class ParserEmitter
 
             case PredicateIR predicate:
                 EmitPredicate(writer, context, predicate, okVar);
+                break;
+
+            case AlternationIR alternation:
+                EmitTokenChoice(writer, context, alternation, okVar);
                 break;
 
             case RuleRefIR ruleRef:
@@ -2687,6 +2687,17 @@ public static class ParserEmitter
             writer.WriteLine("_diagnostics?.TruncateTo(_predSavedDiagCount);");
             writer.WriteLine($"if (_predMatched == {(predicate.IsNegated ? "true" : "false")}) {fail}");
         });
+    }
+
+    /// <summary>
+    /// Every arm is a single token, guaranteed by <see cref="GrammarIRLowering.RefuseNonTokenChoices"/>.
+    /// </summary>
+    private static void EmitTokenChoice(CodeWriter writer, EmissionContext context, AlternationIR alternation, string? okVar)
+    {
+        var guard = okVar ?? "true";
+        var fail = okVar != null ? $"{okVar} = false;" : "Error(\"No token of the choice matched\");";
+        var match = string.Join(" ?? ", alternation.Alternatives.Select(alternative => MatchExprForAlternative(context, alternative)));
+        writer.WriteLine($"if ({guard} && ({match}) == null) {fail}");
     }
 
     private static string? TryBuildTokenTest(EmissionContext context, ExpressionIR expr, ref int offset)

@@ -6782,6 +6782,18 @@ capabilities:
       alternatives or change method-group conversion, conversions or overload ranking.
       The focused ledger passes 201/201 cases and the full solution ledger passes 10603/10603;
       the solution build reports zero warnings and scoped formatting verification is clean.
+
+      OPTIONAL LAMBDA OVERLOAD TRIALS, 2026-09-27 (workstream 12 follow-up 1). LambdaTrials reads
+      optional destinations through ContextualLambdaTarget for applicability and inferred-result
+      comparison. Each candidate must admit the lambda's actual body results rather than merely its
+      target-stamped function type. Eighteen Tier 2 cases in OptionalLambdaOverloadTests cover
+      expression/block results, constructed aliases, stated-parameter/arity/local-pure/body-error
+      refusals, optional/plain comparisons, existing optional-widening preference and ambiguity,
+      unique-other-argument diagnostic recovery, withheld diagnostics and discarded generic call
+      records with exactly one retained binding. Regression cases fail before optional trial
+      recognition. The focused ledger passes 69/69; the build has zero warnings and scoped formatting
+      verification is clean. OverloadResolution and its ranking rules are unchanged. Generic lambda
+      inference remains a separate follow-up; callable alternatives in general unions remain deferred.
     unlocks: []
 
   - id: lambda-expressions

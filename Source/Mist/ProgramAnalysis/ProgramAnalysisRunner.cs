@@ -31,6 +31,7 @@ internal static class ProgramAnalysisRunner
         new TierAnalyzer(),
         new DisciplineAnalyzer(),
         new ReadonlyAnalyzer(),
+        new PurityAnalyzer(),
         new EscapeAnalyzer(),
         new RefinementAnalyzer(),
     ];

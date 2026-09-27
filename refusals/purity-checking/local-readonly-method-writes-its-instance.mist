@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public class Bag
+{
+    public int Count;
+
+    public local readonly void Reset()
+    {
+        // REFUSE: MIST_PA_PURE_SCOPE_WRITES
+        Count = 0;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var b = new Bag();
+        b.Reset();
+        Console.WriteLine("unreachable");
+    }
+}

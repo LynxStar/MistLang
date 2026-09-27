@@ -9,7 +9,11 @@ namespace Mist.ProgramAnalysis;
 /// reason: both answer what a BODY does, and one walk with two questions beats two walkers that can
 /// disagree. The rules are the readonly-contexts spec's base rules (Req 11) read as a classification --
 /// a field written, a setter called, a callee that is not readonly, an allocation through a constructor
-/// that is not -- with a constructor privileged to assign the fields of its own type (Req 10.7).
+/// that is not -- with a constructor privileged to assign the fields of its own type (Req 10.7), and
+/// with the purity spec's amendment (its Req 11): a write to what the context owns by
+/// <see cref="Origins"/>, and a call to a local member on such a receiver, are not writes of the
+/// context. Which members are local is the caller's oracle, because the answer is the purity fixpoint's
+/// and that fixpoint asks this class in turn; without one, only a declared <c>local</c> counts.
 /// <para>
 /// A call asks the CALLEE'S status and never its body (Req 10.8), which is what makes this a fixed
 /// point over the call graph rather than an inlining. It is the GREATEST one: a member is readonly
@@ -31,7 +35,7 @@ namespace Mist.ProgramAnalysis;
 /// working code.
 /// </para>
 /// </summary>
-internal sealed class ReadonlyInference
+internal sealed class ReadonlyInference(Func<object, bool>? localMembers = null)
 {
     private readonly Dictionary<object, bool> settled = new(ReferenceEqualityComparer.Instance);
 
@@ -48,6 +52,21 @@ internal sealed class ReadonlyInference
     public bool IsReadonlyGetter(Indexer indexer)
     {
         return indexer.Modifiers.IsReadonly || IsReadonlyAccessor(indexer.Getter);
+    }
+
+    public bool IsReadonlySetter(PropertyAccessor setter)
+    {
+        return !setter.IsAuto && Settle(setter);
+    }
+
+    public bool IsReadonly(LambdaExpression lambda)
+    {
+        return Settle(lambda);
+    }
+
+    private bool IsLocalMember(object member, MemberModifiers declared)
+    {
+        return localMembers?.Invoke(member) ?? declared.IsLocal;
     }
 
     private bool IsReadonlyAccessor(PropertyAccessor? accessor)
@@ -111,88 +130,79 @@ internal sealed class ReadonlyInference
         return true;
     }
 
-    private static bool Writes(object member, List<object> callees)
+    private bool Writes(object member, List<object> callees)
     {
-        foreach(var node in Roots(member).SelectMany(BodyWalker.DescendantsAndSelf))
+        foreach(var root in Roots(member))
         {
-            switch(node)
+            var origins = new Origins(root, member, ScopeKind.Readonly);
+
+            foreach(var node in BodyWalker.DescendantsAndSelf(root))
             {
-                case AssignmentExpression assignment when Target(assignment.Target) is { } written:
-                    if(!Privileged(member, written))
-                    {
-                        return true;
-                    }
-
-                    break;
-
-                case AssignmentExpression indexed when IndexedWriteTargetName(indexed.Target) is not null:
+                if(Writes(node, origins, member, callees))
+                {
                     return true;
-
-                case AssignmentExpression { Target: BackingFieldReferenceExpression or PropertyReferenceExpression }:
-                case AssignmentExpression { Target: MemberAccessExpression { Member: PropertyResult } }:
-                case AssignmentExpression { Target: IndexExpression { Indexer: not null } }:
-                    return true;
-
-                case IndexExpression { Indexer: { } indexer }:
-                    if(UnprovenGetter(indexer.Modifiers.IsReadonly, indexer.Getter, callees))
-                    {
-                        return true;
-                    }
-
-                    break;
-
-                // An intrinsic operator is the target's own arithmetic, with no body that could write.
-                case BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } binaryOperator }:
-                    if(Unproven(binaryOperator, callees))
-                    {
-                        return true;
-                    }
-
-                    break;
-
-                case UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator }:
-                    if(Unproven(unaryOperator, callees))
-                    {
-                        return true;
-                    }
-
-                    break;
-
-                case InvocationExpression invocation:
-                    if(Unproven(invocation.Method, callees))
-                    {
-                        return true;
-                    }
-
-                    break;
-
-                case NewExpression allocation:
-                    if(Unproven(allocation.Constructor, callees))
-                    {
-                        return true;
-                    }
-
-                    break;
-
-                case PropertyReferenceExpression { Property: { } read }:
-                    if(UnprovenGetter(read.Modifiers.IsReadonly, read.Getter, callees))
-                    {
-                        return true;
-                    }
-
-                    break;
-
-                case MemberAccessExpression { Member: PropertyResult { Property: { } accessed } }:
-                    if(UnprovenGetter(accessed.Modifiers.IsReadonly, accessed.Getter, callees))
-                    {
-                        return true;
-                    }
-
-                    break;
+                }
             }
         }
 
         return false;
+    }
+
+    // An intrinsic operator is the target's own arithmetic, with no body that could write.
+    private bool Writes(object node, Origins origins, object member, List<object> callees)
+    {
+        return node switch
+        {
+            AssignmentExpression assignment => Writes(assignment.Target, origins, member),
+            IndexExpression { Indexer: { } indexer } indexed =>
+                !OwnLocalCallee(indexer.Getter, indexer.Modifiers, origins.Of(indexed.Receiver))
+                && UnprovenGetter(indexer.Modifiers.IsReadonly, indexer.Getter, callees),
+            BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } binaryOperator } => Unproven(binaryOperator, callees),
+            UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator } => Unproven(unaryOperator, callees),
+            InvocationExpression invocation => !OwnLocalCallee(invocation, origins) && Unproven(invocation.Method, callees),
+            NewExpression allocation => Unproven(allocation.Constructor, callees),
+            PropertyReferenceExpression { Property: { } read } => UnprovenGetter(read.Modifiers.IsReadonly, read.Getter, callees),
+            MemberAccessExpression { Member: PropertyResult { Property: { } accessed } } access =>
+                !OwnLocalCallee(accessed.Getter, accessed.Modifiers, HolderOf(origins, access))
+                && UnprovenGetter(accessed.Modifiers.IsReadonly, accessed.Getter, callees),
+            _ => false,
+        };
+    }
+
+    private static bool Writes(Expression target, Origins origins, object member)
+    {
+        return target switch
+        {
+            _ when Target(target) is { } written => !Privileged(member, written) && HolderOf(origins, target) is not Origin.Own,
+            IndexExpression index => HolderOf(origins, target) is not Origin.Own && (IndexedWriteTargetName(target) is not null || index.Indexer is not null),
+            BackingFieldReferenceExpression or PropertyReferenceExpression => true,
+            MemberAccessExpression { Member: PropertyResult } => HolderOf(origins, target) is not Origin.Own,
+            _ => false,
+        };
+    }
+
+    private bool OwnLocalCallee(InvocationExpression invocation, Origins origins)
+    {
+        return invocation.Method is { Modifiers: { IsStatic: false } modifiers } callee
+            && ThisTiers.ReceiverOf(invocation) is { } receiver
+            && origins.Of(receiver) is Origin.Own
+            && IsLocalMember(callee, modifiers);
+    }
+
+    private bool OwnLocalCallee(PropertyAccessor? getter, MemberModifiers owner, Origin holder)
+    {
+        return getter is not null && !owner.IsStatic && holder is Origin.Own && IsLocalMember(getter, owner);
+    }
+
+    public static Origin HolderOf(Origins origins, Expression target)
+    {
+        return target switch
+        {
+            MemberAccessExpression { Member: FieldResult { Field.Modifiers.IsStatic: true } or PropertyResult { Property.Modifiers.IsStatic: true } } => Origin.External,
+            MemberAccessExpression access => origins.Of(access.Receiver),
+            IndexExpression index => origins.Of(index.Receiver),
+            _ => origins.This,
+        };
     }
 
     private static bool Privileged(object member, Field written)
@@ -256,6 +266,14 @@ internal sealed class ReadonlyInference
                 if(accessor.ExpressionBody is { } expression)
                 {
                     yield return expression;
+                }
+
+                break;
+
+            case LambdaExpression lambda:
+                if(((object?)lambda.Body ?? lambda.Result) is { } lambdaBody)
+                {
+                    yield return lambdaBody;
                 }
 
                 break;

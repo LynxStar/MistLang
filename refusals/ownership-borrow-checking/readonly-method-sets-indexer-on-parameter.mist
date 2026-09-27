@@ -21,9 +21,8 @@ public class Grid
 
 public class Probe
 {
-    public readonly int Fill()
+    public readonly int Fill(Grid grid)
     {
-        var grid = new Grid();
         // REFUSE: MIST_PA_READONLY_CONTEXT_SETS_PROPERTY
         grid[0] = 1;
         return grid[0];
@@ -32,7 +31,8 @@ public class Probe
     public static void Main()
     {
         var p = new Probe();
-        var f = p.Fill();
+        var g = new Grid();
+        var f = p.Fill(g);
         Console.WriteLine("unreachable");
     }
 }

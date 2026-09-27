@@ -1,0 +1,15 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static void Main()
+    {
+        var total = 0;
+        // REFUSE: MIST_PA_PURE_SCOPE_WRITES
+        var f = pure (int n) => { total = n; return n; };
+        var r = f(1);
+        Console.WriteLine("unreachable");
+    }
+}

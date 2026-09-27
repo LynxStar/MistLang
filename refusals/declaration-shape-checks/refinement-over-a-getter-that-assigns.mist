@@ -5,12 +5,12 @@ namespace Refusal;
 public class Jar
 {
     readonly int size = 1;
+    int held;
 
     public int Size
     {
         get
         {
-            int held = 0;
             held = size;
             return held;
         }

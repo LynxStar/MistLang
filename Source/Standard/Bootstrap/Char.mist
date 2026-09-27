@@ -3,23 +3,23 @@ namespace Standard;
 intrinsic public readonly owned struct Char : IClonable<Char>
 {
     // IClonable base case — value-type identity copy (Requirement 8.6)
-    intrinsic public owned Char Clone();
+    intrinsic public pure owned Char Clone();
 
     // Comparison and equality operators — Requirement 3.7
-    intrinsic public static Boolean operator ==(Char a, Char b);
-    intrinsic public static Boolean operator !=(Char a, Char b);
-    intrinsic public static Boolean operator <(Char a, Char b);
-    intrinsic public static Boolean operator >(Char a, Char b);
-    intrinsic public static Boolean operator <=(Char a, Char b);
-    intrinsic public static Boolean operator >=(Char a, Char b);
+    intrinsic public pure static Boolean operator ==(Char a, Char b);
+    intrinsic public pure static Boolean operator !=(Char a, Char b);
+    intrinsic public pure static Boolean operator <(Char a, Char b);
+    intrinsic public pure static Boolean operator >(Char a, Char b);
+    intrinsic public pure static Boolean operator <=(Char a, Char b);
+    intrinsic public pure static Boolean operator >=(Char a, Char b);
 
     // Implicit widening conversions
-    intrinsic public static implicit operator UInt16(Char value);
-    intrinsic public static implicit operator Int32(Char value);
-    intrinsic public static implicit operator UInt32(Char value);
-    intrinsic public static implicit operator Int64(Char value);
-    intrinsic public static implicit operator UInt64(Char value);
-    intrinsic public static implicit operator Single(Char value);
-    intrinsic public static implicit operator Double(Char value);
-    intrinsic public static implicit operator Decimal(Char value);
+    intrinsic public pure static implicit operator UInt16(Char value);
+    intrinsic public pure static implicit operator Int32(Char value);
+    intrinsic public pure static implicit operator UInt32(Char value);
+    intrinsic public pure static implicit operator Int64(Char value);
+    intrinsic public pure static implicit operator UInt64(Char value);
+    intrinsic public pure static implicit operator Single(Char value);
+    intrinsic public pure static implicit operator Double(Char value);
+    intrinsic public pure static implicit operator Decimal(Char value);
 }

@@ -4,6 +4,8 @@ namespace Refusal;
 
 public class Jar
 {
+    int bias;
+
     public int Size
     {
         get { return Other; }
@@ -11,7 +13,7 @@ public class Jar
 
     public int Other
     {
-        get { return Size; }
+        get { return Size + bias; }
     }
 }
 

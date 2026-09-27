@@ -1,0 +1,32 @@
+using Standard;
+
+namespace Refusal;
+
+public class Clock
+{
+    public static int Ticks;
+}
+
+public class Box
+{
+    public int N;
+
+    public Box(int n)
+    {
+        N = n;
+    }
+
+    default {
+        // REFUSE: MIST_PA_DEFAULT_NOT_CONSISTENT
+        N = Clock.Ticks
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var b = default(Box);
+        Console.WriteLine("unreachable");
+    }
+}

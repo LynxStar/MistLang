@@ -21,7 +21,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// does with a hiding interface member. A with block answers the slots of the abstract it names by its
 /// mappings or by the type's own members, and is redundant when the abstract is reached already. A slot
 /// that is `readonly`, which every slot of a readonly abstract is, is answered only by a member that
-/// writes nothing, by its modifier or by <see cref="ReadonlyInference"/>: readonly-contexts Requirement
+/// writes nothing, by its modifier or by <see cref="PurityInference"/>: readonly-contexts Requirement
 /// 13, which holds the member and not the conforming type, so a mutable type may meet it.
 /// </summary>
 internal sealed class ConformanceAnalyzer : IProgramAnalyzer
@@ -30,7 +30,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
-        var inference = new ReadonlyInference();
+        var inference = new PurityInference(context);
 
         foreach(var type in context.Types)
         {
@@ -51,7 +51,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void CheckConformances(AnalysisContext context, ReadonlyInference inference, ConcreteType concrete, List<Filler> fillers)
+    private static void CheckConformances(AnalysisContext context, PurityInference inference, ConcreteType concrete, List<Filler> fillers)
     {
         var reached = concrete.BaseAbstractTypes.Select(Name).ToHashSet(StringComparer.Ordinal);
 
@@ -74,7 +74,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
     }
 
     private static void CheckSlots(
-        AnalysisContext context, ReadonlyInference inference, ConcreteType concrete, SyntaxNode at, AbstractType abstractType,
+        AnalysisContext context, PurityInference inference, ConcreteType concrete, SyntaxNode at, AbstractType abstractType,
         TypeSubstitution substitution, List<Filler> fillers, ConformanceDeclaration? mappings)
     {
         var interner = context.Model.TypeInterner;

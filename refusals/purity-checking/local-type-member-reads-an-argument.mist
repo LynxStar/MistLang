@@ -1,0 +1,25 @@
+using Standard;
+
+namespace Refusal;
+
+public local class Acc
+{
+    public int Total;
+
+    public int Peek(Acc other)
+    {
+        // REFUSE: MIST_PA_LOCAL_SCOPE_READS_ARGUMENT
+        return other.Total;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var a = new Acc();
+        var b = new Acc();
+        var p = a.Peek(b);
+        Console.WriteLine("unreachable");
+    }
+}

@@ -1,0 +1,21 @@
+using Standard;
+
+namespace Refusal;
+
+public class Ops
+{
+    public static pure int Apply(func<int, int> f)
+    {
+        // REFUSE: MIST_PA_PURE_SCOPE_CALLS_IMPURE
+        return f(1);
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var r = Ops.Apply(n => n + 1);
+        Console.WriteLine("unreachable");
+    }
+}

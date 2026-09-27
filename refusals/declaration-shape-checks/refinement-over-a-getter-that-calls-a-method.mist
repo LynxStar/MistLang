@@ -4,7 +4,7 @@ namespace Refusal;
 
 public class Jar
 {
-    readonly int size = 1;
+    int size = 1;
 
     public int Size
     {

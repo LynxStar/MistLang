@@ -3,23 +3,23 @@ namespace Standard;
 intrinsic public readonly owned struct Double : IClonable<Double>
 {
     // IClonable base case — value-type identity copy (Requirement 8.6)
-    intrinsic public owned Double Clone();
+    intrinsic public pure owned Double Clone();
 
     // Binary arithmetic operators — Requirement 3.1
-    intrinsic public static Double operator +(Double a, Double b);
-    intrinsic public static Double operator -(Double a, Double b);
-    intrinsic public static Double operator *(Double a, Double b);
-    intrinsic public static Double operator /(Double a, Double b);
-    intrinsic public static Double operator %(Double a, Double b);
+    intrinsic public pure static Double operator +(Double a, Double b);
+    intrinsic public pure static Double operator -(Double a, Double b);
+    intrinsic public pure static Double operator *(Double a, Double b);
+    intrinsic public pure static Double operator /(Double a, Double b);
+    intrinsic public pure static Double operator %(Double a, Double b);
 
     // Comparison operators — Requirement 3.2
-    intrinsic public static Boolean operator <(Double a, Double b);
-    intrinsic public static Boolean operator >(Double a, Double b);
-    intrinsic public static Boolean operator <=(Double a, Double b);
-    intrinsic public static Boolean operator >=(Double a, Double b);
-    intrinsic public static Boolean operator ==(Double a, Double b);
-    intrinsic public static Boolean operator !=(Double a, Double b);
+    intrinsic public pure static Boolean operator <(Double a, Double b);
+    intrinsic public pure static Boolean operator >(Double a, Double b);
+    intrinsic public pure static Boolean operator <=(Double a, Double b);
+    intrinsic public pure static Boolean operator >=(Double a, Double b);
+    intrinsic public pure static Boolean operator ==(Double a, Double b);
+    intrinsic public pure static Boolean operator !=(Double a, Double b);
 
     // Unary negation — Requirement 3.3
-    intrinsic public static Double operator -(Double a);
+    intrinsic public pure static Double operator -(Double a);
 }

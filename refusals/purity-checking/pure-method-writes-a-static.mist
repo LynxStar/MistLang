@@ -1,0 +1,24 @@
+using Standard;
+
+namespace Refusal;
+
+public class Tally
+{
+    public static int Count;
+
+    public static pure int Bump()
+    {
+        // REFUSE: MIST_PA_PURE_SCOPE_WRITES
+        Count = 1;
+        return 1;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var b = Tally.Bump();
+        Console.WriteLine("unreachable");
+    }
+}

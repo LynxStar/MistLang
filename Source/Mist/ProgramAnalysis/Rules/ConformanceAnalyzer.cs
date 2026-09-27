@@ -93,13 +93,13 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                         ProgramAnalysisDiagnostics.SlotReturnNotOwned, answering.DeclarationNode ?? at, [],
                         TypeDisplay.Mist(concrete), SlotSignatures.Display(slot, substitution, interner), TypeDisplay.Mist(abstractType), answering.Name);
                 }
-                else if(slot is { Body: null, Modifiers.IsReadonly: true } && !inference.IsReadonly(answering))
+                else if(slot is { Modifiers.IsReadonly: true } && !inference.IsReadonly(answering))
                 {
                     ReportContract(context, concrete, abstractType, answering.Name, answering.DeclarationNode ?? at);
                 }
                 else
                 {
-                    _ = CheckPromise(context, inference, concrete, abstractType, slot.Name, slot.Modifiers, answering.Name, answering, answering.DeclarationNode ?? at);
+                    _ = CheckPromise(context, inference.ThroughSlot(slot, answering), concrete, abstractType, slot.Name, slot.Modifiers, answering.Name, answering.DeclarationNode ?? at);
                 }
 
                 continue;
@@ -197,14 +197,14 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
     {
         foreach(var (required, answering) in AnsweringAccessors(slotGetter, slotSetter, getter, setter))
         {
-            if(!CheckPromise(context, inference, concrete, abstractType, slot, required.OwnModifiers ?? declared, member, answering, at))
+            if(!CheckPromise(context, inference.Of(answering), concrete, abstractType, slot, required.OwnModifiers ?? declared, member, at))
             {
                 break;
             }
         }
     }
 
-    private static Indexer? AnsweringIndexer(ConcreteType concrete, Indexer slot, TypeSubstitution substitution, TypeInterner interner)
+    internal static Indexer? AnsweringIndexer(ConcreteType concrete, Indexer slot, TypeSubstitution substitution, TypeInterner interner)
     {
         var chain = TypeSubstitution.Empty;
 
@@ -245,8 +245,8 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
     }
 
     private static bool CheckPromise(
-        AnalysisContext context, PurityInference inference, ConcreteType concrete, AbstractType abstractType,
-        string slot, MemberModifiers declared, string member, object answering, SyntaxNode at)
+        AnalysisContext context, Promise kept, ConcreteType concrete, AbstractType abstractType,
+        string slot, MemberModifiers declared, string member, SyntaxNode at)
     {
         var required = Promise.Declared(declared);
 
@@ -254,8 +254,6 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         {
             return true;
         }
-
-        var kept = inference.Of(answering);
 
         if(required.Meet(kept) == required)
         {

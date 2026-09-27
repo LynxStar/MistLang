@@ -278,7 +278,7 @@ internal static class PostfixBinder
         {
             using(ctx.PushTargetType(null))
             {
-                guard = OperatorBinder.BindVoidCoalescing(when.Condition, ctx, context);
+                guard = StatementBinder.AsCondition(OperatorBinder.BindVoidCoalescing(when.Condition, ctx, context), context);
             }
         }
 

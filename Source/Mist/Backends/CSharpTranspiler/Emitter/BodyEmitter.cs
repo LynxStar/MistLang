@@ -105,7 +105,7 @@ internal static class BodyEmitter
         {
             var type = TypeNameEmitter.Emit(binding.ContextType);
 
-            writer.WriteLine($"var {binding.Identifier} = ({type})MistContext.Peek<{type}>();");
+            writer.WriteLine($"var {binding.Identifier} = ({type})MistContext.Peek<{TypeNameEmitter.EmitContextKey(binding.ContextType)}>();");
         }
     }
 
@@ -364,6 +364,43 @@ internal static class BodyEmitter
     /// ones. The type arguments come off the CALLEE rather than being re-derived, so an inferred one
     /// reaches here already substituted -- the emitter runs no inference of its own.
     /// </summary>
+    private static void EmitOperand(
+        Expression operand, Operator? declared, int position, int precedence, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(declared is { Modifiers.IsIntrinsic: false } && position < declared.ParametersList.Count
+            && OverloadPinning.CastFor(operand, declared.ParametersList[position], declared) is { } pinned)
+        {
+            writer.Append($"(({pinned})");
+            EmitSubExpression(operand, PrefixPrecedence, writer, diagnostics);
+            writer.Append(")");
+            return;
+        }
+
+        EmitSubExpression(operand, precedence, writer, diagnostics);
+    }
+
+    private static void EmitCarrierCall(
+        InvocationExpression call, MemberAccessExpression callee, string carrier, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(AsyncPromotion.IsPromoted(call.Method))
+        {
+            writer.Append("await ");
+        }
+
+        var (arguments, parameters) = ExtensionBlockEmitter.CallTypeArguments(call.Method, callee.TypeArguments);
+        writer.Append($"{carrier}.{CalleeName(call.Method!.Name, arguments, parameters)}{EmitTypeArguments(arguments, parameters)}(");
+        EmitExpression(callee.Receiver, writer, diagnostics);
+
+        if(call.Arguments.Count > 0 || (callee.TypeArguments.Count > 0 && DefaultConstraintWitness.Arguments(call.Method.TypeParametersList, callee.TypeArguments).Count > 0))
+        {
+            writer.Append(", ");
+        }
+
+        EmitWitnesses(call, writer, diagnostics);
+        EmitArguments(call.Arguments, call.Method.ParametersList, writer, diagnostics, call.Method);
+        writer.Append(")");
+    }
+
     private static void EmitWitnesses(
         InvocationExpression invocation, CSharpWriter writer, DiagnosticBag diagnostics)
     {
@@ -404,7 +441,8 @@ internal static class BodyEmitter
         IReadOnlyList<Expression> arguments,
         IReadOnlyList<Parameter>? parameters,
         CSharpWriter writer,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Method? callee = null)
     {
         // The call site is FLAT and the parameter is one tuple, which is the whole of what `params`
         // means on the value side. C# has no such convention, so the arguments the pack absorbs are
@@ -432,6 +470,14 @@ internal static class BodyEmitter
             if(arguments[i] is SpreadExpression spread && TupleWidth(spread.Operand.Type) is { } width)
             {
                 EmitTupleElements(spread.Operand, width, writer, diagnostics);
+                continue;
+            }
+
+            if(parameters is not null && i < parameters.Count && OverloadPinning.CastFor(arguments[i], parameters[i], callee) is { } pinned)
+            {
+                writer.Append($"(({pinned})");
+                EmitSubExpression(arguments[i], PrefixPrecedence, writer, diagnostics);
+                writer.Append(")");
                 continue;
             }
 
@@ -610,7 +656,7 @@ internal static class BodyEmitter
         // The KEY the value is filed under, which a form may have written and which is not the
         // value's own type -- see WithBlockStatement.KeyType. The drop below still asks the VALUE
         // what it owes, those being different questions about the same instance.
-        var type = TypeNameEmitter.Emit(withBlock.KeyType);
+        var type = TypeNameEmitter.EmitContextKey(withBlock.KeyType);
 
         EmitSequenced(withBlock.Value, $"var {bound} = ", writer, diagnostics);
         writer.WriteLine($"MistContext.Push<{type}>({bound});");
@@ -889,6 +935,11 @@ internal static class BodyEmitter
                 ReportMissingIntrinsic(IntrinsicSupply.Describe(unsupplied), missing.Node, writer, diagnostics);
                 break;
 
+            case InvocationExpression { Receiver: MemberAccessExpression { IsConditional: false } extended } extension
+                when ExtensionCalls.Carrier(extension.Method) is { } carrier:
+                EmitCarrierCall(extension, extended, carrier, writer, diagnostics);
+                break;
+
             case InvocationExpression invocation:
                 // A PROMOTED callee's task exists only in the emitted C#, so the model carries no
                 // await for it and one is written here. See AsyncPromotion.
@@ -922,7 +973,7 @@ internal static class BodyEmitter
 
                 writer.Append("(");
                 EmitWitnesses(invocation, writer, diagnostics);
-                EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, writer, diagnostics);
+                EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, writer, diagnostics, invocation.Method);
                 writer.Append(")");
                 break;
 
@@ -962,9 +1013,9 @@ internal static class BodyEmitter
                 break;
 
             case BinaryExpression binary:
-                EmitSubExpression(binary.Left, GetPrecedence(binary.OperatorKind), writer, diagnostics);
+                EmitOperand(binary.Left, binary.Operator, 0, GetPrecedence(binary.OperatorKind), writer, diagnostics);
                 writer.Append($" {MapBinaryOperator(binary.OperatorKind)} ");
-                EmitSubExpression(binary.Right, GetPrecedence(binary.OperatorKind) + 1, writer, diagnostics);
+                EmitOperand(binary.Right, binary.Operator, 1, GetPrecedence(binary.OperatorKind) + 1, writer, diagnostics);
                 break;
 
             case UnaryExpression unary when NarrowArithmetic.Promotes(unary.Type):
@@ -974,7 +1025,7 @@ internal static class BodyEmitter
 
             case UnaryExpression unary:
                 writer.Append(MapUnaryOperator(unary.OperatorKind));
-                EmitSubExpression(unary.Operand, PrefixPrecedence, writer, diagnostics);
+                EmitOperand(unary.Operand, unary.Operator, 0, PrefixPrecedence, writer, diagnostics);
                 break;
 
             case IsPatternExpression isPattern:
@@ -1058,7 +1109,19 @@ internal static class BodyEmitter
             case IndexExpression elementAccess:
                 EmitSubExpression(elementAccess.Receiver, PostfixPrecedence, writer, diagnostics);
                 writer.Append("[");
-                EmitExpression(elementAccess.Index, writer, diagnostics);
+
+                if(elementAccess.Indexer is { ParametersList: [var slot] } indexer
+                    && OverloadPinning.CastFor(elementAccess.Index, slot.Type, OverloadPinning.Overloaded(indexer)) is { } pinnedIndex)
+                {
+                    writer.Append($"(({pinnedIndex})");
+                    EmitSubExpression(elementAccess.Index, PrefixPrecedence, writer, diagnostics);
+                    writer.Append(")");
+                }
+                else
+                {
+                    EmitExpression(elementAccess.Index, writer, diagnostics);
+                }
+
                 writer.Append("]");
                 break;
 
@@ -2333,7 +2396,7 @@ internal static class BodyEmitter
 
         writer.Append(target);
         EmitArguments(
-            newExpression.Arguments, newExpression.Constructor?.ParametersList, writer, diagnostics);
+            newExpression.Arguments, newExpression.Constructor?.ParametersList, writer, diagnostics, newExpression.Constructor);
         writer.Append(")");
 
         if(initialized is { } entries)

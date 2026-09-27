@@ -4,7 +4,6 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
-using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -36,7 +35,7 @@ internal enum ScopeKind
 /// with no enclosing scope is a body root of its own -- an initializer or an expression body that IS a
 /// lambda -- whose parameters are inputs like a member's.
 /// </summary>
-internal sealed class Origins
+internal sealed partial class Origins
 {
     private readonly Origins? enclosing;
     private readonly bool capturesAreInputs;
@@ -46,8 +45,10 @@ internal sealed class Origins
     private readonly HashSet<LocalVariable> fresh = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<LocalVariable> aliased = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<LocalVariable> assigned = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<LocalVariable> escaped = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<LocalVariable, Expression> refTargets = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<LocalVariable, Bound> bound = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<LocalVariable, Expression> leased = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<LocalVariable, LambdaExpression> heldLambdas = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<Method, LocalFunctionStatement> functions = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<object, Origin> captures = new(ReferenceEqualityComparer.Instance);
@@ -93,17 +94,22 @@ internal sealed class Origins
         return expression switch
         {
             NewExpression allocation when IsView(allocation.Type) => Origin.External,
-            NewExpression or ArrayCreationExpression or ArrayLiteralExpression or TupleLiteralExpression
-                or AnonymousObjectExpression or CloneExpression or StackallocExpression or LambdaExpression
+            NewExpression allocation => ThisTiers.IsValue(allocation.Type) || !ThisEscapes.Of(allocation) ? Origin.Own : Origin.External,
+            CloneExpression clone => OfClone(clone),
+            ArrayCreationExpression or ArrayLiteralExpression or TupleLiteralExpression
+                or AnonymousObjectExpression or StackallocExpression or LambdaExpression
                 or DefaultExpression or LiteralExpression or RegexLiteralExpression or InterpolatedStringExpression
                 or VoidLiteralExpression or RangeExpression or TypeLiteralExpression or ErrorExpression
                 or UnresolvedExpression or UnboundLambdaExpression => Origin.Own,
             TypeReferenceExpression or NamespaceReferenceExpression or MethodGroupExpression
                 or MethodReferenceExpression or FunctionReferenceExpression => Origin.External,
-            InvocationExpression call when ReturnsOwned(call) => Origin.Own,
+            InvocationExpression call when ReturnsOwned(call) => OfOwnedReturn(call),
+            InvocationExpression { Method.Modifiers.IsRef: true } or IndexExpression { Indexer.Modifiers.IsRef: true }
+                or MemberAccessExpression { Member: PropertyResult { Property.Modifiers.IsRef: true } }
+                or PropertyReferenceExpression { Property.Modifiers.IsRef: true } => OfReferent(expression),
             ImplicitConversionExpression { Operator: null } conversion => Of(conversion.Operand),
-            CastExpression { Operator: null } cast => Of(cast.Operand),
-            AsExpression converted => Of(converted.Operand),
+            CastExpression { Operator: null } cast => Narrows(cast.Operand.Type, cast.Type) ? Origin.External : Of(cast.Operand),
+            AsExpression converted => Narrows(converted.Operand.Type, converted.Type) ? Origin.External : Of(converted.Operand),
             SpreadExpression spread => Of(spread.Operand),
             AssignmentExpression assignment => Of(assignment.Value),
             CoalesceExpression coalesce => Worst(Of(coalesce.Left), Of(coalesce.Right)),
@@ -112,7 +118,7 @@ internal sealed class Origins
             ThisExpression => This,
             FieldReferenceExpression field => Through(This, field.Field, thisType),
             MemberAccessExpression { Member: FieldResult found } access => Through(Of(access.Receiver), found.Field, HolderTypeOf(access.Receiver)),
-            MemberAccessExpression { Member: EnumMemberResult } => Origin.Own,
+            MemberAccessExpression { Member: EnumMemberResult } variant => IsUnchangeable(variant.Type) ? Origin.Own : Origin.External,
             BackingFieldReferenceExpression backing => Through(This, backing.Property, thisType),
             IndexExpression { Indexer: null } element => ThisTiers.IsValue(element.Type) ? Of(element.Receiver) : Origin.External,
             _ => ThisTiers.IsValue(expression.Type) && !IsView(expression.Type) ? Origin.Own : Origin.External,
@@ -135,7 +141,7 @@ internal sealed class Origins
 
         if(ThisTiers.IsValue(field.Type))
         {
-            return holder;
+            return IsView(field.Type) ? Origin.External : holder;
         }
 
         return ThisTiers.IsOwned(field) && (holderType is null || !ThisTiers.IsValue(holderType)) ? holder : Origin.External;
@@ -163,7 +169,7 @@ internal sealed class Origins
             TypeAlias { AliasedType: { } aliased } => IsView(aliased),
             RefinedType refined => IsView(refined.BaseType),
             ConstructedType constructed => IsView(constructed.Definition),
-            _ => type is StructType { IsRef: true },
+            _ => type is StructType { IsRef: true } or StructType { IsIntrinsic: true, Modifiers.IsReadonly: false },
         };
     }
 
@@ -191,6 +197,16 @@ internal sealed class Origins
         return left > right ? left : right;
     }
 
+    public bool InitializesStatics(MistType? declaring)
+    {
+        return declaring is not null && Member switch
+        {
+            TypeInitializer initializer => ReferenceEquals(initializer.Type, declaring),
+            Constructor { Modifiers.IsStatic: true } constructor => ReferenceEquals(constructor.DeclaringType, declaring),
+            _ => false,
+        };
+    }
+
     public bool IsOwnBinding(LocalVariable local)
     {
         return !IsClosure || own.Contains(local);
@@ -208,7 +224,7 @@ internal sealed class Origins
             return enclosing!.ReadableCapture(local);
         }
 
-        return local.IsReadonly || (!aliased.Contains(local) && !assigned.Contains(local));
+        return !assigned.Contains(local) && (local.IsReadonly || !aliased.Contains(local));
     }
 
     public Origin OfCaptures(object closure)
@@ -270,14 +286,64 @@ internal sealed class Origins
 
     public static bool IsUnchangeable(IMistType type)
     {
+        return IsUnchangeable(type, new HashSet<MemberType>(ReferenceEqualityComparer.Instance));
+    }
+
+    private static bool IsUnchangeable(IMistType type, HashSet<MemberType> visiting)
+    {
         return type switch
         {
-            LiftedType lifted => IsUnchangeable(lifted.Type),
-            UnionType union => union.Constituents.All(IsUnchangeable),
-            INamedTupleType named => IsUnchangeable(named.Underlying),
-            ITupleType tuple => tuple.ElementTypes.All(IsUnchangeable),
-            _ => ThisTiers.IsValue(type) || Declarations.IsReadonly(type) || OptionalUnion.IsVoid(type) || IsString(type),
+            LiftedType lifted => IsUnchangeable(lifted.Type, visiting),
+            UnionType union => union.Constituents.All(constituent => IsUnchangeable(constituent, visiting)),
+            INamedTupleType named => IsUnchangeable(named.Underlying, visiting),
+            ITupleType tuple => tuple.ElementTypes.All(element => IsUnchangeable(element, visiting)),
+            TypeAlias { AliasedType: { } aliased } => IsUnchangeable(aliased, visiting),
+            RefinedType refined => IsUnchangeable(refined.BaseType, visiting),
+            Newtype { SourceType: { } source } => IsUnchangeable(source, visiting),
+            _ when ThisTiers.IsValue(type) => !IsView(type),
+            EnumType { UnderlyingType: { } underlying } => IsUnchangeable(underlying, visiting),
+            _ when OptionalUnion.IsVoid(type) || IsString(type) || type is EnumType => true,
+            _ => Declarations.IsReadonly(type) && HoldsNothingChangeable(type, visiting),
         };
+    }
+
+    /// <summary>
+    /// A readonly type promises that no member writes it, not that nothing it holds can change: an
+    /// owned field of a mutable class, or a settable property's storage (readonly-contexts base rule
+    /// 12), is state a second reference can still reach and change. An intrinsic type has no fields
+    /// here to look at, so its declaration is taken at its word; an abstract one could be implemented
+    /// by anything.
+    /// </summary>
+    private static bool HoldsNothingChangeable(IMistType type, HashSet<MemberType> visiting)
+    {
+        var constructed = type as ConstructedType;
+
+        switch(constructed?.Definition ?? type)
+        {
+            case ConcreteType { IsIntrinsic: true }:
+                return true;
+
+            case ConcreteType concrete when visiting.Add(concrete):
+                var fields = concrete.FieldsList.Where(field => !field.Modifiers.IsStatic).Select(field => field.Type);
+                var properties = concrete.PropertiesList.Where(property => property is { HasBackingStorage: true, Modifiers.IsStatic: false }).ToList();
+
+                return properties.TrueForAll(property => property.Setter is null or { IsInit: true })
+                    && fields.Concat(properties.Select(property => property.Type))
+                        .All(held => IsUnchangeable(Closed(held, concrete, constructed), visiting));
+
+            case ConcreteType:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private static IMistType Closed(IMistType declared, ConcreteType definition, ConstructedType? constructed)
+    {
+        var index = declared is TypeParameter parameter ? definition.TypeParametersList.IndexOf(parameter) : -1;
+
+        return constructed is not null && index >= 0 && index < constructed.TypeArguments.Count ? constructed.TypeArguments[index] : declared;
     }
 
     private static bool IsString(IMistType type)
@@ -287,7 +353,66 @@ internal sealed class Origins
 
     private static bool ReturnsOwned(InvocationExpression call)
     {
-        return call.Method is { } method && (method.Modifiers.IsOwned || method.ReturnOwnership == OwnershipKind.Owned);
+        return call.Method is { } method && ReturnsOwned(method);
+    }
+
+    private static bool ReturnsOwned(Method method)
+    {
+        return method.Modifiers.IsOwned || method.ReturnOwnership == OwnershipKind.Owned;
+    }
+
+    private Origin OfOwnedReturn(InvocationExpression call)
+    {
+        if(call.Method is not { DeclaredThisTier: ThisTier.Owned, Modifiers.IsStatic: false })
+        {
+            return Origin.Own;
+        }
+
+        return ThisTiers.ReceiverOf(call) is { } receiver ? Of(receiver) : This;
+    }
+
+    private Origin OfClone(CloneExpression clone)
+    {
+        if(IsOwnCopy(clone.Type))
+        {
+            return Origin.Own;
+        }
+
+        return PurityJudge.CloneOf(clone.Type) switch
+        {
+            { DeclaredThisTier: ThisTier.Owned } method when ReturnsOwned(method) => Of(clone.Source),
+            { } method when ReturnsOwned(method) => Origin.Own,
+            _ => Origin.External,
+        };
+    }
+
+    public static bool Narrows(IMistType from, IMistType to)
+    {
+        return IsUnchangeable(from) && !IsUnchangeable(to);
+    }
+
+    public Expression? ReferentOf(LocalVariable local)
+    {
+        return refTargets.TryGetValue(local, out var referent) ? referent : null;
+    }
+
+    public bool IsOwnedSlot(Expression referent)
+    {
+        return Unwrapped(referent) switch
+        {
+            FieldReferenceExpression field => ThisTiers.IsOwned(field.Field),
+            MemberAccessExpression { Member: FieldResult found } => ThisTiers.IsOwned(found.Field),
+            MemberAccessExpression { Member: PropertyResult { Property.Modifiers: var modifiers } } => modifiers.IsRef || modifiers is { IsOwned: true, IsStatic: false },
+            PropertyReferenceExpression { Property.Modifiers: var modifiers } => modifiers.IsRef || modifiers is { IsOwned: true, IsStatic: false },
+            InvocationExpression { Method.Modifiers.IsRef: true } or IndexExpression { Indexer.Modifiers.IsRef: true } => true,
+            LocalReferenceExpression { Local: { IsRef: true } local } => ReferentOf(local) is { } inner && IsOwnedSlot(inner),
+            _ => false,
+        };
+    }
+
+    public bool Escapes(LocalVariable local)
+    {
+        return escaped.Contains(local);
     }
 
     private bool InstanceIsOwn => Kind is ScopeKind.Local or ScopeKind.LocalReadonly;
@@ -328,7 +453,7 @@ internal sealed class Origins
 
             if(capturesAreInputs)
             {
-                return !local.IsRef && IsOwnCopy(local.Type) && ReadableCapture(local) ? Origin.Own : Origin.External;
+                return !local.IsRef && IsOwnCopy(local.Type) && ReadableCapture(local) ? Origin.Frozen : Origin.External;
             }
 
             return enclosing!.OfLocal(local);
@@ -337,14 +462,64 @@ internal sealed class Origins
         return local switch
         {
             { Ownership: OwnershipKind.Owned } => Origin.Own,
-            { Ownership: OwnershipKind.Frozen } => Origin.Frozen,
-            { IsRef: true, Parameter: null } => refTargets.TryGetValue(local, out var target) ? Of(target) : Origin.External,
+            { Ownership: OwnershipKind.Frozen } when assigned.Contains(local) => Origin.External,
+            { Ownership: OwnershipKind.Frozen } => leased.TryGetValue(local, out var lender) ? Worst(Origin.Frozen, Of(lender)) : Origin.Frozen,
+            { IsRef: true, Parameter: null } => refTargets.TryGetValue(local, out var target) ? OfReferent(target) : Origin.External,
             { IsRef: true } => Origin.External,
-            { Parameter.IsFlattened: true } => Origin.Own,
-            _ when bound.TryGetValue(local, out var source) => ThroughHops(Of(source.Scrutinee), source.Hops),
+            { Parameter.IsFlattened: true } when local.Type is not ITupleType && assigned.Contains(local) => Origin.External,
+            { Parameter.IsFlattened: true } => local.Type is ITupleType ? Origin.Own : Origin.Frozen,
+            _ when bound.TryGetValue(local, out var source) && !assigned.Contains(local) && !aliased.Contains(local) =>
+                source.Narrowed ? Origin.External : source.Unboxed ? Origin.Own : ThroughHops(Of(source.Scrutinee), source.Hops),
+            _ when bound.ContainsKey(local) => IsOwnCopy(local.Type) ? Origin.Own : Origin.External,
             _ when fresh.Contains(local) || IsOwnCopy(local.Type) => Origin.Own,
             _ => Origin.External,
         };
+    }
+
+    public Origin OfReferent(Expression referent)
+    {
+        var (byRef, isStatic, receiver) = Unwrapped(referent) switch
+        {
+            InvocationExpression { Method: { } method } call => (method.Modifiers.IsRef, method.Modifiers.IsStatic, ThisTiers.ReceiverOf(call)),
+            IndexExpression { Indexer: { } indexer } index => (indexer.Modifiers.IsRef, false, index.Receiver),
+            MemberAccessExpression { Member: PropertyResult { Property: var property } } access => (property.Modifiers.IsRef, property.Modifiers.IsStatic, access.Receiver),
+            PropertyReferenceExpression { Property: var property } => (property.Modifiers.IsRef, property.Modifiers.IsStatic, null),
+            _ => (false, false, null),
+        };
+
+        if(!byRef)
+        {
+            return Of(referent);
+        }
+
+        if(isStatic || Kind is ScopeKind.Readonly)
+        {
+            return Origin.External;
+        }
+
+        return Worst(receiver is null ? This : Of(receiver), Lent(Unwrapped(referent)));
+    }
+
+    private Origin Lent(Expression call)
+    {
+        var (arguments, parameters) = call switch
+        {
+            InvocationExpression invocation => (invocation.Arguments, invocation.Method?.ParametersList),
+            IndexExpression index => ([index.Index], null),
+            _ => ([], null),
+        };
+
+        var origin = Origin.Own;
+
+        for(var i = 0; i < arguments.Count; i++)
+        {
+            if(!IsUnchangeable(arguments[i].Type) || (parameters is not null && i < parameters.Count && parameters[i].Modifier.IsRef))
+            {
+                origin = Worst(origin, Of(arguments[i]));
+            }
+        }
+
+        return origin;
     }
 
     private static bool IsOwnCopy(IMistType type)
@@ -361,212 +536,4 @@ internal sealed class Origins
 
         return origin;
     }
-
-    private void Survey(IReadOnlyList<object> inside)
-    {
-        var values = new Dictionary<LocalVariable, List<Expression>>(ReferenceEqualityComparer.Instance);
-
-        foreach(var node in inside)
-        {
-            switch(node)
-            {
-                case LocalDeclarationStatement declaration:
-                    values[declaration.Local] = declaration.Initializer is { } initializer ? [initializer] : [];
-
-                    if(declaration.Local.IsRef && declaration.Initializer is { } referent)
-                    {
-                        refTargets[declaration.Local] = referent;
-                        MarkAliased(referent);
-                    }
-
-                    break;
-
-                case WithBlockStatement { Binding: { } binding } ambient:
-                    values[binding] = [ambient.Value];
-                    break;
-
-                case AssignmentExpression { Target: LocalReferenceExpression target } assignment:
-                    _ = assigned.Add(target.Local);
-
-                    if(values.TryGetValue(target.Local, out var list))
-                    {
-                        list.Add(assignment.Value);
-                    }
-
-                    break;
-
-                case AssignmentExpression { Target: var target }:
-                    MarkStructAssigned(ReceiverOf(target));
-                    break;
-
-                case InvocationExpression invocation:
-                    MarkByRef(invocation.Arguments, invocation.Method?.ParametersList);
-                    MarkStructAssigned(ThisTiers.ReceiverOf(invocation));
-                    break;
-
-                case NewExpression allocation:
-                    MarkByRef(allocation.Arguments, allocation.Constructor?.ParametersList);
-                    break;
-
-                case LocalFunctionStatement function:
-                    functions[function.Function] = function;
-                    break;
-
-                case IsPatternExpression test:
-                    BindPattern(test.Pattern, test.Scrutinee, []);
-                    break;
-
-                case SwitchExpression chosen:
-                    foreach(var arm in chosen.Arms)
-                    {
-                        BindPattern(arm.Pattern, chosen.Scrutinee, []);
-                    }
-
-                    break;
-            }
-        }
-
-        foreach(var (local, _) in values)
-        {
-            if(!aliased.Contains(local) && !local.IsRef)
-            {
-                _ = fresh.Add(local);
-            }
-        }
-
-        var changed = true;
-
-        while(changed)
-        {
-            changed = false;
-
-            foreach(var local in fresh.ToList())
-            {
-                if(values[local].Exists(value => Of(value) != Origin.Own))
-                {
-                    _ = fresh.Remove(local);
-                    changed = true;
-                }
-            }
-        }
-
-        foreach(var (local, list) in values)
-        {
-            if(!assigned.Contains(local) && !aliased.Contains(local) && list is [var only] && Unwrapped(only) is LambdaExpression lambda)
-            {
-                heldLambdas[local] = lambda;
-            }
-        }
-    }
-
-    private void BindPattern(Pattern? pattern, Expression scrutinee, IReadOnlyList<Hop> hops)
-    {
-        if(pattern?.Binding is { } binding)
-        {
-            bound[binding] = new Bound(scrutinee, hops);
-        }
-
-        switch(pattern)
-        {
-            case PropertyPattern property:
-                BindPattern(property.TypeTest, scrutinee, hops);
-
-                foreach(var subpattern in property.Subpatterns)
-                {
-                    if(subpattern.Member is FieldResult { Field: var field })
-                    {
-                        BindPattern(subpattern.Pattern, scrutinee, [.. hops, new Hop(field, property.NarrowedType)]);
-                    }
-                }
-
-                break;
-
-            case ConjunctionPattern conjunction:
-                foreach(var operand in conjunction.Operands)
-                {
-                    BindPattern(operand, scrutinee, hops);
-                }
-
-                break;
-
-            case DisjunctionPattern disjunction:
-                foreach(var operand in disjunction.Operands)
-                {
-                    BindPattern(operand, scrutinee, hops);
-                }
-
-                break;
-
-            case NegatedPattern negated:
-                BindPattern(negated.Operand, scrutinee, hops);
-                break;
-
-            case TypeTestPattern { Refinement: { } refinement }:
-                BindPattern(refinement, scrutinee, hops);
-                break;
-        }
-    }
-
-    private static Expression Unwrapped(Expression expression)
-    {
-        return expression is ImplicitConversionExpression { Operator: null } conversion ? Unwrapped(conversion.Operand) : expression;
-    }
-
-    private void MarkByRef(IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
-    {
-        if(parameters is null)
-        {
-            return;
-        }
-
-        for(var i = 0; i < arguments.Count && i < parameters.Count; i++)
-        {
-            if(parameters[i].Modifier.IsRef)
-            {
-                MarkAliased(arguments[i]);
-            }
-        }
-    }
-
-    private void MarkAliased(Expression argument)
-    {
-        if(argument is LocalReferenceExpression reference)
-        {
-            _ = aliased.Add(reference.Local);
-        }
-    }
-
-    private void MarkStructAssigned(Expression? receiver)
-    {
-        if(receiver is not null && StructRoot(receiver) is { } root)
-        {
-            _ = assigned.Add(root);
-        }
-    }
-
-    private static LocalVariable? StructRoot(Expression expression)
-    {
-        return expression switch
-        {
-            LocalReferenceExpression reference when ThisTiers.IsValue(reference.Local.Type) => reference.Local,
-            MemberAccessExpression { Member: FieldResult } access when ThisTiers.IsValue(access.Receiver.Type) => StructRoot(access.Receiver),
-            IndexExpression { Indexer: null } index when ThisTiers.IsValue(index.Receiver.Type) => StructRoot(index.Receiver),
-            _ => null,
-        };
-    }
-
-    private static Expression? ReceiverOf(Expression target)
-    {
-        return target switch
-        {
-            MemberAccessExpression access => access.Receiver,
-            IndexExpression index => index.Receiver,
-            ExtensionPropertyAccessExpression extension => extension.Receiver,
-            _ => null,
-        };
-    }
-
-    private sealed record Bound(Expression Scrutinee, IReadOnlyList<Hop> Hops);
-
-    private readonly record struct Hop(Field Field, IMistType HolderType);
 }

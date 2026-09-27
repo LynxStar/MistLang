@@ -150,7 +150,7 @@ internal static class StatementBinder
         BuilderContext context,
         IMistType? keyType = null)
     {
-        var value = ExpressionBinder.BindExpression(initializer, ctx, context);
+        var value = BindKeyed(initializer, keyType, ctx, context);
         var scope = new BodyScope(ctx.Scope);
         LocalVariable? local = null;
 
@@ -162,6 +162,24 @@ internal static class StatementBinder
 
         var block = BodyBinder.BindStatementList(bodyNode, body, scope, ctx, context);
         return new WithBlockStatement(value, block, local, keyType);
+    }
+
+    private static Expression BindKeyed(ExpressionNode initializer, IMistType? keyType, BindingContext ctx, BuilderContext context)
+    {
+        if(keyType is null)
+        {
+            return ExpressionBinder.BindExpression(initializer, ctx, context);
+        }
+
+        Expression value;
+
+        using(ctx.PushTargetType(keyType))
+        {
+            value = ExpressionBinder.BindExpression(initializer, ctx, context);
+        }
+
+        var interner = context.ProgramModel.TypeInterner;
+        return ImplicitConversions.At(NewtypeLiterals.Admit(value, keyType, interner)!, keyType, interner);
     }
 
     private static Statement BindWithBlock(
@@ -443,7 +461,12 @@ internal static class StatementBinder
         var condition = ExpressionBinder.BindExpression(node, ctx, context);
         ctx.Scope = enclosing;
 
-        return condition;
+        return AsCondition(condition, context);
+    }
+
+    internal static Expression AsCondition(Expression condition, BuilderContext context)
+    {
+        return ImplicitConversions.DeclaredAt(condition, context.Resolver.LookupWellKnown(WellKnownTypes.Boolean), context.ProgramModel.TypeInterner);
     }
 
     private static ForStatement BindFor(ForStatementNode node, BindingContext ctx, BuilderContext context)
@@ -462,7 +485,7 @@ internal static class StatementBinder
         Expression? condition = null;
         if(node.Condition is not null)
         {
-            condition = ExpressionBinder.BindExpression(node.Condition, ctx, context);
+            condition = AsCondition(ExpressionBinder.BindExpression(node.Condition, ctx, context), context);
         }
 
         Expression? iterator = null;

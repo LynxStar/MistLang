@@ -73,6 +73,59 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
                 {
                     JudgeDefaults(concrete);
                 }
+                else if(type is ConcreteType { Modifiers.IsPure: true } promised && !promised.ConstructorsList.Exists(constructor => !constructor.Modifiers.IsStatic))
+                {
+                    JudgeImplicitConstructor(promised);
+                }
+
+                if(type is MemberType member)
+                {
+                    JudgeAutoSetters(member);
+                }
+            }
+        }
+
+        private void JudgeImplicitConstructor(ConcreteType type)
+        {
+            var scope = ScopeDescription.Of(ScopeKind.Pure, type);
+
+            foreach(var initializer in PurityInference.ImplicitConstructorInitializers(type))
+            {
+                Report(PurityJudge.Judge(initializer, ScopeKind.Pure, scope, new Origins(initializer, type, ScopeKind.Pure), inference.Of));
+            }
+
+            if(PurityJudge.JudgeChain(type, ScopeKind.Pure, scope, inference.Of) is { } chain)
+            {
+                Report([chain]);
+            }
+        }
+
+        private void JudgeAutoSetters(MemberType type)
+        {
+            foreach(var property in type.PropertiesList)
+            {
+                if(property is { Getter: { IsAuto: true } getter, Setter: { IsInit: false } written, DeclarationNode: { } read }
+                    && KindOf(getter.OwnModifiers ?? property.Modifiers) is ScopeKind.Pure
+                    && KindOf(written.OwnModifiers ?? property.Modifiers) is not (ScopeKind.Pure or ScopeKind.LocalReadonly))
+                {
+                    context.Report(
+                        ProgramAnalysisDiagnostics.PureScopeReadsMutable, read, [],
+                        $"the storage of '{property.Name}'", ScopeDescription.Of(ScopeKind.Pure, property),
+                        "its setter can change it between reads, so an auto getter over it keeps local readonly at most");
+                }
+
+                if(property is not { Setter: { IsAuto: true, IsInit: false } setter, DeclarationNode: { } at }
+                    || KindOf(setter.OwnModifiers ?? property.Modifiers) is not ScopeKind.Pure and not ScopeKind.LocalReadonly)
+                {
+                    continue;
+                }
+
+                var kind = KindOf(setter.OwnModifiers ?? property.Modifiers)!.Value;
+
+                context.Report(
+                    ProgramAnalysisDiagnostics.PureScopeWrites, at, [],
+                    $"the storage of '{property.Name}'", ScopeDescription.Of(kind, property),
+                    $"an auto setter does nothing but write it, and a {ScopeDescription.Spell(kind)} setter writes nothing outside what it owns");
             }
         }
 
@@ -189,6 +242,30 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
                 context.Report(
                     ProgramAnalysisDiagnostics.PureFunctionRequired, reference.Node, [reference],
                     reference.Method.Name, TypeDisplay.Mist(reference.Type), "pure only while its receiver is frozen, a loan the function value outlives");
+            }
+            else if(reference.Method.ParametersList.Find(parameter => parameter.Modifier.Ownership is OwnershipKind.Frozen or OwnershipKind.Owned) is { } lent)
+            {
+                var tier = lent.Modifier.Ownership == OwnershipKind.Frozen ? "lent frozen" : "moved in";
+
+                context.Report(
+                    ProgramAnalysisDiagnostics.PureFunctionRequired, reference.Node, [reference],
+                    reference.Method.Name, TypeDisplay.Mist(reference.Type),
+                    $"pure only while its argument for '{lent.Name}' is {tier}, which a call through the function value never does");
+            }
+            else if(reference.Method.ContextBindingsList is [var ambient, ..])
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.PureFunctionRequired, reference.Node, [reference],
+                    reference.Method.Name, TypeDisplay.Mist(reference.Type),
+                    $"pure only given the ambient '{TypeDisplay.Mist(ambient.ContextType)}' it reads, an input a call through the function value does not supply");
+            }
+            else if(reference.Method is { Modifiers.IsStatic: true, DeclaringType: ConcreteType declaring }
+                && TypeInitializer.Of(declaring) is { IsPrecise: true } initializer && !inference.Of(initializer).Pure)
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.PureFunctionRequired, reference.Node, [reference],
+                    reference.Method.Name, TypeDisplay.Mist(reference.Type),
+                    $"pure only once the static initializers of '{declaring.Name}' have run, and a call through the function value can be the first use of the type");
             }
         }
 

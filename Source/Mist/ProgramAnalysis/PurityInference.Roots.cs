@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -31,6 +32,8 @@ internal sealed partial class PurityInference
             {
                 Note(property);
             }
+
+            shadowed.UnionWith(block.MethodsList.Where(RunsTheObjectsOwn));
         }
 
         foreach(var root in context.Bodies)
@@ -44,7 +47,7 @@ internal sealed partial class PurityInference
                 _ => null,
             };
 
-            if(member is not null)
+            if(member is not null && !(member is Method extension && shadowed.Contains(extension)))
             {
                 Register(member, root.Root);
             }
@@ -54,6 +57,16 @@ internal sealed partial class PurityInference
                 RegisterInitializers(built);
             }
         }
+    }
+
+    /// <summary>
+    /// An extension member the target never calls: C# binds a call spelled on an instance to the
+    /// object's own member before any extension, and every object has these, so the body written here
+    /// is not what runs and the member keeps only what it declares (Requirement 9.1).
+    /// </summary>
+    private static bool RunsTheObjectsOwn(Method method)
+    {
+        return !method.Modifiers.IsStatic && (method.Name, method.ParametersList.Count) is ("ToString", 0) or ("GetHashCode", 0) or ("Equals", 1);
     }
 
     /// <summary>
@@ -88,6 +101,11 @@ internal sealed partial class PurityInference
                 yield return initializer;
             }
         }
+    }
+
+    public static IEnumerable<Expression> ImplicitConstructorInitializers(ConcreteType type)
+    {
+        return Defaultability.IsDefaultable(type) ? [] : InstanceInitializers(type);
     }
 
     internal static PropertyAccessor? AccessorOf(PropertyAccessor? getter, PropertyAccessor? setter, object root)
@@ -193,8 +211,22 @@ internal sealed partial class PurityInference
                 Note(found.Property);
                 break;
 
-            case IndexExpression { Indexer: { } indexer }:
-                Note(indexer);
+            case IndexExpression index:
+                if(index.Indexer is { } indexer)
+                {
+                    Note(indexer);
+                }
+
+                if(index.FromEnd is { } counted)
+                {
+                    Note(counted.Count);
+                }
+
+                break;
+
+            case ListPattern { Reads: { } reads }:
+                Note(reads.Count);
+                Note(reads.Indexer);
                 break;
         }
     }

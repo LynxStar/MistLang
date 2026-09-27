@@ -822,3 +822,14 @@ N(n => n > 1);
 Mist resolves the call (no diagnostic), but the lambda is emitted bare, so Roslyn reports the call ambiguous between `N(Func<int, bool>)` and `N(Predicate<int>)` (MIST_CS_ERROR). The same holds for a method group argument. Nothing about purity is involved; a `pure func` overload beside the delegate one now ranks the pure overload first at the Mist level (LambdaTrials.ComparedType keeps the purity of either side) and meets the same C# ambiguity.
 
 **Action:** when the selected overload has a same-shaped delegate sibling, emit the argument target-typed (`new System.Func<int, bool>(...)` or a cast), and pin it at Tier 4.
+## An extension method is shadowed by a CLR instance member Standard leaves undeclared
+
+Found 2026-09-27 by the purity adversarial rounds (v2). The emitter writes extension calls in dot
+notation, so where the receiver's CLR type has an instance member of the same name and a matching
+signature that Standard's intrinsic declaration omits (`Array.SetValue`), Roslyn binds the instance
+member and the Mist extension never runs. The analysis judges the extension Mist bound, so a pure
+scope can run an unjudged CLR member.
+
+**Action:** emit the call through the extension's carrier class. That needs a link from the method to
+its block, which the model records only on closed generic copies (`ClosedBlock`), not on the methods
+of a non-generic block.

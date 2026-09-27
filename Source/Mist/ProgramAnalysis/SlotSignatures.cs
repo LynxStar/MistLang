@@ -1,3 +1,4 @@
+using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
@@ -64,6 +65,17 @@ internal static class SlotSignatures
         }
 
         return true;
+    }
+
+    public static IEnumerable<ConformanceAnalyzer.Filler> ExactFirst(
+        IEnumerable<ConformanceAnalyzer.Filler> fillers, Method slot, TypeSubstitution substitution, TypeInterner interner)
+    {
+        return fillers.OrderBy(filler => filler.Method is { } method && method.ParametersList.Count == slot.ParametersList.Count
+            && slot.ParametersList.Zip(method.ParametersList).All(pair =>
+                !IsIndeterminate(Structural(filler.Substitution.Apply(pair.Second.Type, interner)))
+                || IsIndeterminate(Structural(substitution.Apply(pair.First.Type, interner))))
+            ? 0
+            : 1);
     }
 
     public static bool ReturnsOwned(Method method)

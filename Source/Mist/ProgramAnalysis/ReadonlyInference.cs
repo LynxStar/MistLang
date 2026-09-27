@@ -12,7 +12,7 @@ namespace Mist.ProgramAnalysis;
 /// reason: both answer what a BODY does, and one walk with two questions beats two walkers that can
 /// disagree. The rules are the readonly-contexts spec's base rules (Req 11) read as a classification --
 /// a field written, a setter called, a callee that is not readonly, an allocation through a constructor
-/// that is not -- with a constructor privileged to assign the fields of its own type (Req 10.7), and
+/// that is not -- with a constructor privileged to assign the fields of the instance it builds (Req 10.7), and
 /// with the purity spec's amendment (its Req 11): a write to what the context owns by
 /// <see cref="Origins"/>, and a call to a local member on such a receiver, are not writes of the
 /// context. What a callee without a body here keeps -- an abstract slot, whose promise is its
@@ -40,7 +40,7 @@ namespace Mist.ProgramAnalysis;
 /// was handed writes the caller's storage.
 /// </para>
 /// </summary>
-internal sealed class ReadonlyInference(Func<object, Promise>? inferred = null)
+internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred = null)
 {
     private readonly Dictionary<object, bool> settled = new(ReferenceEqualityComparer.Instance);
 
@@ -52,6 +52,11 @@ internal sealed class ReadonlyInference(Func<object, Promise>? inferred = null)
     public bool IsReadonly(ConcreteType type)
     {
         return type.Modifiers.IsReadonly || Settle(type);
+    }
+
+    public bool IsReadonly(TypeInitializer initializer)
+    {
+        return Settle(initializer);
     }
 
     public bool IsReadonlyGetter(Property property)
@@ -185,26 +190,46 @@ internal sealed class ReadonlyInference(Func<object, Promise>? inferred = null)
             }
         }
 
-        return false;
+        return PurityJudge.ChainedOf(member) switch
+        {
+            Constructor chained => Unproven(chained, callees),
+            ConcreteType chained => Unproven(chained, callees),
+            _ => false,
+        };
     }
 
     // An intrinsic operator is the target's own arithmetic, with no body that could write.
     private bool Writes(object node, Origins origins, object member, List<object> callees)
     {
-        return node switch
+        return Triggers(node, member, callees) || node switch
         {
-            AssignmentExpression assignment => Writes(assignment.Target, origins, member) || StoresUnowned(origins, assignment),
+            AssignmentExpression assignment => Deconstructions.Pairs(assignment).Any(pair => Writes(pair.Target, origins, member) || StoresUnowned(origins, pair.Target, pair.Value)),
             ObjectInitializerAssignment entry => StoresUnowned(origins, entry) || EntryWrites(entry, callees),
             IndexExpression { Indexer: { } indexer } indexed =>
-                !OwnLocalCallee(indexer.Getter, indexer.Modifiers, origins.Of(indexed.Receiver))
-                && UnprovenGetter(indexer.Getter, indexer.Modifiers, indexer.DeclaringType, callees),
+                CountWrites(indexed.FromEnd, origins.Of(indexed.Receiver), callees)
+                || (!OwnLocalCallee(indexer.Getter, indexer.Modifiers, origins.Of(indexed.Receiver))
+                    && UnprovenGetter(indexer.Getter, indexer.Modifiers, indexer.DeclaringType, callees)),
+            IndexExpression { FromEnd: { } counted } indexed => CountWrites(counted, origins.Of(indexed.Receiver), callees),
+            ListPattern { Reads: { } reads } => CountWrites(reads, Origin.External, callees)
+                || UnprovenGetter(reads.Indexer.Getter, reads.Indexer.Modifiers, reads.Indexer.DeclaringType, callees),
             BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } binaryOperator } => Unproven(binaryOperator, callees),
             UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator } => Unproven(unaryOperator, callees),
             CastExpression { Operator: { Modifiers.IsIntrinsic: false } conversion } => Unproven(conversion, callees),
             ImplicitConversionExpression { Operator: { Modifiers.IsIntrinsic: false } conversion } => Unproven(conversion, callees),
             CloneExpression clone => CloneWrites(clone, origins, callees),
-            InvocationExpression invocation => !OwnLocalCallee(invocation, origins) && Unproven(invocation.Method, callees),
+            InvocationExpression { Method: null } call => CallsFunctionValue(call, origins, callees),
+            InvocationExpression invocation => (!OwnLocalCallee(invocation, origins) && Unproven(invocation.Method, callees))
+                || ComparesWriting(ElementComparisons.Of(invocation, out _), callees),
+            BinaryExpression { Operator: null } comparison => ComparesWriting(ElementComparisons.OfAnonymous(comparison), callees),
             NewExpression { Constructor: { } constructor } => Unproven(constructor, callees),
+            DefaultExpression fallback when PurityJudge.DefaultsTypeParameter(fallback) => true,
+            DefaultExpression fallback => PurityJudge.DefaultChainOf(fallback) switch
+            {
+                Constructor chained => Unproven(chained, callees),
+                ConcreteType chained => Unproven(chained, callees),
+                _ => false,
+            },
+            NewExpression allocation when PurityJudge.AllocatesTypeParameter(allocation) => true,
             NewExpression allocation => PurityJudge.ImplicitConstructorOf(allocation) is { } type && Unproven(type, callees),
             PropertyReferenceExpression { Property: { } read } => UnprovenGetter(read.Getter, read.Modifiers, read.DeclaringType, callees),
             MemberAccessExpression { Member: PropertyResult { Property: { } accessed } } access =>
@@ -224,8 +249,10 @@ internal sealed class ReadonlyInference(Func<object, Promise>? inferred = null)
     {
         return target switch
         {
-            _ when Target(target) is { } written => !Privileged(member, written) && HolderOf(origins, target) is not Origin.Own,
+            _ when Target(target) is { } written => !Privileged(member, target, written) && HolderOf(origins, target) is not Origin.Own,
+            ThisExpression => member is not (Constructor or ConcreteType) && origins.This is not Origin.Own,
             LocalReferenceExpression { Local.IsRef: true } => origins.Of(target) is not Origin.Own,
+            InvocationExpression { Method.Modifiers.IsRef: true } => origins.OfReferent(target) is not Origin.Own,
             IndexExpression { Indexer: { } indexer } => HolderOf(origins, target) is not Origin.Own || !LocalSetter(indexer.Setter, indexer.Modifiers),
             IndexExpression => HolderOf(origins, target) is not Origin.Own,
             BackingFieldReferenceExpression or PropertyReferenceExpression => true,
@@ -233,6 +260,18 @@ internal sealed class ReadonlyInference(Func<object, Promise>? inferred = null)
             ExtensionPropertyAccessExpression { Property: var extended } => HolderOf(origins, target) is not Origin.Own || !LocalSetter(extended.Setter, extended.Modifiers),
             _ => false,
         };
+    }
+
+    private bool ComparesWriting(IReadOnlyList<Method>? compared, List<object> callees)
+    {
+        return compared is not null && compared.Any(callee => Unproven(callee, callees));
+    }
+
+    private bool CountWrites(CountedIndexer? counted, Origin holder, List<object> callees)
+    {
+        return counted is { Count: var count }
+            && !OwnLocalCallee(count.Getter, count.Modifiers, holder)
+            && UnprovenGetter(count.Getter, count.Modifiers, count.DeclaringType, callees);
     }
 
     private bool EntryWrites(ObjectInitializerAssignment entry, List<object> callees)
@@ -258,7 +297,12 @@ internal sealed class ReadonlyInference(Func<object, Promise>? inferred = null)
     {
         var holder = origins.Of(loop.Collection);
 
-        foreach(var method in new[] { loop.GetEnumerator, loop.MoveNext })
+        if(ClrCallbacks.IsUnrecorded(loop))
+        {
+            return true;
+        }
+
+        foreach(var method in new[] { loop.GetEnumerator, loop.MoveNext, ClrCallbacks.DisposeOf(loop) })
         {
             if(method is not null && !(holder is Origin.Own && IsLocalMember(method, method.Modifiers)) && Unproven(method, callees))
             {
@@ -277,18 +321,20 @@ internal sealed class ReadonlyInference(Func<object, Promise>? inferred = null)
     /// field or property of something the context owns. The write itself is admitted by the amendment;
     /// this is the one write of what a context owns that it may not make.
     /// </summary>
-    public static bool StoresUnowned(Origins origins, AssignmentExpression assignment)
+    public static bool StoresUnowned(Origins origins, Expression target, Expression value)
     {
-        var owned = assignment.Target switch
+        var owned = target switch
         {
             FieldReferenceExpression field => ThisTiers.IsOwned(field.Field),
             MemberAccessExpression { Member: FieldResult found } => ThisTiers.IsOwned(found.Field),
             PropertyReferenceExpression property => property.Property.Modifiers is { IsOwned: true, IsStatic: false },
             MemberAccessExpression { Member: PropertyResult found } => found.Property.Modifiers is { IsOwned: true, IsStatic: false },
+            LocalReferenceExpression { Local.IsRef: true } local => origins.ReferentOf(local.Local) is { } referent && origins.IsOwnedSlot(referent),
+            InvocationExpression { Method.Modifiers.IsRef: true } => true,
             _ => false,
         };
 
-        return owned && HolderOf(origins, assignment.Target) is Origin.Own && Unowned(origins, assignment.Value);
+        return owned && HolderOf(origins, target) is Origin.Own && Unowned(origins, value);
     }
 
     public static bool StoresUnowned(Origins origins, ObjectInitializerAssignment entry)
@@ -335,20 +381,23 @@ internal sealed class ReadonlyInference(Func<object, Promise>? inferred = null)
             ExtensionPropertyAccessExpression extension => origins.Of(extension.Receiver),
             IndexExpression index => origins.Of(index.Receiver),
             LocalReferenceExpression local => origins.Of(local),
+            InvocationExpression call => origins.OfReferent(call),
             _ => origins.This,
         };
     }
 
-    private static bool Privileged(object member, Field written)
+    private static bool Privileged(object member, Expression target, Field written)
     {
-        var built = member switch
+        var (built, statics) = member switch
         {
-            Constructor constructor => constructor.DeclaringType,
-            ConcreteType type => type,
-            _ => null,
+            Constructor constructor => (constructor.DeclaringType, constructor.Modifiers.IsStatic),
+            ConcreteType type => (type, false),
+            TypeInitializer { Type: var initialized } => (initialized, true),
+            _ => (null, false),
         };
 
-        return built is not null && ReferenceEquals(written.DeclaringType, built);
+        return built is not null && ReferenceEquals(written.DeclaringType, built) && written.Modifiers.IsStatic == statics
+            && (statics || target is FieldReferenceExpression or MemberAccessExpression { Receiver: ThisExpression });
     }
 
     private bool Unproven(Method? callee, List<object> callees)
@@ -447,9 +496,17 @@ internal sealed class ReadonlyInference(Func<object, Promise>? inferred = null)
                 break;
 
             case ConcreteType type:
-                foreach(var initializer in PurityInference.InstanceInitializers(type))
+                foreach(var initializer in PurityInference.ImplicitConstructorInitializers(type))
                 {
                     yield return initializer;
+                }
+
+                break;
+
+            case TypeInitializer initializer:
+                foreach(var root in initializer.Initializers())
+                {
+                    yield return root;
                 }
 
                 break;

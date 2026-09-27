@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
@@ -49,7 +50,9 @@ internal readonly record struct Promise(bool Readonly, bool Local, bool Pure)
 /// last round's inference is the one every caller reads. A declared promise is trusted whatever the
 /// body does, since the analyzer reports the body and a caller refused on top of that would be a second
 /// complaint. A bodiless member keeps what it declares; an abstract member that declares nothing keeps
-/// what every implementation in scope keeps, a default body meeting the members that replace it; a body
+/// what every implementation in scope keeps, a default body meeting the members that replace it --
+/// unless the CLR can implement it too, a projected interface's or Standard's enumerables', whose
+/// implementers the meet never sees, so it keeps only what it declares; a body
 /// first met as a callee, such as a clone's, joins the fixpoint then. A type's implicit constructor is a
 /// member here too, keyed by the type: its body is the type's instance initializers, and an allocation
 /// through it is a call to it.
@@ -66,6 +69,7 @@ internal sealed partial class PurityInference(AnalysisContext context)
     private readonly Dictionary<object, IReadOnlyList<object>> implementations = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<ConcreteType, List<ConformanceAnalyzer.Filler>> fillers = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<object, Promise> settled = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<Method> shadowed = new(ReferenceEqualityComparer.Instance);
     private ReadonlyInference readonlyInference = new();
     private bool built;
     private bool running;
@@ -191,12 +195,18 @@ internal sealed partial class PurityInference(AnalysisContext context)
 
     private Promise Answer(object member)
     {
+        if(member is Method extension && (shadowed.Contains(extension) || (extension.ClosedBlock is not null && RunsTheObjectsOwn(extension))))
+        {
+            return Promise.None;
+        }
+
         if(inferred.TryGetValue(member, out var current))
         {
-            var kept = DeclaredOf(member).Join(current);
+            var declared = DeclaredOf(member);
+            var kept = declared.Join(current);
 
-            return member is Method { DeclaringType: AbstractType abstractType, Modifiers.IsStatic: false } slot && DeclaredOf(member) == Promise.None
-                ? ImplementationsOf(slot, abstractType).Select(Answer).Aggregate(kept, (left, right) => left.Meet(right))
+            return member is Method { DeclaringType: AbstractType abstractType, Modifiers.IsStatic: false } slot
+                ? ImplementationsOf(slot, abstractType).Select(filler => Through(slot, filler)).Aggregate(kept, (left, right) => left.Meet(right)).Join(declared)
                 : kept;
         }
 
@@ -211,6 +221,7 @@ internal sealed partial class PurityInference(AnalysisContext context)
             PropertyAccessor { Body: not null } accessor => Discover(accessor),
             PropertyAccessor { ExpressionBody: not null } accessor => Discover(accessor),
             ConcreteType type => Discover(type),
+            TypeInitializer initializer => Discover(initializer),
             Method method => Bodiless(method),
             PropertyAccessor accessor => Bodiless(accessor),
             LambdaExpression lambda => Promise.Declared(new MemberModifiers { IsPure = lambda.IsPure, IsReadonly = lambda.IsPure, IsLocal = lambda.IsLocal }),
@@ -265,13 +276,30 @@ internal sealed partial class PurityInference(AnalysisContext context)
             _ = inferred.TryAdd(type, Promise.All);
             dirty = true;
 
-            foreach(var initializer in InstanceInitializers(type))
+            foreach(var initializer in ImplicitConstructorInitializers(type))
             {
                 Register(type, initializer);
             }
         }
 
         return Answer(type);
+    }
+
+    private Promise Discover(TypeInitializer initializer)
+    {
+        if(!roots.ContainsKey(initializer))
+        {
+            roots[initializer] = [];
+            _ = inferred.TryAdd(initializer, Promise.All);
+            dirty = true;
+
+            foreach(var root in initializer.Initializers())
+            {
+                Register(initializer, root);
+            }
+        }
+
+        return Answer(initializer);
     }
 
     private Promise Bodiless(Method method)
@@ -283,12 +311,32 @@ internal sealed partial class PurityInference(AnalysisContext context)
 
         var declared = Promise.Declared(method.Modifiers);
 
-        if(method.DeclaringType is AbstractType abstractType && !method.Modifiers.IsStatic && declared == Promise.None)
+        if(method.DeclaringType is AbstractType abstractType && !method.Modifiers.IsStatic && declared == Promise.None && !ClrImplements(abstractType, method.Modifiers))
         {
-            return ImplementationsOf(method, abstractType).Select(Answer).Aggregate(Promise.All, (left, right) => left.Meet(right));
+            return ImplementationsOf(method, abstractType).Select(filler => Through(method, filler)).Aggregate(Promise.All, (left, right) => left.Meet(right));
         }
 
         return declared;
+    }
+
+    /// <summary>
+    /// What an implementation keeps for a caller that reaches it through the slot: a context it reads
+    /// that the slot does not declare is an input that caller never supplies, so it is neither pure nor
+    /// local there, however its own body is judged against the context it declares.
+    /// </summary>
+    public Promise ThroughSlot(Method slot, object filler)
+    {
+        return Settled(() => Through(slot, filler));
+    }
+
+    private Promise Through(Method slot, object filler)
+    {
+        var kept = Answer(filler);
+
+        return filler is Method implementation
+            && implementation.ContextBindingsList.Exists(needed => !slot.ContextBindingsList.Exists(binding => binding.ContextType.FullyQualifiedName == needed.ContextType.FullyQualifiedName))
+                ? new Promise(kept.Readonly, false, false)
+                : kept;
     }
 
     private Promise Bodiless(PropertyAccessor accessor)
@@ -302,7 +350,7 @@ internal sealed partial class PurityInference(AnalysisContext context)
 
         if(owner.DeclaringType is AbstractType abstractType && !owner.Modifiers.IsStatic)
         {
-            return declared == Promise.None
+            return declared == Promise.None && !ClrImplements(abstractType, owner.Modifiers)
                 ? ImplementationsOf(accessor, abstractType).Select(Answer).Aggregate(Promise.All, (left, right) => left.Meet(right))
                 : declared;
         }
@@ -318,6 +366,13 @@ internal sealed partial class PurityInference(AnalysisContext context)
         }
 
         return declared.Join(StableStorage(owner) ? new Promise(true, false, true) : new Promise(true, true, false));
+    }
+
+    private static bool ClrImplements(AbstractType abstractType, MemberModifiers slot)
+    {
+        return slot.IsClrProjected
+            || abstractType.FullyQualifiedName == WellKnownTypes.IEnumerable.FullyQualifiedName
+            || abstractType.FullyQualifiedName == WellKnownTypes.IEnumerator.FullyQualifiedName;
     }
 
     private static bool StableStorage(AccessorOwner owner)
@@ -347,6 +402,7 @@ internal sealed partial class PurityInference(AnalysisContext context)
             PropertyAccessor accessor => accessors.TryGetValue(accessor, out var owner) && ReadonlyAccessor(accessor, owner),
             LambdaExpression lambda => lambda.IsPure || readonlyInference.IsReadonly(lambda),
             ConcreteType type => readonlyInference.IsReadonly(type),
+            TypeInitializer initializer => readonlyInference.IsReadonly(initializer),
             _ => false,
         };
     }

@@ -282,7 +282,7 @@ internal static partial class PatternBinder
 
         if(ctx.Scope.Lookup(new LookupRequest(qualifiedName[..lastDot], MemberVisibility.None, node))
             is not TypeResult { Type: EnumType enumType }
-            || !enumType.MembersList.Exists(member => member.Name == variantName))
+            || enumType.MembersList.Find(member => member.Name == variantName) is not { } variant)
         {
             return null;
         }
@@ -290,7 +290,7 @@ internal static partial class PatternBinder
         context.ProgramModel.TypeNamings.Record(enumType, ctx.Scope, node);
 
         return new MemberAccessExpression(
-            node, new TypeReferenceExpression(node, enumType), variantName, enumType);
+            node, new TypeReferenceExpression(node, enumType), variantName, enumType, member: new EnumMemberResult(variant, enumType));
     }
 
     private static TypeTestPattern BindTypeTest(

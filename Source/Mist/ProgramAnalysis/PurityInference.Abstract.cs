@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -51,11 +52,17 @@ internal sealed partial class PurityInference
     private Method? AnsweringMethod(ConcreteType concrete, Method slot, TypeSubstitution substitution, TypeInterner interner)
     {
         var mapped = concrete.ConformancesList.SelectMany(conformance => conformance.Mappings).OfType<MethodMapping>()
-            .FirstOrDefault(mapping => mapping.TargetName == slot.Name && SlotSignatures.Answers(slot, mapping.Source, substitution, interner));
+            .FirstOrDefault(mapping => mapping.TargetName == slot.Name && Declares(mapping.Declarer, slot.DeclaringType)
+                && SlotSignatures.Answers(slot, mapping.Source, substitution, interner));
 
         return mapped?.Source
-            ?? FillersOf(concrete).Find(filler => filler.Method is { } method && method.Name == slot.Name
+            ?? SlotSignatures.ExactFirst(FillersOf(concrete), slot, substitution, interner).FirstOrDefault(filler => filler.Method is { } method && method.Name == slot.Name
                 && SlotSignatures.Answers(slot, method, substitution.Extend(filler.Substitution), interner))?.Method;
+    }
+
+    private static bool Declares(IMistType declarer, MemberType? slotOwner)
+    {
+        return ReferenceEquals(PurityJudge.DefinitionOf(declarer), slotOwner);
     }
 
     private PropertyAccessor? AnsweringAccessor(ConcreteType concrete, PropertyAccessor slot, TypeSubstitution substitution, TypeInterner interner)
@@ -65,7 +72,7 @@ internal sealed partial class PurityInference
         if(owner.Property is { } property)
         {
             var mapped = concrete.ConformancesList.SelectMany(conformance => conformance.Mappings).OfType<PropertyMapping>()
-                .FirstOrDefault(mapping => mapping.TargetName == property.Name
+                .FirstOrDefault(mapping => mapping.TargetName == property.Name && Declares(mapping.Declarer, property.DeclaringType)
                     && SlotSignatures.Agree(substitution.Apply(property.Type, interner), mapping.Source.Type));
 
             var answering = mapped?.Source
@@ -75,21 +82,9 @@ internal sealed partial class PurityInference
             return owner.IsSetter ? answering?.Setter : answering?.Getter;
         }
 
-        var indexer = owner.Indexer!;
+        var answered = ConformanceAnalyzer.AnsweringIndexer(concrete, owner.Indexer!, substitution, interner);
 
-        for(var current = concrete; current is not null; current = current.BaseType as ConcreteType)
-        {
-            var answering = current.IndexersList.Find(candidate => candidate.ParametersList.Count == indexer.ParametersList.Count
-                && SlotSignatures.Agree(substitution.Apply(indexer.Type, interner), candidate.Type)
-                && candidate.ParametersList.Zip(indexer.ParametersList).All(pair => SlotSignatures.Agree(substitution.Apply(pair.Second.Type, interner), pair.First.Type)));
-
-            if(answering is not null)
-            {
-                return owner.IsSetter ? answering.Setter : answering.Getter;
-            }
-        }
-
-        return null;
+        return owner.IsSetter ? answered?.Setter : answered?.Getter;
     }
 
     private List<ConformanceAnalyzer.Filler> FillersOf(ConcreteType concrete)

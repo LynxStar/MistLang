@@ -26,14 +26,37 @@ internal static class ImplicitConversions
         return called.Count == 0 ? value : new ImplicitConversionExpression(value.Node, value, target, called);
     }
 
+    public static Expression DeclaredAt(Expression value, IMistType target, TypeInterner interner)
+    {
+        return At(value, target, interner) is ImplicitConversionExpression { Operator.Modifiers.IsIntrinsic: false } converted ? converted : value;
+    }
+
     public static IReadOnlyList<Expression> AtParameters(
         IReadOnlyList<Expression> arguments, Method? method, IReadOnlyList<IMistType>? parameterTypes, TypeInterner interner)
     {
-        if(parameterTypes is null || (method is not null && ValuePack.FlattenedSlot(method.ParametersList) is not null))
+        if(parameterTypes is null)
         {
             return arguments;
         }
 
-        return [.. arguments.Select((argument, i) => i < parameterTypes.Count ? At(argument, parameterTypes[i], interner) : argument)];
+        if(method is null || ValuePack.FlattenedSlot(method.ParametersList) is not { } flattened)
+        {
+            return [.. arguments.Select((argument, i) => i < parameterTypes.Count ? At(argument, parameterTypes[i], interner) : argument)];
+        }
+
+        if(flattened >= parameterTypes.Count || Indexability.ArrayElement(parameterTypes[flattened]) is not { } element)
+        {
+            return arguments;
+        }
+
+        var parameters = method.ParametersList;
+        var expanded = arguments.Count != parameters.Count || Indexability.ArrayElement(arguments[flattened].Type) is null;
+
+        return [.. arguments.Select((argument, i) =>
+        {
+            var slot = ValuePack.SlotOf(parameters, arguments.Count, i);
+
+            return slot >= parameterTypes.Count ? argument : At(argument, slot == flattened && expanded ? element : parameterTypes[slot], interner);
+        })];
     }
 }

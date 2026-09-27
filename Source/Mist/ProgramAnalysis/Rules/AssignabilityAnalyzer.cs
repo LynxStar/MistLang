@@ -84,6 +84,10 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     CheckDeconstruction(context, deconstruction);
                     break;
 
+                case WithBlockStatement ambient when !ReferenceEquals(ambient.KeyType, ambient.Value.Type):
+                    Check(context, ambient.Value, ambient.KeyType);
+                    break;
+
                 case ImplicitConversionExpression conversion when Assignability.JudgeSelection(conversion.AmbiguousOperators.Count) is { } ambiguity:
                     context.Report(
                         ambiguity,

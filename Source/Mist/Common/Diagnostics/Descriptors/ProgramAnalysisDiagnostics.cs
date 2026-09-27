@@ -568,6 +568,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "'{0}' returns owned but this value is not: {1}. An owned return is a construction, a clone, a call returning owned, a move from an owned binding, or a value of a type that cannot change.");
 
+    public static readonly DiagnosticDescriptor OwnedSourceNotOwned = new(
+        new DiagnosticId("MIST_PA_OWNED_SOURCE_NOT_OWNED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot move this value into {0}: {1}. An owned destination takes only what nothing else holds: a construction, a clone, a call returning owned, a move from an owned binding, or a value of a type that cannot change.");
+
     public static readonly DiagnosticDescriptor StackSpanReturned = new(
         new DiagnosticId("MIST_PA_STACK_SPAN_RETURNED"),
         DiagnosticSeverity.Error,

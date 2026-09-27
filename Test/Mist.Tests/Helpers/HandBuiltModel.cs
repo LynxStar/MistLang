@@ -89,7 +89,8 @@ internal sealed class HandBuiltModel
 
     public AnalysisContext Context(
         IProgramAnalyzer analyzer, DiagnosticBag diagnostics, object? root = null,
-        IReadOnlyList<MistType>? types = null, MistType? owner = null, object? member = null)
+        IReadOnlyList<MistType>? types = null, MistType? owner = null, object? member = null,
+        IReadOnlyList<ExtensionBlock>? extensions = null)
     {
         var bodies = root is null ? Array.Empty<SourceRoot>() : [new SourceRoot(root, owner, MistAssembly.Synthetic, member)];
         var nodes = bodies.SelectMany(body => BodyWalker.DescendantsAndSelf(body.Root)).ToList();
@@ -104,16 +105,16 @@ internal sealed class HandBuiltModel
             }
         }
 
-        return new AnalysisContext(Model, new AnalysisScope(types ?? [], bodies, [], []), nodes, roots, assignments,
+        return new AnalysisContext(Model, new AnalysisScope(types ?? [], bodies, extensions ?? [], []), nodes, roots, assignments,
             new HashSet<string>(StringComparer.Ordinal) { "hand-built.mist" }, diagnostics, analyzer.Id, CloneConversionRefusals.None);
     }
 
     public IReadOnlyList<Diagnostic> Analyze(
         IProgramAnalyzer analyzer, object? root = null, IReadOnlyList<MistType>? types = null,
-        MistType? owner = null, object? member = null)
+        MistType? owner = null, object? member = null, IReadOnlyList<ExtensionBlock>? extensions = null)
     {
         var diagnostics = new DiagnosticBag();
-        analyzer.Analyze(Context(analyzer, diagnostics, root, types, owner, member));
+        analyzer.Analyze(Context(analyzer, diagnostics, root, types, owner, member, extensions));
         return diagnostics.ToImmutableArray();
     }
 }

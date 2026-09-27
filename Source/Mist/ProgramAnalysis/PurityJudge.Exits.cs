@@ -1,5 +1,6 @@
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -14,9 +15,11 @@ internal readonly record struct ExitDrop(string Name, Method Drop, SyntaxNode At
 /// <summary>
 /// What a scope calls on its way out without writing the call: the emitter releases every linear or
 /// relevant binding the body did not hand on -- as an argument, a return value or an explicit drop --
-/// through its declared Drop, its droppable fields' Drops when it declares none, or an await when it is
-/// a task. Mirrors the backend's DropInsertion rather than sharing it, since analysis may not depend on
-/// a backend; a divergence between the two shows as a drop judged that never runs, or one run unjudged.
+/// through its declared Drop and then whatever that Drop hands back, its droppable fields' Drops when it
+/// declares none, or an await when it is a task; and a declared Drop's own body releases every
+/// droppable field it did not hand on after what it was written to do. Mirrors the backend's
+/// DropInsertion rather than sharing it, since analysis may not depend on a backend; a divergence
+/// between the two shows as a drop judged that never runs, or one run unjudged.
 /// </summary>
 internal static partial class PurityJudge
 {
@@ -57,11 +60,28 @@ internal static partial class PurityJudge
 
             if(declaration.Initializer is { } initializer
                 && DropsAtScopeExit(local.Type)
-                && !Moved(nodes, reference => ReferenceEquals(reference.Local, local)))
+                && !Moved(nodes, moved => moved is LocalReferenceExpression reference && ReferenceEquals(reference.Local, local)))
             {
                 foreach(var (drop, isAwait) in Drops(local.Type, awaitable: true, []))
                 {
                     yield return new ExitDrop(local.Name, drop, initializer.Node, isAwait);
+                }
+            }
+        }
+
+        if(member is Method { Name: "Drop", ParametersList.Count: 0, Modifiers.IsStatic: false, DeclaringType: ConcreteType { IsIntrinsic: false } owner, DeclarationNode: { } declared } dropping
+            && ReferenceEquals(dropping.Body, root))
+        {
+            foreach(var field in owner.FieldsList.Where(field => !field.Modifiers.IsStatic))
+            {
+                if(Moved(nodes, moved => moved is FieldReferenceExpression reference && reference.Field.Name == field.Name))
+                {
+                    continue;
+                }
+
+                foreach(var (drop, _) in FieldDrops(field, owner, closing: null, []))
+                {
+                    yield return new ExitDrop(field.Name, drop, declared, IsAwait: false);
                 }
             }
         }
@@ -75,7 +95,7 @@ internal static partial class PurityJudge
 
         foreach(var (name, type, byRef) in parameters)
         {
-            if(!byRef && DropsAtScopeExit(type) && !Moved(nodes, reference => reference.Local.Name == name))
+            if(!byRef && DropsAtScopeExit(type) && !Moved(nodes, moved => moved is LocalReferenceExpression reference && reference.Local.Name == name))
             {
                 foreach(var (drop, isAwait) in Drops(type, awaitable: false, []))
                 {
@@ -111,15 +131,15 @@ internal static partial class PurityJudge
         return method.ParametersList.Select(parameter => (parameter.Name, parameter.Type, parameter.Modifier.IsRef));
     }
 
-    private static bool Moved(IReadOnlyList<object> nodes, Func<LocalReferenceExpression, bool> isTarget)
+    private static bool Moved(IReadOnlyList<object> nodes, Func<Expression, bool> isTarget)
     {
         foreach(var node in nodes)
         {
             var moved = node switch
             {
-                ReturnStatement { Value: LocalReferenceExpression returned } => isTarget(returned),
+                ReturnStatement { Value: { } returned } => isTarget(returned),
                 InvocationExpression invocation => MovesThroughArguments(invocation, isTarget) || IsExplicitDrop(invocation, isTarget),
-                NewExpression creation => creation.Arguments.Any(argument => argument is LocalReferenceExpression reference && isTarget(reference)),
+                NewExpression creation => creation.Arguments.Any(isTarget),
                 _ => false,
             };
 
@@ -132,14 +152,13 @@ internal static partial class PurityJudge
         return false;
     }
 
-    private static bool MovesThroughArguments(InvocationExpression invocation, Func<LocalReferenceExpression, bool> isTarget)
+    private static bool MovesThroughArguments(InvocationExpression invocation, Func<Expression, bool> isTarget)
     {
         var parameters = invocation.Method?.ParametersList;
 
         for(var i = 0; i < invocation.Arguments.Count; i++)
         {
-            if(invocation.Arguments[i] is LocalReferenceExpression reference
-                && isTarget(reference)
+            if(isTarget(invocation.Arguments[i])
                 && (parameters is null || i >= parameters.Count || !parameters[i].Modifier.IsRef))
             {
                 return true;
@@ -149,11 +168,11 @@ internal static partial class PurityJudge
         return false;
     }
 
-    private static bool IsExplicitDrop(InvocationExpression invocation, Func<LocalReferenceExpression, bool> isTarget)
+    private static bool IsExplicitDrop(InvocationExpression invocation, Func<Expression, bool> isTarget)
     {
         return invocation.Method is { Name: "Drop" }
-            && invocation.Receiver is MemberAccessExpression { Receiver: LocalReferenceExpression reference }
-            && isTarget(reference);
+            && invocation.Receiver is MemberAccessExpression { Receiver: var receiver }
+            && isTarget(receiver);
     }
 
     private static bool DropsAtScopeExit(IMistType type)
@@ -193,16 +212,60 @@ internal static partial class PurityJudge
         if(declared is not null)
         {
             yield return (declared, false);
+
+            foreach(var drop in Drops(Closed(declared.ReturnType, concrete, type as ConstructedType), awaitable: false, visited))
+            {
+                yield return drop;
+            }
+
+            yield break;
+        }
+
+        if(!DropsAtScopeExit(concrete))
+        {
             yield break;
         }
 
         foreach(var field in concrete.FieldsList.Where(field => !field.Modifiers.IsStatic))
         {
-            foreach(var drop in Drops(field.Type, awaitable: false, visited))
+            foreach(var drop in FieldDrops(field, concrete, type as ConstructedType, visited))
             {
                 yield return drop;
             }
         }
+    }
+
+    private static IEnumerable<(Method Drop, bool IsAwait)> FieldDrops(Field field, ConcreteType holder, ConstructedType? closing, HashSet<ConcreteType> visited)
+    {
+        var held = field.Type is TypeParameter parameter && IsDroppable(parameter) ? Closed(parameter, holder, closing) : field.Type;
+
+        if(held is TypeParameter && field.Type is TypeParameter declared && IsDroppable(declared))
+        {
+            yield return (UnknownDrop, false);
+            yield break;
+        }
+
+        foreach(var drop in Drops(held, awaitable: false, visited))
+        {
+            yield return drop;
+        }
+    }
+
+    private static readonly Method UnknownDrop = new("Drop", UnknownType.Instance, [], default);
+
+    private static bool IsDroppable(TypeParameter parameter)
+    {
+        return parameter.ConstraintsList.Exists(constraint => constraint is KeywordConstraint
+        {
+            Kind: TypeParameterConstraintKind.Linear or TypeParameterConstraintKind.Affine or TypeParameterConstraintKind.Relevant,
+        });
+    }
+
+    private static IMistType Closed(IMistType declared, MemberType definition, ConstructedType? closing)
+    {
+        var index = declared is TypeParameter parameter ? definition.TypeParametersList.IndexOf(parameter) : -1;
+
+        return closing is not null && index >= 0 && index < closing.TypeArguments.Count ? closing.TypeArguments[index] : declared;
     }
 
     private static Method? Parameterless(MemberType type, string name)

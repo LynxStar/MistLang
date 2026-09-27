@@ -14,10 +14,13 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// Moves and leases on the flow framework. A binding is moved by a declaration or assignment that
-/// takes it directly, by an owned parameter or an owned constructor argument, by an array literal, by a
-/// call `with owned`, and -- for a linear or affine value -- by `Drop()`, but not by a field taking
-/// it, as classic has it; a use after that is refused
-/// at the use, and a move inside a loop of a binding that outlives the loop is refused at the move. A
+/// takes it directly, by an owned parameter, an owned field or an owned constructor argument, by an
+/// array literal, by a call `with owned`, and -- for a linear or affine value -- by `Drop()`, but not by
+/// any other field taking it, as classic has it; a use after that is refused
+/// at the use, and a move inside a loop of a binding that outlives the loop is refused at the move. What
+/// such a store keeps, like an owned field read out of an owned binding, is a second holder of the
+/// value, so from there on the binding may not move into an owned destination, which promises a value
+/// nothing else holds, until it or that field is assigned afresh. A
 /// lease is a local declared frozen, borrowed or readonly ref from another local, and ends where that
 /// local's block does, which is what the Leave step is for: while it stands, the lender cannot be moved,
 /// nor mutated while frozen, nor touched at all while borrowed. Two paths join by remembering either
@@ -44,13 +47,26 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         foreach(var root in context.Bodies)
         {
             var graph = FlowGraphBuilder.Build(root.Root);
-            new Ownership(context, tiers, DeclaringBlocks(root.Root)).Judge(graph, Ownership.Nothing);
+            var owning = OwningMethod(root);
+            new Ownership(context, tiers, DeclaringBlocks(root.Root), owning).Judge(graph, Ownership.Nothing);
 
-            if(root.Member is Method { Body: { } body } method && ReferenceEquals(body, root.Root) && ReturnsOwned(method))
+            if(owning is { Body: { } body })
             {
-                JudgeOwnedReturns(context, method, body, new Origins(body, method, ScopeKind.Readonly));
+                JudgeOwnedReturns(context, owning, body, new Origins(body, owning, ScopeKind.Readonly));
             }
+
+            OwnedDestinations.Judge(context, root);
         }
+
+        foreach(var type in context.Types.OfType<ConcreteType>())
+        {
+            OwnedDestinations.JudgeDefaults(context, type);
+        }
+    }
+
+    private static Method? OwningMethod(SourceRoot root)
+    {
+        return root.Member is Method { Body: { } body } method && ReferenceEquals(body, root.Root) && ReturnsOwned(method) ? method : null;
     }
 
     private static bool ReturnsOwned(Method method)
@@ -76,14 +92,19 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static bool YieldsOwned(Expression value, Method method, Origins origins)
+    internal static bool YieldsOwned(Expression value, Method? method, Origins origins)
     {
-        if(Origins.IsUnchangeable(value.Type) || origins.Of(value) is Origin.Own)
+        if(Origins.IsUnchangeable(value.Type))
         {
             return true;
         }
 
-        return method.DeclaredThisTier == ThisTier.Owned && Unwrapped(value) switch
+        if(origins.Of(value) is Origin.Own)
+        {
+            return Unwrapped(value) is not LocalReferenceExpression { Local: { Ownership: not OwnershipKind.Owned } local } || !origins.Escapes(local);
+        }
+
+        return method?.DeclaredThisTier == ThisTier.Owned && Unwrapped(value) switch
         {
             ThisExpression => true,
             FieldReferenceExpression field => ThisTiers.IsOwned(field.Field),
@@ -92,13 +113,26 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         };
     }
 
-    private static string Unowned(Expression value)
+    internal static string? HeldByAnotherOwner(Expression value, Method? method)
+    {
+        var (field, receiver) = Unwrapped(value) switch
+        {
+            FieldReferenceExpression reference when ThisTiers.IsOwned(reference.Field) => (reference.Field.Name, null),
+            MemberAccessExpression { Member: FieldResult found } access when ThisTiers.IsOwned(found.Field) => (found.Field.Name, access.Receiver),
+            MemberAccessExpression { Member: PropertyResult { Property: { Modifiers: { IsOwned: true, IsStatic: false } } property } } access => (property.Name, access.Receiver),
+            _ => (null, null),
+        };
+
+        return field is not null && !(method?.DeclaredThisTier == ThisTier.Owned && receiver is null or ThisExpression) ? field : null;
+    }
+
+    internal static string Unowned(Expression value)
     {
         return Unwrapped(value) switch
         {
             ThisExpression => "'this' is the receiver, which the caller still holds",
             LocalReferenceExpression { Local: { Parameter: not null } parameter } => $"parameter '{parameter.Name}' is not owned, so the caller may still hold its value",
-            LocalReferenceExpression { Local: var local } => $"local '{local.Name}' is neither owned nor fresh at every assignment",
+            LocalReferenceExpression { Local: var local } => $"local '{local.Name}' is neither owned nor a fresh value nothing else keeps",
             FieldReferenceExpression field => $"field '{field.Field.Name}' is storage other references reach",
             MemberAccessExpression { Member: FieldResult found } => $"field '{found.Field.Name}' is storage other references reach",
             InvocationExpression { Method: { } called } => $"'{called.Name}' does not return owned",
@@ -154,20 +188,25 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
 
     private sealed record Moved(object Node, bool Dropped);
 
+    private sealed record Kept(string Reason, string? Field);
+
     private sealed record State(
         ImmutableDictionary<LocalVariable, Moved> MovedBindings,
         ImmutableDictionary<LocalVariable, (LocalVariable Lender, Lease Kind)> Leases,
-        ImmutableHashSet<LocalVariable> Complained);
+        ImmutableHashSet<LocalVariable> Complained,
+        ImmutableDictionary<LocalVariable, Kept> Shared);
 
     private sealed class Ownership(
         AnalysisContext context,
         ThisTiers tiers,
-        IReadOnlyDictionary<LocalVariable, Block> declaringBlocks) : IFlowLattice<State>
+        IReadOnlyDictionary<LocalVariable, Block> declaringBlocks,
+        Method? owning) : IFlowLattice<State>
     {
         public static readonly State Nothing = new(
             ImmutableDictionary.Create<LocalVariable, Moved>(ReferenceEqualityComparer.Instance),
             ImmutableDictionary.Create<LocalVariable, (LocalVariable, Lease)>(ReferenceEqualityComparer.Instance),
-            ImmutableHashSet.Create<LocalVariable>(ReferenceEqualityComparer.Instance));
+            ImmutableHashSet.Create<LocalVariable>(ReferenceEqualityComparer.Instance),
+            ImmutableDictionary.Create<LocalVariable, Kept>(ReferenceEqualityComparer.Instance));
 
         public State Join(State left, State right)
         {
@@ -191,7 +230,17 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                 }
             }
 
-            return new State(moved, leases, left.Complained.Union(right.Complained));
+            var shared = left.Shared;
+
+            foreach(var (local, kept) in right.Shared)
+            {
+                if(!shared.ContainsKey(local))
+                {
+                    shared = shared.Add(local, kept);
+                }
+            }
+
+            return new State(moved, leases, left.Complained.Union(right.Complained), shared);
         }
 
         public bool Same(State left, State right)
@@ -200,7 +249,9 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                 && left.MovedBindings.Keys.All(right.MovedBindings.ContainsKey)
                 && left.Leases.Count == right.Leases.Count
                 && left.Leases.Keys.All(right.Leases.ContainsKey)
-                && left.Complained.SetEquals(right.Complained);
+                && left.Complained.SetEquals(right.Complained)
+                && left.Shared.Count == right.Shared.Count
+                && left.Shared.Keys.All(right.Shared.ContainsKey);
         }
 
         public State Transfer(State state, FlowStep step)
@@ -208,7 +259,12 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
             switch(step)
             {
                 case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement declaration }:
-                    state = state with { MovedBindings = state.MovedBindings.Remove(declaration.Local) };
+                    state = state with { MovedBindings = state.MovedBindings.Remove(declaration.Local), Shared = state.Shared.Remove(declaration.Local) };
+
+                    if(declaration.Initializer is { } initializer)
+                    {
+                        state = Keep(state, initializer, $"'{declaration.Local.Name}'", partOnly: true);
+                    }
 
                     if(declaration.Initializer is not LocalReferenceExpression source)
                     {
@@ -238,14 +294,30 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     };
 
                 case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false, Target: LocalReferenceExpression target } assignment }:
+                    state = Keep(state, assignment.Value, $"'{target.Local.Name}'", partOnly: true);
+
                     if(Tracked(target.Local))
                     {
-                        state = state with { MovedBindings = state.MovedBindings.Remove(target.Local) };
+                        state = state with { MovedBindings = state.MovedBindings.Remove(target.Local), Shared = state.Shared.Remove(target.Local) };
                     }
 
                     return assignment.Value is LocalReferenceExpression moved && Tracked(moved.Local)
                         ? Move(state, moved.Local, assignment.Value)
                         : state;
+
+                case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression assignment }:
+                    foreach(var (target, value) in Deconstructions.Pairs(assignment))
+                    {
+                        state = Stored(state, target, value);
+                    }
+
+                    return state;
+
+                case { Kind: FlowStepKind.Evaluate, Node: TupleLiteralExpression tuple }:
+                    return tuple.Elements.Aggregate(state, (kept, element) => Keep(kept, element, "a tuple", partOnly: false));
+
+                case { Kind: FlowStepKind.Evaluate, Node: AnonymousObjectExpression anonymous }:
+                    return anonymous.Values.Aggregate(state, (kept, value) => Keep(kept, value, "an anonymous object", partOnly: false));
 
                 case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression invocation }:
                     state = MoveArguments(state, invocation.Arguments, invocation.Method?.ParametersList);
@@ -259,6 +331,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     return state;
 
                 case { Kind: FlowStepKind.Evaluate, Node: NewExpression creation }:
+                    state = creation.Initializer.Aggregate(state, (kept, entry) => Keep(kept, entry.Value, $"'{entry.MemberName}'", partOnly: false));
                     return MoveArguments(state, creation.Arguments, creation.Constructor?.ParametersList);
 
                 case { Kind: FlowStepKind.Evaluate, Node: ArrayLiteralExpression literal }:
@@ -330,6 +403,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     else if(LeaseOf(declaration.Local) is null && Tracked(source.Local))
                     {
                         JudgeMove(state, source);
+                        JudgeShared(state, source, $"owned binding '{declaration.Local.Name}'", declaration.Local.Ownership == OwnershipKind.Owned);
                     }
 
                     break;
@@ -340,11 +414,22 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                         context.Report(ProgramAnalysisDiagnostics.LeaseViolation, holder.Node, [holder], holder.Local.Name, "mutate", "frozen");
                     }
 
-                    if(assignment.Target is LocalReferenceExpression && assignment.Value is LocalReferenceExpression moved && Tracked(moved.Local))
+                    if(assignment.Target is LocalReferenceExpression written && assignment.Value is LocalReferenceExpression moved && Tracked(moved.Local))
                     {
                         JudgeMove(state, moved);
+                        JudgeShared(state, moved, $"owned binding '{written.Local.Name}'", written.Local.Ownership == OwnershipKind.Owned);
+                    }
+                    else if(OwnedSlot(assignment.Target) is { } slot && assignment.Value is LocalReferenceExpression stored && Tracked(stored.Local))
+                    {
+                        JudgeMove(state, stored);
+                        JudgeShared(state, stored, slot, owned: true);
                     }
 
+                    break;
+
+                case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: LocalReferenceExpression returned } }
+                    when owning is not null && state.Shared.TryGetValue(returned.Local, out var kept):
+                    context.Report(ProgramAnalysisDiagnostics.OwnedReturnNotOwned, returned.Node, [returned], owning.Name, kept.Reason);
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression invocation }:
@@ -359,6 +444,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                         else if(Tracked(receiver.Local) && invocation.Method?.DeclaredThisTier == ThisTier.Owned)
                         {
                             JudgeMove(state, receiver);
+                            JudgeShared(state, receiver, $"the receiver of '{invocation.Method.Name}', which it takes owned", owned: true);
                         }
                     }
 
@@ -369,7 +455,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Ownership(context, tiers, declaringBlocks).Judge(nested, state);
+                    new Ownership(context, tiers, declaringBlocks, owning: null).Judge(nested, state);
                     break;
             }
         }
@@ -382,8 +468,77 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     && arguments[i] is LocalReferenceExpression argument && Tracked(argument.Local))
                 {
                     JudgeMove(state, argument);
+                    JudgeShared(state, argument, $"owned parameter '{parameters[i].Name}'", owned: true);
                 }
             }
+        }
+
+        private void JudgeShared(State state, LocalReferenceExpression source, string destination, bool owned)
+        {
+            if(owned && state.Shared.TryGetValue(source.Local, out var kept))
+            {
+                context.Report(ProgramAnalysisDiagnostics.OwnedSourceNotOwned, source.Node, [source], destination, kept.Reason);
+            }
+        }
+
+        private static State Stored(State state, Expression target, Expression value)
+        {
+            if(target is LocalReferenceExpression)
+            {
+                return state;
+            }
+
+            if(target is MemberAccessExpression { Receiver: LocalReferenceExpression { Local: var holder }, Member: FieldResult { Field.Name: var restored } }
+                && state.Shared.TryGetValue(holder, out var partial) && partial.Field == restored)
+            {
+                state = state with { Shared = state.Shared.Remove(holder) };
+            }
+
+            if(OwnedSlot(target) is not null && value is LocalReferenceExpression moved && Tracked(moved.Local))
+            {
+                return Move(state, moved.Local, value);
+            }
+
+            return Keep(state, value, Path(target) is { } path ? $"'{path}'" : "a field", partOnly: false);
+        }
+
+        private static State Keep(State state, Expression value, string where, bool partOnly)
+        {
+            return Unwrapped(value) switch
+            {
+                LocalReferenceExpression { Local: { Ownership: OwnershipKind.Owned } local } when !partOnly && Tracked(local) =>
+                    state with { Shared = state.Shared.SetItem(local, new Kept($"'{local.Name}' is also held by {where}, where it was stored without a move", null)) },
+                MemberAccessExpression { Receiver: LocalReferenceExpression { Local: { Ownership: OwnershipKind.Owned } holder }, Member: FieldResult { Field: var field } }
+                    when Tracked(holder) && ThisTiers.IsOwned(field) && !Origins.IsUnchangeable(field.Type) =>
+                    state with { Shared = state.Shared.SetItem(holder, new Kept($"its owned field '{field.Name}' is also held by {where}, which read it out without a move", field.Name)) },
+                _ => state,
+            };
+        }
+
+        private static string? OwnedSlot(Expression target)
+        {
+            return target switch
+            {
+                FieldReferenceExpression { Field: var field } when ThisTiers.IsOwned(field) => $"owned field '{field.Name}'",
+                MemberAccessExpression { Member: FieldResult { Field: var field } } when ThisTiers.IsOwned(field) => $"owned field '{field.Name}'",
+                MemberAccessExpression { Member: PropertyResult { Property: { Modifiers: { IsOwned: true, IsStatic: false } } property } } => $"owned property '{property.Name}'",
+                PropertyReferenceExpression { Property: { Modifiers: { IsOwned: true, IsStatic: false } } property } => $"owned property '{property.Name}'",
+                _ => null,
+            };
+        }
+
+        private static string? Path(Expression expression)
+        {
+            return expression switch
+            {
+                LocalReferenceExpression local => local.Local.Name,
+                ThisExpression => "this",
+                FieldReferenceExpression field => field.Field.Name,
+                PropertyReferenceExpression property => property.Property.Name,
+                MemberAccessExpression access => Path(access.Receiver) is { } receiver ? $"{receiver}.{access.MemberName}" : access.MemberName,
+                IndexExpression index => Path(index.Receiver) is { } receiver ? $"{receiver}[]" : null,
+                _ => null,
+            };
         }
 
         private void JudgeMove(State state, LocalReferenceExpression source)

@@ -56,8 +56,7 @@ internal sealed class ThisTiers
         {
             var demand = node switch
             {
-                AssignmentExpression { Target: FieldReferenceExpression { Field: { } written } } when IsOwned(written) => ThisTier.Borrowed,
-                AssignmentExpression { Target: MemberAccessExpression { Receiver: ThisExpression, Member: FieldResult { Field: { } written } } } when IsOwned(written) => ThisTier.Borrowed,
+                AssignmentExpression assignment when Deconstructions.Pairs(assignment).Any(pair => WritesOwnedField(pair.Target)) => ThisTier.Borrowed,
                 InvocationExpression { Receiver: MemberAccessExpression { Receiver: ThisExpression }, Method: { } callee } => Required(callee),
                 _ => ThisTier.None,
             };
@@ -71,6 +70,12 @@ internal sealed class ThisTiers
         _ = visiting.Remove(method);
         inferred[method] = needed;
         return needed;
+    }
+
+    private static bool WritesOwnedField(Expression target)
+    {
+        return (target is FieldReferenceExpression { Field: { } written } && IsOwned(written))
+            || (target is MemberAccessExpression { Receiver: ThisExpression, Member: FieldResult { Field: { } through } } && IsOwned(through));
     }
 
     public ThisTier Provided(Expression? receiver, object? enclosing)

@@ -1,0 +1,21 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static pure int Poke(frozen List<int> xs)
+    {
+        // REFUSE: MIST_PA_PURE_SCOPE_WRITES
+        xs[0] = 1;
+        return 0;
+    }
+
+    public static void Main()
+    {
+        owned var xs = new List<int>();
+        xs.Add(0);
+        Console.WriteLine(Poke(xs));
+        Console.WriteLine("unreachable");
+    }
+}

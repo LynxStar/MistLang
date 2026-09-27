@@ -28,7 +28,7 @@ internal static partial class PurityJudge
         {
             var property = backing.Property;
 
-            if(property.Setter is null or { IsInit: true } || (property.DeclaringType is { } declaring && Declarations.IsReadonly(declaring)))
+            if(property.Setter is null or { IsInit: true })
             {
                 return;
             }

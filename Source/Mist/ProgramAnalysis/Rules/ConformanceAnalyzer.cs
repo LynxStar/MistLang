@@ -89,7 +89,13 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
             if(answering is not null)
             {
-                if(slot is { Body: null, Modifiers.IsReadonly: true } && !inference.IsReadonly(answering))
+                if(SlotSignatures.ReturnsOwned(slot) && !SlotSignatures.ReturnsOwned(answering))
+                {
+                    context.Report(
+                        ProgramAnalysisDiagnostics.SlotReturnNotOwned, answering.DeclarationNode ?? at, [],
+                        TypeDisplay.Mist(concrete), SlotSignatures.Display(slot, substitution, interner), TypeDisplay.Mist(abstractType), answering.Name);
+                }
+                else if(slot is { Body: null, Modifiers.IsReadonly: true } && !inference.IsReadonly(answering))
                 {
                     ReportContract(context, concrete, abstractType, answering.Name, answering.DeclarationNode ?? at);
                 }
@@ -168,9 +174,73 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                 continue;
             }
 
-            _ = AnsweringAccessors(slot, answer).Any(accessor =>
-                !CheckPromise(context, inference, concrete, abstractType, slot.Name, slot.Modifiers, answer.Name, accessor, answer.DeclarationNode ?? at));
+            CheckAccessors(context, inference, concrete, abstractType, slot.Name, slot.Modifiers, slot.Getter, slot.Setter, answer.Name, answer.Getter, answer.Setter, answer.DeclarationNode ?? at);
         }
+
+        foreach(var slot in abstractType.IndexersList.Where(indexer => IsSlot(indexer.Getter, indexer.Setter)))
+        {
+            if(AnsweringIndexer(concrete, slot, substitution, interner) is not { } answer)
+            {
+                continue;
+            }
+
+            var name = SlotSignatures.Display(slot, substitution, interner);
+
+            if(slot is { Getter: not null, Modifiers.IsReadonly: true } && answer.Getter is not null && !inference.IsReadonlyGetter(answer))
+            {
+                ReportContract(context, concrete, abstractType, name, answer.DeclarationNode ?? at);
+                continue;
+            }
+
+            CheckAccessors(context, inference, concrete, abstractType, name, slot.Modifiers, slot.Getter, slot.Setter, name, answer.Getter, answer.Setter, answer.DeclarationNode ?? at);
+        }
+    }
+
+    private static void CheckAccessors(
+        AnalysisContext context, PurityInference inference, ConcreteType concrete, AbstractType abstractType,
+        string slot, MemberModifiers declared, PropertyAccessor? slotGetter, PropertyAccessor? slotSetter,
+        string member, PropertyAccessor? getter, PropertyAccessor? setter, SyntaxNode at)
+    {
+        foreach(var (required, answering) in AnsweringAccessors(slotGetter, slotSetter, getter, setter))
+        {
+            if(!CheckPromise(context, inference, concrete, abstractType, slot, required.OwnModifiers ?? declared, member, answering, at))
+            {
+                break;
+            }
+        }
+    }
+
+    private static Indexer? AnsweringIndexer(ConcreteType concrete, Indexer slot, TypeSubstitution substitution, TypeInterner interner)
+    {
+        var chain = TypeSubstitution.Empty;
+
+        for(IMistType? current = concrete; current is not null;)
+        {
+            var definition = current is ConstructedType constructed ? constructed.Definition : current;
+
+            if(definition is not ConcreteType type)
+            {
+                return null;
+            }
+
+            chain = chain.Extend(TypeSubstitution.ForReceiver(current as ConstructedType));
+            var applied = substitution.Extend(chain);
+
+            var answering = type.IndexersList.Find(candidate =>
+                candidate.Modifiers is { Accessibility: Accessibility.Public, IsStatic: false }
+                && candidate.ParametersList.Count == slot.ParametersList.Count
+                && SlotSignatures.Agree(applied.Apply(slot.Type, interner), candidate.Type)
+                && candidate.ParametersList.Zip(slot.ParametersList).All(pair => SlotSignatures.Agree(applied.Apply(pair.Second.Type, interner), pair.First.Type)));
+
+            if(answering is not null)
+            {
+                return answering;
+            }
+
+            current = type.BaseType;
+        }
+
+        return null;
     }
 
     private static void ReportContract(AnalysisContext context, ConcreteType concrete, AbstractType abstractType, string member, SyntaxNode at)
@@ -204,16 +274,17 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         return false;
     }
 
-    private static IEnumerable<PropertyAccessor> AnsweringAccessors(Property slot, Property answer)
+    private static IEnumerable<(PropertyAccessor Required, PropertyAccessor Answering)> AnsweringAccessors(
+        PropertyAccessor? slotGetter, PropertyAccessor? slotSetter, PropertyAccessor? getter, PropertyAccessor? setter)
     {
-        if(slot.Getter is not null && answer.Getter is { } getter)
+        if(slotGetter is not null && getter is not null)
         {
-            yield return getter;
+            yield return (slotGetter, getter);
         }
 
-        if(slot.Setter is not null && answer.Setter is { } setter)
+        if(slotSetter is not null && setter is not null)
         {
-            yield return setter;
+            yield return (slotSetter, setter);
         }
     }
 
@@ -256,10 +327,14 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
     private static bool IsPropertySlot(Property property)
     {
-        return !property.Modifiers.IsStatic
-            && (property.Getter is not null || property.Setter is not null)
-            && property.Getter is not { Body: not null } and not { ExpressionBody: not null }
-            && property.Setter is not { Body: not null } and not { ExpressionBody: not null };
+        return !property.Modifiers.IsStatic && IsSlot(property.Getter, property.Setter);
+    }
+
+    private static bool IsSlot(PropertyAccessor? getter, PropertyAccessor? setter)
+    {
+        return (getter is not null || setter is not null)
+            && getter is not { Body: not null } and not { ExpressionBody: not null }
+            && setter is not { Body: not null } and not { ExpressionBody: not null };
     }
 
     private static IEnumerable<string> MissingAccessors(Property slot, Property answer)

@@ -15,9 +15,10 @@ namespace Mist.ProgramAnalysis.Rules;
 /// The declared promises, judged: every body whose member says pure, local or local readonly, every
 /// lambda that is pure, local or of a pure function type, every local function that declares one, every
 /// settled method group of pure function type, and -- purity Requirement 12.1 -- every field initializer
-/// and default entry of a defaultable type, as a pure scope with no inputs. An inferred promise is never
-/// reported (Requirement 3): a member that declares nothing is consulted only as a callee, through
-/// <see cref="PurityInference"/>.
+/// and default entry of a defaultable type, as a pure scope with no inputs. An initializer that IS a
+/// lambda is a closure of the initializer's scope, judged where it converts like any other. An inferred
+/// promise is never reported (Requirement 3): a member that declares nothing is consulted only as a
+/// callee, through <see cref="PurityInference"/>.
 /// </summary>
 internal sealed class PurityAnalyzer : IProgramAnalyzer
 {
@@ -40,6 +41,12 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
             foreach(var root in context.Bodies)
             {
                 Collect(root.Root, root.Root);
+
+                if(root.Root is LambdaExpression lambda)
+                {
+                    enclosingOf[lambda] = root;
+                    closures.Add(lambda);
+                }
 
                 if(KindOf(root) is { } kind)
                 {
@@ -99,8 +106,10 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
             return root.Member switch
             {
                 Method method => KindOf(method.Modifiers),
-                Property property when IsAccessorBody(property.Getter, property.Setter, root.Root) => KindOf(property.Modifiers),
-                Indexer indexer when IsAccessorBody(indexer.Getter, indexer.Setter, root.Root) => KindOf(indexer.Modifiers),
+                Property property when PurityInference.AccessorOf(property.Getter, property.Setter, root.Root) is { } accessor =>
+                    KindOf(accessor.OwnModifiers ?? property.Modifiers),
+                Indexer indexer when PurityInference.AccessorOf(indexer.Getter, indexer.Setter, root.Root) is { } accessor =>
+                    KindOf(accessor.OwnModifiers ?? indexer.Modifiers),
                 _ => null,
             };
         }
@@ -114,16 +123,6 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
                 { IsLocal: true } => ScopeKind.Local,
                 _ => null,
             };
-        }
-
-        private static bool IsAccessorBody(PropertyAccessor? getter, PropertyAccessor? setter, object root)
-        {
-            return IsBodyOf(getter, root) || IsBodyOf(setter, root);
-        }
-
-        private static bool IsBodyOf(PropertyAccessor? accessor, object root)
-        {
-            return accessor is not null && (ReferenceEquals(accessor.Body, root) || ReferenceEquals(accessor.ExpressionBody, root));
         }
 
         private void JudgeRoot(SourceRoot root, ScopeKind kind)
@@ -262,6 +261,7 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
             {
                 LambdaExpression lambda => new Origins(lambda, lambda, kind, OriginsFor(enclosingOf[lambda], kind), capturesAreInputs: kind is ScopeKind.Pure),
                 LocalFunctionStatement function => new Origins(function, function.Function, kind, OriginsFor(enclosingOf[function], kind), capturesAreInputs: kind is ScopeKind.Pure),
+                SourceRoot source => new Origins(source.Root, source.Member, kind),
                 _ => new Origins(scope, context.MemberOf(scope), kind),
             };
 

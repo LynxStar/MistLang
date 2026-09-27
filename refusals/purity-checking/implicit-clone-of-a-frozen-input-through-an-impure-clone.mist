@@ -1,0 +1,38 @@
+using Standard;
+
+namespace Refusal;
+
+public class Box : IClonable<Box>
+{
+    public static int Made;
+    public int N;
+
+    public pure Box() { }
+
+    public owned Box Clone()
+    {
+        Made = Made + 1;
+        var c = new Box();
+        c.N = N;
+        return c;
+    }
+}
+
+public class Probe
+{
+    public static pure int Take(frozen Box b)
+    {
+        // REFUSE: MIST_PA_PURE_SCOPE_CALLS_IMPURE
+        owned var c = b;
+        c.N = 5;
+        return c.N;
+    }
+
+    public static void Main()
+    {
+        owned var b = new Box();
+        var r = Take(b);
+        Console.WriteLine(Box.Made);
+        Console.WriteLine("unreachable");
+    }
+}

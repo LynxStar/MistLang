@@ -1,0 +1,35 @@
+namespace Standard;
+
+intrinsic public class List<T> : IEnumerable<T>
+{
+    intrinsic public pure List();
+
+    intrinsic public local readonly int Count { get; }
+
+    intrinsic public T this[int index] { local readonly get; local set; }
+
+    intrinsic public local readonly bool Contains(T item);
+    intrinsic public local readonly int IndexOf(T item);
+    intrinsic public local readonly Array<T, unknown> ToArray();
+
+    intrinsic public local void Add(T item);
+    intrinsic public local void Insert(int index, T item);
+    intrinsic public local bool Remove(T item);
+    intrinsic public local void RemoveAt(int index);
+    intrinsic public local void Clear();
+    intrinsic public local void Sort();
+    intrinsic public local void Reverse();
+
+    // Unmarked: each reads through a reference-typed argument (purity spec Req 5.2) or runs
+    // a function value it was handed, so neither can promise to touch only this list.
+    intrinsic public void AddRange(IEnumerable<T> items);
+    intrinsic public void ForEach(Action<T> action);
+    intrinsic public List<T> FindAll(Func<T, bool> match);
+
+    intrinsic public struct Enumerator : IEnumerator<T> {
+        intrinsic public local bool MoveNext();
+        intrinsic public local readonly T Current { get; }
+    }
+
+    intrinsic public local readonly Enumerator GetEnumerator();
+}

@@ -14,6 +14,13 @@ public sealed record CompilationUnit(Common.Source.SourceText Source)
     public bool IsStdlib { get; init; }
 
     /// <summary>
+    /// A Standard unit under <c>Standard/Experimental/</c>: it declares what only the experimental
+    /// pipeline can model, such as an intrinsic generic class over a CLR type, and the classic
+    /// pipeline compiles without it.
+    /// </summary>
+    public bool IsExperimentalOnly { get; init; }
+
+    /// <summary>
     /// The root namespace for this compilation unit's inferred namespace
     /// computation. For user code this comes from <c>mist.toml</c> or the
     /// project name; for stdlib units it is <c>"Standard"</c>.

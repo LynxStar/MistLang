@@ -46,6 +46,7 @@ internal static class ClrSpelling
         ["Standard.ValueTask<>"] = new("System.Threading.Tasks.ValueTask", "System.Threading.Tasks.ValueTask`1"),
         ["Standard.IEnumerable<>"] = new("System.Collections.Generic.IEnumerable", "System.Collections.Generic.IEnumerable`1"),
         ["Standard.IEnumerator<>"] = new("System.Collections.Generic.IEnumerator", "System.Collections.Generic.IEnumerator`1"),
+        ["Standard.List<>"] = new("System.Collections.Generic.List", "System.Collections.Generic.List`1"),
         ["Standard.Array<,>"] = new(Spelling: null, "System.Array"),
         ["Standard.Func<,>"] = new(Spelling: null, "System.Func"),
     };

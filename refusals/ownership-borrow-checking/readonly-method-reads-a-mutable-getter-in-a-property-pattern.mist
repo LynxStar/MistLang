@@ -1,0 +1,41 @@
+using Standard;
+
+namespace Refusal;
+
+public class Globals
+{
+    public static int Counter;
+}
+
+public class Cell
+{
+    public int Level
+    {
+        get
+        {
+            Globals.Counter = Globals.Counter + 1;
+            return Globals.Counter;
+        }
+    }
+}
+
+public class Probe
+{
+    public static readonly int M(Cell c)
+    {
+        // REFUSE: MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE
+        if(c is { Level: 1 })
+        {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    public static void Main()
+    {
+        var c = new Cell();
+        Console.WriteLine(M(c));
+        Console.WriteLine("unreachable");
+    }
+}

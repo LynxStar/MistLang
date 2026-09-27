@@ -1,0 +1,40 @@
+using Standard;
+
+namespace Refusal;
+
+public class Clock
+{
+    public static int Ticks;
+}
+
+public abstract IGrid
+{
+    pure int this[int i] { get; }
+}
+
+// REFUSE-FILE: MIST_PA_PURITY_CONTRACT_NOT_MET
+public class Grid : IGrid
+{
+    public int this[int i]
+    {
+        get
+        {
+            return Clock.Ticks;
+        }
+    }
+}
+
+public class Probe
+{
+    public static pure int Read(IGrid g)
+    {
+        return g[0];
+    }
+
+    public static void Main()
+    {
+        var g = new Grid();
+        Console.WriteLine(Read(g));
+        Console.WriteLine("unreachable");
+    }
+}

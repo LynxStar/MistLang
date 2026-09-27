@@ -26,8 +26,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// of its own. The rest of what classic admits here -- a call as no move for a linear
 /// value, a frozen lender lent borrowed by call -- is recorded on order 11 of the register.
 /// <para>
-/// An owned return hands the caller a value nothing else holds (ownership-v2 Requirements 2.5 and
-/// 4.7), so a `return` in a method returning owned is judged by <see cref="Origins"/>, without flow: a
+/// An owned return hands the caller a value nothing else holds (ownership-v2 Requirements 1.5 and
+/// 6.7), so a `return` in a method returning owned is judged by <see cref="Origins"/>, without flow: a
 /// construction, a clone, a call returning owned, an owned binding, a local fresh at every assignment,
 /// or a value of a type that cannot change; the receiver and its owned fields count once the method
 /// takes `this` owned. Anything else is refused at the value.

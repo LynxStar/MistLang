@@ -1,6 +1,7 @@
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -59,12 +60,26 @@ internal static class SlotSignatures
         return true;
     }
 
+    public static bool ReturnsOwned(Method method)
+    {
+        return method.Modifiers.IsOwned || method.ReturnOwnership == OwnershipKind.Owned;
+    }
+
     public static string Display(Method slot, TypeSubstitution substitution, TypeInterner interner)
     {
         var parameters = string.Join(", ", slot.ParametersList.Select(
             parameter => TypeDisplay.Mist(substitution.Apply(parameter.Type, interner))));
+        var owned = ReturnsOwned(slot) ? "owned " : "";
 
-        return $"{TypeDisplay.Mist(substitution.Apply(slot.ReturnType, interner))} {slot.Name}({parameters})";
+        return $"{owned}{TypeDisplay.Mist(substitution.Apply(slot.ReturnType, interner))} {slot.Name}({parameters})";
+    }
+
+    public static string Display(Indexer slot, TypeSubstitution substitution, TypeInterner interner)
+    {
+        var parameters = string.Join(", ", slot.ParametersList.Select(
+            parameter => TypeDisplay.Mist(substitution.Apply(parameter.Type, interner))));
+
+        return $"{TypeDisplay.Mist(substitution.Apply(slot.Type, interner))} this[{parameters}]";
     }
 
     private static bool IsIndeterminate(IMistType type)

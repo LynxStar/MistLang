@@ -461,18 +461,18 @@ public sealed class MistPrettyPrinter
             // ── Get accessors ──
             case AutoGetAccessorAccessorDeclarationNode autoGet:
                 {
-                    var mod = EmitAccessorModifier(autoGet.AccessorModifier);
+                    var mod = EmitAccessorPromise(autoGet.Promise) + EmitAccessorModifier(autoGet.AccessorModifier);
                     return $"{mod}get;";
                 }
             case BlockGetAccessorAccessorDeclarationNode blockGet:
                 {
-                    var mod = EmitAccessorModifier(blockGet.AccessorModifier);
+                    var mod = EmitAccessorPromise(blockGet.Promise) + EmitAccessorModifier(blockGet.AccessorModifier);
                     var body = EmitBlockBody(blockGet.Body);
                     return $"{mod}get {body}";
                 }
             case ExpressionGetAccessorAccessorDeclarationNode exprGet:
                 {
-                    var mod = EmitAccessorModifier(exprGet.AccessorModifier);
+                    var mod = EmitAccessorPromise(exprGet.Promise) + EmitAccessorModifier(exprGet.AccessorModifier);
                     var expr = EmitExpression(exprGet.Expression);
                     return $"{mod}get => {expr};";
                 }
@@ -480,18 +480,18 @@ public sealed class MistPrettyPrinter
             // ── Set accessors ──
             case AutoSetAccessorAccessorDeclarationNode autoSet:
                 {
-                    var mod = EmitAccessorModifier(autoSet.AccessorModifier);
+                    var mod = EmitAccessorPromise(autoSet.Promise) + EmitAccessorModifier(autoSet.AccessorModifier);
                     return $"{mod}set;";
                 }
             case BlockSetAccessorAccessorDeclarationNode blockSet:
                 {
-                    var mod = EmitAccessorModifier(blockSet.AccessorModifier);
+                    var mod = EmitAccessorPromise(blockSet.Promise) + EmitAccessorModifier(blockSet.AccessorModifier);
                     var body = EmitBlockBody(blockSet.Body);
                     return $"{mod}set {body}";
                 }
             case ExpressionSetAccessorAccessorDeclarationNode exprSet:
                 {
-                    var mod = EmitAccessorModifier(exprSet.AccessorModifier);
+                    var mod = EmitAccessorPromise(exprSet.Promise) + EmitAccessorModifier(exprSet.AccessorModifier);
                     var expr = EmitExpression(exprSet.Expression);
                     return $"{mod}set => {expr};";
                 }
@@ -499,18 +499,18 @@ public sealed class MistPrettyPrinter
             // ── Init accessors ──
             case AutoInitAccessorAccessorDeclarationNode autoInit:
                 {
-                    var mod = EmitAccessorModifier(autoInit.AccessorModifier);
+                    var mod = EmitAccessorPromise(autoInit.Promise) + EmitAccessorModifier(autoInit.AccessorModifier);
                     return $"{mod}init;";
                 }
             case BlockInitAccessorAccessorDeclarationNode blockInit:
                 {
-                    var mod = EmitAccessorModifier(blockInit.AccessorModifier);
+                    var mod = EmitAccessorPromise(blockInit.Promise) + EmitAccessorModifier(blockInit.AccessorModifier);
                     var body = EmitBlockBody(blockInit.Body);
                     return $"{mod}init {body}";
                 }
             case ExpressionInitAccessorAccessorDeclarationNode exprInit:
                 {
-                    var mod = EmitAccessorModifier(exprInit.AccessorModifier);
+                    var mod = EmitAccessorPromise(exprInit.Promise) + EmitAccessorModifier(exprInit.AccessorModifier);
                     var expr = EmitExpression(exprInit.Expression);
                     return $"{mod}init => {expr};";
                 }
@@ -518,6 +518,17 @@ public sealed class MistPrettyPrinter
             default:
                 return "";
         }
+    }
+
+    private static string EmitAccessorPromise(AccessorPromiseNode? promise)
+    {
+        return promise switch
+        {
+            LocalReadonlyAccessorPromiseAccessorPromiseNode => "local readonly ",
+            LocalAccessorPromiseAccessorPromiseNode => "local ",
+            PureAccessorPromiseAccessorPromiseNode => "pure ",
+            _ => "",
+        };
     }
 
     private static string EmitAccessorModifier(ModifierNode? modifier)

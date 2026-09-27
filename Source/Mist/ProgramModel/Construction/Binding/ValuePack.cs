@@ -54,6 +54,28 @@ internal static class ValuePack
                 : null;
     }
 
+    public static IMistType? ElementOf(Parameter parameter)
+    {
+        return parameter.IsFlattened ? Indexability.ArrayElement(parameter.Type) : null;
+    }
+
+    /// <summary>
+    /// The index of the parameter the argument at <paramref name="index"/> fills when this many
+    /// arguments are passed: its own position before the flattened slot, the flattened slot through
+    /// the middle, and the trailing fixed ones counted from the end.
+    /// </summary>
+    public static int SlotOf(IReadOnlyList<Parameter> parameters, int argumentCount, int index)
+    {
+        if(FlattenedSlot(parameters) is not { } flattened || index < flattened)
+        {
+            return index;
+        }
+
+        var trailing = parameters.Count - flattened - 1;
+
+        return index >= argumentCount - trailing ? parameters.Count - (argumentCount - index) : flattened;
+    }
+
     /// <summary>
     /// The argument types the flattened slot absorbs, in order.
     /// </summary>

@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static readonly int Set(ref int x)
+    {
+        // REFUSE: MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_REF
+        x = 5;
+        return x;
+    }
+
+    public static void Main()
+    {
+        var n = 1;
+        Console.WriteLine(Set(ref n));
+        Console.WriteLine("unreachable");
+    }
+}

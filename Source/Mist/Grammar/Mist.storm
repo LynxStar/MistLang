@@ -277,15 +277,23 @@ rule PropertyDeclaration
     ;
 
 rule AccessorDeclaration
-    = accessorModifier:Modifier? GET SEMICOLON                                    as AutoGetAccessor
-    | accessorModifier:Modifier? GET body:Block                                   as BlockGetAccessor
-    | accessorModifier:Modifier? GET SUCH_THAT expression:Expression SEMICOLON    as ExpressionGetAccessor
-    | accessorModifier:Modifier? SET SEMICOLON                                    as AutoSetAccessor
-    | accessorModifier:Modifier? SET body:Block                                   as BlockSetAccessor
-    | accessorModifier:Modifier? SET SUCH_THAT expression:Expression SEMICOLON    as ExpressionSetAccessor
-    | accessorModifier:Modifier? INIT SEMICOLON                                   as AutoInitAccessor
-    | accessorModifier:Modifier? INIT body:Block                                  as BlockInitAccessor
-    | accessorModifier:Modifier? INIT SUCH_THAT expression:Expression SEMICOLON   as ExpressionInitAccessor
+    = promise:AccessorPromise? accessorModifier:Modifier? GET SEMICOLON                                    as AutoGetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? GET body:Block                                   as BlockGetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? GET SUCH_THAT expression:Expression SEMICOLON    as ExpressionGetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? SET SEMICOLON                                    as AutoSetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? SET body:Block                                   as BlockSetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? SET SUCH_THAT expression:Expression SEMICOLON    as ExpressionSetAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? INIT SEMICOLON                                   as AutoInitAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? INIT body:Block                                  as BlockInitAccessor
+    | promise:AccessorPromise? accessorModifier:Modifier? INIT SUCH_THAT expression:Expression SEMICOLON   as ExpressionInitAccessor
+    ;
+
+// The promise stands ahead of the accessibility (purity spec Req 1.5): `local readonly get;`,
+// `local private set;`. Written after it, as `private pure get;`, it is a parse error.
+rule AccessorPromise
+    = LOCAL READONLY as LocalReadonlyAccessorPromise
+    | LOCAL          as LocalAccessorPromise
+    | PURE           as PureAccessorPromise
     ;
 
 rule IndexerDeclaration : HasModifiers = attributes:AttributeList* modifiers:Modifier* type:TypeReference THIS

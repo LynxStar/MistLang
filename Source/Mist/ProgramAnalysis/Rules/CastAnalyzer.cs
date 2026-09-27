@@ -46,7 +46,7 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static bool Tests(AnalysisContext context, CastExpression cast)
+    internal static bool Tests(AnalysisContext context, CastExpression cast)
     {
         return cast.ParameterType is null
             && ConversionClassifier.Classify(cast.Operand.Type, cast.TargetType, context.Model.TypeInterner)
@@ -58,6 +58,41 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
         var stated = PureFunctions(from).Select(function => function.FullyQualifiedName).ToHashSet(StringComparer.Ordinal);
 
         return PureFunctions(to).Any(promised => !stated.Contains(promised.FullyQualifiedName));
+    }
+
+    internal static IFunctionType? PureFunctionIn(IMistType type)
+    {
+        return PureFunctions(type).FirstOrDefault();
+    }
+
+    /// <summary>
+    /// The type parameters a test's target mentions that its operand's static type does not: closed
+    /// with a pure function type, the erased runtime test would pass a plain function value as one,
+    /// which is what <see cref="HidesPurity"/> refuses when the types are written out.
+    /// </summary>
+    internal static IEnumerable<TypeParameter> HiddenParameters(IMistType from, IMistType to)
+    {
+        var seen = new HashSet<TypeParameter>(TypeParameters(from), ReferenceEqualityComparer.Instance);
+
+        return TypeParameters(to).Where(seen.Add).ToList();
+    }
+
+    internal static IEnumerable<TypeParameter> TypeParameters(IMistType type)
+    {
+        if(type is TypeParameter parameter)
+        {
+            yield return parameter;
+        }
+
+        if(type is ConstructedType { Definition: TypeParameter definition })
+        {
+            yield return definition;
+        }
+
+        foreach(var inner in Nested(type).SelectMany(TypeParameters))
+        {
+            yield return inner;
+        }
     }
 
     private static IEnumerable<IFunctionType> PureFunctions(IMistType type)

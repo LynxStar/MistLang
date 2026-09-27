@@ -168,6 +168,16 @@ internal static partial class PurityJudge
             yield break;
         }
 
+        if(concrete.IsDisposableDrop)
+        {
+            if(Parameterless(concrete, "Dispose") is { } dispose)
+            {
+                yield return (dispose, false);
+            }
+
+            yield break;
+        }
+
         var declared = Parameterless(concrete, "Drop");
 
         if(concrete.IsIntrinsic)
@@ -186,16 +196,6 @@ internal static partial class PurityJudge
             yield break;
         }
 
-        if(concrete.IsDisposableDrop)
-        {
-            if(Parameterless(concrete, "Dispose") is { } dispose)
-            {
-                yield return (dispose, false);
-            }
-
-            yield break;
-        }
-
         foreach(var field in concrete.FieldsList.Where(field => !field.Modifiers.IsStatic))
         {
             foreach(var drop in Drops(field.Type, awaitable: false, visited))
@@ -205,12 +205,17 @@ internal static partial class PurityJudge
         }
     }
 
-    private static Method? Parameterless(ConcreteType type, string name)
+    private static Method? Parameterless(MemberType type, string name)
     {
         return type.MethodsList.Find(method => method.Name == name && method.ParametersList.Count == 0 && !method.Modifiers.IsStatic);
     }
 
-    private static IMistType DefinitionOf(IMistType type)
+    public static Method? CloneOf(IMistType type)
+    {
+        return DefinitionOf(type) is MemberType member ? Parameterless(member, "Clone") : null;
+    }
+
+    public static IMistType DefinitionOf(IMistType type)
     {
         return type switch
         {

@@ -1,0 +1,41 @@
+using Standard;
+
+namespace Refusal;
+
+public class Clock
+{
+    public static int Ticks;
+}
+
+public abstract IShape
+{
+    int Area { get; }
+}
+
+public class Sq : IShape
+{
+    public int Area
+    {
+        get
+        {
+            Clock.Ticks = Clock.Ticks + 1;
+            return Clock.Ticks;
+        }
+    }
+}
+
+public class Probe
+{
+    public static pure int Measure(IShape s)
+    {
+        // REFUSE: MIST_PA_PURE_SCOPE_CALLS_IMPURE
+        return s.Area;
+    }
+
+    public static void Main()
+    {
+        var s = new Sq();
+        Console.WriteLine(Measure(s));
+        Console.WriteLine("unreachable");
+    }
+}

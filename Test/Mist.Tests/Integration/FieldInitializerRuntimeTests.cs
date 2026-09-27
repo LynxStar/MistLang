@@ -12,10 +12,12 @@ using Mist.Semantics.Model;
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Tier 4, the boundary from emitted C# to the runtime: a field initializer runs once per construction, with and
-/// without a declared constructor, through a base type and in a struct. The emitted text shows only which
-/// assignments a constructor writes; how many times an initializer runs is C#'s field-initializer semantics
-/// meeting them, which only running the program shows.
+/// Tier 4, the boundary from emitted C# to the runtime: a field initializer runs once per construction, with a
+/// declared constructor, through a base type and in a struct. The emitted text shows only which assignments a
+/// constructor writes; how many times an initializer runs is C#'s field-initializer semantics meeting them, which
+/// only running the program shows. Every logging type takes a constructor argument: a type with no argument-taking
+/// constructor is defaultable, and purity Requirement 12.1 holds its initializers pure, so the constructorless case
+/// can show its values here but leaves "once" to DefaultableInitializerEmissionTests, on the emitted text.
 /// </summary>
 public sealed class FieldInitializerRuntimeTests : IDisposable
 {
@@ -38,13 +40,24 @@ public sealed class FieldInitializerRuntimeTests : IDisposable
             public string Field = Log.Show("a");
             public int Count = Log.Num("b", 7);
             public string Plain;
+
+            public Bare(int seed)
+            {
+            }
+        }
+
+        public class Quiet
+        {
+            public string Field = "q";
+            public int Count = 7;
+            public string Plain;
         }
 
         public class Declared
         {
             public string Field = Log.Show("a");
 
-            public Declared()
+            public Declared(int seed)
             {
                 Log.Trail = Log.Trail + "C";
             }
@@ -53,6 +66,10 @@ public sealed class FieldInitializerRuntimeTests : IDisposable
         public class Derived : Bare
         {
             public string Extra = Log.Show("x");
+
+            public Derived(int seed) : base(seed)
+            {
+            }
         }
 
         public struct Point
@@ -60,7 +77,7 @@ public sealed class FieldInitializerRuntimeTests : IDisposable
             public int X = Log.Num("p", 3);
             public int Y;
 
-            public Point()
+            public Point(int seed)
             {
                 Log.Trail = Log.Trail + "S";
             }
@@ -78,13 +95,15 @@ public sealed class FieldInitializerRuntimeTests : IDisposable
             public static void Main()
             {
                 Log.Trail = "";
-                var bare = new Bare();
+                var bare = new Bare(0);
                 Console.WriteLine(Line("new-bare", $"{bare.Field} {bare.Count} [{bare.Plain}]"));
-                var declared = new Declared();
+                var quiet = new Quiet();
+                Console.WriteLine(Line("new-quiet", $"{quiet.Field} {quiet.Count} [{quiet.Plain}]"));
+                var declared = new Declared(0);
                 Console.WriteLine(Line("new-declared", declared.Field));
-                var derived = new Derived();
+                var derived = new Derived(0);
                 Console.WriteLine(Line("new-derived", $"{derived.Field} {derived.Extra}"));
-                var point = new Point();
+                var point = new Point(0);
                 Console.WriteLine(Line("new-point", $"{point.X} {point.Y}"));
             }
         }
@@ -115,6 +134,7 @@ public sealed class FieldInitializerRuntimeTests : IDisposable
             string.Join("\n",
             [
                 "new-bare a 7 [] ab",
+                "new-quiet q 7 [] ",
                 "new-declared a aC",
                 "new-derived a x xab",
                 "new-point 3 0 pS",

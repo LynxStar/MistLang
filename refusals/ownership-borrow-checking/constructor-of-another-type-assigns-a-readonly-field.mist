@@ -1,0 +1,33 @@
+using Standard;
+
+namespace Refusal;
+
+public class Box
+{
+    public readonly int K;
+
+    public pure Box(int k)
+    {
+        K = k;
+    }
+}
+
+public class Hacker
+{
+    public Hacker(Box b)
+    {
+        // REFUSE: MIST_PA_READONLY_FIELD_ASSIGNED
+        b.K = 99;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var b = new Box(1);
+        var h = new Hacker(b);
+        Console.WriteLine(b.K);
+        Console.WriteLine("unreachable");
+    }
+}

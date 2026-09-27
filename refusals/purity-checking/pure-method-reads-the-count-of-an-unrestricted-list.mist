@@ -1,0 +1,19 @@
+using Standard;
+
+namespace Refusal;
+
+public class Probe
+{
+    public static pure int Bad(List<int> xs)
+    {
+        // REFUSE: MIST_PA_PURE_SCOPE_CALLS_IMPURE
+        return xs.Count;
+    }
+
+    public static void Main()
+    {
+        owned var xs = new List<int>();
+        Console.WriteLine(Bad(xs));
+        Console.WriteLine("unreachable");
+    }
+}

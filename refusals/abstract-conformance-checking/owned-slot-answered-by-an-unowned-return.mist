@@ -1,0 +1,38 @@
+using Standard;
+
+namespace Refusal;
+
+public class Box
+{
+    public int N;
+
+    public pure Box() { }
+}
+
+public class Pool
+{
+    public static readonly Box Shared = new Box();
+}
+
+public abstract IMaker
+{
+    pure owned Box Make();
+}
+
+// REFUSE-FILE: MIST_PA_SLOT_RETURN_NOT_OWNED
+public class Maker : IMaker
+{
+    public pure Box Make()
+    {
+        return Pool.Shared;
+    }
+}
+
+public class Probe
+{
+    public static void Main()
+    {
+        var m = new Maker();
+        Console.WriteLine("unreachable");
+    }
+}

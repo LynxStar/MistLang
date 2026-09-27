@@ -17,6 +17,7 @@ internal readonly record struct ScopeDescription(string Text)
         return member switch
         {
             Constructor constructor => new($"{Spell(kind)} constructor of '{constructor.DeclaringType?.Name ?? constructor.Name}'"),
+            ConcreteType type => new($"{Spell(kind)} constructor of '{type.Name}'"),
             LocalFunctionStatement function => LocalFunction(kind, function.Function.Name),
             Method method => new($"{Spell(kind)} method '{method.Name}'"),
             Property property => new($"{Spell(kind)} property '{property.Name}'"),
@@ -91,11 +92,15 @@ internal static partial class PurityJudge
 
         public List<Finding> Findings { get; } = [];
 
+        // A lambda root judged with a member scope's Origins, not a closure's, is an initializer written as
+        // a bare lambda: the scope's VALUE, whose creation is admitted (Requirement 7.4) and whose body
+        // is judged as a closure where it converts.
         public void Run(object root)
         {
             var start = root switch
             {
-                LambdaExpression lambda => (object?)lambda.Body ?? lambda.Result,
+                LambdaExpression lambda when origins.IsClosure => (object?)lambda.Body ?? lambda.Result,
+                LambdaExpression => null,
                 LocalFunctionStatement function => function.Body,
                 _ => root,
             };
@@ -187,8 +192,8 @@ internal static partial class PurityJudge
                     JudgeLocalRead(local);
                     break;
 
-                case CloneExpression { Source: LocalReferenceExpression or ThisExpression } clone:
-                    JudgeStorageRead(origins.Of(clone.Source), $"a clone of {Spell(clone.Source)}", clone.Node, [clone], clone.Source);
+                case CloneExpression clone:
+                    JudgeClone(clone);
                     break;
 
                 case InvocationExpression invocation:

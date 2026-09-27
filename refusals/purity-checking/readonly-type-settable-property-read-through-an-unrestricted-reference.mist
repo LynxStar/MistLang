@@ -1,0 +1,31 @@
+using Standard;
+
+namespace Refusal;
+
+public readonly class R
+{
+    public int X { get; set; }
+
+    public R(int x)
+    {
+        X = x;
+    }
+}
+
+public class Probe
+{
+    public static pure int Peek(R r)
+    {
+        // REFUSE: MIST_PA_PURE_SCOPE_CALLS_IMPURE
+        return r.X;
+    }
+
+    public static void Main()
+    {
+        var r = new R(1);
+        Console.WriteLine(Peek(r));
+        r.X = 5;
+        Console.WriteLine(Peek(r));
+        Console.WriteLine("unreachable");
+    }
+}

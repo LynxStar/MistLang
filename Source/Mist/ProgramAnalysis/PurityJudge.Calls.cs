@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -12,20 +13,39 @@ namespace Mist.ProgramAnalysis;
 
 internal static partial class PurityJudge
 {
-    public static Finding? JudgeChain(Constructor constructor, ScopeKind kind, ScopeDescription scope, Func<object, Promise> promiseOf)
+    public static Finding? JudgeChain(object constructor, ScopeKind kind, ScopeDescription scope, Func<object, Promise> promiseOf)
     {
-        if((constructor.ChainedConstructor ?? ImplicitlyChained(constructor)) is not { } chained || Admits(kind, promiseOf(chained), Origin.Own))
+        var chained = constructor switch
+        {
+            Constructor declared => declared.ChainedConstructor ?? ImplicitlyChained(declared),
+            ConcreteType type => ImplicitlyChained(type.BaseType),
+            _ => null,
+        };
+
+        if(chained is null || Admits(kind, promiseOf(chained), Origin.Own))
         {
             return null;
         }
 
-        var at = (SyntaxNode?)constructor.ChainNode ?? constructor.DeclarationNode;
+        var at = constructor switch
+        {
+            Constructor declared => (SyntaxNode?)declared.ChainNode ?? declared.DeclarationNode,
+            ConcreteType type => type.DeclarationNode,
+            _ => null,
+        };
+
+        var built = chained switch
+        {
+            Constructor declared => declared.DeclaringType?.Name ?? declared.Name,
+            ConcreteType type => type.Name,
+            _ => "?",
+        };
 
         return at is null
             ? null
             : new Finding(
                 ProgramAnalysisDiagnostics.PureScopeCallsImpure, at, [],
-                [$"chain to the constructor of '{chained.DeclaringType?.Name ?? chained.Name}'", scope, promiseOf(chained).Display, Needed(kind, promiseOf(chained))]);
+                [$"chain to the constructor of '{built}'", scope, promiseOf(chained).Display, Needed(kind, promiseOf(chained))]);
     }
 
     private static bool Admits(ScopeKind kind, Promise promise, Origin receiver)
@@ -60,14 +80,42 @@ internal static partial class PurityJudge
             : "a pure callee, or a local one on an owned receiver";
     }
 
-    private static Constructor? ImplicitlyChained(Constructor constructor)
+    /// <summary>
+    /// The type whose implicit constructor an allocation naming no constructor runs, judged as a callee
+    /// by its instance initializers; null for a defaultable type, whose initializers Requirement 12.1
+    /// already holds pure at the type, so a second complaint at each allocation would be the same
+    /// mistake twice.
+    /// </summary>
+    public static ConcreteType? ImplicitConstructorOf(NewExpression allocation)
     {
-        var target = constructor.ChainKind == ConstructorChainKind.This
-            ? constructor.DeclaringType
-            : (constructor.DeclaringType as ConcreteType)?.BaseType;
+        return allocation.Constructor is null
+            && DefinitionOf(allocation.Type) is ConcreteType { IsIntrinsic: false } type
+            && !Defaultability.IsDefaultable(type)
+            ? type
+            : null;
+    }
 
-        return (target as ConcreteType)?.ConstructorsList.Find(
-            candidate => candidate.ParametersList.Count == 0 && !candidate.Modifiers.IsStatic && !ReferenceEquals(candidate, constructor));
+    private static object? ImplicitlyChained(Constructor constructor)
+    {
+        if(constructor.ChainKind == ConstructorChainKind.This)
+        {
+            return (constructor.DeclaringType as ConcreteType)?.ConstructorsList.Find(
+                candidate => candidate.ParametersList.Count == 0 && !candidate.Modifiers.IsStatic && !ReferenceEquals(candidate, constructor));
+        }
+
+        return ImplicitlyChained((constructor.DeclaringType as ConcreteType)?.BaseType);
+    }
+
+    private static object? ImplicitlyChained(IMistType? baseType)
+    {
+        if(baseType is null || DefinitionOf(baseType) is not ConcreteType { IsIntrinsic: false } type)
+        {
+            return null;
+        }
+
+        var declared = type.ConstructorsList.FindAll(candidate => !candidate.Modifiers.IsStatic);
+
+        return declared.Count == 0 ? type : declared.Find(candidate => candidate.ParametersList.Count == 0);
     }
 
     private sealed partial class Walk
@@ -132,9 +180,26 @@ internal static partial class PurityJudge
                 "a pure function type, whose values are proven pure where they convert");
         }
 
+        private void JudgeClone(CloneExpression clone)
+        {
+            var source = origins.Of(clone.Source);
+
+            if(CloneOf(clone.Type) is { } method)
+            {
+                _ = JudgeCall(method, source, $"call 'Clone' on {Spell(clone.Source)}", clone.Node, [clone]);
+            }
+
+            if(!silenced.Contains(clone))
+            {
+                JudgeStorageRead(source, $"a clone of {Spell(clone.Source)}", clone.Node, [clone], clone.Source);
+            }
+        }
+
         private void JudgeAllocation(NewExpression allocation)
         {
-            if(allocation.Constructor is not { } constructor)
+            var constructor = allocation.Constructor ?? (object?)ImplicitConstructorOf(allocation);
+
+            if(constructor is null)
             {
                 return;
             }

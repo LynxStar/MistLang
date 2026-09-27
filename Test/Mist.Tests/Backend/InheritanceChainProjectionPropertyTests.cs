@@ -163,7 +163,7 @@ public sealed class InheritanceChainProjectionPropertyTests
         while(current is ClassType classType && classType.BaseType is not null)
         {
             var baseType = classType.BaseType;
-            var baseName = baseType.DisplayName;
+            var baseName = baseType is ConstructedType constructed ? constructed.GenericDefinition.DisplayName : baseType.DisplayName;
 
             // When the base type is BaseDelegateType (DisplayName="Delegate"), it
             // represents both System.Delegate and System.MulticastDelegate (flattened).
@@ -240,6 +240,19 @@ public sealed class InheritanceChainProjectionPropertyTests
             if(expectedBaseName == "MulticastDelegate")
             {
                 expectedBaseName = "Delegate";
+            }
+
+            if(clrType.BaseType.IsConstructedGenericType)
+            {
+                var constructed = Assert.IsType<ConstructedType>(classType.BaseType);
+                Assert.True(
+                    constructed.GenericDefinition.DisplayName == expectedBaseName,
+                    $"Type {clrType.Name}: expected BaseType's definition '{expectedBaseName}' " +
+                    $"but got '{constructed.GenericDefinition.DisplayName}'");
+                Assert.Equal(
+                    clrType.BaseType.GetGenericArguments().Select(argument => TypeProjector.StripGenericAritySuffix(argument.Name)),
+                    constructed.TypeArguments.Select(argument => argument.DisplayName));
+                return;
             }
 
             Assert.True(

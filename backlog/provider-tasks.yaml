@@ -291,7 +291,22 @@ types:
       - [x] underlying type (int, byte, short, long, uint, ulong, ushort, sbyte)
     members:
       - [x] name
-      - [ ] constant value (typed to underlying type)
+      - [x] constant value (typed to underlying type) -- 2026-09-27
+        # ambient-type-provider-v2 Req 8.7. BEFORE: EnumProjector built every EnumMember with a null
+        # Value, so a projected enum had its names and none of its numbers. AFTER: each member's Value is
+        # a LiteralExpression of the field's raw metadata constant (GetRawConstantValue, answered by a
+        # MetadataLoadContext without running or initializing anything), boxed as the base's own CLR
+        # primitive -- never widened to the long a Mist integer literal carries, so a ulong past
+        # long.MaxValue survives -- and typed as the enum's resolved UnderlyingType instance.
+        # ClrEnumConstantProjectionTests (Tier 2, 10 cases over fixtures read through a MetadataLoadContext)
+        # holds all eight integral bases at both extremes, sparse, negative and aliased values, and a ulong
+        # flags enum that gains no member for an undeclared combination. Mutation-checked: null values
+        # fail 10/10; widening to long 9/10 (the Int64 row is untouched by it); GetValue in place of the
+        # raw constant 10/10, refused by the MetadataLoadContext; declaration-order values 10/10; the
+        # Int32 model type on every constant 8/10 (the two int-based enums are untouched by it).
+        # No consumer reads these values yet: the enum binder, the analyzers and the emitter walk source
+        # enums only. A reader should expect the exact primitive, not the long a source enum value
+        # carries, and a null Node, since no syntax stands behind a projected constant.
 
 extensions:
   scanning:

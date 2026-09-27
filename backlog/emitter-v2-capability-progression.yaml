@@ -7768,6 +7768,20 @@ capabilities:
 
       With 130 delivered the sample is BANKED -- 47th on AllFeaturesV2, matching the baseline on
       both pipelines.
+
+      CLR ENUM CONSTANTS, 2026-09-27 (ambient-type-provider-v2 Req 8.7). EnumProjector gave every
+      projected member a null Value: names and cardinality right, numbers absent, and no sample could
+      show it, because emitted C# names the CLR member and the CLR supplies its value. Each member now
+      carries a LiteralExpression of the field's raw metadata constant, boxed as the base's own
+      primitive -- a ulong past long.MaxValue survives, where the long a Mist literal carries would
+      wrap it -- and typed as the enum's resolved UnderlyingType. ClrEnumConstantProjectionTests
+      (Tier 2, 10 cases) covers all eight integral bases at both extremes and sparse, negative, aliased
+      and flag values, over fixtures read through a MetadataLoadContext so nothing can execute; the five
+      mutations it was checked against are in backlog/provider-tasks.yaml. Measured over the net10.0
+      reference pack: 544 public enums, 5154 constants, every one a literal whose raw boxed type is its
+      enum's base, read in 38 ms. Nothing reads the values yet -- the binder, analyzers and emitter
+      walk source enums only -- and the full suite, AllFeaturesV2 included, is green on it. One
+      projection item closed, not this capability: v2_status stays partial.
     unlocks: [Attributes]
 
   - id: clr-generic-construction-and-members

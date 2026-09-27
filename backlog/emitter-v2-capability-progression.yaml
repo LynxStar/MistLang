@@ -6794,6 +6794,24 @@ capabilities:
       recognition. The focused ledger passes 69/69; the build has zero warnings and scoped formatting
       verification is clean. OverloadResolution and its ranking rules are unchanged. Generic lambda
       inference remains a separate follow-up; callable alternatives in general unions remain deferred.
+
+      OPTIONAL LAMBDA GENERIC INFERENCE, 2026-09-27 (workstream 12 follow-up 2). TypeArgumentInference
+      uses the present contextual signature when collecting a lambda's stated parameter bounds and
+      when teaching results after its inputs can be fixed. The existing repeated-pass, dominant-bound
+      and frozen-input rules are unchanged; method groups retain their existing shape reader.
+      OptionalLambdaInferenceTests supplies sixteen Tier 1 cases with direct model inputs and stub
+      lambda trials: optional/constructed-alias/plain targets, stated or argument-provided inputs,
+      unavailable/conflicting inputs, frozen bounds, parameterless lambdas, dependent callbacks,
+      receiver substitution, deferred general unions and unchanged optional method-group behavior.
+      OptionalLambdaGenericCallTests supplies nineteen Tier 2 hand-built call cases: expression/block
+      bodies, optional and generic-alias destinations, purity inheritance, equal inferred/explicit
+      signatures and recorded type arguments, body-derived outputs, generic overload selection,
+      single cause diagnostics and async task results. Before the change, the regression cases miss
+      result bounds or report not-inferred instead of the input conflict; final inference retains
+      only the selected calls. The focused ledger passes 104/104, the solution builds with zero
+      warnings and scoped formatting verification is clean. General callable unions remain deferred
+      pending their selection specification; method-group conversion and overload ranking are unchanged.
+      The full solution ledger passes 10656/10656 cases across Mist, Storm and CLI after both follow-ups.
     unlocks: []
 
   - id: lambda-expressions

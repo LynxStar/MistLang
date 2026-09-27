@@ -55,6 +55,12 @@ internal static class RefinementDecision
 
     private static bool Satisfied(Expression value, IMistType target, Admitted known, LiteralValue? literal, RealSet? real)
     {
+        // An unknown enum can hold a value outside the signed interval domain, even when the predicate covers that whole domain.
+        if(known.IsEverything && Requirement.Unrefined(value.Type) is EnumType && Requirement.Refined(value.Type) is null)
+        {
+            return false;
+        }
+
         if(LiteralPredicates.Applies(target))
         {
             return LiteralPredicates.Satisfied(target, value.Type, literal, value)

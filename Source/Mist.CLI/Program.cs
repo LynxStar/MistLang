@@ -6,6 +6,7 @@ using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.CLI.Args;
+using Mist.CLI.Layout;
 using Mist.CLI.Output;
 using Mist.CLI.Steering;
 using Mist.Common.Diagnostics;
@@ -122,15 +123,39 @@ internal class Program
             : new ConsoleProgressReporter(Console.Out);
         var totalStopwatch = Stopwatch.StartNew();
 
-        // Discover all .mist source files from the project folder, sorted ordinally.
-        var sourceFiles = Directory.EnumerateFiles(cliArgs.ProjectFolder, "*.mist", SearchOption.AllDirectories)
-            .OrderBy(f => f, StringComparer.Ordinal)
-            .ToList();
+        var layout = LayoutOf(cliArgs);
+        var sourceFiles = DiscoverSourcesAndClean(layout, reporter);
+        if(sourceFiles is null)
+        {
+            return 1;
+        }
+
+        return cliArgs.Mode switch
+        {
+            CompilerMode.Lex => RunLexMode(sourceFiles, layout),
+            _ => RunCompileMode(sourceFiles, cliArgs, reporter, totalStopwatch),
+        };
+    }
+
+    private static ProjectLayout LayoutOf(CliArguments cliArgs)
+    {
+        return new ProjectLayout(cliArgs.ProjectFolder, cliArgs.OutputDirectory, cliArgs.BinDirectory, Directory.GetCurrentDirectory());
+    }
+
+    private static IReadOnlyList<string>? DiscoverSourcesAndClean(ProjectLayout layout, ICompilationProgressReporter reporter)
+    {
+        if(layout.DirectoryHoldingProject() is { } holdingDirectory)
+        {
+            Console.Error.WriteLine($"error: '{holdingDirectory}' is or contains the project folder '{layout.ProjectFolder}'; cleaning it would delete the project.");
+            return null;
+        }
+
+        var sourceFiles = layout.DiscoverSources();
 
         if(sourceFiles.Count == 0)
         {
             Console.Error.WriteLine("error: No .mist source files found.");
-            return 1;
+            return null;
         }
 
         // Stage 0: Cleaning
@@ -139,35 +164,28 @@ internal class Program
 
         try
         {
-            CleanDirectory(cliArgs.OutputDirectory);
-            CleanDirectory(cliArgs.BinDirectory);
+            CleanDirectory(layout.OutputDirectory);
+            CleanDirectory(layout.BinDirectory);
         }
         catch(IOException ex)
         {
             Console.Error.WriteLine($"error: Failed to clean build directories: {ex.Message}");
-            return 1;
+            return null;
         }
 
         cleanStopwatch.Stop();
         reporter.ReportStageComplete("0", cleanStopwatch.Elapsed, new[]
         {
-            $"Cleaned {cliArgs.OutputDirectory}",
-            $"Cleaned {cliArgs.BinDirectory}",
+            $"Cleaned {layout.OutputDirectory}",
+            $"Cleaned {layout.BinDirectory}",
         });
 
-        return cliArgs.Mode switch
-        {
-            CompilerMode.Lex => RunLexMode(sourceFiles, cliArgs.OutputDirectory),
-            _ => RunCompileMode(sourceFiles, cliArgs, reporter, totalStopwatch),
-        };
+        return sourceFiles;
     }
 
-    private static int RunLexMode(List<string> sourceFiles, string outputDirectory)
+    private static int RunLexMode(IReadOnlyList<string> sourceFiles, ProjectLayout layout)
     {
         var lexer = new MistLexer();
-        var lexOutDir = Path.Combine(outputDirectory, "lexer");
-        _ = Directory.CreateDirectory(lexOutDir);
-
         var hasErrors = false;
 
         foreach(var filePath in sourceFiles)
@@ -218,9 +236,9 @@ internal class Program
                 }
             }
 
-            var outFileName = Path.GetFileNameWithoutExtension(filePath) + ".tokens";
-            var outPath = Path.Combine(lexOutDir, outFileName);
-            File.WriteAllText(outPath, sb.ToString());
+            var artifacts = layout.LexArtifactsFor(filePath);
+            _ = Directory.CreateDirectory(Path.GetDirectoryName(artifacts.SourcePath)!);
+            File.WriteAllText(artifacts.TokensPath, sb.ToString());
 
             // Reconstruct source from token lexemes and write .mist file
             var reconstructed = string.Concat(
@@ -228,8 +246,7 @@ internal class Program
                     .Where(t => t.Kind != (int)Mist.Generated.TokenKind.EndOfFile)
                     .Select(t => t.Lexeme));
 
-            var reconstructedPath = Path.Combine(lexOutDir, Path.GetFileName(filePath));
-            File.WriteAllText(reconstructedPath, reconstructed);
+            File.WriteAllText(artifacts.SourcePath, reconstructed);
 
             // Round-trip check: reconstructed must match original
             if(reconstructed != source)
@@ -254,13 +271,13 @@ internal class Program
                 }
             }
 
-            Console.WriteLine($"Lexed {filePath} -> {outPath}, {reconstructedPath}");
+            Console.WriteLine($"Lexed {filePath} -> {artifacts.TokensPath}, {artifacts.SourcePath}");
         }
 
         return hasErrors ? 1 : 0;
     }
 
-    private static int RunCompileMode(List<string> sourceFiles, CliArguments cliArgs, ICompilationProgressReporter reporter, Stopwatch totalStopwatch)
+    private static int RunCompileMode(IReadOnlyList<string> sourceFiles, CliArguments cliArgs, ICompilationProgressReporter reporter, Stopwatch totalStopwatch)
     {
         var result = CompileProject(sourceFiles, cliArgs, reporter);
 
@@ -281,7 +298,7 @@ internal class Program
         return result.Succeeded ? 0 : 1;
     }
 
-    private static CompilerResult CompileProject(List<string> sourceFiles, CliArguments cliArgs, ICompilationProgressReporter? progressReporter = null)
+    private static CompilerResult CompileProject(IReadOnlyList<string> sourceFiles, CliArguments cliArgs, ICompilationProgressReporter? progressReporter = null)
     {
         // Parse the project file to get the project name
         var parseDiagnostics = new DiagnosticBag();
@@ -355,38 +372,11 @@ internal class Program
             : NullProgressReporter.Instance;
         var totalStopwatch = Stopwatch.StartNew();
 
-        // Discover all .mist source files from the project folder, sorted ordinally.
-        var sourceFiles = Directory.EnumerateFiles(cliArgs.ProjectFolder, "*.mist", SearchOption.AllDirectories)
-            .OrderBy(f => f, StringComparer.Ordinal)
-            .ToList();
-
-        if(sourceFiles.Count == 0)
+        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), reporter);
+        if(sourceFiles is null)
         {
-            Console.Error.WriteLine("error: No .mist source files found.");
             return 1;
         }
-
-        // Stage 0: Cleaning
-        reporter.ReportStageStart("0", "Cleaning");
-        var cleanStopwatch = Stopwatch.StartNew();
-
-        try
-        {
-            CleanDirectory(cliArgs.OutputDirectory);
-            CleanDirectory(cliArgs.BinDirectory);
-        }
-        catch(IOException ex)
-        {
-            Console.Error.WriteLine($"error: Failed to clean build directories: {ex.Message}");
-            return 1;
-        }
-
-        cleanStopwatch.Stop();
-        reporter.ReportStageComplete("0", cleanStopwatch.Elapsed, new[]
-        {
-            $"Cleaned {cliArgs.OutputDirectory}",
-            $"Cleaned {cliArgs.BinDirectory}",
-        });
 
         // Compile the project
         var result = CompileProject(sourceFiles, cliArgs, reporter);
@@ -604,38 +594,11 @@ internal class Program
             : NullProgressReporter.Instance;
         var totalStopwatch = Stopwatch.StartNew();
 
-        // Discover all .mist source files from the project folder, sorted ordinally.
-        var sourceFiles = Directory.EnumerateFiles(cliArgs.ProjectFolder, "*.mist", SearchOption.AllDirectories)
-            .OrderBy(f => f, StringComparer.Ordinal)
-            .ToList();
-
-        if(sourceFiles.Count == 0)
+        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), reporter);
+        if(sourceFiles is null)
         {
-            Console.Error.WriteLine("error: No .mist source files found.");
             return 1;
         }
-
-        // Stage 0: Cleaning
-        reporter.ReportStageStart("0", "Cleaning");
-        var cleanStopwatch = Stopwatch.StartNew();
-
-        try
-        {
-            CleanDirectory(cliArgs.OutputDirectory);
-            CleanDirectory(cliArgs.BinDirectory);
-        }
-        catch(IOException ex)
-        {
-            Console.Error.WriteLine($"error: Failed to clean build directories: {ex.Message}");
-            return 1;
-        }
-
-        cleanStopwatch.Stop();
-        reporter.ReportStageComplete("0", cleanStopwatch.Elapsed, new[]
-        {
-            $"Cleaned {cliArgs.OutputDirectory}",
-            $"Cleaned {cliArgs.BinDirectory}",
-        });
 
         // Compile the project
         var result = CompileProject(sourceFiles, cliArgs, reporter);
@@ -805,7 +768,7 @@ internal class Program
     /// Uses a regex-based heuristic over the source text since the compiled AST is not
     /// retained in <see cref="CompilerResult"/>.
     /// </summary>
-    private static bool HasTestAttributedMethods(List<string> sourceFiles)
+    private static bool HasTestAttributedMethods(IReadOnlyList<string> sourceFiles)
     {
         // Match attribute syntax: [SomeName] where SomeName ends with Fact, Theory, Test, or TestMethod.
         // The pattern accounts for optional qualifiers (e.g., [Xunit.Fact]) and optional arguments.

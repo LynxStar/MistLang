@@ -1,6 +1,9 @@
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding.Expressions;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
@@ -15,6 +18,12 @@ public sealed class NumericLiteralBindingTests
         foreach(var name in new[] { "UInt64", "Single", "Decimal" })
         {
             fragments.Register(fragments.Built.Type(name));
+        }
+
+        foreach(var name in new[] { "Int32", "Int64" })
+        {
+            var signed = fragments.Built.Type(name);
+            signed.OperatorsList.Add(new Operator(OperatorKind.Minus, signed, [new Parameter("a", signed)], new MemberModifiers { IsStatic = true }));
         }
     }
 
@@ -101,6 +110,30 @@ public sealed class NumericLiteralBindingTests
         var negation = Assert.IsType<UnaryExpression>(Bind(Negated(Postfix(Integer("5")))));
 
         AssertLiteral(5, negation.Operand);
+        Assert.Equal("Int32", negation.Type.Name);
+    }
+
+    [Theory]
+    [InlineData("3000000000", 3000000000U)]
+    [InlineData("4294967296", 4294967296L)]
+    [InlineData("5L", 5L)]
+    public void ANegatedLiteral_IsALongWhereItsMagnitudeOutgrowsAnInt(string lexeme, object magnitude)
+    {
+        var negation = Assert.IsType<UnaryExpression>(Bind(Negated(Postfix(Integer(lexeme)))));
+
+        AssertLiteral(magnitude, negation.Operand);
+        Assert.Equal("Int64", negation.Type.Name);
+    }
+
+    [Theory]
+    [InlineData("5u")]
+    [InlineData("5UL")]
+    [InlineData("9223372036854775809")]
+    public void ANegatedUnsignedLiteral_HasNoNegation(string lexeme)
+    {
+        var negation = Assert.IsType<UnaryExpression>(Bind(Negated(Postfix(Integer(lexeme)))));
+
+        _ = Assert.IsType<ErrorType>(negation.Type);
     }
 
     [Fact]
@@ -112,6 +145,7 @@ public sealed class NumericLiteralBindingTests
         var negation = Assert.IsType<UnaryExpression>(Bind(Negated(Postfix(parenthesized))));
 
         AssertLiteral(2147483648U, negation.Operand);
+        Assert.Equal("Int64", negation.Type.Name);
     }
 
     private Expression Bind(UnaryNode unary)

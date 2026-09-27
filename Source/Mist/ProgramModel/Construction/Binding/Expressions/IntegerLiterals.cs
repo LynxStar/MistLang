@@ -36,6 +36,11 @@ internal static class IntegerLiterals
         };
     }
 
+    public static WellKnownType? NegatedType(string lexeme)
+    {
+        return Parse(lexeme) is ( > int.MaxValue and <= uint.MaxValue, false, false) ? WellKnownTypes.Int64 : null;
+    }
+
     public static int? Length(string lexeme)
     {
         return IntegralConstant.Of(Read(lexeme)?.Value) is { } length && length <= int.MaxValue ? (int)length : null;

@@ -83,6 +83,29 @@ public sealed class IntegerLiteralReadingTests
     }
 
     [Theory]
+    [InlineData("3000000000")]
+    [InlineData("2147483648")]
+    [InlineData("4294967295")]
+    [InlineData("0x8000_0000")]
+    [InlineData("0b1_0000000000000000000000000000000")]
+    public void AnUnsuffixedLiteralThatReadsAsAUInt_NegatesToALong(string lexeme)
+    {
+        Assert.Equal("Int64", IntegerLiterals.NegatedType(lexeme)?.Name);
+    }
+
+    [Theory]
+    [InlineData("5")]
+    [InlineData("2147483647")]
+    [InlineData("4294967296")]
+    [InlineData("3000000000u")]
+    [InlineData("3000000000L")]
+    [InlineData("9223372036854775808")]
+    public void AnyOtherLiteral_NegatesByItsOwnType(string lexeme)
+    {
+        Assert.Null(IntegerLiterals.NegatedType(lexeme));
+    }
+
+    [Theory]
     [InlineData("3", 3)]
     [InlineData("1_000", 1000)]
     [InlineData("3u", 3)]

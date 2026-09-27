@@ -13120,6 +13120,29 @@ measured_defects:
           EnumValueCountingTests (Tier 2) and IntegralConstantRuleTests (both), mutation-checked eleven
           ways, each caught by the test aimed at it.
 
+      - defect: negating a byte or ushort printed a wrapped value
+        recorded_on: operators-arithmetic-comparison-logical (order 9)
+        status: FIXED
+        note: >
+          Measured 2026-09-27 on both pipelines. Standard declares unary minus for sbyte, short, int, long
+          and the three reals and nothing else, and classic refuses `-x` over a byte, ushort, uint, ulong
+          or char with MIST_TC_0003. v2 admitted all five, typing the negation as its operand: `byte x = 5;
+          var n = -x;` printed 251 and the ushort case 65531, the narrowing cast the emitter wraps small
+          arithmetic in turning C#'s int -5 back into a byte, while the uint, ulong and char cases emitted
+          C# that Roslyn refused. `var n = -3000000000;` failed the same way, the literal being a uint by
+          magnitude, though classic prints -3000000000.
+
+          FIXED as a binary operator already is: OperatorAdmissibility.UnaryResultType answers null for a
+          negated byte, ushort, uint, ulong or char, the binder types the negation as an error, and
+          OperatorAnalyzer reports MIST_PA_OPERATOR_NOT_APPLICABLE (analysis register order 9). The five are
+          NAMED, not inferred from a missing declaration: the first version refused any numeric type that
+          declared no negation, and the full suite failed eighteen tests whose models carry Standard's shells
+          without its operators, where `-2.5` and `-1` became errors. A minus in front of an unsuffixed
+          literal too large for int negates to a long, as classic and C# read it, parenthesized or not; `-5u`
+          and `-5UL` are refused, as classic refuses them. All fourteen probes now match classic.
+          UnaryNegationRuleTests, NumericLiteralBindingTests and IntegerLiteralReadingTests hold it,
+          mutation-checked four ways, the too-broad rule among them.
+
   classic_defects_where_v2_is_correct:
     note: >
       A category this file had no home for. The clean-room rule makes classic's BEHAVIOR the

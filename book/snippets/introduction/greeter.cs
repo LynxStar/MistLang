@@ -25,7 +25,7 @@ public class Scorer
         {
             if (result.AsInt32OrNull is int numeric)
             {
-                System.Console.WriteLine($"Score: {numeric}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"Score: {numeric}"));
             }
         }
     }

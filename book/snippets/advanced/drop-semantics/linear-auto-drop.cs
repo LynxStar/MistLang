@@ -13,7 +13,7 @@ public class FileHandle
 
     public void Drop()
     {
-        System.Console.WriteLine($"FileHandle({Fd}) closed");
+        System.Console.WriteLine(System.FormattableString.Invariant($"FileHandle({Fd}) closed"));
     }
 
     public int GetFd()
@@ -29,7 +29,7 @@ public class Program
         Snippets.FileHandle f = new Snippets.FileHandle(42);
         try
         {
-            System.Console.WriteLine($"Using handle {f.GetFd()}");
+            System.Console.WriteLine(System.FormattableString.Invariant($"Using handle {f.GetFd()}"));
         }
         finally
         {

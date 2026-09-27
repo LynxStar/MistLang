@@ -9,8 +9,8 @@ public class Program
         System.Func<int, int> doubler = (int x) => x * 2;
         System.Func<int, int, int> adder = (int x, int y) => x + y;
         System.Func<string> greeter = () => "Hello, Mist!";
-        System.Console.WriteLine($"doubler(5)={doubler(5)}");
-        System.Console.WriteLine($"adder(3,4)={adder(3, 4)}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"doubler(5)={doubler(5)}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"adder(3,4)={adder(3, 4)}"));
         System.Console.WriteLine($"greeter()={greeter()}");
     }
 

@@ -10,7 +10,7 @@ internal class Program
         {
             if (point is { X: var x, Y: var y })
             {
-                System.Console.WriteLine($"Matched: X={x} Y={y}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"Matched: X={x} Y={y}"));
             }
         }
         var status = new { Code = 200, Message = "OK" };

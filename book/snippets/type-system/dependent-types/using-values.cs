@@ -8,7 +8,7 @@ public class Matrix<TRows, TCols>
 {
     public string Describe()
     {
-        return $"Matrix<{TRows.Value},{TCols.Value}>";
+        return $"Matrix<{MistInvariant.Text(TRows.Value)},{MistInvariant.Text(TCols.Value)}>";
     }
 
     public Matrix()

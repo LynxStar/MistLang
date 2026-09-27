@@ -15,7 +15,7 @@ public class Point
 
     public string Describe()
     {
-        return $"Point({X}, {Y})";
+        return System.FormattableString.Invariant($"Point({X}, {Y})");
     }
 }
 

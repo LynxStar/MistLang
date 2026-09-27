@@ -15,7 +15,7 @@ public class Label
 
     public string Describe()
     {
-        return $"Label({this.text}, {this.code})";
+        return System.FormattableString.Invariant($"Label({this.text}, {this.code})");
     }
 }
 

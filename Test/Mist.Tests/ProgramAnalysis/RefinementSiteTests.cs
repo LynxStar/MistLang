@@ -144,4 +144,32 @@ public sealed class RefinementSiteTests
         Assert.Equal(25, finding.Location.Start.Column);
     }
 
+    [Theory]
+    [InlineData("Single")]
+    [InlineData("Double")]
+    [InlineData("Decimal")]
+    public void ANegatedRealBoundInAFinding_ReadsAsTheNegatedLiteral(string real)
+    {
+        var h = new HandBuiltRefinements();
+        var type = h.Built.Type(real);
+        var bound = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, h.Literal(Real(real, 0.5), type), type);
+        var above = h.Refine(type, ComparisonKind.GreaterThan, bound, "Above");
+        var value = new UnaryExpression(HandBuiltModel.Node(24), UnaryOperatorKind.Negate, h.Literal(Real(real, 1.25), type, offset: 24), type);
+
+        var finding = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltRefinements.Need(value, above)));
+
+        Assert.Equal("MIST_PA_REFINEMENT_VIOLATED", finding.Id.Value);
+        Assert.Contains("'> -0.5'", finding.Message, StringComparison.Ordinal);
+    }
+
+    private static object Real(string type, double value)
+    {
+        return type switch
+        {
+            "Single" => (float)value,
+            "Double" => value,
+            _ => (decimal)value,
+        };
+    }
+
 }

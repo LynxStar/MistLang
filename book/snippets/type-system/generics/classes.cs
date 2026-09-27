@@ -18,6 +18,6 @@ public class GenericBox<T>
 
     public string Describe()
     {
-        return $"GenericBox({item})";
+        return $"GenericBox({MistInvariant.Text(item)})";
     }
 }

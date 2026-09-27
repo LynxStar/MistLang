@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Globalization;
 using Mist.Analysis.Builtin;
 using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
@@ -13,11 +14,13 @@ namespace Mist.Tests.Integration;
 
 /// <summary>
 /// Tier 4, the boundary from emitted C# to the runtime: purity Requirement 13.2 says the members Standard
-/// declares pure read no process state, and the current culture is process state the environment sets before
-/// the program starts. The emitted text names the invariant culture (InvariantCultureEmissionTests); only
-/// running the program under a culture that formats, orders and case-maps differently shows the CLR honoring
-/// it. One compile, two runs, and each run first prints the culture it got, so a machine without ICU or one
-/// that ignores LANG fails here instead of passing for nothing.
+/// declares pure read no state that can change while the program runs, and the current culture is such state
+/// (Requirement 7.5); setting it through the environment is only the easiest way to vary it for a test. The
+/// emitted text names the invariant culture (InvariantCultureEmissionTests); only running the program under a
+/// culture that formats, orders and case-maps differently shows the CLR honoring it. One compile, under German
+/// so a literal the compiler read by the current culture would print wrong (Requirement 13.3), and two runs;
+/// each run first prints the culture it got, so a machine without ICU or one that ignores LANG fails here
+/// instead of passing for nothing.
 /// </summary>
 [Trait("Tier", "4")]
 public sealed class CultureInvariantEmissionTests : IDisposable
@@ -27,6 +30,10 @@ public sealed class CultureInvariantEmissionTests : IDisposable
         using System.Globalization;
 
         namespace Invariant;
+
+        type Meters = new double;
+
+        type Letter = new char;
 
         public class Program
         {
@@ -73,6 +80,12 @@ public sealed class CultureInvariantEmissionTests : IDisposable
                 return items[0];
             }
 
+            public static string Grouped(string s)
+            {
+                func<string> up = s.ToUpper;
+                return up();
+            }
+
             public static void Main()
             {
                 Console.WriteLine(CultureInfo.CurrentCulture.Name);
@@ -93,11 +106,33 @@ public sealed class CultureInvariantEmissionTests : IDisposable
                 pairs.Add(("i", 2));
                 pairs.Sort();
                 Console.WriteLine($"{pairs[0]}");
+                Console.WriteLine(Grouped("i"));
+                double? maybe = 2.5;
+                Console.WriteLine(maybe?.ToString());
+                Console.WriteLine((Meters)(-4.5));
+                var prices = new System.Collections.Generic.Dictionary<string, double>();
+                prices.Add("tea", 1.5);
+                foreach(var entry in prices)
+                {
+                    Console.WriteLine(entry);
+                }
+
+                Console.WriteLine('a');
+                Console.WriteLine((Letter)'q');
+                var moment = new System.DateTime(2026, 9, 27, 13, 5, 0);
+                Console.WriteLine(moment.ToString());
+                var lazy = new System.Lazy<double>(1.5);
+                Console.WriteLine($"{lazy}");
+                var priced = new { Price = 1.5, Delta = -2 };
+                Console.WriteLine(priced);
+                Console.WriteLine(System.DayOfWeek.Monday);
             }
         }
         """;
 
-    private static readonly string[] Invariant = ["I", "1.5", "1234", "abBiI", "True", "d=-2.5", "(1.5, -2)", "3.25", "i", "(i, 2)"];
+    private static readonly string[] Invariant =
+        ["I", "1.5", "1234", "abBiI", "True", "d=-2.5", "(1.5, -2)", "3.25", "i", "(i, 2)", "I", "2.5", "-4.5", "[tea, 1.5]",
+            "a", "q", "09/27/2026 13:05:00", "1.5", "{ Price = 1.5, Delta = -2 }", "Monday"];
 
     private readonly string scratchDir;
 
@@ -138,7 +173,7 @@ public sealed class CultureInvariantEmissionTests : IDisposable
             ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
             ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
 
-        var result = driver.Compile(new CompilerOptions(
+        var options = new CompilerOptions(
             ProjectFolder: scratchDir,
             SourcePaths: ImmutableArray.Create(sourcePath),
             Backend: new BackendId("csharp"),
@@ -147,7 +182,21 @@ public sealed class CultureInvariantEmissionTests : IDisposable
             ProjectName: "Invariant",
             NamespaceRoot: "Invariant",
             EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            Pipeline: PipelineMode.Experimental));
+            Pipeline: PipelineMode.Experimental);
+
+        var previous = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
+        CompilerResult result;
+
+        try
+        {
+            Assert.Equal(",", CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator);
+            result = driver.Compile(options);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previous;
+        }
 
         var errors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)

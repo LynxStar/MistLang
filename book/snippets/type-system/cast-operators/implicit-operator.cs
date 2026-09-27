@@ -33,6 +33,6 @@ public class Fahrenheit
 
     public string Describe()
     {
-        return $"{degrees} F";
+        return System.FormattableString.Invariant($"{degrees} F");
     }
 }

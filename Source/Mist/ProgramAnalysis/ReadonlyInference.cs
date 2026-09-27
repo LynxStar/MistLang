@@ -12,13 +12,16 @@ namespace Mist.ProgramAnalysis;
 /// reason: both answer what a BODY does, and one walk with two questions beats two walkers that can
 /// disagree. The rules are the readonly-contexts spec's base rules (Req 11) read as a classification --
 /// a field written, a setter called, a callee that is not readonly, an allocation through a constructor
-/// that is not -- with a constructor privileged to assign the fields of the instance it builds (Req 10.7), and
-/// with the purity spec's amendment (its Req 11): a write to what the context owns by
+/// that is not -- with a constructor privileged to assign the fields of the instance it builds
+/// (Req 10.7), and with the purity spec's amendment (its Req 11): a write to what the context owns by
 /// <see cref="Origins"/>, and a call to a local member on such a receiver, are not writes of the
-/// context. What a callee without a body here keeps -- an abstract slot, whose promise is its
-/// implementers', or a local member -- is the caller's oracle, because the answer is the purity
-/// fixpoint's and that fixpoint asks this class in turn; without one, only a declaration counts, and an
-/// auto accessor, which does nothing but touch its own storage, counts as local.
+/// context. The one write of what it owns that a context may not make is an external or frozen
+/// reference of a type that can change stored into an owned field or property: the context's next read
+/// through that owned slot would answer Own for an object other references share. What a callee
+/// without a body here keeps -- an abstract slot, whose promise is its implementers', or a local
+/// member -- is the caller's oracle, because the answer is the purity fixpoint's and that fixpoint asks
+/// this class in turn; without one, only a declaration counts, and an auto accessor, which does nothing
+/// but touch its own storage, counts as local.
 /// <para>
 /// A call asks the CALLEE'S status and never its body (Req 10.8), which is what makes this a fixed
 /// point over the call graph rather than an inlining. It is the GREATEST one: a member is readonly
@@ -198,7 +201,6 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
         };
     }
 
-    // An intrinsic operator is the target's own arithmetic, with no body that could write.
     private bool Writes(object node, Origins origins, object member, List<object> callees)
     {
         return Triggers(node, member, callees) || node switch
@@ -212,6 +214,7 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
             IndexExpression { FromEnd: { } counted } indexed => CountWrites(counted, origins.Of(indexed.Receiver), callees),
             ListPattern { Reads: { } reads } => CountWrites(reads, Origin.External, callees)
                 || UnprovenGetter(reads.Indexer.Getter, reads.Indexer.Modifiers, reads.Indexer.DeclaringType, callees),
+            // An intrinsic operator is the target's own arithmetic, with no body that could write.
             BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } binaryOperator } => Unproven(binaryOperator, callees),
             UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator } => Unproven(unaryOperator, callees),
             CastExpression { Operator: { Modifiers.IsIntrinsic: false } conversion } => Unproven(conversion, callees),
@@ -315,12 +318,6 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
             && UnprovenGetter(current.Getter, current.Modifiers, current.DeclaringType, callees);
     }
 
-    /// <summary>
-    /// A store that would make the context's next read through an OWNED slot answer Own for an object
-    /// other references share: an external or frozen reference of a type that can change, into an owned
-    /// field or property of something the context owns. The write itself is admitted by the amendment;
-    /// this is the one write of what a context owns that it may not make.
-    /// </summary>
     public static bool StoresUnowned(Origins origins, Expression target, Expression value)
     {
         var owned = target switch

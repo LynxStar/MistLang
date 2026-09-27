@@ -11,7 +11,7 @@ public class Program
         {
             if (widened.AsInt32OrNull is int n)
             {
-                System.Console.WriteLine($"widened int: {n}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"widened int: {n}"));
             }
         }
     }

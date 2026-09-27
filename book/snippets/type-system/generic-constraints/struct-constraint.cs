@@ -14,6 +14,6 @@ internal class ValOnly<T>
 
     public string Show()
     {
-        return $"ValOnly: {Item}";
+        return $"ValOnly: {MistInvariant.Text(Item)}";
     }
 }

@@ -11,7 +11,7 @@ internal class WeakerProcessor : Snippet.IStrictProcessor
 {
     public string Process(int x)
     {
-        return $"WeakerProcessor.Process({x}) accepted (weaker constraint >= 0)";
+        return System.FormattableString.Invariant($"WeakerProcessor.Process({x}) accepted (weaker constraint >= 0)");
     }
 
     public WeakerProcessor()
@@ -28,7 +28,7 @@ internal class LenientProcessor : Snippet.IStrictProcessor
 {
     public string Process(int x)
     {
-        return $"LenientProcessor.Process({x}) accepted (no constraint)";
+        return System.FormattableString.Invariant($"LenientProcessor.Process({x}) accepted (no constraint)");
     }
 
     public LenientProcessor()

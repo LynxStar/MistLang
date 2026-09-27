@@ -7,10 +7,10 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Greeting greeting = new Snippet.Greeting("Hello beautiful world");
-        int wc = greeting.WordCount();
-        string upper = greeting.Uppercase();
-        Snippet.Greeting repeated = greeting.Repeat(2);
-        System.Console.WriteLine(wc);
+        int wc = Snippet.GreetingExtensions_declaring_0.WordCount(greeting);
+        string upper = Snippet.GreetingExtensions_declaring_0.Uppercase(greeting);
+        Snippet.Greeting repeated = Snippet.GreetingExtensions_withparams_0.Repeat(greeting, 2);
+        System.Console.WriteLine(wc.ToString(System.Globalization.CultureInfo.InvariantCulture));
         System.Console.WriteLine(upper);
     }
 

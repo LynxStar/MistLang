@@ -8,7 +8,7 @@ public class Program
     public static void Main(string[] args)
     {
         byte[] bytes = System.Text.Encoding.UTF8.GetBytes("Hello");
-        System.Console.WriteLine($"length={bytes.Length}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"length={bytes.Length}"));
         string text = System.Text.Encoding.UTF8.GetString(bytes);
         System.Console.WriteLine($"text={text}");
     }

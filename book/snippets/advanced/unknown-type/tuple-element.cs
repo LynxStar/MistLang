@@ -22,7 +22,7 @@ public class Program
     public static void Main(string[] args)
     {
         (int tag, object payload) envelope = (tag: 1, payload: new Snippet.Greeter("Mist"));
-        System.Console.WriteLine($"tag={envelope.tag}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"tag={envelope.tag}"));
         {
             if (envelope.payload is Snippet.Greeter g)
             {

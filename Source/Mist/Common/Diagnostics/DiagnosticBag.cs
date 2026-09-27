@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 
 using Mist.Common.Source;
 
@@ -38,7 +39,7 @@ public sealed class DiagnosticBag
         params ReadOnlySpan<object?> args)
     {
         var message = args.Length > 0
-            ? string.Format(descriptor.MessageTemplate, args.ToArray())
+            ? string.Format(CultureInfo.InvariantCulture, descriptor.MessageTemplate, args.ToArray())
             : descriptor.MessageTemplate;
 
         diagnostics.Add(new Diagnostic(

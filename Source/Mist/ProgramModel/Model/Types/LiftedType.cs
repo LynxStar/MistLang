@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Scopes;
 
@@ -17,7 +18,7 @@ namespace Mist.ProgramModel.Model.Types;
 internal sealed class LiftedType : MistType
 {
     public LiftedType(IMistType type, object value)
-        : base(value.ToString() ?? "", new Scope(null), declaringType: null)
+        : base(Convert.ToString(value, CultureInfo.InvariantCulture) ?? "", new Scope(null), declaringType: null)
     {
         Type = type;
         Value = value;

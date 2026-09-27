@@ -15,7 +15,7 @@ public class Point
 
     public string Describe()
     {
-        return $"Point({x}, {y})";
+        return System.FormattableString.Invariant($"Point({x}, {y})");
     }
 
     public Snippet.Point Translate(int dx, int dy)

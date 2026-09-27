@@ -6,7 +6,7 @@ public class TypeIdentity
 {
     public static string AcceptFive(Snippet.FixedBuffer<Const_Int_5> buf)
     {
-        return $"Accepted FixedBuffer<{buf.GetSize()}>";
+        return System.FormattableString.Invariant($"Accepted FixedBuffer<{buf.GetSize()}>");
     }
 
     public TypeIdentity()

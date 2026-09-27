@@ -51,7 +51,7 @@ internal sealed class VariadicUseRegistry
 
         if(!widths.TryGetValue(method, out var recorded))
         {
-            recorded = [];
+            recorded = new(StringComparer.Ordinal);
             widths[method] = recorded;
         }
 

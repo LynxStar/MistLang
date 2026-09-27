@@ -34,6 +34,16 @@ internal enum ScopeKind
 /// as a conversion to a pure function type, where every capture is an External input. A closure given
 /// with no enclosing scope is a body root of its own -- an initializer or an expression body that IS a
 /// lambda -- whose parameters are inputs like a member's.
+/// <para>
+/// An owned reference field answers its holder's origin only through an owning reference, which a null
+/// holder type passed to <see cref="Through(Origin, Field, IMistType)"/> also names: a struct's own
+/// member is handed a copy, whose fields share their objects with every other copy, so only its
+/// constructor, building the one instance, holds its owned fields as its own. A readonly type is not
+/// thereby unchangeable: it promises that no member writes it, not that nothing it holds can change, so
+/// an owned field of a mutable class or a settable property's storage (readonly-contexts base rule 12)
+/// is state a second reference can still reach. An intrinsic type has no fields here to look at, so its
+/// declaration is taken at its word; an abstract one could be implemented by anything.
+/// </para>
 /// </summary>
 internal sealed partial class Origins
 {
@@ -125,13 +135,6 @@ internal sealed partial class Origins
         };
     }
 
-    /// <summary>
-    /// An owned reference field answers its holder's origin only through an owned REFERENCE -- an owned
-    /// or fresh object, or an instance under construction, which is what a null <paramref name="holderType"/>
-    /// names. Through a struct held by value the answer is External: the copy's field still points at
-    /// the one object every copy shares -- and `this` of a struct's own member is such a copy, so only
-    /// its constructor, which is building the one instance, holds its owned fields as its own.
-    /// </summary>
     public static Origin Through(Origin holder, Field field, IMistType? holderType)
     {
         if(field.Modifiers.IsStatic)
@@ -307,13 +310,6 @@ internal sealed partial class Origins
         };
     }
 
-    /// <summary>
-    /// A readonly type promises that no member writes it, not that nothing it holds can change: an
-    /// owned field of a mutable class, or a settable property's storage (readonly-contexts base rule
-    /// 12), is state a second reference can still reach and change. An intrinsic type has no fields
-    /// here to look at, so its declaration is taken at its word; an abstract one could be implemented
-    /// by anything.
-    /// </summary>
     private static bool HoldsNothingChangeable(IMistType type, HashSet<MemberType> visiting)
     {
         var constructed = type as ConstructedType;

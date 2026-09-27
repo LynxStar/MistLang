@@ -14,7 +14,7 @@ public class Program
         {
             if (value.AsInt32OrNull is int left)
             {
-                return $"T {left}";
+                return System.FormattableString.Invariant($"T {left}");
             }
         }
         return "R";
@@ -29,7 +29,7 @@ public class Program
     {
         System.Func<int, int> same = Same<int>;
         System.Func<Union_Int32_String, string> pick = Pick__Standard_Int32__Standard_String;
-        System.Console.WriteLine($"same(7)={same(7)} pick(5)={pick(5)} pick(w)={pick("w")} applied={Apply(Same<int>, 3)}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"same(7)={same(7)} pick(5)={pick(5)} pick(w)={pick("w")} applied={Apply(Same<int>, 3)}"));
     }
 
     public Program()

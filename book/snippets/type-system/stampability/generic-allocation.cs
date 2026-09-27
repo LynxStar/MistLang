@@ -49,8 +49,8 @@ public class Program
 
     public static void Main(string[] args)
     {
-        System.Console.WriteLine($"int length={Forward<int>()}");
-        System.Console.WriteLine($"point length={Forward<StampableConstraint.Point>()}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"int length={Forward<int>()}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"point length={Forward<StampableConstraint.Point>()}"));
     }
 
     public Program()

@@ -111,12 +111,6 @@ internal static partial class PurityJudge
         };
     }
 
-    /// <summary>
-    /// The type whose implicit constructor an allocation naming no constructor runs, judged as a callee
-    /// by the constructor it chains to and -- unless the type is defaultable, whose initializers
-    /// Requirement 12.1 already holds pure at the type, so a second complaint at each allocation would be
-    /// the same mistake twice -- by its instance initializers.
-    /// </summary>
     public static ConcreteType? ImplicitConstructorOf(NewExpression allocation)
     {
         return allocation.Constructor is null && DefinitionOf(allocation.Type) is ConcreteType { IsIntrinsic: false } type ? type : null;

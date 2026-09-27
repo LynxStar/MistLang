@@ -11650,7 +11650,8 @@ samples:
         Every refusal is absent, because a sample is a valid program. The 12 PROOF comments say what each
         section proves. Seventeen one-line changes, each turning an admission into a refusal, were run by
         hand when the sample was written, and nothing re-runs them: Counter.Add writing a static
-        (MIST_PA_PURE_SCOPE_WRITES), and Counted's Counter not owned (_CALLS_IMPURE on Add and Count);
+        (MIST_PA_PURE_SCOPE_WRITES), and Counted's Counter taken from a receiver it does not own
+        (_CALLS_IMPURE on Add and Count; deleting `owned` from its binding is not that change, see below);
         Seeded printing; Size without `frozen`; Twice over a plain func (_CALLS_IMPURE at `f(f(x))`), and
         the tripler lambda without `pure` (MIST_PA_NO_IMPLICIT_CONVERSION); the captured offset made
         reassignable (_READS_MUTABLE); Vec's constructor unmarked and impure, and Basket's list taken from
@@ -11664,17 +11665,42 @@ samples:
         Promises erase entirely, and inference has no observable effect. SumOfSquares prints 25 whether or
         not Square is inferred pure; the line shows only that the program compiled. Emission reads no
         declared promise either, so the lines do not change wherever the program still compiles without
-        them. Counter's type-level `local`, Vec's pure constructor and Dial's accessor promises all match
-        what inference finds, so deleting those keywords alone leaves the program compiling and printing
-        the same.
+        them. These declared keywords each match what inference or origins find, so deleting any one alone
+        leaves the program compiling and printing the same (measured 2026-09-27): Counter's type-level
+        `local`, its constructor's `pure` and Count's `readonly`; Vec's pure constructor; Dial's accessor
+        promises; Widest's `local readonly`; AddTen's `pure`, since the method-group conversion accepts an
+        inferred pure member; the Test alias's `pure`, since no pure scope uses a Test value; `readonly` on
+        `offset`; and the `owned` on the bindings in Seeded, Counted and Turned, since a local fresh at
+        every assignment is owned already. Counter's constructor and Count still check binder rules: the
+        constructor would stop compiling if a type's `local` reached constructors (Requirement 15.2), and
+        `readonly int Count` in a local class is the combination Requirement 15.5 admits. `readonly` on
+        `offset` can never matter, because a pure lambda may read a captured local whose only assignment
+        is its declaration. The owned binding that does matter is CoreDemo.Run's `owned var xs`: without it
+        the frozen loans are MIST_PA_INCOMPATIBLE_LEND twice. So "a Local_Type driven by a pure scope
+        through an owned binding" and "accessors stating their own promises" (Requirement 17.2) are met by
+        syntax only. The only accessor promise the sample relies on is Standard List's indexer getter,
+        which Widest reads; nothing exercises its `local set`.
       - >
         Culture-invariance is visible only under another culture. The baseline was captured under the
         default culture. There, `ToUpper` prints the same as `ToUpperInvariant`, and `$"{1.5}"` prints the
         same with or without FormattableString.Invariant, so the [culture] lines prove nothing on that
         machine. CultureInvariantEmissionTests (Tier 4) runs a compiled program under tr_TR.UTF-8 and
-        de_DE.UTF-8. InvariantCultureEmissionTests (Tier 3) pins each emitted form. The compiler itself
-        still parses `1.5` with the current culture: compiled under de_DE, this sample emits 15.0 and
-        prints 15.
+        de_DE.UTF-8. InvariantCultureEmissionTests (Tier 3) pins each emitted form. The lines still show
+        one admission: a pure scope may case-map text and format a number. The compiler reads no culture
+        either (purity Requirement 13.3): LiteralBinder reads `1.5` with the invariant culture, where it
+        once used the current one, so that compiled under de_DE this sample emitted 15.0 and printed 15.
+        LiteralCultureInvarianceTests pins the literal reading and writing under de-DE and sv-SE at Tier 1,
+        and CultureInvariantEmissionTests compiles its program in-process under de-DE. Both land in this
+        change, with the analysis register's purity-checking tasks recording the rest of the culture work.
+      - >
+        Admissions the spec relies on that no demonstration shows, each probed 2026-09-27 as a valid
+        program that one deleted keyword turns into a refusal: a foreach over a frozen List in a pure
+        scope, through Standard's real Enumerator promises (without `frozen`, _READS_MUTABLE), which no
+        test checks end to end, since StandardListPurityTests has no foreach; a stable field of an outside
+        object whose type is not pure, and a readonly static (Requirement 7.1); an `owned` parameter, the
+        input table's moved-in row; a Default_Block entry (Requirement 12.1); a struct taken by value and
+        changed; and recursion under inference, the only kind of program that tells the required greatest
+        fixpoint (Requirement 8.3) from a least one, which Square is not.
 
   - name: StructInheritance
     intro_order: 53

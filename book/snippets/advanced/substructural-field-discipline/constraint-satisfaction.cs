@@ -18,7 +18,7 @@ public class Connection
 
     public void Drop()
     {
-        System.Console.WriteLine($"Connection({Id}).Drop()");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Connection({Id}).Drop()"));
     }
 }
 

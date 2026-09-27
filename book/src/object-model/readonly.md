@@ -102,19 +102,20 @@ A method marked `readonly` declares that it does not mutate the object's state. 
 
 **Permitted:**
 - Reading any field
-- Calling other readonly methods
+- Calling other readonly methods, including `pure` and `local readonly` ones
 - Calling readonly property/indexer getters
 - Declaring and assigning local variables
-- Allocating via `new` when the constructor is readonly
+- Allocating via `new` when the constructor is readonly (a `pure` constructor is readonly)
+- On an object the method owns, such as one it just created: assigning its fields, writing through its index, and calling its `local` members, getters and setters included
 
 **Prohibited:**
-- Assigning to any field
-- Calling non-readonly methods
-- Calling non-readonly property/indexer getters
-- Calling any property/indexer setter
+- Assigning to a field of anything the method does not own, `this` included
+- Calling non-readonly methods, except a `local` method on something the method owns
+- Calling non-readonly property/indexer getters, with the same exception
+- Calling a property/indexer setter, except a `local` one on something the method owns
 - Allocating via `new` when the constructor is not readonly
 
-Local variables can be freely created and reassigned — but you are still in a readonly context when accessing them. You can reassign `x = 5`, but you cannot call a non-readonly method on `x` or assign to its fields. This is also why only readonly constructors are permitted in `new` expressions: constructing an object is effectively calling a method on it, so the constructor must be readonly too.
+Local variables can be freely created and reassigned, but you are still in a readonly context when accessing them. What matters is where a local's value came from. If every value assigned to `x` is an object the method created, the method owns it, and may assign its fields and call its `local` members: `readonly` restricts what a method does to what it was given, not to what it made. A readonly method may therefore build a list, `Add` to it and return it. If `x` holds something the method was given, such as a parameter or a field's value, the method cannot call a non-readonly method on `x` or assign to its fields. This is also why only readonly constructors are permitted in `new` expressions: constructing an object is effectively calling a method on it, so the constructor must be readonly too. See [Pure and Local Members](../advanced/purity.md) for `local` and `pure`, and [Where an Input Comes From](../advanced/purity.md#where-an-input-comes-from) for exactly what a method owns.
 
 ```mist
 public class Counter
@@ -155,6 +156,7 @@ A member is inferred readonly if its body contains only:
 - Local variable declarations and assignments
 - Calls to methods/getters that are readonly (explicit or inferred)
 - Allocations via readonly constructors
+- Writes to, and `local` calls on, objects the member owns
 
 Adding the `readonly` modifier explicitly is recommended when the intent is that the method should be readonly. The compiler will then enforce that intent — if you later add mutating code to the body, you get a compile-time error rather than silently losing readonly status.
 

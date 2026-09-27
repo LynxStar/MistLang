@@ -21,6 +21,6 @@ public class Point
     public static void Main(string[] args)
     {
         Snippet.Point p = new Snippet.Point(3, 4);
-        System.Console.WriteLine($"Distance: {p.DistanceFromOrigin()}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Distance: {p.DistanceFromOrigin()}"));
     }
 }

@@ -93,6 +93,6 @@ internal static class TypeDisplay
     /// </summary>
     private static string Rank(IMistType length)
     {
-        return length is LiftedType lifted ? $"[{lifted.Value}]" : "[]";
+        return length is LiftedType lifted ? $"[{lifted.Name}]" : "[]";
     }
 }

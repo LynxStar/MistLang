@@ -13,7 +13,7 @@ public class Printer
 
     public string Format(int value)
     {
-        return $"{_prefix} int={value}";
+        return System.FormattableString.Invariant($"{_prefix} int={value}");
     }
 
     public string Format(bool value)
@@ -23,7 +23,7 @@ public class Printer
 
     public string Format(double value)
     {
-        return $"{_prefix} double={value}";
+        return System.FormattableString.Invariant($"{_prefix} double={value}");
     }
 
     public string Format(string value)

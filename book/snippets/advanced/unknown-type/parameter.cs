@@ -9,7 +9,7 @@ public class Program
         {
             if (value is int i)
             {
-                System.Console.WriteLine($"int: {i}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"int: {i}"));
             }
         }
         {

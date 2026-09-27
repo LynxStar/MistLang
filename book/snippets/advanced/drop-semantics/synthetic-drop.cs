@@ -13,7 +13,7 @@ public class Handle
 
     public void Drop()
     {
-        System.Console.WriteLine($"Handle({Id}) released");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Handle({Id}) released"));
     }
 }
 

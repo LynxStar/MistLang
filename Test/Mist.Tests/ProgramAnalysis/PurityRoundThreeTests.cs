@@ -1,9 +1,8 @@
-// Tier 2 (Functional): the third round of purity soundness holes, each a hand-built fragment where the
-// program the finder wrote was admitted -- an owned slot filled from what something else holds, a readonly
-// type laundering mutable state, a ref, an enumerator and a params array read as the scope's own, the
-// constructor chain, static initializer, drop and context a call runs without writing, and the promises a
-// conversion, a universal member or an interpolation hole kept without earning -- with the admitted rows
-// that pin where each rule stops.
+// Tier 2 (Functional): purity soundness over hand-built fragments -- an owned slot filled from what something else
+// holds, a readonly type laundering mutable state, a ref, an enumerator and a params array read as the scope's own,
+// the constructor chain, static initializer, drop and context a call runs without writing, and the promises a
+// conversion, a universal member or an interpolation hole claims without earning -- each refused, with the admitted
+// rows that pin where each rule stops.
 
 using Mist.Tests.Helpers;
 

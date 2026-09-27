@@ -3,13 +3,13 @@ using Standard;
 using Snippet;
 
 System.ReadOnlySpan<int> ro = stackalloc int[3];
-System.Console.WriteLine($"ro.Length={ro.Length}");
-System.Console.WriteLine($"ro[0]={ro[0]}");
+System.Console.WriteLine(System.FormattableString.Invariant($"ro.Length={ro.Length}"));
+System.Console.WriteLine(System.FormattableString.Invariant($"ro[0]={ro[0]}"));
 System.Span<Snippet.Point> points = stackalloc Snippet.Point[2];
 points[0] = new Snippet.Point(1, 2);
 points[1] = new Snippet.Point(3, 4);
-System.Console.WriteLine($"points[0].x={points[0].x}");
-System.Console.WriteLine($"points[1].y={points[1].y}");
+System.Console.WriteLine(System.FormattableString.Invariant($"points[0].x={points[0].x}"));
+System.Console.WriteLine(System.FormattableString.Invariant($"points[1].y={points[1].y}"));
 
 namespace Snippet
 {

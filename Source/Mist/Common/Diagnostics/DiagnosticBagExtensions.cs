@@ -1,3 +1,4 @@
+using System.Globalization;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.Common.Diagnostics;
@@ -21,7 +22,7 @@ public static class DiagnosticBagExtensions
         var (path, location, _) = DiagnosticHelper.ResolveLocation(node);
 
         var message = args.Length > 0
-            ? string.Format(descriptor.MessageTemplate, args.ToArray())
+            ? string.Format(CultureInfo.InvariantCulture, descriptor.MessageTemplate, args.ToArray())
             : descriptor.MessageTemplate;
 
         bag.Add(new Diagnostic(

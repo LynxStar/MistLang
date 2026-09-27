@@ -183,7 +183,7 @@ public sealed class CloneEmissionAndStructElisionTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Value-type elision: value-type source → .Clone() NOT present
+    // Value-type elision: value-type source -> .Clone() NOT present
     // Requirements: 14.7, 8.8
     // ═══════════════════════════════════════════════════════════════════════
 

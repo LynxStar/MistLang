@@ -13,7 +13,7 @@ public class Program
         {
             if (computed is int and >= 18 and var verified)
             {
-                System.Console.WriteLine($"Still adult: {verified}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"Still adult: {verified}"));
             }
         }
     }

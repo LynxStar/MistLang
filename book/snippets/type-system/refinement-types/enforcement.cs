@@ -11,7 +11,7 @@ public class Program
         {
             if (userInput is int and >= 18 and var validAge)
             {
-                System.Console.WriteLine($"Valid adult age: {validAge}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"Valid adult age: {validAge}"));
             }
         }
         int childInput = 10;

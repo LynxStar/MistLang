@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
@@ -480,9 +481,9 @@ internal static class BodyEmitter
                 continue;
             }
 
-            if(parameters is not null && i < parameters.Count && InvariantCulture.Writes(callee, parameters[i]) && !InvariantCulture.Fixes(arguments[i].Type))
+            if(parameters is not null && i < parameters.Count && InvariantCulture.Writes(callee, parameters[i]) && InvariantCulture.WritesText(arguments[i].Type))
             {
-                writer.Append(InvariantCulture.Text(RenderAt(arguments[i], PostfixPrecedence, diagnostics), arguments[i].Type));
+                writer.Append(InvariantCulture.Written(RenderAt(arguments[i], PostfixPrecedence, diagnostics), arguments[i].Type));
                 continue;
             }
 
@@ -959,6 +960,11 @@ internal static class BodyEmitter
                 writer.Append(InvariantCulture.ObjectText(RenderAt(formatted.Receiver, PostfixPrecedence, diagnostics), formatted.Receiver.Type));
                 break;
 
+            case InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } conditioned } conditionalFormatting
+                when InvariantCulture.FormatsItself(conditionalFormatting.Method) && !InvariantCulture.FixesPresent(conditioned.Receiver.Type):
+                writer.Append(InvariantCulture.ConditionalText(RenderAt(conditioned.Receiver, PostfixPrecedence, diagnostics), conditioned.Receiver.Type));
+                break;
+
             case InvocationExpression invocation:
                 // A PROMOTED callee's task exists only in the emitted C#, so the model carries no
                 // await for it and one is written here. See AsyncPromotion.
@@ -1237,6 +1243,12 @@ internal static class BodyEmitter
             case FunctionReferenceExpression functionRef
                 when UnsafeReach.Function(functionRef, operand => RenderAt(operand, PostfixPrecedence, diagnostics)) is { } reachedFunction:
                 writer.Append(reachedFunction);
+                break;
+
+            case FunctionReferenceExpression respelledGroup when RespelledGroups.Applies(respelledGroup):
+                writer.Append(RespelledGroups.Lambda(
+                    respelledGroup,
+                    respelledGroup.Receiver is { } groupReceiver && !respelledGroup.Method.Modifiers.IsStatic ? Render(groupReceiver, diagnostics) : null));
                 break;
 
             case FunctionReferenceExpression functionRef:
@@ -2464,7 +2476,7 @@ internal static class BodyEmitter
         // read it off.
         if(PackArity(memberAccess) is { } arity)
         {
-            writer.Append(arity.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            writer.Append(arity.ToString(CultureInfo.InvariantCulture));
             return;
         }
 
@@ -2699,13 +2711,13 @@ internal static class BodyEmitter
         {
             string s => $"\"{s}\"",
             long l => EmitIntegerLiteral(l, literal.Type),
-            int i => i.ToString(),
-            float f => $"{f}f",
+            int i => i.ToString(CultureInfo.InvariantCulture),
+            float f => $"{f.ToString("R", CultureInfo.InvariantCulture)}f",
             double d => EmitDoubleLiteral(d),
-            decimal m => $"{m}m",
+            decimal m => $"{m.ToString(CultureInfo.InvariantCulture)}m",
             bool b => b ? "true" : "false",
             char c => $"'{c}'",
-            _ => literal.Value.ToString()!,
+            _ => Convert.ToString(literal.Value, CultureInfo.InvariantCulture)!,
         };
     }
 
@@ -2720,10 +2732,10 @@ internal static class BodyEmitter
         var typeName = type is MemberType mt ? mt.Name : "";
         return typeName switch
         {
-            "UInt64" => $"{(ulong)value}UL",
-            "Int64" => $"{value}L",
-            "UInt32" => $"{(uint)value}U",
-            _ => value.ToString(),
+            "UInt64" => $"{((ulong)value).ToString(CultureInfo.InvariantCulture)}UL",
+            "Int64" => $"{value.ToString(CultureInfo.InvariantCulture)}L",
+            "UInt32" => $"{((uint)value).ToString(CultureInfo.InvariantCulture)}U",
+            _ => value.ToString(CultureInfo.InvariantCulture),
         };
     }
 
@@ -2733,7 +2745,7 @@ internal static class BodyEmitter
     /// </summary>
     private static string EmitDoubleLiteral(double d)
     {
-        var text = d.ToString("G");
+        var text = d.ToString("R", CultureInfo.InvariantCulture);
         if(!text.Contains('.') && !text.Contains('E'))
         {
             return text + ".0";
@@ -2770,6 +2782,7 @@ internal static class BodyEmitter
             BinaryExpression or UnaryExpression when NarrowArithmetic.Promotes(expression.Type) => int.MaxValue,
             BinaryExpression binary => GetPrecedence(binary.OperatorKind),
             UnaryExpression => PrefixPrecedence,
+            LiteralExpression negative when EmitLiteral(negative).StartsWith('-') => PrefixPrecedence,
             InvocationExpression drop when TaskResult.Dropped(drop) is not null => PrefixPrecedence,
             IsPatternExpression => RelationalPrecedence,
             AsExpression { Kind: AsConversionKind.Identity } identity => GetPrecedence(identity.Operand),

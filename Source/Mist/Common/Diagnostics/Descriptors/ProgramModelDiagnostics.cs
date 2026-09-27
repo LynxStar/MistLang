@@ -735,6 +735,12 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "The elements of the array literal have no common type ('{0}' and '{1}'). Annotate the target with an array type to select the element type explicitly.");
 
+    public static readonly DiagnosticDescriptor NumericLiteralOutOfRange = new(
+        new DiagnosticId("MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The literal '{0}' is outside the range of '{1}'.");
+
     // ── Target-typed new ─────────────────────────────────────────────────
 
     /// <summary>

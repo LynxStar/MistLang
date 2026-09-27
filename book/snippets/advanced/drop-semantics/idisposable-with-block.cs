@@ -13,7 +13,7 @@ public class Program
             try
             {
                 ms.WriteByte(42);
-                System.Console.WriteLine($"length={ms.Length}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"length={ms.Length}"));
             }
             finally
             {

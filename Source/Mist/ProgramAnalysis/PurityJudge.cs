@@ -68,13 +68,16 @@ internal readonly record struct ScopeDescription(string Text)
 
 /// <summary>
 /// One walk over a body under a scope kind, yielding a finding for each operation the purity design's
-/// table refuses: writes outside what the scope owns, reads of what can change, calls the scope may not
-/// make, stores of unowned references into owned instances, and the constructs that reach outside the
-/// program. Nested lambdas and local functions are scopes of their own and are not walked; calling one
-/// is judged as a call to the member whose promise <c>promiseOf</c> answers, with its captures as the
-/// receiver. A struct-typed storage read is judged once, at the outermost hop, because a field of a
-/// by-value copy is the copy's and only the copy's source could be external; and a refused operation
-/// silences the reads along its receiver chain, which fail for the same reason it did.
+/// table refuses. Nested lambdas and local functions are scopes of their own and are not walked; calling
+/// one is judged as a call to the member whose promise <c>promiseOf</c> answers, with its captures as the
+/// receiver. A lambda root judged with a member's Origins rather than a closure's is an initializer
+/// written as a bare lambda: the scope's VALUE, whose creation is admitted (Requirement 7.4) and whose
+/// body is judged as a closure where it converts. A struct-typed storage read is judged once, at the
+/// outermost hop, because a field of a by-value copy is the copy's and only the copy's source could be
+/// external; and a refused operation silences the reads along its receiver chain, which fail for the
+/// same reason it did. A local scope may keep an argument it was handed (Requirement 5.2), but only in
+/// an unowned slot of its own instance: an owned slot, or any slot of something else the scope owns,
+/// would make the scope's next read through it answer Own for an object other references share.
 /// </summary>
 internal static partial class PurityJudge
 {
@@ -95,9 +98,6 @@ internal static partial class PurityJudge
 
         public List<Finding> Findings { get; } = [];
 
-        // A lambda root judged with a member scope's Origins, not a closure's, is an initializer written as
-        // a bare lambda: the scope's VALUE, whose creation is admitted (Requirement 7.4) and whose body
-        // is judged as a closure where it converts.
         public void Run(object root)
         {
             var start = root switch
@@ -461,12 +461,6 @@ internal static partial class PurityJudge
             JudgeStore(entry.Value, new Slot(Origin.Own, owned, OfThis: false), initializing: true);
         }
 
-        /// <summary>
-        /// Requirement 6.4 and the design's store row. A local scope may keep an argument it was handed
-        /// (Requirement 5.2), but only in an unowned slot of its own instance: an owned slot, or any slot
-        /// of something else the scope owns, would make the scope's next read through it answer Own for
-        /// an object other references share.
-        /// </summary>
         private void JudgeStore(Expression value, Slot slot, bool initializing = false)
         {
             if((kind is ScopeKind.LocalReadonly && !initializing) || Origins.IsUnchangeable(value.Type))

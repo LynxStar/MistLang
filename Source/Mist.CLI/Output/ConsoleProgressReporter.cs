@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mist.Driver.Contracts;
 
 namespace Mist.CLI.Output;
@@ -27,13 +28,13 @@ public sealed class ConsoleProgressReporter : ICompilationProgressReporter
             @out.WriteLine($"    {detail}");
         }
 
-        @out.WriteLine($"    Took {elapsed.TotalSeconds:F2}s");
+        @out.WriteLine(string.Create(CultureInfo.InvariantCulture, $"    Took {elapsed.TotalSeconds:F2}s"));
         @out.WriteLine(); // blank separator line
     }
 
     public void ReportBuildSummary(bool succeeded, int errorCount, int warningCount, TimeSpan totalElapsed)
     {
         var status = succeeded ? "Build succeeded" : "Build failed";
-        @out.WriteLine($"{status}  {errorCount} error(s), {warningCount} warning(s)  Total: {totalElapsed.TotalSeconds:F2}s");
+        @out.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{status}  {errorCount} error(s), {warningCount} warning(s)  Total: {totalElapsed.TotalSeconds:F2}s"));
     }
 }

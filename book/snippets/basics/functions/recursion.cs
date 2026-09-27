@@ -15,8 +15,8 @@ public class Program
 
     public static void Main(string[] args)
     {
-        System.Console.WriteLine($"5! = {Factorial(5)}");
-        System.Console.WriteLine($"10! = {Factorial(10)}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"5! = {Factorial(5)}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"10! = {Factorial(10)}"));
     }
 
     public Program()

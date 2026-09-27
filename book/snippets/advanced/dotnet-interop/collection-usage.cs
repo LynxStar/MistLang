@@ -11,11 +11,11 @@ public class Program
         list.Add(10);
         list.Add(20);
         list.Add(30);
-        System.Console.WriteLine($"Count={list.Count}");
-        System.Console.WriteLine($"First={list[0]}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Count={list.Count}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"First={list[0]}"));
         foreach (int item in list)
         {
-            System.Console.WriteLine($"Item={item}");
+            System.Console.WriteLine(System.FormattableString.Invariant($"Item={item}"));
         }
     }
 

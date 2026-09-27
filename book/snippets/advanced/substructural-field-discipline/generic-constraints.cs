@@ -18,7 +18,7 @@ public class FileHandle
 
     public void Drop()
     {
-        System.Console.WriteLine($"FileHandle({Fd}).Drop()");
+        System.Console.WriteLine(System.FormattableString.Invariant($"FileHandle({Fd}).Drop()"));
     }
 }
 

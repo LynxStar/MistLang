@@ -13,7 +13,7 @@ The language already needs this in several places without having had a name for 
 `pure` means what it means in computer science generally, and in Haskell: a pure computation
 
 1. has **no side effects** -- it changes no state that exists outside it and performs no input or output; and
-2. is **deterministic** -- its result depends only on its inputs, so the same inputs always give the same result.
+2. is **deterministic** -- its result depends only on its inputs, so the same inputs always give the same result within one run of the program (Requirement 7 criterion 5 says what one run fixes).
 
 Two refinements, both standard:
 
@@ -182,6 +182,7 @@ int Count(List<int> xs)
 2. A pure scope SHALL NOT read a field that is not a Stable_Field of an External object that is not a `frozen` input: reading the current contents of a reference it does not hold frozen is not pure, because the same reference can show different contents at different times.
 3. A pure scope SHALL NOT read any state outside the program -- the clock, randomness, the environment, the current culture, files.
 4. A pure scope MAY create a lambda. The lambda's body is judged when it is called, or where it converts to a Pure_Function_Type (Requirement 16), not when it is created.
+5. Deterministic means within one run of the program. What the process fixes when it starts -- the runtime and its version, its globalization mode and ICU, the operating system and machine -- is the program's setting, not an input, so a pure member MAY depend on it. What can change while the program runs -- the current culture, the clock, randomness, environment variables, files, statics that are not Stable_Fields -- is outside state, which criteria 2 and 3 forbid a pure scope to read.
 
 ### Requirement 8: Declaration and Inference
 
@@ -230,7 +231,8 @@ int Count(List<int> xs)
 #### Acceptance Criteria
 
 1. None of these modifiers SHALL change the emitted program's behavior. THE C# backend MAY emit `[System.Diagnostics.Contracts.Pure]` on a Readonly_Member as documentation, C#'s attribute promising what `readonly` does.
-2. THE C# backend SHALL emit every conversion between a value and text, every text comparison and case mapping, and every regular expression that Mist performs on the program's behalf with the invariant culture, so the members Requirement 9.3 declares pure read no process state. A culture-aware form, if one is wanted, is a separate member that does not make the promise.
+2. THE C# backend SHALL emit every conversion between a value and text, every ordering of text, every case mapping and every regular expression that Mist performs on the program's behalf with the invariant culture, which the call names, or runs under for that one call, so the members Requirement 9.3 declares pure read no state that can change while the program runs (Requirement 7 criterion 5). Text equality SHALL be ordinal, which no culture affects. Text ordering uses `StringComparer.InvariantCulture`, which is deterministic within a run by that criterion. A culture-aware form, or another ordering of text, if one is wanted, is a separate member; a culture-aware one does not make the promise. Two things are outside this criterion by design, and no pure scope can reach either: a CLR member the program names directly, such as a qualified `System.Console.WriteLine`, is the CLR call it names (Requirement 9.2); and a sort whose elements are held as a type parameter or `unknown`, or are optional tuples, orders a tuple's text through `Comparer<T>.Default`, which reads the current culture, so a pure scope refuses that sort (Requirement 7 criterion 3).
+3. THE Compiler SHALL read no culture itself: it parses and prints every literal with the invariant culture, so a program compiles to the same code on any machine. It formats the values a diagnostic quotes, and the CLI its timing summary, with the invariant culture too.
 
 ### Requirement 14: Editor Support
 
@@ -244,7 +246,7 @@ int Count(List<int> xs)
 
 #### Acceptance Criteria
 
-1. THE Compiler SHALL accept `local`, `local readonly` and `pure` on every type declaration that admits `readonly` (`readonly-contexts` spec, Requirement 8), with the combinations and diagnostics of Requirement 1 criteria 2 to 4.
+1. THE Compiler SHALL accept `local`, `local readonly` and `pure` on a class, struct or abstract declaration, with the combinations and diagnostics of Requirement 1 criteria 2 to 4. On an enum or a newtype they are refused as a placement error (Deferred, item 2).
 2. A modifier on a type SHALL be read as that modifier written on each of the type's members that admits it (Requirement 1 criterion 5): `pure` on every member, constructors and static members included, as `readonly` on a type does; `local` on every instance method, property and indexer. Constructors and static members of a Local_Type, which `local` does not admit, SHALL keep what they declare or infer.
 3. A Pure_Type and a Local_Readonly_Type SHALL each be a Readonly_Type. Every field of a Pure_Type is therefore a Stable_Field, and no member writes an instance once it is constructed, so a Pure_Type cannot change after construction. A pure scope MAY read its state through any reference, not only a `frozen` one, as Requirement 7 criterion 1 already admits, and MAY call any of its members.
 4. A Local_Type's members SHALL keep Requirement 5 each: every call they make is to a Pure_Member, or to a Local_Member or Local_Readonly_Member on the Own_Instance. The Own_Instance includes what the instance owns, so a member MAY call a `local` or stronger member on a field the instance owns, and only a Pure_Member on a field it does not own, whose object other references may share.
@@ -313,9 +315,10 @@ public local class Counter
     }
 }
 
-// PROOF: a pure scope may change what it owns -- a list it built, a Counter through an owned binding --
-// and may read a list it holds frozen. The loan ends with the call, so the owner adds again and the
-// next loan reads the new count.
+// PROOF: a pure scope may change what it owns -- a list it built, a Counter it created; `owned` on
+// those bindings states what a local fresh at every assignment already is -- and may read a list it
+// holds frozen, lent from an owned binding. The loan ends with the call, so the owner adds again and
+// the next loan reads the new count.
 public class CoreDemo
 {
     public static pure int Seeded()
@@ -365,3 +368,4 @@ public class CoreDemo
 ## Deferred
 
 1. **A default that cannot fail.** A default is data, and it should not be able to fail. But Mist has no promise that a computation cannot fail, no notion of a total or panic-free member, so no rule can require it yet. Until Mist has such a promise, a default may fail the way any pure expression may (dividing by zero is pure). Because it is pure, it fails the same way every time it is taken. Once Mist gains such a promise, defaults should require it.
+2. **Promises on enums and newtypes.** `readonly` is admitted on an enum and a newtype, and `local`, `local readonly` and `pure` probably should be too. Deferred by Arthur on 2026-09-27 until the purity work is done, to keep it from growing; until then they are a placement error there (Requirement 15.1).

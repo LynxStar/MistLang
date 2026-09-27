@@ -19,7 +19,7 @@ async System.Threading.Tasks.Task Main()
     try
     {
         int result = await task;
-        System.Console.WriteLine(result);
+        System.Console.WriteLine(result.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
     finally
     {

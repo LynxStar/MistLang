@@ -13,7 +13,7 @@ public class Program
     {
         int a = Describe_3<int, string, bool>((1, "x", true));
         int b = Describe_3<int, string, bool>((1, "x", true));
-        System.Console.WriteLine($"{a} {b}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"{a} {b}"));
     }
 
     public Program()

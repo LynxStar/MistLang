@@ -69,11 +69,6 @@ internal sealed partial class PurityInference
         return !method.Modifiers.IsStatic && (method.Name, method.ParametersList.Count) is ("ToString", 0) or ("GetHashCode", 0) or ("Equals", 1);
     }
 
-    /// <summary>
-    /// The instance initializers a constructor runs before its body -- every one of its type's, unless
-    /// it chains to another constructor of the same type, which runs them instead -- so they are roots
-    /// of its promise as its body is.
-    /// </summary>
     public static IEnumerable<Expression> InstanceInitializers(Constructor constructor)
     {
         if(constructor.Modifiers.IsStatic || constructor.ChainKind == ConstructorChainKind.This || constructor.DeclaringType is not ConcreteType type)

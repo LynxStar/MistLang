@@ -41,21 +41,21 @@ internal readonly record struct Promise(bool Readonly, bool Local, bool Pure)
 }
 
 /// <summary>
-/// Requirement 8's greatest fixpoint over every body in scope: each member, lambda and local function
-/// starts with every promise, is re-judged each round under each promise it still holds given what its
-/// callees currently hold, and loses what the judge refuses, until a round changes nothing. Readonly is
-/// never judged here -- it is <see cref="ReadonlyInference"/>'s answer, and pure requires it -- so
-/// Requirement 2.1 holds by construction; but that answer admits a call to a local member on an owned
-/// receiver (Requirement 11), so it is asked afresh each round with the round's local answers, and the
-/// last round's inference is the one every caller reads. A declared promise is trusted whatever the
-/// body does, since the analyzer reports the body and a caller refused on top of that would be a second
-/// complaint. A bodiless member keeps what it declares; an abstract member that declares nothing keeps
-/// what every implementation in scope keeps, a default body meeting the members that replace it --
-/// unless the CLR can implement it too, a projected interface's or Standard's enumerables', whose
-/// implementers the meet never sees, so it keeps only what it declares; a body
-/// first met as a callee, such as a clone's, joins the fixpoint then. A type's implicit constructor is a
-/// member here too, keyed by the type: its body is the type's instance initializers, and an allocation
-/// through it is a call to it.
+/// Requirement 8's greatest fixpoint over every body in scope, as the purity design's 'PurityInference'
+/// lays it out. Readonly is never judged here -- it is <see cref="ReadonlyInference"/>'s answer -- but
+/// that answer admits a call to a local member on an owned receiver (Requirement 11), so it is asked
+/// afresh each round with the round's local answers, and the last round's inference is the one every
+/// caller reads. A declared promise is trusted whatever the body does, since the analyzer reports the
+/// body and a caller refused on top of that would be a second complaint. An abstract member that
+/// declares nothing keeps what every implementation in scope keeps, a default body meeting the members
+/// that replace it -- unless the CLR can implement it too, a projected interface's or Standard's
+/// enumerables', whose implementers the meet never sees, so it keeps only what it declares. Reached
+/// through a slot, an implementation that reads a context the slot does not declare is neither pure
+/// nor local, since that input is one the slot's caller never supplies. A body first met as a callee,
+/// such as a clone's, joins the fixpoint then. A constructor's roots are its body and the instance
+/// initializers it runs, which one chaining to a sibling constructor leaves to that one; a type's
+/// implicit constructor is a member here too, keyed by the type: its body is the type's instance
+/// initializers, and an allocation through it is a call to it.
 /// </summary>
 internal sealed partial class PurityInference(AnalysisContext context)
 {
@@ -319,11 +319,6 @@ internal sealed partial class PurityInference(AnalysisContext context)
         return declared;
     }
 
-    /// <summary>
-    /// What an implementation keeps for a caller that reaches it through the slot: a context it reads
-    /// that the slot does not declare is an input that caller never supplies, so it is neither pure nor
-    /// local there, however its own body is judged against the context it declares.
-    /// </summary>
     public Promise ThroughSlot(Method slot, object filler)
     {
         return Settled(() => Through(slot, filler));

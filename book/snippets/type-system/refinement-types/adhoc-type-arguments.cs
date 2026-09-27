@@ -12,7 +12,7 @@ public class FixedArray<TValue, TSize>
 
     public string Describe()
     {
-        return $"FixedArray<Size={TSize.Value}>";
+        return $"FixedArray<Size={MistInvariant.Text(TSize.Value)}>";
     }
 
     public FixedArray()
@@ -56,7 +56,7 @@ public class Program
         Snippet.FixedArray<int, Const_Int_5> arr = new Snippet.FixedArray<int, Const_Int_5>();
         System.Console.WriteLine(arr.Describe());
         Snippet.Matrix<Const_Int_3, Const_Int_4> mat = new Snippet.Matrix<Const_Int_3, Const_Int_4>();
-        System.Console.WriteLine($"Matrix<{mat.GetRows()}x{mat.GetCols()}>");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Matrix<{mat.GetRows()}x{mat.GetCols()}>"));
     }
 
     public Program()

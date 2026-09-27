@@ -19,7 +19,7 @@ public class TinyCollection : Snippet.IFixedCollection<Const_Int_8>
 
     public string GetInfo()
     {
-        return $"TinyCollection(size={this.GetSize()})";
+        return System.FormattableString.Invariant($"TinyCollection(size={this.GetSize()})");
     }
 
     public TinyCollection()

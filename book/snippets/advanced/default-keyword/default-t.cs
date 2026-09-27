@@ -9,7 +9,7 @@ public class Program
         int i = default(int);
         bool b = default(bool);
         string s = "";
-        System.Console.WriteLine($"int={i} bool={b} string={s}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"int={i} bool={b} string={s}"));
     }
 
     public Program()

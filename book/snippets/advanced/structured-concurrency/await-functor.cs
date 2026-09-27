@@ -8,5 +8,5 @@ async System.Threading.Tasks.Task Main()
 {
     System.Threading.Tasks.Task<int> task = ComputeValue();
     int result = await task;
-    System.Console.WriteLine(result);
+    System.Console.WriteLine(result.ToString(System.Globalization.CultureInfo.InvariantCulture));
 }

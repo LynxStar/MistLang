@@ -7,11 +7,11 @@ public class Program
     public static void Main(string[] args)
     {
         object u = 42;
-        System.Console.WriteLine(u);
+        System.Console.WriteLine(MistInvariant.Text(u));
         u = "hello";
-        System.Console.WriteLine(u);
+        System.Console.WriteLine(MistInvariant.Text(u));
         u = true;
-        System.Console.WriteLine(u);
+        System.Console.WriteLine(MistInvariant.Text(u));
     }
 
     public Program()

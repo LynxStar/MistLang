@@ -13,7 +13,7 @@ public class Sensor
 
     public string Describe()
     {
-        return $"Sensor({Reading})";
+        return System.FormattableString.Invariant($"Sensor({Reading})");
     }
 }
 

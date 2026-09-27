@@ -91,7 +91,7 @@ internal static class ConversionRelation
         }
 
         return IsIdentity(from, to)
-            || WidensNumerically(from, to)
+            || WidensNumerically(from.FullyQualifiedName, to.FullyQualifiedName)
             || Inherits(from, to)
             || WidensIntoUnion(from, to)
             || WidensElementwise(from, to)
@@ -312,10 +312,10 @@ internal static class ConversionRelation
             ;
     }
 
-    private static bool WidensNumerically(IMistType from, IMistType to)
+    public static bool WidensNumerically(string from, string to)
     {
-        return NumericWidening.TryGetValue(from.FullyQualifiedName, out var targets)
-            && Array.IndexOf(targets, to.FullyQualifiedName) >= 0
+        return NumericWidening.TryGetValue(from, out var targets)
+            && Array.IndexOf(targets, to) >= 0
             ;
     }
 

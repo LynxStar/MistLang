@@ -2,6 +2,7 @@ using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -705,19 +706,19 @@ internal sealed class ScopeResolver
                 break;
 
             case IntegerLiteralTypeArgumentTypeArgumentNode intLit:
-                args.Add(LiftIntegerLiteral(intLit.Literal.Lexeme));
+                args.Add(LiftIntegerLiteral(intLit, intLit.Literal.Lexeme));
                 break;
 
             case NegatedIntegerTypeArgumentTypeArgumentNode negLit:
-                args.Add(LiftNegatedIntegerLiteral(negLit.Literal.Lexeme));
+                args.Add(LiftNegatedIntegerLiteral(negLit, negLit.Literal.Lexeme));
                 break;
 
             case HexLiteralTypeArgumentTypeArgumentNode hexLit:
-                args.Add(LiftHexLiteral(hexLit.Literal.Lexeme));
+                args.Add(LiftIntegral(hexLit, hexLit.Literal.Lexeme, LiteralBinder.HexValue(hexLit.Literal.Lexeme)));
                 break;
 
             case BinaryLiteralTypeArgumentTypeArgumentNode binLit:
-                args.Add(LiftBinaryLiteral(binLit.Literal.Lexeme));
+                args.Add(LiftIntegral(binLit, binLit.Literal.Lexeme, LiteralBinder.BinaryValue(binLit.Literal.Lexeme)));
                 break;
 
             case TrueLiteralTypeArgumentTypeArgumentNode:
@@ -787,38 +788,33 @@ internal sealed class ScopeResolver
         return context.ProgramModel.TypeInterner.LiftLiteral(LookupWellKnown(WellKnownTypes.Boolean), value);
     }
 
-    private IMistType LiftIntegerLiteral(string lexeme)
+    private IMistType LiftIntegerLiteral(TypeArgumentNode node, string lexeme)
     {
-        return LiftInt(long.TryParse(lexeme, out var parsed) ? parsed : 0L);
+        var (value, wellKnown) = LiteralBinder.IntegerValue(lexeme);
+        return LiftIntegral(node, lexeme, wellKnown == WellKnownTypes.UInt64 && value is < 0L ? null : value);
     }
 
-    private IMistType LiftNegatedIntegerLiteral(string lexeme)
+    private IMistType LiftNegatedIntegerLiteral(TypeArgumentNode node, string lexeme)
     {
-        return LiftInt(long.TryParse(lexeme, out var parsed) ? -parsed : 0L);
-    }
-
-    private IMistType LiftHexLiteral(string lexeme)
-    {
-        var hexStr = lexeme.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
-            ? lexeme[2..] : lexeme;
-        return LiftInt(long.TryParse(hexStr, NumberStyles.HexNumber, null, out var parsed) ? parsed : 0L);
-    }
-
-    private IMistType LiftBinaryLiteral(string lexeme)
-    {
-        var binStr = lexeme.StartsWith("0b", StringComparison.OrdinalIgnoreCase)
-            ? lexeme[2..] : lexeme;
-        long value;
-        try
+        if(LiteralBinder.NegatesToLongMinimum(lexeme))
         {
-            value = Convert.ToInt64(binStr, 2);
-        }
-        catch
-        {
-            value = 0L;
+            return LiftInt(long.MinValue);
         }
 
-        return LiftInt(value);
+        var (value, wellKnown) = LiteralBinder.IntegerValue(lexeme);
+        return LiftIntegral(node, $"-{lexeme}", value is long magnitude && (wellKnown != WellKnownTypes.UInt64 || magnitude >= 0) ? -magnitude : null);
+    }
+
+    private IMistType LiftIntegral(TypeArgumentNode node, string lexeme, object? value)
+    {
+        if(value is long held)
+        {
+            return LiftInt(held);
+        }
+
+        context.Diagnostics.ReportAtNode(
+            ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, lexeme, WellKnownTypes.Int64.Keyword ?? WellKnownTypes.Int64.Name);
+        return ErrorType.Instance;
     }
 
     private IMistType LiftCharLiteral(string lexeme)
@@ -990,7 +986,7 @@ internal sealed class ScopeResolver
     {
         var rank = GetArrayRank(singleRef)!;
         var length = rank is SizedArrayRankArrayRankSuffixNode sized
-            ? (int.TryParse(sized.Size.Lexeme, out var parsed) ? parsed : 0)
+            ? (int.TryParse(sized.Size.Lexeme, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0)
             : (int?)null;
 
         var arrayType = ConstructArray(elementType, length);

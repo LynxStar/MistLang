@@ -36,9 +36,10 @@ public local class Counter
     }
 }
 
-// PROOF: a pure scope may change what it owns -- a list it built, a Counter through an owned binding --
-// and may read a list it holds frozen. The loan ends with the call, so the owner adds again and the
-// next loan reads the new count.
+// PROOF: a pure scope may change what it owns -- a list it built, a Counter it created; `owned` on
+// those bindings states what a local fresh at every assignment already is -- and may read a list it
+// holds frozen, lent from an owned binding. The loan ends with the call, so the owner adds again and
+// the next loan reads the new count.
 public class CoreDemo
 {
     public static pure int Seeded()
@@ -189,7 +190,8 @@ public class TypeDemo
         return a.Plus(b).Cents;
     }
 
-    // PROOF: each accessor states its own promise, so a pure scope reads and writes a dial it owns.
+    // PROOF: an accessor may state its own promise, and a pure scope reads and writes a dial it owns
+    // through them. Plain auto accessors would be inferred the same promises; these are checked.
     public static pure int Turned(int by)
     {
         owned var d = new Dial();
@@ -300,8 +302,8 @@ public class ReadonlyDemo
     }
 }
 
-// PROOF: text conversion and case mapping in a pure scope use the invariant culture, so the same
-// input prints the same text whatever culture the process runs under.
+// PROOF: a pure scope may case-map text and format a number. Both use the invariant culture, which
+// the baseline's one culture cannot show; CultureInvariantEmissionTests runs a program under others.
 public class CultureDemo
 {
     public static pure string Shout(string s)

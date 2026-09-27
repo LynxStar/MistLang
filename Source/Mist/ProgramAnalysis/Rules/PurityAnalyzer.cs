@@ -15,10 +15,12 @@ namespace Mist.ProgramAnalysis.Rules;
 /// The declared promises, judged: every body whose member says pure, local or local readonly, every
 /// lambda that is pure, local or of a pure function type, every local function that declares one, every
 /// settled method group of pure function type, and -- purity Requirement 12.1 -- every field initializer
-/// and default entry of a defaultable type, as a pure scope with no inputs. An initializer that IS a
-/// lambda is a closure of the initializer's scope, judged where it converts like any other. An inferred
-/// promise is never reported (Requirement 3): a member that declares nothing is consulted only as a
-/// callee, through <see cref="PurityInference"/>.
+/// and default entry of a defaultable type, as a pure scope with no inputs. Those initializers are
+/// judged at the type alone, never again as roots of a constructor or an allocation that runs them,
+/// where a second complaint would be the same mistake twice. An initializer that IS a lambda is a
+/// closure of the initializer's scope, judged where it converts like any other. An inferred promise is
+/// never reported (Requirement 3): a member that declares nothing is consulted only as a callee,
+/// through <see cref="PurityInference"/>.
 /// </summary>
 internal sealed class PurityAnalyzer : IProgramAnalyzer
 {

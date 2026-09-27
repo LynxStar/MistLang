@@ -12,7 +12,7 @@ public class SizedCollection<TCount>
 
     public string Describe()
     {
-        return $"SizedCollection<{TCount.Value}>";
+        return $"SizedCollection<{MistInvariant.Text(TCount.Value)}>";
     }
 
     public SizedCollection()

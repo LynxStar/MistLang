@@ -19,7 +19,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// or an <c>as</c> that would have the runtime test for one -- directly, in a union constituent or in
 /// a type argument -- is refused unless the operand's static type already states that same type
 /// (purity Requirement 16.5); <see cref="PatternAnalyzer"/> asks <see cref="HidesPurity"/> of a type
-/// test for the same reason.
+/// test for the same reason, and at every closing of a type parameter the target names and the
+/// operand's type does not.
 /// </summary>
 internal sealed class CastAnalyzer : IProgramAnalyzer
 {
@@ -66,11 +67,6 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
         return PureFunctions(type).FirstOrDefault();
     }
 
-    /// <summary>
-    /// The type parameters a test's target mentions that its operand's static type does not: closed
-    /// with a pure function type, the erased runtime test would pass a plain function value as one,
-    /// which is what <see cref="HidesPurity"/> refuses when the types are written out.
-    /// </summary>
     internal static IEnumerable<TypeParameter> HiddenParameters(IMistType from, IMistType to)
     {
         var seen = new HashSet<TypeParameter>(TypeParameters(from), ReferenceEqualityComparer.Instance);

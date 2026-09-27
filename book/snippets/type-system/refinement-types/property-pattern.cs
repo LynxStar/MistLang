@@ -22,7 +22,7 @@ public class Program
         {
             if (r is Snippet.Interval and { Start: >= 0 } and var valid)
             {
-                System.Console.WriteLine($"Valid: Start={valid.Start}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"Valid: Start={valid.Start}"));
             }
         }
     }

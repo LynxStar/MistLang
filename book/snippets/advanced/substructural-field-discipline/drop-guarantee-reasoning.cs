@@ -13,7 +13,7 @@ public class AffineToken
 
     public void Drop()
     {
-        System.Console.WriteLine($"AffineToken({Id}).Drop()");
+        System.Console.WriteLine(System.FormattableString.Invariant($"AffineToken({Id}).Drop()"));
     }
 }
 

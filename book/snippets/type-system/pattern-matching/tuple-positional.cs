@@ -9,7 +9,7 @@ public class Program
         (int, int) point = (5, 7);
         if (point is (> 0, > 0))
         {
-            System.Console.WriteLine($"({point.Item1}, {point.Item2}) is in quadrant I");
+            System.Console.WriteLine(System.FormattableString.Invariant($"({point.Item1}, {point.Item2}) is in quadrant I"));
         }
     }
 

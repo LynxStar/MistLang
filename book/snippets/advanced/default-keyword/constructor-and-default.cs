@@ -31,8 +31,8 @@ public class Program
     {
         Snippet.Config prod = new Snippet.Config("production");
         Snippet.Config dev = Snippet.Config.__CreateDefault();
-        System.Console.WriteLine($"new: env={prod.Environment} retries={prod.MaxRetries}");
-        System.Console.WriteLine($"default: env={dev.Environment} retries={dev.MaxRetries}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"new: env={prod.Environment} retries={prod.MaxRetries}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"default: env={dev.Environment} retries={dev.MaxRetries}"));
     }
 
     public Program()

@@ -13,7 +13,7 @@ public class Payload
 
     public string Describe()
     {
-        return $"Payload({Size})";
+        return System.FormattableString.Invariant($"Payload({Size})");
     }
 }
 
@@ -36,7 +36,7 @@ public class Envelope
 
     public string Describe()
     {
-        return $"Envelope(Body={Body.Describe()}, Stamp={Stamp})";
+        return System.FormattableString.Invariant($"Envelope(Body={Body.Describe()}, Stamp={Stamp})");
     }
 }
 

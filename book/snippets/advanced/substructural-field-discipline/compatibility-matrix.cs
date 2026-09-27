@@ -13,7 +13,7 @@ public class Resource
 
     public void Drop()
     {
-        System.Console.WriteLine($"Resource({Id}).Drop()");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Resource({Id}).Drop()"));
     }
 }
 
@@ -28,7 +28,7 @@ public class Token
 
     public void Drop()
     {
-        System.Console.WriteLine($"Token({Id}).Drop()");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Token({Id}).Drop()"));
     }
 }
 
@@ -50,7 +50,7 @@ public class Subscription
             return;
         }
         this.Dropped = true;
-        System.Console.WriteLine($"Subscription({Id}).Drop()");
+        System.Console.WriteLine(System.FormattableString.Invariant($"Subscription({Id}).Drop()"));
     }
 }
 

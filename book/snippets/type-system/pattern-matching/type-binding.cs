@@ -30,7 +30,7 @@ public class Program
         {
             if (shape is Snippet.Circle c)
             {
-                System.Console.WriteLine($"Circle with radius {c.Radius}");
+                System.Console.WriteLine(System.FormattableString.Invariant($"Circle with radius {c.Radius}"));
             }
         }
     }

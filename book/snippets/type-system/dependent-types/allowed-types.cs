@@ -25,7 +25,7 @@ public class BoolParam<TV>
 {
     public string Describe()
     {
-        return $"BoolParam<{TV.Value}>";
+        return $"BoolParam<{MistInvariant.Text(TV.Value)}>";
     }
 
     public BoolParam()
@@ -43,7 +43,7 @@ public class CharParam<TV>
 {
     public string Describe()
     {
-        return $"CharParam<{TV.Value}>";
+        return $"CharParam<{MistInvariant.Text(TV.Value)}>";
     }
 
     public CharParam()

@@ -13,7 +13,7 @@ public class Counter
 
     public string Describe()
     {
-        return $"Counter({Value})";
+        return System.FormattableString.Invariant($"Counter({Value})");
     }
 
     public void Increment()

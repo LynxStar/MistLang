@@ -300,6 +300,10 @@ internal static class OperatorBinder
             case PostfixExpressionUnaryNode postfixExpression:
                 return PostfixBinder.BindPostfix(postfixExpression.Primary, ctx, context);
 
+            case NegateUnaryNode { Operand: PostfixExpressionUnaryNode { Primary: { Target: IntegerLiteralExpressionPrimaryNode minimum, Suffix.Length: 0 } } }
+                when LiteralBinder.NegatesToLongMinimum(minimum.IntegerLiteral.Lexeme):
+                return LiteralBinder.BindLongMinimum(node, context);
+
             case NegateUnaryNode negate:
                 {
                     var operand = BindUnary(negate.Operand, ctx, context);

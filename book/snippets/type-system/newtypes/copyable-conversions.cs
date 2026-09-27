@@ -62,7 +62,7 @@ internal readonly struct Meters : Standard.IClonable<Snippet.Meters>
         Value = value;
     }
 
-    public override string ToString() => Value.ToString();
+    public override string ToString() => Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private Meters(double p0, Mist.Emission.CSharp.__StructInit marker)
     {
@@ -132,7 +132,7 @@ internal readonly struct Feet : Standard.IClonable<Snippet.Feet>
         Value = value;
     }
 
-    public override string ToString() => Value.ToString();
+    public override string ToString() => Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private Feet(double p0, Mist.Emission.CSharp.__StructInit marker)
     {
@@ -204,8 +204,8 @@ public class Program
         Snippet.Cash cash = ((Snippet.Cash)(money));
         Snippet.Feet feet = ((Snippet.Feet)(3.5));
         Snippet.Meters meters = ((Snippet.Meters)((double)(feet)));
-        System.Console.WriteLine($"position.X={position.X} point.X={point.X} moved.X={moved.X}");
-        System.Console.WriteLine($"money={money.Amount} cash={cash.Amount} meters={meters}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"position.X={position.X} point.X={point.X} moved.X={moved.X}"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"money={money.Amount} cash={cash.Amount} meters={meters}"));
     }
 
     public Program()

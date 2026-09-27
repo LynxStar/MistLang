@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
@@ -168,7 +169,7 @@ internal static class TypeParameterPopulator
     private static int? FixedLength(ArrayRankSuffixNode arrayRank)
     {
         return arrayRank is SizedArrayRankArrayRankSuffixNode sized
-            && int.TryParse(sized.Size.Lexeme, out var length)
+            && int.TryParse(sized.Size.Lexeme, NumberStyles.Integer, CultureInfo.InvariantCulture, out var length)
                 ? length
                 : null;
     }

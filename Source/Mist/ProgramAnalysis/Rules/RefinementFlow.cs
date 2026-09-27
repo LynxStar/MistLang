@@ -113,7 +113,7 @@ internal sealed class RefinementFlow(IReadOnlySet<object> unseenWrites, LiftedRe
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false, Target: LocalReferenceExpression target } assignment }:
                 state = Forget(state, holder => ReferenceEquals(holder, target.Local));
 
-                if(assignment.Value is BinaryExpression { Left: LocalReferenceExpression { Local: var same }, OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract } step2
+                if(assignment.Value is BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true }, Left: LocalReferenceExpression { Local: var same }, OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract } step2
                     && ReferenceEquals(same, target.Local) && Requirement.Constant(step2.Right) is { } by && state.TryGetValue(target.Local, out var before))
                 {
                     return state.SetItem(target.Local, new Knowledge(before.Values.Shifted(step2.OperatorKind == BinaryOperatorKind.Add ? by : -by), ImmutableHashSet<Bound>.Empty));

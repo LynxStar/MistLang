@@ -2108,3 +2108,10 @@ Mixed<Widget, string>:   Widget(int 7, string m)
 Boxed<Widget, int>:      Widget(Box 8)
 Build<Widget, int>:      Widget(int 9)
 Build<Widget, string>:   Widget(string b)
+=== Nested Block Namespaces Sample ===
+ancestor: 11
+repeated: 12
+qualified repeat: 13
+imported leaf: 14
+sibling: 20
+eight levels: 8

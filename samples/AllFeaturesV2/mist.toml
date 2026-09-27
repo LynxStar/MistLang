@@ -91,3 +91,4 @@ OpenUnions = { path = "../OpenUnions" }
 CallableInference = { path = "../CallableInference" }
 GenericExtensionMethods = { path = "../GenericExtensionMethods" }
 ConstructorConstraintSignatures = { path = "../ConstructorConstraintSignatures" }
+NestedBlockNamespaces = { path = "../NestedBlockNamespaces" }

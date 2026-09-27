@@ -39,7 +39,7 @@ internal sealed class NamespaceBuilder
 
         var fileNamespace = DetermineFileNamespace(ast, sourceText, namespaceRoot, projectFolder);
 
-        RegisterNamespaces(ast, sourceText);
+        RegisterNamespaces(ast);
         PopulateImports(ast, sourceText, fileScope);
 
         return fileNamespace;
@@ -201,15 +201,29 @@ internal sealed class NamespaceBuilder
     /// Declaring a type registers its namespace, so a file that does have top-level items still
     /// gets one.
     /// </summary>
-    private void RegisterNamespaces(CompilationUnitNode ast, SourceText sourceText)
+    private void RegisterNamespaces(CompilationUnitNode ast)
     {
         foreach(var item in ast.Items)
         {
             if(item is NamespaceItemTopLevelItemNode nsItem
-                && nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode)
+                && nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode blockNs)
             {
-                var blockNsName = ExtractNamespaceName(nsItem.NamespaceDeclaration, sourceText);
-                _ = context.ProgramModel.GetOrAddNamespace(blockNsName);
+                RegisterBlockNamespace(blockNs, "");
+            }
+        }
+    }
+
+    private void RegisterBlockNamespace(BlockNamespaceNamespaceDeclarationNode blockNs, string parentNamespace)
+    {
+        var namespaceName = BlockNamespaceName.Build(blockNs, parentNamespace);
+        _ = context.ProgramModel.GetOrAddNamespace(namespaceName);
+
+        foreach(var item in blockNs.Body)
+        {
+            if(item is NamespaceNamespaceItemNamespaceBodyItemNode nestedItem
+                && nestedItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlock)
+            {
+                RegisterBlockNamespace(nestedBlock, namespaceName);
             }
         }
     }

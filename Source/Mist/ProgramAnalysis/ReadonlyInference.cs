@@ -49,6 +49,7 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
 
     public bool IsReadonly(Method method)
     {
+        method = method.SourceDeclaration ?? method;
         return method.Modifiers.IsReadonly || (method.Body is not null && Settle(method));
     }
 
@@ -403,6 +404,8 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
         {
             return true;
         }
+
+        callee = callee.SourceDeclaration ?? callee;
 
         if(callee.Modifiers.IsReadonly || callee is CastOperator { CopiesClone: true })
         {

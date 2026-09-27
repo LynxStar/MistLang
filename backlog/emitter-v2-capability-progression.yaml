@@ -6765,6 +6765,23 @@ capabilities:
       union with void, and the optional falling on the array and not on its element. Six mutations, each
       caught by name: either suffix written before the type arguments, either resolver arm removed, and
       either suffix dropped from the printer.
+
+      OPTIONAL LAMBDA TARGETS, 2026-09-27 (workstream 12). ContextualLambdaTarget alias-expands the
+      destination and uses the callable shape of exactly its one present constituent in T | void.
+      LambdaBinder uses that signature for parameters, declared results and IsPure, while the bound
+      lambda remains a present function value admitted by ordinary optional widening. Hand-built inputs
+      in ContextualLambdaTargetTests (17 Tier 1 cases) and OptionalLambdaBindingTests (30 Tier 2 cases)
+      cover typed locals, reassignment, field initializers, declared returns and a closed non-generic
+      sole-candidate argument, expression and block bodies, suffix/union/alias spellings, nested result
+      targets, arity refusals and the local/pure conflict. Incompatible results retain the targets judged
+      by existing analysis; purity decisions remain with the existing analyzer. Removing optional
+      recognition and rebuilding fails 27 of the 47 cases; all ten target-path rows reproduce
+      MIST_PM_LAMBDA_PARAMETER_NO_TYPE. DelegateShape and value invocation are unchanged: an optional
+      receiver acquires no callable signature before narrowing. General unions, overloaded lambda
+      trials and generic-call inference remain deferred; this slice does not select callable union
+      alternatives or change method-group conversion, conversions or overload ranking.
+      The focused ledger passes 201/201 cases and the full solution ledger passes 10603/10603;
+      the solution build reports zero warnings and scoped formatting verification is clean.
     unlocks: []
 
   - id: lambda-expressions

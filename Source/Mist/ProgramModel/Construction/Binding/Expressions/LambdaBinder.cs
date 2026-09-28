@@ -21,7 +21,8 @@ internal static class LambdaBinder
 
     internal static Expression Bind(LambdaExpressionNode node, BindingContext ctx, BuilderContext context)
     {
-        var target = ContextualLambdaTarget.Of(ctx.TargetType, context.ProgramModel.TypeInterner);
+        var interner = context.ProgramModel.TypeInterner;
+        var target = ContextualLambdaTarget.Of(ctx.TargetType, interner);
 
         if(target is not null && target.ParameterTypes.Count != DeclaredParameterCount(node))
         {
@@ -32,14 +33,16 @@ internal static class LambdaBinder
             return new ErrorExpression(node);
         }
 
-        return Bind(node, target?.ParameterTypes, target?.ReturnType, target?.IsPure ?? false, ctx, context);
+        var unionArm = ContextualLambdaTarget.GeneralUnionArmOf(ctx.TargetType, interner);
+        var isGeneralUnion = ContextualLambdaTarget.IsGeneralUnion(ctx.TargetType, interner);
+        return Bind(node, target?.ParameterTypes, target?.ReturnType, target?.IsPure ?? false, unionArm, isGeneralUnion, ctx, context);
     }
 
     internal static Expression BindWithParameters(
         LambdaExpressionNode node, IReadOnlyList<IMistType> parameterTypes, BindingContext ctx, BuilderContext context)
     {
         return parameterTypes.Count == DeclaredParameterCount(node)
-            ? Bind(node, parameterTypes, returnType: null, targetIsPure: false, ctx, context)
+            ? Bind(node, parameterTypes, returnType: null, targetIsPure: false, unionArm: null, isGeneralUnion: false, ctx, context)
             : new ErrorExpression(node);
     }
 
@@ -60,6 +63,8 @@ internal static class LambdaBinder
         IReadOnlyList<IMistType>? parameterTypes,
         IMistType? returnType,
         bool targetIsPure,
+        IMistType? unionArm,
+        bool isGeneralUnion,
         BindingContext ctx,
         BuilderContext context)
     {
@@ -106,9 +111,9 @@ internal static class LambdaBinder
             {
                 return expressionBody is not null
                     ? BindExpressionBodied(
-                        node, expressionBody, parameters, isStatic, isAsync, promises, returnType, bodyTarget, ctx, context)
+                        node, expressionBody, parameters, isStatic, isAsync, promises, returnType, bodyTarget, unionArm, isGeneralUnion, ctx, context)
                     : BindBlockBodied(
-                        node, blockBody!, parameters, isStatic, isAsync, promises, returnType, bodyTarget, ctx, context)
+                        node, blockBody!, parameters, isStatic, isAsync, promises, returnType, bodyTarget, unionArm, isGeneralUnion, ctx, context)
                     ;
             }
             finally
@@ -132,6 +137,8 @@ internal static class LambdaBinder
         LambdaPromises promises,
         IMistType? returnType,
         IMistType? bodyTarget,
+        IMistType? unionArm,
+        bool isGeneralUnion,
         BindingContext ctx,
         BuilderContext context)
     {
@@ -144,13 +151,14 @@ internal static class LambdaBinder
         var declared = returnType
             ?? (isAsync ? context.Resolver.ConstructTask(result.Type) : result.Type);
 
+        var functionType = FunctionTypeOf(parameters, declared, promises, context);
         return new LambdaExpression(
-            node, parameters, result, body: null, isStatic,
-            FunctionTypeOf(parameters, declared, promises, context))
+            node, parameters, result, body: null, isStatic, functionType)
         {
             IsAsync = isAsync,
             IsPure = promises.IsPure,
             IsLocal = promises.IsLocal,
+            UnionCarrierDelegateType = isGeneralUnion ? unionArm ?? functionType : null,
         };
     }
 
@@ -167,6 +175,8 @@ internal static class LambdaBinder
         LambdaPromises promises,
         IMistType? returnType,
         IMistType? bodyTarget,
+        IMistType? unionArm,
+        bool isGeneralUnion,
         BindingContext ctx,
         BuilderContext context)
     {
@@ -195,13 +205,14 @@ internal static class LambdaBinder
         var lambdaReturn = returnType
             ?? (isAsync ? context.Resolver.ConstructTask(produced) : produced);
 
+        var functionType = FunctionTypeOf(parameters, lambdaReturn, promises, context);
         return new LambdaExpression(
-            node, parameters, result: null, body, isStatic,
-            FunctionTypeOf(parameters, lambdaReturn, promises, context))
+            node, parameters, result: null, body, isStatic, functionType)
         {
             IsAsync = isAsync,
             IsPure = promises.IsPure,
             IsLocal = promises.IsLocal,
+            UnionCarrierDelegateType = isGeneralUnion ? unionArm ?? functionType : null,
         };
     }
 

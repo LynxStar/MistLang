@@ -6812,6 +6812,21 @@ capabilities:
       warnings and scoped formatting verification is clean. General callable unions remain deferred
       pending their selection specification; method-group conversion and overload ranking are unchanged.
       The full solution ledger passes 10656/10656 cases across Mist, Storm and CLI after both follow-ups.
+
+      GENERAL UNION LAMBDA TARGETS, 2026-09-28 (workstream 12 follow-up 3). A destination union
+      contributes a contextual signature exactly when alias expansion and union flattening leave one
+      callable constituent. Noncallable arms do not compete; two callable arms never ask the lambda's
+      body to choose between them. A lambda with fully stated parameters can still produce its own
+      function value for ordinary union admission, and a union-typed value remains uncallable before
+      narrowing. The existing candidate trials and generic inference use the shared contextual
+      signature reader, without changing overload ranking or method-group conversion. The bound
+      lambda records the delegate type needed to emit its C# conversion through a union carrier.
+      The emitter also skips open carriers whose function arm contains generic type parameters;
+      a closed generic call emits its instantiated carrier instead. The focused ledger passes
+      128/128 cases and the full solution ledger passes 10748/10748 across Mist, Storm and CLI;
+      the solution build reports zero warnings and scoped formatting verification is clean.
+      An experimental-pipeline source project with a typed local, multiple-callable union,
+      overloaded call and generic call compiles and prints `ok`.
     unlocks: []
 
   - id: lambda-expressions

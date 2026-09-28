@@ -167,7 +167,7 @@ public sealed class OptionalLambdaInferenceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void GeneralUnionsDoNotChooseACallableAlternative(bool twoCallables)
+    public void GeneralUnionsTeachResultsOnlyWithOneCallableArm(bool twoCallables)
     {
         var f = new HandBuiltModel();
         var method = Method(f, "R");
@@ -180,8 +180,8 @@ public sealed class OptionalLambdaInferenceTests
         var inferred = TypeArgumentInference.Infer(method, [lambda], TypeSubstitution.Empty, f.Interner, trials, out var conflict);
 
         Assert.Null(conflict);
-        Assert.Null(Assert.Single(inferred));
-        Assert.Empty(trials.Inputs);
+        Assert.Same(twoCallables ? null : f.Type("Boolean"), Assert.Single(inferred));
+        Assert.Equal(twoCallables ? 0 : 1, trials.Inputs.Count);
     }
 
     [Theory]

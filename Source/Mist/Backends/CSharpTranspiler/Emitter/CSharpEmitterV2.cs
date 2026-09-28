@@ -647,12 +647,13 @@ internal sealed class CSharpEmitterV2
         }
     }
 
-    private static bool IsOpen(IMistType type)
+    internal static bool IsOpen(IMistType type)
     {
         return type switch
         {
             TypeParameter => true,
             ConstructedType constructed => constructed.TypeArguments.Any(IsOpen),
+            FunctionType function => function.ParameterTypes.Any(IsOpen) || IsOpen(function.ReturnType),
             UnionType union => union.Constituents.Any(IsOpen),
             _ => false,
         };

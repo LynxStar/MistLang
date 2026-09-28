@@ -4547,9 +4547,14 @@ rules:
       reports exactly one MIST_PA_REGEX_INVALID for each, at the pattern's own position -- an alias with
       an assignment and an `is` use included. v2 follows the spec where classic misses a position.
 
-      DELIBERATELY NOT HERE: a string cast with `(regex)` or handed to the Regex constructor is a run-time
-      construction (R6.7) and throws there, as on classic. The wrapper's soundness for a VALID pattern is
-      emitter order 178's.
+      NOT JUDGED: a string LITERAL inside an explicit `(regex)` cast or passed to `new Regex(...)`. Neither
+      binds as a regex literal, so both construct at run time and throw RegexParseException there on v2
+      (measured 2026-09-28). R6.7 makes the cast a run-time operation, written for non-literal strings;
+      no requirement asks for a literal in either form to be judged, though its value is known. Classic
+      also throws at run time for the cast, and emits C# that does not compile for the constructor (an
+      unqualified `Regex`). A string literal passed to a regex parameter or returned as a regex DOES bind
+      as a regex literal and is refused here, as the shorthand is. The wrapper's soundness for a VALID
+      pattern is emitter order 178's.
 
       COVERAGE: MalformedRegexDecisionTests, 24 Tier 1 rows -- an error naming the offset for six malformed
       bodies, none for five valid bodies or an undecodable one, refusal of a refinement holding a malformed

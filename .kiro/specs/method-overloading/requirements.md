@@ -68,6 +68,8 @@ The scope of this feature covers: allowing multiple method declarations with the
 15. IF a lambda argument is applicable to none of the Candidates that the call's other arguments leave applicable, and those arguments leave exactly one, THEN THE Overload_Resolver SHALL select that one and bind the lambda against it, so that the diagnostic is the lambda's own error: `Transform(3, v => v.Nope)` over `Transform(int, func<int, int>)` and `Transform(string, func<string, string>)` reports that `int` has no member `Nope`. Where the other arguments leave several, the call has no Applicable_Candidate (Requirement 3.4).
 16. THE binding a lambda receives under a Candidate while the call is being resolved SHALL leave nothing behind -- no diagnostic, no recorded instantiation, nothing a later pass reads -- and the lambda SHALL be bound for the program once, against the selected Candidate (type-argument-inference Requirement 11.7).
 
+For Requirements 3.13-3.16, a closed candidate parameter that is a union with exactly one callable constituent supplies that constituent's lambda signature under first-class-functions Requirements 6.9-6.10. A union with multiple callable constituents supplies none; overload resolution does not choose an arm inside the union.
+
 ### Requirement 4: Ambiguous Call Diagnostics
 
 **User Story:** As a Mist developer, I want clear error messages when the compiler cannot determine which overload to call, so that I can fix the ambiguity.

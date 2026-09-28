@@ -46,5 +46,7 @@ internal sealed class LambdaExpression(
 
     public bool IsLocal { get; init; }
 
+    public IMistType? UnionCarrierDelegateType { get; init; }
+
     public override IMistType Type { get; } = type;
 }

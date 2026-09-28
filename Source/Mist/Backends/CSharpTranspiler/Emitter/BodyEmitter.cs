@@ -1453,7 +1453,18 @@ internal static class BodyEmitter
 
         try
         {
+            // A lambda needs a delegate type before C# can pass it through a union carrier's operator.
+            if(lambda.UnionCarrierDelegateType is { } arm)
+            {
+                writer.Append($"({TypeNameEmitter.Emit(arm)})(");
+            }
+
             EmitLambdaBody(lambda, writer, diagnostics);
+
+            if(lambda.UnionCarrierDelegateType is not null)
+            {
+                writer.Append(")");
+            }
         }
         finally
         {

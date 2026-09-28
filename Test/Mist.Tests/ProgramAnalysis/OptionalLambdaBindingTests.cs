@@ -32,6 +32,7 @@ public sealed class OptionalLambdaBindingTests
         Assert.Empty(f.Binding.Diagnostics.ToImmutableArray());
         var lambda = Assert.IsType<LambdaExpression>(bound);
         Assert.Same(f.Signature, lambda.Type);
+        Assert.Null(lambda.UnionCarrierDelegateType);
         Assert.Equal(pure, ((IFunctionType)lambda.Type).IsPure);
         Assert.False(lambda.IsPure);
         Assert.Same(f.Binding.Built.Type("String"), Assert.Single(lambda.Parameters).Type);
@@ -159,7 +160,6 @@ public sealed class OptionalLambdaBindingTests
     [Theory]
     [InlineData("none")]
     [InlineData("two-callables")]
-    [InlineData("callable-and-noncallable")]
     [InlineData("two-callables-and-void")]
     public void AnImplicitParameterStillNeedsAnUnambiguousContextualTarget(string shape)
     {
@@ -169,7 +169,6 @@ public sealed class OptionalLambdaBindingTests
         {
             "none" => null,
             "two-callables" => new UnionType([f.Signature, second]),
-            "callable-and-noncallable" => new UnionType([f.Signature, f.Binding.Built.Type("String")]),
             _ => new UnionType([f.Signature, second, f.Binding.Built.Type("Void")]),
         };
 

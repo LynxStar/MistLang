@@ -72,13 +72,73 @@ public sealed class ContextualLambdaTargetTests
     }
 
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void AGeneralUnionSuppliesItsOnlyCallableSignature(bool pure, bool includesVoid)
+    {
+        var built = new HandBuiltModel();
+        var signature = new FunctionType([built.Type("String")], built.Type("Boolean"), pure);
+        var arms = new List<IMistType> { built.Type("String"), signature };
+        if(includesVoid)
+        {
+            arms.Add(built.Type("Void"));
+        }
+
+        Assert.Same(signature, ContextualLambdaTarget.Of(new UnionType(arms), built.Interner));
+        Assert.Same(signature, ContextualLambdaTarget.GeneralUnionArmOf(new UnionType(arms), built.Interner));
+    }
+
+    [Fact]
+    public void ACallableAliasCountsAsTheGeneralUnionsOnlyCallableArm()
+    {
+        var built = new HandBuiltModel();
+        var signature = new FunctionType([built.Type("String")], built.Type("String"));
+        var alias = new TypeAlias("Transform", "Probe", new Scope(null), null, new TypeAliasDeclarationNode()) { AliasedType = signature };
+        var callable = built.Interner.GetOrCreateConstructedType(alias, []);
+
+        Assert.Same(signature, ContextualLambdaTarget.Of(new UnionType([callable, built.Type("Boolean")]), built.Interner));
+    }
+
+    [Fact]
+    public void TwoAliasesToTheSameCallableCountAsOneAfterExpansion()
+    {
+        var built = new HandBuiltModel();
+        var signature = new FunctionType([built.Type("String")], built.Type("String"));
+        var first = new TypeAlias("First", "Probe", new Scope(null), null, new TypeAliasDeclarationNode()) { AliasedType = signature };
+        var second = new TypeAlias("Second", "Probe", new Scope(null), null, new TypeAliasDeclarationNode()) { AliasedType = signature };
+        var target = new UnionType([
+            built.Interner.GetOrCreateConstructedType(first, []),
+            built.Interner.GetOrCreateConstructedType(second, []),
+        ]);
+
+        Assert.Same(signature, ContextualLambdaTarget.Of(target, built.Interner));
+    }
+
+    [Fact]
+    public void AnOptionalAliasArmStillCountsItsOneCallableConstituent()
+    {
+        var built = new HandBuiltModel();
+        var signature = new FunctionType([built.Type("String")], built.Type("String"));
+        var alias = new TypeAlias("MaybeTransform", "Probe", new Scope(null), null, new TypeAliasDeclarationNode())
+        {
+            AliasedType = new UnionType([signature, built.Type("Void")]),
+        };
+        var maybeTransform = built.Interner.GetOrCreateConstructedType(alias, []);
+
+        Assert.Same(signature, ContextualLambdaTarget.Of(new UnionType([maybeTransform, built.Type("Boolean")]), built.Interner));
+        Assert.Null(ContextualLambdaTarget.Of(new UnionType([maybeTransform, new FunctionType([built.Type("Int32")], built.Type("Int32"))]), built.Interner));
+    }
+
+    [Theory]
     [InlineData("none")]
     [InlineData("error")]
     [InlineData("void")]
     [InlineData("noncallable-optional")]
     [InlineData("two-callables")]
     [InlineData("two-callables-and-void")]
-    [InlineData("callable-noncallable-and-void")]
+    [InlineData("two-callables-and-noncallable")]
     public void NoncallableTargetsAndGeneralUnionsSupplyNoSignature(string shape)
     {
         var built = new HandBuiltModel();
@@ -92,20 +152,24 @@ public sealed class ContextualLambdaTargetTests
             "noncallable-optional" => new UnionType([built.Type("String"), built.Type("Void")]),
             "two-callables" => new UnionType([first, second]),
             "two-callables-and-void" => new UnionType([first, second, built.Type("Void")]),
-            _ => new UnionType([first, built.Type("String"), built.Type("Void")]),
+            _ => new UnionType([first, second, built.Type("String")]),
         };
 
         Assert.Null(ContextualLambdaTarget.Of(target, built.Interner));
     }
 
     [Fact]
-    public void SelectingAContextualSignatureDoesNotMakeAnOptionalValueCallable()
+    public void SelectingAContextualSignatureDoesNotMakeAUnionValueCallable()
     {
         var built = new HandBuiltModel();
         var signature = new FunctionType([built.Type("String")], built.Type("String"));
         var optional = new UnionType([signature, built.Type("Void")]);
 
         Assert.Same(signature, ContextualLambdaTarget.Of(optional, built.Interner));
+        Assert.Null(ContextualLambdaTarget.GeneralUnionArmOf(optional, built.Interner));
         Assert.Null(DelegateShape.Of(optional));
+        var general = new UnionType([signature, built.Type("Boolean")]);
+        Assert.Same(signature, ContextualLambdaTarget.Of(general, built.Interner));
+        Assert.Null(DelegateShape.Of(general));
     }
 }

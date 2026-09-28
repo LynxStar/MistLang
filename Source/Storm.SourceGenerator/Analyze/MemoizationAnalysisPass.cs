@@ -380,23 +380,6 @@ public static class MemoizationAnalysisPass
             && !ContainsMandatoryTokenMatch(rule.Alternatives[0].Expression);
     }
 
-    /// <summary>
-    /// Returns <see langword="true"/> when the expression contains a mandatory token
-    /// match that the emitter would commit on (latching <c>_hasError</c> and emitting a
-    /// hard-error diagnostic).
-    /// </summary>
-    /// <remarks>
-    /// Grounded against <c>ParserEmitter</c>: rule bodies are emitted through
-    /// <c>EmitAltBodyWithCheck</c> / <c>EmitFullExprParse</c> with <c>withCheck == true</c>,
-    /// which matches <em>every</em> token in the body — mandatory or not — speculatively
-    /// via <c>Peek()</c>/<c>Match</c> guarded by an <c>ok</c> flag. A non-match merely sets
-    /// <c>ok = false</c> and the caller restores <c>_pos</c>; it never latches
-    /// <c>_hasError</c> nor commits a diagnostic. The committing <c>Require(...)</c> path is
-    /// reserved for emission contexts that are not used for rule bodies, so no rule-body
-    /// expression contains a committing mandatory token match. This traversal therefore
-    /// reports no mandatory match for the current emitter while remaining the explicit hook
-    /// to exclude such rules should a future emitter introduce a committing construct.
-    /// </remarks>
     private static bool ContainsMandatoryTokenMatch(ExpressionIR expression)
     {
         return expression switch

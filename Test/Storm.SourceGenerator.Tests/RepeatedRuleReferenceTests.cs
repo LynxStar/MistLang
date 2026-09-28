@@ -58,14 +58,14 @@ public sealed class RepeatedRuleReferenceTests
 
     [Theory]
     [Trait("Tier", "2")]
-    [InlineData("*", true, "_Rest")]
-    [InlineData("*", false, "_parsedElem")]
-    [InlineData("+", true, "_Rest")]
-    public void ARuleReferenceRepeatedWithoutASeparatorIsCollectedIntoTheList(string modifier, bool labelled, string parsed)
+    [InlineData("*", true)]
+    [InlineData("*", false)]
+    [InlineData("+", true)]
+    public void ARuleReferenceRepeatedWithoutASeparatorIsCollectedIntoTheList(string modifier, bool labelled)
     {
         var parser = ParserEmitter.Emit(ContextOf(List(modifier, separated: false, labelled)));
 
-        Assert.Contains($"_ElemsBuilder.Add({parsed});", parser);
+        Assert.Matches(@"_ElemsBuilder\.Add\(_m\d+\);", parser);
         Assert.Contains("node.Elems = _Elems;", parser);
     }
 

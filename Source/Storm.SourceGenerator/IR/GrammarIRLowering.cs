@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Storm.SourceGenerator.Diagnostics;
+using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.Frontend;
 using Storm.SourceGenerator.Resolve;
 
@@ -199,9 +200,13 @@ public static class GrammarIRLowering
         foreach(var (name, decl) in ruleOrder)
         {
             var alternatives = LowerRuleAlternatives(decl.Body, tokensByName, ruleShells, syntheticTokens, ruleDeclarations, diagnostics);
-            foreach(var alternative in alternatives)
+            foreach(var shape in alternatives.SelectMany(alternative => UnemittableShapes.Find(name, alternative)))
             {
-                RefuseNonTokenChoices(decl, alternative.Expression, alternative.FieldLabels, diagnostics);
+                diagnostics.Add(new StormDiagnostic(
+                    StormDiagnosticIds.STORM_UNSUPPORTED_CONSTRUCT,
+                    StormDiagnosticSeverity.Error,
+                    shape,
+                    null, decl.Line, decl.Column));
             }
 
             var shell = ruleShells[name];
@@ -392,7 +397,8 @@ public static class GrammarIRLowering
 
     /// <summary>
     /// Walks a rule expression and collects all anonymous string literals,
-    /// creating synthetic <see cref="TokenIR"/> entries for each unique literal.
+    /// creating synthetic <see cref="TokenIR"/> entries for each unique literal
+    /// that no declared token spells.
     /// </summary>
     private static void CollectAnonymousStringLiterals(
         StormExpression expr,
@@ -404,7 +410,7 @@ public static class GrammarIRLowering
         {
             case StormStringLiteralExpr strExpr:
                 var synthName = SyntheticTokenName(strExpr.Value);
-                if(!syntheticTokens.ContainsKey(synthName) && !existingTokens.ContainsKey(synthName))
+                if(DeclaredTokenSpelling(strExpr.Value, existingTokens.Values) == null && !syntheticTokens.ContainsKey(synthName) && !existingTokens.ContainsKey(synthName))
                 {
                     var synthToken = new TokenIR(
                         synthName,
@@ -484,6 +490,30 @@ public static class GrammarIRLowering
             default:
                 break;
         }
+    }
+
+    /// <summary>
+    /// A synthetic token is lexed in the default mode after every declared token, so a declared default-mode token
+    /// spelled exactly like the literal always wins the tie and the synthetic one never appears. The literal names that
+    /// token instead, a hidden one included, just as writing its name would. A token of another mode never competes,
+    /// and a pattern that merely admits the text is not recognised here.
+    /// </summary>
+    internal static TokenIR? DeclaredTokenSpelling(string literal, IEnumerable<TokenIR> tokens)
+    {
+        return tokens
+            .Where(token => !token.IsSynthetic && token.Mode == "default" && Spells(token.Expression, literal))
+            .OrderBy(token => token.DeclarationIndex)
+            .FirstOrDefault();
+    }
+
+    private static bool Spells(ExpressionIR pattern, string literal)
+    {
+        return pattern switch
+        {
+            StringLiteralIR text => text.Value == literal,
+            InlineFragmentIR fragment => Spells(fragment.Body, literal),
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -664,6 +694,12 @@ public static class GrammarIRLowering
                 return new StringLiteralIR("");
 
             case StormStringLiteralExpr strExpr:
+                var declaredToken = DeclaredTokenSpelling(strExpr.Value, tokensByName.Values);
+                if(declaredToken != null)
+                {
+                    return new TokenRefIR(declaredToken);
+                }
+
                 // Replace with a reference to the synthetic token
                 var synthName = SyntheticTokenName(strExpr.Value);
                 if(syntheticTokens.TryGetValue(synthName, out var synthToken))
@@ -687,7 +723,17 @@ public static class GrammarIRLowering
                 var seqElements = new List<ExpressionIR>();
                 foreach(var element in seqExpr.Elements)
                 {
-                    seqElements.Add(LowerRuleExpression(element, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics));
+                    var loweredElement = LowerRuleExpression(element, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics);
+
+                    // The AST reads a group's values off its direct elements only.
+                    if(loweredElement is SequenceIR inner && !fieldLabels.Any(label => ReferenceEquals(label.Expression, inner)))
+                    {
+                        seqElements.AddRange(inner.Elements);
+                    }
+                    else
+                    {
+                        seqElements.Add(loweredElement);
+                    }
                 }
 
                 return new SequenceIR(seqElements);
@@ -738,15 +784,6 @@ public static class GrammarIRLowering
 
             case StormLabeledExpr labeledExpr:
                 var labeledInner = LowerRuleExpression(labeledExpr.Element, tokensByName, rulesByName, syntheticTokens, ruleDeclarations, fieldLabels, diagnostics);
-                if(HoldsPredicate(labeledInner))
-                {
-                    diagnostics.Add(new StormDiagnostic(
-                        StormDiagnosticIds.STORM_UNSUPPORTED_CONSTRUCT,
-                        StormDiagnosticSeverity.Error,
-                        $"A predicate inside the labelled element '{labeledExpr.Label}': write it beside the element, not within it",
-                        null, 0, 0));
-                }
-
                 fieldLabels.Add(new FieldLabelIR(labeledExpr.Label, labeledInner));
                 return labeledInner;
 
@@ -772,67 +809,6 @@ public static class GrammarIRLowering
                     $"Unsupported expression type in rule expression: {expr.GetType().Name}",
                     null, 0, 0));
                 return new StringLiteralIR("");
-        }
-    }
-
-    /// <summary>
-    /// The parser emitter writes a labelled element through paths of its own -- a labelled sequence, optional
-    /// or list -- which pass over any element kind they do not know and have no channel to say so. A predicate
-    /// dropped there would leave its alternative unguarded, so it is refused here instead.
-    /// </summary>
-    private static bool HoldsPredicate(ExpressionIR expr)
-    {
-        return expr switch
-        {
-            PredicateIR => true,
-            SequenceIR sequence => sequence.Elements.Any(HoldsPredicate),
-            AlternationIR alternation => alternation.Alternatives.Any(HoldsPredicate),
-            OptionalIR optional => HoldsPredicate(optional.Inner),
-            ZeroOrMoreIR zeroOrMore => HoldsPredicate(zeroOrMore.Inner),
-            OneOrMoreIR oneOrMore => HoldsPredicate(oneOrMore.Inner),
-            _ => false,
-        };
-    }
-
-    internal static void RefuseNonTokenChoices(StormDeclaration rule, ExpressionIR expr, IReadOnlyList<FieldLabelIR> labels, List<StormDiagnostic> diagnostics)
-    {
-        switch(expr)
-        {
-            case AlternationIR alternation when !alternation.IsTokenChoice && !labels.Any(label => ReferenceEquals(label.Expression, alternation)):
-                diagnostics.Add(new StormDiagnostic(
-                    StormDiagnosticIds.STORM_UNSUPPORTED_CONSTRUCT,
-                    StormDiagnosticSeverity.Error,
-                    $"An unlabelled alternation in rule '{rule.Name}' must be a choice between single tokens: give any other choice a rule of its own",
-                    null, rule.Line, rule.Column));
-                break;
-
-            case AlternationIR alternation:
-                foreach(var alternative in alternation.Alternatives)
-                {
-                    RefuseNonTokenChoices(rule, alternative, labels, diagnostics);
-                }
-
-                break;
-
-            case SequenceIR sequence:
-                foreach(var element in sequence.Elements)
-                {
-                    RefuseNonTokenChoices(rule, element, labels, diagnostics);
-                }
-
-                break;
-
-            case OptionalIR optional:
-                RefuseNonTokenChoices(rule, optional.Inner, labels, diagnostics);
-                break;
-
-            case ZeroOrMoreIR zeroOrMore:
-                RefuseNonTokenChoices(rule, zeroOrMore.Inner, labels, diagnostics);
-                break;
-
-            case OneOrMoreIR oneOrMore:
-                RefuseNonTokenChoices(rule, oneOrMore.Inner, labels, diagnostics);
-                break;
         }
     }
 

@@ -4172,6 +4172,42 @@ rules:
       tests taking 151 s. That ledger ran at commit 41f9a02f, before the culture emission and the sample.
       The final ledger, over both, runs after this entry and is recorded in the spec's tasks.md. Every
       build had zero warnings and the formatter was clean.
+
+      GENERIC EXTENSION CONTRACTS (WORKSTREAM 11, 2026-09-27). Revalidated the specialization loss on
+      main bedd3576. Method.SourceDeclaration links each closed signature to its canonical declaration;
+      PurityInference.Answer and ReadonlyInference's root and transitive-call decisions consume that
+      link. The declaration's body, parameter identities, receiver binding, nested generic parameters
+      and closure roots are analyzed together, with the existing greatest fixpoint. Body is deliberately
+      absent on the closed signature. Inferred promises are universal declaration contracts, shared by
+      its views; closing a type argument does not infer a stronger promise from a concrete type.
+      Each view keeps its own BlockClosing, closed return/parameter/context types, context identifiers,
+      ReturnOwnership, DeclaredThisTier, diagnostic DeclarationNode, declaring type/block, scope and
+      SequenceLengthOperation. Method and parameter attribute lists are copied independently; their
+      declaration payloads and method type parameters/constraints retain canonical identities rather
+      than being rebound or evaluated. Reclosing a view starts from the canonical signature, so the
+      first receiver's types and substitution cannot leak into the next. Overload ranking and carrier
+      emission retain their existing paths; no new analyzer order or purity policy is introduced.
+
+      WORKSTREAM 11 REGRESSIONS. ExtensionSpecializationTests has ten Tier 1 rows over directly built
+      metadata; ExtensionContractInferenceTests has fifteen Tier 2 rows over hand-built member/call
+      chains, with ExtensionContractFragments supplying analysis inputs without running the binder.
+      Each test has one effective Tier trait. The source-link, exact-context and ownership metadata
+      assertions are negative controls for dropped contracts. Ledger 20260927-163804 built the tests
+      against unfixed behavior (only the new nullable source-link property existed): 15/22 rows failed,
+      including missing provenance, contexts, ownership/receiver tiers, readonly inference, pure callers
+      and recursion; seven negative/declared-promise controls passed. After implementation and fixing
+      the local caller fixture to provide an owned receiver, ledger 20260927-163953 passed all 72 rows
+      in the specialization/inference, PurityInferenceTests, ReadonlyContextDecisionTests,
+      ExtensionCarrierEmissionTests and AmbientExtensionTypeParameterPartitionTests filter. One later
+      Tier 1 row also pins an absent receiver-tier clause. Builds have zero warnings/errors after
+      routing NuGet's vulnerability cache to writable temporary storage and using a compiler scoped to
+      the run, since a shared sandboxed compiler could not write this worktree's outputs.
+      Final full-solution ledger 20260927-164148 passed 10,581 tests (9,744 compiler, 89 CLI, 748 source
+      generator), with zero failures/skips and empty failures.txt, including all 25 dedicated rows and
+      both sample baselines. Its build took 14.55s with zero warnings/errors; the test phase took 186s.
+      It began after the neighboring filtered build completed and no other build/test run was active.
+      Scoped formatting of the seven C# files and final `dotnet format Mist.slnx --verify-no-changes
+      --no-restore` both exited 0 with no diagnostics; `git diff --check` was clean.
     tasks:
       - >
         THE ADVERSARIAL HUNT IS OPEN WORK. Arthur decided on 2026-09-27 to record it rather than finish
@@ -4205,8 +4241,9 @@ rules:
         judged in readonly contexts. A type parameter instantiated with an impure Mist IFormattable stays
         unjudged; judging it refused samples/OpenUnions.
       - >
-        OPEN CATEGORY: ExtensionSpecialization.Close does not copy a generic extension method's body, so a
-        call to one is judged as bodiless.
+        CLOSED 2026-09-27 (workstream 11): generic extension signature views retain their canonical
+        source declaration and closed contracts. Purity and readonly inference analyze that declaration's
+        body with coherent identities; the workstream evidence above records the regressions.
       - >
         OPEN CATEGORY: a readonly class that holds nothing changeable counts as unchangeable, although a
         class that is not readonly may derive from it. That is sound only because narrowing from it to a

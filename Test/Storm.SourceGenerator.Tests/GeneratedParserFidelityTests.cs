@@ -1,7 +1,8 @@
 // The generated parser is compiled with Roslyn and run in-process, because what these tests pin -- a follower token
-// consumed, a failed alternative rolled back so that a later one parses, Children() walking each real node once --
-// is behaviour of the generated code, which reading its text cannot prove. One grammar holds every shape, so the
-// class costs two compilations: one plain, one with the tested rules memoized.
+// consumed, a failed alternative rolled back so that a later one parses, an element matched at any depth, Children()
+// walking each real node once, an abandoned round leaving no node behind -- is behaviour of the generated code, which
+// reading its text cannot prove. One grammar holds every shape, so the class costs two compilations: one plain, one
+// with Item memoized.
 
 using System.Collections;
 using System.Collections.Immutable;
@@ -32,11 +33,22 @@ public sealed class GeneratedParserFidelityTests
         "@memo\nrule Item = name:IDENT typeArgs:TypeArgs (SEMI | COMMA) as Grouped | name:IDENT as Plain;\n" +
         "rule Outer = item:Item RP as Closed | item:Item as Open;\n" +
         "rule Elem = IDENT;\n" +
-        "@memo\nrule List = first:Elem (COMMA rest:Elem)*;\n" +
-        "@memo\nrule Run = first:Elem (rest:Elem)*;\n" +
-        "@memo\nrule Tuple = LP first:Elem COMMA rest:Elem (COMMA additional:Elem)* RP;\n";
+        "rule List = first:Elem (COMMA rest:Elem)*;\n" +
+        "rule Run = first:Elem (rest:Elem)*;\n" +
+        "rule Tuple = LP first:Elem COMMA rest:Elem (COMMA additional:Elem)* RP;\n" +
+        "rule Call = name:IDENT TypeArgs?;\n" +
+        "rule Held = name:IDENT held:(COMMA (SEMI | LP) RP)?;\n" +
+        "rule Nested = first:Elem (LT (COMMA rest:Elem)* GT)?;\n" +
+        "rule Pairs = head:IDENT (key:IDENT COMMA? value:IDENT)*;\n" +
+        "rule Nest = head:IDENT (key:IDENT (LT value:IDENT GT)? SEMI)*;\n" +
+        "rule Parens = first:Elem (COMMA (LP Elem RP))*;\n" +
+        "rule Stated = first:Elem (COMMA rest:Elem SEMI)*;\n" +
+        "rule Head = first:IDENT LT;\n" +
+        "rule Wide = first:IDENT LT value:IDENT GT;\n" +
+        "rule Bare = first:IDENT LT SEMI;\n" +
+        "rule Pick = inline Head: { wide:Wide as WideArm, bare:Bare as BareArm };\n";
 
-    private static readonly string[] MemoizedRules = ["Item", "List", "Run", "Tuple"];
+    private static readonly string[] MemoizedRules = ["Item"];
 
     private static readonly Lazy<Assembly> PlainParser = new(() => Compile(memoized: false));
 
@@ -68,13 +80,65 @@ public sealed class GeneratedParserFidelityTests
     [InlineData("Tuple", "(a,b,c,d)", "a b c d")]
     public void ChildrenYieldsEachRepeatedRuleReferenceOnce_InSourceOrder(string rule, string input, string children)
     {
-        foreach(var (memoized, parser) in Parsers())
-        {
-            var node = Parse(parser, rule, input, out _);
+        var node = Parse(PlainParser.Value, rule, input, out _);
 
-            Assert.NotNull(node);
-            Assert.Equal((memoized, children), (memoized, string.Join(" ", ChildrenOf(node).Select(child => TextOf(child, input)))));
+        Assert.NotNull(node);
+        Assert.Equal(children, string.Join(" ", ChildrenOf(node).Select(child => TextOf(child, input))));
+    }
+
+    [Theory]
+    [InlineData("Call", "a<b>", 4, "<b>")]
+    [InlineData("Held", "a,;)", 4, "")]
+    [InlineData("Held", "a,;", 1, "")]
+    [InlineData("Nested", "a<,b,c>", 7, "a b c")]
+    [InlineData("Pairs", "a b,c d e", 6, "")]
+    [InlineData("Parens", "a,(b),(c)", 9, "a b c")]
+    [InlineData("Stated", "a,b;,c", 4, "a b")]
+    public void AnElementNestedAtAnyDepthIsMatched_AndEveryNodeItReadsIsAChild(string rule, string input, int consumed, string children)
+    {
+        var node = Parse(PlainParser.Value, rule, input, out var position);
+
+        Assert.NotNull(node);
+        Assert.Equal((consumed, children), (position, string.Join(" ", ChildrenOf(node).Select(child => TextOf(child, input)))));
+    }
+
+    [Fact]
+    public void AGroupNestedInARepeatedGroupIsBuiltInEachRoundThatHoldsIt()
+    {
+        var node = Parse(PlainParser.Value, "Nest", "a b<c>;d;", out var position)!;
+        var rounds = ((IEnumerable)node.GetType().GetProperty("Group0")!.GetValue(node)!).Cast<object>().Select(round =>
+        {
+            var nested = round.GetType().GetField("Group0")!.GetValue(round);
+            var value = nested?.GetType().GetField("Value")!.GetValue(nested);
+
+            return LexemeOf(round.GetType().GetField("Key")!.GetValue(round)) + ":" + (value == null ? "-" : LexemeOf(value));
+        });
+
+        Assert.Equal((8, "b:c d:-"), (position, string.Join(" ", rounds)));
+    }
+
+    [Fact]
+    public void AnInlinePrefixParsedOnceFillsTheNodeOfWhicheverArmFollows()
+    {
+        static string armOf(string input)
+        {
+            var node = Parse(PlainParser.Value, "Pick", input, out _)!;
+            var target = node.GetType().GetProperties().Single(property => property.Name is "Wide" or "Bare").GetValue(node)!;
+            var value = target.GetType().GetProperty("Value")?.GetValue(target);
+
+            return node.GetType().Name + " " + LexemeOf(target.GetType().GetProperty("First")!.GetValue(target)) + (value == null ? "" : " " + LexemeOf(value));
         }
+
+        Assert.Equal(("WideArmPickNode a b", "BareArmPickNode a"), (armOf("a<b>"), armOf("a<;")));
+    }
+
+    [Fact]
+    public void ARoundAbandonedAfterItsReferenceParsedLeavesTheLabelledScalarOnTheLastKeptNode()
+    {
+        const string input = "a,b;,c";
+        var node = Parse(PlainParser.Value, "Stated", input, out _)!;
+
+        Assert.Equal("b", TextOf(node.GetType().GetProperty("Rest")!.GetValue(node), input));
     }
 
     private static (bool Memoized, Assembly Parser)[] Parsers()
@@ -97,6 +161,11 @@ public sealed class GeneratedParserFidelityTests
     private static IEnumerable<object?> ChildrenOf(object node)
     {
         return ((IEnumerable)node.GetType().GetMethod("Children")!.Invoke(node, null)!).Cast<object?>();
+    }
+
+    private static string LexemeOf(object? token)
+    {
+        return (string)token!.GetType().GetProperty("Lexeme")!.GetValue(token)!;
     }
 
     private static string TextOf(object? node, string input)

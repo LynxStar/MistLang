@@ -1,19 +1,12 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Storm.SourceGenerator.IR;
 
 namespace Storm.SourceGenerator.Emit;
 
-/// <summary>
-/// Emits a static recursive-descent parser class using PEG ordered-choice
-/// backtracking for multi-alternative rules and direct parsing for
-/// single-alternative rules.
-/// Generates hidden-token attachment (leading/trailing trivia model).
-/// Halts on first error, returning null root.
-/// </summary>
-public static class ParserEmitter
+public static partial class ParserEmitter
 {
-
     public static string Emit(EmissionContext context)
     {
         var writer = new CodeWriter();
@@ -33,8 +26,6 @@ public static class ParserEmitter
         return writer.ToString();
     }
 
-    // ── Class structure ─────────────────────────────────────────────
-
     private static void EmitParserClass(CodeWriter writer, EmissionContext context)
     {
         var className = context.GrammarName + "Parser";
@@ -45,14 +36,12 @@ public static class ParserEmitter
             writer.WriteEmptyLine();
             EmitHelpers(writer, context);
 
-            // One public parse method per rule
             foreach(var rule in context.Grammar.Rules)
             {
                 writer.WriteEmptyLine();
                 EmitPublicParseMethod(writer, rule);
             }
 
-            // Internal parse methods
             foreach(var rule in context.Grammar.Rules)
             {
                 writer.WriteEmptyLine();
@@ -60,8 +49,6 @@ public static class ParserEmitter
             }
         });
     }
-
-    // ── Parser state ────────────────────────────────────────────────
 
     private static void EmitParserState(CodeWriter writer, EmissionContext context)
     {
@@ -73,9 +60,6 @@ public static class ParserEmitter
         writer.WriteLine("[ThreadStatic] private static string? _sourcePath;");
         writer.WriteLine("[ThreadStatic] private static int[]? _defaultToAllIndex;");
 
-        // Selective packrat memo table: per-parse, thread-local, keyed by (ruleId, pos).
-        // Emitted only when at least one rule is memoized so the zero-memo path is
-        // byte-for-byte identical to the pre-feature parser source.
         if(context.Memoization.Count > 0)
         {
             writer.WriteLine("[ThreadStatic] private static Dictionary<long, (SyntaxNode? Node, int End)>? _memo;");
@@ -85,11 +69,8 @@ public static class ParserEmitter
         writer.WriteLine("public static int LastPosition => _pos;");
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────
-
     private static void EmitHelpers(CodeWriter writer, EmissionContext context)
     {
-        // Init
         writer.WriteBlock("private static void Init(TokenStream ts, DiagnosticBag diag)", () =>
         {
             writer.WriteLine("_tokens = ts.DefaultChannelTokens;");
@@ -116,7 +97,6 @@ public static class ParserEmitter
         });
         writer.WriteEmptyLine();
 
-        // Peek
         writer.WriteBlock("private static int Peek(int offset = 0)", () =>
         {
             writer.WriteLine("var i = _pos + offset;");
@@ -124,11 +104,9 @@ public static class ParserEmitter
         });
         writer.WriteEmptyLine();
 
-        // Cur
         writer.WriteBlock("private static Token Cur()", () => writer.WriteLine("return _pos < _tokens.Length ? _tokens[_pos] : _tokens[_tokens.Length - 1];"));
         writer.WriteEmptyLine();
 
-        // Eat
         writer.WriteBlock("private static Token Eat()", () =>
         {
             writer.WriteLine("var t = Cur();");
@@ -137,7 +115,6 @@ public static class ParserEmitter
         });
         writer.WriteEmptyLine();
 
-        // Match
         writer.WriteBlock("private static Token? Match(int kind)", () =>
         {
             writer.WriteLine("if (_hasError) return null;");
@@ -145,7 +122,6 @@ public static class ParserEmitter
         });
         writer.WriteEmptyLine();
 
-        // Require — halt on first error
         writer.WriteBlock("private static Token Require(int kind)", () =>
         {
             writer.WriteLine("if (_hasError) return Cur();");
@@ -161,7 +137,6 @@ public static class ParserEmitter
         });
         writer.WriteEmptyLine();
 
-        // Error
         writer.WriteBlock("private static void Error(string message)", () => writer.WriteBlock("if (!_hasError)", () =>
             {
                 writer.WriteLine("_hasError = true;");
@@ -170,7 +145,6 @@ public static class ParserEmitter
             }));
         writer.WriteEmptyLine();
 
-        // Span
         writer.WriteBlock("private static SourceSpan Span(int startPos)", () =>
         {
             writer.WriteLine("if (startPos >= _tokens.Length) return new SourceSpan(0, 0);");
@@ -180,11 +154,8 @@ public static class ParserEmitter
         });
         writer.WriteEmptyLine();
 
-        // Hidden token attachment
         EmitHiddenTokenHelpers(writer);
 
-        // Memo-table key helper: packs (ruleId, pos) into a long. Emitted only
-        // when at least one rule is memoized so the zero-memo path is unchanged.
         if(context.Memoization.Count > 0)
         {
             writer.WriteEmptyLine();
@@ -192,11 +163,8 @@ public static class ParserEmitter
         }
     }
 
-    // ── Hidden token attachment ─────────────────────────────────────
-
     private static void EmitHiddenTokenHelpers(CodeWriter writer)
     {
-        // AttachHiddenTokens — leading/trailing trivia model
         writer.WriteBlock("private static T AttachHidden<T>(T node, int startDefaultIdx, int endDefaultIdx) where T : SyntaxNode", () =>
         {
             writer.WriteBlock("if (_allTokens.Length == 0)", () => writer.WriteLine("return node;"));
@@ -233,8 +201,6 @@ public static class ParserEmitter
         });
     }
 
-    // ── Public parse methods (one per rule) ─────────────────────────
-
     private static void EmitPublicParseMethod(CodeWriter writer, RuleIR rule)
     {
         var nodeName = rule.Name + "Node";
@@ -250,18 +216,11 @@ public static class ParserEmitter
         });
     }
 
-    // ── Internal parse methods ──────────────────────────────────────
-
     private static void EmitInternalParseMethod(CodeWriter writer, EmissionContext context, RuleIR rule)
     {
         var nodeName = rule.Name + "Node";
         var hasNamedAlts = rule.Alternatives.Any(a => a.AlternativeName != null);
 
-        // Memoized rule: emit a thin probe/store wrapper under the public internal
-        // name (_ParseR) and the existing body machinery under _ParseR_Body. Every
-        // caller already calls _ParseR() and is unchanged. Non-memoized rules (and
-        // every rule when no plan is present) are emitted exactly as before, so the
-        // zero-memo path stays byte-for-byte identical to the pre-feature parser.
         if(context.Memoization.IsMemoized(rule.Name))
         {
             EmitMemoizedInternalParseMethod(writer, context, rule, nodeName, hasNamedAlts);
@@ -275,7 +234,7 @@ public static class ParserEmitter
             writer.WriteLine("if (_hasError) return null;");
             if(rule.Alternatives.Count == 1 && !hasNamedAlts)
             {
-                EmitSingleAlt(writer, context, rule.Alternatives[0], nodeName);
+                EmitSingleAlt(writer, context, rule, nodeName);
             }
             else
             {
@@ -284,19 +243,12 @@ public static class ParserEmitter
         });
     }
 
-    // ── Memoized internal parse method (wrapper + renamed body) ─────
-
     private static void EmitMemoizedInternalParseMethod(CodeWriter writer, EmissionContext context, RuleIR rule, string nodeName, bool hasNamedAlts)
     {
         var ruleId = context.Memoization.RuleIds[rule.Name];
         var wrapperName = "_Parse" + rule.Name;
         var bodyName = "_Parse" + rule.Name + "_Body";
 
-        // Thin memoized wrapper. The leading error-flag check is evaluated exactly
-        // once at entry; there is no re-check before the probe. On a cache hit we
-        // restore the saved end position and return the cached node/null without
-        // running the body or touching diagnostics. On a miss we run the existing
-        // body, store (result, endPos), and return.
         writer.WriteBlock($"private static {nodeName}? {wrapperName}()", () =>
         {
             writer.WriteLine("if (_hasError) return null;");
@@ -310,26 +262,19 @@ public static class ParserEmitter
             writer.WriteEmptyLine();
             writer.WriteLine("var _entryPos = _pos;");
             writer.WriteLine($"var _result = {bodyName}();");
-            // Store the end position. A successful body leaves _pos at the end of the
-            // consumed span; a failed body returns null. Multi-alternative bodies
-            // restore _pos to the entry position on failure, but single-alternative
-            // bodies do not, so we force End == _entryPos on failure to guarantee a
-            // cached failure restores the cursor to the entry position (Req 2.6).
+            // Req 2.6 caches a failure at entry, and a failed single-alternative body does not rewind _pos.
             writer.WriteLine("_memo[_key] = (_result, _result == null ? _entryPos : _pos);");
             writer.WriteLine("return _result;");
         });
 
         writer.WriteEmptyLine();
 
-        // Renamed body: exactly today's emitted method, under the _Body name. The
-        // EmitSingleAlt/EmitMultiAlt machinery is untouched — only the method name
-        // differs when the rule is memoized.
         writer.WriteBlock($"private static {nodeName}? {bodyName}()", () =>
         {
             writer.WriteLine("if (_hasError) return null;");
             if(rule.Alternatives.Count == 1 && !hasNamedAlts)
             {
-                EmitSingleAlt(writer, context, rule.Alternatives[0], nodeName);
+                EmitSingleAlt(writer, context, rule, nodeName);
             }
             else
             {
@@ -338,21 +283,16 @@ public static class ParserEmitter
         });
     }
 
-    // ── Single alternative ──────────────────────────────────────────
-
-    private static void EmitSingleAlt(CodeWriter writer, EmissionContext context, RuleAlternativeIR alt, string nodeName)
+    private static void EmitSingleAlt(CodeWriter writer, EmissionContext context, RuleIR rule, string nodeName)
     {
         writer.WriteLine("var sp = _pos;");
         writer.WriteLine("var ok = true;");
-        EmitAltBodyWithCheck(writer, context, alt, nodeName, "sp", "ok");
+        EmitAltBodyWithCheck(writer, context, rule, rule.Alternatives[0], nodeName, "sp", "ok");
         writer.WriteLine("return null;");
     }
 
-    // ── Multi-alternative with LL(*) prediction ─────────────────────
-
     private static void EmitMultiAlt(CodeWriter writer, EmissionContext context, RuleIR rule, string nodeName, bool hasNamedAlts)
     {
-        // PEG ordered-choice: try each alternative in declaration order
         writer.WriteLine("var saved = _pos;");
         writer.WriteLine("var savedError = _hasError;");
         writer.WriteLine("var savedDiagCount = _diagnostics?.Count ?? 0;");
@@ -383,7 +323,7 @@ public static class ParserEmitter
                 writer.Indent();
                 writer.WriteLine("var sp = _pos;");
                 writer.WriteLine("var ok = true;");
-                EmitAltBodyWithCheck(writer, context, alt, typeName, "sp", "ok");
+                EmitAltBodyWithCheck(writer, context, rule, alt, typeName, "sp", "ok");
                 writer.Dedent();
                 writer.WriteLine("}");
             }
@@ -396,39 +336,26 @@ public static class ParserEmitter
         writer.WriteLine("return null;");
     }
 
-    private static void EmitAltBodyWithCheck(CodeWriter writer, EmissionContext context, RuleAlternativeIR alt, string typeName, string spVar, string okVar)
+    private static void EmitAltBodyWithCheck(CodeWriter writer, EmissionContext context, RuleIR rule, RuleAlternativeIR alt, string typeName, string spVar, string okVar)
     {
-        // If this alternative's expression is an inline block, delegate to the
-        // inline block emitter which handles its own prediction and node construction.
         if(alt.Expression is InlineBlockIR inlineBlock)
         {
-            // Derive the rule name from the typeName by stripping the trailing "Node"
             var ruleName = typeName.EndsWith("Node") ? typeName.Substring(0, typeName.Length - 4) : typeName;
             EmitInlineBlock(writer, context, inlineBlock, ruleName, spVar, true);
             return;
         }
 
-        var labels = alt.FieldLabels;
-        var labelMap = new Dictionary<ExpressionIR, string>();
-        foreach(var label in labels)
-        {
-            labelMap[label.Expression] = label.Label;
-        }
-
-        // Detect struct-projected `*`/`+` anonymous groups so their loop bodies build a
-        // group struct per iteration instead of overwriting scalar node properties (the
-        // last-wins bug; Tasks 7.1-7.5).
-        var groupContext = BuildGroupParseContext(alt, typeName);
-
-        var assignedProps = new List<(string PropName, string LocalVar)>();
-        EmitFullExprParse(writer, context, alt.Expression, labelMap, assignedProps, true, okVar, groupContext);
+        var elements = new ElementWriter(writer, context);
+        var frame = elements.DeclareNode(AstEmitter.NodeSlots(rule, alt, typeName), alt, typeName);
+        elements.Element(alt.Expression, okVar, frame);
+        elements.FinishLists(frame);
 
         writer.WriteBlock($"if ({okVar} && !_hasError)", () =>
         {
             writer.WriteLine($"var node = new {typeName}();");
-            foreach(var (propName, localVar) in assignedProps)
+            foreach(var slot in frame.Slots)
             {
-                writer.WriteLine($"node.{propName} = {localVar};");
+                writer.WriteLine($"node.{slot.Target} = {slot.Local};");
             }
 
             writer.WriteLine($"node.Span = Span({spVar});");
@@ -437,40 +364,33 @@ public static class ParserEmitter
         });
     }
 
-    // ── Inline block emission ───────────────────────────────────────
-
-    /// <summary>
-    /// Emits code for an <see cref="InlineBlockIR"/>: parse the prefix once,
-    /// peek at the next token(s) to predict which arm to take, then parse
-    /// the arm's tail and construct a flat node with prefix + tail fields.
-    /// </summary>
-    /// <param name="writer">Code writer.</param>
-    /// <param name="context">Emission context.</param>
-    /// <param name="inlineBlock">The inline block IR.</param>
-    /// <param name="ruleName">The parent rule name (for node type naming).</param>
-    /// <param name="spVar">The outer save-point variable name.</param>
-    /// <param name="hasNamedAlts">Whether the parent rule has named alternatives.</param>
     private static void EmitInlineBlock(CodeWriter writer, EmissionContext context, InlineBlockIR inlineBlock, string ruleName, string spVar, bool hasNamedAlts)
     {
-        // Build label map for prefix elements
-        var prefixLabelMap = new Dictionary<ExpressionIR, string>();
-        foreach(var label in inlineBlock.PrefixLabels)
-        {
-            prefixLabelMap[label.Expression] = label.Label;
-        }
+        var elements = new ElementWriter(writer, context);
+        var armSlots = inlineBlock.Arms
+            .Where(arm => arm.TailExpression is not InlineBlockIR)
+            .ToDictionary(arm => arm, arm => AstEmitter.NodeSlots(arm.TargetRule, ArmAlternative(inlineBlock, arm), arm.TargetRule.Name + "Node"));
+        var prefixSources = Reachable(inlineBlock.PrefixElements);
+        var prefixSlots = armSlots.Values
+            .SelectMany(slots => slots)
+            .Where(slot => prefixSources.Contains(slot.Source))
+            .GroupBy(slot => (slot.Source, slot.Appends))
+            .Select(group => group.First())
+            .ToList();
 
-        // Parse prefix elements into local variables
         writer.WriteLine("var _inlineOk = true;");
-        var prefixAssignedProps = new List<(string PropName, string LocalVar)>();
+        var prefixAlternative = new RuleAlternativeIR(null, inlineBlock.PrefixLabels, new SequenceIR(inlineBlock.PrefixElements));
+        var prefixTypeName = armSlots.Keys.Select(arm => arm.TargetRule.Name + "Node").FirstOrDefault() ?? ruleName + "Node";
+        var prefix = new InlinePrefix(prefixSlots, elements.DeclareNode(prefixSlots, prefixAlternative, prefixTypeName));
         foreach(var prefixElem in inlineBlock.PrefixElements)
         {
-            EmitFullExprParse(writer, context, prefixElem, prefixLabelMap, prefixAssignedProps, true, "_inlineOk", GroupParseContext.Empty);
+            elements.Element(prefixElem, "_inlineOk", prefix.Frame);
         }
 
-        // After successful prefix parse: predict arm based on next token(s)
+        elements.FinishLists(prefix.Frame);
+
         writer.WriteBlock("if (_inlineOk && !_hasError)", () =>
         {
-            // Group arms by their FIRST token for dispatch
             var armsByFirstToken = new Dictionary<string, List<int>>();
             var armsWithoutFirstToken = new List<int>();
 
@@ -496,7 +416,6 @@ public static class ParserEmitter
                 }
             }
 
-            // Emit prediction dispatch
             if(armsByFirstToken.Count > 0 || armsWithoutFirstToken.Count > 0)
             {
                 writer.WriteLine("var _peek = Peek();");
@@ -512,14 +431,13 @@ public static class ParserEmitter
                     writer.WriteLine("{");
                     writer.Indent();
 
-                    EmitArmGroup(writer, context, inlineBlock, armIndices, prefixAssignedProps, ruleName, spVar, hasNamedAlts);
+                    EmitArmGroup(writer, context, inlineBlock, armIndices, elements, prefix, armSlots, ruleName, spVar, hasNamedAlts);
 
                     writer.Dedent();
                     writer.WriteLine("}");
                     isFirst = false;
                 }
 
-                // Arms without a determinable FIRST token: try in order with backtracking
                 if(armsWithoutFirstToken.Count > 0)
                 {
                     if(!isFirst)
@@ -529,7 +447,7 @@ public static class ParserEmitter
                         writer.Indent();
                     }
 
-                    EmitArmGroup(writer, context, inlineBlock, armsWithoutFirstToken, prefixAssignedProps, ruleName, spVar, hasNamedAlts);
+                    EmitArmGroup(writer, context, inlineBlock, armsWithoutFirstToken, elements, prefix, armSlots, ruleName, spVar, hasNamedAlts);
 
                     if(!isFirst)
                     {
@@ -541,10 +459,60 @@ public static class ParserEmitter
         });
     }
 
-    /// <summary>
-    /// Computes the FIRST token(s) from an arm's tail expression.
-    /// Returns multiple tokens for alternations at the start of the tail.
-    /// </summary>
+    private sealed record InlinePrefix(IReadOnlyList<NodeSlot> Slots, Frame Frame)
+    {
+        public string? LocalOf(NodeSlot slot)
+        {
+            for(var i = 0; i < Slots.Count; i++)
+            {
+                if(Slots[i].Source == slot.Source && Slots[i].Appends == slot.Appends)
+                {
+                    return Frame.Slots[i].Local;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    private static RuleAlternativeIR ArmAlternative(InlineBlockIR inlineBlock, InlineArmIR arm)
+    {
+        var tail = arm.TailExpression is SequenceIR sequence ? sequence.Elements : [arm.TailExpression];
+
+        return new RuleAlternativeIR(null, inlineBlock.PrefixLabels.Concat(arm.TailLabels).ToList(), new SequenceIR(inlineBlock.PrefixElements.Concat(tail).ToList()));
+    }
+
+    private static HashSet<ExpressionIR> Reachable(IEnumerable<ExpressionIR> roots)
+    {
+        var reached = new HashSet<ExpressionIR>();
+        var pending = new Stack<ExpressionIR>(roots);
+        while(pending.Count > 0)
+        {
+            var expr = pending.Pop();
+            if(!reached.Add(expr))
+            {
+                continue;
+            }
+
+            var children = expr switch
+            {
+                SequenceIR sequence => sequence.Elements,
+                AlternationIR alternation => alternation.Alternatives,
+                OptionalIR optional => [optional.Inner],
+                ZeroOrMoreIR zeroOrMore => [zeroOrMore.Inner],
+                OneOrMoreIR oneOrMore => [oneOrMore.Inner],
+                PredicateIR predicate => [predicate.Inner],
+                _ => Array.Empty<ExpressionIR>(),
+            };
+            foreach(var child in children)
+            {
+                pending.Push(child);
+            }
+        }
+
+        return reached;
+    }
+
     private static List<string> GetFirstTokensFromTail(ExpressionIR tailExpr, EmissionContext context)
     {
         var result = new List<string>();
@@ -565,13 +533,11 @@ public static class ParserEmitter
             case SequenceIR seq:
                 if(seq.Elements.Count > 0)
                 {
-                    // Recurse into the first element of the sequence
                     return GetFirstTokensFromTail(seq.Elements[0], context);
                 }
 
                 break;
             case InlineBlockIR nested:
-                // For nested inline blocks, the FIRST set is the FIRST set of the nested prefix
                 if(nested.PrefixElements.Count > 0)
                 {
                     return GetFirstTokensFromTail(nested.PrefixElements[0], context);
@@ -585,23 +551,18 @@ public static class ParserEmitter
         return result;
     }
 
-    /// <summary>
-    /// Emits a group of arms that share the same FIRST token (or have no determinable FIRST).
-    /// When multiple arms share the token, they are tried in declaration order with backtracking.
-    /// </summary>
     private static void EmitArmGroup(
         CodeWriter writer, EmissionContext context, InlineBlockIR inlineBlock,
-        List<int> armIndices, List<(string PropName, string LocalVar)> prefixAssignedProps,
+        List<int> armIndices, ElementWriter elements, InlinePrefix prefix,
+        Dictionary<InlineArmIR, IReadOnlyList<NodeSlot>> armSlots,
         string ruleName, string spVar, bool hasNamedAlts)
     {
         if(armIndices.Count == 1)
         {
-            // Single arm for this FIRST token — emit directly
-            EmitArmTailParse(writer, context, inlineBlock.Arms[armIndices[0]], prefixAssignedProps, ruleName, spVar, hasNamedAlts);
+            EmitArmTailParse(writer, context, inlineBlock, inlineBlock.Arms[armIndices[0]], elements, prefix, armSlots, ruleName, spVar, hasNamedAlts);
         }
         else
         {
-            // Multiple arms share this FIRST token — try in declaration order with backtracking
             writer.WriteLine("var _armSaved = _pos;");
             writer.WriteLine("var _armSavedError = _hasError;");
             writer.WriteLine("var _armSavedDiagCount = _diagnostics?.Count ?? 0;");
@@ -620,25 +581,20 @@ public static class ParserEmitter
 
                 writer.WriteLine("{");
                 writer.Indent();
-                EmitArmTailParse(writer, context, arm, prefixAssignedProps, ruleName, spVar, hasNamedAlts);
+                EmitArmTailParse(writer, context, inlineBlock, arm, elements, prefix, armSlots, ruleName, spVar, hasNamedAlts);
                 writer.Dedent();
                 writer.WriteLine("}");
             }
         }
     }
 
-    /// <summary>
-    /// Emits the tail parse for a single arm. Constructs the INNER rule's
-    /// node (target rule) with all fields (prefix + tail), then wraps it
-    /// in the arm's node with a single labeled property. This produces an
-    /// AST shape identical to a standalone <c>label:TargetRule as AltName</c>.
-    /// </summary>
+    /// <summary>Builds the node shape <see cref="AstEmitter.EmitInlineArmNode"/> declares.</summary>
     private static void EmitArmTailParse(
-        CodeWriter writer, EmissionContext context, InlineArmIR arm,
-        List<(string PropName, string LocalVar)> prefixAssignedProps,
+        CodeWriter writer, EmissionContext context, InlineBlockIR inlineBlock, InlineArmIR arm,
+        ElementWriter elements, InlinePrefix prefix,
+        Dictionary<InlineArmIR, IReadOnlyList<NodeSlot>> armSlots,
         string ruleName, string spVar, bool hasNamedAlts)
     {
-        // Handle nested inline blocks recursively
         if(arm.TailExpression is InlineBlockIR nestedBlock)
         {
             EmitInlineBlock(writer, context, nestedBlock, ruleName, spVar, hasNamedAlts);
@@ -649,40 +605,26 @@ public static class ParserEmitter
         var innerTypeName = arm.TargetRule.Name + "Node";
         var armPropName = PascalCase(arm.Label ?? arm.TargetRule.Name);
 
-        // Build label map for tail elements
-        var tailLabelMap = new Dictionary<ExpressionIR, string>();
-        foreach(var label in arm.TailLabels)
-        {
-            tailLabelMap[label.Expression] = label.Label;
-        }
+        var slots = armSlots[arm];
+        var tailSlots = slots.Where(slot => prefix.LocalOf(slot) == null).ToList();
+        var prefixLocals = prefix.Frame.Slots.SelectMany(slot => new[] { slot.Local, slot.Builder }).OfType<string>();
 
-        // Parse tail elements
         writer.WriteLine("var _tailOk = true;");
-        var tailAssignedProps = new List<(string PropName, string LocalVar)>();
-        EmitFullExprParse(writer, context, arm.TailExpression, tailLabelMap, tailAssignedProps, true, "_tailOk", GroupParseContext.Empty);
+        var tail = elements.DeclareNode(tailSlots, ArmAlternative(inlineBlock, arm), innerTypeName, prefixLocals);
+        elements.Element(arm.TailExpression, "_tailOk", tail);
+        elements.FinishLists(tail);
 
-        // On successful tail parse: construct inner rule node, then wrap in arm node
         writer.WriteBlock("if (_tailOk && !_hasError)", () =>
         {
-            // Build the inner rule's node with all fields (prefix + tail combined)
             writer.WriteLine($"var _inner = new {innerTypeName}();");
-
-            // Assign prefix fields to inner node (these are direct properties
-            // because the target rule has its own inline field definitions)
-            foreach(var (propName, localVar) in prefixAssignedProps)
+            foreach(var slot in slots)
             {
-                writer.WriteLine($"_inner.{propName} = {localVar};");
-            }
-
-            // Assign tail fields to inner node
-            foreach(var (propName, localVar) in tailAssignedProps)
-            {
-                writer.WriteLine($"_inner.{propName} = {localVar};");
+                var local = prefix.LocalOf(slot) ?? tail.Slots[tailSlots.IndexOf(slot)].Local;
+                writer.WriteLine($"_inner.{slot.Name} = {local};");
             }
 
             writer.WriteLine($"_inner.Span = Span({spVar});");
 
-            // Build the arm's wrapper node with a single property
             writer.WriteLine($"var node = new {armTypeName}();");
             writer.WriteLine($"node.{armPropName} = _inner;");
             writer.WriteLine($"node.Span = Span({spVar});");
@@ -691,987 +633,6 @@ public static class ParserEmitter
         });
     }
 
-    // ── Full expression parsing ─────────────────────────────────────
-
-    private static void EmitFullExprParse(
-        CodeWriter writer, EmissionContext context, ExpressionIR expr,
-        Dictionary<ExpressionIR, string> labelMap,
-        List<(string PropName, string LocalVar)> assignedProps,
-        bool withCheck, string? okVar, GroupParseContext groupContext)
-    {
-        // Struct-projected `?` and no-modifier anonymous groups (Tasks 8.1, 8.2). This
-        // is checked before the label branch so that a *labelled* optional group (e.g.
-        // `constraintClause:(COLON constraints:ConstraintList slotWhereConstraints:WhereClause*)?`)
-        // is still struct-projected into `Group{N}` -- with its own group-level label
-        // forwarded from the group's first rule-ref field -- rather than falling into
-        // the flat-field optional path, which would assign the now get-only [Obsolete]
-        // shim properties and fail to compile. `*`/`+` groups continue to be handled by
-        // the repetition cases below via EmitStructGroupLoop.
-        if(TryGetScalarOrOptionalGroup(expr, groupContext, out var scalarOrOptionalPlan))
-        {
-            EmitStructGroupScalarOrOptional(writer, context, scalarOrOptionalPlan, labelMap, expr, assignedProps, withCheck, okVar);
-            return;
-        }
-
-        if(labelMap.TryGetValue(expr, out var label))
-        {
-            var propName = PascalCase(label);
-            var localVar = "_" + propName;
-            EmitExprParse(writer, context, expr, propName, withCheck, okVar, labelMap, assignedProps);
-            assignedProps.Add((propName, localVar));
-            return;
-        }
-
-        switch(expr)
-        {
-            case SequenceIR seq:
-                foreach(var elem in seq.Elements)
-                {
-                    EmitFullExprParse(writer, context, elem, labelMap, assignedProps, withCheck, okVar, groupContext);
-                }
-
-                break;
-
-            case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    var propName = PascalCase(tokenRef.Token.Name);
-
-                    // Only capture if this property name hasn't been captured yet
-                    // (handles cases like multiple COMMA tokens in a rule)
-                    if(!assignedProps.Any(p => p.PropName == propName))
-                    {
-                        var localVar = "_" + propName;
-                        if(withCheck)
-                        {
-                            writer.WriteLine($"Token {localVar} = default;");
-                            writer.WriteBlock($"if ({okVar})", () =>
-                            {
-                                writer.WriteLine($"var _raw = Match((int){kind});");
-                                writer.WriteBlock("if (_raw == null)", () => writer.WriteLine($"{okVar} = false;"));
-                                writer.WriteLine($"else {localVar} = _raw.Value;");
-                            });
-                        }
-                        else
-                        {
-                            writer.WriteLine($"var {localVar} = Require((int){kind});");
-                        }
-
-                        assignedProps.Add((propName, localVar));
-                    }
-                    else
-                    {
-                        // Duplicate token — just consume without capturing
-                        if(withCheck)
-                        {
-                            writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
-                            writer.WriteLine($"if ({okVar}) Eat();");
-                        }
-                        else
-                        {
-                            writer.WriteLine($"Require((int){kind});");
-                        }
-                    }
-
-                    break;
-                }
-
-            case RuleRefIR ruleRef:
-                {
-                    var propName = PascalCase(ruleRef.Rule.Name);
-                    var localVar = "_" + propName;
-                    if(withCheck)
-                    {
-                        writer.WriteLine($"var {localVar} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
-                        writer.WriteBlock($"if ({localVar} == null)", () => writer.WriteLine($"{okVar} = false;"));
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var {localVar} = _Parse{ruleRef.Rule.Name}();");
-                    }
-
-                    assignedProps.Add((propName, localVar));
-                    break;
-                }
-
-            case StringLiteralIR lit:
-                {
-                    var token = FindTokenForLiteral(context, lit.Value);
-                    if(token != null)
-                    {
-                        var kind = TokenKindRef(token.Name);
-                        if(withCheck)
-                        {
-                            writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
-                            writer.WriteLine($"if ({okVar}) Eat();");
-                        }
-                        else
-                        {
-                            writer.WriteLine($"Require((int){kind});");
-                        }
-                    }
-
-                    break;
-                }
-
-            case PredicateIR predicate:
-                EmitPredicate(writer, context, predicate, okVar);
-                break;
-
-            case AlternationIR alternation:
-                EmitTokenChoice(writer, context, alternation, okVar);
-                break;
-
-            case OptionalIR opt:
-                {
-                    // Unlabeled optional that may contain labeled sub-expressions.
-                    // Pre-declare variables for any labeled sub-expressions so they're
-                    // accessible after the if-block for node property assignment.
-                    var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
-                    CollectLabeledExprs(opt.Inner, labelMap, innerLabeled);
-                    foreach(var (lbl, lexpr) in innerLabeled)
-                    {
-                        var propName = PascalCase(lbl);
-                        var localVar = "_" + propName;
-                        var typeName = GetExprTypeName(lexpr);
-                        var defaultVal = GetExprDefaultValue(lexpr);
-                        writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
-                        assignedProps.Add((propName, localVar));
-                    }
-
-                    // Position-save/restore approach: try the inner parse, restore on failure
-                    writer.WriteLine("var _optSaved = _pos;");
-                    writer.WriteLine("var _optSavedError = _hasError;");
-                    writer.WriteLine("var _optSavedDiagCount = _diagnostics?.Count ?? 0;");
-                    var innerAssignedProps = new List<(string PropName, string LocalVar)>();
-                    if(withCheck)
-                    {
-                        writer.WriteBlock($"if ({okVar})", () =>
-                        {
-                            writer.WriteLine("var _optOk = true;");
-                            EmitFullExprParseAssignOnly(writer, context, opt.Inner, labelMap, innerAssignedProps, true, "_optOk");
-                            writer.WriteBlock("if (!_optOk || _hasError)", () =>
-                            {
-                                writer.WriteLine("_pos = _optSaved;");
-                                writer.WriteLine("_hasError = _optSavedError;");
-                                writer.WriteLine("_diagnostics?.TruncateTo(_optSavedDiagCount);");
-                            });
-                        });
-                    }
-                    else
-                    {
-                        writer.WriteLine("var _optOk = true;");
-                        EmitFullExprParseAssignOnly(writer, context, opt.Inner, labelMap, innerAssignedProps, true, "_optOk");
-                        writer.WriteBlock("if (!_optOk || _hasError)", () =>
-                        {
-                            writer.WriteLine("_pos = _optSaved;");
-                            writer.WriteLine("_hasError = _optSavedError;");
-                            writer.WriteLine("_diagnostics?.TruncateTo(_optSavedDiagCount);");
-                        });
-                    }
-
-                    break;
-                }
-
-            case ZeroOrMoreIR star:
-                {
-                    // Struct-projected `*` group: build a {Rule}NodeGroup{N} value per
-                    // iteration and accumulate it into an ImmutableArray, instead of
-                    // overwriting scalar node properties each iteration (Tasks 7.1-7.5).
-                    if(star.Inner is SequenceIR starGroupSeq && groupContext.TryGet(starGroupSeq, out var starGroupPlan))
-                    {
-                        EmitStructGroupLoop(writer, context, starGroupPlan, assignedProps, withCheck, okVar);
-                        break;
-                    }
-
-                    // Unlabeled zero-or-more that may contain labeled sub-expressions.
-                    // Pre-declare variables for labeled sub-expressions so they're
-                    // accessible after the loop for node property assignment.
-                    //
-                    // Labeled tokens inside a repetition are promoted to
-                    // ImmutableArray<Token> (matching the AST property type).
-                    // We track which labels are token-list so we can accumulate
-                    // them in the loop body and finalize after the loop.
-                    var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
-                    CollectLabeledExprs(star.Inner, labelMap, innerLabeled);
-                    var tokenListLabels = new List<(string PropName, string BuilderVar, string ScalarVar)>();
-                    foreach(var (lbl, lexpr) in innerLabeled)
-                    {
-                        var propName = PascalCase(lbl);
-                        var localVar = "_" + propName;
-                        if(lexpr is TokenRefIR)
-                        {
-                            // Labeled token inside repetition → accumulate into ImmutableArray<Token>
-                            var builderVar = localVar + "Builder";
-                            writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<Token>();");
-                            tokenListLabels.Add((propName, builderVar, localVar));
-                            // Declare the scalar variable as Token? for the loop body assignment
-                            writer.WriteLine($"Token? {localVar} = null;");
-                            // Do NOT add to assignedProps here — we'll add the finalized list after the loop
-                        }
-                        else
-                        {
-                            var typeName = GetExprTypeName(lexpr, nullable: false);
-                            var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
-                            writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
-                            assignedProps.Add((propName, localVar));
-                        }
-                    }
-
-                    var starRuleRef = AstEmitter.RepeatedRuleRef(star.Inner);
-
-                    string? ruleBuilderVar = null;
-                    string? parsedItemVar = null;
-                    if(starRuleRef != null)
-                    {
-                        var nodeType = starRuleRef.Rule.Name + "Node";
-                        var propName = PascalCase(starRuleRef.Rule.Name) + "s";
-                        ruleBuilderVar = "_" + propName + "Builder";
-                        // If the RuleRefIR has a label, the parsed result is assigned to the
-                        // labeled variable (e.g., _Right) rather than _parsed{RuleName}.
-                        parsedItemVar = labelMap.TryGetValue(starRuleRef, out var ruleRefLabel)
-                            ? "_" + PascalCase(ruleRefLabel)
-                            : "_parsed" + PascalCase(starRuleRef.Rule.Name);
-
-                        writer.WriteLine($"var {ruleBuilderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
-                    }
-
-                    // Detect unlabeled TokenRefIR inside the star's inner expression that needs
-                    // list accumulation. Uses the LAST TokenRefIR in a sequence, matching the
-                    // AstEmitter.GetPropertyInfoForList behavior which picks the last token
-                    // for the list property name. Only applies when there is NO RuleRefIR in
-                    // the sequence (if a RuleRef exists, the AST uses it for the list property
-                    // and tokens are treated as separators).
-                    TokenRefIR? starTokenRef = null;
-                    if(starRuleRef == null)
-                    {
-                        if(star.Inner is SequenceIR starTokSeq)
-                        {
-                            starTokenRef = starTokSeq.Elements.OfType<TokenRefIR>().LastOrDefault();
-                        }
-                        else if(star.Inner is TokenRefIR directTokRef)
-                        {
-                            starTokenRef = directTokRef;
-                        }
-                    }
-
-                    string? tokenBuilderVar = null;
-                    string? tokenParsedVar = null;
-                    string? tokenPropName = null;
-                    // Only the unlabeled case is handled here. When the repeated token
-                    // is labeled, the tokenListLabels path above already accumulates and
-                    // finalizes it under the label's property name; the token-derived
-                    // list property (if the AST emitter also generates one) is left at
-                    // its default empty value, matching the historical behavior.
-                    if(starTokenRef != null && !labelMap.ContainsKey(starTokenRef))
-                    {
-                        tokenPropName = PascalCase(starTokenRef.Token.Name) + "s";
-                        tokenBuilderVar = "_" + tokenPropName + "Builder";
-                        tokenParsedVar = "_starParsed" + PascalCase(starTokenRef.Token.Name);
-                        writer.WriteLine($"var {tokenBuilderVar} = ImmutableArray.CreateBuilder<Token>();");
-                    }
-
-                    // Position-progress loop with ok flag: keep parsing while making progress
-                    writer.WriteBlock("while (!_hasError)", () =>
-                    {
-                        writer.WriteLine("var _starSaved = _pos;");
-                        writer.WriteLine("var _starSavedError = _hasError;");
-                        writer.WriteLine("var _starSavedDiagCount = _diagnostics?.Count ?? 0;");
-                        writer.WriteLine("var _starOk = true;");
-                        var innerAssignedProps = new List<(string PropName, string LocalVar)>();
-                        EmitFullExprParseAssignOnly(writer, context, star.Inner, labelMap, innerAssignedProps, true, "_starOk");
-                        writer.WriteBlock("if (!_starOk || _hasError || _pos == _starSaved)", () =>
-                        {
-                            writer.WriteLine("_hasError = _starSavedError;");
-                            writer.WriteLine("_pos = _starSaved;");
-                            writer.WriteLine("_diagnostics?.TruncateTo(_starSavedDiagCount);");
-                            writer.WriteLine("break;");
-                        });
-
-                        // Accumulate the parsed rule-ref node into the builder
-                        if(ruleBuilderVar != null && parsedItemVar != null)
-                        {
-                            writer.WriteBlock($"if ({parsedItemVar} != null)", () => writer.WriteLine($"{ruleBuilderVar}.Add({parsedItemVar});"));
-                        }
-
-                        // Accumulate labeled tokens into their builders
-                        foreach(var (propName, builderVar, scalarVar) in tokenListLabels)
-                        {
-                            writer.WriteBlock($"if ({scalarVar} != null)", () => writer.WriteLine($"{builderVar}.Add({scalarVar}.Value);"));
-                        }
-
-                        // Accumulate unlabeled tokens into their builder
-                        if(tokenBuilderVar != null && tokenParsedVar != null)
-                        {
-                            writer.WriteBlock($"if ({tokenParsedVar} != null)", () => writer.WriteLine($"{tokenBuilderVar}.Add({tokenParsedVar}.Value);"));
-                        }
-                    });
-
-                    // Finalize the rule-ref builder and add to assignedProps
-                    if(ruleBuilderVar != null && starRuleRef != null)
-                    {
-                        var propName = PascalCase(starRuleRef.Rule.Name) + "s";
-                        var finalVar = "_" + propName;
-                        writer.WriteLine($"var {finalVar} = {ruleBuilderVar}.ToImmutable();");
-                        assignedProps.Add((propName, finalVar));
-                    }
-
-                    // Finalize token-list builders and add to assignedProps
-                    foreach(var (propName, builderVar, _) in tokenListLabels)
-                    {
-                        var finalVar = "_" + propName + "List";
-                        writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
-                        assignedProps.Add((propName, finalVar));
-                    }
-
-                    // Finalize the unlabeled token list builder and add to assignedProps
-                    if(tokenBuilderVar != null && tokenPropName != null)
-                    {
-                        var tokenFinalVar = "_" + tokenPropName;
-                        writer.WriteLine($"var {tokenFinalVar} = {tokenBuilderVar}.ToImmutable();");
-                        assignedProps.Add((tokenPropName, tokenFinalVar));
-                    }
-
-                    break;
-                }
-
-            case OneOrMoreIR plus:
-                {
-                    // Struct-projected `+` group: same per-iteration struct construction
-                    // as the `*` case, but the alternative fails if the group never
-                    // matched (Tasks 7.1-7.5).
-                    if(plus.Inner is SequenceIR plusGroupSeq && groupContext.TryGet(plusGroupSeq, out var plusGroupPlan))
-                    {
-                        EmitStructGroupLoop(writer, context, plusGroupPlan, assignedProps, withCheck, okVar);
-                        break;
-                    }
-
-                    // Unlabeled one-or-more that may contain labeled sub-expressions.
-                    // Same as ZeroOrMoreIR but requires at least one successful iteration.
-                    var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
-                    CollectLabeledExprs(plus.Inner, labelMap, innerLabeled);
-                    var tokenListLabels = new List<(string PropName, string BuilderVar, string ScalarVar)>();
-                    foreach(var (lbl, lexpr) in innerLabeled)
-                    {
-                        var propName = PascalCase(lbl);
-                        var localVar = "_" + propName;
-                        if(lexpr is TokenRefIR)
-                        {
-                            var builderVar = localVar + "Builder";
-                            writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<Token>();");
-                            tokenListLabels.Add((propName, builderVar, localVar));
-                            writer.WriteLine($"Token? {localVar} = null;");
-                        }
-                        else
-                        {
-                            var typeName = GetExprTypeName(lexpr, nullable: false);
-                            var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
-                            writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
-                            assignedProps.Add((propName, localVar));
-                        }
-                    }
-
-                    var plusRuleRef = AstEmitter.RepeatedRuleRef(plus.Inner);
-
-                    string? ruleBuilderVar = null;
-                    string? parsedItemVar = null;
-                    if(plusRuleRef != null)
-                    {
-                        var nodeType = plusRuleRef.Rule.Name + "Node";
-                        var propName = PascalCase(plusRuleRef.Rule.Name) + "s";
-                        ruleBuilderVar = "_" + propName + "Builder";
-                        parsedItemVar = labelMap.TryGetValue(plusRuleRef, out var ruleRefLabel)
-                            ? "_" + PascalCase(ruleRefLabel)
-                            : "_parsed" + PascalCase(plusRuleRef.Rule.Name);
-
-                        writer.WriteLine($"var {ruleBuilderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
-                    }
-
-                    // Track iteration count for the one-or-more requirement
-                    writer.WriteLine("var _plusCount = 0;");
-
-                    // Position-progress loop with ok flag: keep parsing while making progress
-                    writer.WriteBlock("while (!_hasError)", () =>
-                    {
-                        writer.WriteLine("var _starSaved = _pos;");
-                        writer.WriteLine("var _starSavedError = _hasError;");
-                        writer.WriteLine("var _starSavedDiagCount = _diagnostics?.Count ?? 0;");
-                        writer.WriteLine("var _starOk = true;");
-                        var innerAssignedProps = new List<(string PropName, string LocalVar)>();
-                        EmitFullExprParseAssignOnly(writer, context, plus.Inner, labelMap, innerAssignedProps, true, "_starOk");
-                        writer.WriteBlock("if (!_starOk || _hasError || _pos == _starSaved)", () =>
-                        {
-                            writer.WriteLine("_hasError = _starSavedError;");
-                            writer.WriteLine("_pos = _starSaved;");
-                            writer.WriteLine("_diagnostics?.TruncateTo(_starSavedDiagCount);");
-                            writer.WriteLine("break;");
-                        });
-                        writer.WriteLine("_plusCount++;");
-
-                        // Accumulate the parsed rule-ref node into the builder
-                        if(ruleBuilderVar != null && parsedItemVar != null)
-                        {
-                            writer.WriteBlock($"if ({parsedItemVar} != null)", () => writer.WriteLine($"{ruleBuilderVar}.Add({parsedItemVar});"));
-                        }
-
-                        // Accumulate labeled tokens into their builders
-                        foreach(var (propName, builderVar, scalarVar) in tokenListLabels)
-                        {
-                            writer.WriteBlock($"if ({scalarVar} != null)", () => writer.WriteLine($"{builderVar}.Add({scalarVar}.Value);"));
-                        }
-                    });
-
-                    // Require at least one iteration
-                    if(withCheck)
-                    {
-                        writer.WriteBlock("if (_plusCount == 0)", () => writer.WriteLine($"{okVar} = false;"));
-                    }
-
-                    // Finalize the rule-ref builder and add to assignedProps
-                    if(ruleBuilderVar != null && plusRuleRef != null)
-                    {
-                        var propName = PascalCase(plusRuleRef.Rule.Name) + "s";
-                        var finalVar = "_" + propName;
-                        writer.WriteLine($"var {finalVar} = {ruleBuilderVar}.ToImmutable();");
-                        assignedProps.Add((propName, finalVar));
-                    }
-
-                    // Finalize token-list builders and add to assignedProps
-                    foreach(var (propName, builderVar, _) in tokenListLabels)
-                    {
-                        var finalVar = "_" + propName + "List";
-                        writer.WriteLine($"var {finalVar} = {builderVar}.ToImmutable();");
-                        assignedProps.Add((propName, finalVar));
-                    }
-
-                    break;
-                }
-
-            default:
-                break;
-        }
-    }
-
-    // ── Anonymous group struct construction (`*`/`+`, Tasks 7.1-7.5) ──
-
-    /// <summary>
-    /// Builds the parser-side view of every struct-projected anonymous group in an
-    /// alternative. Each group's inner sequence is mapped (by reference identity) to
-    /// the group's <c>{Rule}NodeGroup{N}</c> struct name, its parent-node
-    /// <c>Group{N}</c> property name, the group's modifier and inner sequence, and the
-    /// ordered field descriptors shared with <see cref="AstEmitter"/> -- so the emitted
-    /// code constructs a struct whose field names, order, and types match the emitted
-    /// struct exactly. Every modifier is included: <c>*</c>/<c>+</c> groups build a
-    /// list (Tasks 7.1-7.5), <c>?</c> groups build a nullable local (Task 8.1), and a
-    /// no-modifier group builds a scalar (Task 8.2). Groups with fewer than two
-    /// value-bearing elements are never returned by
-    /// <see cref="AstEmitter.DetectAnonymousGroups"/>, so their parser emission is
-    /// unchanged.
-    /// </summary>
-    private static GroupParseContext BuildGroupParseContext(RuleAlternativeIR alt, string nodeTypeName)
-    {
-        Dictionary<SequenceIR, StructGroupPlan>? plans = null;
-        foreach(var group in AstEmitter.DetectAnonymousGroups(alt))
-        {
-            var structName = nodeTypeName + "Group" + group.GroupIndex;
-            var propertyName = "Group" + group.GroupIndex;
-            var fields = AstEmitter.GetGroupStructFields(structName, group.Sequence, group.Labels);
-            plans ??= new Dictionary<SequenceIR, StructGroupPlan>();
-            plans[group.Sequence] = new StructGroupPlan(structName, propertyName, group.GroupIndex, group.Modifier, group.Sequence, fields);
-        }
-
-        return plans == null ? GroupParseContext.Empty : new GroupParseContext(plans);
-    }
-
-    /// <summary>
-    /// Emits the parse loop for a <c>*</c>/<c>+</c> anonymous group that projects a
-    /// group struct. Each iteration saves parser state, parses every value-bearing
-    /// field into a local, and -- when the iteration succeeded and consumed input --
-    /// constructs a <c>{Rule}NodeGroup{N}</c> value and appends it to an
-    /// <c>ImmutableArray.CreateBuilder</c> accumulator. A failed or no-progress
-    /// iteration restores the saved state and breaks, preserving the existing
-    /// backtracking semantics. After the loop the finalised <c>ImmutableArray</c> is
-    /// registered as the node's <c>Group{N}</c> property; a <c>+</c> group that never
-    /// matched fails the alternative. The old scalar node-property assignments (the
-    /// last-wins writes) are not emitted (Task 7.5).
-    /// </summary>
-    private static void EmitStructGroupLoop(
-        CodeWriter writer, EmissionContext context, StructGroupPlan plan,
-        List<(string PropName, string LocalVar)> assignedProps, bool withCheck, string? okVar)
-    {
-        var idx = plan.GroupIndex;
-        var listVar = "_group" + idx;
-        var builderVar = listVar + "_b";
-        var okFlag = "_g" + idx + "Ok";
-
-        writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<{plan.StructName}>();");
-        writer.WriteBlock("while (!_hasError)", () =>
-        {
-            writer.WriteLine($"var _g{idx}Saved = _pos;");
-            writer.WriteLine($"var _g{idx}SavedError = _hasError;");
-            writer.WriteLine($"var _g{idx}SavedDiagCount = _diagnostics?.Count ?? 0;");
-            writer.WriteLine($"var {okFlag} = true;");
-
-            var fieldLocals = EmitStructGroupFields(writer, context, plan, idx, okFlag);
-
-            writer.WriteBlock($"if (!{okFlag} || _hasError || _pos == _g{idx}Saved)", () =>
-            {
-                writer.WriteLine($"_hasError = _g{idx}SavedError;");
-                writer.WriteLine($"_pos = _g{idx}Saved;");
-                writer.WriteLine($"_diagnostics?.TruncateTo(_g{idx}SavedDiagCount);");
-                writer.WriteLine("break;");
-            });
-
-            writer.WriteLine($"{builderVar}.Add(new {plan.StructName} {{ {BuildStructInitializer(fieldLocals)} }});");
-        });
-
-        writer.WriteLine($"var {listVar} = {builderVar}.ToImmutable();");
-
-        // A one-or-more group must match at least once.
-        if(plan.Modifier == GroupModifier.OneOrMore && withCheck && okVar != null)
-        {
-            writer.WriteBlock($"if ({builderVar}.Count == 0)", () => writer.WriteLine($"{okVar} = false;"));
-        }
-
-        assignedProps.Add((plan.PropertyName, listVar));
-    }
-
-    // ── Anonymous group struct construction (`?`/bare, Tasks 8.1-8.2) ─
-
-    /// <summary>
-    /// Returns the struct-group plan when <paramref name="expr"/> is a struct-projected
-    /// <c>?</c> optional group (an <see cref="OptionalIR"/> wrapping the group sequence)
-    /// or a no-modifier bare group (the group sequence itself), so the caller can emit
-    /// nullable-local (<c>?</c>) or scalar (bare) struct construction. <c>*</c>/<c>+</c>
-    /// groups are deliberately excluded here: they are handled by the repetition cases
-    /// via <see cref="EmitStructGroupLoop"/>. The modifier guard prevents a group of one
-    /// kind from ever being consumed by the wrong emitter.
-    /// </summary>
-    private static bool TryGetScalarOrOptionalGroup(ExpressionIR expr, GroupParseContext groupContext, out StructGroupPlan plan)
-    {
-        if(expr is OptionalIR opt && opt.Inner is SequenceIR optSeq
-            && groupContext.TryGet(optSeq, out var optPlan) && optPlan.Modifier == GroupModifier.Optional)
-        {
-            plan = optPlan;
-            return true;
-        }
-
-        if(expr is SequenceIR bareSeq
-            && groupContext.TryGet(bareSeq, out var barePlan) && barePlan.Modifier == GroupModifier.None)
-        {
-            plan = barePlan;
-            return true;
-        }
-
-        plan = null!;
-        return false;
-    }
-
-    /// <summary>
-    /// Emits struct construction for a <c>?</c> optional group (Task 8.1) or a
-    /// no-modifier bare group (Task 8.2). Both paths parse the group's value-bearing
-    /// fields into locals via the shared descriptors and assign a <c>{Rule}NodeGroup{N}</c>
-    /// value to the parent's <c>Group{N}</c> property, replacing the old flat scalar
-    /// assignments that now target get-only <c>[Obsolete]</c> shims. When the whole
-    /// group carries a label (e.g. <c>constraintClause:(...)?</c>), the AST emitter also
-    /// promotes that label to a scalar property beside <c>Group{N}</c>; it is forwarded
-    /// here from the group's first rule-ref field so it is populated and the generated
-    /// code compiles.
-    /// </summary>
-    private static void EmitStructGroupScalarOrOptional(
-        CodeWriter writer, EmissionContext context, StructGroupPlan plan,
-        Dictionary<ExpressionIR, string> labelMap, ExpressionIR groupExpr,
-        List<(string PropName, string LocalVar)> assignedProps, bool withCheck, string? okVar)
-    {
-        var idx = plan.GroupIndex;
-        var localVar = "_group" + idx;
-
-        // A label on the whole group projects an extra scalar property on the parent
-        // node beside Group{N} (the AST emitter's label-on-optional promotion, which
-        // uses the group's first rule-ref field). Forward it so the property is
-        // populated and the code compiles.
-        string? groupLabelProp = null;
-        string? groupLabelLocal = null;
-        string? groupLabelType = null;
-        if(labelMap.TryGetValue(groupExpr, out var groupLabel) && TryFirstRuleRefFieldType(plan, out var ruleRefType))
-        {
-            groupLabelProp = PascalCase(groupLabel);
-            groupLabelLocal = "_" + groupLabelProp;
-            groupLabelType = ruleRefType;
-        }
-
-        if(plan.Modifier == GroupModifier.Optional)
-        {
-            EmitOptionalStructGroup(writer, context, plan, idx, localVar, groupLabelLocal, groupLabelType, withCheck, okVar);
-        }
-        else
-        {
-            EmitBareStructGroup(writer, context, plan, idx, localVar, groupLabelLocal, groupLabelType, okVar);
-        }
-
-        assignedProps.Add((plan.PropertyName, localVar));
-        if(groupLabelProp != null)
-        {
-            assignedProps.Add((groupLabelProp, groupLabelLocal!));
-        }
-    }
-
-    /// <summary>
-    /// Emits the nullable-local pattern for a <c>?</c> struct group: declare a
-    /// <c>{Rule}NodeGroup{N}? _group{N} = null;</c>, save parser state, and -- only when
-    /// the alternative has not already failed -- attempt the group. On a full match the
-    /// struct is constructed and assigned to the local (and the group-level label
-    /// forwarded); on any field failure the saved state is restored and the local stays
-    /// null. An absent optional group never fails the enclosing rule.
-    /// </summary>
-    private static void EmitOptionalStructGroup(
-        CodeWriter writer, EmissionContext context, StructGroupPlan plan, int idx,
-        string localVar, string? groupLabelLocal, string? groupLabelType, bool withCheck, string? okVar)
-    {
-        writer.WriteLine($"{plan.StructName}? {localVar} = null;");
-        if(groupLabelLocal != null)
-        {
-            writer.WriteLine($"{groupLabelType}? {groupLabelLocal} = null;");
-        }
-
-        writer.WriteLine($"var _g{idx}Saved = _pos;");
-        writer.WriteLine($"var _g{idx}SavedError = _hasError;");
-        writer.WriteLine($"var _g{idx}SavedDiagCount = _diagnostics?.Count ?? 0;");
-
-        if(withCheck && okVar != null)
-        {
-            writer.WriteBlock($"if ({okVar})", () => EmitOptionalStructGroupBody(writer, context, plan, idx, localVar, groupLabelLocal));
-        }
-        else
-        {
-            EmitOptionalStructGroupBody(writer, context, plan, idx, localVar, groupLabelLocal);
-        }
-    }
-
-    /// <summary>
-    /// Emits the body of a <c>?</c> struct group: parse the value-bearing fields, and on
-    /// success construct the struct (and forward the group-level label); on failure
-    /// restore the saved parser state so the optional group reads as absent.
-    /// </summary>
-    private static void EmitOptionalStructGroupBody(
-        CodeWriter writer, EmissionContext context, StructGroupPlan plan, int idx, string localVar, string? groupLabelLocal)
-    {
-        var okFlag = "_g" + idx + "Ok";
-        writer.WriteLine($"var {okFlag} = true;");
-        var fieldLocals = EmitStructGroupFields(writer, context, plan, idx, okFlag);
-
-        writer.WriteBlock($"if ({okFlag} && !_hasError)", () =>
-        {
-            writer.WriteLine($"{localVar} = new {plan.StructName} {{ {BuildStructInitializer(fieldLocals)} }};");
-            if(groupLabelLocal != null)
-            {
-                writer.WriteLine($"{groupLabelLocal} = {FirstRuleRefLocal(fieldLocals)};");
-            }
-        });
-
-        writer.WriteBlock($"if (!{okFlag} || _hasError)", () =>
-        {
-            writer.WriteLine($"_pos = _g{idx}Saved;");
-            writer.WriteLine($"_hasError = _g{idx}SavedError;");
-            writer.WriteLine($"_diagnostics?.TruncateTo(_g{idx}SavedDiagCount);");
-        });
-    }
-
-    /// <summary>
-    /// Emits scalar struct construction for a no-modifier bare group (Task 8.2). A bare
-    /// group is required, so a field mismatch fails the alternative through the shared ok
-    /// flag, exactly like an inline required element. No Mist rule currently projects a
-    /// bare struct group (a parenthesised group with no modifier is not reported by
-    /// <see cref="AstEmitter.DetectAnonymousGroups"/>), so this path is exercised only if
-    /// such a group is added later.
-    /// </summary>
-    private static void EmitBareStructGroup(
-        CodeWriter writer, EmissionContext context, StructGroupPlan plan, int idx,
-        string localVar, string? groupLabelLocal, string? groupLabelType, string? okVar)
-    {
-        string okFlag;
-        if(okVar != null)
-        {
-            okFlag = okVar;
-        }
-        else
-        {
-            okFlag = "_g" + idx + "Ok";
-            writer.WriteLine($"var {okFlag} = true;");
-        }
-
-        var fieldLocals = EmitStructGroupFields(writer, context, plan, idx, okFlag);
-        writer.WriteLine($"var {localVar} = new {plan.StructName} {{ {BuildStructInitializer(fieldLocals)} }};");
-        if(groupLabelLocal != null)
-        {
-            writer.WriteLine($"{groupLabelType} {groupLabelLocal} = {FirstRuleRefLocal(fieldLocals)};");
-        }
-    }
-
-    /// <summary>
-    /// Emits the per-occurrence field parsing for a struct-projected group by walking the
-    /// group's inner sequence in source order. A structural element (a bare fixed token
-    /// with no descriptor, such as the leading <c>COLON</c> in
-    /// <c>(COLON constraints:ConstraintList ...)</c>) is matched and discarded in place;
-    /// each value-bearing element is parsed into a local via
-    /// <see cref="EmitStructGroupField"/>. Value-bearing elements are matched to their
-    /// descriptors by reference in order, so structural tokens interleaved between fields
-    /// are consumed at the right position. Returns the ordered (descriptor, local) pairs
-    /// for the struct initializer. Shared by the <c>*</c>/<c>+</c> loop and the
-    /// <c>?</c>/bare emitters so the field walk cannot diverge.
-    /// </summary>
-    private static List<(GroupStructFieldDescriptor Field, string Local)> EmitStructGroupFields(
-        CodeWriter writer, EmissionContext context, StructGroupPlan plan, int groupIndex, string okFlag)
-    {
-        var fieldLocals = new List<(GroupStructFieldDescriptor Field, string Local)>();
-        var descriptorIndex = 0;
-        foreach(var element in plan.Sequence.Elements)
-        {
-            if(descriptorIndex < plan.Fields.Count && ReferenceEquals(plan.Fields[descriptorIndex].Element, element))
-            {
-                var descriptor = plan.Fields[descriptorIndex];
-                descriptorIndex++;
-                var fieldLocal = EmitStructGroupField(writer, context, descriptor, groupIndex, okFlag);
-                fieldLocals.Add((descriptor, fieldLocal));
-            }
-            else
-            {
-                EmitConsumeStructuralElement(writer, context, element, okFlag);
-            }
-        }
-
-        return fieldLocals;
-    }
-
-    /// <summary>
-    /// Consumes a structural (non-value-bearing) element of a group sequence -- a bare
-    /// fixed token or string literal that the grammar matches but does not store.
-    /// Mirrors the structural-token handling used elsewhere in the emitter: a mismatch
-    /// clears <paramref name="okFlag"/>, otherwise the token is eaten.
-    /// </summary>
-    private static void EmitConsumeStructuralElement(CodeWriter writer, EmissionContext context, ExpressionIR element, string okFlag)
-    {
-        if(element is PredicateIR predicate)
-        {
-            EmitPredicate(writer, context, predicate, okFlag);
-            return;
-        }
-
-        if(element is AlternationIR alternation)
-        {
-            EmitTokenChoice(writer, context, alternation, okFlag);
-            return;
-        }
-
-        string? kind = null;
-        switch(element)
-        {
-            case TokenRefIR tokenRef:
-                kind = TokenKindRef(tokenRef.Token.Name);
-                break;
-            case StringLiteralIR lit:
-                var token = FindTokenForLiteral(context, lit.Value);
-                if(token != null)
-                {
-                    kind = TokenKindRef(token.Name);
-                }
-
-                break;
-            default:
-                break;
-        }
-
-        if(kind == null)
-        {
-            return;
-        }
-
-        writer.WriteLine($"if ({okFlag} && Peek() != (int){kind}) {okFlag} = false;");
-        writer.WriteLine($"if ({okFlag}) Eat();");
-    }
-
-    /// <summary>
-    /// Returns the C# type of the group's first rule-ref field (e.g.
-    /// <c>ConstraintListNode</c>), used to type a forwarded group-level label property.
-    /// </summary>
-    private static bool TryFirstRuleRefFieldType(StructGroupPlan plan, out string ruleNodeType)
-    {
-        foreach(var field in plan.Fields)
-        {
-            if(field.Kind == GroupFieldKind.RuleRef)
-            {
-                ruleNodeType = field.FieldType;
-                return true;
-            }
-        }
-
-        ruleNodeType = null!;
-        return false;
-    }
-
-    /// <summary>
-    /// Returns the local-variable name of the group's first rule-ref field, used to
-    /// forward a group-level label property. Only called when the group has such a field.
-    /// </summary>
-    private static string FirstRuleRefLocal(List<(GroupStructFieldDescriptor Field, string Local)> fieldLocals)
-    {
-        foreach(var (field, local) in fieldLocals)
-        {
-            if(field.Kind == GroupFieldKind.RuleRef)
-            {
-                return local;
-            }
-        }
-
-        return "null";
-    }
-
-    /// <summary>
-    /// Parses one value-bearing field of a struct group into a local variable and
-    /// returns that variable's name for use in the struct initializer. A pure-token
-    /// alternation matches any one of its alternative tokens; a single token reference
-    /// matches that token; a rule reference calls the rule's parse method. A field that
-    /// fails to match clears <paramref name="okFlag"/>, driving the loop's restore and
-    /// break. Token fields yield a <c>Token?</c> local (dereferenced with <c>.Value</c>
-    /// in the initializer); rule-ref fields yield a <c>{Rule}Node?</c> local used
-    /// directly (the ok-guard guarantees non-null before the struct is built).
-    /// </summary>
-    private static string EmitStructGroupField(
-        CodeWriter writer, EmissionContext context, GroupStructFieldDescriptor field, int groupIndex, string okFlag)
-    {
-        var local = "_g" + groupIndex + "_" + LowerFirst(field.FieldName);
-        switch(field.Kind)
-        {
-            case GroupFieldKind.PureTokenAlternation:
-                {
-                    var alternation = (AlternationIR)field.Element;
-                    var matchExpr = string.Join(
-                        " ?? ",
-                        alternation.Alternatives.Select(alternative => MatchExprForAlternative(context, alternative)));
-                    writer.WriteLine($"var {local} = {okFlag} ? ({matchExpr}) : (Token?)null;");
-                    writer.WriteBlock($"if ({local} == null)", () => writer.WriteLine($"{okFlag} = false;"));
-                    break;
-                }
-
-            case GroupFieldKind.Token:
-                {
-                    var tokenRef = (TokenRefIR)field.Element;
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    writer.WriteLine($"var {local} = {okFlag} ? Match((int){kind}) : (Token?)null;");
-                    writer.WriteBlock($"if ({local} == null)", () => writer.WriteLine($"{okFlag} = false;"));
-                    break;
-                }
-
-            case GroupFieldKind.RuleRef:
-                {
-                    var ruleRef = (RuleRefIR)field.Element;
-                    writer.WriteLine($"var {local} = {okFlag} ? _Parse{ruleRef.Rule.Name}() : null;");
-                    writer.WriteBlock($"if ({local} == null)", () => writer.WriteLine($"{okFlag} = false;"));
-                    break;
-                }
-
-            case GroupFieldKind.Other:
-                {
-                    EmitOtherStructGroupField(writer, field, local, okFlag);
-                    break;
-                }
-
-            default:
-                {
-                    // Nested groups do not occur in the Mist grammar's struct groups.
-                    // Emit a default of the declared field type so struct construction
-                    // still compiles if such a shape is ever added.
-                    writer.WriteLine($"// Unsupported struct-group field kind '{field.Kind}' for {field.FieldName}");
-                    writer.WriteLine($"{field.FieldType} {local} = default;");
-                    break;
-                }
-        }
-
-        return local;
-    }
-
-    /// <summary>
-    /// Parses a struct-group field classified as <see cref="GroupFieldKind.Other"/>. The
-    /// only such field in the Mist grammar is a labelled repetition of a rule reference
-    /// (e.g. <c>slotWhereConstraints:WhereClause*</c> inside
-    /// <c>constraintClause:(COLON constraints:ConstraintList slotWhereConstraints:WhereClause*)?</c>),
-    /// which the AST types as <c>ImmutableArray&lt;{Rule}Node&gt;</c>. It is parsed with a
-    /// progress-guarded accumulation loop matching the standalone repetition emitter: a
-    /// <c>*</c> never fails; a <c>+</c> requires at least one element and clears
-    /// <paramref name="okFlag"/> when empty. Any other Other-shaped element (none occur in
-    /// the Mist grammar) receives a default of its declared field type so the struct
-    /// initializer still compiles.
-    /// </summary>
-    private static void EmitOtherStructGroupField(
-        CodeWriter writer, GroupStructFieldDescriptor field, string local, string okFlag)
-    {
-        var inner = field.Element switch
-        {
-            ZeroOrMoreIR zeroOrMore => zeroOrMore.Inner,
-            OneOrMoreIR oneOrMore => oneOrMore.Inner,
-            _ => null,
-        };
-        var requiresOne = field.Element is OneOrMoreIR;
-
-        if(inner is RuleRefIR ruleRef)
-        {
-            var builderVar = local + "_b";
-            var savedVar = local + "Saved";
-            writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<{ruleRef.Rule.Name}Node>();");
-            writer.WriteBlock($"while (!_hasError && {okFlag})", () =>
-            {
-                writer.WriteLine($"var {savedVar} = _pos;");
-                writer.WriteLine($"var {savedVar}Error = _hasError;");
-                writer.WriteLine($"var {savedVar}DiagCount = _diagnostics?.Count ?? 0;");
-                writer.WriteLine($"var {local}Item = _Parse{ruleRef.Rule.Name}();");
-                writer.WriteBlock($"if ({local}Item == null || _pos == {savedVar})", () =>
-                {
-                    writer.WriteLine($"_hasError = {savedVar}Error;");
-                    writer.WriteLine($"_pos = {savedVar};");
-                    writer.WriteLine($"_diagnostics?.TruncateTo({savedVar}DiagCount);");
-                    writer.WriteLine("break;");
-                });
-                writer.WriteLine($"{builderVar}.Add({local}Item);");
-            });
-            writer.WriteLine($"var {local} = {builderVar}.ToImmutable();");
-            if(requiresOne)
-            {
-                writer.WriteBlock($"if ({builderVar}.Count == 0)", () => writer.WriteLine($"{okFlag} = false;"));
-            }
-
-            return;
-        }
-
-        // No other Other-shaped field occurs in the Mist grammar; a default of the
-        // declared field type keeps construction valid if one is added later.
-        writer.WriteLine($"{field.FieldType} {local} = default;");
-    }
-
-    /// <summary>
-    /// Builds the object-initializer body (<c>Field1 = ..., Field2 = ...</c>) for a
-    /// group struct. Token-typed fields are dereferenced with <c>.Value</c> (the loop's
-    /// ok-guard guarantees they matched before this runs); rule-ref fields use their
-    /// local directly.
-    /// </summary>
-    private static string BuildStructInitializer(List<(GroupStructFieldDescriptor Field, string Local)> fieldLocals)
-    {
-        var assignments = new List<string>();
-        foreach(var (field, local) in fieldLocals)
-        {
-            var valueExpr = field.Kind is GroupFieldKind.PureTokenAlternation or GroupFieldKind.Token
-                ? local + ".Value"
-                : local;
-            assignments.Add($"{field.FieldName} = {valueExpr}");
-        }
-
-        return string.Join(", ", assignments);
-    }
-
-    /// <summary>
-    /// Returns the <c>Match((int)TokenKind.X)</c> expression for a single alternative of
-    /// a pure-token alternation (a token reference or a string literal resolving to a
-    /// token).
-    /// </summary>
     private static string MatchExprForAlternative(EmissionContext context, ExpressionIR alternative)
     {
         switch(alternative)
@@ -1691,11 +652,6 @@ public static class ParserEmitter
         }
     }
 
-    /// <summary>
-    /// Lowercases the first character of a name, producing a local-variable-friendly
-    /// form of a PascalCase struct field name (e.g. <c>Operator</c> -> <c>operator</c>,
-    /// used as <c>_g0_operator</c>).
-    /// </summary>
     private static string LowerFirst(string name)
     {
         if(string.IsNullOrEmpty(name))
@@ -1706,962 +662,6 @@ public static class ParserEmitter
         return char.ToLowerInvariant(name[0]) + name.Substring(1);
     }
 
-    /// <summary>
-    /// Parser-side view of the struct-projected <c>*</c>/<c>+</c> anonymous groups in
-    /// the alternative currently being emitted, keyed by each group's inner sequence
-    /// (reference identity). Empty for callers (inline blocks, arm tails) that carry no
-    /// struct-projected groups, leaving their emission unchanged.
-    /// </summary>
-    private sealed class GroupParseContext
-    {
-        public static readonly GroupParseContext Empty = new(new Dictionary<SequenceIR, StructGroupPlan>());
-
-        private readonly Dictionary<SequenceIR, StructGroupPlan> plansBySequence;
-
-        public GroupParseContext(Dictionary<SequenceIR, StructGroupPlan> plansBySequence)
-        {
-            this.plansBySequence = plansBySequence;
-        }
-
-        public bool TryGet(SequenceIR sequence, out StructGroupPlan plan)
-        {
-            if(plansBySequence.TryGetValue(sequence, out var found))
-            {
-                plan = found;
-                return true;
-            }
-
-            plan = null!;
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Everything the parser needs to construct one struct-projected group: the
-    /// generated struct type name, the parent-node property name (<c>Group{N}</c>), the
-    /// zero-based group index (for unique local-variable names), the group's modifier,
-    /// the group's inner sequence (walked to consume structural tokens between the
-    /// value-bearing fields), and the ordered field descriptors shared with
-    /// <see cref="AstEmitter"/>.
-    /// </summary>
-    private sealed class StructGroupPlan
-    {
-        public string StructName { get; }
-        public string PropertyName { get; }
-        public int GroupIndex { get; }
-        public GroupModifier Modifier { get; }
-        public SequenceIR Sequence { get; }
-        public IReadOnlyList<GroupStructFieldDescriptor> Fields { get; }
-
-        public StructGroupPlan(string structName, string propertyName, int groupIndex, GroupModifier modifier, SequenceIR sequence, IReadOnlyList<GroupStructFieldDescriptor> fields)
-        {
-            StructName = structName;
-            PropertyName = propertyName;
-            GroupIndex = groupIndex;
-            Modifier = modifier;
-            Sequence = sequence;
-            Fields = fields;
-        }
-    }
-
-    /// <summary>
-    /// Collects all labeled expressions from an expression tree.
-    /// Used to pre-declare variables for labeled sub-expressions inside optional blocks.
-    /// </summary>
-    private static void CollectLabeledExprs(ExpressionIR expr, Dictionary<ExpressionIR, string> labelMap, List<(string Label, ExpressionIR Expr)> result)
-    {
-        if(labelMap.TryGetValue(expr, out var label))
-        {
-            result.Add((label, expr));
-            return;
-        }
-
-        switch(expr)
-        {
-            case SequenceIR seq:
-                foreach(var elem in seq.Elements)
-                {
-                    CollectLabeledExprs(elem, labelMap, result);
-                }
-
-                break;
-            case OptionalIR opt:
-                CollectLabeledExprs(opt.Inner, labelMap, result);
-                break;
-            case ZeroOrMoreIR star:
-                CollectLabeledExprs(star.Inner, labelMap, result);
-                break;
-            case OneOrMoreIR plus:
-                CollectLabeledExprs(plus.Inner, labelMap, result);
-                break;
-        }
-    }
-
-    /// <summary>
-    /// Returns the C# type name for a labeled expression (for pre-declaration).
-    /// When nullable is true, returns nullable types (for optional contexts).
-    /// When nullable is false, returns non-nullable types with default values (for repetition contexts).
-    /// </summary>
-    private static string GetExprTypeName(ExpressionIR expr, bool nullable = true)
-    {
-        switch(expr)
-        {
-            case TokenRefIR:
-                return nullable ? "Token?" : "Token";
-            case RuleRefIR ruleRef:
-                return nullable ? ruleRef.Rule.Name + "Node?" : ruleRef.Rule.Name + "Node";
-            case AlternationIR altIR:
-                // If all alternatives are token refs, the type is Token
-                if(altIR.Alternatives.All(a => a is TokenRefIR or StringLiteralIR))
-                {
-                    return nullable ? "Token?" : "Token";
-                }
-
-                return "object?";
-            case ZeroOrMoreIR zom:
-                return GetListTypeName(zom.Inner);
-            case OneOrMoreIR oom:
-                return GetListTypeName(oom.Inner);
-            default:
-                return "object?";
-        }
-    }
-
-    /// <summary>
-    /// Returns the default value expression for a pre-declared variable.
-    /// </summary>
-    private static string GetExprDefaultValue(ExpressionIR expr, bool nullable = true)
-    {
-        // List types (ImmutableArray) are value types and cannot be null
-        if(expr is ZeroOrMoreIR zom)
-        {
-            return GetListDefaultValue(zom.Inner);
-        }
-
-        if(expr is OneOrMoreIR oom)
-        {
-            return GetListDefaultValue(oom.Inner);
-        }
-
-        if(nullable)
-        {
-            return "null";
-        }
-
-        return expr switch
-        {
-            TokenRefIR => "default",
-            AlternationIR altIR when altIR.Alternatives.All(a => a is TokenRefIR or StringLiteralIR) => "default",
-            RuleRefIR => "null!",
-            _ => "null",
-        };
-    }
-
-    /// <summary>
-    /// Returns the C# ImmutableArray type name for the inner expression of a list (ZeroOrMore/OneOrMore).
-    /// </summary>
-    private static string GetListTypeName(ExpressionIR inner)
-    {
-        switch(inner)
-        {
-            case RuleRefIR ruleRef:
-                var elementType = ruleRef.Rule.Name + "Node";
-                return $"ImmutableArray<{elementType}>";
-            case TokenRefIR:
-                return "ImmutableArray<Token>";
-            default:
-                return "object?";
-        }
-    }
-
-    /// <summary>
-    /// Returns the default value expression for a list (ZeroOrMore/OneOrMore) variable.
-    /// </summary>
-    private static string GetListDefaultValue(ExpressionIR inner)
-    {
-        switch(inner)
-        {
-            case RuleRefIR ruleRef:
-                var elementType = ruleRef.Rule.Name + "Node";
-                return $"ImmutableArray<{elementType}>.Empty";
-            case TokenRefIR:
-                return "ImmutableArray<Token>.Empty";
-            default:
-                return "null";
-        }
-    }
-
-    /// <summary>
-    /// Like EmitFullExprParse but assigns to pre-declared variables instead of declaring new ones.
-    /// Used inside optional blocks where variables are pre-declared in the outer scope.
-    /// </summary>
-    private static void EmitFullExprParseAssignOnly(
-        CodeWriter writer, EmissionContext context, ExpressionIR expr,
-        Dictionary<ExpressionIR, string> labelMap,
-        List<(string PropName, string LocalVar)> assignedProps,
-        bool withCheck, string? okVar)
-    {
-        if(labelMap.TryGetValue(expr, out var label))
-        {
-            var propName = PascalCase(label);
-            var localVar = "_" + propName;
-            // Emit parse and assign to pre-declared variable (no var keyword)
-            EmitExprParseAssignOnly(writer, context, expr, propName, withCheck, okVar);
-            return;
-        }
-
-        switch(expr)
-        {
-            case SequenceIR seq:
-                foreach(var elem in seq.Elements)
-                {
-                    EmitFullExprParseAssignOnly(writer, context, elem, labelMap, assignedProps, withCheck, okVar);
-                }
-
-                break;
-
-            case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    var parsedVar = "_starParsed" + PascalCase(tokenRef.Token.Name);
-                    if(withCheck)
-                    {
-                        writer.WriteLine($"Token? {parsedVar} = null;");
-                        writer.WriteBlock($"if ({okVar})", () =>
-                        {
-                            writer.WriteLine($"{parsedVar} = Match((int){kind});");
-                            writer.WriteBlock($"if ({parsedVar} == null)", () => writer.WriteLine($"{okVar} = false;"));
-                        });
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var {parsedVar} = Require((int){kind});");
-                    }
-
-                    break;
-                }
-
-            case StringLiteralIR lit:
-                {
-                    var token = FindTokenForLiteral(context, lit.Value);
-                    if(token != null)
-                    {
-                        var kind = TokenKindRef(token.Name);
-                        if(withCheck)
-                        {
-                            writer.WriteLine($"if ({okVar} && Peek() != (int){kind}) {okVar} = false;");
-                            writer.WriteLine($"if ({okVar}) Eat();");
-                        }
-                        else
-                        {
-                            writer.WriteLine($"Require((int){kind});");
-                        }
-                    }
-
-                    break;
-                }
-
-            case PredicateIR predicate:
-                EmitPredicate(writer, context, predicate, okVar);
-                break;
-
-            case AlternationIR alternation:
-                EmitTokenChoice(writer, context, alternation, okVar);
-                break;
-
-            case RuleRefIR ruleRef:
-                {
-                    // Unlabeled rule reference — parse and assign to a local variable
-                    // so the ZeroOrMoreIR handler can accumulate it into a builder.
-                    var parsedVar = "_parsed" + PascalCase(ruleRef.Rule.Name);
-                    if(withCheck)
-                    {
-                        writer.WriteLine($"{ruleRef.Rule.Name}Node? {parsedVar} = null;");
-                        writer.WriteBlock($"if ({okVar})", () =>
-                        {
-                            writer.WriteLine($"{parsedVar} = _Parse{ruleRef.Rule.Name}();");
-                            writer.WriteBlock($"if ({parsedVar} == null)", () => writer.WriteLine($"{okVar} = false;"));
-                        });
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var {parsedVar} = _Parse{ruleRef.Rule.Name}();");
-                    }
-
-                    break;
-                }
-
-            default:
-                break;
-        }
-    }
-
-    /// <summary>
-    /// Like EmitExprParse but assigns to a pre-declared variable instead of declaring a new one.
-    /// </summary>
-    private static void EmitExprParseAssignOnly(CodeWriter writer, EmissionContext context, ExpressionIR expr, string varName, bool withCheck, string? okVar)
-    {
-        switch(expr)
-        {
-            case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    if(withCheck)
-                    {
-                        writer.WriteLine($"_{varName} = Match((int){kind});");
-                        writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
-                    }
-                    else
-                    {
-                        writer.WriteLine($"_{varName} = Require((int){kind});");
-                    }
-
-                    break;
-                }
-
-            case RuleRefIR ruleRef:
-                {
-                    if(withCheck)
-                    {
-                        writer.WriteBlock($"if ({okVar})", () =>
-                        {
-                            writer.WriteLine($"_{varName} = _Parse{ruleRef.Rule.Name}();");
-                            writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
-                        });
-                    }
-                    else
-                    {
-                        writer.WriteLine($"_{varName} = _Parse{ruleRef.Rule.Name}();");
-                    }
-
-                    break;
-                }
-
-            case AlternationIR altIR:
-                {
-                    // Alternation of tokens — assign the matched token
-                    writer.WriteLine("var _altFound = false;");
-                    foreach(var alt in altIR.Alternatives)
-                    {
-                        if(alt is TokenRefIR tokenRef2)
-                        {
-                            var kind = TokenKindRef(tokenRef2.Token.Name);
-                            writer.WriteBlock($"if (!_altFound && Peek() == (int){kind})", () =>
-                            {
-                                writer.WriteLine($"_{varName} = Eat();");
-                                writer.WriteLine("_altFound = true;");
-                            });
-                        }
-                        else if(alt is StringLiteralIR lit)
-                        {
-                            var token = FindTokenForLiteral(context, lit.Value);
-                            if(token != null)
-                            {
-                                var kind = TokenKindRef(token.Name);
-                                writer.WriteBlock($"if (!_altFound && Peek() == (int){kind})", () =>
-                                {
-                                    writer.WriteLine($"_{varName} = Eat();");
-                                    writer.WriteLine("_altFound = true;");
-                                });
-                            }
-                        }
-                    }
-
-                    if(withCheck)
-                    {
-                        writer.WriteBlock("if (!_altFound)", () => writer.WriteLine($"{okVar} = false;"));
-                    }
-
-                    break;
-                }
-
-            case ZeroOrMoreIR zom:
-                {
-                    // ZeroOrMore assign-only: parse the repetition and assign to the pre-declared variable.
-                    if(zom.Inner is RuleRefIR zomRuleRef)
-                    {
-                        var nodeType = zomRuleRef.Rule.Name + "Node";
-                        var builderVar = $"_{varName}_b";
-                        writer.WriteLine($"var {builderVar} = ImmutableArray.CreateBuilder<{nodeType}>();");
-                        writer.WriteBlock("while (!_hasError)", () =>
-                        {
-                            writer.WriteLine($"var _item = _Parse{zomRuleRef.Rule.Name}();");
-                            writer.WriteBlock("if (_item == null)", () => writer.WriteLine("break;"));
-                            writer.WriteLine($"{builderVar}.Add(_item);");
-                        });
-                        writer.WriteLine($"_{varName} = {builderVar}.ToImmutable();");
-                        writer.WriteLine("_hasError = false;");
-                    }
-
-                    break;
-                }
-
-            default:
-                break;
-        }
-    }
-
-    // ── Expression parsing ──────────────────────────────────────────
-
-    private static void EmitExprParse(CodeWriter writer, EmissionContext context, ExpressionIR expr, string varName, bool withCheck, string? okVar, Dictionary<ExpressionIR, string>? labelMap = null, List<(string PropName, string LocalVar)>? assignedProps = null)
-    {
-        switch(expr)
-        {
-            case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    if(withCheck)
-                    {
-                        writer.WriteLine($"var _{varName}_raw = Match((int){kind});");
-                        writer.WriteBlock($"if (_{varName}_raw == null)", () => writer.WriteLine($"{okVar} = false;"));
-                        writer.WriteLine($"var _{varName} = _{varName}_raw ?? Cur();");
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var _{varName} = Require((int){kind});");
-                    }
-
-                    break;
-                }
-
-            case RuleRefIR ruleRef:
-                {
-                    if(withCheck)
-                    {
-                        writer.WriteLine($"var _{varName} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
-                        writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var _{varName} = _Parse{ruleRef.Rule.Name}();");
-                    }
-
-                    break;
-                }
-
-            case OptionalIR opt:
-                {
-                    EmitOptionalExprParse(writer, context, opt.Inner, varName, withCheck, okVar, labelMap, assignedProps);
-                    break;
-                }
-
-            case ZeroOrMoreIR star:
-                {
-                    EmitListExprParse(writer, star.Inner, varName, withCheck, okVar);
-                    break;
-                }
-
-            case OneOrMoreIR plus:
-                {
-                    EmitListExprParse(writer, plus.Inner, varName, withCheck, okVar);
-                    if(withCheck)
-                    {
-                        writer.WriteBlock($"if (_{varName}.Length == 0)", () => writer.WriteLine($"{okVar} = false;"));
-                    }
-
-                    break;
-                }
-
-            case SequenceIR seq:
-                {
-                    EmitSequenceExprParse(writer, context, seq, varName, withCheck, okVar);
-                    break;
-                }
-
-            case AlternationIR altIR:
-                {
-                    EmitAlternationExprParse(writer, context, altIR, varName, withCheck, okVar);
-                    break;
-                }
-
-            case StringLiteralIR lit:
-                {
-                    var token = FindTokenForLiteral(context, lit.Value);
-                    if(token != null)
-                    {
-                        var kind = TokenKindRef(token.Name);
-                        if(withCheck)
-                        {
-                            writer.WriteLine($"var _{varName}_raw = Match((int){kind});");
-                            writer.WriteBlock($"if (_{varName}_raw == null)", () => writer.WriteLine($"{okVar} = false;"));
-                            writer.WriteLine($"var _{varName} = _{varName}_raw ?? Cur();");
-                        }
-                        else
-                        {
-                            writer.WriteLine($"var _{varName} = Require((int){kind});");
-                        }
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var _{varName} = Cur(); // unresolved literal \"{LexerEmitter.EscapeStringForCSharp(lit.Value)}\"");
-                    }
-
-                    break;
-                }
-
-            case InlineFragmentIR frag:
-                EmitExprParse(writer, context, frag.Body, varName, withCheck, okVar, labelMap, assignedProps);
-                break;
-
-            default:
-                writer.WriteLine($"// Unsupported expression type for {varName}");
-                writer.WriteLine($"object? _{varName} = null;");
-                break;
-        }
-    }
-
-    private static void EmitOptionalExprParse(CodeWriter writer, EmissionContext context, ExpressionIR inner, string varName, bool withCheck = false, string? okVar = null, Dictionary<ExpressionIR, string>? labelMap = null, List<(string PropName, string LocalVar)>? assignedProps = null)
-    {
-        switch(inner)
-        {
-            case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    if(withCheck)
-                    {
-                        writer.WriteLine($"var _{varName} = {okVar} ? Match((int){kind}) : null;");
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var _{varName} = Match((int){kind});");
-                    }
-
-                    break;
-                }
-            case AlternationIR alternation when alternation.Alternatives.Count > 0
-                && alternation.Alternatives.All(alternative => alternative is TokenRefIR or StringLiteralIR):
-                {
-                    var matchExpression = string.Join(" ?? ", alternation.Alternatives.Select(alternative => MatchExprForAlternative(context, alternative)));
-                    writer.WriteLine(withCheck
-                        ? $"var _{varName} = {okVar} ? {matchExpression} : null;"
-                        : $"var _{varName} = {matchExpression};");
-                    break;
-                }
-            case RuleRefIR ruleRef:
-                {
-                    // Save state before attempting the optional rule parse.
-                    // If the rule fails (sets _hasError), restore state so the
-                    // optional element is treated as absent rather than an error.
-                    writer.WriteLine($"var _optRuleSaved_{varName} = _pos;");
-                    writer.WriteLine($"var _optRuleSavedError_{varName} = _hasError;");
-                    writer.WriteLine($"var _optRuleSavedDiagCount_{varName} = _diagnostics?.Count ?? 0;");
-                    if(withCheck)
-                    {
-                        writer.WriteLine($"var _{varName} = {okVar} ? _Parse{ruleRef.Rule.Name}() : null;");
-                    }
-                    else
-                    {
-                        writer.WriteLine($"var _{varName} = _Parse{ruleRef.Rule.Name}();");
-                    }
-
-                    writer.WriteBlock($"if (_{varName} == null)", () =>
-                    {
-                        writer.WriteLine($"_pos = _optRuleSaved_{varName};");
-                        writer.WriteLine($"_hasError = _optRuleSavedError_{varName};");
-                        writer.WriteLine($"_diagnostics?.TruncateTo(_optRuleSavedDiagCount_{varName});");
-                    });
-                    break;
-                }
-            case SequenceIR seq:
-                {
-                    // Optional sequences must be atomic: either match the entire
-                    // sequence or consume nothing. Save position before attempting
-                    // and restore on partial match failure.
-                    writer.WriteLine($"// Optional sequence (atomic)");
-
-                    // Pre-declare variables for any inner labeled expressions so they
-                    // are accessible in the outer scope for node property assignment.
-                    if(labelMap != null && assignedProps != null)
-                    {
-                        var innerLabeled = new List<(string Label, ExpressionIR Expr)>();
-                        CollectLabeledExprs(seq, labelMap, innerLabeled);
-                        foreach(var (lbl, lexpr) in innerLabeled)
-                        {
-                            var propName = PascalCase(lbl);
-                            var localVar = "_" + propName;
-                            // Use non-nullable Token with default initializer to match
-                            // the AST node property type (Token, not Token?).
-                            var typeName = GetExprTypeName(lexpr, nullable: false);
-                            var defaultVal = GetExprDefaultValue(lexpr, nullable: false);
-                            writer.WriteLine($"{typeName} {localVar} = {defaultVal};");
-                            assignedProps.Add((propName, localVar));
-                        }
-                    }
-
-                    // Check if the sequence contains a RuleRefIR — if so, the labeled
-                    // variable should be typed as the rule-ref's node type, not Token?.
-                    // We use a separate tracking variable for the token match.
-                    var seqRuleRef = seq.Elements.OfType<RuleRefIR>().FirstOrDefault();
-                    var trackingVar = varName;
-                    if(seqRuleRef != null)
-                    {
-                        // Declare the labeled variable with the correct node type
-                        var nodeType = seqRuleRef.Rule.Name + "Node";
-                        writer.WriteLine($"{nodeType}? _{varName} = null;");
-                        // Use a separate tracking variable for the token sequence match
-                        trackingVar = "seq_" + varName;
-                    }
-
-                    // Determine the first token kind in the sequence for the guard check
-                    var seqFirstToken = GetFirstTokenInExpr(seq, context);
-                    if(seqFirstToken != null)
-                    {
-                        var guardKind = TokenKindRef(seqFirstToken);
-                        writer.WriteLine($"Token? _{trackingVar} = null;");
-                        if(withCheck)
-                        {
-                            writer.WriteBlock($"if ({okVar} && Peek() == (int){guardKind})", () =>
-                            {
-                                writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                                EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
-                                // If the sequence didn't fully match, restore position
-                                writer.WriteBlock($"if (_{trackingVar} == null)", () =>
-                                {
-                                    writer.WriteLine($"_pos = _optSaved_{varName};");
-                                    if(seqRuleRef != null)
-                                    {
-                                        writer.WriteLine($"_{varName} = null;");
-                                    }
-                                });
-                            });
-                        }
-                        else
-                        {
-                            writer.WriteBlock($"if (Peek() == (int){guardKind})", () =>
-                            {
-                                writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                                EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
-                                writer.WriteBlock($"if (_{trackingVar} == null)", () =>
-                                {
-                                    writer.WriteLine($"_pos = _optSaved_{varName};");
-                                    if(seqRuleRef != null)
-                                    {
-                                        writer.WriteLine($"_{varName} = null;");
-                                    }
-                                });
-                            });
-                        }
-                    }
-                    else
-                    {
-                        // Fallback: can't determine guard token, use position save/restore
-                        writer.WriteLine($"Token? _{trackingVar} = null;");
-                        writer.WriteLine($"var _optSaved_{varName} = _pos;");
-                        EmitAtomicSequenceBody(writer, context, seq, trackingVar, varName, labelMap);
-                        writer.WriteBlock($"if (_{trackingVar} == null)", () =>
-                        {
-                            writer.WriteLine($"_pos = _optSaved_{varName};");
-                            if(seqRuleRef != null)
-                            {
-                                writer.WriteLine($"_{varName} = null;");
-                            }
-                        });
-                    }
-
-                    break;
-                }
-            default:
-                {
-                    writer.WriteLine($"// Optional complex expression");
-                    writer.WriteLine($"Token? _{varName} = null;");
-                    break;
-                }
-        }
-    }
-
-    private static void EmitListExprParse(CodeWriter writer, ExpressionIR inner, string varName, bool withCheck = false, string? okVar = null)
-    {
-        switch(inner)
-        {
-            case RuleRefIR ruleRef:
-                {
-                    var nodeType = ruleRef.Rule.Name + "Node";
-                    writer.WriteLine($"var _{varName}_b = ImmutableArray.CreateBuilder<{nodeType}>();");
-                    var loopCondition = withCheck && okVar != null
-                        ? $"while (!_hasError && {okVar})"
-                        : "while (!_hasError)";
-                    writer.WriteBlock(loopCondition, () =>
-                    {
-                        writer.WriteLine("var _listSaved = _pos;");
-                        writer.WriteLine("var _savedError = _hasError;");
-                        writer.WriteLine("var _savedDiagCount = _diagnostics?.Count ?? 0;");
-                        writer.WriteLine($"var _item = _Parse{ruleRef.Rule.Name}();");
-                        writer.WriteBlock("if (_item == null || _pos == _listSaved)", () =>
-                        {
-                            writer.WriteLine("_hasError = _savedError;");
-                            writer.WriteLine("_pos = _listSaved;");
-                            writer.WriteLine("_diagnostics?.TruncateTo(_savedDiagCount);");
-                            writer.WriteLine("break;");
-                        });
-                        writer.WriteLine($"_{varName}_b.Add(_item);");
-                    });
-                    writer.WriteLine($"var _{varName} = _{varName}_b.ToImmutable();");
-                    break;
-                }
-            case TokenRefIR tokenRef:
-                {
-                    var kind = TokenKindRef(tokenRef.Token.Name);
-                    writer.WriteLine($"var _{varName}_b = ImmutableArray.CreateBuilder<Token>();");
-                    writer.WriteBlock($"while (!_hasError && Peek() == (int){kind})", () => writer.WriteLine($"_{varName}_b.Add(Eat());"));
-                    writer.WriteLine($"var _{varName} = _{varName}_b.ToImmutable();");
-                    break;
-                }
-            default:
-                {
-                    writer.WriteLine($"// Complex list expression");
-                    writer.WriteLine($"var _{varName} = ImmutableArray<SyntaxNode>.Empty;");
-                    break;
-                }
-        }
-    }
-
-    private static void EmitSequenceExprParse(CodeWriter writer, EmissionContext context, SequenceIR seq, string varName, bool withCheck, string? okVar)
-    {
-        writer.WriteLine($"// Sequence expression for {varName}");
-        var found = false;
-        foreach(var elem in seq.Elements)
-        {
-            if(elem is RuleRefIR ruleRef && !found)
-            {
-                writer.WriteLine($"var _{varName} = _Parse{ruleRef.Rule.Name}();");
-                if(withCheck)
-                {
-                    writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
-                }
-
-                found = true;
-            }
-            else if(elem is TokenRefIR tokenRef)
-            {
-                var kind = TokenKindRef(tokenRef.Token.Name);
-                if(!found)
-                {
-                    writer.WriteLine($"var _{varName} = Match((int){kind});");
-                    if(withCheck)
-                    {
-                        writer.WriteBlock($"if (_{varName} == null)", () => writer.WriteLine($"{okVar} = false;"));
-                    }
-
-                    found = true;
-                }
-                else
-                {
-                    writer.WriteLine($"Match((int){kind}); // consume");
-                }
-            }
-            else if(elem is StringLiteralIR lit)
-            {
-                var token = FindTokenForLiteral(context, lit.Value);
-                if(token != null)
-                {
-                    var kind = TokenKindRef(token.Name);
-                    writer.WriteLine($"Match((int){kind}); // consume literal");
-                }
-            }
-        }
-
-        if(!found)
-        {
-            writer.WriteLine($"object? _{varName} = null;");
-        }
-    }
-
-    /// <summary>
-    /// Emits the body of an atomic optional sequence. Tries to match all tokens
-    /// in the sequence. If all match, assigns the first token to the tracking variable.
-    /// If any subsequent token doesn't match, sets the tracking variable to null so the
-    /// caller can restore position.
-    /// When a labelMap is provided, named elements within the sequence are
-    /// captured into their corresponding pre-declared variables.
-    /// The resultVarName parameter specifies the variable to assign rule-ref results to
-    /// (may differ from trackingVarName when the sequence contains a RuleRefIR).
-    /// </summary>
-    private static void EmitAtomicSequenceBody(CodeWriter writer, EmissionContext context, SequenceIR seq, string trackingVarName, string resultVarName, Dictionary<ExpressionIR, string>? labelMap = null)
-    {
-        var isFirst = true;
-        var allTokens = new List<string>();
-
-        foreach(var elem in seq.Elements)
-        {
-            // Check if this element has a label in the label map
-            string? elemLabel = null;
-            if(labelMap != null)
-            {
-                _ = labelMap.TryGetValue(elem, out elemLabel);
-            }
-
-            string? kindStr = null;
-            if(elem is TokenRefIR tokenRef)
-            {
-                kindStr = TokenKindRef(tokenRef.Token.Name);
-            }
-            else if(elem is StringLiteralIR lit)
-            {
-                var token = FindTokenForLiteral(context, lit.Value);
-                if(token != null)
-                {
-                    kindStr = TokenKindRef(token.Name);
-                }
-            }
-
-            if(kindStr != null)
-            {
-                if(isFirst)
-                {
-                    // First token: try to match and assign to tracking variable
-                    writer.WriteLine($"_{trackingVarName} = Match((int){kindStr});");
-                    isFirst = false;
-                }
-                else
-                {
-                    // Subsequent tokens: must also match for the sequence to be valid
-                    writer.WriteBlock($"if (_{trackingVarName} != null && Peek() != (int){kindStr})", () => writer.WriteLine($"_{trackingVarName} = null; // sequence incomplete, will restore position"));
-                    if(elemLabel != null)
-                    {
-                        // Named element: capture the token into the labeled variable
-                        var propName = PascalCase(elemLabel);
-                        writer.WriteBlock($"if (_{trackingVarName} != null)", () => writer.WriteLine($"_{propName} = Eat(); // capture {kindStr}"));
-                    }
-                    else
-                    {
-                        writer.WriteBlock($"if (_{trackingVarName} != null)", () => writer.WriteLine($"Eat(); // consume {kindStr}"));
-                    }
-                }
-            }
-            else if(elem is RuleRefIR ruleRef)
-            {
-                // Rule reference inside an atomic optional sequence:
-                // parse the rule and, if it fails, mark the sequence as incomplete.
-                var parseCall = $"_Parse{ruleRef.Rule.Name}()";
-
-                if(elemLabel != null)
-                {
-                    // Labeled rule-ref: assign the parsed result to the pre-declared labeled variable
-                    var propName = PascalCase(elemLabel);
-                    writer.WriteBlock($"if (_{trackingVarName} != null)", () =>
-                    {
-                        writer.WriteLine($"_{propName} = {parseCall};");
-                        writer.WriteBlock($"if (_{propName} == null)", () => writer.WriteLine($"_{trackingVarName} = null; // sequence incomplete, will restore position"));
-                    });
-                }
-                else
-                {
-                    // Unlabeled rule-ref: parse and assign to the result variable
-                    writer.WriteBlock($"if (_{trackingVarName} != null)", () =>
-                    {
-                        writer.WriteLine($"_{resultVarName} = {parseCall};");
-                        writer.WriteBlock($"if (_{resultVarName} == null)", () => writer.WriteLine($"_{trackingVarName} = null; // sequence incomplete, will restore position"));
-                    });
-                }
-
-                if(isFirst)
-                {
-                    isFirst = false;
-                }
-            }
-            else if(elem is ZeroOrMoreIR zom)
-            {
-                // ZeroOrMore inside an atomic optional sequence:
-                // parse the repetition and assign to the labeled variable if present.
-                if(zom.Inner is RuleRefIR zomRuleRef)
-                {
-                    var nodeType = zomRuleRef.Rule.Name + "Node";
-                    if(elemLabel != null)
-                    {
-                        var propName = PascalCase(elemLabel);
-                        writer.WriteBlock($"if (_{trackingVarName} != null)", () =>
-                        {
-                            writer.WriteLine($"var _{propName}_b = ImmutableArray.CreateBuilder<{nodeType}>();");
-                            writer.WriteBlock("while (!_hasError)", () =>
-                            {
-                                writer.WriteLine($"var _item = _Parse{zomRuleRef.Rule.Name}();");
-                                writer.WriteBlock("if (_item == null)", () => writer.WriteLine("break;"));
-                                writer.WriteLine($"_{propName}_b.Add(_item);");
-                            });
-                            writer.WriteLine($"_{propName} = _{propName}_b.ToImmutable();");
-                            writer.WriteLine("_hasError = false;");
-                        });
-                    }
-                }
-
-                if(isFirst)
-                {
-                    isFirst = false;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Returns the name of the first token that could start the given expression,
-    /// or null if it cannot be determined.
-    /// </summary>
-    private static string? GetFirstTokenInExpr(ExpressionIR expr, EmissionContext context)
-    {
-        switch(expr)
-        {
-            case TokenRefIR tokenRef:
-                return tokenRef.Token.Name;
-            case StringLiteralIR lit:
-                var token = FindTokenForLiteral(context, lit.Value);
-                return token?.Name;
-            case SequenceIR seq:
-                if(seq.Elements.Count > 0)
-                {
-                    return GetFirstTokenInExpr(seq.Elements[0], context);
-                }
-
-                return null;
-            default:
-                return null;
-        }
-    }
-
-    private static void EmitAlternationExprParse(CodeWriter writer, EmissionContext context, AlternationIR altIR, string varName, bool withCheck, string? okVar)
-    {
-        writer.WriteLine($"// Alternation for {varName}");
-        writer.WriteLine($"Token _{varName} = default;");
-        writer.WriteLine("var _altFound = false;");
-        foreach(var alt in altIR.Alternatives)
-        {
-            if(alt is TokenRefIR tokenRef)
-            {
-                var kind = TokenKindRef(tokenRef.Token.Name);
-                writer.WriteBlock($"if (!_altFound && Peek() == (int){kind})", () =>
-                {
-                    writer.WriteLine($"_{varName} = Eat();");
-                    writer.WriteLine("_altFound = true;");
-                });
-            }
-            else if(alt is StringLiteralIR lit)
-            {
-                var token = FindTokenForLiteral(context, lit.Value);
-                if(token != null)
-                {
-                    var kind = TokenKindRef(token.Name);
-                    writer.WriteBlock($"if (!_altFound && Peek() == (int){kind})", () =>
-                    {
-                        writer.WriteLine($"_{varName} = Eat();");
-                        writer.WriteLine("_altFound = true;");
-                    });
-                }
-            }
-            else if(alt is RuleRefIR ruleRef)
-            {
-                writer.WriteBlock("if (!_altFound)", () => writer.WriteLine($"// rule ref in alternation — not directly assignable to Token"));
-            }
-        }
-
-        if(withCheck)
-        {
-            writer.WriteBlock("if (!_altFound)", () => writer.WriteLine($"{okVar} = false;"));
-        }
-    }
-
-    /// <summary>
-    /// A predicate over tokens is a test of Peek offsets and touches no state. One over a rule runs the rule
-    /// and puts back everything it moved -- position, error flag and diagnostics -- whichever way it answered.
-    /// </summary>
     private static void EmitPredicate(CodeWriter writer, EmissionContext context, PredicateIR predicate, string? okVar)
     {
         var guard = okVar ?? "true";
@@ -2687,17 +687,6 @@ public static class ParserEmitter
             writer.WriteLine("_diagnostics?.TruncateTo(_predSavedDiagCount);");
             writer.WriteLine($"if (_predMatched == {(predicate.IsNegated ? "true" : "false")}) {fail}");
         });
-    }
-
-    /// <summary>
-    /// Every arm is a single token, guaranteed by <see cref="GrammarIRLowering.RefuseNonTokenChoices"/>.
-    /// </summary>
-    private static void EmitTokenChoice(CodeWriter writer, EmissionContext context, AlternationIR alternation, string? okVar)
-    {
-        var guard = okVar ?? "true";
-        var fail = okVar != null ? $"{okVar} = false;" : "Error(\"No token of the choice matched\");";
-        var match = string.Join(" ?? ", alternation.Alternatives.Select(alternative => MatchExprForAlternative(context, alternative)));
-        writer.WriteLine($"if ({guard} && ({match}) == null) {fail}");
     }
 
     private static string? TryBuildTokenTest(EmissionContext context, ExpressionIR expr, ref int offset)
@@ -2754,8 +743,6 @@ public static class ParserEmitter
                 return null;
         }
     }
-
-    // ── Helpers ─────────────────────────────────────────────────────
 
     private static TokenIR? FindTokenForLiteral(EmissionContext context, string value)
     {

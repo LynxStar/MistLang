@@ -1179,9 +1179,9 @@ value.
 
 ---
 
-## 🟢 The CLI and the Driver no longer read generated output back as source, except output written under other flags
+## 🟢 The CLI and the Driver no longer read generated output back as source, except lex output older than its marker
 
-**Severity: low** -- corrected in the CLI on 2026-09-27, and for referenced projects in the Driver the same day (item 1 of "What remains"). Before the second correction, lexing any sample that `AllFeatures` or `AllFeaturesV2` references broke both orchestrators in that checkout until its `out/` was deleted. What remains is output an earlier invocation wrote under flags the current one cannot know (items 2 and 3).
+**Severity: low** -- corrected in the CLI on 2026-09-27, and for referenced projects in the Driver the same day (item 1 of "What remains"). Before the second correction, lexing any sample that `AllFeatures` or `AllFeaturesV2` references broke both orchestrators in that checkout until its `out/` was deleted. Output an earlier invocation wrote under flags the current one cannot know (items 2 and 3) is closed for lex output written from 2026-09-28, which carries a marker; what remains is lex output written before that.
 
 **What was wrong.** `Source/Mist.CLI/Program.cs` held three copies of `Directory.EnumerateFiles(projectFolder, "*.mist", AllDirectories)` (build, run, test), each run before the output and bin directories were cleaned. Lex mode writes a reconstructed `.mist` beside each token dump in `<output>/lexer/`, so the next invocation discovered those files, cleaned them away, and then tried to read them. Lex output was also flattened to the file name, so `Alpha/Foo.mist` and `Beta/Foo.mist` wrote the same two artifacts. Measured at 13b67c0e on a four-file project (`Program.mist`, `Alpha/Foo.mist`, `Beta/Foo.mist`, `util/Helper.mist`):
 - The first lex left one `Foo.*` pair.
@@ -1234,6 +1234,16 @@ Without lex artifacts, the same project builds and runs (`alpha`, `beta`, `helpe
        - no ordinal order: 4.
 2. Files left in a directory that an earlier invocation used as output, under different flags, are still discovered. Requirement 2's amendment note says so.
 3. The same limit holds for references, and `project-references` Requirement 5.6's amendment note says so. A reference records no output location, so `.mist` files that an invocation of the referenced project wrote under a custom `--output` or `--bin` inside its own folder are compiled into every build that references it. Closing that would need an output marker or a manifest option, which the correction deliberately does not add. Files in an `out/` or `bin/` deeper than the project's root are sources by design.
+4. **Items 2 and 3 closed for lex output (2026-09-28).** Lex mode is the only writer of `.mist` files into an output directory. It now writes `.mist-generated` into `<output>/lexer/` before any reconstructed source (`project-based-build-model` 8.6). Both discovery paths skip every directory holding one, wherever it lies and whatever the current flags (2.6, and `project-references` 5.7).
+   - `SourcePathSelection.EnumerateCandidates` returns the `.mist` files and markers under a folder, and `Select` excludes each marker's directory beside the output and bin. The resolver's injected enumerator and `ProjectLayout.SelectSources` keep their signatures. The marker is CLI-internal: hand-placing one to exclude a folder is not a supported feature.
+   - What remains: lex output written before 2026-09-28 has no marker, and is still read unless it lies in the current invocation's output or bin (or, for a reference, its default `out/` or `bin/`); delete such a folder once. A marker deleted by hand stops protecting its folder.
+   - **Verification.** One Tier 1 case in `SourcePathSelectionTests` and two in `ProjectLayoutTests`, one of them joining the writer's `LexMarkerPath` to the reader's `SelectSources`. A marked folder added to the Tier 2 trees of `MistFileDiscoveryTests` and `ReferencedProjectSourceTests`. One more run in the Tier 5 `RepeatedCliInvocationTests`, a lex into `gen/` inside the project between the default lexes and the build, so that each of the last two runs must skip the other's output by its marker alone.
+   - Five mutations each fail the tests aimed at them:
+     - lex writing no marker: the Tier 5 test, which is the only test that can see the write;
+     - enumeration ignoring markers: both Tier 2 trees and the Tier 5 test;
+     - selection ignoring markers: 5 tests from Tier 1 to Tier 5;
+     - the marker at the output root instead of `lexer/`: the Tier 1 path test and the Tier 5 test;
+     - a marker excluding its parent's directory: the Tier 1 case and the CLI's Tier 2 tree.
 
 
 ---

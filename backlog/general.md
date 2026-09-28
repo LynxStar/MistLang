@@ -1352,6 +1352,6 @@ dotnet format Mist.slnx --verify-no-changes --report TestResults/sdk-cache-forma
 - Two processes that publish at the same moment can each rewrite the file without the other's new entry. The lost entry is a later miss, never a wrong answer.
 
 **Integration verification (2026-09-28).**
-- Merged current `main` at `50543abc`. Nothing conflicted, and `SdkDiscovery.cs` had not changed on `main` since `666c596c`.
-- The full ledger `20260928-010931` passed 11,013 of 11,013, including all 32 new cases and `CultureInvariantEmissionTests`.
+- Merged current `main` at `f1839449`. Nothing conflicted, and `SdkDiscovery.cs` had not changed on `main` since `666c596c`.
+- The full ledger `20260928-011405` passed 11,041 of 11,041, including all 32 new cases and `CultureInvariantEmissionTests`. An earlier merge, at `50543abc`, had passed 11,013 of 11,013 in `20260928-010931`.
 - `dotnet build Mist.slnx --no-incremental` had 0 warnings and 0 errors. The formatter reported only the IDE0047 already on `main` at `ClrSpellingTests.cs:30`.

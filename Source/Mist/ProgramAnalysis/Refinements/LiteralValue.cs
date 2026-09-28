@@ -17,9 +17,9 @@ internal sealed record LiteralValue(object Value, string TypeName)
             LiteralExpression { Value: string body, Type: var type } => Decoded(body) is { } text ? new LiteralValue(text, type.FullyQualifiedName) : null,
             LiteralExpression { Value: float number, Type: var type } when float.IsFinite(number) => new LiteralValue(number, type.FullyQualifiedName),
             LiteralExpression { Value: double number, Type: var type } when double.IsFinite(number) => new LiteralValue(number, type.FullyQualifiedName),
-            LiteralExpression { Value: long number, Type: var type } => new LiteralValue(Integral(number, type), type.FullyQualifiedName),
             LiteralExpression { Value: decimal number, Type: var type } => new LiteralValue(number, type.FullyQualifiedName),
-            LiteralExpression { Value: int number, Type: var type } => new LiteralValue(number, type.FullyQualifiedName),
+            LiteralExpression { Value: var value, Type: var type } when IntegralConstant.Of(value) is { } number
+                => new LiteralValue(Integral(number, type), type.FullyQualifiedName),
             LocalReferenceExpression local => held?.Invoke(local.Local),
             CloneExpression clone => Of(clone.Source, held),
             UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true }, Operand: var operand } => Of(operand, held)?.Negated(),
@@ -27,11 +27,9 @@ internal sealed record LiteralValue(object Value, string TypeName)
         };
     }
 
-    private static object Integral(long value, IMistType type)
+    private static object Integral(Int128 value, IMistType type)
     {
-        return type.FullyQualifiedName == WellKnownTypes.UInt32.FullyQualifiedName ? (long)unchecked((uint)value)
-            : type.FullyQualifiedName == WellKnownTypes.UInt64.FullyQualifiedName ? unchecked((ulong)value)
-            : value;
+        return type.FullyQualifiedName == WellKnownTypes.UInt64.FullyQualifiedName ? (ulong)value : (long)value;
     }
 
     public static string? Decoded(string body)

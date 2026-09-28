@@ -591,7 +591,7 @@ Observed: `error MIST_PA_CONSTRAINT_NOT_SATISFIED: Type argument 'Score' does no
 
 ---
 
-## 🟡 A constraint error anywhere becomes the reason every clonable newtype cast is refused
+## 🟢 A constraint error anywhere becomes the reason every clonable newtype cast is refused
 
 **Severity: medium** -- misleading extra errors. The program is already refused, but each clonable cast reports a reason that has nothing to do with it.
 
@@ -603,7 +603,9 @@ error MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD: Cannot cast 'Cell<int>' to 'IntCel
 
 **Root cause:** `Source/Mist/ProgramAnalysis/ProgramAnalysisRunner.cs` judges each conversion that runs a `Clone` body by running every analyzer over an `AnalysisScope` holding just that body, and `CloneConversionRefusals.Judge` takes the first error as the refusal reason. `ConstraintAnalyzer` ignores the scope and walks `context.Model.ConstructorConstraintClosures.Closings` for the whole model, so any program-wide constraint finding lands in every per-body run.
 
-**Reproduction to confirm first** (unverified; once the F-bounded entry is fixed, use an ordinary violation):
+**Fixed (2026-09-27, workstream 13):** revalidated the defect on `666c596c1`. Analysis now exposes a read-only view of the constraint and optional-application registries for each pass. Recording sites retain their binding scope, so a source method, its renamed clone, and conversions rebinding the same syntax are distinguishable. Conversion and clone membership follows syntax actually carried by the judged model, including retained source syntax, rather than the destination declaration's span. Reports share this boundary; refusal selection additionally checks the finding's file and location, and member attribution checks the file before choosing the innermost named span. Binding failures still take precedence; warnings and inaccessible-member analysis findings still do not refuse a conversion. All 24 direct-input `CloneAnalysisIsolationTests`, all 3,049 analysis tests, and the full 10,619-test solution suite passed with zero build warnings. Mutations restoring registry leakage, cross-file attribution, and skipping genuine conversion constraints each failed the intended regression. The runtime sample tests require an unsandboxed execution profile on this host; the full green ledger used that profile. The change addresses diagnostic contamination, not every remaining newtype conversion capability.
+
+**Original source reproduction** (unverified; the regression tests construct an ordinary violation directly):
 
 ```mist
 using Standard;
@@ -918,6 +920,17 @@ formatting uses, and if so emit it (and a clone's forwarded one) as `override`; 
 
 ## An unsuffixed integer literal beyond `int` reaches Roslyn, and every hex literal is `int`
 
+**Closed on v2 (2026-09-27):** `IntegerLiterals.Read` reads a decimal, hex or binary literal exactly,
+separators dropped, as the first of `int`, `uint`, `long` and `ulong` its suffix allows that holds it, and
+holds the constant as that type's own primitive; past `ulong` it is `MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE`
+naming `ulong`. Measured on the merged tree: `var z = 5000000000;` prints 5000000000; `int h = 0x1_0000_0000;`
+is `MIST_PA_NO_IMPLICIT_CONVERSION` from `long`; `x`, `u` and `h` print `18446744073709551615
+18446744073709551615 9223372036854775808` and the interpolation `18446744073709551615 2147483647
+9223372036854775808`, as classic does; `long y = 0x8000_0000_0000_0000;` and `Neg n =
+0xFFFF_FFFF_FFFF_FFFF;` are refused from `ulong`; `new Wide<0xFFFF_FFFF_FFFF_FFFF>()` is out of `long`'s
+range (see the `ulong` dependent-parameter entry). Pinned at Tier 1 in `IntegerLiteralReadingTests`, with
+a 500-case property over every spelling, and in `LiteralCultureInvarianceTests`.
+
 Found 2026-09-27 by the culture review of purity (v2); not about culture.
 
 ```mist
@@ -964,6 +977,11 @@ and refuse past `ulong` (past `long` in a type argument, while `LiftedType` hold
 `0xFFFF_FFFF_FFFF_FFFF`, `0x8000_0000` and a `UL`-suffixed hex at Tier 1, and the type argument at Tier 2.
 
 ## A `u` literal past `uint` is truncated without a diagnostic
+
+**Closed on v2 (2026-09-27):** a `u` literal past `uint` reads as a `ulong`, and `BodyEmitter` writes every
+integral constant from its exact value, narrowing none. Measured on the merged tree: `5000000000` and
+`4294967296`, as classic prints, and `A = 5000000000u` in a `uint` enum is `MIST_PA_NO_IMPLICIT_CONVERSION`
+from `ulong`. Pinned at Tier 1 in `IntegerLiteralReadingTests` and `IntegerLiteralSpellingTests`.
 
 Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
 13b67c0e prints the same.
@@ -1019,6 +1037,11 @@ one). Pin the value at Tier 2 in each position and the emitted text at Tier 3.
 
 ## A binary literal in an expression is not bound
 
+**Closed on v2 (2026-09-27):** `ExpressionBinder` binds hex and binary literals through the decimal path,
+`LiteralBinder.BindIntegerLiteral`, which types all three by the same reading. Measured on the merged tree:
+`5` and `240`, as classic prints. Pinned at Tier 2 in `Semantics.NumericLiteralBindingTests`, beside the
+hex arm, and the reading at Tier 1 in `IntegerLiteralReadingTests`.
+
 Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
 13b67c0e behaves the same, and `backlog/program-model-body-tasks.yaml` records the missing arm.
 
@@ -1040,6 +1063,15 @@ and only `ScopeResolver`'s type-argument lift calls it.
 unsuffixed-literal entry), refusing on overflow. Pin at Tier 2 beside `NumericLiteralBindingTests`.
 
 ## A sized array type's length written with `_` or a suffix reads as 0
+
+**Closed on v2 (2026-09-27):** `ScopeResolver.ResolveArrayType` and `TypeParameterPopulator.FixedLength` read
+the size through `IntegerLiterals.Length`, so a suffix is read and a length no `int` holds is
+`MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE` naming `int`. Measured on the merged tree: `int[1_0] tens = new
+int[10];` compiles, and through `var t = Three();` both `t[2]` and `Three().Length` print 3. Indexing the
+call directly, `Three()[2]`, is still `MIST_PA_INDEX_UNPROVEN`, for `int[3]` exactly as for `int[3u]`: the
+prover reads no length from a call's result, and classic, which cannot compile a sized return type at all
+(`MIST_TC_0008`), sets no contract for it. Pinned at Tier 1 in `IntegerLiteralReadingTests` and at Tier 2
+in `SizedArrayLengthTests`, against the resolver.
 
 Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
 13b67c0e behaves the same.
@@ -1147,9 +1179,9 @@ value.
 
 ---
 
-## 🟡 The CLI no longer reads its own output back as source, but the Driver still does for a referenced project
+## 🟢 The CLI and the Driver no longer read generated output back as source, except lex output older than its marker
 
-**Severity: medium** -- corrected in the CLI on 2026-09-27. What remains is the same exclusion for referenced projects, which the Driver owns: lexing any sample that `AllFeatures` or `AllFeaturesV2` references breaks both orchestrators in that checkout until its `out/` is deleted.
+**Severity: low** -- corrected in the CLI on 2026-09-27, and for referenced projects in the Driver the same day (item 1 of "What remains"). Before the second correction, lexing any sample that `AllFeatures` or `AllFeaturesV2` references broke both orchestrators in that checkout until its `out/` was deleted. Output an earlier invocation wrote under flags the current one cannot know (items 2 and 3) is closed for lex output written from 2026-09-28, which carries a marker; what remains is lex output written before that.
 
 **What was wrong.** `Source/Mist.CLI/Program.cs` held three copies of `Directory.EnumerateFiles(projectFolder, "*.mist", AllDirectories)` (build, run, test), each run before the output and bin directories were cleaned. Lex mode writes a reconstructed `.mist` beside each token dump in `<output>/lexer/`, so the next invocation discovered those files, cleaned them away, and then tried to read them. Lex output was also flattened to the file name, so `Alpha/Foo.mist` and `Beta/Foo.mist` wrote the same two artifacts. Measured at 13b67c0e on a four-file project (`Program.mist`, `Alpha/Foo.mist`, `Beta/Foo.mist`, `util/Helper.mist`):
 - The first lex left one `Foo.*` pair.
@@ -1180,11 +1212,38 @@ Without lex artifacts, the same project builds and runs (`alpha`, `beta`, `helpe
 - The overlap refusal was run by hand, on a disposable nested copy only. The spellings were `--output <project>`, `<project>/`, `<project>/Alpha/..` and `.`, and `--bin <parent>` and `<project>/../`, plus the same refusal through `run`, `test` and lex. Every one exited 1, and the tree was unchanged, including a sentinel file in the parent.
 
 **What remains.**
-1. `ProjectReferenceResolver` (`Source/Mist/Driver/ProjectReferenceResolver.cs:194`) still takes every `.mist` file under a referenced project, and the referencing build does not clean that project's `out/`.
+1. **Closed (2026-09-27).** `ProjectReferenceResolver` (`Source/Mist/Driver/ProjectReferenceResolver.cs:194`) still takes every `.mist` file under a referenced project, and the referencing build does not clean that project's `out/`.
    - Measured on disposable copies: `mist build HelloMist --mode lex`, then an experimental build of a project referencing HelloMist, fails with `MIST_PM_DUPLICATE_TYPE` on `HelloMist/out/lexer/Color.mist`, `Point.mist` and `Program.mist`.
    - No checkout on this machine held such files on 2026-09-27.
    - The fix belongs to the Driver's owner: exclude the referenced project's default `out/` and `bin/`. For the Driver to share `ProjectLayout`, it would have to move from `Mist.CLI` into `Mist`.
+   - **Correction.** The resolver still enumerates every `.mist` file under a referenced project, then keeps what `SourcePathSelection.ForReferencedProject` (`Source/Mist/Driver/SourcePathSelection.cs`) selects: the files outside the `out/` and `bin/` directly beneath that project's own folder, in ordinal order. Containment is decided on normalized full paths and whole segments. The referencing invocation's `--output` and `--bin` play no part.
+     - Selection runs inside the traversal, over whatever the injected enumerator returns, so the stub-loader seam covers it. Manifest caching, per-edge name checks, cycle reporting, partial results and dependency-first order are unchanged.
+     - The containment decision moved into `Mist` instead of `ProjectLayout` moving. `ProjectLayout.SelectSources` and `DirectoryHoldingProject` delegate to it; their public API and the CLI's invocation-specific rule are unchanged.
+     - `project-references` Requirement 5.6 records the policy, with an amendment note.
+   - **Verification.**
+     - Revalidated first at `666c596c`, over disposable copies of `HelloMist` and a `Consumer` that references it. The consumer ran. `build HelloMist --mode lex` wrote `out/lexer/{Color,Optional,Point,Program}.mist`, and `build Consumer --pipeline experimental` then exited 1 with `MIST_PM_DUPLICATE_TYPE` on `Color.mist`, `Point.mist` and `Program.mist`.
+     - With the fix, over the same lexed tree, that build exits 0 with no diagnostics, and `run` exits 0 on both pipelines. Their 31 lines are identical and equal the HelloMist slice of `AllFeaturesV2.out` from line 68. All 13 files under the dependency had the same SHA-256 and timestamp before and after.
+     - `SourcePathSelectionTests` (Tier 1, 11 cases, strings only) and `ReferencedProjectSourceTests` (Tier 2, 2 cases) pass. The Tier 2 cases are a direct-plus-transitive graph through the resolver's stub loaders, and one disposable tree through the real enumerator with a stub manifest loader, which also asserts that no file changed. The 37 existing resolver, graph, seam and property cases pass beside them (50/50), as do all 89 `Mist.CLI.Tests`.
+     - Seven mutations each fail the tests aimed at them:
+       - no exclusion: 11 cases;
+       - excluding every segment named `out` or `bin`: 6, one of them the existing `CorrectRepeatedEdges` graph test, whose fixture paths lie under the test run's own `bin/`;
+       - prefix match without a segment boundary: 2;
+       - unnormalized string prefix: 5;
+       - the resolver skipping selection: 2;
+       - the resolver judging against the consumer's folder: 2;
+       - no ordinal order: 4.
 2. Files left in a directory that an earlier invocation used as output, under different flags, are still discovered. Requirement 2's amendment note says so.
+3. The same limit holds for references, and `project-references` Requirement 5.6's amendment note says so. A reference records no output location, so `.mist` files that an invocation of the referenced project wrote under a custom `--output` or `--bin` inside its own folder are compiled into every build that references it. Closing that would need an output marker or a manifest option, which the correction deliberately does not add. Files in an `out/` or `bin/` deeper than the project's root are sources by design.
+4. **Items 2 and 3 closed for lex output (2026-09-28).** Lex mode is the only writer of `.mist` files into an output directory. It now writes `.mist-generated` into `<output>/lexer/` before any reconstructed source (`project-based-build-model` 8.6). Both discovery paths skip every directory holding one, wherever it lies and whatever the current flags (2.6, and `project-references` 5.7).
+   - `SourcePathSelection.EnumerateCandidates` returns the `.mist` files and markers under a folder, and `Select` excludes each marker's directory beside the output and bin. The resolver's injected enumerator and `ProjectLayout.SelectSources` keep their signatures. The marker is CLI-internal: hand-placing one to exclude a folder is not a supported feature.
+   - What remains: lex output written before 2026-09-28 has no marker, and is still read unless it lies in the current invocation's output or bin (or, for a reference, its default `out/` or `bin/`); delete such a folder once. A marker deleted by hand stops protecting its folder.
+   - **Verification.** One Tier 1 case in `SourcePathSelectionTests` and two in `ProjectLayoutTests`, one of them joining the writer's `LexMarkerPath` to the reader's `SelectSources`. A marked folder added to the Tier 2 trees of `MistFileDiscoveryTests` and `ReferencedProjectSourceTests`. One more run in the Tier 5 `RepeatedCliInvocationTests`, a lex into `gen/` inside the project between the default lexes and the build, so that each of the last two runs must skip the other's output by its marker alone.
+   - Five mutations each fail the tests aimed at them:
+     - lex writing no marker: the Tier 5 test, which is the only test that can see the write;
+     - enumeration ignoring markers: both Tier 2 trees and the Tier 5 test;
+     - selection ignoring markers: 5 tests from Tier 1 to Tier 5;
+     - the marker at the output root instead of `lexer/`: the Tier 1 path test and the Tier 5 test;
+     - a marker excluding its parent's directory: the Tier 1 case and the CLI's Tier 2 tree.
 
 
 ---

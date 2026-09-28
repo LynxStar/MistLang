@@ -2456,6 +2456,19 @@ rules:
       refusal dropped and the refused accessor kept as init (the corpus case both times, the second through
       the write's second complaint), and UnsafeReach reading no recorded member at the entry and at the
       block (ACastToTheSource_ConstructsItAndWritesItsPrivateStateThroughAccessors both times).
+
+      UNARY MINUS JOINS THE BINARY OPERATORS (2026-09-27). The binder typed a negation as its operand
+      whatever the operand was, so v2 printed a wrapped value for a negated byte or ushort and sent a
+      negated uint, ulong or char to Roslyn, where classic refuses all five with MIST_TC_0003: Standard
+      declares no negation for them. OperatorAdmissibility.UnaryResultType now answers null for those five,
+      named rather than inferred from a missing declaration so that a model built from Standard's shells
+      alone still negates an int, the binder types the negation as an error, and this rule reports
+      MIST_PA_OPERATOR_NOT_APPLICABLE
+      through OperatorDecision.Unary, in classic's shape ('uint' and 'uint'). A minus in front of an
+      unsuffixed literal too large for int is a long rather than a refused negation, as classic and C#
+      read it. The measurement is under wrong_answers in the emitter register. UnaryNegationRuleTests
+      holds the decision (Tier 1) and the walk (Tier 2). A non-numeric operand is unchanged: its
+      negation is still typed as the operand and left to Roslyn.
     tasks:
       - >
         A readonly FIELD assigned outside a constructor is left to Roslyn (CS0191): the analysis owner

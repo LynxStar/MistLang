@@ -36,7 +36,7 @@ internal static class PostfixBinder
                 return group;
             }
 
-            if(MethodGroupConversion.Convert(group, ctx.TargetType, context, out var ambiguous) is { } converted)
+            if(MethodGroupConversion.Convert(group, ctx.TargetType, context, out var ambiguous, ctx.Scope) is { } converted)
             {
                 return converted;
             }
@@ -93,9 +93,9 @@ internal static class PostfixBinder
         var typeArgs = context.Resolver.BindPack(
             definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
         var enclosing = context.Resolver.InheritedEnclosing(definition, ctx.Scope);
-        context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node, enclosing);
+        context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node, enclosing, ctx.Scope);
         var type = definition is TypeAlias alias
-            ? context.Resolver.ExpandAlias(alias, typeArgs, node)
+            ? context.Resolver.ExpandAlias(alias, typeArgs, node, ctx.Scope)
             : context.Resolver.Construct(definition, typeArgs, ctx.Scope, enclosing);
 
         return BindMemberAccess(node, new TypeReferenceExpression(node, type), node.Member.Lexeme, ctx, context);
@@ -129,9 +129,9 @@ internal static class PostfixBinder
 
         var typeArgs = context.Resolver.BindPack(definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
         var enclosing = context.Resolver.InheritedEnclosing(definition, ctx.Scope);
-        context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node, enclosing);
+        context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node, enclosing, ctx.Scope);
         var type = definition is TypeAlias alias
-            ? context.Resolver.ExpandAlias(alias, typeArgs, node)
+            ? context.Resolver.ExpandAlias(alias, typeArgs, node, ctx.Scope)
             : context.Resolver.Construct(definition, typeArgs, ctx.Scope, enclosing);
 
         return new TypeLiteralExpression(node, type, context.Resolver.LookupWellKnown(WellKnownTypes.Type));
@@ -377,7 +377,7 @@ internal static class PostfixBinder
         var methodTypeArguments = selected.TypeParametersList
             .ConvertAll(parameter => choice.Substitution.Apply(parameter, interner));
 
-        context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected, methodTypeArguments, choice.Substitution, node);
+        context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected, methodTypeArguments, choice.Substitution, node, ctx.Scope);
         context.ProgramModel.VariadicUses.Record(selected, methodTypeArguments);
         context.ProgramModel.GenericCalls.Record(selected, methodTypeArguments);
 

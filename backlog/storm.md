@@ -461,3 +461,59 @@ reported. A later alternative with more than 256 prefixes at some depth is not r
 and a declared token never match each other, so `SEMI as A | ";" as B` still draws nothing. An
 element after one whose end is unknown is taken to succeed only if it is written as an optional, a
 repetition or a group of them, never through a rule reference.
+
+## Left recursion behind a rule that can succeed empty -- 2026-09-28
+
+`LeftRecursionPass` walked a sequence past an element only when the element was itself written to be
+skippable -- `?`, `*` or a predicate -- and never through a rule reference. `rule Empty = A?;
+rule R = Empty R | B;` drew nothing, and the emitted `_ParseR` calls `_ParseEmpty()` and then
+`_ParseR()` with no position check: on `b` the first returns having consumed nothing, and a memo entry
+is written only after a body returns, so nothing stops the second call. The pass also skipped inline
+blocks, and a qualified reference became an edge to a name that was never a node, so a cycle through
+one never closed.
+
+**Now.** `LeftCallGraph` finds the rules that may succeed without consuming, as a least fixed point
+over the rule declarations, and walks each body only that far: a sequence while its elements may be
+empty, every alternative of a choice, and the operand of `?`, `*`, `+` and a predicate. `E+` itself is
+never empty, because the emitted loop counts only rounds that consume. A token consumes whatever its
+pattern or mode action. An inline block is walked as the emitter writes it: the prefix rule's body,
+then, if that may be empty, each arm rule's body with the prefix stripped as lowering strips it.
+Neither rule is called, so neither is an edge. A block or arm `InlinePrefixVerification` would reject
+contributes nothing, since that pass runs after this one, and a block met again while it is being
+walked ends the walk. References resolve through `StormGrammar.LookupByName`, rules are compared by
+reference, and a namespaced rule appears in a cycle path under its qualified name.
+
+| Grammar (tokens `A`, `B`) | Before | After |
+|---|---|---|
+| `Empty = A?; R = Empty R \| B`, in either order | nothing | `R -> R` |
+| `R = inline H: { x:X as Alt } \| B; H = A?; X = H R` | nothing | `R -> R` |
+| `R = Ns.Wrap \| B`, with `Wrap = R` imported as `Ns` | nothing | `R -> Ns.Wrap -> R` |
+| `Foo = B; R = Ns.Foo`, with `Foo = Foo A` imported as `Ns` | `Foo -> Foo` | nothing |
+
+Each row was run through `StormGrammar.Build` on `43d164d0`, before and after. On Mist's grammar (135
+rules, 157 calls made before consuming, two inline blocks) the pass reports nothing, in about 3 ms.
+
+`NullableLeftRecursionTests` holds it at Tier 2, over declarations built by hand and a lookup callback:
+37 cases. They refuse recursion behind one or several empty rules in either declaration order, mutual
+recursion, rules empty only through each other, every operand wrapper and label, qualified references,
+inline prefixes, stripped and spelled-out arm tails and nested blocks. They accept recursion after a
+consumed token, after `+` of an empty rule, and after a token with a mode action whose pattern matches
+empty. Each of nineteen mutations of the pass is caught; removing the re-entry guard is caught by the
+test host dying of a stack overflow.
+
+**Unresolved:**
+
+- The last row. `LookupByName` sends the namespaced file's unqualified `Foo` to the root rule, which
+  consumes, so the pass sees no cycle. Lowering keys rules by simple name, so it merges both bodies into
+  one `Foo` and lists that rule twice; the old pass keyed rules by name too, which is why it reported.
+  Neither version yields a compilable parser: every namespaced rule is lowered under both its simple
+  and its qualified name, and the parser emits `_ParseNs.Wrap()` (run on `43d164d0`).
+- The arm test copies `InlinePrefixVerification`'s: a first element naming the prefix, or leading
+  elements shaped like the prefix body's over references, literals, `?`, `*` and `+`. Should that pass
+  come to accept more, the arms it adds are skipped here, which misses a call rather than inventing one.
+- `mist-compiler-architecture`'s design table gives left recursion `STORM0004`. The code has
+  `STORM_LEFT_RECURSION` as `STORM0005`, and `STORM0004` is an undefined reference. Unchanged.
+
+**Limits:** the walk ignores what ordered choice and an inline block's prediction rule out, so a
+recursive alternative hidden by an earlier one that always succeeds is still refused, as it was
+before. A predicate is taken to succeed.

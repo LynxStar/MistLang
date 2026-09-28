@@ -1350,3 +1350,8 @@ dotnet format Mist.slnx --verify-no-changes --report TestResults/sdk-cache-forma
 **Limits.**
 - No test drives the static `SdkDiscovery` wiring, since that would spawn `dotnet` and write `~/.mist`. The rewrite of the real cache above is the only evidence for that wiring.
 - Two processes that publish at the same moment can each rewrite the file without the other's new entry. The lost entry is a later miss, never a wrong answer.
+
+**Integration verification (2026-09-28).**
+- Merged current `main` at `50543abc`. Nothing conflicted, and `SdkDiscovery.cs` had not changed on `main` since `666c596c`.
+- The full ledger `20260928-010931` passed 11,013 of 11,013, including all 32 new cases and `CultureInvariantEmissionTests`.
+- `dotnet build Mist.slnx --no-incremental` had 0 warnings and 0 errors. The formatter reported only the IDE0047 already on `main` at `ClrSpellingTests.cs:30`.

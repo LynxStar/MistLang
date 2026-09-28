@@ -24,13 +24,19 @@ internal static class ExtensionSpecialization
         IReadOnlyList<IMistType> arguments,
         TypeInterner interner)
     {
+        method = method.SourceDeclaration ?? method;
         var substitution = TypeSubstitution.ForParameters(block.TypeParametersList, arguments);
 
         var parameters = method.ParametersList.ConvertAll(parameter =>
-            new Parameter(parameter.Name, substitution.Apply(parameter.Type, interner), parameter.Modifier)
+        {
+            var closedParameter = new Parameter(parameter.Name, substitution.Apply(parameter.Type, interner), parameter.Modifier)
             {
                 IsFlattened = parameter.IsFlattened,
-            });
+            };
+            closedParameter.AttributesList.AddRange(parameter.AttributesList);
+            closedParameter.DeclaredAttributesList.AddRange(parameter.DeclaredAttributesList);
+            return closedParameter;
+        });
 
         var closed = new Method(
             method.Name,
@@ -43,9 +49,18 @@ internal static class ExtensionSpecialization
             ClosedBlock = block,
             DeclaringBlock = block,
             SequenceLengthOperation = method.SequenceLengthOperation,
+            SourceDeclaration = method,
+            DeclaringType = method.DeclaringType,
+            DeclarationNode = method.DeclarationNode,
+            ReturnOwnership = method.ReturnOwnership,
+            DeclaredThisTier = method.DeclaredThisTier,
         };
 
         closed.TypeParametersList.AddRange(method.TypeParametersList);
+        closed.ContextBindingsList.AddRange(method.ContextBindingsList.Select(binding =>
+            new ContextBinding(substitution.Apply(binding.ContextType, interner), binding.Identifier)));
+        closed.AttributesList.AddRange(method.AttributesList);
+        closed.DeclaredAttributesList.AddRange(method.DeclaredAttributesList);
         return closed;
     }
 }

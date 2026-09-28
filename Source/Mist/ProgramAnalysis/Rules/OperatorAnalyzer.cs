@@ -26,6 +26,13 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
                     JudgeBinary(context, binary);
                     break;
 
+                case UnaryExpression unary when unary.Type is ErrorType
+                    && OperatorDecision.Unary(unary.OperatorKind, unary.Operand.Type) is { } refused:
+                    context.Report(
+                        refused, unary.Node, [unary.Operand],
+                        Spelling(unary.OperatorKind), TypeDisplay.Mist(unary.Operand.Type), TypeDisplay.Mist(unary.Operand.Type));
+                    break;
+
                 case MemberAccessExpression { IsConditional: true } access
                     when OperatorDecision.Conditional(access.Receiver.Type) is { } conditional:
                     context.Report(
@@ -74,6 +81,16 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
             BinaryOperatorKind.GreaterThanOrEqual => ">=",
             BinaryOperatorKind.LogicalAnd => "&&",
             BinaryOperatorKind.LogicalOr => "||",
+            _ => kind.ToString(),
+        };
+    }
+
+    private static string Spelling(UnaryOperatorKind kind)
+    {
+        return kind switch
+        {
+            UnaryOperatorKind.Negate => "-",
+            UnaryOperatorKind.LogicalNot => "!",
             _ => kind.ToString(),
         };
     }

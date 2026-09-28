@@ -200,6 +200,11 @@ internal sealed partial class PurityInference(AnalysisContext context)
             return Promise.None;
         }
 
+        if(member is Method { SourceDeclaration: { } declaration })
+        {
+            return Answer(declaration);
+        }
+
         if(inferred.TryGetValue(member, out var current))
         {
             var declared = DeclaredOf(member);

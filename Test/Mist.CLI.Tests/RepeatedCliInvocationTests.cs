@@ -4,14 +4,16 @@ using System.Text;
 namespace Mist.CLI.Tests;
 
 /// <summary>
-/// The real CLI, three times over one disposable project: lex, lex again, then an experimental build.
-/// Each run cleans the output the run before it wrote, so a run that read that output back as source
-/// would name files the clean has deleted, and two sources named Foo.mist would share one set of
-/// artifacts. <see cref="Layout.ProjectLayoutTests"/> and <see cref="MistFileDiscoveryTests"/> hold the
-/// decisions; only whole invocations show that the commands apply them to the directories they clean,
-/// which is why this is Tier 5 and why it is the only one. util/Helper.mist sorts after out/, so a run
-/// reading its own output reaches a deleted file rather than one it has just rewritten. The project
-/// lives in a temp folder rather than under samples/ because the CLI writes into it.
+/// The real CLI, four times over one disposable project: lex, lex again, lex into gen/ inside the
+/// project, then an experimental build. The first two runs clean the output the run before wrote, so a
+/// run that read that output back as source would name files the clean has deleted, and two sources
+/// named Foo.mist would share one set of artifacts. The last two runs do not share an output, so only
+/// the marker each lex leaves keeps the next run from reading the other's reconstructed sources.
+/// <see cref="Layout.ProjectLayoutTests"/> and <see cref="MistFileDiscoveryTests"/> hold the decisions;
+/// only whole invocations show that the commands write the marker and apply the decisions to the
+/// directories they clean, which is why this is Tier 5 and why it is the only one. util/Helper.mist
+/// sorts after out/, so a run reading its own output reaches a deleted file rather than one it has just
+/// rewritten. The project lives in a temp folder rather than under samples/ because the CLI writes into it.
 /// </summary>
 [Trait("Tier", "5")]
 public sealed class RepeatedCliInvocationTests : IDisposable
@@ -61,7 +63,7 @@ public sealed class RepeatedCliInvocationTests : IDisposable
     }
 
     [Fact]
-    public async Task LexTwiceThenExperimentalBuild_ReadsOnlyTheProjectsOwnSources()
+    public async Task RepeatedLexesThenExperimentalBuild_ReadOnlyTheProjectsOwnSources()
     {
         for(var run = 1; run <= 2; run++)
         {
@@ -76,6 +78,12 @@ public sealed class RepeatedCliInvocationTests : IDisposable
         Assert.Equal(Foo("beta"), await File.ReadAllTextAsync(Path.Combine(lexer, "Beta", "Foo.mist")));
         Assert.True(File.Exists(Path.Combine(lexer, "Alpha", "Foo.tokens")));
         Assert.True(File.Exists(Path.Combine(lexer, "Beta", "Foo.tokens")));
+
+        var custom = await RunMist("build", project, "--mode", "lex", "--output", Path.Combine(project, "gen"), "--quiet");
+
+        Assert.True(custom.ExitCode == 0, $"lex into gen exited {custom.ExitCode}:\n{custom.Stdout}\n{custom.Stderr}");
+        Assert.Equal(4, custom.Stdout.Split('\n').Count(line => line.StartsWith("Lexed ", StringComparison.Ordinal)));
+        Assert.True(File.Exists(Path.Combine(project, "gen", "lexer", ".mist-generated")));
 
         var build = await RunMist("build", project, "--pipeline", "experimental", "--quiet");
 

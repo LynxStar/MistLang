@@ -1,6 +1,8 @@
 using Mist.Common.Diagnostics;
+using Mist.Common.Source;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Storm.Runtime;
 
 namespace Mist.ProgramAnalysis;
 
@@ -22,26 +24,43 @@ internal static class CloneConversionRefusals
         foreach(var root in conversions)
         {
             var conversion = (CastOperator)root.Member!;
+            var boundary = AnalysisBoundary.ForBody(root);
             var failure = conversion.BindingFailure
                 ?? analyze(root).FirstOrDefault(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error
-                    && diagnostic.Id != ProgramAnalysisDiagnostics.InaccessibleMember.Id);
+                    && diagnostic.Id != ProgramAnalysisDiagnostics.InaccessibleMember.Id
+                    && boundary.Contains(diagnostic));
 
             if(failure is not null)
             {
-                refusals[conversion] = new ConversionRefusal(failure, MemberAt(root, failure) ?? conversion.ClonesThrough!.Name);
+                refusals[conversion] = new ConversionRefusal(failure, MemberAt(BodyWalker.DescendantsAndSelf(root.Root), failure) ?? conversion.ClonesThrough!.Name);
             }
         }
 
         return refusals;
     }
 
-    private static string? MemberAt(SourceRoot root, Diagnostic failure)
+    internal static string? MemberAt(IEnumerable<object> nodes, Diagnostic failure)
     {
-        return BodyWalker.DescendantsAndSelf(root.Root)
-            .OfType<Expression>()
-            .Where(expression => DiagnosticHelper.ResolveLocation(expression.Node).Location == failure.Location)
-            .Select(Named)
-            .FirstOrDefault(name => name is not null);
+        return nodes.Select<object, (SyntaxNode? Node, string? Name)>(node => node switch
+            {
+                Expression expression => (expression.Node, Name: Named(expression)),
+                ObjectInitializerAssignment assignment => (assignment.Node, Name: assignment.MemberName),
+                _ => (Node: null, Name: null),
+            })
+            .Where(candidate => candidate.Node is not null && candidate.Name is not null)
+            .Select(candidate => (candidate.Name, Location: DiagnosticHelper.ResolveLocation(candidate.Node!)))
+            .Where(candidate => candidate.Location.Path == failure.CompilationUnitPath
+                && Contains(candidate.Location.Location, failure.Location))
+            .OrderBy(candidate => candidate.Location.Location.End.Line - candidate.Location.Location.Start.Line)
+            .ThenBy(candidate => candidate.Location.Location.End.Column - candidate.Location.Location.Start.Column)
+            .Select(candidate => candidate.Name)
+            .FirstOrDefault();
+    }
+
+    private static bool Contains(LinePositionSpan outer, LinePositionSpan inner)
+    {
+        return (outer.Start.Line < inner.Start.Line || (outer.Start.Line == inner.Start.Line && outer.Start.Column <= inner.Start.Column))
+            && (inner.End.Line < outer.End.Line || (inner.End.Line == outer.End.Line && inner.End.Column <= outer.End.Column));
     }
 
     private static string? Named(Expression expression)
@@ -50,7 +69,11 @@ internal static class CloneConversionRefusals
         {
             FieldReferenceExpression field => field.Field.Name,
             PropertyReferenceExpression property => property.Property.Name,
+            ExtensionPropertyAccessExpression extension => extension.Property.Name,
             MemberAccessExpression access => access.MemberName,
+            MethodReferenceExpression reference => reference.Method.Name,
+            MethodGroupExpression group => group.MemberName,
+            FunctionReferenceExpression function => function.Method.Name,
             InvocationExpression { Method: { } method } => method.Name,
             _ => null,
         };

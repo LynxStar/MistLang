@@ -165,7 +165,7 @@ internal sealed class BaseTypeResolver
             : [];
 
         var typeArgs = scopeResolver.BindPack(definition, written, baseTypeRef);
-        context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, baseTypeRef);
+        context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, baseTypeRef, boundIn: typeDef.Scope);
         return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
     }
 }

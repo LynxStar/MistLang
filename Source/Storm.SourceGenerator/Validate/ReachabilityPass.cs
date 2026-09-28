@@ -6,24 +6,7 @@ using Storm.SourceGenerator.Resolve;
 
 namespace Storm.SourceGenerator.Validate;
 
-/// <summary>
-/// Checks each rule's alternatives for unreachable alternatives under PEG ordered-choice
-/// semantics with backtracking.
-///
-/// The generated parser tries each alternative in order, saving and restoring position
-/// on failure. An alternative is only truly unreachable if an earlier alternative will
-/// always succeed on any input that the later alternative would match.
-///
-/// This pass uses FIRST-k sequence analysis (bounded lookahead depth) rather than
-/// single-token FIRST sets. Two alternatives that share the same first token but differ
-/// on subsequent tokens are distinguishable via backtracking and are NOT flagged.
-///
-/// An alternative k is flagged as unreachable only if every token sequence it can start
-/// with is also a prefix of an earlier alternative's token sequences — meaning the
-/// earlier alternative will always be tried first and will match the same input.
-///
-/// Emits STORM_UNREACHABLE_ALTERNATIVE warnings.
-/// </summary>
+/// <summary>An inline block's arms are compared by FIRST-k, not <see cref="AlternativeShadowing"/>, as inline-rule-prefix requirement 5.3 prescribes.</summary>
 public static class ReachabilityPass
 {
     /// <summary>
@@ -59,37 +42,18 @@ public static class ReachabilityPass
             return;
         }
 
-        // Compute FIRST-k sequence sets for each alternative
-        var sequenceSets = new List<HashSet<string>>();
-        foreach(var alt in alternatives)
-        {
-            sequenceSets.Add(ComputeFirstKSequences(alt, grammar, MaxLookahead));
-        }
-
-        // Check each alternative k against the union of 1..k-1
-        // An alternative is unreachable only if ALL of its FIRST-k sequences
-        // are also present in the union of earlier alternatives' sequences.
-        var unionSoFar = new HashSet<string>();
+        var shadowing = new AlternativeShadowing(grammar);
         for(var i = 0; i < alternatives.Count; i++)
         {
-            var isGuarded = ContainsPredicate(alternatives[i]);
-            if(i > 0 && !isGuarded && sequenceSets[i].Count > 0 && sequenceSets[i].IsSubsetOf(unionSoFar))
+            if(i > 0 && shadowing.IsShadowed(alternatives, i))
             {
                 diagnostics.Add(new StormDiagnostic(
                     StormDiagnosticIds.STORM_UNREACHABLE_ALTERNATIVE,
                     StormDiagnosticSeverity.Warning,
-                    $"Alternative {i + 1} in rule '{rule.Name}' is unreachable; its lookahead sequences are covered by earlier alternatives",
+                    $"Alternative {i + 1} in rule '{rule.Name}' is unreachable; an earlier alternative succeeds on every input it can match",
                     null,
                     rule.Line,
                     rule.Column));
-            }
-
-            if(!isGuarded)
-            {
-                foreach(var seq in sequenceSets[i])
-                {
-                    _ = unionSoFar.Add(seq);
-                }
             }
 
             // Perform intra-block analysis for inline blocks in top-level alternatives
@@ -584,23 +548,6 @@ public static class ReachabilityPass
                 ComputeFirst(inlineBlock.Prefix, grammar, result, visited);
                 break;
         }
-    }
-
-    private static bool ContainsPredicate(StormExpression expr)
-    {
-        return expr switch
-        {
-            StormPredicateExpr => true,
-            StormGroupExpr groupExpr => ContainsPredicate(groupExpr.Inner),
-            StormLabeledExpr labeledExpr => ContainsPredicate(labeledExpr.Element),
-            StormNamedAlternative namedAlt => ContainsPredicate(namedAlt.Expression),
-            StormOptionalExpr optExpr => ContainsPredicate(optExpr.Inner),
-            StormZeroOrMoreExpr zomExpr => ContainsPredicate(zomExpr.Inner),
-            StormOneOrMoreExpr oomExpr => ContainsPredicate(oomExpr.Inner),
-            StormSequenceExpr seqExpr => seqExpr.Elements.Any(ContainsPredicate),
-            StormAlternationExpr altExpr => altExpr.Alternatives.Any(ContainsPredicate),
-            _ => false,
-        };
     }
 
     /// <summary>

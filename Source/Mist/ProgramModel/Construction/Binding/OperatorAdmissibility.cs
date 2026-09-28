@@ -72,8 +72,11 @@ internal static class OperatorAdmissibility
     /// A unary operator declared on the operand's type answers for itself; one answering the operand's
     /// own type -- every numeric negation and Boolean's <c>!</c> -- keeps the operand as written, so a
     /// lift or a refinement on it survives exactly as it did before any declaration was consulted.
+    /// The unsigned types and char have no negation at all, where C# would promote them: Standard declares
+    /// none for them, and classic refuses <c>-x</c> over each. Named rather than inferred from a missing
+    /// declaration, which a model built from Standard's shells alone would show for every numeric type.
     /// </summary>
-    public static IMistType UnaryResultType(UnaryOperatorKind op, IMistType operand)
+    public static IMistType? UnaryResultType(UnaryOperatorKind op, IMistType operand)
     {
         if(SelectedUnary(op, operand) is { } candidate)
         {
@@ -82,7 +85,7 @@ internal static class OperatorAdmissibility
                 : candidate.ReturnType;
         }
 
-        return operand;
+        return op == UnaryOperatorKind.Negate && Array.Exists(Unnegatable, type => Is(Underlying(operand), type)) ? null : operand;
     }
 
     /// <summary>
@@ -218,6 +221,11 @@ internal static class OperatorAdmissibility
     [
         WellKnownTypes.Decimal, WellKnownTypes.Double, WellKnownTypes.Single,
         WellKnownTypes.UInt64, WellKnownTypes.Int64, WellKnownTypes.UInt32,
+    ];
+
+    private static readonly WellKnownType[] Unnegatable =
+    [
+        WellKnownTypes.Byte, WellKnownTypes.UInt16, WellKnownTypes.UInt32, WellKnownTypes.UInt64, WellKnownTypes.Char,
     ];
 
     private static readonly WellKnownType[] IntegralOperands =

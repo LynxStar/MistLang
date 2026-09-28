@@ -36,9 +36,9 @@ public sealed class LiteralCultureInvarianceTests
     [Theory]
     [Trait("Tier", "1")]
     [InlineData("de-DE", "5_000_000_000L", 5000000000L, "Int64")]
-    [InlineData("sv-SE", "18446744073709551615UL", -1L, "UInt64")]
-    [InlineData("sv-SE", "42", 42L, "Int32")]
-    public void AnIntegerLiteral_ReadsTheSameUnderAnyCulture(string culture, string lexeme, long expected, string type)
+    [InlineData("sv-SE", "18446744073709551615UL", 18446744073709551615UL, "UInt64")]
+    [InlineData("sv-SE", "42", 42, "Int32")]
+    public void AnIntegerLiteral_ReadsTheSameUnderAnyCulture(string culture, string lexeme, object expected, string type)
     {
         var (value, wellKnown) = Under(culture, () => LiteralBinder.IntegerValue(lexeme));
 
@@ -48,11 +48,11 @@ public sealed class LiteralCultureInvarianceTests
 
     [Theory]
     [Trait("Tier", "1")]
-    [InlineData("de-DE", "0xFF", 255L)]
-    [InlineData("sv-SE", "0x7FFF_FFFFu", 2147483647L)]
-    public void AHexLiteral_ReadsTheSameUnderAnyCulture(string culture, string lexeme, long expected)
+    [InlineData("de-DE", "0xFF", 255)]
+    [InlineData("sv-SE", "0x7FFF_FFFFu", 2147483647U)]
+    public void AHexLiteral_ReadsTheSameUnderAnyCulture(string culture, string lexeme, object expected)
     {
-        Assert.Equal(expected, Under(culture, () => LiteralBinder.HexValue(lexeme)));
+        Assert.Equal(expected, Under(culture, () => LiteralBinder.IntegerValue(lexeme)).Value);
     }
 
     [Theory]
@@ -66,7 +66,7 @@ public sealed class LiteralCultureInvarianceTests
 
     [Theory]
     [Trait("Tier", "1")]
-    [InlineData("9223372036854775808")]
+    [InlineData("18446744073709551616")]
     [InlineData("18446744073709551616UL")]
     public void AnIntegerLiteralItsTypeCannotHold_HasNoValue(string lexeme)
     {

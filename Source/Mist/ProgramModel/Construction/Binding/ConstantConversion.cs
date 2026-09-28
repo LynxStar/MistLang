@@ -12,14 +12,14 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// </summary>
 internal static class ConstantConversion
 {
-    private static readonly Dictionary<string, (long Min, long Max)> IntegralRanges = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, (Int128 Min, Int128 Max)> IntegralRanges = new(StringComparer.Ordinal)
     {
         [WellKnownTypes.SByte.FullyQualifiedName] = (sbyte.MinValue, sbyte.MaxValue),
         [WellKnownTypes.Byte.FullyQualifiedName] = (byte.MinValue, byte.MaxValue),
         [WellKnownTypes.Int16.FullyQualifiedName] = (short.MinValue, short.MaxValue),
         [WellKnownTypes.UInt16.FullyQualifiedName] = (ushort.MinValue, ushort.MaxValue),
         [WellKnownTypes.UInt32.FullyQualifiedName] = (uint.MinValue, uint.MaxValue),
-        [WellKnownTypes.UInt64.FullyQualifiedName] = (0, long.MaxValue),
+        [WellKnownTypes.UInt64.FullyQualifiedName] = (ulong.MinValue, ulong.MaxValue),
     };
 
     public static bool Fits(Expression value, IMistType target)
@@ -27,7 +27,7 @@ internal static class ConstantConversion
         return IntegerConstant(value) is { } constant && Fits(constant, value.Type, target);
     }
 
-    public static bool Fits(long constant, IMistType from, IMistType to)
+    public static bool Fits(Int128 constant, IMistType from, IMistType to)
     {
         to = Unrefined(to);
 
@@ -47,11 +47,11 @@ internal static class ConstantConversion
             && constant <= range.Max;
     }
 
-    public static long? IntegerConstant(Expression expression)
+    public static Int128? IntegerConstant(Expression expression)
     {
         return expression switch
         {
-            LiteralExpression { Value: long value } => value,
+            LiteralExpression literal => IntegralConstant.Of(literal.Value),
             UnaryExpression { OperatorKind: UnaryOperatorKind.Negate } negated => -IntegerConstant(negated.Operand),
             CloneExpression clone => IntegerConstant(clone.Source),
             _ => null,

@@ -81,7 +81,12 @@ internal static class TypeArgumentInference
 
             foreach(var i in pending.ToList())
             {
-                if(Shape(receiver.Apply(method.ParametersList[i].Type, interner), interner) is not { } shape)
+                var declared = receiver.Apply(method.ParametersList[i].Type, interner);
+                var shape = arguments[i] is UnboundLambdaExpression
+                    ? ContextualLambdaTarget.Of(declared, interner)
+                    : Shape(declared, interner);
+
+                if(shape is null)
                 {
                     _ = pending.Remove(i);
                     continue;
@@ -192,7 +197,7 @@ internal static class TypeArgumentInference
         IReadOnlyList<TypeParameter> parameters,
         List<IMistType>[] bounds)
     {
-        if(argument is not UnboundLambdaExpression lambda || lambdas is null || Shape(declared, interner) is not { } shape)
+        if(argument is not UnboundLambdaExpression lambda || lambdas is null || ContextualLambdaTarget.Of(declared, interner) is not { } shape)
         {
             return;
         }

@@ -1,3 +1,5 @@
+using Mist.Driver.Contracts;
+
 namespace Mist.CLI.Args;
 
 /// <summary>
@@ -36,7 +38,8 @@ public sealed record CliArguments(
     bool Quiet = false,
     bool Verbose = false,
     string? InspectTypeName = null,
-    string Pipeline = "classic");
+    string Pipeline = "classic",
+    TargetPlatform? Platform = null);
 
 /// <summary>
 /// The compiler execution mode.

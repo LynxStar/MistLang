@@ -51,6 +51,7 @@ internal class Program
             Console.Error.WriteLine("  --output <dir>     Output directory for emitted files");
             Console.Error.WriteLine("  --bin <dir>        Binary output directory");
             Console.Error.WriteLine("  --mode <mode>      Compiler mode: compile, lex");
+            Console.Error.WriteLine("  --platform <os>    Platform to compile for: windows, linux, macos (default: this machine)");
             Console.Error.WriteLine("  --verbose, -v      Show detailed output");
             Console.Error.WriteLine("  --quiet, -q        Suppress progress output");
             return 1;
@@ -112,6 +113,7 @@ internal class Program
         Console.WriteLine("  --output <dir>     Output directory for emitted files");
         Console.WriteLine("  --bin <dir>        Binary output directory");
         Console.WriteLine("  --mode <mode>      Compiler mode: compile, lex");
+        Console.WriteLine("  --platform <os>    Platform to compile for: windows, linux, macos (default: this machine)");
         Console.WriteLine("  --verbose, -v      Show detailed output");
         Console.WriteLine("  --quiet, -q        Suppress progress output");
     }
@@ -187,6 +189,9 @@ internal class Program
     {
         var lexer = new MistLexer();
         var hasErrors = false;
+
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(layout.LexMarkerPath)!);
+        File.WriteAllText(layout.LexMarkerPath, "Written by mist build --mode lex. Mist does not read the .mist files in this directory as sources.");
 
         foreach(var filePath in sourceFiles)
         {
@@ -328,7 +333,8 @@ internal class Program
             OutputType: config.OutputType,
             Pipeline: cliArgs.Pipeline == "experimental"
                 ? PipelineMode.Experimental
-                : PipelineMode.Classic);
+                : PipelineMode.Classic,
+            Platform: cliArgs.Platform);
 
         // Construct the compiler pipeline
         var lexer = new MistLexer();

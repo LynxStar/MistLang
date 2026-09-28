@@ -1,6 +1,5 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -22,8 +21,7 @@ internal static class LambdaBinder
 
     internal static Expression Bind(LambdaExpressionNode node, BindingContext ctx, BuilderContext context)
     {
-        var target = DelegateShape.Of(AliasTransparency.Expand(
-            ctx.TargetType ?? ErrorType.Instance, context.ProgramModel.TypeInterner));
+        var target = ContextualLambdaTarget.Of(ctx.TargetType, context.ProgramModel.TypeInterner);
 
         if(target is not null && target.ParameterTypes.Count != DeclaredParameterCount(node))
         {

@@ -24,7 +24,7 @@ internal static class Assignability
         return Judge(value.Type, target, interner, ConstantConversion.IntegerConstant(value));
     }
 
-    public static DiagnosticDescriptor? Judge(IMistType from, IMistType to, TypeInterner interner, long? integerConstant = null)
+    public static DiagnosticDescriptor? Judge(IMistType from, IMistType to, TypeInterner interner, Int128? integerConstant = null)
     {
         var kind = ConversionClassifier.Classify(from, to, interner);
 

@@ -186,7 +186,8 @@ falls under the refusal of a label on a group with no modifier.
 is an edge of the memoization graph; and `ReachabilityPass` neither flags an alternative holding a
 predicate nor counts its FIRST-k sequences against later ones, a guarded alternative accepting
 strictly less than its first three tokens claim. That last point costs `STORM0006` its sight of
-guarded alternatives, which is the price of the pass being a prefix approximation.
+guarded alternatives, which is the price of the pass being a prefix approximation. Since
+2026-09-27 the pass evaluates guards instead ("Reachability proves shadowing" below).
 
 **Memoization** stays sound: a predicate reads past the rule's end, but the answer is still a pure
 function of position in a fixed token stream. `SyntacticPredicateTests` runs each behaviour with
@@ -374,3 +375,89 @@ properties, and a fix changes what they see.
 - `GeneratedParserFidelityTests` holds 21 cases (27 parses) at the generated-parser boundary, and
   `RuleLiteralTokenReuseTests` another 2. That is at the top of the pyramid's ~10-20 per boundary,
   so adding a row there should come with a case against removing one.
+
+## Reachability proves shadowing -- 2026-09-27
+
+`ReachabilityPass` reported an alternative when every FIRST-3 token sequence it could begin with
+was one an earlier alternative could begin with. A sequence cut at three tokens stood for whatever
+followed it, so on `666c596c`, `rule R = A B C D | A B C E;` reported alternative 2, which the
+parser reaches on `a b c e`: the first alternative fails at `e` and ordered choice backtracks. A
+reference cut by recursion then carried on as if matched: with `rule P = A P B | C;`, `P B D` claimed
+`A B B` and so covered `A B B D`, which it never matches. Raising k moves the cut, it does not remove
+it. The example in `backlog/general.md` names a `MemberDeclaration` production that has since
+changed, so these were reproduced on fresh grammars.
+
+**Now.** `AlternativeShadowing` reports a later alternative only on proof. It lists the token
+prefixes the later alternative can begin with, each marked complete, cut at the current depth, or
+stopped where the pass does not follow it -- a recursive reference, an inline block's arms, a
+character class, a fragment. For each prefix it runs the earlier alternatives as the generated
+parser does, over three outcomes -- succeeds, fails, or cannot tell. That covers ordered choice,
+greedy optionals and repetitions, a `+` whose first round must consume, and predicates. A prefix is
+covered when an earlier alternative succeeds on it whatever follows, and the alternative is reported
+when every prefix is covered. A prefix left uncovered because it was cut, where an earlier
+alternative read past its end, is tried one token deeper, up to 16 tokens and 256 prefixes. Past
+either bound nothing is reported.
+
+A token is taken to differ from another only when both are declared tokens of different names. A
+literal may be the declared token that spells it (`";"` lowers to `SEMI` since the rule-literal
+fix), and assuming otherwise can prove a guard holds where it fails. So `SEMI !";" | SEMI SEMI`
+reports nothing. A guarded alternative covers a later one only where the later one's own tokens
+decide the guard, and a guarded alternative is itself reported when covered, so the predicates
+entry's "neither flags ... nor counts" no longer holds.
+
+| Rule `R` | Before | After |
+|---|---|---|
+| `A B C D \| A B C E` | 2 | nothing |
+| `A B C D E F \| A B C D E G` | 2 | nothing |
+| `P B D \| A B B D`, `P = A P B \| C` | 2 | nothing |
+| `Q D \| A B C E`, `Q = A B C` | 2 | nothing |
+| `A B? C D E \| A B C D F` | 2 | nothing |
+| `A B* B \| A B B` | 2 | nothing |
+| `A C \| A B C \| A B* C` | 3 | nothing |
+| `IDENT LT GT LP \| IDENT LT GT \| IDENT` | 2 | nothing |
+| `A B \| A B C` | nothing | 2 |
+| `A B? \| A C`, `A B? C \| A C D` | nothing | 2 |
+| `A? \| B \| C` | nothing | 2, 3 |
+| `A* \| B` | nothing | 2 |
+| `A B C &D \| A B C D` | nothing | 2 |
+| `A !B \| A C` | nothing | 2 |
+
+Each sound report the old pass made in these tests is still made: duplicates,
+`A C | A D | A (C | D)`, `A B* C | A B C D` and `Q | A B C D E` with `Q = A B C D`. The unsound
+inline-block reports below are kept too. On Mist's grammar (135 rules, 364 alternatives) neither
+pass reports anything; the new one takes about 300 ms where the old took about 6 s.
+
+`AlternativeShadowingTests` holds it at Tier 1, over grammars built directly:
+
+- 30 rows, each asserting the reported alternatives, the severity and the owning rule's line;
+- a property of 300 cases checking every report against an interpreter of the generated parser's
+  semantics, over every input of up to 7 tokens drawn from three;
+- a property of 300 cases checking that alternatives of plain tokens are reported exactly when an
+  earlier one is a prefix. The old pass fails it on its second case.
+
+`SyntacticPredicateTests` asserted the old false positive: `IDENT LT GT LP | IDENT LT GT | IDENT`
+reported alternative 2, which the parser reaches on `a<>;`. That row is now
+`IDENT LT GT | IDENT LT GT LP | IDENT`, which the guarded form `IDENT LT GT &SEMI | ...` beside it
+does not report.
+
+Each of seventeen mutations of the pass is caught, as is putting the old pass back. Three -- an
+undecided optional or choice given a known end, an undecided choice taken to fail -- survived until
+the three rows where a literal may be the token after it were added.
+
+**Unresolved, left as the specs have it:**
+
+- Inline-rule-prefix requirement 5.3 compares arm tails by FIRST-k and is unchanged, so it keeps
+  the truncation defect: arms whose tails share three tokens and differ at the fourth are reported.
+- Requirement 5.4 treats an inline block, against its siblings, as its prefix clause. The pass
+  keeps that, taking a block to win wherever its prefix matches, which is not proof: in
+  `inline Prefix: { Arm1 as Alt1 } | A` with `Prefix = A` and `Arm1 = Prefix B`, the sibling `A` is
+  reached on `a c` and reported. `InlineBlockReachabilityTests` asserts this report twice.
+- `mist-compiler-architecture` requirement 7.2 says an unreachable alternative is an Error that
+  fails the build. The pass emits a Warning, as before; the zero-warning policy is what fails a
+  build today.
+
+**Limits:** a proof needing more than 16 tokens is not found, so a duplicate of 17 tokens is not
+reported. A later alternative with more than 256 prefixes at some depth is not reported. A literal
+and a declared token never match each other, so `SEMI as A | ";" as B` still draws nothing. An
+element after one whose end is unknown is taken to succeed only if it is written as an optional, a
+repetition or a group of them, never through a rule reference.

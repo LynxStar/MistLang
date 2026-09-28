@@ -71,7 +71,7 @@ internal sealed class LambdaTrials(BindingContext ctx, BuilderContext context) :
             return false;
         }
 
-        return DelegateShape.Of(AliasTransparency.Expand(parameterType, interner)) is { } shape
+        return ContextualLambdaTarget.Of(parameterType, interner) is { } shape
             ? Same(bound.Parameters.Select(parameter => parameter.Type).ToList(), shape.ParameterTypes)
                 && Produces(bound, shape.ReturnType, interner)
             : ConversionRelation.IsImplicit(bound.Type, parameterType);
@@ -81,8 +81,8 @@ internal sealed class LambdaTrials(BindingContext ctx, BuilderContext context) :
     {
         var interner = context.ProgramModel.TypeInterner;
 
-        if(DelegateShape.Of(AliasTransparency.Expand(left, interner)) is { } leftShape
-            && DelegateShape.Of(AliasTransparency.Expand(right, interner)) is { } rightShape
+        if(ContextualLambdaTarget.Of(left, interner) is { } leftShape
+            && ContextualLambdaTarget.Of(right, interner) is { } rightShape
             && Same(leftShape.ParameterTypes, rightShape.ParameterTypes)
             && ResultType(lambda, leftShape.ParameterTypes) is { } result and not ErrorType)
         {

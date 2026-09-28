@@ -234,6 +234,11 @@ Option 1 is the strongest guarantee (misalignment is structurally impossible). O
 
 ## 🟡 STORM0006 false positive: MemberDeclaration alternative 13 (ModifiedAssociatedTypeMember) flagged unreachable
 
+**Resolved 2026-09-27.** The production below has since changed, and the pass no longer compares
+truncated FIRST-3 sets: it reports an alternative only when an earlier one is proved to win on
+every prefix it can start with. The counterexample, proof limits and tests are in
+`backlog/storm.md`, "Reachability proves shadowing".
+
 **Severity: medium (build warning, no runtime impact)** — The Storm source generator's reachability pass (`ReachabilityPass.cs`) flags alternative 13 in `MemberDeclaration` as unreachable. This is a false positive caused by bounded k=3 lookahead being insufficient to distinguish `MemberTypeAliasMember` (alt 10) from `ModifiedAssociatedTypeMember` (alt 13).
 
 **Why it's a false positive:** Both alternatives start with `Modifier+ TYPE IDENTIFIER`, making their FIRST-3 sequences identical. The disambiguating token (`=` for alias, `:` or `;` for slot) appears at position 4+ — or even further out when `TypeParams?` is present (e.g., `public type Foo<T> : Bar;`). Since the PEG parser uses unlimited backtracking, it correctly tries alt 10 first, fails (no `=`), backtracks, and eventually reaches alt 13. The warning is wrong — the alternative IS reachable at runtime.

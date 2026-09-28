@@ -6784,6 +6784,53 @@ capabilities:
       union with void, and the optional falling on the array and not on its element. Six mutations, each
       caught by name: either suffix written before the type arguments, either resolver arm removed, and
       either suffix dropped from the printer.
+
+      OPTIONAL LAMBDA TARGETS, 2026-09-27 (workstream 12). ContextualLambdaTarget alias-expands the
+      destination and uses the callable shape of exactly its one present constituent in T | void.
+      LambdaBinder uses that signature for parameters, declared results and IsPure, while the bound
+      lambda remains a present function value admitted by ordinary optional widening. Hand-built inputs
+      in ContextualLambdaTargetTests (17 Tier 1 cases) and OptionalLambdaBindingTests (30 Tier 2 cases)
+      cover typed locals, reassignment, field initializers, declared returns and a closed non-generic
+      sole-candidate argument, expression and block bodies, suffix/union/alias spellings, nested result
+      targets, arity refusals and the local/pure conflict. Incompatible results retain the targets judged
+      by existing analysis; purity decisions remain with the existing analyzer. Removing optional
+      recognition and rebuilding fails 27 of the 47 cases; all ten target-path rows reproduce
+      MIST_PM_LAMBDA_PARAMETER_NO_TYPE. DelegateShape and value invocation are unchanged: an optional
+      receiver acquires no callable signature before narrowing. General unions, overloaded lambda
+      trials and generic-call inference remain deferred; this slice does not select callable union
+      alternatives or change method-group conversion, conversions or overload ranking.
+      The focused ledger passes 201/201 cases and the full solution ledger passes 10603/10603;
+      the solution build reports zero warnings and scoped formatting verification is clean.
+
+      OPTIONAL LAMBDA OVERLOAD TRIALS, 2026-09-27 (workstream 12 follow-up 1). LambdaTrials reads
+      optional destinations through ContextualLambdaTarget for applicability and inferred-result
+      comparison. Each candidate must admit the lambda's actual body results rather than merely its
+      target-stamped function type. Eighteen Tier 2 cases in OptionalLambdaOverloadTests cover
+      expression/block results, constructed aliases, stated-parameter/arity/local-pure/body-error
+      refusals, optional/plain comparisons, existing optional-widening preference and ambiguity,
+      unique-other-argument diagnostic recovery, withheld diagnostics and discarded generic call
+      records with exactly one retained binding. Regression cases fail before optional trial
+      recognition. The focused ledger passes 69/69; the build has zero warnings and scoped formatting
+      verification is clean. OverloadResolution and its ranking rules are unchanged. Generic lambda
+      inference remains a separate follow-up; callable alternatives in general unions remain deferred.
+
+      OPTIONAL LAMBDA GENERIC INFERENCE, 2026-09-27 (workstream 12 follow-up 2). TypeArgumentInference
+      uses the present contextual signature when collecting a lambda's stated parameter bounds and
+      when teaching results after its inputs can be fixed. The existing repeated-pass, dominant-bound
+      and frozen-input rules are unchanged; method groups retain their existing shape reader.
+      OptionalLambdaInferenceTests supplies sixteen Tier 1 cases with direct model inputs and stub
+      lambda trials: optional/constructed-alias/plain targets, stated or argument-provided inputs,
+      unavailable/conflicting inputs, frozen bounds, parameterless lambdas, dependent callbacks,
+      receiver substitution, deferred general unions and unchanged optional method-group behavior.
+      OptionalLambdaGenericCallTests supplies nineteen Tier 2 hand-built call cases: expression/block
+      bodies, optional and generic-alias destinations, purity inheritance, equal inferred/explicit
+      signatures and recorded type arguments, body-derived outputs, generic overload selection,
+      single cause diagnostics and async task results. Before the change, the regression cases miss
+      result bounds or report not-inferred instead of the input conflict; final inference retains
+      only the selected calls. The focused ledger passes 104/104, the solution builds with zero
+      warnings and scoped formatting verification is clean. General callable unions remain deferred
+      pending their selection specification; method-group conversion and overload ranking are unchanged.
+      The full solution ledger passes 10656/10656 cases across Mist, Storm and CLI after both follow-ups.
     unlocks: []
 
   - id: lambda-expressions

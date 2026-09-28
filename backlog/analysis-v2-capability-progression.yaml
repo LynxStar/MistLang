@@ -3905,9 +3905,12 @@ rules:
       trailing text, an extra newline after `abc\n?`, "\n" under the empty pattern, a partial branch of
       `abc|xyz`, and user-written ^/$ with and without (?m). Restoring the old anchors here alone fails
       exactly five of those rows and the moved row; dropping the group fails the two alternation rows.
-      Malformed patterns, timeouts and ignore-case options remain UNPROVEN as before, except that a
-      pattern malformed only on its own and well formed once wrapped (`a)|(?:b`) is decided, as the
-      runtime test decides it -- see the LIMIT in emitter order 178.
+      Malformed patterns -- including one that parses only once wrapped, `a)|(?:b` -- timeouts and
+      ignore-case options remain UNPROVEN, and a refinement holding a malformed regex is refused once by
+      order 14 (regex-pattern-validity) and draws no refinement finding of its own. The wrapper also
+      closes through `(?#`, a newline and `(?#)`, as the emitted test does, so a pattern ending in an
+      `(?x)` `#` comment is decided rather than failing to parse. RegexFullMatchDecisionTests gains seven
+      Tier 1 rows, four x-mode and three whose pattern parses only once wrapped, 28 in all.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>
@@ -4505,3 +4508,59 @@ rules:
         checks the blocks in its ExperimentalOnly set against AllFeaturesV2.out, so its name overstates;
         and it skips the check, silently, when a spec names a sample directory rather than a file, which is
         why Requirement 17 names samples/Purity/Program.mist.
+
+  - id: regex-pattern-validity
+    name: A written regex the .NET engine refuses
+    order: 14
+    subsystem: regex
+    requires: [analyzer-contract, declaration-shape-checks, refinement-proving]
+    status: done
+    from: >
+      emitter order 177 (regex-type-and-literals), whose evidence claims a compile-time validation v2 had
+      never done, and order 178 (regex-full-match-lowering), where a pattern malformed on its own leaked a
+      partial match through the full-match wrapper; regex spec 4.6, 5.3-5.5, 6.9, 7.7 and 11.4
+    evidence: >
+      ADDED 2026-09-28 (workstream 19, at Arthur's request once order 178 recorded the leak).
+      MIST_PA_REGEX_INVALID, "Invalid regex pattern: {0}", carries the .NET parser's own message, which
+      names the pattern, the zero-based offset and the error (R5.4). RegexAnalyzer judges each pattern
+      where it is WRITTEN: a regex literal and the string shorthand that binds as one (both
+      RegexLiteralExpression), a regex anywhere in a body pattern (the shared walk), and every regex in a
+      predicate DeclaredPredicates yields -- aliases, `where` parameters, type parameters, extension blocks
+      and local functions. It never follows a TypeTestPattern into its refinement, so a refinement tested
+      at many sites is one complaint. The decision is RegexSyntax.Error: decode the literal body and
+      construct a Regex from the pattern ALONE; a body that does not decode is not judged.
+
+      ONE MISTAKE, ONE COMPLAINT. LiteralPredicates.IsRefused counts a refinement holding a malformed regex
+      anywhere in its predicate as refused, as it already did a misordered comparison, so an assignment,
+      an argument or a `where` call against it draws nothing more. Before, `where p `(`` drew
+      MIST_PA_CONSTRAINT_UNPROVEN at the call; RefinementValueRefusalTests' row pinning
+      MIST_PA_REFINEMENT_UNPROVEN for a `[` refinement is retired for the same reason, its claim now
+      MalformedRegexDecisionTests'. LiteralPredicates.Match also answers unknown for a pattern that does
+      not parse alone, rather than deciding its wrapped text.
+
+      MEASURED 2026-09-28 ON BOTH PIPELINES, before the change. Classic refuses a malformed alias
+      predicate, literal and body pattern as MIST_TC_REGEX_INVALID (the literal and the pattern with the
+      unformatted message "Invalid regex pattern: {0} at offset {1}"), accepts a malformed `where`
+      predicate and never checks it, and lets the shorthand `regex q = "abc\\"` throw at run time. v2
+      refused none of them: the literal and the shorthand threw RegexParseException at run time, the
+      pattern printed True through the wrapper, and the `where` call drew CONSTRAINT_UNPROVEN. After, v2
+      reports exactly one MIST_PA_REGEX_INVALID for each, at the pattern's own position -- an alias with
+      an assignment and an `is` use included. v2 follows the spec where classic misses a position.
+
+      DELIBERATELY NOT HERE: a string cast with `(regex)` or handed to the Regex constructor is a run-time
+      construction (R6.7) and throws there, as on classic. The wrapper's soundness for a VALID pattern is
+      emitter order 178's.
+
+      COVERAGE: MalformedRegexDecisionTests, 24 Tier 1 rows -- an error naming the offset for six malformed
+      bodies, none for five valid bodies or an undecodable one, refusal of a refinement holding a malformed
+      regex bare, negated, in a disjunction and in a conjunction (and not of the well-formed four), and no
+      RefinementDecision finding for a value or a `where` argument against one. RegexAnalyzerTests, 12
+      Tier 2 rows over hand-built bodies and declarations: a literal, an `is` pattern, a negated switch
+      arm, an alias predicate, a `where` predicate and an alias tested twice in a body, each malformed (one
+      finding, at the written position, naming offset 2) and well formed (silent). MUTATIONS: IsRefused
+      ignoring a malformed regex fails exactly the eight refusal and no-finding rows; skipping the
+      declared predicates fails exactly the alias, `where` and tested-alias rows. VERIFIED: solution build
+      with zero warnings and errors, dotnet format --verify-no-changes exit 0 with empty output, and full
+      ledger 20260928-182241 passing all 11,109 tests (10,191 compiler, 99 CLI, 819 source generator),
+      both sample baselines included, failures.txt empty.
+    tasks: []

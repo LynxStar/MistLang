@@ -10027,7 +10027,9 @@ capabilities:
     evidence: >
       Backtick literals with their own escape handling, validated at compile time, plus built-in
       members, implicit conversion to string, an explicit cast from a non-constant string, and a
-      string-literal shorthand gated on compile-time validation.
+      string-literal shorthand gated on compile-time validation. (On v2 that validation was measured
+      absent on 2026-09-28 -- a malformed literal or shorthand threw at run time -- and is now analysis
+      order 14, regex-pattern-validity.)
 
       MAPPED ONTO THE CLR TYPE, NEVER DUPLICATED. `regex` emits as
       System.Text.RegularExpressions.Regex, and the four members Mist spells differently are
@@ -10094,11 +10096,26 @@ capabilities:
       exactly the Tier 1 expression test and the runtime seam (ledger 20260928-174139); in
       LiteralPredicates alone, exactly five decision rows and the refinement row (20260928-174203);
       dropping the group in LiteralPredicates fails exactly the two alternation rows.
-      LIMIT: the wrapper is textual, so a pattern malformed on its own can close the group early.
-      `"azzz" is `a)|(?:b`` prints True on v2 (measured 2026-09-28): the wrapped text is a valid
-      alternation whose first branch accepts a prefix, at run time and in a compile-time proof alike.
-      v2 does not yet refuse a malformed pattern (regex spec 4.6, 5.3, 7.7, 11.4); once it does, no
-      such pattern reaches the wrapper.
+
+      THE TEXTUAL WRAPPER'S TWO LEAKS, CLOSED THE SAME DAY. A pattern malformed on its own could close
+      the group early: `"azzz" is `a)|(?:b`` printed True on v2 (measured 2026-09-28), the wrapped text
+      being a valid alternation whose first branch accepts a prefix, at run time and in a compile-time
+      proof alike. Analysis now refuses every written pattern the engine rejects alone
+      (MIST_PA_REGEX_INVALID, analysis order 14, regex-pattern-validity), and a constructed Regex has
+      parsed already, so none reaches the wrapper; LiteralPredicates answers unknown for one besides.
+      The converse leak: a VALID pattern ending inside an `(?x)` `#` comment swallowed the closing `)`
+      -- `"abc" is `(?x)abc #c`` threw RegexParseException on v2, and classic emitted C# that did not
+      compile. The wrapper now closes through `(?#`, a newline and `(?#)`: the newline ends such a
+      comment and the second `(?#` reopens an empty one, while a pattern ending anywhere else reads the
+      whole run as one inline comment. Emitted: `"\\A(?:" + p + "(?#\n(?#))\\z"`, and LiteralPredicates
+      wraps the same way. A v2 probe now prints True False True for `is` over "abc" and "abc\n" and for
+      IsFullMatch. The book's two regex snippets were re-emitted again, changing only the suffix.
+      PINNED BY the expression test, four x-mode rows and three rows whose pattern parses only once
+      wrapped in RegexFullMatchDecisionTests (28 rows now), and two rows added to
+      PredicatePatternRuntimeBoundaryTests, the Roslyn-compiled seam: `(?x)abc #c` accepts "abc" and
+      refuses "abc\n". MUTATIONS: dropping the suffix from the lowering fails exactly the expression test
+      and the runtime seam; from LiteralPredicates, together with its alone-check, exactly the four
+      x-mode rows and the two rows that parse once wrapped.
     unlocks: []
 
   - id: regex-refined-string-types
@@ -12119,7 +12136,8 @@ samples:
       - Full match is lowered by wrapping the pattern via string concatenation as `\A(?:p)\z`, so an
         already-anchored pattern keeps its own anchors inside. No input ends in a newline, so the
         sample cannot tell `\A...\z` from `^...$`; that boundary is pinned below it (order 178).
-      - Invalid-pattern rejection is never exercised.
+      - Invalid-pattern rejection is never exercised here. MIST_PA_REGEX_INVALID is pinned at Tiers 1
+        and 2 instead (analysis order 14).
 
   - name: DropSemantics
     intro_order: 66

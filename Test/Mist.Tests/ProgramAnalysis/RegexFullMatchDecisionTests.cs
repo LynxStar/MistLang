@@ -17,6 +17,8 @@ public sealed class RegexFullMatchDecisionTests
     [InlineData(@"abc\\n", "abc\n")]
     [InlineData(@"abc\\r?\\n", "abc\r\n")]
     [InlineData(@"(?m)^abc$\\n", "abc\n")]
+    [InlineData("(?x)abc #c", "abc")]
+    [InlineData("(?x) a b # c", "ab")]
     public void AnInputThePatternConsumesEntirely_IsAdmitted(string body, string input)
     {
         Assert.True(Decide(body, input));
@@ -37,9 +39,20 @@ public sealed class RegexFullMatchDecisionTests
     [InlineData("(?m)^abc$", "abc\nabc")]
     [InlineData("(?m)abc$", "xyz\nabc")]
     [InlineData(@"abc\\n?", "abc\n\n")]
+    [InlineData("(?x)abc #c", "abc\n")]
+    [InlineData("(?x)abc #c", "abcx")]
     public void AnInputWithCharactersThePatternLeavesUnconsumed_IsRefused(string body, string input)
     {
         Assert.False(Decide(body, input));
+    }
+
+    [Theory]
+    [InlineData("a)|(?:b", "azzz")]
+    [InlineData("a)(b", "ab")]
+    [InlineData("[", "[")]
+    public void APatternThatDoesNotParseAlone_IsUndecided(string body, string input)
+    {
+        Assert.Null(Decide(body, input));
     }
 
     private static bool? Decide(string body, string input)

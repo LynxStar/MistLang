@@ -53,7 +53,6 @@ public sealed class RefinementValueRefusalTests
     [InlineData("literal-violates-refinement", "adult-literal7", "MIST_PA_REFINEMENT_VIOLATED")]
     [InlineData("literal-violates-the-only-constituent-that-holds-it", "split-literal300", "MIST_PA_REFINEMENT_VIOLATED")]
     [InlineData("local-function-where-violated", "ten-literal50", "MIST_PA_CONSTRAINT_VIOLATED")]
-    [InlineData("malformed-regex-remains-unproven", "bad-regex", "MIST_PA_REFINEMENT_UNPROVEN")]
     [InlineData("narrowed-binding-not-implied", "adult-to-drinking", "MIST_PA_REFINEMENT_NOT_IMPLIED")]
     [InlineData("negated-regex-dynamic-remains-unproven", "regex-not-unknown", "MIST_PA_REFINEMENT_UNPROVEN")]
     [InlineData("negated-regex-literal-is-violated", "regex-not-literal", "MIST_PA_REFINEMENT_VIOLATED")]
@@ -178,7 +177,6 @@ public sealed class RefinementValueRefusalTests
             case "real-positive-to-unit": target = h.Between(h.Double, 0.0, 1.0); value = HandBuiltRefinements.Local(positive); break;
             case "real-negated-parameter": target = positive; value = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, HandBuiltRefinements.Local(positive), positive); break;
             case "culture-regex": target = h.Regex("(?i:i)"); value = h.Literal("I"); break;
-            case "bad-regex": target = h.Regex("["); value = h.Literal("a"); break;
             case "escaped-string": target = h.Refine(h.String, ComparisonKind.Equal, "a\\n"); value = h.Literal("a\\\\n"); break;
             case "string-unknown": target = h.Refine(h.String, ComparisonKind.Equal, "x"); value = HandBuiltRefinements.Local(h.String); break;
             case "string-not-literal": target = HandBuiltRefinements.RefinePattern(h.String, new NegatedPattern(HandBuiltModel.Node(), h.String, h.Compare(h.String, ComparisonKind.Equal, "x"))); value = h.Literal("x"); break;

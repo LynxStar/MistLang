@@ -23,7 +23,7 @@ public sealed class RegexFullMatchEmissionTests
     public void AFullMatchPattern_AnchorsTheGroupedPatternAtTheEndsOfTheInput()
     {
         const string expected = """
-            "\\A(?:" + pattern + ")\\z"
+            "\\A(?:" + pattern + "(?#\n(?#))\\z"
             """;
 
         Assert.Equal(expected, RegexLowering.FullMatchPattern("pattern"));

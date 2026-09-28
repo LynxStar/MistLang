@@ -586,6 +586,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot capture {0} variable '{1}' in a {2}: {3}.");
 
+    public static readonly DiagnosticDescriptor RegexInvalid = new(
+        new DiagnosticId("MIST_PA_REGEX_INVALID"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Invalid regex pattern: {0}");
+
     public static readonly DiagnosticDescriptor RefinementViolated = new(
         new DiagnosticId("MIST_PA_REFINEMENT_VIOLATED"),
         DiagnosticSeverity.Error,

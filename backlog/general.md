@@ -849,9 +849,13 @@ lowering and the compile-time refinement check both wrap as `\A(?:...)\z` now, s
 pattern, a refined-type test and a literal refinement proof share one exact boundary. A pattern that
 consumes the newline (`` `abc\n` ``) still matches `"abc\n"`, and `IsMatch` stays partial. The regex
 spec's Full_Match wording now names these anchors. Classic still prints `True True` (measured
-2026-09-28); v2 follows the spec's "entire input" here, not classic. Tests, mutations and the remaining
-malformed-pattern limit are in order 178 (`regex-full-match-lowering`) of
-`backlog/emitter-v2-capability-progression.yaml`. Everything below this paragraph is the entry as filed.
+2026-09-28); v2 follows the spec's "entire input" here, not classic. The two ways the textual wrapper
+could still leak are closed as well: a pattern that is not a valid regex on its own (`a)|(?:b`, which
+wrapped accepted a prefix) is refused as `MIST_PA_REGEX_INVALID` wherever it is written, and a valid
+pattern ending in an `(?x)` `#` comment no longer swallows the wrapper's `)` and throws. Tests and
+mutations are in order 178 (`regex-full-match-lowering`) of `backlog/emitter-v2-capability-progression.yaml`
+and order 14 (`regex-pattern-validity`) of `backlog/analysis-v2-capability-progression.yaml`. Everything
+below this paragraph is the entry as filed.
 
 Found 2026-09-27 by the culture review of purity (v2); not about culture.
 

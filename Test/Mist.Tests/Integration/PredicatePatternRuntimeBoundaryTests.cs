@@ -99,6 +99,7 @@ public sealed class PredicatePatternRuntimeBoundaryTests
                 private static bool Union(Carrier value) { return {{Emit(Test(Reference("value", union), unionTyped))}}; }
                 private static int UnionSwitch(Carrier value) { return {{Emit(unionSwitch)}}; }
                 private static bool Once(System.Func<string> next) { return {{Emit(Test(next, either))}}; }
+                private static bool Commented(string value) { return {{Emit(Test(Reference("value", Text), Regex("(?x)abc #c")))}}; }
                 private static int Scoped(string value) { {{scoped}} }
                 private static bool TypedFloat(object value) { return {{Emit(Test(Reference("value", Single), floatTyped))}}; }
                 private static bool NotFloat(float value) { return {{Emit(Test(Reference("value", Single), floatNot))}}; }
@@ -156,6 +157,8 @@ public sealed class PredicatePatternRuntimeBoundaryTests
                     results.Add(NotFloat(0.1f) ? 1 : 0);
                     results.Add(EitherFloat(0.1f) ? 1 : 0);
                     results.Add(EitherFloat(2.0f) ? 1 : 0);
+                    results.Add(Commented("abc") ? 1 : 0);
+                    results.Add(Commented("abc\n") ? 1 : 0);
                     return results.ToArray();
                 }
             }
@@ -175,7 +178,7 @@ public sealed class PredicatePatternRuntimeBoundaryTests
             var assembly = context.LoadFromStream(stream);
             var results = Assert.IsType<int[]>(assembly.GetType("Probe")!.GetMethod("Run")!.Invoke(null, null));
             int[] expected = [1, 0, 1, 1, 0, 0, 1, 1, 0, 3, -1, 0, 0, 0, 1, 0, 2, 1, 0, 1, 0, 1, 0, 1, 3, -1, 1, 1, 3, -1];
-            Assert.Equal(expected.Concat(Enumerable.Repeat(1, 30)).Concat([0, 1, 0, 0, 1, 0, 1]), results);
+            Assert.Equal(expected.Concat(Enumerable.Repeat(1, 30)).Concat([0, 1, 0, 0, 1, 0, 1, 1, 0]), results);
         }
         finally
         {

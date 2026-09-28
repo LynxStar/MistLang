@@ -21,7 +21,8 @@ internal static class LiteralPredicates
     public static bool IsRefused(IMistType target)
     {
         return Requirement.Refined(target) is RefinedType refined
-            && (refined.Predicate is null || Comparability.IsRefused(refined) || IsRefused(refined.BaseType));
+            && (refined.Predicate is null || Comparability.IsRefused(refined) || RegexSyntax.Malformed(refined.Predicate).Any()
+                || IsRefused(refined.BaseType));
     }
 
     public static bool Satisfied(IMistType target, IMistType source, LiteralValue? value, Expression? expression)
@@ -125,7 +126,7 @@ internal static class LiteralPredicates
 
     private static bool? Match(string input, string body)
     {
-        if(LiteralValue.Decoded(body) is not { } pattern)
+        if(LiteralValue.Decoded(body) is not { } pattern || RegexSyntax.ErrorIn(pattern) is not null)
         {
             return null;
         }
@@ -138,7 +139,7 @@ internal static class LiteralPredicates
                 return null;
             }
 
-            return Regex.IsMatch(input, $@"\A(?:{pattern})\z", RegexOptions.None, MatchLimit);
+            return Regex.IsMatch(input, $"\\A(?:{pattern}(?#\n(?#))\\z", RegexOptions.None, MatchLimit);
         }
         catch(ArgumentException)
         {

@@ -53,11 +53,16 @@ internal static class RegexLowering
     /// full-match API, so the pattern is wrapped and matched partially. Grouped with <c>(?:</c> so a
     /// top-level alternation is anchored as a whole rather than only its first branch. Anchored with
     /// <c>\A</c> and <c>\z</c> because <c>$</c> also matches before a final newline, and both
-    /// <c>^</c> and <c>$</c> match at every line under multiline mode.
+    /// <c>^</c> and <c>$</c> match at every line under multiline mode. Closed through
+    /// <c>(?#</c>, a newline and <c>(?#)</c> because a pattern under <c>(?x)</c> can end inside a
+    /// <c>#</c> comment, which would swallow a bare <c>)</c>: the newline ends that comment and the
+    /// second <c>(?#</c> reopens one, while a pattern ending anywhere else reads the whole run as one
+    /// comment. The pattern must parse alone, which analysis's <c>RegexSyntax</c> explains and enforces
+    /// for a written one; a constructed regex has parsed already.
     /// </summary>
     public static string FullMatchPattern(string patternExpression)
     {
-        return $@"""\\A(?:"" + {patternExpression} + "")\\z""";
+        return $@"""\\A(?:"" + {patternExpression} + ""(?#\n(?#))\\z""";
     }
 
     public static string IsFullMatch(string inputExpression, string patternExpression)

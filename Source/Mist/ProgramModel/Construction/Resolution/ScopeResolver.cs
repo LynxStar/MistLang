@@ -219,7 +219,7 @@ internal sealed class ScopeResolver
 
         if(HasOptionalToken(singleRef) && inner is not ErrorType)
         {
-            context.ProgramModel.OptionalApplications.Record(inner, singleRef);
+            context.ProgramModel.OptionalApplications.Record(inner, singleRef, scope);
             return WrapOptional(inner);
         }
 
@@ -339,7 +339,7 @@ internal sealed class ScopeResolver
             }
 
             var enclosing = InheritedEnclosing(baseType, scope);
-            context.ProgramModel.ConstructorConstraintClosures.RecordType(baseType, typeArgs, node, enclosing);
+            context.ProgramModel.ConstructorConstraintClosures.RecordType(baseType, typeArgs, node, enclosing, scope);
             return Construct(baseType, typeArgs, scope, enclosing);
         }
 
@@ -418,11 +418,11 @@ internal sealed class ScopeResolver
 
         if(definition is TypeAlias alias)
         {
-            current = ExpandAlias(alias, arguments, node);
+            current = ExpandAlias(alias, arguments, node, scope);
         }
         else
         {
-            context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, arguments, node);
+            context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, arguments, node, boundIn: scope);
             current = interner.GetOrCreateConstructedType(definition, arguments);
         }
 
@@ -452,7 +452,7 @@ internal sealed class ScopeResolver
             {
                 var own = BindPack(member, ResolveTypeArguments(typeArgs!, scope), node);
                 var enclosing = substitution.EnclosingInstantiation(member.DeclaringType, interner);
-                context.ProgramModel.ConstructorConstraintClosures.RecordType(member, own, node, enclosing);
+                context.ProgramModel.ConstructorConstraintClosures.RecordType(member, own, node, enclosing, scope);
                 current = interner.GetOrCreateConstructedType(member, own, enclosing);
             }
             else
@@ -616,7 +616,7 @@ internal sealed class ScopeResolver
             ? BindPack(alias, ResolveTypeArguments(typeArgList, scope), node)
             : Absorbs(alias) ? BindPack(alias, [], node) : null;
 
-        return ExpandAlias(alias, typeArgs, node);
+        return ExpandAlias(alias, typeArgs, node, scope);
     }
 
     /// <summary>
@@ -628,6 +628,11 @@ internal sealed class ScopeResolver
     /// returns another alias: a chain bottoms out and a cycle resolves to an error type.
     /// </summary>
     internal IMistType ExpandAlias(TypeAlias alias, IReadOnlyList<IMistType>? typeArgs, Storm.Runtime.SyntaxNode? node = null)
+    {
+        return ExpandAlias(alias, typeArgs, node, boundIn: null);
+    }
+
+    internal IMistType ExpandAlias(TypeAlias alias, IReadOnlyList<IMistType>? typeArgs, Storm.Runtime.SyntaxNode? node, Scope? boundIn)
     {
         if(alias.AliasedType is null)
         {
@@ -646,7 +651,7 @@ internal sealed class ScopeResolver
 
         if(node is not null)
         {
-            context.ProgramModel.ConstructorConstraintClosures.RecordType(alias, typeArgs, node);
+            context.ProgramModel.ConstructorConstraintClosures.RecordType(alias, typeArgs, node, boundIn: boundIn);
         }
 
         return TypeSubstitution

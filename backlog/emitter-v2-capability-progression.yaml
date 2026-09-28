@@ -5225,6 +5225,22 @@ capabilities:
       to Admit(Tiger) -- is MIST_PM_NEWTYPE_CLONE_INVALID at the newtype, naming the member. Stage 5 runs
       once over the program without clones and once per clone, so every rule reads AnalysisContext.Types
       and Bodies instead of walking the model.
+      REGISTRY PASS ISOLATION (2026-09-27, workstream 13): AnalysisContext.Model is a read-only analysis
+      view whose constraint closings (open and closed) and optional applications belong to the pass.
+      Their recording sites retain binding scopes, distinguishing ordinary declarations, renamed clones
+      and conversions even when all retain the same source syntax. Restricted passes also follow syntax
+      held by their model roots and declarations, not the destination newtype's source span; Report uses
+      that same boundary. Conversion refusal selection checks file and location, and member attribution
+      chooses the innermost named span in that file. BindingFailure precedence, warning exclusion,
+      private-member access under 10.2 and error-value suppression remain. CloneAnalysisIsolationTests
+      use direct syntax/model inputs at Tiers 1-2 and one Tier 3 runner case; no source corpus, emission
+      or runtime is exercised. RefinementAnalyzer and PatternAnalyzer consume the scoped view unchanged.
+      VERIFIED: all 24 dedicated tests, all 3,049 analysis tests and the full 10,619-test
+      solution suite pass with zero build warnings; mutations restoring registry leakage,
+      cross-file attribution and skipping genuine conversion constraints each fail the intended
+      regression. Runtime sample tests passed under the unsandboxed execution profile required
+      on this host; the initial sandboxed full-suite run did not complete.
+      This does not extend the conversion kinds supported below or complete the newtypes specification.
       MEASURED on v2. A Jaguar assigned to Cat and to IStriped: was CAST_REQUIRED twice, now runs. A Tiger
       with a Stage 5 mistake of its own and a clone-only one: the first reported once, the second at the
       newtype; before, the first twice and the second against Tiger's line. Newtypes byte-identical to its

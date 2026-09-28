@@ -251,12 +251,12 @@ internal static class ExpressionBinder
 
             if(definition is TypeAlias alias)
             {
-                type = context.Resolver.ExpandAlias(alias, typeArgs, node);
+                type = context.Resolver.ExpandAlias(alias, typeArgs, node, ctx.Scope);
             }
             else
             {
                 var enclosing = context.Resolver.InheritedEnclosing(definition, ctx.Scope);
-                context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, node, enclosing);
+                context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, node, enclosing, ctx.Scope);
                 type = context.Resolver.Construct(definition, typeArgs, ctx.Scope, enclosing);
             }
         }
@@ -270,7 +270,7 @@ internal static class ExpressionBinder
             if(definition is TypeAlias alias)
             {
                 type = context.Resolver.ExpandAlias(
-                    alias, ScopeResolver.Absorbs(alias) ? context.Resolver.BindPack(alias, [], node) : null, node);
+                    alias, ScopeResolver.Absorbs(alias) ? context.Resolver.BindPack(alias, [], node) : null, node, ctx.Scope);
             }
             else if(ScopeResolver.Absorbs(definition))
             {

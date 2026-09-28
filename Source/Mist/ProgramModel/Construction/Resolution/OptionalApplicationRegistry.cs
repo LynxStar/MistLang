@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Construction.Resolution;
@@ -15,10 +16,10 @@ internal sealed class OptionalApplicationRegistry
 
     public IReadOnlyList<OptionalApplication> Applications => applications;
 
-    public void Record(IMistType inner, SyntaxNode node)
+    public void Record(IMistType inner, SyntaxNode node, Scope? boundIn = null)
     {
-        applications.Add(new OptionalApplication(inner, node));
+        applications.Add(new OptionalApplication(inner, node, boundIn));
     }
 }
 
-internal sealed record OptionalApplication(IMistType Inner, SyntaxNode Node);
+internal sealed record OptionalApplication(IMistType Inner, SyntaxNode Node, Scope? BoundIn = null);

@@ -3,6 +3,7 @@ using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -107,7 +108,7 @@ internal static class MethodGroupConversion
     }
 
     internal static Expression? Convert(
-        MethodGroupExpression group, IMistType? targetType, BuilderContext context, out bool ambiguous)
+        MethodGroupExpression group, IMistType? targetType, BuilderContext context, out bool ambiguous, Scope? boundIn = null)
     {
         var converted = Convert(group, targetType, context.ProgramModel.TypeInterner, out ambiguous);
 
@@ -116,7 +117,7 @@ internal static class MethodGroupConversion
             var closing = Receiver(group, reference.Method, context.ProgramModel.TypeInterner)
                 .Extend(TypeSubstitution.ForMethod(reference.Method, reference.TypeArguments));
 
-            context.ProgramModel.ConstructorConstraintClosures.RecordMethod(reference.Method, reference.TypeArguments, closing, group.Node);
+            context.ProgramModel.ConstructorConstraintClosures.RecordMethod(reference.Method, reference.TypeArguments, closing, group.Node, boundIn);
             context.ProgramModel.VariadicUses.Record(reference.Method, reference.TypeArguments);
             context.ProgramModel.GenericCalls.Record(reference.Method, reference.TypeArguments);
         }

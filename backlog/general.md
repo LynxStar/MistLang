@@ -586,7 +586,7 @@ Observed: `error MIST_PA_CONSTRAINT_NOT_SATISFIED: Type argument 'Score' does no
 
 ---
 
-## 🟡 A constraint error anywhere becomes the reason every clonable newtype cast is refused
+## 🟢 A constraint error anywhere becomes the reason every clonable newtype cast is refused
 
 **Severity: medium** -- misleading extra errors. The program is already refused, but each clonable cast reports a reason that has nothing to do with it.
 
@@ -598,7 +598,9 @@ error MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD: Cannot cast 'Cell<int>' to 'IntCel
 
 **Root cause:** `Source/Mist/ProgramAnalysis/ProgramAnalysisRunner.cs` judges each conversion that runs a `Clone` body by running every analyzer over an `AnalysisScope` holding just that body, and `CloneConversionRefusals.Judge` takes the first error as the refusal reason. `ConstraintAnalyzer` ignores the scope and walks `context.Model.ConstructorConstraintClosures.Closings` for the whole model, so any program-wide constraint finding lands in every per-body run.
 
-**Reproduction to confirm first** (unverified; once the F-bounded entry is fixed, use an ordinary violation):
+**Fixed (2026-09-27, workstream 13):** revalidated the defect on `666c596c1`. Analysis now exposes a read-only view of the constraint and optional-application registries for each pass. Recording sites retain their binding scope, so a source method, its renamed clone, and conversions rebinding the same syntax are distinguishable. Conversion and clone membership follows syntax actually carried by the judged model, including retained source syntax, rather than the destination declaration's span. Reports share this boundary; refusal selection additionally checks the finding's file and location, and member attribution checks the file before choosing the innermost named span. Binding failures still take precedence; warnings and inaccessible-member analysis findings still do not refuse a conversion. All 24 direct-input `CloneAnalysisIsolationTests`, all 3,049 analysis tests, and the full 10,619-test solution suite passed with zero build warnings. Mutations restoring registry leakage, cross-file attribution, and skipping genuine conversion constraints each failed the intended regression. The runtime sample tests require an unsandboxed execution profile on this host; the full green ledger used that profile. The change addresses diagnostic contamination, not every remaining newtype conversion capability.
+
+**Original source reproduction** (unverified; the regression tests construct an ordinary violation directly):
 
 ```mist
 using Standard;

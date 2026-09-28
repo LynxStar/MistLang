@@ -1279,8 +1279,9 @@ dotnet format Mist.slnx --verify-no-changes --report TestResults/sdk-cache-forma
 - The full rebuild had 0 warnings and 0 errors.
 - Formatting reported one finding, and it is not in this change: IDE0047 at `Test/Mist.Tests/Backend/ClrSpellingTests.cs:30`, which is unmodified here and was committed in `66ac194b`.
 - The full ledger `20260927-165112` passed 10,626 of 10,627 tests: `Mist.CLI.Tests` 89/89, `Storm.SourceGenerator.Tests` 787/787 and `Mist.Tests` 9,750/9,751.
-  - The one failure, `CultureInvariantEmissionTests.AProgramRunUnderTurkishAndGermanCultures_PrintsTheInvariantText`, is unmodified here and fails the same way on every run (again in `20260927-165445`).
-  - Its program printed `en-US` where `tr-TR` was expected, and every other line matched. The test selects the child's culture through `LANG`/`LC_ALL`, which .NET on Windows ignores, and this machine's OS culture is `en-US`.
+  - The one failure was `CultureInvariantEmissionTests.AProgramRunUnderTurkishAndGermanCultures_PrintsTheInvariantText`, which this change does not touch. It failed the same way in both runs, here and in `20260927-165445`.
+  - Its program printed `en-US` where `tr-TR` was expected, and every other line matched. The test selected the child's culture through `LANG`/`LC_ALL`, which .NET on Windows ignores, and this machine's OS culture is `en-US`.
+  - That is fixed on `main` by `.kiro/specs/target-platform` (`ee991fc0`, merged in `50543abc`): a program compiled for Windows now applies those variables itself.
 
 **Limits.**
 - No test drives the static `SdkDiscovery` wiring, since that would spawn `dotnet` and write `~/.mist`. The rewrite of the real cache above is the only evidence for that wiring.

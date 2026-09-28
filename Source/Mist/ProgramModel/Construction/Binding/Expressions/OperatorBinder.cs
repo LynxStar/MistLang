@@ -300,16 +300,23 @@ internal static class OperatorBinder
             case PostfixExpressionUnaryNode postfixExpression:
                 return PostfixBinder.BindPostfix(postfixExpression.Primary, ctx, context);
 
-            case NegateUnaryNode { Operand: PostfixExpressionUnaryNode { Primary: { Target: IntegerLiteralExpressionPrimaryNode minimum, Suffix.Length: 0 } } }
-                when LiteralBinder.NegatesToLongMinimum(minimum.IntegerLiteral.Lexeme):
-                return LiteralBinder.BindLongMinimum(node, context);
-
             case NegateUnaryNode negate:
                 {
+                    // A minus in front of an integer literal makes a negative number, whose type C# decides and
+                    // classic keeps by spelling the literal for C# to read: int.MinValue and long.MinValue have
+                    // no literal of their own, and an unsuffixed literal too large for int negates to a long.
+                    if(negate.Operand is PostfixExpressionUnaryNode { Primary: { Target: IntegerLiteralExpressionPrimaryNode literal, Suffix.IsEmpty: true } }
+                        && IntegerLiterals.ReadNegated(literal.IntegerLiteral.Lexeme) is (var boundary, var wellKnown))
+                    {
+                        return new LiteralExpression(node, boundary, context.Resolver.LookupWellKnown(wellKnown));
+                    }
+
                     var operand = BindUnary(negate.Operand, ctx, context);
-                    return new UnaryExpression(
-                        node, UnaryOperatorKind.Negate, operand,
-                        OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.Negate, operand.Type))
+                    var negated = NegatedLiteralType(operand) is { } promoted
+                        ? context.Resolver.LookupWellKnown(promoted)
+                        : OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.Negate, operand.Type);
+
+                    return new UnaryExpression(node, UnaryOperatorKind.Negate, operand, negated ?? ErrorType.Instance)
                     {
                         Operator = OperatorAdmissibility.SelectedUnary(UnaryOperatorKind.Negate, operand.Type),
                     };
@@ -320,7 +327,7 @@ internal static class OperatorBinder
                     var operand = BindUnary(logicalNot.Operand, ctx, context);
                     return new UnaryExpression(
                         node, UnaryOperatorKind.LogicalNot, operand,
-                        OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.LogicalNot, operand.Type))
+                        OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.LogicalNot, operand.Type) ?? ErrorType.Instance)
                     {
                         Operator = OperatorAdmissibility.SelectedUnary(UnaryOperatorKind.LogicalNot, operand.Type),
                     };
@@ -408,6 +415,24 @@ internal static class OperatorBinder
             default:
                 return new UnresolvedExpression(node);
         }
+    }
+
+    private static WellKnownType? NegatedLiteralType(Expression operand)
+    {
+        if(operand is not LiteralExpression)
+        {
+            return null;
+        }
+
+        var lexeme = operand.Node switch
+        {
+            IntegerLiteralExpressionPrimaryNode literal => literal.IntegerLiteral.Lexeme,
+            HexLiteralExpressionPrimaryNode literal => literal.HexLiteral.Lexeme,
+            BinaryLiteralExpressionPrimaryNode literal => literal.BinaryLiteral.Lexeme,
+            _ => null,
+        };
+
+        return lexeme is null ? null : IntegerLiterals.NegatedType(lexeme);
     }
 
     private static IMistType CastResultType(IMistType operand, IMistType target, BuilderContext context)

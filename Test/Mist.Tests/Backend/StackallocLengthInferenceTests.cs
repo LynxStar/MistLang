@@ -44,7 +44,7 @@ public sealed class StackallocLengthInferenceTests : ProgramModelProbe
         Assert.Same(declarations[0].Local.Type, result);
         Assert.Same(model.TypesByFQN["Standard.Int32"], lifted.Type);
         Assert.Equal((long)length, lifted.Value);
-        Assert.Equal((long)length, Assert.IsType<LiteralExpression>(allocation.Size).Value);
+        Assert.Equal(length, Assert.IsType<LiteralExpression>(allocation.Size).Value);
     }
 
     [Theory]

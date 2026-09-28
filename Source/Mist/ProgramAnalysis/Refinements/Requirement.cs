@@ -172,8 +172,8 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
     {
         return expression switch
         {
-            LiteralExpression { Value: long value } => value,
-            LiteralExpression { Value: int value } => value,
+            LiteralExpression literal when IntegralConstant.Of(literal.Value) is { } value
+                => value >= long.MinValue && value <= long.MaxValue ? (long)value : null,
             LiteralExpression { Value: char value } => value,
             LiteralExpression { Value: bool value } => value ? 1 : 0,
             MemberAccessExpression { Member: EnumMemberResult } access => EnumConstants.Of(access),

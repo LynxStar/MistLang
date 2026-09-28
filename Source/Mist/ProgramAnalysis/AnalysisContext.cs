@@ -18,9 +18,10 @@ internal sealed class AnalysisContext(
     IReadOnlySet<string> sourcePaths,
     DiagnosticBag diagnostics,
     string analyzerId,
-    IReadOnlyDictionary<CastOperator, ConversionRefusal> conversionRefusals)
+    IReadOnlyDictionary<CastOperator, ConversionRefusal> conversionRefusals,
+    AnalysisModel? scopedModel = null)
 {
-    public ProgramModelClass Model { get; } = model;
+    public AnalysisModel Model { get; } = scopedModel ?? new AnalysisModel(model, scope, sourcePaths);
 
     public IReadOnlyList<MistType> Types { get; } = scope.Types;
 
@@ -78,7 +79,8 @@ internal sealed class AnalysisContext(
 
     public bool IsInSource(SyntaxNode node)
     {
-        return sourcePaths.Contains(DiagnosticHelper.ResolveLocation(node).Path);
+        return sourcePaths.Contains(DiagnosticHelper.ResolveLocation(node).Path)
+            && (scope.Boundary?.Contains(node) ?? true);
     }
 
     /// <summary>
@@ -93,7 +95,7 @@ internal sealed class AnalysisContext(
         IReadOnlyList<Expression> about,
         params ReadOnlySpan<object?> args)
     {
-        if(about.Any(expression => expression.Type is ErrorType))
+        if(about.Any(expression => expression.Type is ErrorType) || (scope.Boundary is { } boundary && !boundary.Contains(at)))
         {
             return;
         }

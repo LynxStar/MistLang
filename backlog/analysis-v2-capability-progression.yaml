@@ -4562,5 +4562,8 @@ rules:
       declared predicates fails exactly the alias, `where` and tested-alias rows. VERIFIED: solution build
       with zero warnings and errors, dotnet format --verify-no-changes exit 0 with empty output, and full
       ledger 20260928-182241 passing all 11,109 tests (10,191 compiler, 99 CLI, 819 source generator),
-      both sample baselines included, failures.txt empty.
+      both sample baselines included, failures.txt empty. MAIN INTEGRATION: rebased onto 079e80d4
+      (extension declaration signatures, which touches DeclarationShapeAnalyzer and this register) without
+      conflict; the same gates hold there, and full ledger 20260928-182754 passes all 11,121 tests (10,203
+      compiler, 99 CLI, 819 source generator), both sample baselines included, failures.txt empty.
     tasks: []

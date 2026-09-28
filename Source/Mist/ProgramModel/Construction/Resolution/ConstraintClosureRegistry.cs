@@ -3,6 +3,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
@@ -54,13 +55,13 @@ internal sealed class ConstraintClosureRegistry
     /// constraint on the parameter each argument fills.
     /// </summary>
     public void RecordType(
-        IMistType definition, IReadOnlyList<IMistType> typeArguments, SyntaxNode node, ConstructedType? enclosing = null)
+        IMistType definition, IReadOnlyList<IMistType> typeArguments, SyntaxNode node, ConstructedType? enclosing = null, Scope? boundIn = null)
     {
         if(definition is TypeAlias alias)
         {
             var aliasClosing = TypeSubstitution.ForReceiver(enclosing)
                 .Extend(TypeSubstitution.ForParameters(alias.TypeParametersList, typeArguments));
-            Record(alias.TypeParametersList, typeArguments, aliasClosing, node, stampableOnly: true);
+            Record(alias.TypeParametersList, typeArguments, aliasClosing, node, boundIn, stampableOnly: true);
             return;
         }
 
@@ -72,17 +73,17 @@ internal sealed class ConstraintClosureRegistry
         var closing = TypeSubstitution.ForReceiver(enclosing)
             .Extend(TypeSubstitution.ForParameters(member.TypeParametersList, typeArguments));
 
-        Record(member.TypeParametersList, typeArguments, closing, node);
+        Record(member.TypeParametersList, typeArguments, closing, node, boundIn);
     }
 
     public void RecordStampableType(
-        IMistType definition, IReadOnlyList<IMistType> typeArguments, SyntaxNode node, ConstructedType? enclosing = null)
+        IMistType definition, IReadOnlyList<IMistType> typeArguments, SyntaxNode node, ConstructedType? enclosing = null, Scope? boundIn = null)
     {
         if(definition is MemberType member)
         {
             var closing = TypeSubstitution.ForReceiver(enclosing)
                 .Extend(TypeSubstitution.ForParameters(member.TypeParametersList, typeArguments));
-            Record(member.TypeParametersList, typeArguments, closing, node, stampableOnly: true);
+            Record(member.TypeParametersList, typeArguments, closing, node, boundIn, stampableOnly: true);
         }
     }
 
@@ -90,13 +91,13 @@ internal sealed class ConstraintClosureRegistry
     /// Records the closures a generic METHOD call performs.
     /// </summary>
     public void RecordMethod(
-        Method method, IReadOnlyList<IMistType> typeArguments, TypeSubstitution closing, SyntaxNode node)
+        Method method, IReadOnlyList<IMistType> typeArguments, TypeSubstitution closing, SyntaxNode node, Scope? boundIn = null)
     {
-        Record(method.TypeParametersList, typeArguments, method.BlockClosing.Extend(closing), node);
+        Record(method.TypeParametersList, typeArguments, method.BlockClosing.Extend(closing), node, boundIn);
     }
 
     private void Record(
-        IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType> typeArguments, TypeSubstitution closing, SyntaxNode node,
+        IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType> typeArguments, TypeSubstitution closing, SyntaxNode node, Scope? boundIn,
         bool stampableOnly = false)
     {
         for(var i = 0; i < parameters.Count && i < typeArguments.Count; i++)
@@ -108,11 +109,11 @@ internal sealed class ConstraintClosureRegistry
 
             if(typeArguments[i] is not TypeParameter)
             {
-                closings.Add(new TypeArgumentClosing(parameters[i], typeArguments[i], node, closing));
+                closings.Add(new TypeArgumentClosing(parameters[i], typeArguments[i], node, closing, boundIn));
             }
             else
             {
-                openClosings.Add(new TypeArgumentClosing(parameters[i], typeArguments[i], node, closing));
+                openClosings.Add(new TypeArgumentClosing(parameters[i], typeArguments[i], node, closing, boundIn));
             }
 
             foreach(var signature in Parameterized(parameters[i]))
@@ -164,4 +165,4 @@ internal sealed record ConstraintClosure(
 /// parameter, the receiver's or an enclosing declaration's -- <c>where U : T</c>, <c>where T : IRank of T</c> --
 /// and is only judged once every parameter it names is replaced by what this site closed it with.
 /// </param>
-internal sealed record TypeArgumentClosing(TypeParameter Parameter, IMistType Argument, SyntaxNode Node, TypeSubstitution Closing);
+internal sealed record TypeArgumentClosing(TypeParameter Parameter, IMistType Argument, SyntaxNode Node, TypeSubstitution Closing, Scope? BoundIn = null);

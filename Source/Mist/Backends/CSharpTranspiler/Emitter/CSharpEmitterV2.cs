@@ -136,6 +136,7 @@ internal sealed class CSharpEmitterV2
         EmitArrayRuntime(outputDir, emittedFiles);
         EmitTaskRuntime(outputDir, emittedFiles);
         EmitInvariantRuntime(outputDir, emittedFiles);
+        LocaleStartup.EmitFile(options, outputDir, emittedFiles);
 
         var csprojContent = ProjectFileEmitter.Emit(options, carriesEntryPoint);
         var csprojPath = Path.Combine(outputDir, $"{options.ProjectName}.csproj");

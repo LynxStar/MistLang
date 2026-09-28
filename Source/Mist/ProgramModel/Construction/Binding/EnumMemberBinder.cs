@@ -33,7 +33,7 @@ internal static class EnumMemberBinder
         // inferred -- NOT to the last explicit value, which repeats after two omissions in a row.
         // No previous variant counts from zero; a previous variant whose constant cannot be folded
         // is a third state, and the one that must not be guessed at.
-        long previous = -1;
+        Int128 previous = -1;
         var countable = true;
 
         foreach(var member in enumType.MembersList)
@@ -45,7 +45,7 @@ internal static class EnumMemberBinder
                 var bound => bound,
             };
 
-            if(Fold(member.Value) is { } constant)
+            if(IntegralConstant.Fold(member.Value) is { } constant)
             {
                 previous = constant;
                 countable = true;
@@ -78,7 +78,7 @@ internal static class EnumMemberBinder
         EnumMember member,
         EnumType enumType,
         IMistType underlying,
-        long previous,
+        Int128 previous,
         bool countable,
         BuilderContext context)
     {
@@ -89,7 +89,7 @@ internal static class EnumMemberBinder
             return new LiteralExpression(node, member.Name, underlying);
         }
 
-        if(!IntegralRanges.TryGetValue(underlying.FullyQualifiedName, out var range))
+        if(!IntegralConstant.IsIntegral(underlying))
         {
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.EnumVariantValueNotInferable, node, null,
@@ -107,7 +107,7 @@ internal static class EnumMemberBinder
 
         var value = previous + 1;
 
-        if(value < range.Min || value > range.Max)
+        if(IntegralConstant.Box(value, underlying) is not { } boxed)
         {
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.EnumVariantValueOutOfRange, node, null,
@@ -115,41 +115,6 @@ internal static class EnumMemberBinder
             return null;
         }
 
-        return new LiteralExpression(node, value, underlying);
+        return new LiteralExpression(node, boxed, underlying);
     }
-
-    /// <summary>
-    /// The compile-time constant of a bound value, folding the one shape a written integral commonly
-    /// takes beyond a bare literal: negation. Anything else -- a const reference, arithmetic -- is
-    /// not a constant this phase can see, and the caller treats the variant as uncountable rather
-    /// than guessing.
-    /// </summary>
-    private static long? Fold(Expression? expression)
-    {
-        return expression switch
-        {
-            LiteralExpression { Value: long constant } => constant,
-            UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operand: LiteralExpression { Value: long constant } }
-                => -constant,
-            _ => null,
-        };
-    }
-
-    /// <summary>
-    /// The bases that HAVE a successor, with the bounds a synthesized value must stay inside. A
-    /// struct or class base leaves an omitted value unanswered instead: there is no next instance of
-    /// a user type to reach for. UInt64's ceiling is capped at long.MaxValue because literal
-    /// constants are carried as long, so nothing beyond it can be counted from anyway.
-    /// </summary>
-    private static readonly Dictionary<string, (long Min, long Max)> IntegralRanges = new(StringComparer.Ordinal)
-    {
-        [WellKnownTypes.Byte.FullyQualifiedName] = (byte.MinValue, byte.MaxValue),
-        [WellKnownTypes.SByte.FullyQualifiedName] = (sbyte.MinValue, sbyte.MaxValue),
-        [WellKnownTypes.Int16.FullyQualifiedName] = (short.MinValue, short.MaxValue),
-        [WellKnownTypes.UInt16.FullyQualifiedName] = (ushort.MinValue, ushort.MaxValue),
-        [WellKnownTypes.Int32.FullyQualifiedName] = (int.MinValue, int.MaxValue),
-        [WellKnownTypes.UInt32.FullyQualifiedName] = (uint.MinValue, uint.MaxValue),
-        [WellKnownTypes.Int64.FullyQualifiedName] = (long.MinValue, long.MaxValue),
-        [WellKnownTypes.UInt64.FullyQualifiedName] = (0L, long.MaxValue),
-    };
 }

@@ -107,8 +107,8 @@ public class SyntacticPredicateTests
     [Theory]
     [InlineData("rule R = IDENT LT GT LP as Call | IDENT LT GT &SEMI as Stated | IDENT as Bare;", false)]
     [InlineData("rule R = IDENT LT GT &SEMI as Stated | IDENT LT GT LP as Call | IDENT as Bare;", false)]
-    [InlineData("rule R = IDENT LT GT LP as Call | IDENT LT GT as Stated | IDENT as Bare;", true)]
-    public void AGuardedAlternativeIsNeitherShadowedNorShadowing(string rule, bool flagged)
+    [InlineData("rule R = IDENT LT GT as Stated | IDENT LT GT LP as Call | IDENT as Bare;", true)]
+    public void AGuardedAlternativeShadowsOnlyWhereItsGuardHolds(string rule, bool flagged)
     {
         var diagnostics = ReachabilityPass.Run(ValidationTestHelpers.BuildGrammar(Tokens + rule));
 

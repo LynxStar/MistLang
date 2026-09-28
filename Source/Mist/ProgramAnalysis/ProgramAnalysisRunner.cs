@@ -5,6 +5,7 @@ using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
@@ -47,7 +48,7 @@ internal static class ProgramAnalysisRunner
         var refusals = CloneConversionRefusals.Judge(conversions, root =>
         {
             var findings = new DiagnosticBag();
-            Analyze(model, new AnalysisScope([], [root], [], []), sourcePaths, findings, CloneConversionRefusals.None);
+            Analyze(model, new AnalysisScope([], [root], [], [], RestrictToScope: true), sourcePaths, findings, CloneConversionRefusals.None);
 
             return findings.ToImmutableArray();
         });
@@ -64,7 +65,7 @@ internal static class ProgramAnalysisRunner
             clones,
             clone => Analyze(
                 model,
-                new AnalysisScope([clone], [.. bodies.Where(root => root.Owner == clone).Except(conversions)], [], []),
+                new AnalysisScope([clone], [.. bodies.Where(root => root.Owner == clone).Except(conversions)], [], [], RestrictToScope: true),
                 sourcePaths,
                 diagnostics,
                 refusals),
@@ -96,9 +97,11 @@ internal static class ProgramAnalysisRunner
             }
         }
 
+        var scopedModel = new AnalysisModel(model, scope, sourcePaths);
+
         foreach(var analyzer in Analyzers)
         {
-            analyzer.Analyze(new AnalysisContext(model, scope, nodes, roots, assignedBy, sourcePaths, diagnostics, analyzer.Id, refusals));
+            analyzer.Analyze(new AnalysisContext(model, scope, nodes, roots, assignedBy, sourcePaths, diagnostics, analyzer.Id, refusals, scopedModel));
         }
     }
 
@@ -112,4 +115,44 @@ internal sealed record AnalysisScope(
     IReadOnlyList<MistType> Types,
     IReadOnlyList<SourceRoot> Bodies,
     IReadOnlyList<ExtensionBlock> Extensions,
-    IReadOnlyList<TypeNaming> Namings);
+    IReadOnlyList<TypeNaming> Namings,
+    bool RestrictToScope = false)
+{
+    private readonly Lazy<AnalysisBoundary>? boundary = RestrictToScope
+        ? new(() => AnalysisBoundary.Create(Types, Bodies, Extensions, Namings))
+        : null;
+
+    public AnalysisBoundary? Boundary => boundary?.Value;
+
+    public bool ContainsBinding(Scope? boundIn)
+    {
+        if(ConversionScope.Around(boundIn) is { } conversion)
+        {
+            return Bodies.Any(root => ReferenceEquals(root.Member, conversion));
+        }
+
+        for(var current = boundIn; current is not null; current = current.Parent)
+        {
+            var owner = current switch
+            {
+                TypeScope type => type.Type,
+                CloneScope clone => clone.Clone,
+                _ => null,
+            };
+
+            if(owner is not null)
+            {
+                return RestrictToScope
+                    ? Types.Contains(owner)
+                    : owner is not ConcreteType { CloneSource: not null };
+            }
+
+            if(current is ExtensionScope { Block: { } extension })
+            {
+                return !RestrictToScope || Extensions.Contains(extension);
+            }
+        }
+
+        return !RestrictToScope;
+    }
+}

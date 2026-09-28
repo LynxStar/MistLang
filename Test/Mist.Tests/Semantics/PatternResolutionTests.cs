@@ -209,7 +209,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
         var comparison = Assert.IsType<ComparisonPattern>(PatternOf("var ok = n is 42;"));
 
         Assert.Equal(ComparisonKind.Equal, comparison.Kind);
-        Assert.Equal(42L, Assert.IsType<LiteralExpression>(comparison.Bound).Value);
+        Assert.Equal(42, Assert.IsType<LiteralExpression>(comparison.Bound).Value);
     }
 
     [Fact]

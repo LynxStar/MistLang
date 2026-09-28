@@ -36,14 +36,17 @@ public sealed class MistFileDiscoveryTests : IDisposable
         var alpha = Create("Alpha", "Foo.mist");
         var nested = Create("Alpha", "Deep", "Bar.mist");
         var sibling = Create("out-other", "Kept.mist");
+        var beside = Create("gen", "Kept.mist");
         _ = Create("readme.txt");
         _ = Create("Alpha", "Notes.cs");
         _ = Create("out", "lexer", "Program.mist");
         _ = Create("out", "lexer", "Alpha", "Foo.mist");
         _ = Create("bin", "Stale.mist");
+        _ = Create("gen", "lexer", ".mist-generated");
+        _ = Create("gen", "lexer", "Alpha", "Foo.mist");
 
         var layout = new ProjectLayout(project, Path.Combine(project, "out"), Path.Combine(project, "bin"), Directory.GetCurrentDirectory());
 
-        Assert.Equal([nested, alpha, beta, program, sibling], layout.DiscoverSources());
+        Assert.Equal([nested, alpha, beta, program, beside, sibling], layout.DiscoverSources());
     }
 }

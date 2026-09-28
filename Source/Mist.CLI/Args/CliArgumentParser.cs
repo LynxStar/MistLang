@@ -1,3 +1,5 @@
+using Mist.Driver.Contracts;
+
 namespace Mist.CLI.Args;
 
 /// <summary>
@@ -27,6 +29,7 @@ public static class CliArgumentParser
         var quiet = false;
         var verbose = false;
         var pipeline = "classic";
+        TargetPlatform? platform = null;
 
         for(var i = 0; i < args.Length; i++)
         {
@@ -110,6 +113,28 @@ public static class CliArgumentParser
                     if(pipeline is not ("classic" or "experimental"))
                     {
                         errors.Add(new CliParseError($"Unknown pipeline: '{args[i]}'. Valid pipelines: classic, experimental"));
+                    }
+                }
+            }
+            else if(arg == "--platform")
+            {
+                if(i + 1 >= args.Length)
+                {
+                    errors.Add(new CliParseError("Missing value for --platform flag."));
+                }
+                else
+                {
+                    i++;
+                    platform = args[i].ToLowerInvariant() switch
+                    {
+                        "windows" => TargetPlatform.Windows,
+                        "linux" => TargetPlatform.Linux,
+                        "macos" => TargetPlatform.MacOS,
+                        _ => null,
+                    };
+                    if(platform is null)
+                    {
+                        errors.Add(new CliParseError($"Unknown platform: '{args[i]}'. Valid platforms: windows, linux, macos"));
                     }
                 }
             }
@@ -269,7 +294,7 @@ public static class CliArgumentParser
         }
 
         return new CliParseResult(
-            new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode, quiet, verbose, inspectTypeName, pipeline),
+            new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode, quiet, verbose, inspectTypeName, pipeline, platform),
             errors);
     }
 }

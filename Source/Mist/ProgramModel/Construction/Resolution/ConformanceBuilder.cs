@@ -56,7 +56,7 @@ internal sealed class ConformanceBuilder
 
             var definition = scopeResolver.ResolveNamedType(arityName, pending.Scope, decl);
             var typeArgs = scopeResolver.ResolveTypeArguments(typeArgList, pending.Scope);
-            context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, decl);
+            context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, decl, boundIn: pending.Scope);
             abstractType = context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
         }
         else

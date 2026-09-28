@@ -91,6 +91,8 @@ mist build my-project --mode lex
 
 Runs only the lexer stage. For each `.mist` file, produces a `.tokens` file (showing each token as `[TokenKind: lexeme]`) and a reconstructed `.mist` file in the `out/lexer/` subdirectory. Useful for diagnosing tokenization issues.
 
+Lex mode also writes a `.mist-generated` file into that `lexer/` directory. It tells every later build, of this project or of one that references it, not to read the reconstructed `.mist` files as sources, even when `--output` put them somewhere other than `out/`.
+
 ### Quiet build (suppress progress output)
 
 ```bash

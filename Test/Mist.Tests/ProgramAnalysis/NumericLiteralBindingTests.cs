@@ -30,20 +30,35 @@ public sealed class NumericLiteralBindingTests
         Assert.Empty(f.Diagnostics.ToImmutableArray());
     }
 
+    [Fact]
+    public void AnLSuffixedMagnitudeLongCannotHold_IsAULong()
+    {
+        var f = new BindingFragments();
+        f.Register(f.Built.Type("UInt64"));
+
+        var literal = Assert.IsType<LiteralExpression>(
+            ExpressionBinder.BindExpression(BindingFragments.Expression(Literal("9223372036854775808L")), f.Binding, f.Builder));
+
+        Assert.Equal(9223372036854775808UL, literal.Value);
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
     [Theory]
-    [InlineData("bare", "9223372036854775808L")]
     [InlineData("negated", "9223372036854775809L")]
     [InlineData("negated", "9223372036854775808u")]
     [InlineData("negated-in-parentheses", "9223372036854775808L")]
-    public void AMagnitudeLongCannotHoldAnywhereElse_IsRefused(string form, string lexeme)
+    public void AMagnitudeLongCannotHoldUnderAMinus_IsANegatedULong(string form, string lexeme)
     {
         var f = new BindingFragments();
+        f.Register(f.Built.Type("UInt64"));
         var operand = form == "negated-in-parentheses" ? Parenthesized(Literal(lexeme)) : Literal(lexeme);
-        var syntax = form == "bare" ? BindingFragments.Expression(operand) : BindingFragments.Expression(Negated(operand));
 
-        _ = ExpressionBinder.BindExpression(syntax, f.Binding, f.Builder);
+        var negation = Assert.IsType<UnaryExpression>(
+            ExpressionBinder.BindExpression(BindingFragments.Expression(Negated(operand)), f.Binding, f.Builder));
 
-        Assert.Equal(OutOfRange, Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        _ = Assert.IsType<ulong>(Assert.IsType<LiteralExpression>(negation.Operand).Value);
+        _ = Assert.IsType<ErrorType>(negation.Type);
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
     }
 
     [Theory]

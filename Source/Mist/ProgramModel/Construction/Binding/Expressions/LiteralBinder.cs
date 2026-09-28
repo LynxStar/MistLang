@@ -19,11 +19,6 @@ internal static class LiteralBinder
         return Numeric(node, lexeme, value, wellKnown, context);
     }
 
-    internal static Expression BindHexLiteral(SyntaxNode node, string lexeme, BuilderContext context)
-    {
-        return Numeric(node, lexeme, HexValue(lexeme), WellKnownTypes.Int32, context);
-    }
-
     internal static Expression BindFloatLiteral(SyntaxNode node, string lexeme, BuilderContext context)
     {
         var (value, wellKnown) = RealValue(lexeme);
@@ -32,54 +27,7 @@ internal static class LiteralBinder
 
     internal static (object? Value, WellKnownType Type) IntegerValue(string lexeme)
     {
-        var upper = lexeme.ToUpperInvariant();
-        var wellKnown = upper switch
-        {
-            _ when upper.EndsWith("UL", StringComparison.Ordinal) || upper.EndsWith("LU", StringComparison.Ordinal) => WellKnownTypes.UInt64,
-            _ when upper.EndsWith("L", StringComparison.Ordinal) => WellKnownTypes.Int64,
-            _ when upper.EndsWith("U", StringComparison.Ordinal) => WellKnownTypes.UInt32,
-            _ => WellKnownTypes.Int32,
-        };
-
-        var digits = Digits(lexeme.TrimEnd('u', 'U', 'l', 'L'));
-
-        if(wellKnown == WellKnownTypes.UInt64)
-        {
-            return (ulong.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var wide) ? unchecked((long)wide) : null, wellKnown);
-        }
-
-        return (long.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) ? parsed : null, wellKnown);
-    }
-
-    internal static object? HexValue(string lexeme)
-    {
-        var digits = Digits(lexeme[2..].TrimEnd('u', 'U', 'l', 'L'));
-        return long.TryParse(digits, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
-    }
-
-    internal static object? BinaryValue(string lexeme)
-    {
-        var digits = Digits(lexeme[2..].TrimEnd('u', 'U', 'l', 'L'));
-        return long.TryParse(digits, NumberStyles.AllowBinarySpecifier, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
-    }
-
-    /// <summary>
-    /// Whether the literal is 9223372036854775808, unsuffixed or with an l suffix, which long cannot hold but
-    /// whose negation is long's minimum: C# admits it, as long, only as the operand a unary minus is written
-    /// directly before, so the negation is bound as the one constant rather than a minus over a literal.
-    /// </summary>
-    internal static bool NegatesToLongMinimum(string lexeme)
-    {
-        var magnitude = lexeme.TrimEnd('l', 'L');
-
-        return magnitude.Length >= lexeme.Length - 1
-            && ulong.TryParse(Digits(magnitude), NumberStyles.None, CultureInfo.InvariantCulture, out var value)
-            && value == 1UL << 63;
-    }
-
-    internal static Expression BindLongMinimum(SyntaxNode node, BuilderContext context)
-    {
-        return new LiteralExpression(node, long.MinValue, context.Resolver.LookupWellKnown(WellKnownTypes.Int64));
+        return IntegerLiterals.Read(lexeme) is (var value, var wellKnown) ? (value, wellKnown) : (null, WellKnownTypes.UInt64);
     }
 
     internal static (object? Value, WellKnownType Type) RealValue(string lexeme)

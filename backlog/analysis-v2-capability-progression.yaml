@@ -3652,8 +3652,9 @@ rules:
       takes precedence over a retained refinement type, and unary transformations cannot reuse their
       operand's refinement promise, so negating a Positive value does not prove another Positive.
       Integral-to-real conversion follows the emitted representation, including float-to-double precision and unsigned literal
-      truncation. Regex evaluation uses the emitter's ^(?:pattern)$ wrapping, including its final-newline
-      semantics, with a 100 ms evaluation budget per match. Unsupported options and predicate compositions remain
+      truncation. Regex evaluation uses the emitter's \A(?:pattern)\z wrapping, so a final newline the
+      pattern does not consume is refused as it is at run time (exact since 2026-09-28; see the
+      2026-09-28 paragraph below), with a 100 ms evaluation budget per match. Unsupported options and predicate compositions remain
       UNPROVEN. String slice lengths use decoded runtime characters rather than source escape spelling.
 
       Classic's regex assignments are an observable oracle, but its real and string constant verdicts
@@ -3892,6 +3893,21 @@ rules:
       tests finished in 157s. The code under verification is unchanged by this evidence append.
       Full dotnet format verification exited 0 with an empty
       /private/tmp/mist-enum-refinement-main-format.log.
+
+      EXACT REGEX FULL MATCH (2026-09-28, workstream 19). LiteralPredicates.Match wrapped the decoded
+      pattern as ^(?:pattern)$, whose $ also matches before a final newline, so `Letters value =
+      "abc\n"` over `[a-z]+` was PROVEN; the emitted runtime test answered True for it too. Both now
+      wrap as \A(?:pattern)\z (emitter order 178 holds the lowering side), and that assignment is
+      MIST_PA_REFINEMENT_VIOLATED -- LiteralPredicateDecisionTests' row moved from admitted to violated.
+      RegexFullMatchDecisionTests adds 21 Tier 1 rows over directly built refined types: admitted where
+      the pattern consumes the whole input (including a newline it names, `abc\n`, `abc\r?\n`,
+      `(?m)^abc$\n`, and the empty pattern over ""), refused for a final newline, CRLF, leading or
+      trailing text, an extra newline after `abc\n?`, "\n" under the empty pattern, a partial branch of
+      `abc|xyz`, and user-written ^/$ with and without (?m). Restoring the old anchors here alone fails
+      exactly five of those rows and the moved row; dropping the group fails the two alternation rows.
+      Malformed patterns, timeouts and ignore-case options remain UNPROVEN as before, except that a
+      pattern malformed only on its own and well formed once wrapped (`a)|(?:b`) is decided, as the
+      runtime test decides it -- see the LIMIT in emitter order 178.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>

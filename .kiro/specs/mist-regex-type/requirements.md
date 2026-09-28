@@ -36,7 +36,7 @@ Key design decisions:
 - **Regex_Keyword**: The reserved keyword `regex` that aliases `Standard.Regex`, following the same mechanism as `string` → `Standard.String`.
 - **Regex_Literal**: A backtick-delimited expression in Mist source (e.g., `` `[a-z]+` ``) that evaluates to a `Standard.Regex` value.
 - **Regex_Pattern**: A pattern used in `is` expressions and switch arms that tests whether a string value matches a regex. Written as a Regex_Literal in pattern position.
-- **Full_Match**: The semantics of regex pattern matching where the entire input string must match the regex pattern (equivalent to anchoring with `^` and `$`).
+- **Full_Match**: The semantics of regex pattern matching where the entire input string must match the regex pattern: the match starts at the first character and consumes the last, so a trailing newline the pattern does not consume makes the match fail. Equivalent to wrapping the pattern as `\A(?:pattern)\z`, NOT `^(?:pattern)$`: .NET's `$` also matches before a final newline, and multiline mode makes `^` and `$` match at every line.
 - **Keyword_Alias_Mapping**: The fixed mapping from reserved keywords to their fully-qualified standard library type names (e.g., `int → Standard.Int32`, `string → Standard.String`, `regex → Standard.Regex`).
 
 ## Requirements
@@ -63,7 +63,7 @@ Key design decisions:
 2. THE Standard_Regex type SHALL declare a public constructor that accepts a single `string` parameter named `pattern` representing the regex pattern.
 3. THE Standard_Regex type SHALL declare a public readonly property `Pattern` of type `string` that returns the original pattern string used to construct the regex.
 4. THE Standard_Regex type SHALL declare a public method `IsMatch(string input)` that returns `bool`, testing whether the input string matches the regex pattern (partial match — the pattern can match anywhere in the input).
-5. THE Standard_Regex type SHALL declare a public method `IsFullMatch(string input)` that returns `bool`, testing whether the entire input string matches the regex pattern (full match — equivalent to anchoring with `^...$`).
+5. THE Standard_Regex type SHALL declare a public method `IsFullMatch(string input)` that returns `bool`, testing whether the entire input string matches the regex pattern (Full_Match — anchored at the absolute start and end of the input, `\A...\z`).
 6. THE Standard_Regex type SHALL declare an implicit cast operator from `Standard.Regex` to `Standard.String` that returns the `Pattern` property value.
 7. THE Standard_Regex type SHALL declare an **explicit** cast operator from `Standard.String` to `Standard.Regex` that constructs a new `Standard.Regex` from the string value. This is explicit because the conversion can fail at runtime for non-literal strings with invalid patterns.
 8. THE Standard_Regex type SHALL be marked with a type-level `intrinsic` modifier, making it a backend-backed type whose runtime representation is provided by the C# backend.
@@ -151,7 +151,7 @@ Key design decisions:
 1. THE CSharp_Transpiler SHALL map `Standard.Regex` to `System.Text.RegularExpressions.Regex` in the backing type map.
 2. WHEN a generated file references the `Regex` type, THE CSharp_Transpiler SHALL emit a `using System.Text.RegularExpressions;` directive in that file.
 3. WHEN the CSharp_Transpiler encounters a `RegexLiteralExpression`, THE CSharp_Transpiler SHALL emit `new Regex(<escaped_pattern_string>, RegexOptions.Compiled)` in C#, where `<escaped_pattern_string>` is the regex pattern from the literal with C# string escaping applied.
-4. WHEN the CSharp_Transpiler encounters the `IsFullMatch` method call on a `Standard.Regex` instance, THE CSharp_Transpiler SHALL emit a call that uses `Regex.IsMatch` with the pattern wrapped in `^(?:...)$` anchoring to ensure the entire input is matched.
+4. WHEN the CSharp_Transpiler encounters the `IsFullMatch` method call on a `Standard.Regex` instance, THE CSharp_Transpiler SHALL emit a call that uses `Regex.IsMatch` with the pattern wrapped in `\A(?:...)\z` anchoring to ensure the entire input is matched.
 5. WHEN the CSharp_Transpiler encounters the `IsMatch` method call on a `Standard.Regex` instance, THE CSharp_Transpiler SHALL emit a call to `Regex.IsMatch(input)`.
 6. WHEN the CSharp_Transpiler encounters the `Pattern` property access on a `Standard.Regex` instance, THE CSharp_Transpiler SHALL emit a call to the `.ToString()` method on the `System.Text.RegularExpressions.Regex` instance.
 7. WHEN the CSharp_Transpiler encounters the implicit cast from `regex` to `string`, THE CSharp_Transpiler SHALL emit a call to `.ToString()` on the `Regex` instance.
@@ -165,8 +165,8 @@ Key design decisions:
 
 #### Acceptance Criteria
 
-1. WHEN the CSharp_Transpiler encounters an `is` expression with a regex literal pattern (e.g., `` x is `[a-z]+` ``), THE CSharp_Transpiler SHALL emit a C# expression that calls `Regex.IsMatch(scrutinee, "^(?:pattern)$")`, wrapping the original regex in a non-capturing group with start and end anchors to enforce full-match semantics.
-2. WHEN the CSharp_Transpiler encounters a switch arm with a regex literal pattern, THE CSharp_Transpiler SHALL emit the arm as a `string s when Regex.IsMatch(s, "^(?:pattern)$")` guard in C#, since C# does not natively support regex patterns in switch expressions.
+1. WHEN the CSharp_Transpiler encounters an `is` expression with a regex literal pattern (e.g., `` x is `[a-z]+` ``), THE CSharp_Transpiler SHALL emit a C# expression that calls `Regex.IsMatch(scrutinee, @"\A(?:pattern)\z")`, wrapping the original regex in a non-capturing group with absolute start- and end-of-input anchors to enforce Full_Match semantics.
+2. WHEN the CSharp_Transpiler encounters a switch arm with a regex literal pattern, THE CSharp_Transpiler SHALL emit the arm as a `string s when Regex.IsMatch(s, @"\A(?:pattern)\z")` guard in C#, since C# does not natively support regex patterns in switch expressions.
 3. WHEN the CSharp_Transpiler emits a regex pattern that appears inside a loop or is evaluated more than once at runtime, THE CSharp_Transpiler SHALL emit the pattern as a `private static readonly Regex` field with `RegexOptions.Compiled`, rather than constructing the regex inline on each evaluation.
 4. IF the scrutinee of a regex pattern match is not typed as `string`, THEN THE CSharp_Transpiler SHALL report a diagnostic error indicating that regex patterns require a string-typed scrutinee.
 5. THE CSharp_Transpiler SHALL produce C# code that compiles without errors for all regex pattern matching constructs where the scrutinee is typed as `string` and the regex literal contains a syntactically valid .NET regular expression.

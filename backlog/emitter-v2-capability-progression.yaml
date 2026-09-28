@@ -10062,11 +10062,43 @@ capabilities:
       full-match API. The classic pipeline wraps by string concatenation, so an already-anchored
       pattern gets DOUBLE-anchored.
 
-      WRAPPED WITH A NON-CAPTURING GROUP, `^(?:` and `)$`, so a top-level alternation is anchored as
-      a whole rather than only its first branch. v2 wraps in the same place classic does and inherits
-      the same double-anchoring: `^\d+$` becomes `^(?:^\d+$)$`. Harmless for every pattern in the
-      sample and left alone deliberately, since removing it would change what v2 answers where
-      classic does not, and the baseline holds both pipelines to one stdout.
+      WRAPPED WITH A NON-CAPTURING GROUP, so a top-level alternation is anchored as a whole rather
+      than only its first branch. v2 wraps in the same place classic does, so an already-anchored
+      pattern keeps its own anchors inside the group: `^\d+$` becomes `\A(?:^\d+$)\z`. Harmless,
+      because the outer anchors are absolute whatever the pattern holds.
+
+      EXACT BOUNDARY (2026-09-28, workstream 19). The wrapper was `^(?:` and `)$`, as classic's is,
+      and .NET's `$` also matches before a final newline: `` `abc`.IsFullMatch("abc\n") `` and
+      `"abc\n" is `abc`` both answered True, as did a compile-time refinement proof of the same
+      literal (backlog/general.md, "A regex full match admits a trailing newline"). v2 now anchors
+      with `\A(?:` and `)\z`: RegexLowering.FullMatchPattern emits the C# expression
+      `"\\A(?:" + p + ")\\z"`, and LiteralPredicates.Match wraps the decoded pattern the same way,
+      so IsFullMatch, a regex pattern, a refined-type test and a literal refinement proof share one
+      boundary. Analysis still does not reference the backend; the two wrappers are kept equal by the
+      tests below. The regex spec's Full_Match glossary, 2.5, 8.4 and 9.1-9.2, and its design and
+      tasks examples, now name these anchors. v2 now DIFFERS from classic on an input ending in a
+      newline -- classic still prints `True True` for that repro (measured 2026-09-28) -- following
+      the spec's "entire input". No sample input ends in a newline, so both baselines are unchanged;
+      the book's is-full-match and regex-patterns snippets were re-emitted, changing only the anchors.
+      A scratch probe on v2 prints False for IsFullMatch, `is`, `is Letters` and a CRLF input, True
+      for `is not`, for IsMatch (still partial) and for `` `abc\n`.IsFullMatch("abc\n") ``.
+      PINNED BY RegexFullMatchEmissionTests -- Tier 1 on the exact emitted expression, Tier 2 that
+      the IsFullMatch call, a regex pattern, a negated regex pattern and a refined-type test all go
+      through it -- and RegexFullMatchDecisionTests, 21 Tier 1 rows over LiteralPredicates: final
+      newline, CRLF, leading and trailing text, empty pattern and input, grouped alternation,
+      user-written `^`/`$`, embedded `(?m)`, and patterns that consume a newline. Two existing rows
+      asserted the old answer and were flipped: PredicatePatternRuntimeBoundaryTests' `Either("abc\n")`
+      (1 to 0; that Roslyn-compiled runtime seam is what proves the emitted backslashes) and
+      LiteralPredicateDecisionTests' `Letters value = "abc\n"` (admitted, now
+      MIST_PA_REFINEMENT_VIOLATED). MUTATIONS: restoring `^(?:`/`)$` in the lowering alone fails
+      exactly the Tier 1 expression test and the runtime seam (ledger 20260928-174139); in
+      LiteralPredicates alone, exactly five decision rows and the refinement row (20260928-174203);
+      dropping the group in LiteralPredicates fails exactly the two alternation rows.
+      LIMIT: the wrapper is textual, so a pattern malformed on its own can close the group early.
+      `"azzz" is `a)|(?:b`` prints True on v2 (measured 2026-09-28): the wrapped text is a valid
+      alternation whose first branch accepts a prefix, at run time and in a compile-time proof alike.
+      v2 does not yet refuse a malformed pattern (regex spec 4.6, 5.3, 7.7, 11.4); once it does, no
+      such pattern reaches the wrapper.
     unlocks: []
 
   - id: regex-refined-string-types
@@ -12084,9 +12116,9 @@ samples:
     requires: [regex-refined-string-types, regex-full-match-lowering, switch-expressions,
                pattern-matching-core, string-interpolation, var-type-inference]
     untested:
-      - Full match is lowered by wrapping the pattern via string concatenation, so an
-        already-anchored pattern gets DOUBLE-anchored. Correct here only because no test uses
-        multiline or an alternation spanning the anchor.
+      - Full match is lowered by wrapping the pattern via string concatenation as `\A(?:p)\z`, so an
+        already-anchored pattern keeps its own anchors inside. No input ends in a newline, so the
+        sample cannot tell `\A...\z` from `^...$`; that boundary is pinned below it (order 178).
       - Invalid-pattern rejection is never exercised.
 
   - name: DropSemantics

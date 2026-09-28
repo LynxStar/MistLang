@@ -174,7 +174,7 @@ public sealed class PredicatePatternRuntimeBoundaryTests
         {
             var assembly = context.LoadFromStream(stream);
             var results = Assert.IsType<int[]>(assembly.GetType("Probe")!.GetMethod("Run")!.Invoke(null, null));
-            int[] expected = [1, 0, 1, 1, 0, 1, 1, 1, 0, 3, -1, 0, 0, 0, 1, 0, 2, 1, 0, 1, 0, 1, 0, 1, 3, -1, 1, 1, 3, -1];
+            int[] expected = [1, 0, 1, 1, 0, 0, 1, 1, 0, 3, -1, 0, 0, 0, 1, 0, 2, 1, 0, 1, 0, 1, 0, 1, 3, -1, 1, 1, 3, -1];
             Assert.Equal(expected.Concat(Enumerable.Repeat(1, 30)).Concat([0, 1, 0, 0, 1, 0, 1]), results);
         }
         finally

@@ -138,7 +138,7 @@ internal static class LiteralPredicates
                 return null;
             }
 
-            return Regex.IsMatch(input, $"^(?:{pattern})$", RegexOptions.None, MatchLimit);
+            return Regex.IsMatch(input, $@"\A(?:{pattern})\z", RegexOptions.None, MatchLimit);
         }
         catch(ArgumentException)
         {

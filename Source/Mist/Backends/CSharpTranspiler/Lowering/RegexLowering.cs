@@ -51,11 +51,13 @@ internal static class RegexLowering
     /// <summary>
     /// The pattern a FULL match needs, which Mist derives rather than calls: the CLR has no
     /// full-match API, so the pattern is wrapped and matched partially. Grouped with <c>(?:</c> so a
-    /// top-level alternation is anchored as a whole rather than only its first branch.
+    /// top-level alternation is anchored as a whole rather than only its first branch. Anchored with
+    /// <c>\A</c> and <c>\z</c> because <c>$</c> also matches before a final newline, and both
+    /// <c>^</c> and <c>$</c> match at every line under multiline mode.
     /// </summary>
     public static string FullMatchPattern(string patternExpression)
     {
-        return $"\"^(?:\" + {patternExpression} + \")$\"";
+        return $@"""\\A(?:"" + {patternExpression} + "")\\z""";
     }
 
     public static string IsFullMatch(string inputExpression, string patternExpression)

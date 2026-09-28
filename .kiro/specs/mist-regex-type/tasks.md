@@ -33,7 +33,7 @@ This plan implements `regex` as a first-class type in Mist, spanning the full co
 
   - [x] 1.5 Register regex intrinsic emission templates in `IntrinsicEmissionTable.cs`
     - Register `Standard.Regex:IsMatch(Standard.String)` template
-    - Register `Standard.Regex:IsFullMatch(Standard.String)` template with `^(?:...)$` anchoring
+    - Register `Standard.Regex:IsFullMatch(Standard.String)` template with `\A(?:...)\z` anchoring
     - Register `Standard.Regex:Pattern()` template mapping to `.ToString()`
     - Register implicit cast `Standard.Regex:implicit(Standard.String)` → `.ToString()`
     - Register explicit cast `Standard.Regex:explicit(Standard.Regex)` → `new Regex(..., RegexOptions.Compiled)`
@@ -108,8 +108,8 @@ This plan implements `regex` as a first-class type in Mist, spanning the full co
     - _Requirements: 8.2, 8.3_
 
   - [x] 5.4 Implement regex pattern matching emission in `CSharpEmitter.cs`
-    - Emit `Regex.IsMatch(scrutinee, "^(?:pattern)$")` for `is` expressions with regex patterns
-    - Emit `string s when Regex.IsMatch(s, "^(?:pattern)$")` guard for switch arms with regex patterns
+    - Emit `Regex.IsMatch(scrutinee, @"\A(?:pattern)\z")` for `is` expressions with regex patterns
+    - Emit `string s when Regex.IsMatch(s, @"\A(?:pattern)\z")` guard for switch arms with regex patterns
     - Hoist regex patterns to `private static readonly Regex` fields when inside loops or evaluated multiple times
     - _Requirements: 9.1, 9.2, 9.3, 9.5_
 

@@ -11,7 +11,7 @@ The design follows the same architectural patterns established by existing intri
 1. **Backtick delimiters** — Regex literals use `` `pattern` `` syntax. Backticks are unused in Mist source (only in Storm meta-grammar), so there's no conflict.
 2. **Explicit string→regex conversion** — Invalid patterns can't be detected at compile time for non-literal strings, so the conversion must be explicit (can throw at runtime).
 3. **String literal shorthand** — String literals assigned to `regex` variables are validated at compile time and don't require explicit cast syntax.
-4. **Full-match semantics in patterns** — Regex patterns in `is`/`switch` test the entire string (anchored with `^(?:...)$`), consistent with how constant patterns work.
+4. **Full-match semantics in patterns** — Regex patterns in `is`/`switch` test the entire string (anchored with `\A(?:...)\z`; `$` would also accept a trailing newline), consistent with how constant patterns work.
 5. **Non-exhaustive patterns** — Regex patterns can never prove exhaustiveness over the string domain.
 6. **Backend abstraction** — `Standard.Regex` is declared as an intrinsic class; the C# backend maps it to `System.Text.RegularExpressions.Regex`, but future backends can choose their own implementation.
 
@@ -177,7 +177,7 @@ Register instance methods:
 // Regex instance methods
 dict["Standard.Regex:IsMatch(Standard.String)"] = new IntrinsicEmissionTemplate("{0}.IsMatch({1})");
 dict["Standard.Regex:IsFullMatch(Standard.String)"] = new IntrinsicEmissionTemplate(
-    "System.Text.RegularExpressions.Regex.IsMatch({1}, \"^(?:\" + {0}.ToString() + \")$\")");
+    "System.Text.RegularExpressions.Regex.IsMatch({1}, \"\\\\A(?:\" + {0}.ToString() + \")\\\\z\")");
 dict["Standard.Regex:Pattern()"] = new IntrinsicEmissionTemplate("{0}.ToString()");
 ```
 
@@ -194,8 +194,8 @@ dict["Standard.Regex:explicit(Standard.Regex)"] = new IntrinsicEmissionTemplate(
 - **Regex literal emission**: When encountering a `RegexLiteralExpression`, emit `new Regex(<escaped_pattern>, RegexOptions.Compiled)`.
 - **Using directive**: When any file references `Standard.Regex`, emit `using System.Text.RegularExpressions;`.
 - **Pattern matching emission**:
-  - `is` expression with regex: emit `Regex.IsMatch(scrutinee, "^(?:pattern)$")`
-  - Switch arm with regex: emit `string s when Regex.IsMatch(s, "^(?:pattern)$")` guard
+  - `is` expression with regex: emit `Regex.IsMatch(scrutinee, @"\A(?:pattern)\z")`
+  - Switch arm with regex: emit `string s when Regex.IsMatch(s, @"\A(?:pattern)\z")` guard
 - **Static field hoisting** (optimization): When a regex pattern appears inside a loop or is evaluated multiple times, hoist to a `private static readonly Regex` field with `RegexOptions.Compiled`.
 
 ### 9. TextMate Grammar Changes

@@ -25,6 +25,7 @@ namespace Mist.Driver.Contracts;
 /// <param name="VerboseResolution">When true, the package-resolution stage reports detailed progress.</param>
 /// <param name="CsprojProperties">Arbitrary MSBuild properties declared in <c>[csproj_properties]</c> to emit into the generated csproj.</param>
 /// <param name="OutputType">Controls whether the project emits an executable or a class library.</param>
+/// <param name="Platform">The platform the program is compiled for; <see langword="null"/> means <see cref="TargetPlatforms.Host"/>.</param>
 public sealed record CompilerOptions(
     string ProjectFolder,
     ImmutableArray<string> SourcePaths,
@@ -43,8 +44,11 @@ public sealed record CompilerOptions(
     bool VerboseResolution = false,
     ImmutableArray<CsprojProperty> CsprojProperties = default,
     ProjectOutputType OutputType = ProjectOutputType.Executable,
-    PipelineMode Pipeline = PipelineMode.Classic)
+    PipelineMode Pipeline = PipelineMode.Classic,
+    TargetPlatform? Platform = null)
 {
+    public TargetPlatform EffectivePlatform => Platform ?? TargetPlatforms.Host;
+
     /// <summary>
     /// Assemblies handed to the compiler directly rather than resolved from a declaration. No manifest
     /// can name one, so only a test supplying its own interop fixture sets this.

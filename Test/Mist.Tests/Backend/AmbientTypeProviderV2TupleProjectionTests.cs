@@ -99,13 +99,14 @@ public sealed class AmbientTypeProviderV2TupleProjectionTests(AmbientTypeProvide
     }
 
     [Fact]
-    public void DelegateInsideATuple_SkipsTheNamesItsInvokeSignatureCannotUse()
+    [Trait("Tier", "3")]
+    public void DelegateInsideATuple_PreservesItsNamesAndTheFollowingSibling()
     {
         var filter = Assert.IsType<NamedTupleType>(Result(nameof(TupleSignatures.Filter)));
         var test = Assert.IsType<FunctionType>(filter.ElementTypes[0]);
 
         Assert.Equal(["Test", "Window"], filter.ElementNames);
-        _ = Assert.IsType<TupleType>(Assert.Single(test.ParameterTypes));
+        Assert.Equal(["X", "Y"], Assert.IsType<NamedTupleType>(Assert.Single(test.ParameterTypes)).ElementNames);
         Assert.Equal(["Low", "High"], Assert.IsType<NamedTupleType>(filter.ElementTypes[1]).ElementNames);
     }
 

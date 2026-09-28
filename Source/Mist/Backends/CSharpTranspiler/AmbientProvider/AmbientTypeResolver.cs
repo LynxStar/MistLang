@@ -40,6 +40,12 @@ internal sealed class AmbientTypeResolver
     /// </summary>
     public MistType Resolve(Type clrType, Scope scope, TupleElementNames? names = null)
     {
+        return Resolve(clrType, scope, names, null);
+    }
+
+    private MistType Resolve(
+        Type clrType, Scope scope, TupleElementNames? names, IReadOnlyDictionary<Type, MistType>? substitutions)
+    {
         if(!clrType.IsGenericParameter && !clrType.HasElementType
             && unavailable.Contains(BuildFQN(clrType.IsGenericType ? clrType.GetGenericTypeDefinition() : clrType)))
         {
@@ -69,32 +75,31 @@ internal sealed class AmbientTypeResolver
                 return ErrorType.Instance;
             }
 
-            return Resolve(elementType, scope, names);
+            return Resolve(elementType, scope, names, substitutions);
         }
 
         // CLR array type (e.g., int[], string[]): construct Standard.Array<Element, unknown>.
         if(clrType.IsArray)
         {
-            return ResolveArrayType(clrType, scope, names);
+            return ResolveArrayType(clrType, scope, names, substitutions);
         }
 
         if(NullableUnderlying(clrType) is { } underlying)
         {
-            return (MistType)WrapWithVoid(Resolve(underlying, scope, names));
+            return (MistType)WrapWithVoid(Resolve(underlying, scope, names, substitutions));
         }
 
         if(ClrValueTuple.Cardinality(clrType) >= 2)
         {
-            return ResolveTuple(clrType, scope, names);
+            return ResolveTuple(clrType, scope, names, substitutions);
         }
 
         // A DELEGATE IS A FUNCTION TYPE, whatever it is called. Comparison, Predicate and
         // RequestDelegate are ordinary CLR delegates that Mist has no name for, and a nominal
         // projection of one gives a lambda no parameter types to read and a method group nothing to
         // convert to. Its Invoke signature is what it means.
-        if(FunctionShape(clrType, scope) is { } function)
+        if(FunctionShape(clrType, scope, names, substitutions) is { } function)
         {
-            names?.Skip(ClrValueTuple.NameSlots(clrType));
             return function;
         }
 
@@ -102,12 +107,17 @@ internal sealed class AmbientTypeResolver
         // definition and each argument, then intern a ConstructedType.
         if(clrType.IsGenericType && !clrType.IsGenericTypeDefinition)
         {
-            return ResolveClosedGeneric(clrType, scope, names);
+            return ResolveClosedGeneric(clrType, scope, names, substitutions);
         }
 
         // Generic type parameter (e.g., T, TKey): resolve by name from the scope chain.
         if(clrType.IsGenericParameter)
         {
+            if(substitutions is not null && substitutions.TryGetValue(clrType, out var argument))
+            {
+                return argument;
+            }
+
             return ResolveTypeParameter(clrType, scope);
         }
 
@@ -122,37 +132,64 @@ internal sealed class AmbientTypeResolver
     /// to a function type by their own route; taking them here instead would bypass the pack that
     /// makes a single declaration cover seventeen CLR arities.
     /// </summary>
-    private MistType? FunctionShape(Type clrType, Scope scope)
+    private MistType? FunctionShape(
+        Type clrType, Scope scope, TupleElementNames? names, IReadOnlyDictionary<Type, MistType>? substitutions)
     {
         if(clrType.IsGenericParameter || !IsDelegate(clrType) || IsWellKnown(clrType))
         {
             return null;
         }
 
-        var invoke = clrType.GetMethod("Invoke");
+        var definition = clrType.IsGenericType && !clrType.IsGenericTypeDefinition
+            ? clrType.GetGenericTypeDefinition()
+            : clrType;
+        var invoke = definition.GetMethod("Invoke");
 
         if(invoke is null)
         {
             return null;
         }
 
-        var parameters = invoke.GetParameters()
-            .Select(parameter => (IMistType)Resolve(parameter.ParameterType, scope))
+        var arguments = new Dictionary<Type, MistType>();
+        if(clrType != definition)
+        {
+            var parameters = definition.GetGenericArguments();
+            var closedArguments = clrType.GetGenericArguments();
+            for(var i = 0; i < parameters.Length; i++)
+            {
+                arguments.Add(parameters[i], Resolve(closedArguments[i], scope, names, substitutions));
+            }
+        }
+
+        var parameterTypes = invoke.GetParameters()
+            .Select(parameter => (IMistType)Resolve(
+                parameter.ParameterType, scope,
+                TupleElementNames.Of(parameter, parameter.ParameterType), arguments))
             .ToList();
 
         var returnType = invoke.ReturnType == typeof(void)
             || invoke.ReturnType.FullName == "System.Void"
                 ? wellKnownTypes["System.Void"]
-                : ResolveInbound(
-                    invoke.ReturnType, scope, ClrNullability.ResultIsNonNull(invoke.ReturnParameter, invoke));
+                : Resolve(invoke.ReturnType, scope,
+                    TupleElementNames.Of(invoke.ReturnParameter, invoke.ReturnType), arguments);
 
-        if(parameters.Any(parameter => parameter is ErrorType or NotProjectedType)
+        var closedInvoke = clrType == definition ? invoke : clrType.GetMethod("Invoke")!;
+        var effectiveReturn = closedInvoke.ReturnType.IsByRef
+            ? closedInvoke.ReturnType.GetElementType()!
+            : closedInvoke.ReturnType;
+        if(IsReferenceType(effectiveReturn)
+            && !ClrNullability.ResultIsNonNull(closedInvoke.ReturnParameter, closedInvoke))
+        {
+            returnType = WrapWithVoid((MistType)returnType);
+        }
+
+        if(parameterTypes.Any(parameter => parameter is ErrorType or NotProjectedType)
             || returnType is ErrorType or NotProjectedType)
         {
             return ErrorType.Instance;
         }
 
-        return typeInterner.GetOrCreateFunctionType(parameters, returnType);
+        return typeInterner.GetOrCreateFunctionType(parameterTypes, returnType);
     }
 
     private static bool IsDelegate(Type clrType)
@@ -274,7 +311,8 @@ internal sealed class AmbientTypeResolver
     /// the remainder are the nested type's own.
     /// </para>
     /// </summary>
-    private MistType ResolveClosedGeneric(Type clrType, Scope scope, TupleElementNames? names)
+    private MistType ResolveClosedGeneric(
+        Type clrType, Scope scope, TupleElementNames? names, IReadOnlyDictionary<Type, MistType>? substitutions)
     {
         names?.Skip(ClrValueTuple.Cardinality(clrType) ?? 0);
 
@@ -290,7 +328,7 @@ internal sealed class AmbientTypeResolver
         var inherited = definitionClrType.DeclaringType?.GetGenericArguments().Length ?? 0;
         var enclosing = inherited == 0
             ? null
-            : Resolve(definitionClrType.DeclaringType!.MakeGenericType(clrArgs[..inherited]), scope, names) as ConstructedType;
+            : Resolve(definitionClrType.DeclaringType!.MakeGenericType(clrArgs[..inherited]), scope, names, substitutions) as ConstructedType;
         if(inherited > 0 && enclosing is null)
         {
             return ErrorType.Instance;
@@ -300,7 +338,7 @@ internal sealed class AmbientTypeResolver
 
         foreach(var clrArg in clrArgs[inherited..])
         {
-            var argument = Resolve(clrArg, scope, names);
+            var argument = Resolve(clrArg, scope, names, substitutions);
             if(argument is ErrorType or NotProjectedType)
             {
                 return argument;
@@ -328,14 +366,14 @@ internal sealed class AmbientTypeResolver
     /// A tuple of the ELEMENTS, each Rest spread into the one flat list C# reads it as. Names are taken
     /// in the order <see cref="ClrValueTuple.NameSlots"/> counts them, which every branch of
     /// <see cref="Resolve"/> keeps to: a Rest skips its own names as it is met, the flat tuple having
-    /// already taken the ones that mean anything, and a delegate skips its whole subtree because its
-    /// shape is read from Invoke instead.
+    /// already taken the ones that mean anything, and a delegate consumes its generic arguments.
     /// </summary>
-    private MistType ResolveTuple(Type clrType, Scope scope, TupleElementNames? names)
+    private MistType ResolveTuple(
+        Type clrType, Scope scope, TupleElementNames? names, IReadOnlyDictionary<Type, MistType>? substitutions)
     {
         var elementNames = names?.Take(ClrValueTuple.Cardinality(clrType)!.Value);
         var elements = new List<IMistType>();
-        AppendTupleElements(clrType, scope, names, elements);
+        AppendTupleElements(clrType, scope, names, substitutions, elements);
 
         if(elements.Find(element => element is ErrorType or NotProjectedType) is MistType unresolved)
         {
@@ -349,20 +387,22 @@ internal sealed class AmbientTypeResolver
             : tuple;
     }
 
-    private void AppendTupleElements(Type clrTuple, Scope scope, TupleElementNames? names, List<IMistType> elements)
+    private void AppendTupleElements(
+        Type clrTuple, Scope scope, TupleElementNames? names,
+        IReadOnlyDictionary<Type, MistType>? substitutions, List<IMistType> elements)
     {
         var arguments = clrTuple.GetGenericArguments();
 
         foreach(var argument in arguments.Take(ClrValueTuple.RestPosition))
         {
-            elements.Add(Resolve(argument, scope, names));
+            elements.Add(Resolve(argument, scope, names, substitutions));
         }
 
         if(arguments.Length > ClrValueTuple.RestPosition)
         {
             var rest = arguments[ClrValueTuple.RestPosition];
             names?.Skip(ClrValueTuple.Cardinality(rest)!.Value);
-            AppendTupleElements(rest, scope, names, elements);
+            AppendTupleElements(rest, scope, names, substitutions, elements);
         }
     }
 
@@ -380,9 +420,10 @@ internal sealed class AmbientTypeResolver
     /// <c>unknown</c> appears.
     /// </para>
     /// </summary>
-    private MistType ResolveArrayType(Type clrType, Scope scope, TupleElementNames? names)
+    private MistType ResolveArrayType(
+        Type clrType, Scope scope, TupleElementNames? names, IReadOnlyDictionary<Type, MistType>? substitutions)
     {
-        var elementType = Resolve(clrType.GetElementType()!, scope, names);
+        var elementType = Resolve(clrType.GetElementType()!, scope, names, substitutions);
         if(elementType is ErrorType or NotProjectedType)
         {
             return elementType;

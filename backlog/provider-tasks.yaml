@@ -482,7 +482,16 @@ missing_stdlib_types:
     - [x] element names: pre-order over the CLR type, each tuple taking its flattened count and each Rest re-taking its own (Octet's 8 elements carry 9 names); a count that disagrees drops every name
     - [x] ValueTuple`1 stays nominal: Mist tuples have two or more elements (value-tuples Req 1.3)
     - [ ] names on base types, interfaces and type-parameter constraints -- a base type's are on the type itself and simply not read; an interface's or constraint's sit on InterfaceImpl/GenericParamConstraint rows that reflection does not surface. All three stay structural and unnamed
-    - [ ] names inside a non-Func/Action delegate's signature -- FunctionShape reads Invoke unnamed and the delegate's names are skipped
+    - [x] names inside a non-Func/Action delegate's signature -- Invoke declaration names and closed generic use-site names reach the structural callable signature
+      # Workstream 18, 2026-09-28: open Invoke metadata is read before closing its generic parameters;
+      # the surrounding cursor consumes only the delegate's argument subtree. Tier 1/2 fixture tests
+      # and the updated Tier 3 Predicate sibling regression pass; ambient ledger 20260928-174104:
+      # 155 passed. Removing declaration names fails 2 focused cases (20260928-173946); consuming
+      # one extra delegate slot fails 2 sibling cases (20260928-174018). Base/interface/constraint
+      # tuple names and System.Tuple remain separate gaps below. Full solution ledger
+      # 20260928-194654 passed on the rebased main: Mist.Tests 10147, CLI 99, Storm 856.
+      # The earlier sandboxed run stalled in ASP.NET CreateBuilder; the full run used the
+      # required runtime access.
     - [ ] System.Tuple (reference tuples) stays nominal; no language requirement asks otherwise
   - [ ] Union type Standard Library representation
 

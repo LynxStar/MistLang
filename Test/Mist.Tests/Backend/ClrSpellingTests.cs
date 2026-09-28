@@ -27,7 +27,7 @@ public sealed class ClrSpellingTests : IDisposable
         AppDomain.CurrentDomain.GetAssemblies()
             .Select(assembly => assembly.GetType(name))
             .FirstOrDefault(type => type is not null)
-        ?? (typeof(Console).Assembly.GetType(name));
+        ?? typeof(Console).Assembly.GetType(name);
 
     public void Dispose()
     {

@@ -110,6 +110,14 @@ References are declared in the `mist.toml` project file using a `[[references]]`
 > Requirement 3 are excluded: `.mist` files that an invocation of the referenced project wrote under a
 > custom `--output` or `--bin` inside its folder are still loaded.
 
+7. THE `Compiler_Driver` SHALL NOT load, under criterion 1, any file inside a directory of the Referenced_Project's folder that holds a file named `.mist-generated` (`project-based-build-model` Requirement 8.6). Containment SHALL be decided as in criterion 6.
+
+> **Amendment note (2026-09-28).** Criterion 7 narrows the limit criterion 6's note records. Lex mode
+> now marks the directory it writes reconstructed sources into, so lex output under a custom `--output`
+> inside the Referenced_Project's folder is no longer loaded, whichever invocation wrote it. Lex output
+> written before the marker existed carries none, and is still loaded unless it lies in the default
+> `out` or `bin`.
+
 ---
 
 ### Requirement 6: Transitive Reference Visibility

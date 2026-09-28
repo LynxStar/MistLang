@@ -11,6 +11,7 @@ public sealed class ProjectLayout
     private readonly string projectRoot;
     private readonly string outputRoot;
     private readonly string binRoot;
+    private readonly string lexerDirectory;
 
     public ProjectLayout(string projectFolder, string outputDirectory, string binDirectory, string workingDirectory)
     {
@@ -21,6 +22,8 @@ public sealed class ProjectLayout
         projectRoot = Path.GetFullPath(projectFolder, workingDirectory);
         outputRoot = Path.GetFullPath(outputDirectory, workingDirectory);
         binRoot = Path.GetFullPath(binDirectory, workingDirectory);
+        lexerDirectory = Path.Combine(outputDirectory, "lexer");
+        LexMarkerPath = Path.Combine(lexerDirectory, SourcePathSelection.GeneratedMarker);
     }
 
     public string ProjectFolder { get; }
@@ -28,6 +31,8 @@ public sealed class ProjectLayout
     public string OutputDirectory { get; }
 
     public string BinDirectory { get; }
+
+    public string LexMarkerPath { get; }
 
     public string? DirectoryHoldingProject()
     {
@@ -46,7 +51,7 @@ public sealed class ProjectLayout
 
     public IReadOnlyList<string> DiscoverSources()
     {
-        return SelectSources(Directory.EnumerateFiles(ProjectFolder, "*.mist", SearchOption.AllDirectories));
+        return SelectSources(SourcePathSelection.EnumerateCandidates(ProjectFolder));
     }
 
     public IReadOnlyList<string> SelectSources(IEnumerable<string> candidates)
@@ -57,7 +62,7 @@ public sealed class ProjectLayout
     public LexArtifacts LexArtifactsFor(string sourceFile)
     {
         var relativePath = Path.GetRelativePath(projectRoot, Path.GetFullPath(sourceFile, workingDirectory));
-        var sourcePath = Path.Combine(OutputDirectory, "lexer", relativePath);
+        var sourcePath = Path.Combine(lexerDirectory, relativePath);
         return new LexArtifacts(Path.ChangeExtension(sourcePath, ".tokens"), sourcePath);
     }
 }

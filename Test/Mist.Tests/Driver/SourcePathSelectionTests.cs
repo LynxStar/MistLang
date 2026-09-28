@@ -62,6 +62,23 @@ public sealed class SourcePathSelectionTests
         Assert.Equal(candidates, sources);
     }
 
+    [Fact]
+    public void ForReferencedProject_DropsEverythingUnderADirectoryHoldingTheMarker()
+    {
+        var sources = SourcePathSelection.ForReferencedProject(At("Lib"),
+        [
+            At("Lib", "gen", "lexer", SourcePathSelection.GeneratedMarker),
+            At("Lib", "gen", "lexer", "Program.mist"),
+            At("Lib", "gen", "lexer", "Alpha", "Foo.mist"),
+            At("Lib", "gen", "sub", "..", "lexer", "Stale.mist"),
+            At("Lib", "gen", "Real.mist"),
+            At("Lib", "gen", "lexer-other", "Kept.mist"),
+            At("Lib", "Program.mist"),
+        ]);
+
+        Assert.Equal<string>([At("Lib", "Program.mist"), At("Lib", "gen", "Real.mist"), At("Lib", "gen", "lexer-other", "Kept.mist")], sources);
+    }
+
     [Theory]
     [InlineData("out")]
     [InlineData("bin")]

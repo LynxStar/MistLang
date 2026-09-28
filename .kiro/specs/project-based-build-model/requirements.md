@@ -67,6 +67,14 @@ name = "HelloMist"
 > They cover the Output_Directory and Bin_Directory of the current invocation only: `.mist` files left
 > in a directory that an earlier invocation used as its output, under different flags, are still discovered.
 
+6. THE Source_Discovery SHALL exclude every file inside a directory that holds a file named `.mist-generated` (Requirement 8.6), wherever that directory lies in the Project_Folder and whatever Output_Directory and Bin_Directory the current invocation uses. Containment SHALL be decided as in criterion 4.
+
+> **Amendment note (2026-09-28).** Criterion 6 closes, for lex output, the limit the note above
+> records. Only the invocation that chose an Output_Directory knows where it is, so lex mode marks the
+> directory it writes reconstructed sources into (Requirement 8.6), and every later Source_Discovery
+> skips it. Lex output written before the marker existed carries none, and is still discovered unless it
+> lies inside the current invocation's Output_Directory or Bin_Directory.
+
 ### Requirement 3: Default Output and Bin Directories Inside the Project Folder
 
 **User Story:** As a developer, I want the intermediate and final build output to live inside my project folder by default, so that each project is self-contained like .NET's `bin`/`obj` convention.
@@ -144,6 +152,11 @@ name = "HelloMist"
 > **Amendment note (2026-09-27).** Criterion 5 was added with Requirement 2's criteria 4 and 5. Before
 > it, lex output was flattened to the file name, so `a/Foo.mist` and `b/Foo.mist` wrote the same two
 > artifacts and the second overwrote the first.
+
+6. WHEN the compiler runs in lex mode, THE CLI SHALL write a file named `.mist-generated` into the `lexer` subdirectory before writing any reconstructed source. Its content is not significant.
+
+> **Amendment note (2026-09-28).** Criterion 6 was added with Requirement 2's criterion 6 and
+> `project-references` Requirement 5.7, which are the marker's readers.
 
 ### Requirement 9: Backend Emits Intermediate Source to Output Directory and Final Artifact to Bin Directory
 

@@ -188,6 +188,9 @@ internal class Program
         var lexer = new MistLexer();
         var hasErrors = false;
 
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(layout.LexMarkerPath)!);
+        File.WriteAllText(layout.LexMarkerPath, "Written by mist build --mode lex. Mist does not read the .mist files in this directory as sources.");
+
         foreach(var filePath in sourceFiles)
         {
             string source;

@@ -127,6 +127,31 @@ public sealed class ProjectLayoutTests
     }
 
     [Fact]
+    public void SelectSources_SkipsWhatALexIntoAnotherOutputWrote()
+    {
+        var earlierLex = new ProjectLayout(At("proj"), At("proj", "gen"), At("proj", "bin"), WorkingDirectory);
+        var foo = At("proj", "Alpha", "Foo.mist");
+
+        var sources = DefaultLayout().SelectSources(
+        [
+            earlierLex.LexMarkerPath,
+            earlierLex.LexArtifactsFor(foo).SourcePath,
+            earlierLex.LexArtifactsFor(At("proj", "Program.mist")).SourcePath,
+            foo,
+        ]);
+
+        Assert.Equal([foo], sources);
+    }
+
+    [Fact]
+    public void LexMarkerPath_SitsInTheLexerDirectoryOfTheOutput()
+    {
+        var layout = new ProjectLayout(At("proj"), At("proj", "gen"), At("proj", "bin"), WorkingDirectory);
+
+        Assert.Equal(At("proj", "gen", "lexer", ".mist-generated"), layout.LexMarkerPath);
+    }
+
+    [Fact]
     public void DirectoryHoldingProject_IsNullWhenOutputAndBinSitInsideTheProject()
     {
         Assert.Null(DefaultLayout().DirectoryHoldingProject());

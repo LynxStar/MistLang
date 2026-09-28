@@ -4,9 +4,17 @@ namespace Mist.Driver;
 
 public static class SourcePathSelection
 {
+    public const string GeneratedMarker = ".mist-generated";
+
     private const string DefaultOutputFolder = "out";
 
     private const string DefaultBinFolder = "bin";
+
+    public static IEnumerable<string> EnumerateCandidates(string folder)
+    {
+        return Directory.EnumerateFiles(folder, "*.mist", SearchOption.AllDirectories)
+            .Concat(Directory.EnumerateFiles(folder, GeneratedMarker, SearchOption.AllDirectories).Where(IsMarker));
+    }
 
     /// <summary>A reference records no output location, so the referencing invocation's <c>--output</c> and <c>--bin</c> play no part.</summary>
     public static ImmutableArray<string> ForReferencedProject(string projectFolder, IEnumerable<string> candidates)
@@ -25,10 +33,18 @@ public static class SourcePathSelection
         string outputDirectory,
         string binDirectory)
     {
-        var outputRoot = Path.GetFullPath(outputDirectory, basePath);
-        var binRoot = Path.GetFullPath(binDirectory, basePath);
-        return candidates
-            .Where(candidate => !IsGenerated(Path.GetFullPath(candidate, basePath), outputRoot, binRoot))
+        var files = candidates
+            .Select(candidate => (Candidate: candidate, FullPath: Path.GetFullPath(candidate, basePath)))
+            .ToList();
+        var generatedRoots = files
+            .Where(file => IsMarker(file.Candidate))
+            .Select(file => Path.GetDirectoryName(file.FullPath)!)
+            .Append(Path.GetFullPath(outputDirectory, basePath))
+            .Append(Path.GetFullPath(binDirectory, basePath))
+            .ToList();
+        return files
+            .Where(file => !generatedRoots.Any(root => IsWithin(file.FullPath, root)))
+            .Select(file => file.Candidate)
             .Order(StringComparer.Ordinal)
             .ToImmutableArray();
     }
@@ -41,8 +57,8 @@ public static class SourcePathSelection
             || relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal));
     }
 
-    private static bool IsGenerated(string fullPath, string outputRoot, string binRoot)
+    private static bool IsMarker(string path)
     {
-        return IsWithin(fullPath, outputRoot) || IsWithin(fullPath, binRoot);
+        return Path.GetFileName(path) == GeneratedMarker;
     }
 }

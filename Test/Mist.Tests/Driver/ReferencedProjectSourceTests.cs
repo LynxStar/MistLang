@@ -76,6 +76,8 @@ public sealed class ReferencedProjectSourceTests : IDisposable
         _ = Create(libFolder, "out", "lexer", "Program.tokens");
         _ = Create(libFolder, "out", "lexer", "Alpha", "Foo.mist");
         _ = Create(libFolder, "bin", "Stale.mist");
+        _ = Create(libFolder, "gen", "lexer", SourcePathSelection.GeneratedMarker);
+        _ = Create(libFolder, "gen", "lexer", "Program.mist");
         _ = Create(libFolder, "notes.txt");
         var leafSource = Create(leafFolder, "Leaf.mist");
         _ = Create(leafFolder, "out", "lexer", "Leaf.mist");

@@ -187,6 +187,6 @@ public static class ProjectReferenceResolver
 
     internal static ImmutableArray<string> EnumerateSources(string projectFolder)
     {
-        return [.. Directory.EnumerateFiles(projectFolder, "*.mist", SearchOption.AllDirectories)];
+        return [.. SourcePathSelection.EnumerateCandidates(projectFolder)];
     }
 }

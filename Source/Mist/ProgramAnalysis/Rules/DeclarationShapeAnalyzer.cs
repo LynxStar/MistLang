@@ -79,6 +79,21 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             }
         }
 
+        foreach(var repeat in ExtensionSignatureDecision.Repeats(context.Extensions))
+        {
+            var (path, location, _) = DiagnosticHelper.ResolveLocation(repeat.Earlier);
+            if(repeat.IsProperty)
+            {
+                context.Report(ProgramAnalysisDiagnostics.DuplicateExtensionProperty, repeat.Later, [],
+                    repeat.Name, repeat.Receiver, path, location.Start.Line, location.Start.Column);
+            }
+            else
+            {
+                context.Report(ProgramAnalysisDiagnostics.DuplicateExtensionMethod, repeat.Later, [],
+                    repeat.Name, repeat.Receiver, repeat.Signature, path, location.Start.Line, location.Start.Column);
+            }
+        }
+
         var purity = new PurityInference(context);
 
         foreach(var declared in DeclaredPredicates.Of(context))

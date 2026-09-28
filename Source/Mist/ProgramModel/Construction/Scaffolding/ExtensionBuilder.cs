@@ -1,4 +1,3 @@
-using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Construction.Resolution;
@@ -11,7 +10,7 @@ namespace Mist.ProgramModel.Construction.Scaffolding;
 /// <summary>
 /// Phase 2 builder for extension blocks. Processes all <see cref="PendingExtension"/>
 /// entries stashed during Phase 1: resolves receiver types, builds members, registers
-/// on the namespace, and validates duplicate members across blocks targeting the same type.
+/// on the namespace.
 /// </summary>
 internal sealed class ExtensionBuilder
 {
@@ -35,7 +34,7 @@ internal sealed class ExtensionBuilder
 
     /// <summary>
     /// Processes all pending extensions: resolves receiver types, builds member
-    /// signatures, registers on namespaces, and checks for duplicate members.
+    /// signatures, and registers on namespaces.
     /// </summary>
     public void BuildAll()
     {
@@ -43,8 +42,6 @@ internal sealed class ExtensionBuilder
         {
             Build(pending);
         }
-
-        ValidateDuplicateMembers();
     }
 
     /// <summary>
@@ -116,88 +113,4 @@ internal sealed class ExtensionBuilder
 
         list.Add(extensionBlock);
     }
-
-    /// <summary>
-    /// After all extension blocks are built, checks for duplicate member names
-    /// across blocks targeting the same receiver type within the same namespace.
-    /// </summary>
-    private void ValidateDuplicateMembers()
-    {
-        foreach(var ns in context.ProgramModel.Namespaces.Values)
-        {
-            foreach(var (_, blocks) in ns.Extensions)
-            {
-                if(blocks.Count < 2)
-                {
-                    continue;
-                }
-
-                CheckDuplicateMethods(blocks);
-                CheckDuplicateProperties(blocks);
-            }
-        }
-    }
-
-    private void CheckDuplicateMethods(List<ExtensionBlock> blocks)
-    {
-        var seen = new Dictionary<string, ExtensionBlock>();
-
-        foreach(var block in blocks)
-        {
-            // Skip ambient extension blocks — no source location to report against.
-            if(block.DeclarationNode is null)
-            {
-                continue;
-            }
-
-            foreach(var method in block.MethodsList)
-            {
-                if(seen.TryGetValue(method.Name, out _))
-                {
-                    context.Diagnostics.ReportAtNode(
-                        ProgramModelDiagnostics.DuplicateExtensionMember,
-                        block.DeclarationNode,
-                        null,
-                        method.Name,
-                        block.ResolvedReceiverType?.Name ?? "?");
-                }
-                else
-                {
-                    seen[method.Name] = block;
-                }
-            }
-        }
-    }
-
-    private void CheckDuplicateProperties(List<ExtensionBlock> blocks)
-    {
-        var seen = new Dictionary<string, ExtensionBlock>();
-
-        foreach(var block in blocks)
-        {
-            // Skip ambient extension blocks — no source location to report against.
-            if(block.DeclarationNode is null)
-            {
-                continue;
-            }
-
-            foreach(var property in block.PropertiesList)
-            {
-                if(seen.TryGetValue(property.Name, out _))
-                {
-                    context.Diagnostics.ReportAtNode(
-                        ProgramModelDiagnostics.DuplicateExtensionMember,
-                        block.DeclarationNode,
-                        null,
-                        property.Name,
-                        block.ResolvedReceiverType?.Name ?? "?");
-                }
-                else
-                {
-                    seen[property.Name] = block;
-                }
-            }
-        }
-    }
-
 }

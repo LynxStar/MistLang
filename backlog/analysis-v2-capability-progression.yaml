@@ -1977,10 +1977,14 @@ rules:
         SM_0020 on classic and MIST_CS_ERROR on v2. Neither Operator nor CastOperator is an IOverload, so
         OverloadSignature does not reach them.
       - >
-        Two extension members of one signature in one block are not refused. Measured 2026-09-15:
-        `Describe(int a)` and `Describe(int b)` in one `extension(int self)` block is MIST_SB_0073 on
-        classic and MIST_CS_ERROR on v2. In two blocks for int, v2's binder already refuses the second as
-        MIST_PM_DUPLICATE_EXTENSION_MEMBER, and classic as SB_0073.
+        DONE 2026-09-28 (workstream 16): DeclarationShapeAnalyzer judges extension methods by normalized
+        receiver and parameter signatures and properties by receiver and name, within each namespace.
+        ExtensionSignatureDecisionTests and ExtensionSignatureAnalysisTests construct source declarations
+        directly; the binder only registers them. Identical declarations in different namespaces
+        coexist; importing both makes a use subject to ordinary call-site ambiguity rules. Identical
+        declarations in one namespace are refused even when written in separate blocks.
+        Mixed method/property and static/instance collision policy remains unspecified; this rule
+        keeps methods and properties separate and follows OverloadSignature for methods.
       - >
         A nested generic's constraint naming its enclosing type's parameter is judged unsubstituted where
         the binder builds the nested type without its enclosing instantiation: `new Inner<Score>()` inside

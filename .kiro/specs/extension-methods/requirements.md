@@ -139,7 +139,7 @@ Extension blocks complement Mist's existing traits (structural typing) and inter
 6. THE Semantic_Model_Builder SHALL register each extension method as a symbol with SymbolKind.Method in the extension block's member scope.
 7. THE Semantic_Model_Builder SHALL register each extension property as a symbol with SymbolKind.Property in the extension block's member scope.
 8. IF the receiver type reference cannot be resolved, THEN THE Semantic_Model_Builder SHALL emit a diagnostic and skip the extension block.
-9. IF two extension blocks for the same receiver type declare members with identical signatures, THEN THE Semantic_Model_Builder SHALL emit a duplicate member diagnostic.
+9. AFTER extension blocks are registered, IF source extension members in the same namespace have the same receiver type and member name with identical signatures, whether declared in one block or separate blocks, THEN THE Compiler SHALL emit a duplicate member diagnostic. Registration SHALL retain both declarations for this check.
 
 ---
 
@@ -292,10 +292,10 @@ Extension blocks complement Mist's existing traits (structural typing) and inter
 1. IF the receiver type in an extension block cannot be resolved, THEN THE Compiler SHALL emit a diagnostic identifying the unresolved type name.
 2. IF an extension block contains a member that is not a method or property (e.g., a field declaration), THEN THE Compiler SHALL emit a diagnostic stating that only methods and properties are allowed in extension blocks.
 3. IF an extension property declares a `set` accessor, THEN THE Compiler SHALL emit a diagnostic stating that extension properties are read-only.
-4. IF two extension blocks in the same compilation provide members with identical signatures for the same receiver type, THEN THE Compiler SHALL emit a diagnostic error indicating the duplicate extension member (naming both source locations).
+4. IF two source extension members in the same namespace have the same receiver type and member name with identical signatures, whether declared in one block or separate blocks, THEN THE Compiler SHALL emit a diagnostic at the later declaration indicating the duplicate member and identifying the earlier declaration's source location. This applies across source files in that namespace.
 5. IF the receiver parameter name conflicts with a method parameter name in the same extension method, THEN THE Compiler SHALL emit a diagnostic about the name conflict.
 6. IF a `void` type is used as the receiver type, THEN THE Compiler SHALL emit a diagnostic stating that `void` cannot be extended.
-7. THE Compiler SHALL allow multiple extension blocks for the same receiver type, provided no two blocks declare members with identical signatures.
+7. THE Compiler SHALL allow multiple extension blocks for the same receiver type and namespace when no two members with the same name have identical signatures. Blocks in different namespaces MAY declare identical members.
 
 ---
 
@@ -384,4 +384,4 @@ Extension blocks complement Mist's existing traits (structural typing) and inter
 
 1. WHEN an extension block is declared inside a namespace, THE Type_Checker SHALL only consider it during member lookup if the namespace is imported via a `using` directive at the call site.
 2. WHEN an extension block is declared at the top level (no namespace), THE Type_Checker SHALL consider it visible from all files in the same compilation.
-3. WHEN multiple namespaces provide extensions for the same type with the same member name, THE Type_Checker SHALL apply the same ambiguity rules as for other overloaded members.
+3. WHEN multiple imported namespaces provide extensions for the same type with the same member name, THE Type_Checker SHALL apply the same overload and ambiguity rules as for other members at each use. Importing both namespaces without using the member SHALL NOT be an error; a use that has no unique candidate SHALL be diagnosed as ambiguous.

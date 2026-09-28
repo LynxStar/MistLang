@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -44,41 +45,62 @@ internal static class OverloadSignature
             && signature == Of(earlier, inherited ?? TypeSubstitution.Empty, interner);
     }
 
+    public static string? ExtensionReceiver(ExtensionBlock block)
+    {
+        return block.ResolvedReceiverType is { } receiver
+            && Render(receiver, [], block.TypeParametersList) is { } rendered
+            ? rendered
+            : null;
+    }
+
+    public static string? ExtensionMethod(ExtensionBlock block, IOverload method)
+    {
+        if(Each(method.ParametersList.Select(parameter => parameter.Type), method.TypeParametersList, block.TypeParametersList) is not { } types)
+        {
+            return null;
+        }
+
+        var parameters = types.Select((type, i) => method.ParametersList[i].Modifier.IsRef ? $"ref {type}" : type);
+        return $"{method.TypeParametersList.Count}({string.Join(", ", parameters)})";
+    }
+
     public static string? TypeOf(IMistType type, List<TypeParameter>? own = null)
     {
         return Render(type, own ?? []);
     }
 
-    private static string? Render(IMistType type, List<TypeParameter> own)
+    private static string? Render(IMistType type, List<TypeParameter> own, List<TypeParameter>? block = null)
     {
         return ConversionRelation.Unrefined(type) switch
         {
             ErrorType => null,
-            TypeParameter parameter when own.FindIndex(declared => ReferenceEquals(declared, parameter)) is var position and >= 0 => $"#{position}",
-            NamedTupleType named => Render(named.Underlying, own),
-            TupleType tuple => Each(tuple.ElementTypes, own) is { } elements ? $"({string.Join(", ", elements)})" : null,
-            UnionType union => Each(union.Constituents, own) is { } constituents ? string.Join(" | ", constituents.Order(StringComparer.Ordinal)) : null,
-            FunctionType function => Each(function.TypeArgumentsInSourceOrder(), own) is { } arguments ? $"func<{string.Join(", ", arguments)}>" : null,
-            ConstructedType { Enclosing: { } enclosing } nested => Render(enclosing, own) is { } outer ? Constructed($"{outer}.{MistType.StripArity(nested.Definition.Name)}", nested, own) : null,
-            ConstructedType constructed => Constructed(constructed.Definition.FullyQualifiedName, constructed, own),
+            TypeParameter parameter when own.FindIndex(declared => ReferenceEquals(declared, parameter)) is var position and >= 0 => block is null ? $"#{position}" : $"#m{position}",
+            TypeParameter parameter when block is not null && block.FindIndex(declared => ReferenceEquals(declared, parameter)) is var position and >= 0 => $"#b{position}",
+            TypeParameter when block is not null => null,
+            NamedTupleType named => Render(named.Underlying, own, block),
+            TupleType tuple => Each(tuple.ElementTypes, own, block) is { } elements ? $"({string.Join(", ", elements)})" : null,
+            UnionType union => Each(union.Constituents, own, block) is { } constituents ? string.Join(" | ", constituents.Order(StringComparer.Ordinal)) : null,
+            FunctionType function => Each(function.TypeArgumentsInSourceOrder(), own, block) is { } arguments ? $"func<{string.Join(", ", arguments)}>" : null,
+            ConstructedType { Enclosing: { } enclosing } nested => Render(enclosing, own, block) is { } outer ? Constructed($"{outer}.{MistType.StripArity(nested.Definition.Name)}", nested, own, block) : null,
+            ConstructedType constructed => Constructed(constructed.Definition.FullyQualifiedName, constructed, own, block),
             var unrefined => unrefined.FullyQualifiedName,
         };
     }
 
-    private static string? Constructed(string name, ConstructedType constructed, List<TypeParameter> own)
+    private static string? Constructed(string name, ConstructedType constructed, List<TypeParameter> own, List<TypeParameter>? block = null)
     {
         return constructed.TypeArguments.Count == 0 ? name
-            : Each(constructed.TypeArguments, own) is { } arguments ? $"{name}<{string.Join(", ", arguments)}>"
+            : Each(constructed.TypeArguments, own, block) is { } arguments ? $"{name}<{string.Join(", ", arguments)}>"
             : null;
     }
 
-    private static List<string>? Each(IEnumerable<IMistType> types, List<TypeParameter> own)
+    private static List<string>? Each(IEnumerable<IMistType> types, List<TypeParameter> own, List<TypeParameter>? block = null)
     {
         var rendered = new List<string>();
 
         foreach(var type in types)
         {
-            if(Render(type, own) is not { } one)
+            if(Render(type, own, block) is not { } one)
             {
                 return null;
             }

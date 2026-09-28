@@ -80,7 +80,9 @@ internal static class ExpressionBinder
         {
             IntegerLiteralExpressionPrimaryNode integer => LiteralBinder.BindIntegerLiteral(
                 integer, integer.IntegerLiteral.Lexeme, context),
-            HexLiteralExpressionPrimaryNode hex => LiteralBinder.BindHexLiteral(hex, hex.HexLiteral.Lexeme, context),
+            HexLiteralExpressionPrimaryNode hex => LiteralBinder.BindIntegerLiteral(hex, hex.HexLiteral.Lexeme, context),
+            BinaryLiteralExpressionPrimaryNode binary => LiteralBinder.BindIntegerLiteral(
+                binary, binary.BinaryLiteral.Lexeme, context),
             FloatLiteralExpressionPrimaryNode floatLit => LiteralBinder.BindFloatLiteral(
                 floatLit, floatLit.FloatLiteral.Lexeme, context),
             StringLiteralExpressionPrimaryNode stringLit => LiteralBinder.BindStringLiteral(
@@ -436,9 +438,16 @@ internal static class ExpressionBinder
     {
         var elementType = ResolveElementType(node.Type, ctx, context);
         var size = SizeOf(node.Size, ctx, context);
-        var length = size is LiteralExpression { Value: long written } && written <= int.MaxValue ? (int?)written : null;
+        var length = WrittenLength(size);
         var arrayType = context.Resolver.ConstructArray(elementType, length);
         return new ArrayCreationExpression(node, elementType, size, arrayType);
+    }
+
+    private static int? WrittenLength(Expression size)
+    {
+        return size is LiteralExpression literal && IntegralConstant.Of(literal.Value) is { } written && written >= 0 && written <= int.MaxValue
+            ? (int)written
+            : null;
     }
 
     private static Expression SizeOf(ExpressionNode node, BindingContext ctx, BuilderContext context)
@@ -457,7 +466,7 @@ internal static class ExpressionBinder
     {
         var elementType = ResolveElementType(node.Type, ctx, context);
         var size = SizeOf(node.Size, ctx, context);
-        var length = size is LiteralExpression { Value: long written } && written <= int.MaxValue ? (int?)written : null;
+        var length = WrittenLength(size);
 
         // Read off the DEFINITION rather than the target's own name, which carries its arguments and so
         // never equals the bare declaration's.

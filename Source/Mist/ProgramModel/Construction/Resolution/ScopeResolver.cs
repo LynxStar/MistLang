@@ -1,4 +1,3 @@
-using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding;
@@ -711,19 +710,19 @@ internal sealed class ScopeResolver
                 break;
 
             case IntegerLiteralTypeArgumentTypeArgumentNode intLit:
-                args.Add(LiftIntegerLiteral(intLit, intLit.Literal.Lexeme));
+                args.Add(LiftIntegerLiteral(intLit, intLit.Literal.Lexeme, negated: false));
                 break;
 
             case NegatedIntegerTypeArgumentTypeArgumentNode negLit:
-                args.Add(LiftNegatedIntegerLiteral(negLit, negLit.Literal.Lexeme));
+                args.Add(LiftIntegerLiteral(negLit, negLit.Literal.Lexeme, negated: true));
                 break;
 
             case HexLiteralTypeArgumentTypeArgumentNode hexLit:
-                args.Add(LiftIntegral(hexLit, hexLit.Literal.Lexeme, LiteralBinder.HexValue(hexLit.Literal.Lexeme)));
+                args.Add(LiftIntegerLiteral(hexLit, hexLit.Literal.Lexeme, negated: false));
                 break;
 
             case BinaryLiteralTypeArgumentTypeArgumentNode binLit:
-                args.Add(LiftIntegral(binLit, binLit.Literal.Lexeme, LiteralBinder.BinaryValue(binLit.Literal.Lexeme)));
+                args.Add(LiftIntegerLiteral(binLit, binLit.Literal.Lexeme, negated: false));
                 break;
 
             case TrueLiteralTypeArgumentTypeArgumentNode:
@@ -793,32 +792,18 @@ internal sealed class ScopeResolver
         return context.ProgramModel.TypeInterner.LiftLiteral(LookupWellKnown(WellKnownTypes.Boolean), value);
     }
 
-    private IMistType LiftIntegerLiteral(TypeArgumentNode node, string lexeme)
+    private IMistType LiftIntegerLiteral(TypeArgumentNode node, string lexeme, bool negated)
     {
-        var (value, wellKnown) = LiteralBinder.IntegerValue(lexeme);
-        return LiftIntegral(node, lexeme, wellKnown == WellKnownTypes.UInt64 && value is < 0L ? null : value);
-    }
+        var magnitude = IntegralConstant.Of(IntegerLiterals.Read(lexeme)?.Value);
+        var value = negated ? -magnitude : magnitude;
 
-    private IMistType LiftNegatedIntegerLiteral(TypeArgumentNode node, string lexeme)
-    {
-        if(LiteralBinder.NegatesToLongMinimum(lexeme))
+        if(value is { } lifted && lifted >= long.MinValue && lifted <= long.MaxValue)
         {
-            return LiftInt(long.MinValue);
-        }
-
-        var (value, wellKnown) = LiteralBinder.IntegerValue(lexeme);
-        return LiftIntegral(node, $"-{lexeme}", value is long magnitude && (wellKnown != WellKnownTypes.UInt64 || magnitude >= 0) ? -magnitude : null);
-    }
-
-    private IMistType LiftIntegral(TypeArgumentNode node, string lexeme, object? value)
-    {
-        if(value is long held)
-        {
-            return LiftInt(held);
+            return LiftInt((long)lifted);
         }
 
         context.Diagnostics.ReportAtNode(
-            ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, lexeme, WellKnownTypes.Int64.Keyword ?? WellKnownTypes.Int64.Name);
+            ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, negated ? $"-{lexeme}" : lexeme, WellKnownTypes.Int64.Keyword ?? WellKnownTypes.Int64.Name);
         return ErrorType.Instance;
     }
 
@@ -990,9 +975,19 @@ internal sealed class ScopeResolver
     private IMistType ResolveArrayType(SingleTypeRefNode singleRef, IMistType elementType)
     {
         var rank = GetArrayRank(singleRef)!;
-        var length = rank is SizedArrayRankArrayRankSuffixNode sized
-            ? (int.TryParse(sized.Size.Lexeme, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0)
-            : (int?)null;
+        int? length = null;
+
+        if(rank is SizedArrayRankArrayRankSuffixNode sized)
+        {
+            length = IntegerLiterals.Length(sized.Size.Lexeme);
+
+            if(length is null)
+            {
+                context.Diagnostics.ReportAtNode(
+                    ProgramModelDiagnostics.NumericLiteralOutOfRange, sized, null, sized.Size.Lexeme, WellKnownTypes.Int32.Keyword ?? WellKnownTypes.Int32.Name);
+                return ErrorType.Instance;
+            }
+        }
 
         var arrayType = ConstructArray(elementType, length);
         if(arrayType is ErrorType)

@@ -89,6 +89,10 @@ internal class Method(
 
     public ExtensionBlock? DeclaringBlock { get; init; }
 
+    // A closed signature keeps its body on the canonical declaration, whose parameter and receiver
+    // identities remain coherent and whose inferred promises hold for every admitted construction.
+    public Method? SourceDeclaration { get; init; }
+
     IReadOnlyList<ITypeParameter> IGenericDeclaration.TypeParameters => TypeParametersList;
     IReadOnlyList<IContextBinding> IMethod.ContextBindings => ContextBindingsList;
     IReadOnlyList<IParameter> IMethod.Parameters => ParametersList;

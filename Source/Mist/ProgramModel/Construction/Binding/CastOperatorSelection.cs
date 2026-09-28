@@ -23,7 +23,7 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// </summary>
 internal static class CastOperatorSelection
 {
-    public static IReadOnlyList<ConversionFunction> Best(IMistType from, IMistType to, TypeInterner? interner, long? integerConstant = null)
+    public static IReadOnlyList<ConversionFunction> Best(IMistType from, IMistType to, TypeInterner? interner, Int128? integerConstant = null)
     {
         if(ConversionClassifier.IsFree(from, to, interner))
         {
@@ -43,14 +43,14 @@ internal static class CastOperatorSelection
         return Ranked(from, to, reaching.FindAll(function => ReachesAsArgument(from, function.Parameter, interner, integerConstant)));
     }
 
-    public static bool ReachesAsArgument(IMistType from, IMistType parameter, TypeInterner? interner, long? integerConstant = null)
+    public static bool ReachesAsArgument(IMistType from, IMistType parameter, TypeInterner? interner, Int128? integerConstant = null)
     {
         return ConversionClassifier.IsImplicit(from, parameter, interner)
             || (integerConstant is { } constant && ConstantConversion.Fits(constant, from, parameter))
             || Implicit(from, parameter, interner, integerConstant).Count > 0;
     }
 
-    public static IReadOnlyList<ConversionFunction> Implicit(IMistType from, IMistType to, TypeInterner? interner, long? integerConstant = null)
+    public static IReadOnlyList<ConversionFunction> Implicit(IMistType from, IMistType to, TypeInterner? interner, Int128? integerConstant = null)
     {
         if(ConversionClassifier.IsFree(from, to, interner)
             || (integerConstant is { } constant && ConstantConversion.Fits(constant, from, to)))
@@ -83,7 +83,7 @@ internal static class CastOperatorSelection
                     && ConversionClassifier.IsFree(function.Result, to, interner));
     }
 
-    private static bool Fits(long? integerConstant, IMistType from, ConversionFunction function)
+    private static bool Fits(Int128? integerConstant, IMistType from, ConversionFunction function)
     {
         return integerConstant is { } constant && ConstantConversion.Fits(constant, from, function.Parameter);
     }

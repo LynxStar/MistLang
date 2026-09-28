@@ -21,6 +21,11 @@ internal static class OperatorDecision
             ? ProgramAnalysisDiagnostics.UnknownHasNoOperators : ProgramAnalysisDiagnostics.OperatorNotApplicable;
     }
 
+    public static DiagnosticDescriptor? Unary(UnaryOperatorKind kind, IMistType operand)
+    {
+        return OperatorAdmissibility.UnaryResultType(kind, operand) is null ? ProgramAnalysisDiagnostics.OperatorNotApplicable : null;
+    }
+
     public static DiagnosticDescriptor? Conditional(IMistType receiver)
     {
         return OptionalUnion.AdmitsConditionalAccess(receiver) ? null : ProgramAnalysisDiagnostics.ConditionalAccessOnNonOptional;

@@ -234,6 +234,11 @@ Option 1 is the strongest guarantee (misalignment is structurally impossible). O
 
 ## 🟡 STORM0006 false positive: MemberDeclaration alternative 13 (ModifiedAssociatedTypeMember) flagged unreachable
 
+**Resolved 2026-09-27.** The production below has since changed, and the pass no longer compares
+truncated FIRST-3 sets: it reports an alternative only when an earlier one is proved to win on
+every prefix it can start with. The counterexample, proof limits and tests are in
+`backlog/storm.md`, "Reachability proves shadowing".
+
 **Severity: medium (build warning, no runtime impact)** — The Storm source generator's reachability pass (`ReachabilityPass.cs`) flags alternative 13 in `MemberDeclaration` as unreachable. This is a false positive caused by bounded k=3 lookahead being insufficient to distinguish `MemberTypeAliasMember` (alt 10) from `ModifiedAssociatedTypeMember` (alt 13).
 
 **Why it's a false positive:** Both alternatives start with `Modifier+ TYPE IDENTIFIER`, making their FIRST-3 sequences identical. The disambiguating token (`=` for alias, `:` or `;` for slot) appears at position 4+ — or even further out when `TypeParams?` is present (e.g., `public type Foo<T> : Bar;`). Since the PEG parser uses unlimited backtracking, it correctly tries alt 10 first, fails (no `=`), backtracks, and eventually reaches alt 13. The warning is wrong — the alternative IS reachable at runtime.
@@ -915,6 +920,17 @@ formatting uses, and if so emit it (and a clone's forwarded one) as `override`; 
 
 ## An unsuffixed integer literal beyond `int` reaches Roslyn, and every hex literal is `int`
 
+**Closed on v2 (2026-09-27):** `IntegerLiterals.Read` reads a decimal, hex or binary literal exactly,
+separators dropped, as the first of `int`, `uint`, `long` and `ulong` its suffix allows that holds it, and
+holds the constant as that type's own primitive; past `ulong` it is `MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE`
+naming `ulong`. Measured on the merged tree: `var z = 5000000000;` prints 5000000000; `int h = 0x1_0000_0000;`
+is `MIST_PA_NO_IMPLICIT_CONVERSION` from `long`; `x`, `u` and `h` print `18446744073709551615
+18446744073709551615 9223372036854775808` and the interpolation `18446744073709551615 2147483647
+9223372036854775808`, as classic does; `long y = 0x8000_0000_0000_0000;` and `Neg n =
+0xFFFF_FFFF_FFFF_FFFF;` are refused from `ulong`; `new Wide<0xFFFF_FFFF_FFFF_FFFF>()` is out of `long`'s
+range (see the `ulong` dependent-parameter entry). Pinned at Tier 1 in `IntegerLiteralReadingTests`, with
+a 500-case property over every spelling, and in `LiteralCultureInvarianceTests`.
+
 Found 2026-09-27 by the culture review of purity (v2); not about culture.
 
 ```mist
@@ -961,6 +977,11 @@ and refuse past `ulong` (past `long` in a type argument, while `LiftedType` hold
 `0xFFFF_FFFF_FFFF_FFFF`, `0x8000_0000` and a `UL`-suffixed hex at Tier 1, and the type argument at Tier 2.
 
 ## A `u` literal past `uint` is truncated without a diagnostic
+
+**Closed on v2 (2026-09-27):** a `u` literal past `uint` reads as a `ulong`, and `BodyEmitter` writes every
+integral constant from its exact value, narrowing none. Measured on the merged tree: `5000000000` and
+`4294967296`, as classic prints, and `A = 5000000000u` in a `uint` enum is `MIST_PA_NO_IMPLICIT_CONVERSION`
+from `ulong`. Pinned at Tier 1 in `IntegerLiteralReadingTests` and `IntegerLiteralSpellingTests`.
 
 Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
 13b67c0e prints the same.
@@ -1016,6 +1037,11 @@ one). Pin the value at Tier 2 in each position and the emitted text at Tier 3.
 
 ## A binary literal in an expression is not bound
 
+**Closed on v2 (2026-09-27):** `ExpressionBinder` binds hex and binary literals through the decimal path,
+`LiteralBinder.BindIntegerLiteral`, which types all three by the same reading. Measured on the merged tree:
+`5` and `240`, as classic prints. Pinned at Tier 2 in `Semantics.NumericLiteralBindingTests`, beside the
+hex arm, and the reading at Tier 1 in `IntegerLiteralReadingTests`.
+
 Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
 13b67c0e behaves the same, and `backlog/program-model-body-tasks.yaml` records the missing arm.
 
@@ -1037,6 +1063,15 @@ and only `ScopeResolver`'s type-argument lift calls it.
 unsuffixed-literal entry), refusing on overflow. Pin at Tier 2 beside `NumericLiteralBindingTests`.
 
 ## A sized array type's length written with `_` or a suffix reads as 0
+
+**Closed on v2 (2026-09-27):** `ScopeResolver.ResolveArrayType` and `TypeParameterPopulator.FixedLength` read
+the size through `IntegerLiterals.Length`, so a suffix is read and a length no `int` holds is
+`MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE` naming `int`. Measured on the merged tree: `int[1_0] tens = new
+int[10];` compiles, and through `var t = Three();` both `t[2]` and `Three().Length` print 3. Indexing the
+call directly, `Three()[2]`, is still `MIST_PA_INDEX_UNPROVEN`, for `int[3]` exactly as for `int[3u]`: the
+prover reads no length from a call's result, and classic, which cannot compile a sized return type at all
+(`MIST_TC_0008`), sets no contract for it. Pinned at Tier 1 in `IntegerLiteralReadingTests` and at Tier 2
+in `SizedArrayLengthTests`, against the resolver.
 
 Found 2026-09-27 by the literal review of purity's culture work (v2); not caused by it: the merge base
 13b67c0e behaves the same.

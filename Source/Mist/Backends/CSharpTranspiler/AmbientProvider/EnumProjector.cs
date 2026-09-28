@@ -1,4 +1,5 @@
 using System.Reflection;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -17,13 +18,17 @@ internal static class EnumProjector
     {
         // Project underlying type (int, byte, short, etc.).
         var underlyingClrType = clrType.GetEnumUnderlyingType();
-        enumType.UnderlyingType = resolver.Resolve(underlyingClrType, enumType.Scope);
+        var underlying = resolver.Resolve(underlyingClrType, enumType.Scope);
+        enumType.UnderlyingType = underlying;
 
         // Project members (named constants).
         var fields = clrType.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
         foreach(var field in fields)
         {
-            var member = new EnumMember(field.Name, isDefault: false, value: null);
+            // The raw metadata constant, already boxed as the base's own primitive as IntegralConstant expects
+            // of every integral constant: GetValue would box an enum instance, and a MetadataLoadContext refuses it.
+            var value = new LiteralExpression(null!, field.GetRawConstantValue(), underlying);
+            var member = new EnumMember(field.Name, isDefault: false, value);
             enumType.MembersList.Add(member);
         }
 

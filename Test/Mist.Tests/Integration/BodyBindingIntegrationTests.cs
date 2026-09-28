@@ -83,7 +83,7 @@ public sealed class BodyBindingIntegrationTests : IDisposable
         Assert.Equal("x", declaration.Local.Name);
         Assert.Equal("Standard.Int32", declaration.Local.Type.FullyQualifiedName);
         var literal = Assert.IsType<LiteralExpression>(declaration.Initializer);
-        Assert.Equal(42L, literal.Value);
+        Assert.Equal(42, literal.Value);
         Assert.Equal("Standard.Int32", literal.Type.FullyQualifiedName);
 
         // return x;  — the reference must resolve to the SAME local the declaration introduced.

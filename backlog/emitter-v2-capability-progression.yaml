@@ -364,6 +364,12 @@ capabilities:
       BodyEmitter.EmitLiteral, plus EmitIntegerLiteral (UL/L/U suffixes keyed on the
       resolved type) and EmitDoubleLiteral (forces a decimal point). Hex folds to decimal,
       so 0xFF emits as 255.
+
+      THE EMITTING HALF WAS DONE AND THE READING HALF WAS NOT (found 2026-09-27): a literal with a
+      separator, a hex suffix or a value past long.MaxValue bound as 0 and printed 0, and binary
+      literals did not bind. The whole account is under wrong_answers, where it is FIXED. Since then
+      every integral constant in the model is boxed as its own type's primitive (IntegralConstant), and
+      EmitIntegerLiteral spells it from that value in the invariant culture.
     unlocks: []
 
   - id: string-interpolation
@@ -5810,6 +5816,19 @@ capabilities:
       prints `First`. Classic refuses the program outright with MIST_SB_0085, so its own recorded
       print-versus-match inconsistency turns out UNREACHABLE there; the inconsistency was real only in
       the emitted shape, never in a program classic would compile. Detection is logged below.
+
+      COUNTING IS EXACT AND ARITHMETIC NOW FOLDS (2026-09-27), which retires "a written value the binder
+      cannot fold -- arithmetic" above. The running value was a long, so a ulong base could not count
+      past long.MaxValue: `Start = 9223372036854775807UL, Next` was refused as out of range, the counter
+      having wrapped to -9223372036854775808. It is now Int128, and IntegralConstant.Fold reads a written
+      value through negation, + - * / %, a widening conversion and a clone, refusing an operation that
+      overflows its own type or divides by zero; a const reference is still uncountable. So
+      `{ A = 1 + 1, B, K = 1_000 * 1_000, L, N = -(2 * 3), O }` over long gives B = 3, L = 1000001 and
+      O = -5, as Requirement 4.3 asks -- a FOURTH DELIBERATE DIVERGENCE: classic prints B = 0, L = 1,
+      O = 2 (classic_defects_where_v2_is_correct). A synthesized value is boxed as the base's own
+      primitive, a byte for a name-only enum. EnumValueCountingTests holds counting past long.MaxValue,
+      counting on from arithmetic, the byte boxes and the out-of-range refusal; IntegralConstantTests the
+      fold.
     analysis_phase_tasks:
       - >
         An enum does not convert to its own UNION base: `int | string u = Mixed.Text` over
@@ -6781,6 +6800,53 @@ capabilities:
       union with void, and the optional falling on the array and not on its element. Six mutations, each
       caught by name: either suffix written before the type arguments, either resolver arm removed, and
       either suffix dropped from the printer.
+
+      OPTIONAL LAMBDA TARGETS, 2026-09-27 (workstream 12). ContextualLambdaTarget alias-expands the
+      destination and uses the callable shape of exactly its one present constituent in T | void.
+      LambdaBinder uses that signature for parameters, declared results and IsPure, while the bound
+      lambda remains a present function value admitted by ordinary optional widening. Hand-built inputs
+      in ContextualLambdaTargetTests (17 Tier 1 cases) and OptionalLambdaBindingTests (30 Tier 2 cases)
+      cover typed locals, reassignment, field initializers, declared returns and a closed non-generic
+      sole-candidate argument, expression and block bodies, suffix/union/alias spellings, nested result
+      targets, arity refusals and the local/pure conflict. Incompatible results retain the targets judged
+      by existing analysis; purity decisions remain with the existing analyzer. Removing optional
+      recognition and rebuilding fails 27 of the 47 cases; all ten target-path rows reproduce
+      MIST_PM_LAMBDA_PARAMETER_NO_TYPE. DelegateShape and value invocation are unchanged: an optional
+      receiver acquires no callable signature before narrowing. General unions, overloaded lambda
+      trials and generic-call inference remain deferred; this slice does not select callable union
+      alternatives or change method-group conversion, conversions or overload ranking.
+      The focused ledger passes 201/201 cases and the full solution ledger passes 10603/10603;
+      the solution build reports zero warnings and scoped formatting verification is clean.
+
+      OPTIONAL LAMBDA OVERLOAD TRIALS, 2026-09-27 (workstream 12 follow-up 1). LambdaTrials reads
+      optional destinations through ContextualLambdaTarget for applicability and inferred-result
+      comparison. Each candidate must admit the lambda's actual body results rather than merely its
+      target-stamped function type. Eighteen Tier 2 cases in OptionalLambdaOverloadTests cover
+      expression/block results, constructed aliases, stated-parameter/arity/local-pure/body-error
+      refusals, optional/plain comparisons, existing optional-widening preference and ambiguity,
+      unique-other-argument diagnostic recovery, withheld diagnostics and discarded generic call
+      records with exactly one retained binding. Regression cases fail before optional trial
+      recognition. The focused ledger passes 69/69; the build has zero warnings and scoped formatting
+      verification is clean. OverloadResolution and its ranking rules are unchanged. Generic lambda
+      inference remains a separate follow-up; callable alternatives in general unions remain deferred.
+
+      OPTIONAL LAMBDA GENERIC INFERENCE, 2026-09-27 (workstream 12 follow-up 2). TypeArgumentInference
+      uses the present contextual signature when collecting a lambda's stated parameter bounds and
+      when teaching results after its inputs can be fixed. The existing repeated-pass, dominant-bound
+      and frozen-input rules are unchanged; method groups retain their existing shape reader.
+      OptionalLambdaInferenceTests supplies sixteen Tier 1 cases with direct model inputs and stub
+      lambda trials: optional/constructed-alias/plain targets, stated or argument-provided inputs,
+      unavailable/conflicting inputs, frozen bounds, parameterless lambdas, dependent callbacks,
+      receiver substitution, deferred general unions and unchanged optional method-group behavior.
+      OptionalLambdaGenericCallTests supplies nineteen Tier 2 hand-built call cases: expression/block
+      bodies, optional and generic-alias destinations, purity inheritance, equal inferred/explicit
+      signatures and recorded type arguments, body-derived outputs, generic overload selection,
+      single cause diagnostics and async task results. Before the change, the regression cases miss
+      result bounds or report not-inferred instead of the input conflict; final inference retains
+      only the selected calls. The focused ledger passes 104/104, the solution builds with zero
+      warnings and scoped formatting verification is clean. General callable unions remain deferred
+      pending their selection specification; method-group conversion and overload ranking are unchanged.
+      The full solution ledger passes 10656/10656 cases across Mist, Storm and CLI after both follow-ups.
     unlocks: []
 
   - id: lambda-expressions
@@ -7815,6 +7881,20 @@ capabilities:
 
       With 130 delivered the sample is BANKED -- 47th on AllFeaturesV2, matching the baseline on
       both pipelines.
+
+      CLR ENUM CONSTANTS, 2026-09-27 (ambient-type-provider-v2 Req 8.7). EnumProjector gave every
+      projected member a null Value: names and cardinality right, numbers absent, and no sample could
+      show it, because emitted C# names the CLR member and the CLR supplies its value. Each member now
+      carries a LiteralExpression of the field's raw metadata constant, boxed as the base's own
+      primitive -- a ulong past long.MaxValue survives, as it now does in every integral constant the
+      model holds (order 6) -- and typed as the enum's resolved UnderlyingType. ClrEnumConstantProjectionTests
+      (Tier 2, 10 cases) covers all eight integral bases at both extremes and sparse, negative, aliased
+      and flag values, over fixtures read through a MetadataLoadContext so nothing can execute; the five
+      mutations it was checked against are in backlog/provider-tasks.yaml. Measured over the net10.0
+      reference pack: 544 public enums, 5154 constants, every one a literal whose raw boxed type is its
+      enum's base, read in 38 ms. Nothing reads the values yet -- the binder, analyzers and emitter
+      walk source enums only -- and the full suite, AllFeaturesV2 included, is green on it. One
+      projection item closed, not this capability: v2_status stays partial.
     unlocks: [Attributes]
 
   - id: clr-generic-construction-and-members
@@ -13205,6 +13285,65 @@ measured_defects:
           receivers: admitting Mist-declared generics misjudged variadic packs, reporting a
           lambda-body error for a Func variable in Bundle<...>.Map.
 
+      - defect: a numeric literal v2 could not read bound as 0, with no diagnostic
+        recorded_on: literals-primitive (order 6)
+        status: FIXED
+        note: >
+          Found 2026-09-27 while projecting CLR enum constants, by asking what a ulong value past
+          long.MaxValue binds to on the Mist side. The binder parsed every integer literal into a long,
+          fell back to 0 when that failed, and never stripped a separator or a hex suffix. One probe
+          program per case, on both pipelines: `1_000_000`, `0xFFu`, `0xFF_FF`, `18446744073709551615UL`,
+          `-9223372036854775808`, `1_000.5`, `3.14_15f` and `1_000.25m` all printed 0 on v2, and
+          `18446744073709551616`, which no type holds and classic refuses through Roslyn, compiled and
+          printed 0. Beside them `0b1010` was refused (binary literals had no binding), `var v =
+          3000000000;` and `var h = 0xFFFFFFFF;` emitted C# Roslyn refused, the literal typed int, and a
+          ulong enum counting past long.MaxValue was refused (order 88). Classic got every one right: it
+          emits a literal as written and lets C# read it, so no sample could tell the two apart unless it
+          printed one of these values, and none did. The refinement prover had been made to agree with
+          one of them: `4294967296u` typed uint and emitted as `0U`, so `Positive value = 4294967296u;`
+          over `double > 0.0` was refused as violated, prover and runtime both reading 0. It is the ulong
+          4294967296 now, emitted as such and admitted, and LiteralPredicateDecisionTests moves the case
+          across, keeping `0u` as the violation.
+
+          FIXED by one reader for all three integer spellings, IntegerLiterals: separators ignored
+          (binary-literals Requirement 8.10), the suffix's type (Requirement 3) or, where it cannot hold
+          the value, the next type that can, as C# reads it -- the spec is silent there and classic defers
+          to C#. The two negated minimums take the type C# gives them, and only when the literal follows
+          the minus directly. Floats drop separators and parse culture-invariantly, and a literal no type
+          holds is MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE. Underneath, the model no longer shares a long:
+          every integral constant is boxed as its own type's primitive and read through IntegralConstant,
+          which ConstantConversion, CastOperatorSelection, the enum binder, Assignability, the duplicate
+          and pattern-cover rules, the refinement readers and EmitIntegerLiteral all use. All thirteen
+          probes now print what classic prints or refuse where it refuses, `int bad = 3000000000;` as
+          MIST_PA_NO_IMPLICIT_CONVERSION rather than a Roslyn error. Held by IntegerLiteralReadingTests
+          (Tier 1, a boundary table from the spec and a 500-case property over any value in any spelling),
+          IntegralConstantTests, IntegerLiteralSpellingTests (Tier 1), NumericLiteralBindingTests,
+          EnumValueCountingTests (Tier 2) and IntegralConstantRuleTests (both), mutation-checked eleven
+          ways, each caught by the test aimed at it.
+
+      - defect: negating a byte or ushort printed a wrapped value
+        recorded_on: operators-arithmetic-comparison-logical (order 9)
+        status: FIXED
+        note: >
+          Measured 2026-09-27 on both pipelines. Standard declares unary minus for sbyte, short, int, long
+          and the three reals and nothing else, and classic refuses `-x` over a byte, ushort, uint, ulong
+          or char with MIST_TC_0003. v2 admitted all five, typing the negation as its operand: `byte x = 5;
+          var n = -x;` printed 251 and the ushort case 65531, the narrowing cast the emitter wraps small
+          arithmetic in turning C#'s int -5 back into a byte, while the uint, ulong and char cases emitted
+          C# that Roslyn refused. `var n = -3000000000;` failed the same way, the literal being a uint by
+          magnitude, though classic prints -3000000000.
+
+          FIXED as a binary operator already is: OperatorAdmissibility.UnaryResultType answers null for a
+          negated byte, ushort, uint, ulong or char, the binder types the negation as an error, and
+          OperatorAnalyzer reports MIST_PA_OPERATOR_NOT_APPLICABLE (analysis register order 9). The five are
+          NAMED, not inferred from a missing declaration: the first version refused any numeric type that
+          declared no negation, and the full suite failed eighteen tests whose models carry Standard's shells
+          without its operators, where `-2.5` and `-1` became errors. A minus in front of an unsuffixed
+          literal too large for int negates to a long, as classic and C# read it, parenthesized or not; `-5u`
+          and `-5UL` are refused, as classic refuses them. All fourteen probes now match classic.
+          UnaryNegationRuleTests, NumericLiteralBindingTests and IntegerLiteralReadingTests hold it,
+          mutation-checked four ways, the too-broad rule among them.
+
   classic_defects_where_v2_is_correct:
     note: >
       A category this file had no home for. The clean-room rule makes classic's BEHAVIOR the
@@ -13240,6 +13379,18 @@ measured_defects:
           message exists to carry. Found incidentally five separate times this session, which is the
           argument for sweeping ReportAtNode call sites for missing arguments rather than fixing
           them one at a time.
+
+      - defect: an omitted enum value after an arithmetic one counts from the wrong place
+        pipelines: classic wrong, v2 correct
+        status: OPEN
+        note: >
+          `enum Arith : long { A = 1 + 1, B, K = 1_000 * 1_000, L, N = -(2 * 3), O }` prints B = 0,
+          L = 1 and O = 2 on classic, measured 2026-09-27: its counter skips any value that is not a bare
+          literal, so B is not A plus one (enums Requirement 4.3) and O silently repeats A's value. It is
+          the negative-value defect order 88 records, one step wider. v2 folds the arithmetic and prints
+          B = 3, L = 1000001, O = -5; before that it refused B, L and O as uncountable. No banked sample
+          writes an arithmetic value followed by an omitted one, which is why no baseline ever showed the
+          difference.
 
   true_silent_drops:
     note: >

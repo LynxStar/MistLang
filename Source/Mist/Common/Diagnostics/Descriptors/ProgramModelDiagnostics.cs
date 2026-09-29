@@ -231,13 +231,6 @@ public static class ProgramModelDiagnostics
 
     // ── Modifier validation ──────────────────────────────────────────────
 
-    /// <summary>A member cannot be both public and private.</summary>
-    public static readonly DiagnosticDescriptor ConflictingAccessModifiers = new(
-        new DiagnosticId("MIST_PM_CONFLICTING_ACCESS"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A member cannot be both 'public' and 'private'.");
-
     /// <summary>Multiple substructural discipline modifiers (affine, linear, relevant) on the same declaration.</summary>
     public static readonly DiagnosticDescriptor ConflictingDisciplineModifiers = new(
         new DiagnosticId("MIST_PM_CONFLICTING_DISCIPLINE"),

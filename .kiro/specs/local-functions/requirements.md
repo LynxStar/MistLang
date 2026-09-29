@@ -85,7 +85,7 @@ as written in the book, and `static` to mean what it means on a lambda.
    and `relevant` on a Local_Function with diagnostic `MIST_PM_LOCAL_FUNCTION_MODIFIER`, naming the
    modifier, at the declaration.
 5. WHEN two accessibility modifiers are written, THE Compiler SHALL report
-   `MIST_PM_CONFLICTING_ACCESS_MODIFIERS` as it does on a member.
+   `MIST_PARSE_MULTIPLE_ACCESS` as it does on a member.
 
 ### Requirement 3: Name, Scope and Hoisting
 

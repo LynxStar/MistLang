@@ -21,7 +21,7 @@ internal static class ModifierBuilder
     /// <see cref="IHasModifiersNode"/>. Applies the scope-based default accessibility
     /// when no explicit access modifier is present. The node itself is used as the
     /// diagnostic location. Reports diagnostics for universally-invalid combinations
-    /// (e.g. public + private, multiple substructural disciplines).
+    /// (e.g. multiple substructural disciplines).
     /// </summary>
     public static MemberModifiers Build<TNode>(TNode node, DiagnosticBag diagnostics, MistType? declaringType)
         where TNode : SyntaxNode, IHasModifiersNode
@@ -108,7 +108,7 @@ internal static class ModifierBuilder
             result = result with { Accessibility = DefaultAccessibility(node, declaringType) };
         }
 
-        ValidateUniversalConflicts(accessModifierCount, diagnostics, node, modifiers);
+        ValidateUniversalConflicts(diagnostics, node, modifiers);
 
         if(result.IsStampable && (result.IsRef || node is not TypeBodyDeclarationNode { Keyword: StructKeywordTypeKeywordNode }))
         {
@@ -287,16 +287,10 @@ internal static class ModifierBuilder
     /// regardless of declaration context.
     /// </summary>
     private static void ValidateUniversalConflicts(
-        int accessModifierCount,
         DiagnosticBag diagnostics,
         SyntaxNode locationNode,
         ImmutableArray<ModifierNode> modifiers)
     {
-        if(accessModifierCount > 1)
-        {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.ConflictingAccessModifiers, locationNode, null);
-        }
-
         if(HasMultipleDisciplines(modifiers))
         {
             diagnostics.ReportAtNode(ProgramModelDiagnostics.ConflictingDisciplineModifiers, locationNode, null);

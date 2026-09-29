@@ -10050,6 +10050,9 @@ capabilities:
       the body form LiteralExpression already holds a string in, so emission only puts the quotes
       back. The shorthand binds AS a regex literal when the target is regex, which is what keeps the
       two spellings one thing rather than a conversion the target language has to be talked into.
+      Since 2026-09-28 a string literal cast to regex or passed to `new Regex(...)` binds as one too,
+      emitting the same construction and validated by analysis order 14; a string that is not a literal
+      still converts at run time (RegexLiteralSugarTests, Tier 3).
     unlocks: []
 
   - id: regex-full-match-lowering

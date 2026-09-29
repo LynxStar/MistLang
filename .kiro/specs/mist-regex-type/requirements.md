@@ -126,6 +126,7 @@ Key design decisions:
 8. WHEN a **string literal** that is a syntactically valid regex pattern is assigned to a `regex` variable (e.g., `regex x = "[a-z]+";`), THE Type_Checker SHALL validate the literal at compile time, accept the assignment without requiring an explicit cast, and desugar it to the explicit cast operator (since the pattern is proven valid at compile time, no runtime check is needed).
 9. IF a **string literal** assigned to a `regex` variable is NOT a syntactically valid regex pattern (e.g., `regex x = "[invalid";`), THEN THE Type_Checker SHALL emit a compile-time diagnostic error indicating the regex syntax error.
 10. WHEN a `string` argument is passed to a method parameter of type `regex`, THE Type_Checker SHALL require an explicit cast unless the argument is a string literal with a valid regex pattern.
+11. WHEN a **string literal** is the operand of an explicit cast to `regex` (e.g., `(regex)"[a-z]+"`) or the sole argument of a `Regex` construction (e.g., `new Regex("[a-z]+")`), THE Type_Checker SHALL treat it as a regex literal, validating the pattern at compile time as criterion 9 does, rather than deferring the check to the run-time conversion of criterion 7, which applies to non-literal strings only.
 
 ### Requirement 7: Regex Pattern in Pattern Matching
 

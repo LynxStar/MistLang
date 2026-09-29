@@ -398,6 +398,12 @@ internal static class OperatorBinder
                     }
 
                     var targetType = context.Resolver.Resolve(cast.TargetType, ctx.Scope);
+
+                    if(LiteralBinder.AsRegexLiteral(operand, targetType) is { } pattern)
+                    {
+                        return pattern;
+                    }
+
                     var called = CastOperatorSelection.Best(
                         operand.Type, targetType, context.ProgramModel.TypeInterner, ConstantConversion.IntegerConstant(operand));
 

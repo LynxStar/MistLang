@@ -81,15 +81,28 @@ internal static class LiteralBinder
 
         // The shorthand: a quoted pattern where a regex is expected IS a regex literal, and binding
         // it as one is what keeps the two spellings a single thing rather than a conversion the
-        // target language has to be talked into.
-        if(targetType is not null
-            && targetType.FullyQualifiedName == WellKnownTypes.Regex.FullyQualifiedName)
+        // target language has to be talked into. A cast to regex and a regex construction expect
+        // one too (AsRegexLiteral), so a pattern written in the source is checked at compile time
+        // however it is spelled, and only a string read at run time can still fail to parse.
+        if(targetType is not null && IsRegex(targetType))
         {
             return new RegexLiteralExpression(node, value, targetType);
         }
 
         var type = context.Resolver.LookupWellKnown(WellKnownTypes.String);
         return new LiteralExpression(node, value, type);
+    }
+
+    internal static RegexLiteralExpression? AsRegexLiteral(Expression bound, IMistType target)
+    {
+        return bound is LiteralExpression { Value: string body } && IsRegex(target)
+            ? new RegexLiteralExpression(bound.Node, body, target)
+            : null;
+    }
+
+    private static bool IsRegex(IMistType type)
+    {
+        return type.FullyQualifiedName == WellKnownTypes.Regex.FullyQualifiedName;
     }
 
     internal static Expression BindRegexLiteral(

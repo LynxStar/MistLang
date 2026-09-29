@@ -4547,14 +4547,29 @@ rules:
       reports exactly one MIST_PA_REGEX_INVALID for each, at the pattern's own position -- an alias with
       an assignment and an `is` use included. v2 follows the spec where classic misses a position.
 
-      NOT JUDGED: a string LITERAL inside an explicit `(regex)` cast or passed to `new Regex(...)`. Neither
-      binds as a regex literal, so both construct at run time and throw RegexParseException there on v2
-      (measured 2026-09-28). R6.7 makes the cast a run-time operation, written for non-literal strings;
-      no requirement asks for a literal in either form to be judged, though its value is known. Classic
-      also throws at run time for the cast, and emits C# that does not compile for the constructor (an
-      unqualified `Regex`). A string literal passed to a regex parameter or returned as a regex DOES bind
-      as a regex literal and is refused here, as the shorthand is. The wrapper's soundness for a VALID
-      pattern is emitter order 178's.
+      LITERAL CASTS AND CONSTRUCTIONS (2026-09-28). A string literal inside an explicit `(regex)` cast or
+      passed to `new Regex(...)` bound as a string and constructed at run time, throwing RegexParseException
+      there (measured on v2; classic throws for the cast and emits C# that does not compile for the
+      constructor, an unqualified `Regex`). The binder now reads either as the regex literal it spells
+      (LiteralBinder.AsRegexLiteral, beside the shorthand), so it is judged here like any other: a v2 probe
+      reports one MIST_PA_REGEX_INVALID for `(regex)"a)|(?:b"` and one for `new Regex("a)|(?:b")`, and
+      `(regex)"^a+$"`, `new Regex("b+")` and `regex c = new("c+")` run. Pinned by RegexLiteralSugarTests,
+      seven Tier 3 rows over the REAL Standard, whose explicit operator and public constructor the sugar
+      must pre-empt: the three literal forms and an escaped body bind as regex literals, while a variable,
+      an interpolated string and `new Regex(text)` keep their run-time construction. Disabling the cast
+      hook and the construction hook fails exactly their four literal rows. Full ledger 20260928-202612
+      passes all 11,128 tests, both sample baselines unchanged and included. A string literal passed to a
+      regex parameter or returned as a regex already bound as a regex literal. The wrapper's soundness for
+      a VALID pattern is emitter order 178's.
+
+      THE RUN-TIME CAST AND CONSTRUCTOR STAY, BY DECISION (Arthur, 2026-09-28). Removing the string-to-regex
+      cast and making the constructor private in favour of a `Regex.TryCreate(string) : regex?` factory was
+      built and measured, then set aside: a non-literal string can still fail to parse at run time, as
+      `x / y` can still divide by zero, and Mist is not yet panic free, so retiring one panicking conversion
+      alone is piecemeal. Measured while trying: classic's string shorthand lowers through the public
+      explicit operator (deleting it fails AllFeatures in four places) and classic refuses a non-public cast
+      operator (MIST_SB_0041), so the operator could not have left the shared Standard without a classic
+      change or a per-pipeline Standard. Both deferrals are tasks below.
 
       COVERAGE: MalformedRegexDecisionTests, 24 Tier 1 rows -- an error naming the offset for six malformed
       bodies, none for five valid bodies or an undecodable one, refusal of a refinement holding a malformed
@@ -4571,4 +4586,14 @@ rules:
       (extension declaration signatures, which touches DeclarationShapeAnalyzer and this register) without
       conflict; the same gates hold there, and full ledger 20260928-182754 passes all 11,121 tests (10,203
       compiler, 99 CLI, 819 source generator), both sample baselines included, failures.txt empty.
-    tasks: []
+    tasks:
+      - >
+        A string that is not a literal still becomes a regex at run time, through the explicit cast or the
+        constructor, and throws RegexParseException on a malformed pattern. Kept on purpose until Mist has a
+        panic-free design that treats every run-time failure alike (division, indexing, parsing); a
+        `regex?`-returning factory is the likely shape then. Decided 2026-09-28.
+      - >
+        A local that provably holds a string literal -- `string p = "[a-z]+"; (regex)p` -- is judged as a
+        run-time string. The flow already knows its value, but letting a flow fact decide whether a cast
+        compiles makes a distant reassignment flip it, so this is to be its own spec rather than an
+        extension of the literal sugar. Decided 2026-09-28.

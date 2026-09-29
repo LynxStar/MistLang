@@ -328,6 +328,12 @@ internal static class ExpressionBinder
         BuilderContext context)
     {
         var (settled, choice) = BindConstructorCall(type, argumentList, node, ctx, context);
+
+        if(initializer is null && settled is [var only] && LiteralBinder.AsRegexLiteral(only, type) is { } pattern)
+        {
+            return pattern;
+        }
+
         var interner = context.ProgramModel.TypeInterner;
         var parameterTypes = choice.Selected?.ParametersList.ConvertAll(
             parameter => choice.Substitution.Apply(parameter.Type, interner));

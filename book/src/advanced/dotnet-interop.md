@@ -326,11 +326,10 @@ Not all CLR members are visible in Mist. The Assembly Type Provider hides member
 
 | CLR Feature | Why It's Hidden |
 |-------------|-----------------|
-| `out` parameters | Mist has no `out` parameter semantics; methods like `TryGetValue` are excluded |
 | `ref readonly` return types | Mist cannot express `ref readonly` locals for CLR-originated references; the emitted C# would require `ref readonly` binding |
 | Pointer types (`int*`, `void*`) | Mist does not expose unsafe pointer operations |
 | Members referencing excluded types | If a method's signature uses a non-public type or pointer type in any position, the entire method is hidden |
-| Non-public members | Only `public` members are projected; `internal`, `protected`, and `private` are excluded |
+| Non-public members | `internal` and `private` members are not projected. On the experimental pipeline, `protected` members are projected as `protected`, so only a Mist type deriving from the CLR type can reach them |
 | Events | Mist does not yet support the .NET event model |
 
 ### Individual-Overload Hiding
@@ -361,7 +360,7 @@ When **every** overload in a method group uses unsupported types (e.g., a method
 
 ### Why Hide Instead of Error?
 
-The alternative would be to emit a compile error whenever you try to use a type that has unsupported members. But most types have a mix of supported and unsupported members — `Dictionary<TKey, TValue>` has `TryGetValue` (hidden due to `out` param) alongside `Add`, `ContainsKey`, and the indexer (all visible). Hiding unsupported members lets you use the rest of the API without friction.
+The alternative would be to emit a compile error whenever you try to use a type that has unsupported members. But most types have a mix of supported and unsupported members — `System.Text.Encoding` has `GetBytes` overloads taking pointers (hidden) alongside the `string` and array overloads (visible). Hiding unsupported members lets you use the rest of the API without friction.
 
 ## Ref Structs (Span, ReadOnlySpan)
 
@@ -401,6 +400,10 @@ Intrinsic type substitution applies through the ref unwrapping — `ref System.I
 
 CLR `in` parameters are projected as Mist `ref` parameters. The `in` keyword in C# marks a parameter as ref-readonly, but from Mist's perspective it behaves like a `ref` parameter — you pass the argument with `ref` at the call site. The compiler handles emitting the correct `in` keyword in the generated C# automatically.
 
+### CLR `out` Parameters
+
+CLR `out` parameters are projected as Mist `ref` parameters, so a method such as `Dictionary.TryGetValue` is callable: you pass the argument with `ref` at the call site, and the compiler emits the `out` keyword in the generated C#.
+
 ### CLR Ref Returns
 
 CLR methods with mutable `ref` returns are supported. The method appears with a `ref` return type in Mist, and you can bind the result to a `ref` local:
@@ -416,10 +419,9 @@ CLR methods with `ref readonly` returns remain hidden. The emitted C# would requ
 
 ### Working Around Hidden Members
 
-When a method you need is hidden (like `Dictionary.TryGetValue`), use alternative patterns:
+When a method you need is hidden, use alternative patterns:
 
-- **`ContainsKey` + indexer** instead of `TryGetValue`
-- **LINQ methods** instead of methods with `out` parameters
+- **A sibling overload** that uses only supported types, such as `Encoding.GetBytes(string)` in place of the pointer overloads
 - **Wrapper methods** in a Mist helper class that call the hidden API via the C# emitter
 
 ## The `mist inspect` Command

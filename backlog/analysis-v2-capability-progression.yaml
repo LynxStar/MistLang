@@ -4512,13 +4512,41 @@ rules:
         placement on enums and newtypes, and culture, and brought object-model/readonly.md (Requirement 11)
         and type-system/refinement-types.md (Requirement 12.2) into line.
       - >
-        Refuse `default(T)` on a class whose only constructor is a user-declared parameterless one and
-        which has no default block: defaultability Requirement 3.6 (optional-defaultability 4.2) makes it
-        non-defaultable. v2 admits it -- Defaultability.StatesAZero counts a parameterless constructor as
-        stating a zero -- and `default(Counter)` prints `start=1 step=0`, the initializers and zeros with
-        the constructor not run. Classic refuses it as MIST_DEFAULT_NOT_SUPPORTED. Measured 2026-09-26. From
-        order 50 (default-value-synthesis), where it is the third analysis task; placed here because
-        purity-checking already judges what taking a default runs.
+        DONE 2026-09-29: refuse `default(T)` on a class or struct that declares an instance constructor,
+        parameterless or not, and no default block. Defaultability Requirement 3.6 (optional-defaultability
+        4.2) makes it non-defaultable. v2 admitted it -- Defaultability.StatesAZero counted a parameterless
+        constructor as stating a zero -- and `default(Counter)` printed `start=1 step=0`, the initializers and
+        zeros with the constructor not run, where classic refuses it as MIST_DEFAULT_NOT_SUPPORTED (measured
+        2026-09-26). From order 50 (default-value-synthesis), where it is the third analysis task; placed
+        here because purity-checking already judges what taking a default runs.
+
+        StatesAZero now asks for a default block or no instance constructor at all; a static constructor
+        does not count. BaseIsDefaultable is unchanged and still asks a base for a parameterless
+        constructor, declared or implicit, because that is what a derived type's synthesized constructor
+        chains to. Every consumer reads the one classification, so for such a type: MIST_PA_NOT_DEFAULTABLE
+        at `default(Counter)` and at a target-typed `default`, once each; MIST_PA_CONSTRAINT_NOT_SATISFIED
+        where it closes `where T : default`, while a `new()` constraint on the same parameter is still met;
+        no factory emitted; a field of its type with no initializer has no default, so a constructorless
+        holder is non-defaultable too and a user constructor must assign the field (Requirement 10.2); and
+        its own field initializers are construction code (Requirement 6.3) rather than defaults held to
+        consistency. `new Counter()` is untouched. MIST_PA_NOT_DEFAULTABLE's message named a parameterless
+        constructor as a source of a default; it now names a constructor without a default block as the
+        reason there is none.
+
+        PurityRoundFourTests' default-of-a-derived-type-runs-the-base-constructor failed under the change:
+        its Base had only a parameterless constructor, so Derived became non-defaultable and the purity
+        judge no longer saw a default chaining into Base(). Its fixture now gives Base an empty default
+        block, the shape in which a derived default still runs Base(), and the row passes again.
+        DefaultabilityTests (Tier 1, 19 cases: class and struct, parameterless and argument-taking, with
+        and without a block, constructorless, static-only, derived over three bases, a field of the type
+        with and without an initializer, a self-referencing field) and DefaultabilityRefusalTests (Tier 2,
+        9 cases: both default forms reported at their own columns, three admitted shapes, declaration and
+        `new` unrefused, the default constraint with and without a block) pin it. Mutation: restoring
+        HasParameterlessConstructor in StatesAZero failed exactly the 7 parameterless rows of the 29, and
+        restoring the fix passed all 29. Left open, as inheritance design: a constructorless derived type
+        over a base whose only constructor takes arguments stays non-defaultable even when the base has a
+        block, since the synthesis has no base constructor to chain to, where Requirement 9.1 would admit
+        it.
       - >
         MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE, for a local Add on a list the scope does not own, says only
         "it is not readonly". It does not name the owned receiver that would admit the call, as

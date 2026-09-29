@@ -2410,11 +2410,11 @@ capabilities:
         `default(T)` over non-constant initializers (MIST_DEFAULT_NOT_SUPPORTED). v2 does not adopt that
         constant-only rule: a non-constant default that is pure is admitted and runs.
       - >
-        Refuse `default(T)` on a class whose only constructor is a user-declared parameterless one and
-        which has no default block: defaultability Requirement 3.6 (optional-defaultability 4.2) makes it
-        non-defaultable. v2 admits it -- Defaultability.StatesAZero counts a parameterless constructor as
-        stating a zero -- and `default(Counter)` prints `start=1 step=0`, the initializers and zeros with
-        the constructor not run. Classic refuses it as MIST_DEFAULT_NOT_SUPPORTED. Measured 2026-09-26.
+        DONE 2026-09-29 by purity-checking (analysis order 13), as MIST_PA_NOT_DEFAULTABLE: a class or
+        struct declaring an instance constructor, parameterless or not, and no default block is
+        non-defaultable (defaultability Requirement 3.6), where v2 had admitted `default(Counter)` and
+        printed `start=1 step=0` and classic refuses it as MIST_DEFAULT_NOT_SUPPORTED. Such a type now gets
+        no factory. The evidence is in that register's entry.
     unlocks: [DefaultKeyword]
 
   # ===================================================================

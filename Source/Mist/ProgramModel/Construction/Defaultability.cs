@@ -8,10 +8,11 @@ namespace Mist.ProgramModel.Construction;
 /// <summary>
 /// Whether a type has a default an instance can be built from. An optional defaults to absence, an
 /// intrinsic to what C# says, an enum to its marked variant; a class or struct defaults to an
-/// instance the emitter synthesizes, which exists only when the type states a zero -- a default block
-/// or a parameterless constructor -- its base leaves a parameterless constructor standing, and every
-/// instance field has an answer. A type reached again through its own fields answers NOT defaultable:
-/// a cycle means the default is infinitely deep, so there is no instance to build.
+/// instance the emitter synthesizes, which exists only when the type states a zero -- a default block,
+/// or no instance constructor of its own, a declared one being construction however few parameters it
+/// takes -- its base leaves a parameterless constructor standing, and every instance field has an
+/// answer. A type reached again through its own fields answers NOT defaultable: a cycle means the
+/// default is infinitely deep, so there is no instance to build.
 /// </summary>
 internal static class Defaultability
 {
@@ -101,7 +102,7 @@ internal static class Defaultability
 
     private static bool StatesAZero(ConcreteType type)
     {
-        return type.DefaultBlock is not null || HasParameterlessConstructor(type);
+        return type.DefaultBlock is not null || !NeedsSentinel(type);
     }
 
     private static bool BaseIsDefaultable(ConcreteType type, HashSet<MemberType> visiting)

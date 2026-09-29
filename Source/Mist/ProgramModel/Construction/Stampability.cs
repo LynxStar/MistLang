@@ -9,7 +9,7 @@ namespace Mist.ProgramModel.Construction;
 /// Whether a type's default is a flat value that can be stamped into every slot of a bare array or a
 /// stackalloc, so that no slot is ever observed holding null: an intrinsic struct, or a tuple or
 /// struct of stampable fields. Distinct from <see cref="Defaultability"/>, which asks whether an
-/// instance can be BUILT -- a class with a parameterless constructor has a default and is still a
+/// instance can be BUILT -- a class with no constructor of its own has a default and is still a
 /// reference, and a struct with a string field has one and still stamps a null. A refinement's zero
 /// need not satisfy its predicate, an enum's need not be a variant, and a newtype is neither primitive
 /// nor struct. Revisiting a generic declaration is finite only when its next instance occurs inside

@@ -145,6 +145,7 @@ internal sealed partial class PurityFragments
     {
         var root = HandBuiltModel.Class("Base");
         root.ConstructorsList.Add(new Constructor("Base", root, [], Public) { DeclaringType = root, Body = HandBuiltModel.Block(WriteStatic(ticks)) });
+        root.DefaultBlock = new DefaultBlock([], DeclarationFragments.At<DefaultBlockDeclarationNode>());
         var derived = HandBuiltModel.Class("Derived", root);
         var d = new LocalVariable("d", derived);
         var make = Method(probe, "Make", integer, PureStatic, HandBuiltModel.Block(

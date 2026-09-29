@@ -12,12 +12,6 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// What a type's <c>default</c> is, lowered to a parameterless constructor plus a static factory so
 /// that <c>default(T)</c> becomes an ordinary call. Mist's default of a class is an INSTANCE with every
 /// field defaulted, not a null reference, so there is nothing C# can be asked for here.
-/// <para>
-/// A type is defaultable only if it states a zero -- a default block, no constructor at all, or a
-/// parameterless one. Requiring arguments and saying nothing else is the author saying the type has no
-/// sensible zero. Emission is GATED on this rather than a diagnostic being raised for the rest, because
-/// refusing a program is a judgement on a finished model and nothing in this pipeline makes one yet.
-/// </para>
 /// </summary>
 internal static class DefaultSynthesis
 {

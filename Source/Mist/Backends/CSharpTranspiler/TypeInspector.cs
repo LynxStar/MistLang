@@ -77,8 +77,7 @@ public static class TypeInspector
     /// </summary>
     internal static bool ProjectBesideStandard(AmbientTypeProviderV2 provider, DiagnosticBag diagnostics)
     {
-        var standardRoot = Path.Combine(AppContext.BaseDirectory, "Standard");
-        var units = StdlibLoader.LoadFrom(standardRoot, diagnostics);
+        var units = StdlibLoader.LoadFor(diagnostics);
         var lexer = new MistLexer();
         var parser = new MistParser();
         var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>(units.Length);
@@ -90,6 +89,7 @@ public static class TypeInspector
                 return false;
             }
 
+            root.SetParentLinks();
             asts.Add(root);
         }
 
@@ -98,10 +98,11 @@ public static class TypeInspector
             return false;
         }
 
+        var standardRoot = Path.Combine(AppContext.BaseDirectory, "Standard");
         var options = new CompilerOptions(
             ProjectFolder: standardRoot,
             SourcePaths: [],
-            Backend: new BackendId("csharp"),
+            Backend: BackendId.CSharp,
             OutputDirectory: standardRoot,
             BinDirectory: standardRoot,
             ProjectName: "Inspect",

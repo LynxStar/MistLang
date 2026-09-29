@@ -24,10 +24,10 @@ public class Program
         System.Collections.Generic.List<int> alsoPositives = numbers.FindAll(IsPositive);
         System.Console.WriteLine(System.FormattableString.Invariant($"alsoPositives={alsoPositives.Count}"));
         System.Func<int, bool> isEven = (int x) => x % 2 == 0;
-        System.Predicate<int> predicate = new System.Predicate<int>(isEven);
+        System.Predicate<int> predicate = new System.Predicate<int>((isEven).Invoke);
         System.Collections.Generic.List<int> evens = numbers.FindAll(predicate);
         System.Console.WriteLine(System.FormattableString.Invariant($"evens={evens.Count}"));
-        System.Func<int, bool> backToFunc = new System.Func<int, bool>(predicate);
+        System.Func<int, bool> backToFunc = new System.Func<int, bool>((predicate).Invoke);
         System.Console.WriteLine($"backToFunc(4)={backToFunc(4)}");
         System.Console.WriteLine($"predicate(6)={MistInvariant.Text(predicate(6))}");
         System.Console.WriteLine($"predicate(7)={MistInvariant.Text(predicate(7))}");

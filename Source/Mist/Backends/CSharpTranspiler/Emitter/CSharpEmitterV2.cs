@@ -26,6 +26,7 @@ internal sealed class CSharpEmitterV2
     private readonly ImmutableArray<string> referencePaths;
     private readonly DiagnosticBag diagnostics;
     private readonly Func<string, Type?> clrType;
+    private readonly List<string> emittedFiles = [];
 
     public CSharpEmitterV2(
         IProgramModel programModel,
@@ -40,6 +41,8 @@ internal sealed class CSharpEmitterV2
         this.diagnostics = diagnostics;
         this.clrType = clrType;
     }
+
+    public int EmittedFileCount => emittedFiles.Count;
 
     /// <summary>
     /// Emits all compilation units to disk and compiles the result.
@@ -92,7 +95,6 @@ internal sealed class CSharpEmitterV2
         var outputDir = options.OutputDirectory;
         _ = Directory.CreateDirectory(outputDir);
 
-        var emittedFiles = new List<string>();
         ContextLowering.Reset();
         ArrayLowering.Reset();
         ArrayEnumeration.Reset();

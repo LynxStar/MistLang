@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Resolution;
@@ -39,8 +40,9 @@ internal static class ProgramAnalysisRunner
         new RefinementAnalyzer(),
     ];
 
-    public static void Run(ProgramModelClass model, DiagnosticBag diagnostics)
+    public static void Run(ProgramModelClass model, DiagnosticBag diagnostics, AnalysisTimings? timings = null)
     {
+        timings ??= new AnalysisTimings();
         var sourcePaths = SourceTypes.UnitsOf(model).Select(source => source.Unit.SourcePath).ToHashSet(StringComparer.Ordinal);
         var bodies = SourceBodies.Of(model).ToList();
         var clones = SourceTypes.Of(model).OfType<ConcreteType>().Where(IsClone).ToList();
@@ -49,7 +51,7 @@ internal static class ProgramAnalysisRunner
         var refusals = CloneConversionRefusals.Judge(conversions, root =>
         {
             var findings = new DiagnosticBag();
-            Analyze(model, new AnalysisScope([], [root], [], [], RestrictToScope: true), sourcePaths, findings, CloneConversionRefusals.None);
+            Analyze(model, new AnalysisScope([], [root], [], [], RestrictToScope: true), sourcePaths, findings, CloneConversionRefusals.None, timings, AnalysisScopeKind.CloneConversion);
 
             return findings.ToImmutableArray();
         });
@@ -60,7 +62,7 @@ internal static class ProgramAnalysisRunner
             [.. SourceTypes.ExtensionsOf(model)],
             model.TypeNamings.Namings);
 
-        Analyze(model, program, sourcePaths, diagnostics, refusals);
+        Analyze(model, program, sourcePaths, diagnostics, refusals, timings, AnalysisScopeKind.Program);
 
         CloneDiagnostics.Run(
             clones,
@@ -69,7 +71,9 @@ internal static class ProgramAnalysisRunner
                 new AnalysisScope([clone], [.. bodies.Where(root => root.Owner == clone).Except(conversions)], [], [], RestrictToScope: true),
                 sourcePaths,
                 diagnostics,
-                refusals),
+                refusals,
+                timings,
+                AnalysisScopeKind.ClonedType),
             diagnostics);
     }
 
@@ -78,8 +82,12 @@ internal static class ProgramAnalysisRunner
         AnalysisScope scope,
         IReadOnlySet<string> sourcePaths,
         DiagnosticBag diagnostics,
-        IReadOnlyDictionary<CastOperator, ConversionRefusal> refusals)
+        IReadOnlyDictionary<CastOperator, ConversionRefusal> refusals,
+        AnalysisTimings timings,
+        AnalysisScopeKind kind)
     {
+        timings.RecordScope(kind);
+
         var nodes = new List<object>();
         var roots = new Dictionary<object, SourceRoot>(ReferenceEqualityComparer.Instance);
         var assignedBy = new Dictionary<object, AssignmentExpression>(ReferenceEqualityComparer.Instance);
@@ -102,7 +110,10 @@ internal static class ProgramAnalysisRunner
 
         foreach(var analyzer in Analyzers)
         {
-            analyzer.Analyze(new AnalysisContext(model, scope, nodes, roots, assignedBy, sourcePaths, diagnostics, analyzer.Id, refusals, scopedModel));
+            var context = new AnalysisContext(model, scope, nodes, roots, assignedBy, sourcePaths, diagnostics, analyzer.Id, refusals, scopedModel);
+            var started = Stopwatch.GetTimestamp();
+            analyzer.Analyze(context);
+            timings.Record(analyzer, Stopwatch.GetElapsedTime(started));
         }
     }
 

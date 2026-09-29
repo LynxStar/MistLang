@@ -52,7 +52,7 @@ public sealed partial class CompilerDriver : ICompilerDriver
         this.stdlibParseCache = stdlibParseCache;
         this.progressReporter = progressReporter ?? NullProgressReporter.Instance;
         this.classicPipeline = classicPipeline;
-        experimentalPipeline = new ExperimentalPipeline();
+        experimentalPipeline = new ExperimentalPipeline(this.progressReporter);
     }
 
     public CompilerResult Compile(CompilerOptions options)

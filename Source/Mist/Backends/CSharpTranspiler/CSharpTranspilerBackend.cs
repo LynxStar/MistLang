@@ -15,7 +15,7 @@ namespace Mist.Backends.CSharpTranspiler;
 /// </summary>
 public sealed class CSharpTranspilerBackend : IBackend
 {
-    public BackendId Id => new("csharp");
+    public BackendId Id => BackendId.CSharp;
 
     /// <summary>
     /// Cached <see cref="AssemblyTypeProvider"/> instance. Reused when the same merged

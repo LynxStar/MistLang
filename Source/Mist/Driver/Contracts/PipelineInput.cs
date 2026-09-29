@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 
 namespace Mist.Driver.Contracts;
@@ -11,7 +10,6 @@ namespace Mist.Driver.Contracts;
 public sealed record PipelineInput(
     MistCompilation Compilation,
     ImmutableArray<Storm.Runtime.SyntaxNode> Asts,
-    IBackend Backend,
     ImmutableArray<string> ResolvedAssemblyPaths,
     CompilerOptions Options,
     ImmutableHashSet<string>? DirectReferencePaths,

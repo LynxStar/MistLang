@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Driver.Contracts;
@@ -31,15 +30,9 @@ public static class StdlibLoader
     /// <paramref name="diagnostics"/> and do not throw.
     /// Results are cached after the first successful load.
     /// </summary>
-    /// <param name="backend">
-    /// The resolved backend. Reserved for future backend-specific stdlib
-    /// variants; currently ignored.
-    /// </param>
     /// <param name="diagnostics">Diagnostic bag to receive any load errors.</param>
-    public static ImmutableArray<CompilationUnit> LoadFor(IBackend backend, DiagnosticBag diagnostics)
+    public static ImmutableArray<CompilationUnit> LoadFor(DiagnosticBag diagnostics)
     {
-        _ = backend; // reserved for future backend-specific stdlib selection
-
         // Fast path: return cached units if available.
         var cached = cachedUnits;
         if(!cached.IsDefault)

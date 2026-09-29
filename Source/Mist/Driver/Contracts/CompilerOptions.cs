@@ -13,7 +13,10 @@ namespace Mist.Driver.Contracts;
 /// <param name="BinDirectory">Directory for final binary output.</param>
 /// <param name="ProjectName">Name of the project.</param>
 /// <param name="NamespaceRoot">Root namespace for the project.</param>
-/// <param name="EnabledAnalyzerIds">IDs of analyzers to run during compilation.</param>
+/// <param name="EnabledAnalyzerIds">
+/// IDs of the classic analyzers to run; empty runs them all. Only the classic pipeline reads it: the
+/// experimental pipeline runs every Stage 5 rule, so it goes when the classic pipeline does.
+/// </param>
 /// <param name="EmitToDisk">Whether to write output files to disk.</param>
 /// <param name="GlobalUsings">
 /// Namespaces to implicitly import into every compilation unit.

@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
@@ -8,7 +7,6 @@ using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
-using Mist.Semantics.Contracts;
 
 namespace Mist.Driver;
 
@@ -16,51 +14,58 @@ namespace Mist.Driver;
 /// Orchestrates Stages 1-3 (loading, lexing, parsing), then dispatches to
 /// the selected <see cref="ICompilationPipeline"/> for Stages 4-6.
 /// </summary>
-public sealed class CompilerDriver : ICompilerDriver
+public sealed partial class CompilerDriver : ICompilerDriver
 {
-    private ILexer lexer;
-    private IParser parser;
-    private ImmutableDictionary<string, IBackend> backends;
+    private readonly ILexer lexer;
+    private readonly IParser parser;
+    private readonly ImmutableHashSet<string> backendIds;
     private readonly StdlibParseCache stdlibParseCache;
     private readonly ICompilationProgressReporter progressReporter;
-    private readonly ICompilationPipeline classicPipeline;
+    private readonly ICompilationPipeline? classicPipeline;
     private readonly ICompilationPipeline experimentalPipeline;
 
-    public CompilerDriver(
-        ILexer lexer,
-        IParser parser,
-        ISemanticModelBuilder semanticModelBuilder,
-        ImmutableArray<IAnalyzer> analyzers,
-        ImmutableArray<IBackend> backends,
-        ICompilationProgressReporter? progressReporter = null)
-        : this(lexer, parser, semanticModelBuilder, analyzers, backends, StdlibParseCache.Shared, progressReporter)
+    public CompilerDriver(ILexer lexer, IParser parser, ICompilationProgressReporter? progressReporter = null)
+        : this(lexer, parser, StdlibParseCache.Shared, progressReporter)
     {
     }
 
     internal CompilerDriver(
         ILexer lexer,
         IParser parser,
-        ISemanticModelBuilder semanticModelBuilder,
-        ImmutableArray<IAnalyzer> analyzers,
-        ImmutableArray<IBackend> backends,
         StdlibParseCache stdlibParseCache,
         ICompilationProgressReporter? progressReporter = null)
+        : this(lexer, parser, stdlibParseCache, progressReporter, [BackendId.CSharp], classicPipeline: null)
+    {
+    }
+
+    private CompilerDriver(
+        ILexer lexer,
+        IParser parser,
+        StdlibParseCache stdlibParseCache,
+        ICompilationProgressReporter? progressReporter,
+        IEnumerable<BackendId> backendIds,
+        ICompilationPipeline? classicPipeline)
     {
         this.lexer = lexer;
         this.parser = parser;
-        this.backends = backends.ToImmutableDictionary(b => b.Id.Value);
+        this.backendIds = backendIds.Select(id => id.Value).ToImmutableHashSet(StringComparer.Ordinal);
         this.stdlibParseCache = stdlibParseCache;
         this.progressReporter = progressReporter ?? NullProgressReporter.Instance;
-        classicPipeline = new ClassicPipeline(semanticModelBuilder, analyzers, this.progressReporter);
+        this.classicPipeline = classicPipeline;
         experimentalPipeline = new ExperimentalPipeline();
     }
 
     public CompilerResult Compile(CompilerOptions options)
     {
+        var pipeline = options.Pipeline == PipelineMode.Classic
+            ? classicPipeline ?? throw new InvalidOperationException(
+                "This CompilerDriver was constructed without the classic pipeline; construct it with the classic services or select PipelineMode.Experimental.")
+            : experimentalPipeline
+            ;
+
         var allDiagnostics = new DiagnosticBag();
 
-        // Resolve backend
-        if(!backends.TryGetValue(options.Backend.Value, out var backend))
+        if(!backendIds.Contains(options.Backend.Value))
         {
             allDiagnostics.Report(DriverDiagnostics.UnknownBackend, default, "<unknown>", (object?)options.Backend.Value);
 
@@ -68,7 +73,7 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         // Stage 1: Loading
-        var loadResult = LoadCompilationUnits(options, backend, allDiagnostics);
+        var loadResult = LoadCompilationUnits(options, allDiagnostics);
         if(loadResult is null)
         {
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
@@ -91,48 +96,13 @@ public sealed class CompilerDriver : ICompilerDriver
             lexResult.StdlibTokensForCache,
             lexResult.CachedStdlib,
             allDiagnostics);
-        var asts = parseResult.Asts;
-        compilation = parseResult.Compilation;
-
-        // Dropped after parsing rather than at load because the stdlib parse cache pairs its
-        // syntax trees with the stdlib units by index and serves both pipelines.
-        if(options.Pipeline == PipelineMode.Classic)
-        {
-            (compilation, asts) = WithoutExperimentalStdlib(compilation, asts);
-        }
 
         // Dispatch to the compilation pipeline (Stages 4-6).
         var pipelineInput = new PipelineInput(
-            compilation, asts, backend, resolvedAssemblyPaths,
+            parseResult.Compilation, parseResult.Asts, resolvedAssemblyPaths,
             options, directReferencePaths, allDiagnostics);
 
-        var pipeline = options.Pipeline == PipelineMode.Classic
-            ? classicPipeline
-            : experimentalPipeline
-            ;
-
         return pipeline.Execute(pipelineInput);
-    }
-
-    private static (MistCompilation Compilation, ImmutableArray<Storm.Runtime.SyntaxNode> Asts) WithoutExperimentalStdlib(
-        MistCompilation compilation, ImmutableArray<Storm.Runtime.SyntaxNode> asts)
-    {
-        var units = compilation.Units;
-
-        for(var index = units.Length - 1; index >= 0; index--)
-        {
-            if(units[index].IsExperimentalOnly)
-            {
-                units = units.RemoveAt(index);
-
-                if(index < asts.Length)
-                {
-                    asts = asts.RemoveAt(index);
-                }
-            }
-        }
-
-        return (compilation with { Units = units }, asts);
     }
 
     /// <summary>
@@ -151,7 +121,6 @@ public sealed class CompilerDriver : ICompilerDriver
     /// </summary>
     private LoadResult? LoadCompilationUnits(
         CompilerOptions options,
-        IBackend backend,
         DiagnosticBag allDiagnostics)
     {
         var loadingStopwatch = Stopwatch.StartNew();
@@ -181,7 +150,7 @@ public sealed class CompilerDriver : ICompilerDriver
         // primitive keyword resolution (Stage 4) and operator overload
         // resolution depend on stdlib types being present.
         var stdlibBag = new DiagnosticBag();
-        var stdlibUnits = StdlibLoader.LoadFor(backend, stdlibBag);
+        var stdlibUnits = StdlibLoader.LoadFor(stdlibBag);
 
         foreach(var d in stdlibBag.ToImmutableArray())
         {

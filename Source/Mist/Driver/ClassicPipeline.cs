@@ -18,27 +18,35 @@ public sealed class ClassicPipeline : ICompilationPipeline
 {
     private readonly ISemanticModelBuilder semanticModelBuilder;
     private readonly ImmutableArray<IAnalyzer> analyzers;
+    private readonly ImmutableDictionary<string, IBackend> backends;
     private readonly ICompilationProgressReporter progressReporter;
 
     public ClassicPipeline(
         ISemanticModelBuilder semanticModelBuilder,
         ImmutableArray<IAnalyzer> analyzers,
+        ImmutableArray<IBackend> backends,
         ICompilationProgressReporter progressReporter)
     {
         this.semanticModelBuilder = semanticModelBuilder;
         this.analyzers = analyzers;
+        this.backends = backends.ToImmutableDictionary(b => b.Id.Value);
         this.progressReporter = progressReporter;
     }
 
     public CompilerResult Execute(PipelineInput input)
     {
         var allDiagnostics = input.Diagnostics;
+        var backend = backends[input.Options.Backend.Value];
+
+        // Dropped after parsing rather than at load because the stdlib parse cache pairs its
+        // syntax trees with the stdlib units by index and serves both pipelines.
+        var (compilation, asts) = WithoutExperimentalStdlib(input.Compilation, input.Asts);
 
         // Stage 4: Semantic Model
         var semanticResult = BuildSemanticModel(
-            input.Compilation,
-            input.Asts,
-            input.Backend,
+            compilation,
+            asts,
+            backend,
             input.ResolvedAssemblyPaths,
             input.Options,
             input.DirectReferencePaths,
@@ -59,13 +67,34 @@ public sealed class ClassicPipeline : ICompilationPipeline
         }
 
         // Stage 6: Emit via backend
-        var emitResult = Emit(semanticModel, input.Backend, input.Options, allDiagnostics);
+        var emitResult = Emit(semanticModel, backend, input.Options, allDiagnostics);
 
         return new CompilerResult(
             emitResult.Succeeded,
             emitResult.PrimaryArtifactPath,
             allDiagnostics.ToImmutableArray(),
             emitResult.EmittedFiles);
+    }
+
+    private static (MistCompilation Compilation, ImmutableArray<Storm.Runtime.SyntaxNode> Asts) WithoutExperimentalStdlib(
+        MistCompilation compilation, ImmutableArray<Storm.Runtime.SyntaxNode> asts)
+    {
+        var units = compilation.Units;
+
+        for(var index = units.Length - 1; index >= 0; index--)
+        {
+            if(units[index].IsExperimentalOnly)
+            {
+                units = units.RemoveAt(index);
+
+                if(index < asts.Length)
+                {
+                    asts = asts.RemoveAt(index);
+                }
+            }
+        }
+
+        return (compilation with { Units = units }, asts);
     }
 
     /// <summary>

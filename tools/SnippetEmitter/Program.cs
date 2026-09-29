@@ -10,13 +10,10 @@
 
 using System.Collections.Immutable;
 using System.Text.RegularExpressions;
-using Mist.Analysis.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
 
 var snippetsDir = args.Length > 0
     ? Path.GetFullPath(args[0])
@@ -174,17 +171,12 @@ string? EmitSnippet(string mistPath)
         }
 
         var outputDir = Path.Combine(scratchDir, "output");
-        var driver = new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray<IAnalyzer>.Empty,
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
 
         var options = new CompilerOptions(
             ProjectFolder: scratchDir,
             SourcePaths: [.. sources],
-            Backend: new BackendId("csharp"),
+            Backend: BackendId.CSharp,
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: config?.Name ?? "Snippet",

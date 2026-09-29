@@ -1,11 +1,10 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.CLI.Args;
+using Mist.CLI.Composition;
 using Mist.CLI.Layout;
 using Mist.CLI.Output;
 using Mist.CLI.Steering;
@@ -14,7 +13,6 @@ using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
-using Mist.Semantics.Model;
 
 internal class Program
 {
@@ -336,14 +334,9 @@ internal class Program
                 : PipelineMode.Classic,
             Platform: cliArgs.Platform);
 
-        // Construct the compiler pipeline
-        var lexer = new MistLexer();
-        var parser = new MistParser();
-        var semanticModelBuilder = new SemanticModelBuilder();
-        ImmutableArray<IAnalyzer> analyzers = [new TypeCheckerAnalyzer(), new FrameEscapeAnalyzer(), new ContextCheckerAnalyzer(), new ReadonlyAnalyzer(), new OwnershipAnalyzer(), new DropAnalyzer(), new EntryPointAnalyzer()];
-        ImmutableArray<IBackend> backends = [new CSharpTranspilerBackend()];
-
-        var driver = new CompilerDriver(lexer, parser, semanticModelBuilder, analyzers, backends, progressReporter);
+        var driver = options.Pipeline == PipelineMode.Experimental
+            ? new CompilerDriver(new MistLexer(), new MistParser(), progressReporter)
+            : ClassicCompilerComposition.CreateDriver(progressReporter);
 
         // Run compilation
         return driver.Compile(options);

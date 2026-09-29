@@ -41,6 +41,9 @@ internal static class BodyEmitter
 
     private const int NegationPrecedence = 3;
 
+    [ThreadStatic]
+    private static IMistType? enclosingType;
+
     public static void EmitBlock(Block block, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         EmitBlock(block, [], writer, diagnostics);
@@ -60,12 +63,22 @@ internal static class BodyEmitter
     /// get, for the same reason.
     /// </summary>
     public static void EmitMethodBody(
-        Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics, Func<Parameter, string>? spell = null)
+        Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics, Func<Parameter, string>? spell = null,
+        MemberType? owner = null)
     {
-        using var names = LocalNames.Enter(body, method.ParametersList.Select(parameter => parameter.Name));
-        using var reach = UnitHoisting.Enter(body);
-        EmitContextBindings(method, writer);
-        EmitParameterDrops(DropInsertion.DroppedParameters(method, body), 0, body, spell, writer, diagnostics);
+        var previous = enclosingType;
+        enclosingType = owner ?? method.DeclaringType ?? previous;
+        try
+        {
+            using var names = LocalNames.Enter(body, method.ParametersList.Select(parameter => parameter.Name));
+            using var reach = UnitHoisting.Enter(body);
+            EmitContextBindings(method, writer);
+            EmitParameterDrops(DropInsertion.DroppedParameters(method, body), 0, body, spell, writer, diagnostics);
+        }
+        finally
+        {
+            enclosingType = previous;
+        }
     }
 
     /// <summary>
@@ -405,7 +418,7 @@ internal static class BodyEmitter
         }
 
         EmitWitnesses(call, writer, diagnostics);
-        EmitArguments(call.Arguments, call.Method.ParametersList, writer, diagnostics, call.Method);
+        EmitArguments(call.Arguments, call.Method.ParametersList, call.ParameterTypes, writer, diagnostics, call.Method);
         writer.Append(")");
     }
 
@@ -445,9 +458,10 @@ internal static class BodyEmitter
         }
     }
 
-    private static void EmitArguments(
+    internal static void EmitArguments(
         IReadOnlyList<Expression> arguments,
         IReadOnlyList<Parameter>? parameters,
+        IReadOnlyList<IMistType>? parameterTypes,
         CSharpWriter writer,
         DiagnosticBag diagnostics,
         Method? callee = null)
@@ -457,7 +471,7 @@ internal static class BodyEmitter
         // packed here -- the one place that knows both how many there are and where they end.
         if(parameters is not null && FlattenedTupleSlot(parameters) is { } flattened)
         {
-            EmitFlattened(arguments, parameters, flattened, writer, diagnostics);
+            EmitFlattened(arguments, parameters, parameterTypes, flattened, writer, diagnostics, callee);
             return;
         }
 
@@ -481,26 +495,50 @@ internal static class BodyEmitter
                 continue;
             }
 
-            if(parameters is not null && i < parameters.Count && InvariantCulture.Writes(callee, parameters[i]) && InvariantCulture.WritesText(arguments[i].Type))
-            {
-                writer.Append(InvariantCulture.Written(RenderAt(arguments[i], PostfixPrecedence, diagnostics), arguments[i].Type));
-                continue;
-            }
-
-            if(parameters is not null && i < parameters.Count && OverloadPinning.CastFor(arguments[i], parameters[i], callee) is { } pinned)
-            {
-                writer.Append($"(({pinned})");
-                EmitSubExpression(arguments[i], PrefixPrecedence, writer, diagnostics);
-                writer.Append(")");
-                continue;
-            }
-
-            EmitCoerced(
-                arguments[i],
-                parameters is not null && i < parameters.Count ? parameters[i].Type : null,
-                writer,
-                diagnostics);
+            EmitArgument(arguments[i],
+                parameters is not null && i < parameters.Count ? parameters[i] : null,
+                parameterTypes is not null && i < parameterTypes.Count ? parameterTypes[i] : null,
+                writer, diagnostics, callee);
         }
+    }
+
+    internal static void EmitArgument(
+        Expression argument, Parameter? parameter, IMistType? closedTarget,
+        CSharpWriter writer, DiagnosticBag diagnostics, Method? callee)
+    {
+        if(parameter is not null && InvariantCulture.Writes(callee, parameter) && InvariantCulture.WritesText(argument.Type))
+        {
+            writer.Append(InvariantCulture.Written(RenderAt(argument, PostfixPrecedence, diagnostics), argument.Type));
+            return;
+        }
+
+        if(callee?.Modifiers.IsIntrinsic == true || callee?.Modifiers.IsClrProjected == true)
+        {
+            // A projected CLR member may expect a nominal delegate where its Mist target is func.
+            EmitCoerced(argument, parameter?.Type, writer, diagnostics);
+            return;
+        }
+
+        if(parameter is not null
+            && OverloadPinning.CastFor(argument, parameter, closedTarget ?? parameter.Type, callee) is { } pinned)
+        {
+            writer.Append($"(({pinned})");
+            if(argument is LambdaExpression)
+            {
+                writer.Append("(");
+            }
+
+            EmitSubExpression(argument, PrefixPrecedence, writer, diagnostics);
+            if(argument is LambdaExpression)
+            {
+                writer.Append(")");
+            }
+
+            writer.Append(")");
+            return;
+        }
+
+        EmitCoerced(argument, closedTarget ?? parameter?.Type, writer, diagnostics);
     }
 
     private static void EmitReturn(ReturnStatement returnStmt, CSharpWriter writer, DiagnosticBag diagnostics)
@@ -976,7 +1014,7 @@ internal static class BodyEmitter
                 if(UnsafeReach.Call(invocation, receiver => RenderAt(receiver, PostfixPrecedence, diagnostics)) is { } reached)
                 {
                     writer.Append(reached.Open);
-                    EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, writer, diagnostics);
+                    EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, invocation.ParameterTypes, writer, diagnostics, invocation.Method);
                     writer.Append(reached.Close);
                     break;
                 }
@@ -984,7 +1022,15 @@ internal static class BodyEmitter
                 // The member access is emitted from HERE when it carries type arguments, because
                 // only the invocation knows which overload they fill -- and a dependent slot is
                 // spelled by its carrier rather than by its domain.
-                if(invocation.Receiver is MemberAccessExpression callee
+                if(invocation.Receiver is MemberAccessExpression hiddenCallee
+                    && HiddenBaseCall.ReceiverType(hiddenCallee.Receiver.Type, invocation.Method) is { } baseType)
+                {
+                    EmitMemberAccess(hiddenCallee,
+                        ExtensionBlockEmitter.CallTypeArguments(invocation.Method, hiddenCallee.TypeArguments),
+                        writer, diagnostics, CollidingName(invocation.Method, baseType), baseType,
+                        invocation.Method?.Modifiers.IsStatic == true);
+                }
+                else if(invocation.Receiver is MemberAccessExpression callee
                     && (callee.TypeArguments is { Count: > 0 } || CollidingName(invocation.Method, callee.Receiver.Type) is not null))
                 {
                     EmitMemberAccess(
@@ -998,7 +1044,7 @@ internal static class BodyEmitter
 
                 writer.Append("(");
                 EmitWitnesses(invocation, writer, diagnostics);
-                EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, writer, diagnostics, invocation.Method);
+                EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, invocation.ParameterTypes, writer, diagnostics, invocation.Method);
                 writer.Append(")");
                 break;
 
@@ -1231,9 +1277,20 @@ internal static class BodyEmitter
                 break;
 
             case MethodReferenceExpression methodRef:
+                if(enclosingType is { } enclosing
+                    && HiddenBaseCall.ReceiverType(enclosing, methodRef.Method) is { } baseOwner)
+                {
+                    writer.Append(methodRef.Method.Modifiers.IsStatic
+                        ? TypeNameEmitter.Emit(baseOwner) + "."
+                        : "((" + TypeNameEmitter.Emit(baseOwner) + ")" + ReceiverSpelling.This + ").");
+                }
+                else
+                {
+                    writer.Append(ReceiverSpelling.Qualifier(methodRef.Method.DeclaringType, methodRef.Method.Modifiers.IsStatic));
+                }
+
                 writer.Append(
-                    ReceiverSpelling.Qualifier(methodRef.Method.DeclaringType, methodRef.Method.Modifiers.IsStatic)
-                    + CalleeName(
+                    CalleeName(
                         CollidingName(methodRef.Method, receiverType: null) ?? LocalNames.Of(methodRef.Method),
                         methodRef.TypeArguments,
                         methodRef.Method.TypeParametersList)
@@ -1874,7 +1931,10 @@ internal static class BodyEmitter
     {
         if(DelegateLowering.NeedsConstruction(expression.Type, target))
         {
-            writer.Append($"new {TypeNameEmitter.Emit(target!)}({Render(expression, diagnostics)})");
+            var source = Render(expression, diagnostics);
+            var bare = expression is LambdaExpression { UnionCarrierDelegateType: null }
+                || (expression is FunctionReferenceExpression reference && !RespelledGroups.Applies(reference));
+            writer.Append($"new {TypeNameEmitter.Emit(target!)}({(bare ? source : $"({source}).Invoke")})");
             return;
         }
 
@@ -2440,7 +2500,8 @@ internal static class BodyEmitter
 
         writer.Append(target);
         EmitArguments(
-            newExpression.Arguments, newExpression.Constructor?.ParametersList, writer, diagnostics, newExpression.Constructor);
+            newExpression.Arguments, newExpression.Constructor?.ParametersList, newExpression.ParameterTypes,
+            writer, diagnostics, newExpression.Constructor);
         writer.Append(")");
 
         if(initialized is { } entries)
@@ -2499,7 +2560,9 @@ internal static class BodyEmitter
         (IReadOnlyList<IMistType> Arguments, IReadOnlyList<TypeParameter>? Parameters) typeArguments,
         CSharpWriter writer,
         DiagnosticBag diagnostics,
-        string? memberName = null)
+        string? memberName = null,
+        IMistType? receiverAs = null,
+        bool staticReceiver = false)
     {
         // A size-agnostic read of the pack, answered by the specialization rather than emitted: at
         // this width the arity is a constant, and there is no C# value standing for the pack to
@@ -2529,7 +2592,26 @@ internal static class BodyEmitter
             return;
         }
 
-        EmitSubExpression(memberAccess.Receiver, PostfixPrecedence, writer, diagnostics);
+        if(receiverAs is { } boundBase)
+        {
+            if(staticReceiver)
+            {
+                writer.Append(TypeNameEmitter.Emit(boundBase));
+            }
+            else
+            {
+                writer.Append("((");
+                writer.Append(TypeNameEmitter.Emit(boundBase));
+                writer.Append(")");
+                EmitSubExpression(memberAccess.Receiver, PrefixPrecedence, writer, diagnostics);
+                writer.Append(")");
+            }
+        }
+        else
+        {
+            EmitSubExpression(memberAccess.Receiver, PostfixPrecedence, writer, diagnostics);
+        }
+
         writer.Append(memberAccess.IsConditional ? "?." : ".");
         writer.Append(CalleeName(memberName ?? memberAccess.MemberName, typeArguments.Arguments, typeArguments.Parameters));
         writer.Append(EmitTypeArguments(typeArguments.Arguments, typeArguments.Parameters));
@@ -2555,9 +2637,11 @@ internal static class BodyEmitter
     private static void EmitFlattened(
         IReadOnlyList<Expression> arguments,
         IReadOnlyList<Parameter> parameters,
+        IReadOnlyList<IMistType>? parameterTypes,
         int flattened,
         CSharpWriter writer,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Method? callee)
     {
         var trailing = parameters.Count - flattened - 1;
         var absorbed = arguments.Count - flattened - trailing;
@@ -2565,16 +2649,22 @@ internal static class BodyEmitter
         for(var i = 0; i < flattened; i++)
         {
             Separate(i, writer);
-            EmitExpression(arguments[i], writer, diagnostics);
+            EmitArgument(arguments[i], parameters[i], parameterTypes is not null && i < parameterTypes.Count ? parameterTypes[i] : null,
+                writer, diagnostics, callee);
         }
 
         Separate(flattened, writer);
-        EmitPacked(arguments, flattened, absorbed, writer, diagnostics);
+        EmitPacked(arguments, flattened, absorbed,
+            parameterTypes is not null && flattened < parameterTypes.Count ? parameterTypes[flattened] : parameters[flattened].Type,
+            writer, diagnostics);
 
         for(var i = arguments.Count - trailing; i < arguments.Count; i++)
         {
             writer.Append(", ");
-            EmitExpression(arguments[i], writer, diagnostics);
+            var parameterIndex = parameters.Count - (arguments.Count - i);
+            EmitArgument(arguments[i], parameters[parameterIndex],
+                parameterTypes is not null && parameterIndex < parameterTypes.Count ? parameterTypes[parameterIndex] : null,
+                writer, diagnostics, callee);
         }
     }
 
@@ -2587,6 +2677,7 @@ internal static class BodyEmitter
         IReadOnlyList<Expression> arguments,
         int start,
         int count,
+        IMistType tupleType,
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
@@ -2598,10 +2689,40 @@ internal static class BodyEmitter
 
         writer.Append(count == 1 ? "System.ValueTuple.Create(" : "(");
 
+        var elements = tupleType switch
+        {
+            TupleType tuple => tuple.ElementTypes,
+            NamedTupleType named => named.ElementTypes,
+            _ => [],
+        };
+
         for(var i = 0; i < count; i++)
         {
             Separate(i, writer);
-            EmitExpression(arguments[start + i], writer, diagnostics);
+            var argument = arguments[start + i];
+            var target = i < elements.Count ? elements[i] : null;
+            var pinned = target is null ? null : OverloadPinning.CastFor(argument, target, overloaded: true);
+
+            if(pinned is not null)
+            {
+                writer.Append($"(({pinned})");
+                if(argument is LambdaExpression)
+                {
+                    writer.Append("(");
+                }
+
+                EmitSubExpression(argument, PrefixPrecedence, writer, diagnostics);
+                if(argument is LambdaExpression)
+                {
+                    writer.Append(")");
+                }
+
+                writer.Append(")");
+            }
+            else
+            {
+                EmitCoerced(argument, target, writer, diagnostics);
+            }
         }
 
         writer.Append(")");

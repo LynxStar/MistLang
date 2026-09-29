@@ -51,9 +51,29 @@ internal static class ConstructorEmitter
         {
             var target = constructor.ChainKind == ConstructorChainKind.This ? "this" : "base";
             writer.Append($" : {target}(");
-            EmitList.Separated(constructor.ChainArgumentsList, ", ", writer, argument =>
+            for(var i = 0; i < constructor.ChainArgumentsList.Count; i++)
             {
-                if(StatementHost.Emit(
+                if(i > 0)
+                {
+                    writer.Append(", ");
+                }
+
+                var argument = constructor.ChainArgumentsList[i];
+                var parameter = constructor.ChainedConstructor is { } chained && i < chained.ParametersList.Count
+                    ? chained.ParametersList[i]
+                    : null;
+                var closed = constructor.ChainParameterTypes is { } types && i < types.Count ? types[i] : null;
+
+                if(!BodyEmitter.NeedsStatements(argument, discarded: false))
+                {
+                    if(parameter is not null)
+                    {
+                        writer.Append(ArgumentKeywords.For(parameter));
+                    }
+
+                    BodyEmitter.EmitArgument(argument, parameter, closed, writer, diagnostics, constructor.ChainedConstructor);
+                }
+                else if(StatementHost.Emit(
                     argument,
                     $"__ChainArgument{argument.Node.Span.Start}",
                     argument.Type,
@@ -63,7 +83,8 @@ internal static class ConstructorEmitter
                 {
                     hosted.Add(host);
                 }
-            });
+            }
+
             writer.Append(")");
         }
 
@@ -82,7 +103,7 @@ internal static class ConstructorEmitter
                 // Through the same entry a method's body takes: a constructor carries `with` clauses
                 // and owned parameters like any other callable, and emitting its block directly is
                 // what left both silently undone.
-                BodyEmitter.EmitMethodBody(constructor, constructor.Body, writer, diagnostics);
+                BodyEmitter.EmitMethodBody(constructor, constructor.Body, writer, diagnostics, owner: declaringType);
             }
         }
 

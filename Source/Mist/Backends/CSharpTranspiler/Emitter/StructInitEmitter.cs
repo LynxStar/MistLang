@@ -106,8 +106,7 @@ internal static class StructInitEmitter
 
     /// <summary>
     /// Emits the call standing in for <paramref name="constructor"/>'s own chain, if it has one.
-    /// The arguments emit verbatim because they are written in terms of the parameters this
-    /// initializer already declares.
+    /// The arguments use the selected initializer's parameter types to preserve callable overloads.
     /// </summary>
     public static void EmitChainCall(
         Constructor constructor,
@@ -134,11 +133,8 @@ internal static class StructInitEmitter
             UnitHoisting.Plan(constructor.ChainArgumentsList, constructor.ChainedConstructor?.ParametersList), writer, diagnostics))
         {
             writer.Write($"{name}(");
-            EmitList.Separated(
-                constructor.ChainArgumentsList,
-                ", ",
-                writer,
-                argument => BodyEmitter.EmitExpression(argument, writer, diagnostics));
+            BodyEmitter.EmitArguments(constructor.ChainArgumentsList, constructor.ChainedConstructor?.ParametersList,
+                constructor.ChainParameterTypes, writer, diagnostics, constructor.ChainedConstructor);
             writer.Append(");");
             writer.AppendLine();
         }

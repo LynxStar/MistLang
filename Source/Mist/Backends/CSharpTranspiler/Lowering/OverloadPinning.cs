@@ -1,4 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -11,20 +12,40 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// once under a different <c>this</c> or type arguments -- an abstract's default restated into each
 /// conformer, a base struct's members flattened into a derived one, a generic specialized per union
 /// instantiation -- and Roslyn resolves a call written by name against the types it sees there, so
-/// a <c>this</c> or a type-parameter-typed argument to an overloaded member can pick an overload the
-/// program never bound and the analysis never judged. Casting it to the bound parameter's type pins
-/// the call; everywhere else the cast is an identity.
+/// a <c>this</c>, type-parameter-typed, or callable argument to an overloaded member can pick an
+/// overload the program never bound and the analysis never judged. Casting it to the selected
+/// parameter's type pins the call; callable targets use the call's closed parameter type.
 /// </summary>
 internal static class OverloadPinning
 {
     public static string? CastFor(Expression argument, Parameter parameter, Method? callee)
     {
-        return callee is not null && !parameter.Modifier.IsRef ? CastFor(argument, parameter.Type, callee is Operator || Overloaded(callee)) : null;
+        return CastFor(argument, parameter, parameter.Type, callee);
+    }
+
+    public static string? CastFor(Expression argument, Parameter parameter, IMistType closedTarget, Method? callee)
+    {
+        var target = argument is LambdaExpression or FunctionReferenceExpression ? closedTarget : parameter.Type;
+        return callee is not null && !parameter.Modifier.IsRef ? CastFor(argument, target, callee is Operator || Overloaded(callee)) : null;
     }
 
     public static string? CastFor(Expression argument, IMistType target, bool overloaded)
     {
-        if(!overloaded || (argument is not ThisExpression && argument.Type is not TypeParameter))
+        if(!overloaded)
+        {
+            return null;
+        }
+
+        if(argument is LambdaExpression or FunctionReferenceExpression)
+        {
+            return argument is LambdaExpression { UnionCarrierDelegateType: not null }
+                || DelegateShape.Of(target) is null
+                || DelegateLowering.NeedsConstruction(argument.Type, target)
+                    ? null
+                    : TypeNameEmitter.Emit(target);
+        }
+
+        if(argument is not ThisExpression && argument.Type is not TypeParameter)
         {
             return null;
         }

@@ -34,7 +34,7 @@ internal static class MethodEmitter
         {
             if(method.Body is not null)
             {
-                BodyEmitter.EmitMethodBody(method, method.Body, writer, diagnostics);
+                BodyEmitter.EmitMethodBody(method, method.Body, writer, diagnostics, owner: owner);
                 EmitOwedFieldDrops(method, owner, writer);
             }
         }

@@ -62,6 +62,7 @@ see things like a dropped `sealed` modifier.
 | `backlog/program-model-body-tasks.yaml` | The other axis: what the binder does not yet understand, by language construct. **Not valid YAML** despite the extension. |
 | `backlog/flaky-tests.yaml` | Flake register. Recording a flake is mandatory (see `Test/CLAUDE.md`). |
 | `backlog/refusal-corpus-migration.md` | Refusal test migration: measurements, tier choices and verification procedure. |
+| `backlog/classic-retirement.md` | What still depends on classic, the checklist for deleting it, and how v2 accounts for Stages 4-6 progress. |
 | `backlog/general.md` | Issues outside any active spec. |
 | `backlog/inventory-<date>.md` | Dated snapshots of what v2 still needs, counted from the registers above. |
 

@@ -112,7 +112,7 @@ public sealed class CallableOverloadArgumentEmissionTests
         _ = Add(owner, "N", Nominal());
         var call = Call(selected, Lambda(function, block), function);
 
-        var emitted = Emit(call);
+        var emitted = Emit(call).ReplaceLineEndings("\n");
 
         Assert.Contains("N(((System.Func<int, bool>)", emitted, StringComparison.Ordinal);
         Assert.Contains(block ? "=> \n{" : "=> true", emitted, StringComparison.Ordinal);

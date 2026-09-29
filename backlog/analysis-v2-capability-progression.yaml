@@ -4558,7 +4558,11 @@ rules:
       must pre-empt: the three literal forms and an escaped body bind as regex literals, while a variable,
       an interpolated string and `new Regex(text)` keep their run-time construction. Disabling the cast
       hook and the construction hook fails exactly their four literal rows. Full ledger 20260928-202612
-      passes all 11,128 tests, both sample baselines unchanged and included. A string literal passed to a
+      passes all 11,128 tests, both sample baselines unchanged and included. Rebased onto main fb355642
+      without conflict: ledger 20260928-203110 passes 11,206 of 11,207, both sample baselines included.
+      The one failure is main's new CallableOverloadArgumentEmissionTests.SelectedMethodGetsClosedStructural
+      LambdaTarget(block: True, pure: False), which asserts "=> \n{" where the emitter writes "=> \r\n{" on
+      Windows; it fails identically alone, and nothing here touches its path. A string literal passed to a
       regex parameter or returned as a regex already bound as a regex literal. The wrapper's soundness for
       a VALID pattern is emitter order 178's.
 

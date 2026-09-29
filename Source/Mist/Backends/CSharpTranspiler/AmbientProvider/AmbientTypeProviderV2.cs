@@ -5,6 +5,7 @@ using Mist.Driver;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelType = Mist.ProgramModel.Model.ProgramModel;
 
@@ -54,6 +55,21 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         return null;
     }
 
+    internal MistType? ProjectionOf(Type clrType)
+    {
+        return resolver?.Declared(clrType);
+    }
+
+    internal Method? Judge(MethodInfo method, MemberType declaringType, out Withholding? withheld)
+    {
+        return MethodProjector.Judge(method, declaringType, ProjectingResolver(), out withheld);
+    }
+
+    internal Property? Judge(PropertyInfo property, MemberType declaringType, out Withholding? withheld)
+    {
+        return PropertyProjector.Judge(property, declaringType, ProjectingResolver(), out withheld);
+    }
+
     /// <inheritdoc />
     public void BuildAndRegister(ProgramModelType programModel)
     {
@@ -88,6 +104,12 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     public void Dispose()
     {
         metadataContext?.Dispose();
+    }
+
+    private AmbientTypeResolver ProjectingResolver()
+    {
+        return resolver ?? throw new InvalidOperationException(
+            "ICE: an ambient member was judged before BuildAndRegister projected the ambient types.");
     }
 
     /// <summary>

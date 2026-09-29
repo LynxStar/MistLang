@@ -23,25 +23,34 @@ internal static class MethodProjector
 
         foreach(var method in methods)
         {
-            if(ShouldSkip(method))
-            {
-                continue;
-            }
-
-            var projected = ProjectMethod(method, memberType, resolver);
-            if(projected is not null)
+            if(Judge(method, memberType, resolver, out _) is { } projected)
             {
                 memberType.MethodsList.Add(projected);
             }
         }
     }
 
+    internal static Method? Judge(
+        MethodInfo method, MemberType memberType, AmbientTypeResolver resolver, out Withholding? withheld)
+    {
+        if(SkipReason(method) is { } reason)
+        {
+            withheld = new Withholding(reason);
+            return null;
+        }
+
+        return ProjectMethod(method, memberType, resolver, out withheld);
+    }
+
     /// <summary>
     /// Projects a single CLR method into a Mist Method instance.
     /// Returns null if any parameter or return type is unresolvable.
     /// </summary>
-    private static Method? ProjectMethod(MethodInfo method, MemberType memberType, AmbientTypeResolver resolver)
+    private static Method? ProjectMethod(
+        MethodInfo method, MemberType memberType, AmbientTypeResolver resolver, out Withholding? withheld)
     {
+        withheld = null;
+
         // Create a method scope for method-level type parameters.
         var methodScope = new MethodScope(memberType.Scope)
         {
@@ -54,6 +63,7 @@ internal static class MethodProjector
         {
             if(!ProjectMethodTypeParameters(method, methodScope, memberType, typeParameters, resolver))
             {
+                withheld = new Withholding(WithholdingReason.UnresolvableConstraint);
                 return null;
             }
         }
@@ -66,13 +76,15 @@ internal static class MethodProjector
             TupleElementNames.Of(method.ReturnParameter, method.ReturnType));
         if(returnType is ErrorType or NotProjectedType)
         {
+            withheld = new Withholding(WithholdingReason.UnresolvableType, method.ReturnType);
             return null;
         }
 
         // Resolve parameters via shared projector.
-        var parameters = ParameterProjector.Project(method.GetParameters(), methodScope, resolver);
+        var parameters = ParameterProjector.Project(method.GetParameters(), methodScope, resolver, out var unresolvable);
         if(parameters is null)
         {
+            withheld = new Withholding(WithholdingReason.UnresolvableType, unresolvable);
             return null;
         }
 
@@ -143,26 +155,26 @@ internal static class MethodProjector
     /// Filters out: private/internal methods, property accessors, event accessors,
     /// operator overloads, and finalizers.
     /// </summary>
-    private static bool ShouldSkip(MethodInfo method)
+    private static WithholdingReason? SkipReason(MethodInfo method)
     {
         // Only project public and protected (family) methods.
         if(!method.IsPublic && !method.IsFamily && !method.IsFamilyOrAssembly)
         {
-            return true;
+            return WithholdingReason.NonPublic;
         }
 
         // Property and event accessors are marked as SpecialName.
         if(method.IsSpecialName)
         {
-            return true;
+            return WithholdingReason.AccessorOrOperator;
         }
 
         // Skip finalizers.
         if(method.Name == "Finalize" && method.GetParameters().Length == 0 && method.DeclaringType != typeof(object))
         {
-            return true;
+            return WithholdingReason.Finalizer;
         }
 
-        return false;
+        return null;
     }
 }

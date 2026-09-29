@@ -426,38 +426,45 @@ When a method you need is hidden (like `Dictionary.TryGetValue`), use alternativ
 
 When you need to understand what the type provider sees for a particular CLR type, use `mist inspect`:
 
+An excerpt of its output (`...` marks lines left out here):
+
 ```
 $ mist inspect System.Text.Encoding
 System.Text.Encoding (class)
 
-Visible Properties:
-  BodyName : string                    (inherited from System.Text.Encoding)
-  EncodingName : string                (inherited from System.Text.Encoding)
-  HeaderName : string                  (inherited from System.Text.Encoding)
-  WebName : string                     (inherited from System.Text.Encoding)
+  VISIBLE:
+    property ASCII: Encoding
+    property BigEndianUnicode: Encoding
+    property BodyName: string
+    ...
+    method GetBytes(ReadOnlySpan<char, int>, Span<byte, int>) -> int
+    method GetBytes(char[]) -> byte[]
+    method GetBytes(char[], int, int) -> byte[]
+    ...
+    method GetType() -> Type [from System.Object]
+    method IsAlwaysNormalized() -> bool
+    method IsAlwaysNormalized(NormalizationForm) -> bool
+    method MemberwiseClone() -> Object [protected] [from System.Object]
+    method RegisterProvider(EncodingProvider) -> void
+    method ToString() -> string | void [from System.Object]
+    method TryGetBytes(ReadOnlySpan<char, int>, Span<byte, int>, ref int) -> bool
+    method TryGetChars(ReadOnlySpan<byte, int>, Span<char, int>, ref int) -> bool
 
-Visible Methods:
-  GetBytes(string) : byte[]
-  GetBytes(char[]) : byte[]
-  GetBytes(char[], int, int) : byte[]
-  GetBytes(ReadOnlySpan<char>, Span<byte>) : int
-  GetString(byte[]) : string
-  GetString(byte[], int, int) : string
-  GetString(ReadOnlySpan<byte>) : string
-  Equals(object) : bool                (inherited from System.Object)
-  GetHashCode() : int                  (inherited from System.Object)
-  ToString() : string                  (inherited from System.Object)
-
-Hidden Members:
-  GetBytes(char*, int, byte*, int) : int   HIDDEN: pointer parameter (char*)
-  GetByteCount(char*, int) : int           HIDDEN: pointer parameter (char*)
+  HIDDEN:
+    Finalize: HIDDEN: finalizer [from System.Object]
+    GetByteCount: HIDDEN: signature uses System.Char*
+    GetBytes: HIDDEN: signature uses System.Char*
+    GetCharCount: HIDDEN: signature uses System.Byte*
+    GetChars: HIDDEN: signature uses System.Byte*
+    GetString: HIDDEN: signature uses System.Byte*
 ```
 
 The output shows:
 - The type's fully-qualified name and kind (class, struct, interface, or enum)
-- Visible properties and methods with their projected Mist types, in ascending ordinal order by name
-- For inherited members, the declaring base type is indicated
-- Hidden members with the reason they are excluded
+- Visible properties and methods with their projected Mist types, in ascending ordinal order by name; a protected member is marked `[protected]`
+- For inherited members, the declaring base type is indicated with `[from ...]`
+- Hidden members with the reason they are excluded: non-public, an event, a finalizer, a signature type Mist cannot represent, an unresolvable generic constraint, or a member of a base the Mist type does not inherit
+- For a type Mist aliases to a Standard library type, such as `System.String`, a note naming the Standard type, and that type's own members
 
 Run `mist inspect` from a directory containing a `mist.toml` — the command uses the same SDK, package, and framework reference assemblies the build would use. If the type name cannot be resolved, the command prints a message and exits with a non-zero exit code.
 

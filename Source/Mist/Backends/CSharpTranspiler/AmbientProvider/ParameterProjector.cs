@@ -22,21 +22,31 @@ internal static class ParameterProjector
     /// </summary>
     public static List<Parameter>? Project(ParameterInfo[] clrParams, Scope scope, AmbientTypeResolver resolver)
     {
+        return Project(clrParams, scope, resolver, out _);
+    }
+
+    public static List<Parameter>? Project(
+        ParameterInfo[] clrParams, Scope scope, AmbientTypeResolver resolver, out Type? unresolvable)
+    {
         var parameters = new List<Parameter>(clrParams.Length);
+        unresolvable = null;
 
         foreach(var param in clrParams)
         {
-            if(HasPointerType(param.ParameterType))
-            {
-                return null;
-            }
-
             var clrParameterType = param.ParameterType.IsByRef
                 ? param.ParameterType.GetElementType()!
                 : param.ParameterType;
+
+            if(HasPointerType(param.ParameterType))
+            {
+                unresolvable = clrParameterType;
+                return null;
+            }
+
             var paramType = resolver.Resolve(clrParameterType, scope, TupleElementNames.Of(param, clrParameterType));
             if(paramType is ErrorType or NotProjectedType)
             {
+                unresolvable = clrParameterType;
                 return null;
             }
 

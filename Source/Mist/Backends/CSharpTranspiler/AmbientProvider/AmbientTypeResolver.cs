@@ -492,6 +492,12 @@ internal sealed class AmbientTypeResolver
         unavailable.UnionWith(names);
     }
 
+    internal MistType? Declared(Type clrType)
+    {
+        var declared = ResolveByFQN(BuildFQN(clrType.IsGenericType ? clrType.GetGenericTypeDefinition() : clrType));
+        return declared is ErrorType ? null : declared;
+    }
+
     private static bool IsReferenceType(Type clrType)
     {
         if(clrType.IsGenericParameter)

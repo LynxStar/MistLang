@@ -24,44 +24,56 @@ internal static class PropertyProjector
                 continue;
             }
 
-            // Only project if at least one accessor is public or protected.
-            if(!HasVisibleAccessor(prop))
+            if(Judge(prop, memberType, resolver, out _) is { } projected)
             {
-                continue;
+                memberType.PropertiesList.Add(projected);
             }
-
-            var resolvedType = resolver.ResolveInbound(
-                prop.PropertyType,
-                memberType.Scope,
-                ClrNullability.ResultIsNonNull(prop, prop),
-                TupleElementNames.Of(prop, prop.PropertyType));
-            if(resolvedType is ErrorType or NotProjectedType)
-            {
-                continue;
-            }
-
-            var getter = CreateGetter(prop);
-            var setter = CreateSetter(prop);
-
-            var accessibility = ClrAccessibilityMap.FromProperty(prop);
-            var modifiers = new MemberModifiers
-            {
-                Accessibility = accessibility,
-                IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
-                IsClrProjected = true,
-                ClrResultIsNonNull = ClrNullability.ResultIsNonNull(prop, prop),
-            };
-
-            var projected = new Property(prop.Name, resolvedType, modifiers)
-            {
-                DeclaringType = memberType,
-                Getter = getter,
-                Setter = setter,
-            };
-
-            AttributeProjector.Project(prop, projected.AttributesList, memberType.Scope, resolver);
-            memberType.PropertiesList.Add(projected);
         }
+    }
+
+    internal static Property? Judge(
+        PropertyInfo prop, MemberType memberType, AmbientTypeResolver resolver, out Withholding? withheld)
+    {
+        // Only project if at least one accessor is public or protected.
+        if(!HasVisibleAccessor(prop))
+        {
+            withheld = new Withholding(WithholdingReason.NonPublic);
+            return null;
+        }
+
+        var resolvedType = resolver.ResolveInbound(
+            prop.PropertyType,
+            memberType.Scope,
+            ClrNullability.ResultIsNonNull(prop, prop),
+            TupleElementNames.Of(prop, prop.PropertyType));
+        if(resolvedType is ErrorType or NotProjectedType)
+        {
+            withheld = new Withholding(WithholdingReason.UnresolvableType, prop.PropertyType);
+            return null;
+        }
+
+        var getter = CreateGetter(prop);
+        var setter = CreateSetter(prop);
+
+        var accessibility = ClrAccessibilityMap.FromProperty(prop);
+        var modifiers = new MemberModifiers
+        {
+            Accessibility = accessibility,
+            IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
+            IsClrProjected = true,
+            ClrResultIsNonNull = ClrNullability.ResultIsNonNull(prop, prop),
+        };
+
+        var projected = new Property(prop.Name, resolvedType, modifiers)
+        {
+            DeclaringType = memberType,
+            Getter = getter,
+            Setter = setter,
+        };
+
+        AttributeProjector.Project(prop, projected.AttributesList, memberType.Scope, resolver);
+        withheld = null;
+        return projected;
     }
 
     /// <summary>

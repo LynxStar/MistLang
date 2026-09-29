@@ -3,7 +3,6 @@ using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Parsing;
 
@@ -123,7 +122,7 @@ public sealed class MistParser : IParser
     /// <summary>
     /// Walks the parsed AST and emits a <c>MIST_PARSE_MULTIPLE_ACCESS</c> diagnostic
     /// for every declaration whose modifier list contains more than one access modifier.
-    /// Uses <see cref="AccessibilityFacts.TryReduceExplicit"/> as the single source of
+    /// Uses <see cref="AccessModifierSyntax.CountAccessModifiers"/> as the single source of
     /// truth for counting access modifiers (Requirement 2.6).
     /// </summary>
     private static void ValidateAccessModifierCombinations(
@@ -148,16 +147,7 @@ public sealed class MistParser : IParser
         Generated.IHasModifiersNode node,
         DiagnosticBag diagnostics)
     {
-        var modifiers = node.Modifiers;
-
-        if(modifiers.IsDefaultOrEmpty)
-        {
-            return;
-        }
-
-        _ = AccessibilityFacts.TryReduceExplicit(modifiers, out var accessModifierCount);
-
-        if(accessModifierCount > 1)
+        if(AccessModifierSyntax.CountAccessModifiers(node.Modifiers) > 1)
         {
             diagnostics.ReportAtNode(
                 ParserDiagnostics.MultipleAccessModifiers,

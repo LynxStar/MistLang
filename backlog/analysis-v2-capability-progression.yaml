@@ -2051,6 +2051,9 @@ rules:
         - Restoring the parameterless-base requirement failed the 2 argument-taking-base rows.
         - Reverting ChainedOf failed the `new` purity row.
         - Dropping the sentinel chain failed the 2 chain-emission rows.
+        Integrated with main 2026-10-01: rebased with the parity fix onto 5ae417c4 without conflict.
+        Ledger 20261001-195451 passed 11,406 of 11,406, both sample baselines included, with zero
+        warnings and dotnet format clean.
         Left open:
         - A constructed generic base (`IntBox : Box<int>`) bypasses BaseIsDefaultable and keeps C#'s
           implicit `base()`. ConstructedType is not a MemberType, and `default(Box<int>)` is still
@@ -4613,7 +4616,8 @@ rules:
         restoring the fix passed all 29. What this left open -- a constructorless derived type over a base
         whose only constructor takes arguments staying non-defaultable even with a block on the base --
         was settled 2026-10-01 under declaration-shape-checks: a derived default starts from the base's
-        default, and that type is defaultable.
+        default, and that type is defaultable. Integrated with main 2026-10-01 together with that change.
+        It was rebased onto 5ae417c4 without conflict, and ledger 20261001-195451 passed 11,406 of 11,406.
       - >
         MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE, for a local Add on a list the scope does not own, says only
         "it is not readonly". It does not name the owned receiver that would admit the call, as

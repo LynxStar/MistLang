@@ -93,3 +93,4 @@ GenericExtensionMethods = { path = "../GenericExtensionMethods" }
 ConstructorConstraintSignatures = { path = "../ConstructorConstraintSignatures" }
 Purity = { path = "../Purity" }
 NestedBlockNamespaces = { path = "../NestedBlockNamespaces" }
+ClrRefReadonly = { path = "../ClrRefReadonly" }

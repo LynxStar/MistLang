@@ -10756,6 +10756,62 @@ capabilities:
       cases for the refusals, recorded on orders 9, 10 and 11 of the analysis register.
     unlocks: [LocalFunctions, Purity]
 
+  - id: clr-byref-result-projection
+    name: CLR by-reference results, mutable and ref readonly
+    order: 188
+    layer: clr-interop
+    requires: [clr-byref-parameter-projection, ref-parameters-and-ref-locals]
+    v2_status: done
+    verified_by: v2-semantics
+    evidence: >
+      LANDED 2026-10-01, a decision of the language's owner: a CLR `ref readonly` result enters Mist
+      as a readonly REFERENCE -- the ref-parameters meaning of `readonly ref`, not an ownership lend --
+      rather than being hidden as clr-ref-interop Requirements 4.3 and 6.3 and ambient-type-provider-v2
+      Requirement 9.6 had it. Mist's readonly view promises the holder will not write; `ref readonly`
+      promises the same and no more, so holding the CLR reference as a Mist one only restricts Mist
+      code. `frozen` is the tier a CLR result could not back, and nothing projects into it.
+
+      BEFORE, EVERY BY-REF RESULT WAS FLATTENED. AmbientTypeResolver unwraps `T&` to T, so
+      ImmutableArray<T>.ItemRef projected as returning a plain T and nothing marked it otherwise. The
+      projector skipped no `ref readonly` member, against its own spec, and the emitter wrote
+      `= ref` for any ref local, so `ref int slot = numbers.ItemRef(1);` passed every Mist check and
+      reached Roslyn (CS8329), and so did passing the call as a ref argument (CS8329) and assigning to
+      it (CS8331). Mutable
+      ref results (CollectionsMarshal.GetValueRefOrNullRef) worked only because that same `= ref`
+      happened to be right for them.
+
+      NOW the method, property and indexer projectors set MemberModifiers.IsRef for a by-ref result
+      and the new ReturnsReadonlyRef when the result carries the IsReadOnly marker -- read by
+      ParameterProjector.IsReadonlyRef through the same HasReadonlyMarker a ref readonly PARAMETER is
+      judged by. ReturnsReadonlyRef is kept apart from IsReadonly because on a method `readonly` already
+      means its receiver is not mutated, and CLR metadata records the two independently. It leaves
+      the unsettled spelling of a Mist method's readonly ref return (MIST_BE_READONLY_REF_RETURN) where
+      it was. With
+      IsRef set, Origins and ReadonlyInference read a CLR ref result as a reference into its receiver,
+      as they already did a Mist one, and UnitHoisting stops treating it as a copy.
+
+      The refusal is Stage 5's and is recorded on order 9 of the analysis register:
+      MIST_PA_READONLY_REF_WRITTEN wherever a writable reference is taken through a readonly one.
+      `mist inspect` spells the result as Mist declares one -- `ItemRef(int) -> readonly ref T`,
+      `GetValueRefOrNullRef(...) -> ref TValue`.
+
+      MEASURED: samples/ClrRefReadonly banked in AllFeaturesV2, V2-ONLY since classic hides ItemRef
+      (MIST_UNDEFINED_MEMBER), its four baseline lines captured from v2 and read against the program by
+      hand; the emitted alias is `ref readonly int middle = ref builder.ItemRef(1);`. Probes on v2: a
+      read, a readonly ref local, a mutable ref result bound and assigned, and a CLR out argument all
+      run; the four writes are refused at the reference. ReadonlyRefResultTests pins the projection
+      over the interop fixtures' ref, ref readonly and plain results.
+    untested:
+      - No banked sample reads a CLR property or indexer whose getter returns by reference; their
+        projection takes the same path as a method's and is witnessed only by the decision tests.
+      - A ref readonly result of a STRUCT type whose non-readonly member is called through the alias
+        is unexercised; C# copies defensively there and nothing in Mist distinguishes the two.
+    analysis_phase_tasks:
+      - A ref local, ref argument or ref return whose source is not a location at all is not refused --
+        `ref int x = Math.Abs(-3);` reaches Roslyn (CS1510). This is the is-this-a-location test that
+        clr-byref-parameter-projection's task names for readonly by-ref arguments, now wider than them.
+    unlocks: [ClrRefReadonly]
+
 # =====================================================================
 # SAMPLES
 #
@@ -12279,6 +12335,20 @@ samples:
       - No mixed-precedence chain, so interaction between the two group lists is unexercised.
       - All operands are literals with no side effects, so constant folding could yield right
         answers over a wrong tree and short-circuiting is not observable.
+
+  - name: ClrRefReadonly
+    intro_order: 103
+    threshold: clr-byref-result-projection
+    requires: [clr-byref-result-projection, clr-generic-construction-and-members,
+               string-interpolation, var-type-inference]
+    untested:
+      - V2-ONLY. Classic hides a CLR member whose result is ref readonly (MIST_UNDEFINED_MEMBER on
+        ItemRef), so this sample is referenced from AllFeaturesV2 and not from AllFeatures, and its
+        baseline lines were captured from v2 rather than from classic. The stdout was read against the
+        program by hand; nothing independent of the emitter produced it.
+      - A sample is a valid program, so none of the refusals appears here; MIST_PA_READONLY_REF_WRITTEN
+        is held by ReadonlyReferenceDecisionTests and ReadonlyReferenceSiteTests.
+      - Only a method result is read; a property or indexer returning by reference is not.
 
 # =====================================================================
 # NON-SAMPLE ACCEPTANCE TARGETS

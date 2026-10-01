@@ -2473,7 +2473,28 @@ rules:
       read it. The measurement is under wrong_answers in the emitter register. UnaryNegationRuleTests
       holds the decision (Tier 1) and the walk (Tier 2). A non-numeric operand is unchanged: its
       negation is still typed as the operand and left to Roslyn.
+
+      A WRITABLE REFERENCE TAKEN THROUGH A READONLY ONE (2026-10-01), from emitter order 188, which made
+      a CLR `ref readonly` result a readonly reference instead of hiding it. PositionDecision.ReadonlyReference
+      names what may only be read through: a call, property or indexer whose result ReturnsReadonlyRef,
+      and a `readonly ref` local or parameter. PositionAnalyzer refuses taking a writable reference
+      through one at each place one is taken -- a `ref` local's initializer, a `ref` or `out` argument
+      (an `in` argument is admitted, as C# admits it), an assignment target, and a `ref` return -- as
+      MIST_PA_READONLY_REF_WRITTEN at the reference, worded after classic's MIST_REF_0005 and 0009,
+      which classic never reaches for a CLR result because it hides the member. Assigning through a
+      `readonly ref` LOCAL stays MIST_PA_READONLY_LOCAL_REASSIGNED's, so the target arm skips locals:
+      one mistake, one complaint. Measured on v2 before the rule: `ref int slot = numbers.ItemRef(1);`,
+      `numbers.ItemRef(1) = 5;`, `Interlocked.Exchange(ref numbers.ItemRef(1), 5)` and
+      `readonly ref int view = n; ref int writer = view;` each passed every Mist check and failed in
+      Roslyn (CS8329 for the first and third, CS8331 for the second, CS1510 for the last).
+      ReadonlyReferenceDecisionTests holds the decision (Tier 1) and
+      ReadonlyReferenceSiteTests the walk (Tier 2); samples/ClrRefReadonly is the false-positive half.
     tasks:
+      - >
+        A reference taken from something that is not a location at all is not refused: `ref int x =
+        Math.Abs(-3);` reaches Roslyn (CS1510), as would a ref argument or ref return of a value result.
+        Refusing it needs an is-this-a-location test over the model -- a local, a field, an element, a
+        ref result -- which emitter orders 128 and 188 both record.
       - >
         A readonly FIELD assigned outside a constructor is left to Roslyn (CS0191): the analysis owner
         of a body is its type, not its member, so a constructor cannot yet be told from a method.

@@ -111,5 +111,6 @@ public class Program
         ConstructorConstraintSignatures.Program.RunDemo();
         Purity.Program.RunDemo();
         NestedBlockNamespaces.Program.RunDemo();
+        ClrRefReadonly.Program.RunDemo();
     }
 }

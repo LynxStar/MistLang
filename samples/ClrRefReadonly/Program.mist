@@ -1,0 +1,34 @@
+using Standard;
+using System.Collections.Immutable;
+
+namespace ClrRefReadonly;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- CLR Ref Readonly Results ---");
+
+        var numbers = ImmutableArray.Create(10, 20, 30);
+        int second = numbers.ItemRef(1);
+        Console.WriteLine($"[read] second={second}");
+
+        // A readonly ref local aliases the element, so the builder's write shows through it and not
+        // through the copy taken beside it; an ImmutableArray could not tell the two apart.
+        var builder = ImmutableArray.CreateBuilder<int>();
+        builder.Add(1);
+        builder.Add(2);
+        builder.Add(3);
+        readonly ref int middle = builder.ItemRef(1);
+        int copied = builder.ItemRef(1);
+        builder[1] = 99;
+        Console.WriteLine($"[alias] middle={middle}, copied={copied}");
+
+        Console.WriteLine($"[pass] doubled={Doubled(builder.ItemRef(2))}");
+    }
+
+    private static int Doubled(int value)
+    {
+        return value * 2;
+    }
+}

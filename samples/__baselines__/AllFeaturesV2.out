@@ -2138,3 +2138,7 @@ qualified repeat: 13
 imported leaf: 14
 sibling: 20
 eight levels: 8
+--- CLR Ref Readonly Results ---
+[read] second=20
+[alias] middle=99, copied=2
+[pass] doubled=6

@@ -135,7 +135,7 @@ AmbientTypeProvider V2 integrates .NET assembly types into the ProgramModel as f
 5. WHEN a CLR type is projected, THE Ambient_Provider SHALL project all public indexers declared on that type as `Indexer` instances, each carrying the element type, a parameter list (the index parameters with types), a `Getter` accessor (or null), and a `Setter` accessor (or null).
 6. WHEN a CLR type is projected, THE Ambient_Provider SHALL project all public operator overloads declared on that type as `Operator` instances, each carrying the `OperatorKind`, return type, and parameter list (1 parameter for unary, 2 for binary).
 7. WHEN a CLR type has protected virtual or abstract methods, THE Ambient_Provider SHALL project those methods as `Method` instances with `IsVirtualOrAbstract = true` and a `ClrAccessModifier` set to `"protected"` or `"public"` (reflecting the CLR accessibility). This flag exists purely for the emitter: when a Mist method's name and signature match a base class virtual/abstract slot, the emitter adds `override` to the C# output. Mist has no virtual/override/abstract keywords for methods.
-8. IF a public member's signature references an excluded type (pointer types, `ref readonly` returns, or other unsupported CLR features), THEN THE Ambient_Provider SHALL skip that member entirely rather than projecting an incomplete instance.
+8. IF a public member's signature references an excluded type (pointer types, or other unsupported CLR features), THEN THE Ambient_Provider SHALL skip that member entirely rather than projecting an incomplete instance.
 
 ### Requirement 10: Generic Type Projection
 
@@ -188,7 +188,7 @@ AmbientTypeProvider V2 integrates .NET assembly types into the ProgramModel as f
 3. THE Ambient_Provider SHALL exclude CLR events (EventInfo members) from projection.
 4. THE Ambient_Provider SHALL exclude members whose signature contains an unsafe pointer type (CLR IsPointer types, i.e. T*) in any position (return type, parameter type, property type, or field type), while preserving members that use IntPtr or UIntPtr.
 5. IF a CLR member's signature references an excluded type in any position (return type, parameter types, property type, field type) -- including through by-ref wrappers, array element types, and generic type arguments recursively -- THEN THE Ambient_Provider SHALL exclude that entire member from projection rather than projecting it with an error-type substitution.
-6. THE Ambient_Provider SHALL exclude members that have a ref readonly return type (a by-ref return marked with IsReadOnlyAttribute) from projection.
+6. THE Ambient_Provider SHALL project a member whose result is by reference with `MemberModifiers.IsRef`, and one whose result is ref readonly (a by-ref return marked with IsReadOnlyAttribute) also with `MemberModifiers.ReturnsReadonlyRef`, so the result is a readonly reference as clr-ref-interop Requirement 6 defines it.
 7. IF a CLR type is a named delegate (inherits MulticastDelegate, excluding System.Func, System.Action, System.Delegate, and System.MulticastDelegate themselves) whose Invoke method signature contains a pointer type, a ref readonly return, or a ref-struct parameter/return, THEN THE Ambient_Provider SHALL treat that delegate type as excluded for purposes of cascading exclusion in criterion 5.
 8. THE Ambient_Provider SHALL NOT perform override detection analysis on excluded (non-public) types. Only types that pass visibility filtering participate in virtual/abstract method projection.
 

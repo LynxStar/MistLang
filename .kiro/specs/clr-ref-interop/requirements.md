@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Assembly Type Provider's `VisibilityFilter` currently excludes CLR methods that have `ref` parameters and `ref` returns. This is overly conservative because Mist has full support for `ref` parameters, `ref` returns, and `ref` locals (demonstrated in the `RefParameters` sample). This feature relaxes the visibility filter to allow `ref` parameters, `in` parameters (projected as `ref`), and `ref` returns through to Mist, while keeping `out` parameters filtered. The `TypeProjector` is updated to project these parameter/return modifiers into the Mist type system correctly.
+The Assembly Type Provider's `VisibilityFilter` currently excludes CLR methods that have `ref` parameters and `ref` returns. This is overly conservative because Mist has full support for `ref` parameters, `ref` returns, and `ref` locals (demonstrated in the `RefParameters` sample). This feature relaxes the visibility filter to allow `ref` parameters, `in` and `out` parameters (projected as `ref`), and `ref` returns through to Mist, and admits a `ref readonly` return as a readonly reference. The `TypeProjector` is updated to project these parameter/return modifiers into the Mist type system correctly.
 
 ## Glossary
 
@@ -58,7 +58,7 @@ The Assembly Type Provider's `VisibilityFilter` currently excludes CLR methods t
 
 1. WHEN a CLR method has a `ref` return type (`ReturnType.IsByRef == true` and NOT marked with `IsReadOnlyAttribute`), THE Visibility_Filter SHALL NOT exclude that method from the Mist projection.
 2. WHEN a CLR property has a `ref` return type (its getter returns by-ref, NOT `ref readonly`), THE Visibility_Filter SHALL NOT exclude that property from the Mist projection.
-3. WHEN a CLR method has a `ref readonly` return type (by-ref return with `IsReadOnlyAttribute`), THE Visibility_Filter SHALL continue to exclude that method from the Mist projection because C# does not allow binding a `ref readonly` return to a mutable `ref` local, and Mist lacks `readonly ref` locals for CLR-originated references.
+3. WHEN a CLR method has a `ref readonly` return type (by-ref return with `IsReadOnlyAttribute`), THE Visibility_Filter SHALL NOT exclude that method from the Mist projection; Requirement 6 says what the result admits.
 
 ### Requirement 5: Project CLR Ref Returns as Mist Ref Returns
 
@@ -71,15 +71,16 @@ The Assembly Type Provider's `VisibilityFilter` currently excludes CLR methods t
 3. WHEN Mist code calls a projected method with a `ref` return, THE Semantic_Model SHALL allow binding the result to a `ref` local variable.
 4. WHEN Mist code calls a projected method with a `ref` return, THE CSharp_Emitter SHALL emit `ref` on the method call expression in the generated C# code.
 
-### Requirement 6: CLR Out Parameters and Ref Readonly Returns Remain Filtered
+### Requirement 6: CLR Out Parameters, and Ref Readonly Returns as Readonly References
 
-**User Story:** As a Mist developer, I want CLR methods with `out` parameters or `ref readonly` returns to remain hidden, so that I am not exposed to calling conventions that would produce invalid emitted C#.
+**User Story:** As a Mist developer, I want to call CLR methods with `out` parameters and to read CLR results returned `ref readonly`, so that I can use those APIs without being exposed to calling conventions that would produce invalid emitted C#.
 
 #### Acceptance Criteria
 
-1. WHEN a CLR method or constructor has `out` parameters (`IsOut == true`), THE Visibility_Filter SHALL exclude that method or constructor from the Mist projection.
-2. WHEN a CLR method has both `out` parameters and `ref` parameters, THE Visibility_Filter SHALL exclude that method from the Mist projection (the presence of any `out` parameter is sufficient to exclude).
-3. WHEN a CLR method has a `ref readonly` return type (by-ref return with `IsReadOnlyAttribute`), THE Visibility_Filter SHALL exclude that method from the Mist projection because the emitted C# would require `ref readonly` binding which Mist cannot express.
+1. WHEN a CLR method or constructor has `out` parameters (`IsOut == true`), THE Type_Projector SHALL project each as a Mist `ref` parameter, and THE CSharp_Emitter SHALL emit the `out` keyword at the call site.
+2. WHEN a CLR method has both `out` parameters and `ref` parameters, THE Type_Projector SHALL project each by its own direction, so the method stays visible.
+3. WHEN a CLR method, property or indexer has a `ref readonly` result (by-ref with `IsReadOnlyAttribute`), THE Type_Projector SHALL project it as a readonly reference: the result may be read as a value, passed to an `in` parameter, or bound to a `readonly ref` local. A Mist readonly reference promises only that its holder will not write through it, which is what `ref readonly` promises; it is not `frozen`, which a CLR result cannot back.
+4. IF a writable reference is taken through a readonly reference -- such a result, or a `readonly ref` local or parameter -- by binding it to a `ref` local, passing it as a `ref` or `out` argument, assigning to it, or returning it by `ref`, THEN THE Compiler SHALL report `MIST_PA_READONLY_REF_WRITTEN` at the reference.
 
 ### Requirement 7: Sample Application
 
@@ -91,8 +92,8 @@ The Assembly Type Provider's `VisibilityFilter` currently excludes CLR methods t
 2. The sample SHALL demonstrate calling a CLR method with `ref` parameters from Mist code.
 3. The sample SHALL demonstrate calling a CLR method with `in` parameters from Mist code (projected as `ref`).
 4. The sample SHALL demonstrate calling a CLR method with a `ref` return and binding the result to a `ref` local.
-5. The sample SHALL demonstrate calling a CLR method with a `ref readonly` return and binding the result to a `ref` local.
-6. The sample SHALL demonstrate that CLR methods with `out` parameters remain invisible (only the non-`out` overloads are accessible).
+5. `samples/ClrRefReadonly`, referenced from `samples/AllFeaturesV2` alone because the classic pipeline hides these members, SHALL demonstrate reading a CLR `ref readonly` result as a value and binding it to a `readonly ref` local that observes a later write to the element.
+6. The sample SHALL demonstrate calling a CLR method with `out` parameters, passing each with `ref`.
 7. Each demonstrated pattern SHALL print labeled output to stdout so correctness is observable.
 8. `samples/AllFeatures/Program.mist` SHALL call `ClrRefInterop.Program.RunDemo()` to include the feature in the full-suite sample run.
 9. The sample SHALL compile and run without errors using the Mist compiler.
@@ -182,9 +183,9 @@ public class Program
 1. THE test fixture assembly SHALL contain a class with public methods that have `ref` parameters, verifying they are no longer filtered.
 2. THE test fixture assembly SHALL contain a class with public methods that have `in` parameters, verifying they are projected as `ref` parameters.
 3. THE test fixture assembly SHALL contain a class with public methods that have `ref` return types, verifying they are no longer filtered.
-4. THE test fixture assembly SHALL contain a class with public methods that have `ref readonly` return types, verifying they remain filtered.
-5. THE test fixture assembly SHALL contain a class with public methods that have `out` parameters, verifying they remain filtered.
-6. THE test fixture assembly SHALL contain a class with methods combining `ref` and `out` parameters, verifying the entire method is filtered when any `out` parameter is present.
+4. THE test fixture assembly SHALL contain a class with public methods that have `ref readonly` return types, verifying they are projected as readonly references.
+5. THE test fixture assembly SHALL contain a class with public methods that have `out` parameters, verifying they are projected as `ref` parameters.
+6. THE test fixture assembly SHALL contain a class with methods combining `ref` and `out` parameters, verifying each is projected by its own direction.
 
 ### Requirement 9: Book Documentation Update
 
@@ -196,5 +197,5 @@ public class Program
 2. THE book chapter SHALL add a new section or update the existing Visibility Filter section to explain that CLR `ref` parameters map to Mist `ref` parameters and require the `ref` keyword at the call site.
 3. THE book chapter SHALL explain that CLR `in` parameters are projected as Mist `ref` parameters.
 4. THE book chapter SHALL explain that CLR `ref` returns are supported and can be bound to `ref` locals.
-5. THE book chapter SHALL explain that CLR `ref readonly` returns remain filtered because the emitted C# would require `ref readonly` binding which Mist cannot currently express.
-6. THE book chapter SHALL update the "What Gets Hidden" table to include `ref readonly` returns as a filtered item with an explanation of why.
+5. THE book chapter SHALL explain that a CLR `ref readonly` result is a readonly reference: it can be read or bound to a `readonly ref` local, and taking a writable reference through it is refused.
+6. THE book chapter's "What Gets Hidden" table SHALL NOT list `ref readonly` returns.

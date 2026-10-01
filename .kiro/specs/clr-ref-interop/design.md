@@ -219,7 +219,7 @@ The `ExtractRefKinds` method already handles backend symbols via `Symbol.RefKind
 |-------|-------------|
 | `None` | Standard pass-by-value |
 | `Ref` | Mutable reference (used for both CLR `ref` and CLR `in` projected params) |
-| `RefReadonly` | Readonly reference (Mist-native only; CLR `ref readonly` returns are filtered) |
+| `RefReadonly` | Readonly reference (Mist-native; on the experimental pipeline a CLR `ref readonly` result is one too, per requirements Requirement 6) |
 
 ### Projection Truth Table
 
@@ -233,7 +233,7 @@ The `ExtractRefKinds` method already handles backend symbols via `Symbol.RefKind
 | CLR Return Kind | Visible? | Mist ReturnRefKind | Emitted C# |
 |----------------|----------|-------------------|-------------|
 | `ref T` (mutable) | ✅ Yes | `Ref` | `ref Method()` |
-| `ref readonly T` | ❌ No | — | — |
+| `ref readonly T` | ✅ Yes on the experimental pipeline (classic hides it) | `RefReadonly` | `Method()` read as a value, or `ref readonly T r = ref Method()` |
 | Regular `T` | ✅ Yes | `None` | `Method()` |
 
 ## Correctness Properties

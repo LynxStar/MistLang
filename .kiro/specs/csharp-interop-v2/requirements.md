@@ -141,12 +141,12 @@ The scope is the C# transpiler backend's interop pipeline (`PackageResolver`, `A
 
 #### Acceptance Criteria
 
-1. WHEN an Overload_Group contains an overload whose signature uses a type excluded by the Visibility_Filter (for example a pointer type) or otherwise unsupported (for example a `ref readonly` return) in any parameter position or the return position, THE Visibility_Filter SHALL exclude that overload.
+1. WHEN an Overload_Group contains an overload whose signature uses a type excluded by the Visibility_Filter (for example a pointer type) in any parameter position or the return position, THE Visibility_Filter SHALL exclude that overload.
 2. WHEN an Overload_Group contains overloads whose signatures use only supported types, THE Visibility_Filter SHALL project those overloads.
 3. WHEN `System.Text.Encoding` is projected, THE Assembly_Type_Provider SHALL project the `GetBytes(string)` overload returning a byte array; its `Span<T>`/`ReadOnlySpan<T>` overloads are also projected (ref structs are projected, not hidden — Requirement 9).
 4. WHEN `System.Net.Sockets.Socket` is projected, THE Assembly_Type_Provider SHALL project the `Send(byte[])` overload; its `Span<T>`/`ReadOnlySpan<T>` overloads are also projected.
 5. WHEN `System.Console` is projected, THE Assembly_Type_Provider SHALL project the parameterless `ReadLine()` overload returning a nullable string, even though some other members of `Console` use unsupported types (for example pointer-based members).
-6. WHEN every overload in an Overload_Group is excluded by the Visibility_Filter (for example a method group in which every overload has a pointer parameter or a `ref readonly` return), THE Assembly_Type_Provider SHALL project no symbol for that method name.
+6. WHEN every overload in an Overload_Group is excluded by the Visibility_Filter (for example a method group in which every overload has a pointer parameter), THE Assembly_Type_Provider SHALL project no symbol for that method name.
 7. WHEN Mist code calls an Overload_Group that has both projected and excluded overloads, THE Semantic_Model SHALL perform overload resolution only over the projected overloads, and the excluded overloads SHALL NOT be resolution candidates.
 8. IF Mist code calls an Overload_Group whose argument list matches only an excluded overload (for example an overload with a pointer parameter), THEN THE Semantic_Model SHALL produce an error-severity diagnostic indicating no matching overload, SHALL NOT resolve to the excluded overload, and sibling projected overloads SHALL remain callable.
 

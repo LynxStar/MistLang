@@ -1,0 +1,18 @@
+using Standard;
+using System.Collections.Immutable;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var builder = ImmutableArray.CreateBuilder<int>();
+        builder.Add(1);
+        builder.Add(2);
+
+        readonly ref int first = builder.ItemRef(0);
+        int copied = builder.ItemRef(0);
+        builder[0] = 10;
+
+        Console.WriteLine($"first={first}, copied={copied}");
+    }
+}

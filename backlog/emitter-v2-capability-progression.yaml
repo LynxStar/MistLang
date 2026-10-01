@@ -10800,7 +10800,10 @@ capabilities:
       hand; the emitted alias is `ref readonly int middle = ref builder.ItemRef(1);`. Probes on v2: a
       read, a readonly ref local, a mutable ref result bound and assigned, and a CLR out argument all
       run; the four writes are refused at the reference. ReadonlyRefResultTests pins the projection
-      over the interop fixtures' ref, ref readonly and plain results.
+      over the interop fixtures' ref, ref readonly and plain results. VERIFIED: solution build with zero
+      warnings and errors, dotnet format --verify-no-changes exit 0, and full ledger 20261001-185346
+      passing all 11,313 tests (10,358 compiler, 99 CLI, 856 source generator), both sample baselines
+      included, failures.txt empty.
     untested:
       - No banked sample reads a CLR property or indexer whose getter returns by reference; their
         projection takes the same path as a method's and is witnessed only by the decision tests.

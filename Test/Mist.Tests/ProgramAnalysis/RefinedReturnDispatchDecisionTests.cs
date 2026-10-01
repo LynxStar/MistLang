@@ -63,9 +63,9 @@ public sealed class RefinedReturnDispatchDecisionTests
     }
 
     [Theory]
-    [InlineData("public abstract IFactory { NonNegativeInt Value { get; } } public class Factory : IFactory { public PositiveInt Held; public PositiveInt Value { get { return Held; } } }")]
+    [InlineData("public abstract IFactory { NonNegativeInt Value { get; } } public class Factory : IFactory { public PositiveInt Held = 1;public PositiveInt Value { get { return Held; } } }")]
     [InlineData("public abstract IFactory { PositiveInt Value { get; } } public class Factory : IFactory { public int Value { get { return 1; } } }")]
-    [InlineData("public abstract IFactory { PositiveInt Value { get; set; } } public class Factory : IFactory { public PositiveInt Held; public PositiveInt Value { get { return Held; } set { Held = value; } } }")]
+    [InlineData("public abstract IFactory { PositiveInt Value { get; set; } } public class Factory : IFactory { public PositiveInt Held = 1;public PositiveInt Value { get { return Held; } set { Held = value; } } }")]
     [InlineData("public abstract IFactory { PositiveInt Value { set; } } public class Factory : IFactory { public int Value { set { } } }")]
     [InlineData("public abstract IFactory { NonNegativeInt Value { get; } } public class Base<T> { public T Value { get; } } public class Factory : Base<PositiveInt>, IFactory { }")]
     [InlineData("public abstract IFactory<T> { T Value { get; } } public class Factory { public PositiveInt Value { get { return 1; } } } with Factory : IFactory<NonNegativeInt> { Value as Value; }")]
@@ -76,10 +76,10 @@ public sealed class RefinedReturnDispatchDecisionTests
     }
 
     [Theory]
-    [InlineData("public abstract IFactory { PositiveInt Value { get; } } public class Factory : IFactory { public NonNegativeInt Held; public NonNegativeInt Value { get { return Held; } } }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
+    [InlineData("public abstract IFactory { PositiveInt Value { get; } } public class Factory : IFactory { public NonNegativeInt Held = 1;public NonNegativeInt Value { get { return Held; } } }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
     [InlineData("public abstract IFactory { PositiveReal Value { get; } } public class Factory : IFactory { public double Value { get { return 1.0; } } }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
-    [InlineData("public abstract IFactory { PositiveInt Value { get; set; } } public class Factory : IFactory { public NonNegativeInt Held; public NonNegativeInt Value { get { return Held; } set { Held = value; } } }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
-    [InlineData("public abstract IFactory { NonNegativeInt Value { get; set; } } public class Factory : IFactory { public PositiveInt Held; public PositiveInt Value { get { return Held; } set { Held = value; } } }", "MIST_PA_CONSTRAINT_STRENGTHENED")]
+    [InlineData("public abstract IFactory { PositiveInt Value { get; set; } } public class Factory : IFactory { public NonNegativeInt Held = 1;public NonNegativeInt Value { get { return Held; } set { Held = value; } } }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
+    [InlineData("public abstract IFactory { NonNegativeInt Value { get; set; } } public class Factory : IFactory { public PositiveInt Held = 1;public PositiveInt Value { get { return Held; } set { Held = value; } } }", "MIST_PA_CONSTRAINT_STRENGTHENED")]
     [InlineData("public abstract IFactory { PositiveInt Value { set; } } public class Factory : IFactory { public LargeInt Value { set { } } }", "MIST_PA_CONSTRAINT_STRENGTHENED")]
     [InlineData("public abstract IFactory { PositiveInt Value { get; } } public class Base<T> { public T Value { get; } } public class Factory : Base<NonNegativeInt>, IFactory { }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
     [InlineData("public abstract IFactory<T> { T Value { get; } } public class Factory { public int Value { get { return -1; } } } with Factory : IFactory<PositiveInt> { Value as Value; }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]

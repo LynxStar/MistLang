@@ -1997,6 +1997,73 @@ rules:
         reference, at a type position and at `new`. Six DeclarationShapeDecisionTests rows over
         `Hive<T>.Cell<U> where U : IRank<T>` pin it, and dropping the enclosing at each of the three is
         now caught.
+      - >
+        DONE 2026-10-01: A TYPE THAT NEEDS A DEFAULT AND HAS NONE, and a derived default that starts from
+        its base's default rather than its base's constructor. Arthur decided it that day, classic
+        divergence accepted, after a probe matrix showed `class-inheritance` Requirement 8 and
+        `defaultability` Requirement 9 disagreeing. Twelve programs ran on both pipelines (bases with a
+        parameterless or argument-taking constructor, with and without a block; derived classes with and
+        without constructors; declared, `new` and `default`).
+        - Both pipelines ran the base's user constructor inside `default(Derived)`: `Base() ran`, B=3, where
+          9.4 gives the block's B=5. Classic's default of a derived class whose own constructor chains
+          `base(7)` printed B=7.
+        - Classic refused a constructorless class over an argument-only base with a block
+          (MIST_BASE_CTOR_UNSATISFIED), which 9.1 admits. v2 leaked Roslyn's CS7036 as MIST_CS_ERROR for
+          it and for an argument-only base without a block.
+        - v2 accepted, silently, a constructorless class over a base with only `Base()` and no block,
+          and a block over such a base. Classic refuses both (MIST_DEFAULT_BASE_NOT_DEFAULTABLE).
+        - Both pipelines left a constructorless type's field null when its type has no default:
+          `new Holder().C.Start` threw NullReferenceException. That is defaultability 3.4, which neither
+          enforced. The parity fix of 2026-09-29 widened it on v2 to fields whose type has only a
+          parameterless constructor, which before had been defaulted.
+        Now:
+        - Defaultability.BaseIsDefaultable asks only that the base be defaultable.
+        - DefaultabilityAnalyzer refuses, at the declaration, a type that states a zero (a block or no
+          instance constructor) with a field that has no default (MIST_PA_FIELD_HAS_NO_DEFAULT, 3.4 and
+          3.5) or a Mist base that has none (MIST_PA_BASE_NOT_DEFAULTABLE, 9.1 and 9.3).
+        - A field whose type is a type parameter, spread or pack element is left out, as definite
+          assignment leaves it out: Defaultability.IsUndecided is the one home both read. An intrinsic or
+          CLR (Ambient) base is left out too (9.8). `samples/Attributes`' `JsonConverterAttribute<T> :
+          Attribute` is the case that needs it.
+        - A `default` of a type refused at its declaration is not refused again at the use.
+        - A derived class's default chains `: base(marker)` into a base that has constructors. The
+          sentinel is protected on an unsealed class and private otherwise. A derived struct, flattened,
+          assigns each inherited field its base's default, so a base struct's block now reaches it.
+        - Purity follows: a default runs no constructor, so DefaultChainOf and its three refusals are
+          gone, and ChainedOf takes a defaultable constructorless type to its base's default.
+        The matrix re-ran on v2 matching the spec. A gives B=5 D=2, or D=9 with the derived block. C gives
+        B=5 with nothing printed, by `default` and by `new`. B and D are refused at the declaration, the
+        holders at their field, and a derived struct takes its base's B=5.
+        Banked samples: the one sample the field rule refused was samples/NestedScoping, whose
+        constructorless `Factory` held `Product _lastCreated;` null until `Create` ran. Arthur approved
+        the one-line exception to the sample-integrity rule: the field now has an initializer. The
+        sample's output is unchanged and it builds with zero diagnostics on both pipelines.
+        AllFeaturesV2 and AllFeatures pass. Two test fixtures held the same shape, incidental to what they
+        test: RangeCaptureDecisionTests' constructorless Holder had `int[] cells;`, and
+        RefinedReturnDispatchDecisionTests' Factory had `PositiveInt Held;` or `NonNegativeInt Held;`.
+        An array or a refinement has no default in Defaultability, as definite assignment already
+        treats it inside a constructor, and a refinement's zero need not satisfy its predicate. The
+        fixtures now initialize the field.
+        Tests: Construction.DefaultabilityTests (Tier 1, 30 cases), DefaultabilityRefusalTests (Tier 2, 19),
+        Backend.DerivedDefaultEmissionTests (Tier 2, 6, over hand-built types) and PurityRoundFourTests'
+        derived-default theory (Tier 2, 2 admitted; it was one refused row). Mutations, each built clean
+        and each run over those 57 cases:
+        - Restoring the parameterless-base requirement failed the 2 argument-taking-base rows.
+        - Reverting ChainedOf failed the `new` purity row.
+        - Dropping the sentinel chain failed the 2 chain-emission rows.
+        Left open:
+        - A constructed generic base (`IntBox : Box<int>`) bypasses BaseIsDefaultable and keeps C#'s
+          implicit `base()`. ConstructedType is not a MemberType, and `default(Box<int>)` is still
+          emitted unsupported with no analysis finding.
+        - Auto-properties are outside Defaultability. On v2 `default(Holder)` leaves a class-typed
+          auto-property null where classic gives its type's default. A constructorless type's
+          auto-property of a type with no default is null on both pipelines.
+        - A user constructor that does not chain to a base whose constructors all take arguments still
+          leaks CS7036 (class-inheritance 8.3).
+        - A chain of constructorless types is refused at every link, not only where the field without a
+          default is written.
+        - A refinement whose predicate admits its base's zero, such as NonNegativeInt, is refused as a
+          field without a default too. Defaultability does not consult the predicate.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance
@@ -4543,10 +4610,10 @@ rules:
         9 cases: both default forms reported at their own columns, three admitted shapes, declaration and
         `new` unrefused, the default constraint with and without a block) pin it. Mutation: restoring
         HasParameterlessConstructor in StatesAZero failed exactly the 7 parameterless rows of the 29, and
-        restoring the fix passed all 29. Left open, as inheritance design: a constructorless derived type
-        over a base whose only constructor takes arguments stays non-defaultable even when the base has a
-        block, since the synthesis has no base constructor to chain to, where Requirement 9.1 would admit
-        it.
+        restoring the fix passed all 29. What this left open -- a constructorless derived type over a base
+        whose only constructor takes arguments staying non-defaultable even with a block on the base --
+        was settled 2026-10-01 under declaration-shape-checks: a derived default starts from the base's
+        default, and that type is defaultable.
       - >
         MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE, for a local Add on a list the scope does not own, says only
         "it is not readonly". It does not name the owned receiver that would admit the call, as

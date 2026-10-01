@@ -257,10 +257,12 @@ public sealed class PurityRoundFourTests
         Refused("slot-implementation-context-clause-hidden-by-abstract-dispatch", CallsImpure, "readonly");
     }
 
-    [Fact]
-    public void DefaultOfADerivedTypeRunsTheBaseConstructor()
+    [Theory]
+    [InlineData("default-of-a-derived-type-runs-no-base-constructor")]
+    [InlineData("new-of-a-constructorless-derived-type-runs-no-base-constructor")]
+    public void DerivedDefaultStartsFromTheBaseDefaultNotItsConstructor(string fragment)
     {
-        Refused("default-of-a-derived-type-runs-the-base-constructor", CallsImpure, "default of 'Derived'");
+        Admitted(fragment);
     }
 
     [Fact]

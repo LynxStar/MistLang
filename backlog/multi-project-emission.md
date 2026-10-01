@@ -58,6 +58,9 @@ Each project's `mist.toml` declares its own packages. Currently these all get me
 ### 5. AllFeatures sample (40+ references)
 Each referenced sample becomes its own csproj/DLL. Should be fine since they're small, but compilation time will increase due to per-project Roslyn overhead. Consider parallel compilation of independent leaves.
 
+### 6. Emitter-owned marker types need one shared home
+The v2 emitter writes `Mist.Emission.CSharp.__StructInit` and `__DefaultInit` into every compilation (`CSharpEmitterV2.EmitStructInitMarker`). That is correct while everything compiles into one assembly. Split per project, each DLL would declare its own copy, and a derived class's default could no longer chain into a base in another project. Since 2026-10-01 that default chains `: base(marker)` into the base's protected sentinel, which takes a `__DefaultInit`. Emit the markers once, in an assembly every project references (Standard's, or a small runtime assembly), before splitting.
+
 ## Affected Code
 
 - `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs` — partition emission by project

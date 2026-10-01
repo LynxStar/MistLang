@@ -145,7 +145,7 @@ public sealed class RangeCaptureDecisionTests
     public void OwnedFields_TrackOnlyTheCurrentDefinitelyNonproducingSlice(string statements, int count)
     {
         var model = Build("var holder = new Holder(); var last = holder.Read(flag);",
-            $"public class Holder {{ int[] cells; public void Change() {{ cells = [10]; }} public int Read(bool flag) {{ int[] numbers = [10, 20, 30, 40, 50]; {statements} }} }}");
+            $"public class Holder {{ int[] cells = [10]; public void Change() {{ cells = [10]; }} public int Read(bool flag) {{ int[] numbers = [10, 20, 30, 40, 50]; {statements} }} }}");
 
         Assert.Equal(count, Findings(model).Length);
     }

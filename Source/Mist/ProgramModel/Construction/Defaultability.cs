@@ -10,9 +10,10 @@ namespace Mist.ProgramModel.Construction;
 /// intrinsic to what C# says, an enum to its marked variant; a class or struct defaults to an
 /// instance the emitter synthesizes, which exists only when the type states a zero -- a default block,
 /// or no instance constructor of its own, a declared one being construction however few parameters it
-/// takes -- its base leaves a parameterless constructor standing, and every instance field has an
-/// answer. A type reached again through its own fields answers NOT defaultable: a cycle means the
-/// default is infinitely deep, so there is no instance to build.
+/// takes -- its base has a default, which the derived default starts from without running any base
+/// constructor, and every instance field has an answer. A type reached again through its own fields
+/// answers NOT defaultable: a cycle means the default is infinitely deep, so there is no instance to
+/// build.
 /// </summary>
 internal static class Defaultability
 {
@@ -37,6 +38,30 @@ internal static class Defaultability
     public static bool NeedsSentinel(ConcreteType type)
     {
         return type.ConstructorsList.Exists(c => !c.Modifiers.IsStatic);
+    }
+
+    public static bool StatesAZero(ConcreteType type)
+    {
+        return type.DefaultBlock is not null || !NeedsSentinel(type);
+    }
+
+    public static IEnumerable<Field> FieldsWithoutDefault(ConcreteType type)
+    {
+        return InstanceFields(type).Where(field => !IsUndecided(field.Type) && !FieldHasDefault(type, field));
+    }
+
+    public static ConcreteType? BaseWithoutDefault(ConcreteType type)
+    {
+        return type.BaseType is ConcreteType { IsIntrinsic: false, Assembly.Kind: not MistAssemblyKind.Ambient } baseType
+            && !IsDefaultable(baseType)
+            ? baseType
+            : null;
+    }
+
+    public static bool IsUndecided(IMistType type)
+    {
+        return type is TypeParameter or SpreadType or PackElementType
+            || (type is TupleType tuple && tuple.ElementTypes.Any(IsUndecided));
     }
 
     public static IEnumerable<Field> InstanceFields(ConcreteType type)
@@ -100,24 +125,8 @@ internal static class Defaultability
             ;
     }
 
-    private static bool StatesAZero(ConcreteType type)
-    {
-        return type.DefaultBlock is not null || !NeedsSentinel(type);
-    }
-
     private static bool BaseIsDefaultable(ConcreteType type, HashSet<MemberType> visiting)
     {
-        return type.BaseType is not MemberType baseType
-            || (IsDefaultable(baseType, visiting)
-                && baseType is ConcreteType concrete
-                && HasParameterlessConstructor(concrete))
-            ;
-    }
-
-    private static bool HasParameterlessConstructor(ConcreteType type)
-    {
-        return !NeedsSentinel(type)
-            || type.ConstructorsList.Exists(c => c.ParametersList.Count == 0 && !c.Modifiers.IsStatic)
-            ;
+        return type.BaseType is not MemberType baseType || IsDefaultable(baseType, visiting);
     }
 }

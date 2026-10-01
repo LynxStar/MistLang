@@ -76,6 +76,38 @@ internal static class DefaultSynthesis
     }
 
     /// <summary>
+    /// A derived class's default reaches its base's part through the base's sentinel, never C#'s
+    /// implicit <c>base()</c>: that would run a user constructor, and a default runs none. A base without
+    /// constructors of its own needs no sentinel, its public parameterless constructor being its default.
+    /// </summary>
+    public static bool ChainsToBaseSentinel(ConcreteType type)
+    {
+        return type is ClassType && type.BaseType is ConcreteType { IsIntrinsic: false } baseType && NeedsSentinel(baseType);
+    }
+
+    public static string SentinelAccessibility(ConcreteType type)
+    {
+        return type is ClassType { Modifiers.IsSealed: false } ? "protected" : "private";
+    }
+
+    public static IEnumerable<ConcreteType> FlattenedAncestors(ConcreteType type)
+    {
+        var ancestors = new List<ConcreteType>();
+
+        if(type is not StructType)
+        {
+            return ancestors;
+        }
+
+        for(var ancestor = type.BaseType as ConcreteType; ancestor is not null; ancestor = ancestor.BaseType as ConcreteType)
+        {
+            ancestors.Insert(0, ancestor);
+        }
+
+        return ancestors;
+    }
+
+    /// <summary>
     /// Each field paired with what its default assigns, in declaration order. A default block entry
     /// REPLACES the field's own answer rather than adding to it, which is what makes a block on a type
     /// that also has initializers mean the block's values and not both.

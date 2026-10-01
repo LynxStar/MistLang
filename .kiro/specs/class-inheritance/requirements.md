@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Amended** by [`defaultability`](../defaultability/requirements.md) Requirement 9.7 (2026-10-01): a Derived_Class that declares no constructor is constructed as its default, which starts from the Base_Class's default and runs no Base_Class constructor. It needs a defaultable Base_Class rather than a parameterless constructor, so criteria 8.1 and 8.2 below do not apply to it, and a Base_Class with no default makes it an error (defaultability Requirement 9.1). Criterion 8.3 still governs a constructor the Derived_Class declares.
+
 ## Introduction
 
 This document specifies the requirements for adding single class inheritance to the Mist programming language. Mist is a C#-like language that transpiles to C#. This feature allows a class to extend exactly one base class, inheriting its fields and methods. The inheritance model is additive-only with static dispatch — derived classes can add new members but cannot override base class behavior, and method resolution is always determined by the declared (compile-time) type of the variable, not the runtime type.

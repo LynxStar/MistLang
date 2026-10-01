@@ -106,7 +106,9 @@ internal static partial class PurityJudge
         return constructor switch
         {
             Constructor declared => declared.ChainedConstructor ?? ImplicitlyChained(declared),
-            ConcreteType type => ImplicitlyChained(type.BaseType),
+            ConcreteType type => Defaultability.IsDefaultable(type) && type.BaseType is ConcreteType { IsIntrinsic: false } defaulted
+                ? defaulted
+                : ImplicitlyChained(type.BaseType),
             _ => null,
         };
     }
@@ -114,13 +116,6 @@ internal static partial class PurityJudge
     public static ConcreteType? ImplicitConstructorOf(NewExpression allocation)
     {
         return allocation.Constructor is null && DefinitionOf(allocation.Type) is ConcreteType { IsIntrinsic: false } type ? type : null;
-    }
-
-    public static object? DefaultChainOf(DefaultExpression fallback)
-    {
-        return DefinitionOf(fallback.Type) is ClassType { IsIntrinsic: false } type && Defaultability.IsDefaultable(type)
-            ? ImplicitlyChained(type.BaseType)
-            : null;
     }
 
     public static bool AllocatesTypeParameter(NewExpression allocation)
@@ -359,14 +354,6 @@ internal static partial class PurityJudge
                     ProgramAnalysisDiagnostics.PureScopeCallsImpure, fallback.Node, [fallback],
                     $"take the default of '{TypeDisplay.Mist(fallback.Type)}'", scope,
                     "chosen by the type argument, and a default constraint states no promise", "a default of a known type");
-                return;
-            }
-
-            if(DefaultChainOf(fallback) is { } chained && promiseOf(chained) is { Pure: false } promise)
-            {
-                Refuse(
-                    ProgramAnalysisDiagnostics.PureScopeCallsImpure, fallback.Node, [fallback],
-                    $"take the default of '{TypeDisplay.Mist(fallback.Type)}', which chains to the constructor of its base,", scope, promise.Display, "a pure base constructor");
             }
         }
 

@@ -194,8 +194,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
 
                 break;
 
-            case DefaultExpression fallback when frame.IsReadonly
-                && (PurityJudge.DefaultsTypeParameter(fallback) || (PurityJudge.DefaultChainOf(fallback) is { } chained && !inference.Of(chained).Readonly)):
+            case DefaultExpression fallback when frame.IsReadonly && PurityJudge.DefaultsTypeParameter(fallback):
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextAllocatesMutable, fallback.Node, [fallback],
                     TypeDisplay.Mist(fallback.Type), frame.Describe());

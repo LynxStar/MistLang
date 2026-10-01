@@ -2383,6 +2383,35 @@ capabilities:
         MIST_TC_0013 on classic, and `default(Config)` goes through the private sentinel. A type declaring its
         own `T()` keeps it for `new` and the block answers `default` (Container: 99 and 42). All three
         measured 2026-09-26, identical on both pipelines.
+      - >
+        DELIVERED 2026-10-01: A DERIVED DEFAULT STARTS FROM THE BASE'S DEFAULT, never the base's
+        constructor (defaultability 9.7 and 12.8; class-inheritance 8 amended). This was decided with
+        classic divergence accepted, and the decision, probes and tests are recorded in the analysis
+        register under declaration-shape-checks.
+        - Classes: a derived class's sentinel chains `: base(marker)` into a base that declares
+          constructors, and a constructorless derived class's public constructor chains
+          `: base(default(__DefaultInit))`. A base without constructors is still reached through its
+          public parameterless constructor, which is its default. The sentinel is protected on an
+          unsealed class so a derived default can reach it, and private on a sealed class or a struct.
+        - Structs: a derived struct, flattened, assigns each inherited field its declaring ancestor's
+          default -- block entry, binding or zero -- since nothing chains. Before, the base's block never
+          reached it, and an inherited field without an initializer took C#'s zero.
+        - The marker needs no move today: every assembly is emitted into one compilation, so a derived
+          class in another project names the same `__DefaultInit`. backlog/multi-project-emission.md
+          records that splitting emission per project must give the markers one shared home.
+      - >
+        A CONSTRUCTED GENERIC BASE IS OUTSIDE ALL OF THIS. `class IntBox : Box<int>` has a ConstructedType
+        base, which is not a MemberType, so Defaultability.BaseIsDefaultable skips it and emission keeps
+        C#'s implicit `base()`. `default(Box<int>)` itself is emitted as UnsupportedExpression:
+        DefaultSynthesis.Expression answers null and DefaultabilityAnalyzer matches only a ConcreteType.
+        Deciding a constructed type's default means substituting its fields' types, so it is a capability
+        of its own. Found by code reading, 2026-10-01.
+      - >
+        AUTO-PROPERTIES HAVE NO DEFAULT ON v2. Defaultability and DefaultSynthesis read fields only.
+        Measured 2026-10-01: `default(Holder).Defaulted.Value`, over `public Inner Defaulted { get; set; }`
+        with a constructorless `Inner`, throws NullReferenceException on v2 and prints 7 on classic. A
+        constructorless type's auto-property whose type has no default is null on both pipelines.
+        Including them is one change: count them in the classification, and assign them in the synthesis.
     analysis_phase_tasks:
       - >
         Report a type that cannot be defaulted where something defaults it, rather than silently emitting

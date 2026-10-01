@@ -122,7 +122,7 @@ public sealed class DefaultSynthesisTests : ProgramModelProbe
             """,
             "Config");
 
-        Assert.Contains("private Config(", emitted, StringComparison.Ordinal);
+        Assert.Contains("protected Config(", emitted, StringComparison.Ordinal);
         Assert.DoesNotContain("public Config()", emitted, StringComparison.Ordinal);
     }
 

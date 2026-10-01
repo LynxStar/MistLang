@@ -11,6 +11,8 @@ A third spec, `definite-assignment`, replaced `optional-defaultability`'s array 
 
 Where this document and either earlier spec differ, this document governs. The earlier specs remain in place, marked superseded, so references to them by requirement number still resolve; the appendix maps each of their requirements to where it now lives.
 
+It also amends the `class-inheritance` spec, whose Requirement 8 constructs a derived class that declares no constructor by running its base's parameterless constructor. Here such a class is constructed as its default, which starts from the base's default and runs no constructor (Requirement 9.7).
+
 ### Two ways to get a value
 
 - **Default (data).** A type's default value is data its declaration states: `default(T)` builds it from the type's field initializers and default block, never through a constructor of `T`. It is deterministic and side-effect-free, which is why every expression that contributes to it must be consistent: each evaluation starts from the same state (Requirement 6). It can still fail, since a pure expression may divide by zero, but it fails the same way every time. A default that cannot fail at all needs a promise Mist does not have yet (`purity` spec, Deferred).
@@ -136,7 +138,7 @@ public class DatabaseConnection
 1. WHEN a class or struct declares no User_Constructor, THE Compiler SHALL generate an Implicit_Constructor, and `new T()` SHALL produce the type's default value -- Default_Block entries and Type_Bindings included.
 2. WHEN a class or struct declares any User_Constructor, THE Compiler SHALL NOT generate an Implicit_Constructor; `new T()` SHALL resolve only against the User_Constructors, and SHALL be an error if none of them is parameterless.
 3. WHEN a class or struct declares a parameterless User_Constructor and a Default_Block, `new T()` SHALL run that constructor and `default(T)` SHALL produce the Explicit_Default; the two SHALL NOT be conflated.
-4. A Default_Expression or Default_Literal SHALL NOT invoke any User_Constructor of the type being defaulted.
+4. A Default_Expression or Default_Literal SHALL NOT invoke any User_Constructor of the type being defaulted or of any of its base types.
 
 ### Requirement 5: The Default Value
 
@@ -216,6 +218,8 @@ var y = default(Blah);                   // x.Item and y.Item: two distinct Foos
 4. A derived type's default SHALL give inherited fields the base type's default values, and its own fields values per Requirement 5.
 5. A derived type's Default_Block MAY override inherited fields that are visible to it. WHEN an entry names a field that is not visible to the declaring type -- a base class's private field -- THE Compiler SHALL report an error naming the field.
 6. WHEN a Default_Block entry names a member the type does not declare or inherit, THE Compiler SHALL report an error naming it.
+7. Neither a derived type's default nor its Implicit_Constructor SHALL invoke a User_Constructor of a base type: the inherited fields take the base's default (criterion 4). A base that declares User_Constructors and a Default_Block is therefore as good a base for a type without User_Constructors as a base without constructors, and `new Derived()` on such a type runs no base constructor (Requirement 4.1).
+8. WHEN the base class is intrinsic or not declared in Mist source, such as a CLR type, criteria 1 and 3 SHALL NOT apply: the derived type is a Non_Defaultable_Type, and one that declares no User_Constructor is constructed through the base's parameterless constructor.
 
 ### Requirement 10: Constructors Assign Every Field
 
@@ -243,12 +247,13 @@ var y = default(Blah);                   // x.Item and y.Item: two distinct Foos
 #### Acceptance Criteria
 
 1. WHEN a type is defaultable, THE C#_Backend SHALL emit a static factory `__CreateDefault()` on it that returns a new instance holding the type's default, and SHALL lower every Default_Expression and Default_Literal of that type to a call to it. WHEN a type is Non_Defaultable, THE C#_Backend SHALL emit no factory for it.
-2. THE factory SHALL NOT invoke any User_Constructor. WHEN the type declares User_Constructors, THE C#_Backend SHALL reach the instance through a private constructor that no Mist source can name, so that it grants C# no construction Mist refuses.
+2. THE factory SHALL NOT invoke any User_Constructor. WHEN the type declares User_Constructors, THE C#_Backend SHALL reach the instance through a constructor that no Mist source can name -- private, or protected where a derived type's default chains to it -- so that it grants C# no construction Mist refuses.
 3. WHEN the type declares no User_Constructor, THE C#_Backend SHALL emit the Implicit_Constructor as a public parameterless constructor producing the default, and MAY route the factory through it.
 4. Every Field_Initializer SHALL run exactly once per construction and once per default -- C# runs field initializers in every constructor that does not chain to another, so a constructor the backend synthesizes SHALL NOT assign a field's own initializer again.
 5. WHEN a type has a Type_Binding, THE C#_Backend SHALL build the field from the bound type's default and apply its nested overrides through a local of the bound type, then assign the field.
 6. WHEN an enum has a designated default variant, THE C#_Backend SHALL emit its factory returning that variant.
 7. WHEN a type parameter carries a Default_Constraint, THE C#_Backend SHALL supply what `default(T)` needs inside the generic body, the constraint having no C# equivalent; its enforcement belongs to the Compiler's analysis.
+8. WHEN a defaultable class derives from a class that declares User_Constructors, THE C#_Backend SHALL build the inherited part by chaining to that base's constructor of criterion 2, never to a User_Constructor (Requirement 9.7). A derived struct, flattened because C# structs do not inherit, SHALL assign each inherited field its base's default.
 
 ### Requirement 13: Editor Support
 

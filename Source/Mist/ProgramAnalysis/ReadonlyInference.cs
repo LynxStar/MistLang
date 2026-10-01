@@ -227,12 +227,6 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
             BinaryExpression { Operator: null } comparison => ComparesWriting(ElementComparisons.OfAnonymous(comparison), callees),
             NewExpression { Constructor: { } constructor } => Unproven(constructor, callees),
             DefaultExpression fallback when PurityJudge.DefaultsTypeParameter(fallback) => true,
-            DefaultExpression fallback => PurityJudge.DefaultChainOf(fallback) switch
-            {
-                Constructor chained => Unproven(chained, callees),
-                ConcreteType chained => Unproven(chained, callees),
-                _ => false,
-            },
             NewExpression allocation when PurityJudge.AllocatesTypeParameter(allocation) => true,
             NewExpression allocation => PurityJudge.ImplicitConstructorOf(allocation) is { } type && Unproven(type, callees),
             PropertyReferenceExpression { Property: { } read } => UnprovenGetter(read.Getter, read.Modifiers, read.DeclaringType, callees),

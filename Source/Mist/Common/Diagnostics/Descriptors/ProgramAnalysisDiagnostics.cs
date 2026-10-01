@@ -196,6 +196,18 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Type '{0}' has no default: it declares a constructor and no default block, or a field or base of it has none. Give it a default block, or construct it explicitly.");
 
+    public static readonly DiagnosticDescriptor FieldHasNoDefault = new(
+        new DiagnosticId("MIST_PA_FIELD_HAS_NO_DEFAULT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Field '{0}' of '{1}' has no default, which '{1}' needs because it declares {2}: its type '{3}' has none. Give the field an initializer or a default block entry, or give '{1}' a constructor that assigns it and no default block.");
+
+    public static readonly DiagnosticDescriptor BaseNotDefaultable = new(
+        new DiagnosticId("MIST_PA_BASE_NOT_DEFAULTABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Type '{0}' needs a default because it declares {1}, and its base '{2}' has none to start from. Give '{2}' a default block, or give '{0}' a constructor and no default block.");
+
     public static readonly DiagnosticDescriptor SlotNotFilled = new(
         new DiagnosticId("MIST_PA_SLOT_NOT_FILLED"),
         DiagnosticSeverity.Error,

@@ -190,7 +190,7 @@ public class Factory
     }
 
     // Field typed as nested type
-    Product _lastCreated;
+    Product _lastCreated = new Product("none", 0);
 
     // Return type is nested type
     public Product Create(string name, int qty)

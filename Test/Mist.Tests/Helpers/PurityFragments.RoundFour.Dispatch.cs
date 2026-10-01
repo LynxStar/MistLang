@@ -55,7 +55,8 @@ internal sealed partial class PurityFragments
             "list-contains-compares-intrinsic-elements" => ListComparison("Contains", integer),
             "anonymous-type-equality-dispatches-to-iequatable" => AnonymousTypeEqualityDispatchesToIEquatable(),
             "slot-implementation-context-clause-hidden-by-abstract-dispatch" => SlotImplementationContextClauseHiddenByAbstractDispatch(),
-            "default-of-a-derived-type-runs-the-base-constructor" => DefaultOfADerivedTypeRunsTheBaseConstructor(),
+            "default-of-a-derived-type-runs-no-base-constructor" => DerivedOverAnImpureBaseConstructor(newed: false),
+            "new-of-a-constructorless-derived-type-runs-no-base-constructor" => DerivedOverAnImpureBaseConstructor(newed: true),
             "pure-get-on-a-settable-auto-property-is-trusted-without-being-judged" => PureGetOnASettableAutoProperty(),
             "abstract-slot-attributed-to-the-first-overload-a-type-parameter-agrees-with" => AbstractSlotAttributedToTheFirstOverloadATypeParameterAgreesWith(),
             "abstract-slot-attributed-to-another-conformances-with-mapping" => AbstractSlotAttributedToAnotherConformancesWithMapping(),
@@ -141,15 +142,16 @@ internal sealed partial class PurityFragments
         return Judge(new PurityAnalyzer(), measure, shape, square);
     }
 
-    private IReadOnlyList<Diagnostic> DefaultOfADerivedTypeRunsTheBaseConstructor()
+    private IReadOnlyList<Diagnostic> DerivedOverAnImpureBaseConstructor(bool newed)
     {
         var root = HandBuiltModel.Class("Base");
         root.ConstructorsList.Add(new Constructor("Base", root, [], Public) { DeclaringType = root, Body = HandBuiltModel.Block(WriteStatic(ticks)) });
         root.DefaultBlock = new DefaultBlock([], DeclarationFragments.At<DefaultBlockDeclarationNode>());
         var derived = HandBuiltModel.Class("Derived", root);
         var d = new LocalVariable("d", derived);
+        Expression made = newed ? new NewExpression(Node(37), derived, [], null, [], []) : new DefaultExpression(Node(37), derived);
         var make = Method(probe, "Make", integer, PureStatic, HandBuiltModel.Block(
-            new LocalDeclarationStatement(d, new DefaultExpression(Node(37), derived)),
+            new LocalDeclarationStatement(d, made),
             new ReturnStatement(Literal(integer, 1L), integer)));
         return Judge(new PurityAnalyzer(), make);
     }

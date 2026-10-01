@@ -17,20 +17,29 @@ internal static class DefaultEmitter
     {
         var self = TypeEmitter.EmitTypeName(type);
         var sentinel = DefaultSynthesis.NeedsSentinel(type);
+        var chains = DefaultSynthesis.ChainsToBaseSentinel(type);
 
         SeparateMember(writer, ref anyEmitted);
 
         if(sentinel)
         {
-            writer.WriteLine($"private {TypeEmitter.CleanName(type)}({DefaultSynthesis.MarkerType} marker)");
+            var chain = chains ? " : base(marker)" : "";
+            writer.WriteLine(
+                $"{DefaultSynthesis.SentinelAccessibility(type)} {TypeEmitter.CleanName(type)}({DefaultSynthesis.MarkerType} marker){chain}");
         }
         else
         {
-            writer.WriteLine($"public {TypeEmitter.CleanName(type)}()");
+            var chain = chains ? $" : base(default({DefaultSynthesis.MarkerType}))" : "";
+            writer.WriteLine($"public {TypeEmitter.CleanName(type)}(){chain}");
         }
 
         using(writer.Block())
         {
+            foreach(var ancestor in DefaultSynthesis.FlattenedAncestors(type))
+            {
+                EmitAssignments(ancestor, writer, diagnostics);
+            }
+
             EmitAssignments(type, writer, diagnostics);
         }
 

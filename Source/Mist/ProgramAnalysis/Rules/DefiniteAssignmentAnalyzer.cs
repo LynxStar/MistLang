@@ -79,7 +79,7 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
 
         foreach(var field in Defaultability.InstanceFields(owner))
         {
-            if(field.Initializer is null && !Undecided(field.Type) && !Defaultability.FieldHasDefault(owner, field))
+            if(field.Initializer is null && !Defaultability.IsUndecided(field.Type) && !Defaultability.FieldHasDefault(owner, field))
             {
                 storage.Add(field);
             }
@@ -88,19 +88,13 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
         foreach(var property in owner.PropertiesList)
         {
             if(property is { Modifiers.IsStatic: false, Initializer: null, Getter.IsAuto: true }
-                && !Undecided(property.Type) && !Defaultability.HasDefault(property.Type))
+                && !Defaultability.IsUndecided(property.Type) && !Defaultability.HasDefault(property.Type))
             {
                 storage.Add(property);
             }
         }
 
         return storage;
-    }
-
-    private static bool Undecided(IMistType type)
-    {
-        return type is TypeParameter or SpreadType or PackElementType
-            || (type is TupleType tuple && tuple.ElementTypes.Any(Undecided));
     }
 
     private static string NameOf(object member)

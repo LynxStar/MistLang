@@ -87,27 +87,64 @@ public sealed class DefaultabilityTests
     }
 
     [Theory]
-    [InlineData("constructorless", true)]
-    [InlineData("parameterless-constructor-and-a-block", true)]
-    [InlineData("parameterless-constructor", false)]
-    public void ConstructorlessDerivedType_DefaultsOnlyOverADefaultableBase(string parent, bool expected)
+    [InlineData("constructorless", false, true)]
+    [InlineData("parameterless-constructor-and-a-block", false, true)]
+    [InlineData("argument-taking-constructor-and-a-block", false, true)]
+    [InlineData("argument-taking-constructor-and-a-block", true, true)]
+    [InlineData("parameterless-constructor", false, false)]
+    [InlineData("argument-taking-constructor", true, false)]
+    public void ConstructorlessDerivedType_DefaultsExactlyWhenItsBaseHasADefault(string parent, bool isStruct, bool expected)
     {
-        var counter = Counter(isStruct: false);
-
-        if(parent != "constructorless")
-        {
-            _ = Declare(counter);
-        }
-
-        if(parent == "parameterless-constructor-and-a-block")
-        {
-            AddDefaultBlock(counter);
-        }
-
-        var derived = HandBuiltModel.Class("Derived", counter);
+        ConcreteType derived = isStruct ? HandBuiltModel.Struct("Derived") : HandBuiltModel.Class("Derived");
+        derived.BaseType = Shaped(parent, isStruct);
         derived.FieldsList.Add(FieldOf("extra", integer));
 
         Assert.Equal(expected, Defaultability.HasDefault(derived));
+    }
+
+    [Theory]
+    [InlineData("parameterless-constructor", true)]
+    [InlineData("argument-taking-constructor-and-a-block", false)]
+    [InlineData("ambient", false)]
+    [InlineData("intrinsic", false)]
+    public void BaseWithoutDefault_NamesOnlyAMistBaseThatHasNone(string parent, bool named)
+    {
+        var shaped = Shaped(parent is "ambient" or "intrinsic" ? "parameterless-constructor" : parent, isStruct: false);
+
+        if(parent == "ambient")
+        {
+            shaped.Assembly = MistAssembly.Ambient;
+        }
+        else if(parent == "intrinsic")
+        {
+            shaped.Modifiers = Public with { IsIntrinsic = true };
+        }
+
+        var derived = HandBuiltModel.Class("Derived", shaped);
+
+        Assert.Equal(named ? shaped : null, Defaultability.BaseWithoutDefault(derived));
+    }
+
+    [Theory]
+    [InlineData("type-with-a-constructor", true)]
+    [InlineData("initialized", false)]
+    [InlineData("type-parameter", false)]
+    [InlineData("intrinsic", false)]
+    public void FieldsWithoutDefault_NameOnlyAFieldWithNoAnswer(string shape, bool named)
+    {
+        var holder = HandBuiltModel.Class("Holder");
+        var connection = Shaped("argument-taking-constructor", isStruct: false);
+        var field = shape switch
+        {
+            "initialized" => FieldOf("link", connection, new NewExpression(HandBuiltModel.Node(), connection, [], null, [], [])),
+            "type-parameter" => FieldOf("link", new TypeParameter("T", 0, holder.Scope, holder)),
+            "intrinsic" => FieldOf("link", integer),
+            _ => FieldOf("link", connection),
+        };
+        holder.FieldsList.Add(field);
+        List<Field> expected = named ? [field] : [];
+
+        Assert.Equal(expected, Defaultability.FieldsWithoutDefault(holder));
     }
 
     [Theory]
@@ -151,6 +188,23 @@ public sealed class DefaultabilityTests
         counter.FieldsList.Add(FieldOf("start", integer, HandBuiltModel.Literal(integer, 1L)));
         counter.FieldsList.Add(FieldOf("step", integer));
         return counter;
+    }
+
+    private ConcreteType Shaped(string shape, bool isStruct)
+    {
+        var shaped = Counter(isStruct);
+
+        if(shape != "constructorless")
+        {
+            _ = shape.StartsWith("argument-taking", StringComparison.Ordinal) ? Declare(shaped, integer) : Declare(shaped);
+        }
+
+        if(shape.EndsWith("and-a-block", StringComparison.Ordinal))
+        {
+            AddDefaultBlock(shaped);
+        }
+
+        return shaped;
     }
 
     private static Constructor Declare(ConcreteType owner, params IMistType[] parameters)

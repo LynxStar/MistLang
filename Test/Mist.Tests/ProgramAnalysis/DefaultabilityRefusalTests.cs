@@ -81,16 +81,91 @@ public sealed class DefaultabilityRefusalTests
         });
     }
 
-    private static ConcreteType Counter(DeclarationFragments fragment, string shape, bool isStruct = false)
+    [Theory]
+    [InlineData("constructorless", "no constructor")]
+    [InlineData("parameterless-constructor-and-a-block", "a default block")]
+    [InlineData("parameterless-constructor", null)]
+    public void FieldWithNoDefault_IsRefusedAtTheFieldOnlyWhereItsTypeNeedsADefault(string shape, string? declares)
+    {
+        var fragment = new DeclarationFragments();
+        var holder = Counter(fragment, shape, name: "Holder");
+        var connection = Counter(fragment, "argument-taking-constructor", name: "Connection");
+        holder.FieldsList.Add(new Field("link", connection, OwnershipKind.Unrestricted, DeclarationFragments.Public)
+        {
+            DeclarationNode = HandBuiltModel.Node(40),
+        });
+
+        var findings = fragment.Run(new DefaultabilityAnalyzer());
+
+        if(declares is null)
+        {
+            Assert.Empty(findings);
+            return;
+        }
+
+        var finding = Assert.Single(findings);
+        Assert.Equal("MIST_PA_FIELD_HAS_NO_DEFAULT", finding.Id.Value);
+        Assert.Equal(41, finding.Location.Start.Column);
+        Assert.Contains($"Field 'link' of 'Holder' has no default, which 'Holder' needs because it declares {declares}: its type 'Connection'",
+            finding.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("constructorless", "parameterless-constructor", "no constructor")]
+    [InlineData("parameterless-constructor-and-a-block", "parameterless-constructor", "a default block")]
+    [InlineData("constructorless", "argument-taking-constructor", "no constructor")]
+    [InlineData("parameterless-constructor", "parameterless-constructor", null)]
+    [InlineData("constructorless", "argument-taking-constructor-and-a-block", null)]
+    [InlineData("constructorless", "ambient", null)]
+    public void TypeNeedingADefault_IsRefusedAtItsDeclarationWhenItsBaseHasNone(string shape, string parent, string? declares)
+    {
+        var fragment = new DeclarationFragments();
+        var baseType = Counter(fragment, parent == "ambient" ? "parameterless-constructor" : parent, name: "Base");
+        var derived = Counter(fragment, shape, name: "Derived");
+        derived.BaseType = baseType;
+
+        if(parent == "ambient")
+        {
+            baseType.Assembly = MistAssembly.Ambient;
+        }
+
+        var findings = fragment.Run(new DefaultabilityAnalyzer());
+
+        if(declares is null)
+        {
+            Assert.Empty(findings);
+            return;
+        }
+
+        var finding = Assert.Single(findings);
+        Assert.Equal("MIST_PA_BASE_NOT_DEFAULTABLE", finding.Id.Value);
+        Assert.Contains($"Type 'Derived' needs a default because it declares {declares}, and its base 'Base' has none",
+            finding.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DefaultOfATypeRefusedAtItsDeclaration_IsNotRefusedAgainWhereItIsTaken()
+    {
+        var fragment = new DeclarationFragments();
+        var derived = Counter(fragment, "constructorless", name: "Derived");
+        derived.BaseType = Counter(fragment, "parameterless-constructor", name: "Base");
+        fragment.Root = Defaults(derived);
+
+        var finding = Assert.Single(fragment.Run(new DefaultabilityAnalyzer()));
+
+        Assert.Equal("MIST_PA_BASE_NOT_DEFAULTABLE", finding.Id.Value);
+    }
+
+    private static ConcreteType Counter(DeclarationFragments fragment, string shape, bool isStruct = false, string name = "Counter")
     {
         var integer = fragment.Built.Type("Int32");
         integer.Modifiers = DeclarationFragments.Public with { IsIntrinsic = true };
         ConcreteType counter = isStruct
-            ? new StructType("Counter", "Refusal", new Scope(null), null, DeclarationFragments.At<BodyTypeTypeDeclarationNode>())
+            ? new StructType(name, "Refusal", new Scope(null), null, DeclarationFragments.At<BodyTypeTypeDeclarationNode>())
             {
                 Modifiers = DeclarationFragments.Public,
             }
-            : fragment.Class("Counter");
+            : fragment.Class(name);
 
         if(isStruct)
         {
@@ -106,7 +181,7 @@ public sealed class DefaultabilityRefusalTests
         if(shape != "constructorless")
         {
             List<Parameter> parameters = shape.StartsWith("argument-taking", StringComparison.Ordinal) ? [new Parameter("start", integer)] : [];
-            counter.ConstructorsList.Add(new Constructor("Counter", counter, parameters, DeclarationFragments.Public)
+            counter.ConstructorsList.Add(new Constructor(name, counter, parameters, DeclarationFragments.Public)
             {
                 DeclaringType = counter,
                 DeclarationNode = HandBuiltModel.Node(20),

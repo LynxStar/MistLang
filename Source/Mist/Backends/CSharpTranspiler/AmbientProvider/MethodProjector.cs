@@ -92,6 +92,8 @@ internal static class MethodProjector
         {
             Accessibility = ClrAccessibilityMap.FromMethod(method),
             IsStatic = method.IsStatic,
+            IsRef = method.ReturnType.IsByRef,
+            ReturnsReadonlyRef = ParameterProjector.IsReadonlyRef(method.ReturnParameter),
             IsClrProjected = true,
             ClrResultIsNonNull = ClrNullability.ResultIsNonNull(method.ReturnParameter, method),
         };

@@ -158,7 +158,7 @@ internal static class ProjectionInspector
             ? ""
             : $"<{string.Join(", ", method.TypeParametersList.Select(parameter => parameter.Name))}>";
         var parameters = string.Join(", ", method.ParametersList.Select(Spelled));
-        var signature = $"{typeParameters}({parameters}) -> {TypeDisplay.Mist(method.ReturnType)}";
+        var signature = $"{typeParameters}({parameters}) -> {Result(method.Modifiers, method.ReturnType)}";
 
         return new VisibleMember(VisibleMemberKind.Method, method.Name, signature, IsProtected(method.Modifiers), from);
     }
@@ -166,7 +166,19 @@ internal static class ProjectionInspector
     private static VisibleMember Shown(Property property, string? from)
     {
         return new VisibleMember(
-            VisibleMemberKind.Property, property.Name, TypeDisplay.Mist(property.Type), IsProtected(property.Modifiers), from);
+            VisibleMemberKind.Property, property.Name, Result(property.Modifiers, property.Type), IsProtected(property.Modifiers), from);
+    }
+
+    internal static string Result(MemberModifiers modifiers, IMistType type)
+    {
+        var passing = modifiers switch
+        {
+            { ReturnsReadonlyRef: true } => "readonly ref ",
+            { IsRef: true } => "ref ",
+            _ => "",
+        };
+
+        return passing + TypeDisplay.Mist(type);
     }
 
     private static string Spelled(Parameter parameter)

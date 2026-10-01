@@ -46,6 +46,13 @@ public record struct MemberModifiers
     /// <summary>Whether the declaration has <c>ref</c>.</summary>
     public bool IsRef { get; init; }
 
+    /// <summary>
+    /// Set with <see cref="IsRef"/> where the result is a reference its caller may read but not write
+    /// through, which only a CLR <c>ref readonly</c> return gives. Kept apart from <see cref="IsReadonly"/>,
+    /// which on a method says its receiver is not mutated: CLR metadata records the two independently.
+    /// </summary>
+    public bool ReturnsReadonlyRef { get; init; }
+
     /// <summary>The substructural discipline (affine, linear, relevant, or none).</summary>
     public SubstructuralDiscipline Discipline { get; init; }
 

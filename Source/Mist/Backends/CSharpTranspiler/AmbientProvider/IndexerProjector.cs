@@ -57,6 +57,8 @@ internal static class IndexerProjector
             {
                 Accessibility = accessibility,
                 IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
+                IsRef = prop.PropertyType.IsByRef,
+                ReturnsReadonlyRef = ParameterProjector.IsReadonlyRef(prop.GetMethod?.ReturnParameter),
                 IsClrProjected = true,
                 ClrResultIsNonNull = ClrNullability.ResultIsNonNull(prop, prop),
             };

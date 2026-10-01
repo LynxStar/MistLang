@@ -140,6 +140,17 @@ public sealed class InspectionReportTests
             Lines(ProjectionInspector.Aliased("System.Collections.Generic.Queue`1", standard)));
     }
 
+    [Theory]
+    [InlineData(false, false, "int")]
+    [InlineData(true, false, "ref int")]
+    [InlineData(true, true, "readonly ref int")]
+    public void Result_SpellsAReferenceTheWayMistDeclaresOne(bool isRef, bool returnsReadonlyRef, string expected)
+    {
+        var int32 = new StructType("Int32", "Standard", null, null, null);
+
+        Assert.Equal(expected, ProjectionInspector.Result(new MemberModifiers { IsRef = isRef, ReturnsReadonlyRef = returnsReadonlyRef }, int32));
+    }
+
     [Fact]
     public void Inspect_NameWithoutANamespace_ExitsNonZeroBeforeLoadingAnything()
     {

@@ -322,6 +322,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot reassign readonly local variable '{0}'.");
 
+    public static readonly DiagnosticDescriptor ReadonlyReferenceWritten = new(
+        new DiagnosticId("MIST_PA_READONLY_REF_WRITTEN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' is a readonly reference, so it cannot be {1}. Read its value, or bind it to a 'readonly ref' local.");
+
     public static readonly DiagnosticDescriptor StaticLambdaCapture = new(
         new DiagnosticId("MIST_PA_STATIC_LAMBDA_CAPTURE"),
         DiagnosticSeverity.Error,

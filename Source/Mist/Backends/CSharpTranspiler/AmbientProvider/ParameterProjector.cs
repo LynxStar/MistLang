@@ -113,6 +113,11 @@ internal static class ParameterProjector
     /// Both arrive as required custom modifiers or as attributes depending on the compiler that
     /// produced the assembly, so both surfaces are checked.
     /// </summary>
+    internal static bool IsReadonlyRef(ParameterInfo? result)
+    {
+        return result is { ParameterType.IsByRef: true } && HasReadonlyMarker(result);
+    }
+
     private static bool HasReadonlyMarker(ParameterInfo parameter)
     {
         const string isReadOnly = "System.Runtime.CompilerServices.IsReadOnlyAttribute";

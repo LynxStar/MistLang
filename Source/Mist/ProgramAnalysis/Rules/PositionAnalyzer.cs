@@ -9,9 +9,10 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// The positions with one rule each: <c>??=</c> anywhere but statement position, a readonly local
-/// reassigned, a writable reference taken through a readonly one -- by a ref local, a ref or out
-/// argument, an assignment or a ref return -- a static lambda or local function reaching outside itself,
-/// and <c>?</c> applied to a type that already holds void. Order 9 of the analysis register, the half whose subject is where something was
+/// reassigned, a reference taken where one is taken -- a ref local, a by-ref argument, a ref return -- to
+/// something that is not a storage location or, writably, through a readonly reference, a readonly
+/// reference assigned to, a static lambda or local function reaching outside itself, and <c>?</c> applied
+/// to a type that already holds void. Order 9 of the analysis register, the half whose subject is where something was
 /// written rather than what it is. A static lambda's own names are its parameters and whatever its
 /// body declares -- a local, a loop or deconstruction variable, a pattern binding, a nested lambda's
 /// parameters -- and any other local, or any instance member, is a capture.
@@ -49,14 +50,12 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
                     context.Report(ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, assignment.Node, [target], through, "assigned to");
                     break;
 
-                case LocalDeclarationStatement { Local: { IsRef: true, IsReadonly: false } local, Initializer: { } aliased }
-                    when PositionDecision.ReadonlyReference(aliased) is { } through:
-                    context.Report(
-                        ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, aliased.Node, [aliased], through, $"bound to ref local '{local.Name}'");
+                case LocalDeclarationStatement { Local: { IsRef: true } local, Initializer: { } aliased }:
+                    JudgeReference(context, aliased, $"bound to ref local '{local.Name}'", writable: !local.IsReadonly);
                     break;
 
-                case ReturnStatement { IsRef: true, Value: { } returned } when PositionDecision.ReadonlyReference(returned) is { } through:
-                    context.Report(ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, returned.Node, [returned], through, "returned by ref");
+                case ReturnStatement { IsRef: true, Value: { } returned }:
+                    JudgeReference(context, returned, "returned by ref", writable: true);
                     break;
 
                 case InvocationExpression { Method: { } callee } call:
@@ -95,11 +94,22 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
     {
         for(var i = 0; i < arguments.Count && i < parameters.Count; i++)
         {
-            if(PositionDecision.WritableArgument(parameters[i].Modifier) is { } position
-                && PositionDecision.ReadonlyReference(arguments[i]) is { } through)
+            if(PositionDecision.ByReferenceArgument(parameters[i].Modifier) is { } position)
             {
-                context.Report(ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, arguments[i].Node, [arguments[i]], through, position);
+                JudgeReference(context, arguments[i], position, writable: PositionDecision.WritableArgument(parameters[i].Modifier) is not null);
             }
+        }
+    }
+
+    private static void JudgeReference(AnalysisContext context, Expression source, string position, bool writable)
+    {
+        if(StorageLocations.NotALocation(source) is { } what)
+        {
+            context.Report(ProgramAnalysisDiagnostics.ReferenceToNonLocation, source.Node, [source], what, position);
+        }
+        else if(writable && PositionDecision.ReadonlyReference(source) is { } through)
+        {
+            context.Report(ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, source.Node, [source], through, position);
         }
     }
 

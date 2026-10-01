@@ -33,6 +33,15 @@ internal static class PositionDecision
         };
     }
 
+    public static string? ByReferenceArgument(ParameterModifier parameter)
+    {
+        return parameter.Direction switch
+        {
+            ByRefDirection.In => "passed by reference to an in parameter",
+            _ => WritableArgument(parameter),
+        };
+    }
+
     public static string? WritableArgument(ParameterModifier parameter)
     {
         return parameter.Direction switch

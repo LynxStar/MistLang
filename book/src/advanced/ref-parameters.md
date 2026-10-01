@@ -71,6 +71,8 @@ Use `ref` when you need to mutate a value type in place (since value types are c
 
 With `ref`, the caller's storage location is directly aliased. Mutations through the reference are immediately visible to the caller — there is no copy. This is essential for value types like structs, where pass-by-value would create an independent copy that the callee's mutations wouldn't affect.
 
+Because the reference aliases storage, what you pass with `ref` has to be storage: a variable, a field, an array or span element, or a result that is itself returned by `ref`. A computed value has nowhere to alias, so passing one — a call that returns a value, a property, an element of a `string` or a `List<T>` — is refused with `MIST_PA_REF_NOT_A_LOCATION`. The same holds for a `ref` local's initializer and for a `ref` return.
+
 ## `ref` with Reference Types
 
 When `ref` is applied to a reference type parameter, the callee can reassign the caller's variable to point to a different object entirely. Without `ref`, the callee could mutate the object's fields but could not change which object the caller's variable refers to.

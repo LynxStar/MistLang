@@ -2489,12 +2489,27 @@ rules:
       Roslyn (CS8329 for the first and third, CS8331 for the second, CS1510 for the last).
       ReadonlyReferenceDecisionTests holds the decision (Tier 1) and
       ReadonlyReferenceSiteTests the walk (Tier 2); samples/ClrRefReadonly is the false-positive half.
+
+      A REFERENCE TO SOMETHING THAT IS NOT A LOCATION (2026-10-01), the question emitter orders 128 and
+      188 left here. StorageLocations.NotALocation is its one home: a local, a field or backing field, a
+      static field, a field reached through a class or through a location, an array or span element (a
+      refined or aliased array included), and a call, property or indexer returning by ref are locations;
+      `this`, an element read and a value that already failed are left undecided and admitted, so only a
+      certain value is refused. Everything else is named for the diagnostic -- the result of a call, a
+      property, an indexer, an element of a string or a List, a slice, a literal, a field of a value, a
+      computed value. PositionAnalyzer asks it first wherever a reference is taken -- a `ref` or `readonly
+      ref` local's initializer, a `ref`, `out` or `in` argument, a `ref` return -- and reports
+      MIST_PA_REF_NOT_A_LOCATION at the reference, worded after classic's MIST_REF_0001; only a location
+      goes on to the readonly question, so a value is never also called readonly. Measured on v2 before
+      the rule: a value call, a literal, a sum, a List and a string element and a property bound to ref
+      locals, a value call passed by ref and returned by ref -- eight shapes, each failing in Roslyn
+      (CS8156, CS1510, CS0206); after, each is refused at its line, and a probe binding a local, an array
+      element, a class field, a struct field through a class field, a struct local's field and a ref
+      result, and passing an array element by ref, runs unchanged. StorageLocationTests holds the decision
+      (Tier 1) and ReferenceLocationSiteTests the walk (Tier 2). VERIFIED: zero warnings, format clean,
+      and full ledger 20261001-191512 passing all 11,350 tests (10,395 compiler, 99 CLI, 856 source
+      generator), both sample baselines included, failures.txt empty.
     tasks:
-      - >
-        A reference taken from something that is not a location at all is not refused: `ref int x =
-        Math.Abs(-3);` reaches Roslyn (CS1510), as would a ref argument or ref return of a value result.
-        Refusing it needs an is-this-a-location test over the model -- a local, a field, an element, a
-        ref result -- which emitter orders 128 and 188 both record.
       - >
         A readonly FIELD assigned outside a constructor is left to Roslyn (CS0191): the analysis owner
         of a body is its type, not its member, so a constructor cannot yet be told from a method.

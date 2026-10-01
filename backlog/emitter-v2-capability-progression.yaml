@@ -8016,15 +8016,14 @@ capabilities:
 
       This closes a defect rather than adding a nicety: passing `ref` to a readonly location is
       CS8329, a hard error, and a fifteen-line program had classic running what v2 refused. It now
-      emits `Sink(in v)` and matches.
+      emits `Sink(in v)` and matches. Whether a readonly by-ref ARGUMENT needs an is-this-a-location
+      test was answered on 2026-10-01: every by-ref argument, `in` included, must be a storage location,
+      refused otherwise as MIST_PA_REF_NOT_A_LOCATION on order 9 of the analysis register.
     untested:
       - No banked sample has a readonly by-ref argument, and CSharpCompilationDriver forwards only
         Roslyn Error-severity diagnostics, so CS9191 and CS9192 would be invisible. The truth table
         is pinned by a projection test over real metadata instead.
-    analysis_phase_tasks:
-      - Whether a readonly by-ref ARGUMENT needs an is-this-a-location test. `in <rvalue>` is CS8156
-        and v2 already mis-emits `ref <rvalue>` for a Mist-declared `readonly ref` parameter, so the
-        rvalue case is wrong either way -- and it is order 132's defect rather than this one's.
+    analysis_phase_tasks: []
     unlocks: []
 
   - id: framework-and-package-reference-resolution
@@ -10803,16 +10802,15 @@ capabilities:
       over the interop fixtures' ref, ref readonly and plain results. VERIFIED: solution build with zero
       warnings and errors, dotnet format --verify-no-changes exit 0, and full ledger 20261001-185346
       passing all 11,313 tests (10,358 compiler, 99 CLI, 856 source generator), both sample baselines
-      included, failures.txt empty.
+      included, failures.txt empty. The reference to something that is not a location at all -- `ref int
+      x = Math.Abs(-3);`, which reached Roslyn as CS1510 -- is refused on order 9 of the analysis register
+      as MIST_PA_REF_NOT_A_LOCATION.
     untested:
       - No banked sample reads a CLR property or indexer whose getter returns by reference; their
         projection takes the same path as a method's and is witnessed only by the decision tests.
       - A ref readonly result of a STRUCT type whose non-readonly member is called through the alias
         is unexercised; C# copies defensively there and nothing in Mist distinguishes the two.
-    analysis_phase_tasks:
-      - A ref local, ref argument or ref return whose source is not a location at all is not refused --
-        `ref int x = Math.Abs(-3);` reaches Roslyn (CS1510). This is the is-this-a-location test that
-        clr-byref-parameter-projection's task names for readonly by-ref arguments, now wider than them.
+    analysis_phase_tasks: []
     unlocks: [ClrRefReadonly]
 
 # =====================================================================

@@ -70,6 +70,11 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         return PropertyProjector.Judge(property, declaringType, ProjectingResolver(), out withheld);
     }
 
+    internal Indexer? JudgeIndexer(PropertyInfo property, MemberType declaringType, out Withholding? withheld)
+    {
+        return IndexerProjector.Judge(property, declaringType, ProjectingResolver(), out withheld);
+    }
+
     /// <inheritdoc />
     public void BuildAndRegister(ProgramModelType programModel)
     {

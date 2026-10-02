@@ -479,7 +479,7 @@ System.Text.Encoding (class)
 
 The output shows:
 - The type's fully-qualified name and kind (class, struct, interface, or enum)
-- Visible properties and methods with their projected Mist types, in ascending ordinal order by name; a protected member is marked `[protected]`
+- Visible properties, indexers and methods with their projected Mist types, in ascending ordinal order by name; a protected member is marked `[protected]`. An indexer is listed the way Mist declares one, so `System.Text.StringBuilder` shows `indexer this[int]: char`
 - For inherited members, the declaring base type is indicated with `[from ...]`
 - Hidden members with the reason they are excluded: non-public, an event, a finalizer, a signature type Mist cannot represent, an unresolvable generic constraint, or a member of a base the Mist type does not inherit
 - For a type Mist aliases to a Standard library type, such as `System.String`, a note naming the Standard type, and that type's own members

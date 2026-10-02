@@ -21,58 +21,70 @@ internal static class IndexerProjector
 
         foreach(var prop in properties)
         {
-            var indexParams = prop.GetIndexParameters();
-            if(indexParams.Length == 0)
+            if(prop.GetIndexParameters().Length == 0)
             {
                 continue;
             }
 
-            // Only project if at least one accessor is public or protected.
-            if(!HasVisibleAccessor(prop))
+            if(Judge(prop, memberType, resolver, out _) is { } projected)
             {
-                continue;
+                memberType.IndexersList.Add(projected);
             }
-
-            var resolvedType = resolver.ResolveInbound(
-                prop.PropertyType,
-                memberType.Scope,
-                ClrNullability.ResultIsNonNull(prop, prop),
-                TupleElementNames.Of(prop, prop.PropertyType));
-            if(resolvedType is ErrorType or NotProjectedType)
-            {
-                continue;
-            }
-
-            var parameters = ParameterProjector.Project(indexParams, memberType.Scope, resolver);
-            if(parameters is null)
-            {
-                continue;
-            }
-
-            var getter = IsVisibleMethod(prop.GetMethod) ? new PropertyAccessor { Accessibility = ClrAccessibilityMap.FromMethod(prop.GetMethod!) } : null;
-            var setter = IsVisibleMethod(prop.SetMethod) ? new PropertyAccessor { Accessibility = ClrAccessibilityMap.FromMethod(prop.SetMethod!) } : null;
-
-            var accessibility = ClrAccessibilityMap.FromProperty(prop);
-            var modifiers = new MemberModifiers
-            {
-                Accessibility = accessibility,
-                IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
-                IsRef = prop.PropertyType.IsByRef,
-                ReturnsReadonlyRef = ParameterProjector.IsReadonlyRef(prop.GetMethod?.ReturnParameter),
-                IsClrProjected = true,
-                ClrResultIsNonNull = ClrNullability.ResultIsNonNull(prop, prop),
-            };
-
-            var projected = new Indexer(resolvedType, parameters, modifiers)
-            {
-                DeclaringType = memberType,
-                Getter = getter,
-                Setter = setter,
-            };
-
-            AttributeProjector.Project(prop, projected.AttributesList, memberType.Scope, resolver);
-            memberType.IndexersList.Add(projected);
         }
+    }
+
+    internal static Indexer? Judge(
+        PropertyInfo prop, MemberType memberType, AmbientTypeResolver resolver, out Withholding? withheld)
+    {
+        // Only project if at least one accessor is public or protected.
+        if(!HasVisibleAccessor(prop))
+        {
+            withheld = new Withholding(WithholdingReason.NonPublic);
+            return null;
+        }
+
+        var resolvedType = resolver.ResolveInbound(
+            prop.PropertyType,
+            memberType.Scope,
+            ClrNullability.ResultIsNonNull(prop, prop),
+            TupleElementNames.Of(prop, prop.PropertyType));
+        if(resolvedType is ErrorType or NotProjectedType)
+        {
+            withheld = new Withholding(WithholdingReason.UnresolvableType, prop.PropertyType);
+            return null;
+        }
+
+        var parameters = ParameterProjector.Project(prop.GetIndexParameters(), memberType.Scope, resolver, out var unresolvable);
+        if(parameters is null)
+        {
+            withheld = new Withholding(WithholdingReason.UnresolvableType, unresolvable);
+            return null;
+        }
+
+        var getter = IsVisibleMethod(prop.GetMethod) ? new PropertyAccessor { Accessibility = ClrAccessibilityMap.FromMethod(prop.GetMethod!) } : null;
+        var setter = IsVisibleMethod(prop.SetMethod) ? new PropertyAccessor { Accessibility = ClrAccessibilityMap.FromMethod(prop.SetMethod!) } : null;
+
+        var accessibility = ClrAccessibilityMap.FromProperty(prop);
+        var modifiers = new MemberModifiers
+        {
+            Accessibility = accessibility,
+            IsStatic = (prop.GetMethod?.IsStatic ?? prop.SetMethod?.IsStatic) == true,
+            IsRef = prop.PropertyType.IsByRef,
+            ReturnsReadonlyRef = ParameterProjector.IsReadonlyRef(prop.GetMethod?.ReturnParameter),
+            IsClrProjected = true,
+            ClrResultIsNonNull = ClrNullability.ResultIsNonNull(prop, prop),
+        };
+
+        var projected = new Indexer(resolvedType, parameters, modifiers)
+        {
+            DeclaringType = memberType,
+            Getter = getter,
+            Setter = setter,
+        };
+
+        AttributeProjector.Project(prop, projected.AttributesList, memberType.Scope, resolver);
+        withheld = null;
+        return projected;
     }
 
     private static bool HasVisibleAccessor(PropertyInfo prop)

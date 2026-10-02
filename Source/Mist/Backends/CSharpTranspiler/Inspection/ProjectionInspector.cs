@@ -58,6 +58,7 @@ internal static class ProjectionInspector
         if(projection is MemberType declared)
         {
             visible.AddRange(declared.PropertiesList.Where(property => Exposed(property.Modifiers)).Select(property => Shown(property, null)));
+            visible.AddRange(declared.IndexersList.Where(indexer => Exposed(indexer.Modifiers)).Select(indexer => Shown(indexer, null)));
             visible.AddRange(declared.MethodsList.Where(method => Exposed(method.Modifiers)).Select(method => Shown(method, null)));
         }
 
@@ -136,6 +137,15 @@ internal static class ProjectionInspector
 
                 break;
 
+            case PropertyInfo indexer when indexer.GetIndexParameters().Length > 0:
+                if(provider.JudgeIndexer(indexer, declaring, out withheld) is { } projectedIndexer)
+                {
+                    visible.Add(Shown(projectedIndexer, from));
+                    return;
+                }
+
+                break;
+
             case PropertyInfo property:
                 if(provider.Judge(property, declaring, out withheld) is { } projectedProperty)
                 {
@@ -167,6 +177,14 @@ internal static class ProjectionInspector
     {
         return new VisibleMember(
             VisibleMemberKind.Property, property.Name, Result(property.Modifiers, property.Type), IsProtected(property.Modifiers), from);
+    }
+
+    private static VisibleMember Shown(Indexer indexer, string? from)
+    {
+        var parameters = string.Join(", ", indexer.ParametersList.Select(Spelled));
+        var signature = $"[{parameters}]: {Result(indexer.Modifiers, indexer.Type)}";
+
+        return new VisibleMember(VisibleMemberKind.Indexer, "this", signature, IsProtected(indexer.Modifiers), from);
     }
 
     internal static string Result(MemberModifiers modifiers, IMistType type)
@@ -230,10 +248,7 @@ internal static class ProjectionInspector
     {
         foreach(var property in clrType.GetProperties(Everything))
         {
-            if(property.GetIndexParameters().Length == 0)
-            {
-                yield return property;
-            }
+            yield return property;
         }
 
         foreach(var method in clrType.GetMethods(Everything))

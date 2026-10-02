@@ -32,6 +32,15 @@ public sealed class TypeInspectorTests(TypeInspectorProjectionFixture projection
     }
 
     [Fact]
+    public void List_ReportsItsIndexerAsMistDeclaresOne_AndWithholdsTheExplicitInterfaceOne()
+    {
+        var lines = Report("System.Collections.Generic.List`1");
+
+        Assert.Contains("    indexer this[int]: T", lines);
+        Assert.Contains("    System.Collections.IList.Item: HIDDEN: non-public", lines);
+    }
+
+    [Fact]
     public void Enum_WithholdsWhatItsProjectionDoesNotInherit()
     {
         var lines = Report("System.DayOfWeek");

@@ -11,7 +11,7 @@ namespace Mist.Tests.Backend;
 public sealed class InspectionReportTests
 {
     [Fact]
-    public void Write_ListsPropertiesBeforeMethods_EachInOrdinalOrder_OverloadsBySignature()
+    public void Write_ListsPropertiesThenIndexersThenMethods_EachInOrdinalOrder_OverloadsBySignature()
     {
         var report = new InspectionReport(
             "Sample.Widget",
@@ -19,10 +19,12 @@ public sealed class InspectionReportTests
             null,
             [
                 Shown(VisibleMemberKind.Method, "size", "(int) -> void"),
+                Shown(VisibleMemberKind.Indexer, "this", "[string]: int"),
                 Shown(VisibleMemberKind.Method, "Zeta", "() -> void"),
                 Shown(VisibleMemberKind.Property, "Name", "string"),
                 Shown(VisibleMemberKind.Method, "Alpha", "(string) -> void"),
                 Shown(VisibleMemberKind.Method, "Alpha", "() -> void"),
+                Shown(VisibleMemberKind.Indexer, "this", "[int]: int"),
                 Shown(VisibleMemberKind.Property, "Count", "int"),
             ],
             []);
@@ -34,6 +36,8 @@ public sealed class InspectionReportTests
                 "  VISIBLE:",
                 "    property Count: int",
                 "    property Name: string",
+                "    indexer this[int]: int",
+                "    indexer this[string]: int",
                 "    method Alpha() -> void",
                 "    method Alpha(string) -> void",
                 "    method Zeta() -> void",
@@ -125,6 +129,8 @@ public sealed class InspectionReportTests
         var int32 = new StructType("Int32", "Standard", null, null, null);
         var standard = new ClassType("Queue<>", "Standard", null, null, null!);
         standard.PropertiesList.Add(new Property("Count", int32, new MemberModifiers { Accessibility = Accessibility.Public }));
+        standard.IndexersList.Add(new Indexer(int32, [new Parameter("at", int32)], new MemberModifiers { Accessibility = Accessibility.Public }));
+        standard.IndexersList.Add(new Indexer(int32, [new Parameter("slot", int32), new Parameter("lane", int32)], new MemberModifiers { Accessibility = Accessibility.Private }));
         standard.MethodsList.Add(new Method("Grow", int32, [new Parameter("by", int32)], new MemberModifiers { Accessibility = Accessibility.Private }));
         standard.MethodsList.Add(new Method("Peek", int32, [new Parameter("at", int32)], new MemberModifiers { Accessibility = Accessibility.Public }));
 
@@ -135,6 +141,7 @@ public sealed class InspectionReportTests
                 "",
                 "  VISIBLE:",
                 "    property Count: int",
+                "    indexer this[int]: int",
                 "    method Peek(int) -> int",
             ],
             Lines(ProjectionInspector.Aliased("System.Collections.Generic.Queue`1", standard)));

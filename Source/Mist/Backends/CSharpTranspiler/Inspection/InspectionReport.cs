@@ -3,6 +3,7 @@ namespace Mist.Backends.CSharpTranspiler.Inspection;
 internal enum VisibleMemberKind
 {
     Property,
+    Indexer,
     Method,
 }
 
@@ -42,6 +43,7 @@ internal sealed record InspectionReport(
             output.WriteLine();
             output.WriteLine("  VISIBLE:");
             WriteSorted(output, Visible.Where(member => member.Kind == VisibleMemberKind.Property).Select(Line));
+            WriteSorted(output, Visible.Where(member => member.Kind == VisibleMemberKind.Indexer).Select(Line));
             WriteSorted(output, Visible.Where(member => member.Kind == VisibleMemberKind.Method).Select(Line));
         }
 
@@ -55,9 +57,12 @@ internal sealed record InspectionReport(
 
     private static (string Name, string Text) Line(VisibleMember member)
     {
-        var declaration = member.Kind == VisibleMemberKind.Property
-            ? $"    property {member.Name}: {member.Signature}"
-            : $"    method {member.Name}{member.Signature}";
+        var declaration = member.Kind switch
+        {
+            VisibleMemberKind.Property => $"    property {member.Name}: {member.Signature}",
+            VisibleMemberKind.Indexer => $"    indexer {member.Name}{member.Signature}",
+            _ => $"    method {member.Name}{member.Signature}",
+        };
         var access = member.IsProtected ? " [protected]" : "";
 
         return (member.Name, declaration + access + From(member.DeclaringBase));

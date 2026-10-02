@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -86,5 +87,47 @@ internal static class ValuePack
         var count = argumentTypes.Count - flattened - trailing;
 
         return count <= 0 ? [] : [.. argumentTypes.Skip(flattened).Take(count)];
+    }
+
+    /// <summary>
+    /// The parameters a signature has once <paramref name="substitution"/> binds its value pack, which
+    /// is what an implementer of the signature writes (variadics Requirement 22.2): one parameter per
+    /// element the pack holds, and a value pack of its own for an element that is still a spread. So
+    /// <c>params TArgs args</c> is two parameters under <c>[int, int]</c>, none under <c>[]</c>, and
+    /// the one pack it was under <c>[TRest...]</c>. Every other parameter is substituted in place.
+    /// </summary>
+    public static IReadOnlyList<Parameter> Expand(
+        IReadOnlyList<Parameter> parameters, TypeSubstitution substitution, TypeInterner? interner)
+    {
+        var expanded = new List<Parameter>(parameters.Count);
+
+        foreach(var parameter in parameters)
+        {
+            if(PackParameterOf(parameter) is not { } pack
+                || substitution.Apply(pack, interner) is not LiftedType { Value: TypePackValue bound })
+            {
+                expanded.Add(Retyped(parameter, parameter.Name, substitution.Apply(parameter.Type, interner), parameter.IsFlattened));
+                continue;
+            }
+
+            for(var i = 0; i < bound.Elements.Length; i++)
+            {
+                var element = bound.Elements[i];
+                var name = bound.Elements.Length == 1 ? parameter.Name : $"{parameter.Name}{i + 1}";
+
+                expanded.Add(element is SpreadType
+                    ? Retyped(parameter, name, interner?.GetOrCreateTupleType([element]) ?? new TupleType([element]), isFlattened: true)
+                    : Retyped(parameter, name, element, isFlattened: false));
+            }
+        }
+
+        return expanded;
+    }
+
+    private static Parameter Retyped(Parameter parameter, string name, IMistType type, bool isFlattened)
+    {
+        return ReferenceEquals(type, parameter.Type) && name == parameter.Name
+            ? parameter
+            : new Parameter(name, type, parameter.Modifier) { IsFlattened = isFlattened };
     }
 }

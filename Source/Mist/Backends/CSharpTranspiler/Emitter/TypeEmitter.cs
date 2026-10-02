@@ -319,6 +319,7 @@ internal static class TypeEmitter
             {
                 ConformanceEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 SlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
+                PackSlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 IteratorBoilerplateEmitter.Emit(concrete, writer, ref anyEmitted);
             }
 

@@ -60,7 +60,11 @@ internal static class OverloadResolution
         var byArity = new List<T>();
         foreach(var candidate in candidates)
         {
-            if(ValuePack.AcceptsCount(candidate.ParametersList, arguments.Count))
+            var parameters = ValuePack.FlattenedSlot(candidate.ParametersList) is null
+                ? candidate.ParametersList
+                : ValuePack.Expand(candidate.ParametersList, substitutionFor(candidate), interner);
+
+            if(ValuePack.AcceptsCount(parameters, arguments.Count))
             {
                 byArity.Add(candidate);
             }

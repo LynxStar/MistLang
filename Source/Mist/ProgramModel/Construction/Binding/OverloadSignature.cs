@@ -25,13 +25,14 @@ internal static class OverloadSignature
     public static string? Of(IOverload overload, TypeSubstitution substitution, TypeInterner? interner)
     {
         var own = overload.TypeParametersList;
+        var closed = ValuePack.Expand(overload.ParametersList, substitution, interner);
 
-        if(Each(overload.ParametersList.Select(parameter => substitution.Apply(parameter.Type, interner)), own) is not { } types)
+        if(Each(closed.Select(parameter => parameter.Type), own) is not { } types)
         {
             return null;
         }
 
-        var parameters = types.Select((type, i) => overload.ParametersList[i].Modifier.IsRef ? $"ref {type}" : type);
+        var parameters = types.Select((type, i) => closed[i].Modifier.IsRef ? $"ref {type}" : type);
 
         return $"{own.Count}({string.Join(", ", parameters)})";
     }

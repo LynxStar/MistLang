@@ -2321,6 +2321,55 @@ rules:
       ConformanceDecisionTests rows hold the missing method/property mapping on the second
       construction, and with-block-second-generic-base-unanswered holds the method refusal at
       the with block. Emitter order 73 records the positive model and runtime dispatch coverage.
+
+      A PACK-TYPED SLOT IS FILLED AT THE ARITY THE CONFORMER BINDS (2026-10-02; variadics Requirement
+      22.2). MEASURED at 306b142f: over `abstract IApplier<params TArgs, TResult> { TResult Apply(params
+      TArgs args); }`, `class Adder : IApplier<int, int, int>` with `int Apply(int a, int b)` was refused,
+      MIST_PA_SLOT_SIGNATURE_MISMATCH against `int Apply((int, int))` -- the slot kept the pack as one
+      tuple parameter -- where the deleted classic pipeline admitted it, judging the name alone. A slot's
+      parameters are now read through ValuePack.Expand: one per element the base list binds the pack to,
+      and a value pack of its own for an element still spread. So `IApplier<int, int, int>` asks for
+      `int Apply(int, int)`, `IApplier<string, int>` for `int Apply(string)`, `IApplier<int>` for
+      `int Apply()`, `IApplier<TArgs..., int>` for the `params TArgs args` it always did, and
+      `IApplier<int, TRest..., int>` for `int Apply(int, params TRest)`; the two refusals name that
+      signature. RefinementContracts pairs a filler's parameters with the same list, so a `where` on the
+      second expanded parameter draws MIST_PA_CONSTRAINT_STRENGTHENED where pairing by declared slot never
+      reached it.
+
+      STRICTER THAN 306b142f ONCE, by 22.2's "requires `int Apply(int a, int b)`" and Requirement 7.7: a
+      conformer writing the closed pack as ONE tuple parameter, `int Apply((int, int) pair)`, was the only
+      form admitted and is now refused. A plain tuple parameter takes one argument where the slot takes a
+      flat list, so it is another signature; a type may declare both, and the flat one answers.
+
+      THE SAME READING REACHES THE BINDER AND THE EMITTER, which is what makes the admitted form run.
+      OverloadSignature closes a signature through the same expansion, so on the conformer the slot is
+      hidden by the member that fills it (a call to `new Constant().Apply()` was ambiguous with the slot,
+      and one to a mixed `Apply(int, params TRest)` matched nothing); and so a class redeclaring an
+      inherited CLASS member whose pack its base list closed, `Derived : Base<int, int>` writing
+      `Take(int, int)` over `Take(params TArgs)`, is now MIST_PA_MEMBER_REDECLARATION where it compiled.
+      OverloadResolution counts a candidate's arity after the receiver closes its pack, so a call through
+      the abstract takes exactly the pack's width (MIST_PM_NO_APPLICABLE_OVERLOAD; it bound at any count).
+      The emitted interface still declares one tuple parameter per width, and PackSlotBridgeEmitter gives
+      the conformer an explicit implementation unpacking it into the public member;
+      DefaultMemberDuplication counts a default as claimed against the expanded arity, so a conformer
+      replacing a pack-typed default is no longer handed the default as well.
+
+      PROVED BY ConformancePackSlotTests at Tier 2 over hand-built declarations (five admitted shapes, ten
+      refusals each naming the expanded signature, the refinement pairing), ValuePackExpansionTests at
+      Tier 1, PackSlotCallBindingTests and PackSlotBridgeEmissionTests at Tier 3: 45 cases. Ten mutations
+      on a confirmed build, ten caught: the slot answered and displayed as declared, refinements paired by
+      declared slot, the overload signature and the arity count left unexpanded, the bridge not emitted,
+      emitted for a pack still spread and emitted for a slot nothing answers, a default claimed by declared
+      count, and a spread element expanded without its `params`. Ledger 20261002-021300 passed 7,124, 105,
+      812 and 46, AllFeaturesV2 and its zero-warning assertion among them. End to end by CLI probe: the
+      program above called through `IApplier<int, int, int>` and directly prints 5 twice.
+
+      LEFT OPEN, each measured and none a conformance rule: a with block cannot name a variadic abstract
+      at all (MIST_PM_UNRESOLVED_TYPE on `with Two : ICountable<int, string>`); `args...` cannot be
+      forwarded into another `params TArgs` parameter (MIST_VAR_0011; variadics 12.7); a wrongly typed
+      argument to any flattened parameter reaches Roslyn (AssignabilityAnalyzer skips such callees); a
+      plain `(TArgs...) args` parameter is read as a parenthesized spread and takes no tuple (7.7); and a
+      default body that reads its abstract's pack does not emit when restated into a closed conformer.
     tasks:
       - >
         A mapping onto a NON-PUBLIC source member is admitted. Classic requires public; C# accepts the

@@ -7,7 +7,7 @@ namespace Mist.ProgramModel.Construction.Binding;
 internal static class AbstractInheritance
 {
     public static IEnumerable<(IMistType Type, AbstractType Definition, TypeSubstitution Substitution)> Reached(
-        IEnumerable<IMistType> roots, TypeInterner interner)
+        IEnumerable<IMistType> roots, TypeInterner? interner)
     {
         var queue = new Queue<(IMistType Named, ConstructedType? Root, IReadOnlyList<ConstructedType> Path, IReadOnlyList<AbstractType> Ancestors)>();
         var seen = new HashSet<IMistType>(ReferenceEqualityComparer.Instance);

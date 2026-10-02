@@ -9,7 +9,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Whether a member answers a slot: the same arity, and a return type and parameter types that AGREE
+/// Whether a member answers a slot: the same arity, with a value pack the conformer bound written out
+/// (<see cref="ValuePack.Expand"/>), and a return type and parameter types that AGREE
 /// -- identical by name once the abstract's own type arguments are applied, structurally through a
 /// construction, or indeterminate on either side. A type parameter the conformer supplies no argument
 /// for, and an associated type slot, which the conformer's nested type IS by another name, both count
@@ -47,18 +48,20 @@ internal static class SlotSignatures
     }
 
     public static bool Answers(
-        Method slot, Method filler, TypeSubstitution slotSubstitution, TypeSubstitution fillerSubstitution, TypeInterner interner)
+        Method slot, Method filler, TypeSubstitution slotSubstitution, TypeSubstitution fillerSubstitution, TypeInterner? interner)
     {
-        if(slot.ParametersList.Count != filler.ParametersList.Count
+        var parameters = ValuePack.Expand(slot.ParametersList, slotSubstitution, interner);
+
+        if(parameters.Count != filler.ParametersList.Count
             || slot.TypeParametersList.Count != filler.TypeParametersList.Count
             || !Agree(slotSubstitution.Apply(slot.ReturnType, interner), fillerSubstitution.Apply(filler.ReturnType, interner)))
         {
             return false;
         }
 
-        for(var i = 0; i < slot.ParametersList.Count; i++)
+        for(var i = 0; i < parameters.Count; i++)
         {
-            if(!Agree(slotSubstitution.Apply(slot.ParametersList[i].Type, interner), fillerSubstitution.Apply(filler.ParametersList[i].Type, interner)))
+            if(!Agree(parameters[i].Type, fillerSubstitution.Apply(filler.ParametersList[i].Type, interner)))
             {
                 return false;
             }
@@ -70,10 +73,12 @@ internal static class SlotSignatures
     public static IEnumerable<ConformanceAnalyzer.Filler> ExactFirst(
         IEnumerable<ConformanceAnalyzer.Filler> fillers, Method slot, TypeSubstitution substitution, TypeInterner interner)
     {
-        return fillers.OrderBy(filler => filler.Method is { } method && method.ParametersList.Count == slot.ParametersList.Count
-            && slot.ParametersList.Zip(method.ParametersList).All(pair =>
+        var parameters = ValuePack.Expand(slot.ParametersList, substitution, interner);
+
+        return fillers.OrderBy(filler => filler.Method is { } method && method.ParametersList.Count == parameters.Count
+            && parameters.Zip(method.ParametersList).All(pair =>
                 !IsIndeterminate(Structural(filler.Substitution.Apply(pair.Second.Type, interner)))
-                || IsIndeterminate(Structural(substitution.Apply(pair.First.Type, interner))))
+                || IsIndeterminate(Structural(pair.First.Type)))
             ? 0
             : 1);
     }
@@ -85,8 +90,8 @@ internal static class SlotSignatures
 
     public static string Display(Method slot, TypeSubstitution substitution, TypeInterner interner)
     {
-        var parameters = string.Join(", ", slot.ParametersList.Select(
-            parameter => TypeDisplay.Mist(substitution.Apply(parameter.Type, interner))));
+        var parameters = string.Join(", ", ValuePack.Expand(slot.ParametersList, substitution, interner).Select(
+            parameter => TypeDisplay.Mist(parameter.Type)));
         var owned = ReturnsOwned(slot) ? "owned " : "";
 
         return $"{owned}{TypeDisplay.Mist(substitution.Apply(slot.ReturnType, interner))} {slot.Name}({parameters})";

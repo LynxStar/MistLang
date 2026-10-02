@@ -123,17 +123,19 @@ internal static class RefinementContracts
         var filler = answer.Member;
         var interner = context.Model.TypeInterner;
 
-        for(var i = 0; i < slot.ParametersList.Count && i < filler.ParametersList.Count; i++)
+        var promisedParameters = ValuePack.Expand(slot.ParametersList, answer.Target, interner);
+
+        for(var i = 0; i < promisedParameters.Count && i < filler.ParametersList.Count; i++)
         {
             var demandedType = answer.Source.Apply(filler.ParametersList[i].Type, interner);
-            var promisedType = answer.Target.Apply(slot.ParametersList[i].Type, interner);
+            var promisedType = promisedParameters[i].Type;
 
-            if(ParameterFinding(promisedType, demandedType, slot.ParametersList[i].Modifier.IsRef || filler.ParametersList[i].Modifier.IsRef) is null)
+            if(ParameterFinding(promisedType, demandedType, promisedParameters[i].Modifier.IsRef || filler.ParametersList[i].Modifier.IsRef) is null)
             {
                 continue;
             }
 
-            if(slot.ParametersList[i].Modifier.IsRef || filler.ParametersList[i].Modifier.IsRef)
+            if(promisedParameters[i].Modifier.IsRef || filler.ParametersList[i].Modifier.IsRef)
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],

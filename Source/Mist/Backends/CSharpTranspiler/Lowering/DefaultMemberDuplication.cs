@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -44,7 +45,10 @@ internal static class DefaultMemberDuplication
                     continue;
                 }
 
-                if(!Claims(declared, method) && !Claims(restated.ConvertAll(entry => entry.Method), method))
+                var written = ValuePack.Expand(method.ParametersList, TypeSubstitution.ForPath(receiver: null, path, interner: null), interner: null);
+
+                if(!Claims(declared, method.Name, written.Count)
+                    && !Claims(restated.ConvertAll(entry => entry.Method), method.Name, method.ParametersList.Count))
                 {
                     restated.Add(new RestatedDefault(method, path));
                 }
@@ -54,12 +58,11 @@ internal static class DefaultMemberDuplication
         return restated;
     }
 
-    private static bool Claims(IReadOnlyList<Method> methods, Method method)
+    private static bool Claims(IReadOnlyList<Method> methods, string name, int parameterCount)
     {
         foreach(var candidate in methods)
         {
-            if(candidate.Name == method.Name
-                && candidate.ParametersList.Count == method.ParametersList.Count)
+            if(candidate.Name == name && candidate.ParametersList.Count == parameterCount)
             {
                 return true;
             }

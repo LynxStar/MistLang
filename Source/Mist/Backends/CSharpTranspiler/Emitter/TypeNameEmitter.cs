@@ -234,6 +234,7 @@ internal static class TypeNameEmitter
     private static string EmitDelegate(FunctionType function)
     {
         var parameters = Expand(function.ParameterTypes).Select(Emit).ToList();
+        DelegateCeiling.Spelled(function, parameters.Count);
 
         if(OptionalUnion.IsVoid(function.ReturnType))
         {

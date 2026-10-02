@@ -344,4 +344,10 @@ public static class BackendDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Backend,
         "'{0}' writes a union over its own type parameters, so it is emitted once per instantiation, and its instantiations keep producing new ones past {1}: an instantiation that needs a larger one of itself never finishes.");
+
+    public static readonly DiagnosticDescriptor DelegateCeilingExceeded = new(
+        new DiagnosticId("MIST_VAR_0010"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "{0} takes {1} inputs, and System.Func and System.Action hold at most {2}. The limit is the C# backend's, which has no delegate to emit this function as, and not the language's.");
 }

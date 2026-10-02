@@ -109,6 +109,7 @@ internal sealed class CSharpEmitterV2
         using var promotion = AsyncPromotion.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var supply = IntrinsicSupply.Enter((ProgramModel.Model.ProgramModel)programModel, clrType);
         using var specialization = UnionSpecialization.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
+        using var ceiling = DelegateCeiling.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
 
         (monomorphs, variadicUses) = MonomorphSet.Discover((ProgramModel.Model.ProgramModel)programModel);
 

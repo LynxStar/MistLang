@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
@@ -61,6 +62,8 @@ internal static class TypeEmitter
         DiagnosticBag diagnostics,
         ref bool anyEmitted)
     {
+        using var emitting = DelegateCeiling.Emitting(Declarations.NodeOf(type), MistType.StripArity(type.Name));
+
         switch(type)
         {
             case TypeAlias:
@@ -480,6 +483,7 @@ internal static class TypeEmitter
     private static void EmitMethod(
         Method method, MemberType type, bool emitReadonly, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var emitting = DelegateCeiling.Emitting(method.DeclarationNode, $"{MistType.StripArity(type.Name)}.{method.Name}");
         MethodEmitter.ReportReadonlyRefReturn(method, type.DeclarationNode, diagnostics);
 
         if(type is AbstractType)

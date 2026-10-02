@@ -292,8 +292,11 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         Assert.Equal(["1", "2", "3", "4", "5"], spy.StageStarts.Select(s => s.StageId));
         Assert.False(result.Succeeded);
-        Assert.Equal(["MIST_PKG_002", "MIST_PM_UNRESOLVED_TYPE"], result.Diagnostics.Select(d => d.Id.Value));
-        Assert.Contains("Widget", result.Diagnostics[1].Message);
+        Assert.Equal(
+            ["MIST_PKG_002", "MIST_UNDEFINED_NAMESPACE", "MIST_PM_UNRESOLVED_TYPE"],
+            result.Diagnostics.Select(d => d.Id.Value));
+        Assert.Contains("SomePackage.Models", result.Diagnostics[1].Message);
+        Assert.Contains("Widget", result.Diagnostics[2].Message);
     }
 
     [Fact]

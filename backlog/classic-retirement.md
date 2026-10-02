@@ -47,7 +47,7 @@ list below still held.
 | `Source/Mist/Driver/CompilerDriver.Classic.cs` | legacy constructors | delete |
 | `Source/Mist/Driver/ClassicPipeline.cs` | classic Stages 4-6 | delete |
 | `CompilerDriver.cs`: `classicPipeline` field, the private constructor's `backendIds`/`classicPipeline` parameters, the `PipelineMode.Classic` branch in `Compile` | dispatch | collapse onto the experimental pipeline; keep the unknown-backend check against `BackendId.CSharp` |
-| `PipelineMode`, `CompilerOptions.Pipeline` (defaults to `Classic`) | selector | keep the selector, remove `Classic`, default to v2 (decided, see the checklist) |
+| `PipelineMode`, `CompilerOptions.Pipeline` (defaults to `Classic`) | selector | keep the selector, remove `Classic`, rename `Experimental` to `Standard` and default to it (decided, see the checklist) |
 | `CompilerOptions.EnabledAnalyzerIds` | read only by `ClassicPipeline` | remove (v2 runs every Stage 5 rule; do not reinterpret it as a v2 filter) |
 | `CompilerOptions.EmitToDisk`, `CompilerResult.EmittedFiles` | classic in-memory emission; v2 always writes to `OutputDirectory` and leaves `EmittedFiles` null | remove, or give v2 a real in-memory mode first if a test still needs one |
 | `PipelineInput.DirectReferencePaths` | read only by `ClassicPipeline` | remove, with the driver's `LoadResult` field that feeds it |
@@ -60,7 +60,7 @@ list below still held.
 | Item | Task 4 |
 |---|---|
 | `Source/Mist.CLI/Composition/ClassicCompilerComposition.cs` | delete; `CompileProject` constructs the clean driver unconditionally |
-| `CliArguments.Pipeline` (default `"classic"`), `--pipeline` parsing in `CliArgumentParser` | keep the flag, default to v2, accept v2 only (decided, see the checklist) |
+| `CliArguments.Pipeline` (default `"classic"`), `--pipeline` parsing in `CliArgumentParser` | keep the flag, default to v2 under the name `standard`, accept it only (decided, see the checklist) |
 
 ### Backend files only classic reaches
 
@@ -108,7 +108,15 @@ Steps 2 to 8 were confirmed as written on 2026-10-01; step 1 carries the one dec
    (Arthur):** the selector survives, in case another pipeline is added later, but v2 is the default and
    the only option. So `--pipeline` and `PipelineMode` stay, `classic` and `PipelineMode.Classic` go, and
    `--pipeline classic` becomes the parser's existing unknown-pipeline error rather than a silent
-   fallback. Not decided: whether the one remaining value keeps the name `experimental`.
+   fallback. The remaining value is renamed: `experimental` becomes `standard` (`--pipeline standard`,
+   `PipelineMode.Standard`), and `--pipeline experimental` is then an unknown pipeline too. The value is
+   spelled as a string in `CliArgumentParser`, `CliArguments`, `Program.cs`, `RepeatedCliInvocationTests`
+   and `SamplesCompileAndMatchBaselineTest`; `PipelineMode.Experimental` is named in 20 files under
+   `Source`, `Test` and `tools`; and `--pipeline experimental` is written in the root `CLAUDE.md`,
+   `Source/Mist/ProgramModel/CLAUDE.md`, three specs and two other backlog files. The types named for
+   the old value (`ExperimentalPipeline`, `ExperimentalStageDetails` and their tests) follow it. Unrelated
+   and left alone: `Source/Standard/Experimental/` and `CompilationUnit.IsExperimentalOnly`, which mean
+   Standard-library files classic cannot compile (step 4 removes the flag).
 2. Move the tests listed above to `new CompilerDriver(lexer, parser[, reporter])`.
 3. Delete `CompilerDriver.Classic.cs`, `ClassicPipeline.cs`, `ClassicCompilerComposition.cs`; collapse the
    driver's dispatch and private constructor.

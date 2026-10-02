@@ -2406,6 +2406,78 @@ capabilities:
         DefaultSynthesis.Expression answers null and DefaultabilityAnalyzer matches only a ConcreteType.
         Deciding a constructed type's default means substituting its fields' types, so it is a capability
         of its own. Found by code reading, 2026-10-01.
+
+        MEASURED 2026-10-01, before any change. A constructorless `Box<T> { T Value; int Tag = 3; }`:
+        classic compiles `default(Box<int>)` to a null reference and throws NullReferenceException on
+        `.Tag`; v2 reports MIST_BE_UNSUPPORTED_EXPRESSION. `IntBox : Box<int>`, over a Box<T> with a
+        parameterless user constructor and a default block: v2's `default(IntBox)` runs that constructor
+        and takes its `Label`, against 9.7; classic cannot bind a member reached through the constructed
+        base (MIST_UNDEFINED_MEMBER). So no classic output constrains this capability.
+
+        DELIVERED 2026-10-01 (claude/v2-constructed-type-defaults), to this design. Three decisions were
+        put to Arthur, who accepted the recommendations on 2026-10-01:
+        - An array has no default. Both pipelines already refuse `int[] Cells;` in a constructorless
+          class: classic at `default(Holder)` (MIST_DEFAULT_NOT_SUPPORTED), v2 at the field. A construction
+          of any intrinsic definition (List<T>, Array<T, N>, Span<T>, Func<...>) has none (3.1, 9.8).
+        - A generic definition emits ONE factory, taking a witness per type parameter whose zero its
+          storage needs, the lowering `where T : default` already uses (12.7).
+        - An instantiation without a default is refused only where its default is needed: `default(C)`, an
+          implicit `new C()` over a constructorless definition, a `where T : default` argument (8.2), and a
+          slot or base of a type that states a zero (3.4, 9.1).
+        Classification: a construction of a non-intrinsic Mist class or struct answers as its definition
+        does, with its arguments substituted into its storage and base. A type parameter has a zero exactly
+        when it carries `where T : default` (3.10). A DECLARATION is judged for some arguments, every type
+        parameter taken to have a zero: that decides its refusal, whether it emits a factory, and whether
+        purity judges its initializers as a default's (6.1). A USE is judged for its arguments. A
+        definition whose storage reaches its own definition again (`Node<T> { Node<T> Next; }`,
+        `Grow<T> { Grow<List<T>> Next; }`) is infinite for every argument (5.5), and that is decided on
+        definitions before any instantiation is expanded, so expansion terminates.
+        Emission: a definition's witnesses are the type parameters in scope whose zero a slot needs,
+        directly, through a construction's own witness, or through a class base or flattened ancestor. The
+        factory and the sentinel take one `Func<T>` each after the marker; a use passes
+        `() => default-of-the-argument`, or the witness itself where the argument is a witnessed or
+        default-constrained parameter. A definition with witnesses has a sentinel even without
+        constructors, and its implicit public constructor chains to it with C#'s `default(T)`. A derived
+        class chains to its constructed base's sentinel with that base's witnesses filled, and
+        PurityJudge.ChainedOf follows the same chain. A derived struct assigns each inherited slot its
+        ancestor's default under the base clause's substitution.
+        Not changed: `new Box<string>()` over a constructorless generic leaves a T slot at C#'s zero
+        (null, not ""), and C#'s `new T()` under `where T : new()` reaches that constructor too. Lowering
+        such a `new` to the factory is the remaining step to 4.1. Whether that lowering belonged in this
+        capability was asked and not answered, so it was left out.
+        Measured on v2 after the change, 2026-10-01:
+        - `default(Box<int>)`, `default(Box<string>)` and `default(Box<Inner>)` give 0, "" and Inner's
+          default. `new Box<Inner>().Value.Seven` still throws NullReferenceException (the gap above).
+        - `default(IntBox)` and `new IntBox()` over a Box<T> with a parameterless constructor and a block
+          take the block's Label, and the constructor's line is not printed (9.7).
+        - A struct `IntBox : Container<int>` assigns `this.Value = default(int)` and the base block's
+          Label; `Renamed<U> : Container<U>` assigns `this.Value = __default_U()`. `Pair<Inner>`,
+          `Derived<Inner> : Box<Inner>`, `Wrap<Wrap<Inner>>`, `Make<Box<Inner>>()` and
+          `Make<Box<string>>()` under `where T : default` all give the default.
+        - Refused: `default(Box<Connection>)`, `new Box<Connection>()` and `default(List<int>)`
+          (MIST_PA_NOT_DEFAULTABLE), `Make<Box<Connection>>()` (MIST_PA_CONSTRAINT_NOT_SATISFIED), a
+          constructorless holder's `Box<Connection>` field, `Sub : Box<Connection>`, `Node<T>` and the
+          growing `Grow<T> { Grow<List<T>> Next; }`. `Chain<T> { Option<Chain<T>> Next; }` over an
+          `Option<T>` holding `T?` is admitted, since Option never needs its argument's zero.
+        - AllFeaturesV2 and AllFeatures match their baselines with zero diagnostics. All seven banked
+          samples with a constructed base are in AllFeaturesV2: DependentTypes, AdhocRefinementConstraints,
+          OpenUnions, NestedGenericTypes, GenericConstraints, StructInheritance and InheritedGenericMembers.
+        Tests, all over hand-built types (Helpers/GenericDefaultShapes):
+        - Construction.ConstructedDefaultabilityTests (Tier 1, 28): classification under substitution,
+          the open definition judged per instantiation, constructed class and struct bases, cycles and
+          ZeroNeeded.
+        - ProgramAnalysis.ConstructedBaseChainTests (Tier 1, 2): PurityJudge.ChainedOf.
+        - ProgramAnalysis.ConstructedDefaultRefusalTests (Tier 2, 18): every refusal site, one complaint,
+          `where T : default` both ways, and the sample shapes admitted.
+        - Backend.ConstructedDefaultEmissionTests (Tier 2, 10): the witnessed sentinel and factory, the
+          chain into a constructed base, the substituted struct storage, and the factory call and
+          constraint witness for a construction.
+        Mutations, each built clean and run over those 58 cases, then restored:
+        - Judging a construction without substituting its arguments failed 13 rows, in both directions.
+        - Reverting ChainsToBaseSentinel and ChainedOf to a ConcreteType base failed the 4 chain rows.
+        Integrated with main 2026-10-01: rebased onto 04ec31fe (StormLang as a submodule) without
+        conflict. Ledger 20261001-222236 passed 11,565 of 11,565, both sample baselines included, with
+        zero warnings and dotnet format clean.
       - >
         AUTO-PROPERTIES HAVE NO DEFAULT ON v2. Defaultability and DefaultSynthesis read fields only.
         Measured 2026-10-01: `default(Holder).Defaulted.Value`, over `public Inner Defaulted { get; set; }`

@@ -2058,6 +2058,27 @@ rules:
         - A constructed generic base (`IntBox : Box<int>`) bypasses BaseIsDefaultable and keeps C#'s
           implicit `base()`. ConstructedType is not a MemberType, and `default(Box<int>)` is still
           emitted unsupported with no analysis finding.
+          DONE 2026-10-01 (claude/v2-constructed-type-defaults): a construction answers as its definition
+          does with its arguments substituted, and a construction of an intrinsic definition has none.
+          A declaration is judged for some arguments and a use for its own. The design, its three
+          decisions and the evidence are under emitter order 50, default-value-synthesis. In this entry:
+          - DefaultabilityAnalyzer refuses `default(C)` and an implicit `new C()` over a constructorless
+            definition where C's arguments leave it no default (MIST_PA_NOT_DEFAULTABLE), a slot of such
+            a C at the holder, and such a C as a base (9.1). A slot or base over its holder's own
+            parameter is judged per instantiation, not at the holder.
+          - One mistake, one complaint reaches constructions: a slot or base of a construction whose
+            definition refuses something of its own is left to that refusal.
+          - ConstraintAnalyzer needed no change. Its `where T : default` check reads
+            Defaultability.HasDefault, which now judges a constructed argument (8.2).
+          - PurityJudge.ChainedOf follows a defaultable type over a constructed base to that base's
+            default, never its constructor (9.7).
+          - A generic declaration with a type-parameter slot is defaultable for some arguments, so purity
+            judges its initializers as a default's (6.1): `default(PBox<int>)` runs them. One purity row's
+            fixture relied on such a declaration being non-defaultable.
+            PureNonDefaultableTypesImplicitConstructorRunsUnjudgedFieldInitializers now keeps its type
+            non-defaultable through a construction of an intrinsic base (9.8). The old shape moved to a
+            new row, GenericDefinitionsFieldInitializerIsHeldToADefaultsConsistency, which expects
+            MIST_PA_DEFAULT_NOT_CONSISTENT.
         - Auto-properties are outside Defaultability. On v2 `default(Holder)` leaves a class-typed
           auto-property null where classic gives its type's default. A constructorless type's
           auto-property of a type with no default is null on both pipelines.
@@ -2128,6 +2149,19 @@ rules:
           setter runs inside a default. Nothing judges that setter's purity (Requirement 6).
         - v2 does not refuse `field` in a lone bodied getter, which classic refuses as a computed property
           (MIST_TC_0024). InstanceStorage leaves such a property out, as having no backing field.
+        - Opened by constructed-type defaults, 2026-10-01:
+          - 10.1's missing injection now covers a constructed slot too. A `Box<int>` field in a type with
+            constructors has a default, so definite assignment no longer refuses a constructor that
+            leaves it unassigned, and it stays null.
+          - MIST_PA_NOT_DEFAULTABLE's text names a constructor, a field or a base. For `default(List<int>)`
+            or `default(int[])` none of those is the reason: the type is a construction of an intrinsic.
+            MIST_PA_BASE_NOT_DEFAULTABLE's advice to give `Box<Connection>` a default block is wrong for
+            an instantiation, where the argument is what lacks the default.
+          - `where T : default` on a TYPE's parameter has no witness in that type's methods:
+            DefaultSynthesis.Expression spells `default(T)` there as a call to a parameter only a generic
+            method or the default synthesis declares. Measured 2026-10-01 on v2, and unchanged by this
+            work: `class Holder<T> where T : default` with `return default(T);` in a method leaks CS0103
+            ('__default_T' does not exist) as MIST_CS_ERROR. No sample declares one.
       - >
         DONE 2026-10-01: A USER CONSTRUCTOR WHOSE IMPLICIT BASE CALL IS UNSATISFIED. Class-inheritance 8.3
         is now met on v2 for every constructor a derived class declares; its Amended banner gives a derived

@@ -90,8 +90,9 @@ public sealed class StandardPipeline : ICompilationPipeline
         // The combined gate for Stages 4 and 5, and for the lexing and parsing before them --
         // the driver does not stop for those either, and the same reasoning applies. Emission
         // reads the model, so a model that failed to bind, failed analysis, or was built from
-        // source that did not parse cannot produce meaningful output.
-        if(diagnostics.HasErrors)
+        // source that did not parse cannot produce meaningful output. Stage 1.5 is judged here
+        // and not at the entry, for the reason ResolutionDiagnostics gives.
+        if(diagnostics.HasErrors || input.ResolutionDiagnostics.HasErrors)
         {
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());
         }

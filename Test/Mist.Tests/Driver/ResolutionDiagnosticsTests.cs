@@ -8,11 +8,11 @@ namespace Mist.Tests.Driver;
 public sealed class ResolutionDiagnosticsTests
 {
     [Fact]
-    public void AnErrorJoinsASucceededResultWithoutFailingIt()
+    public void AWarningJoinsASucceededResultAndLeavesItsVerdictAndArtifactAlone()
     {
         var built = new CompilerResult(true, "bin/Probe.dll", []);
 
-        var joined = new ResolutionDiagnostics([Error("MIST_PKG_002")], 0).JoinInto(built);
+        var joined = new ResolutionDiagnostics([Error("MIST_PKG_002") with { Severity = DiagnosticSeverity.Warning }], 0).JoinInto(built);
 
         Assert.True(joined.Succeeded);
         Assert.Equal("bin/Probe.dll", joined.PrimaryOutputArtifactPath);
@@ -20,13 +20,14 @@ public sealed class ResolutionDiagnosticsTests
     }
 
     [Fact]
-    public void AFailedResultStaysFailedAndKeepsBothErrors()
+    public void AnErrorJoinsTheFailedResultThePipelineGaveItAndKeepsBothErrors()
     {
         var refused = new CompilerResult(false, null, [Error("MIST_PM_UNRESOLVED_TYPE")]);
 
         var joined = new ResolutionDiagnostics([Error("MIST_PKG_002")], 0).JoinInto(refused);
 
         Assert.False(joined.Succeeded);
+        Assert.Null(joined.PrimaryOutputArtifactPath);
         Assert.Equal(["MIST_PKG_002", "MIST_PM_UNRESOLVED_TYPE"], Ids(joined));
     }
 

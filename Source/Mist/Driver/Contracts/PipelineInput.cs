@@ -4,7 +4,7 @@ using Mist.Common.Diagnostics;
 namespace Mist.Driver.Contracts;
 
 /// <summary>
-/// Bundles everything that Stage 3 produces and the pipeline needs to
+/// Bundles everything that the stages before Stage 4 produce and the pipeline needs to
 /// execute Stages 4-6 (program model, analysis, emit).
 /// </summary>
 public sealed record PipelineInput(
@@ -12,4 +12,5 @@ public sealed record PipelineInput(
     ImmutableArray<Storm.Runtime.SyntaxNode> Asts,
     ImmutableArray<string> ResolvedAssemblyPaths,
     CompilerOptions Options,
-    DiagnosticBag Diagnostics);
+    DiagnosticBag Diagnostics,
+    DiagnosticBag ResolutionDiagnostics);

@@ -86,7 +86,7 @@ public sealed class CompilerDriver : ICompilerDriver
         // Dispatch to the compilation pipeline (Stages 4-6).
         var pipelineInput = new PipelineInput(
             compilation, asts, resolvedAssemblyPaths,
-            options, allDiagnostics);
+            options, allDiagnostics, resolutionBag);
 
         return resolutionDiagnostics.JoinInto(pipeline.Execute(pipelineInput));
     }

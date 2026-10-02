@@ -14,6 +14,7 @@ public sealed class StandardPipelineProgressTests
 {
     private readonly RecordingProgressReporter reporter = new();
     private readonly DiagnosticBag diagnostics = new();
+    private readonly DiagnosticBag resolution = new();
     private readonly List<string> ran = [];
 
     [Fact]
@@ -79,6 +80,30 @@ public sealed class StandardPipelineProgressTests
         Assert.False(result.Succeeded);
         Assert.Equal(["start 4", "complete 4", "start 5", "complete 5"], reporter.Sequence);
         Assert.DoesNotContain("emit", ran);
+    }
+
+    [Fact]
+    public void AResolutionErrorLetsStagesFourAndFiveRunAndStopsBeforeEmission()
+    {
+        resolution.Add(Error());
+
+        var result = Pipeline().Execute(Input());
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.PrimaryOutputArtifactPath);
+        Assert.Equal(["start 4", "complete 4", "start 5", "complete 5"], reporter.Sequence);
+        Assert.Equal(["build", "analyze"], ran);
+    }
+
+    [Fact]
+    public void AResolutionWarningChangesNothing()
+    {
+        resolution.Add(Error() with { Severity = DiagnosticSeverity.Warning });
+
+        var result = Pipeline().Execute(Input());
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(["build", "analyze", "emit"], ran);
     }
 
     [Fact]
@@ -162,7 +187,7 @@ public sealed class StandardPipelineProgressTests
     private PipelineInput Input()
     {
         var options = new CompilerOptions("probe", [], new BackendId("csharp"), "out", "bin", "Probe", "Probe");
-        return new PipelineInput(new MistCompilation([]), [], [], options, diagnostics);
+        return new PipelineInput(new MistCompilation([]), [], [], options, diagnostics, resolution);
     }
 
     private static Diagnostic Error()

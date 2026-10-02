@@ -4,7 +4,7 @@
 //   - Quiet build emits no 1.5 header/detail
 //   - Verbose build emits header + detail + summary
 //   - Resolution error surfaces in both modes
-//   - Resolution error does not stop the build
+//   - Resolution error runs the build through analysis and fails it before emission
 //
 // Validates: Requirements 1.3, 1.6, 1.9, 2.3, 2.6
 
@@ -249,11 +249,12 @@ public sealed class PackageResolutionStageTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 4. Resolution error does not stop the build (Requirements 2.3, 2.6)
+    // 4. Resolution error does not stop binding and analysis, and fails the
+    //    build before emission (Requirements 2.3, 2.6)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void ResolutionError_DoesNotPreventSubsequentStages()
+    public void ResolutionError_RunsStagesOneToFive_AndFailsTheBuildWithoutEmitting()
     {
         var spy = new SpyProgressReporter();
         var driver = CreateDriver(spy);
@@ -263,9 +264,9 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         var result = driver.Compile(options);
 
-        Assert.Equal(["1", "2", "3", "4", "5", "6"], spy.StageStarts.Select(s => s.StageId));
-        Assert.True(result.Succeeded, "The source uses nothing from the package that failed to resolve.");
-        Assert.NotNull(result.PrimaryOutputArtifactPath);
+        Assert.Equal(["1", "2", "3", "4", "5"], spy.StageStarts.Select(s => s.StageId));
+        Assert.False(result.Succeeded, "The source uses nothing from the package, and the build still fails on it.");
+        Assert.Null(result.PrimaryOutputArtifactPath);
         Assert.Equal(["MIST_PKG_002"], result.Diagnostics.Select(d => d.Id.Value));
     }
 

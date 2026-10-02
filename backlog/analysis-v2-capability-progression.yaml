@@ -5029,3 +5029,138 @@ rules:
       - >
         The book's MIST_EP_0004 example lists the classes in declaration order and suggests the first
         declared; the message lists them in ordinal order and suggests the first of that.
+
+
+  - id: structured-context-checking
+    name: A context that is owed is held wherever the call can be run from
+    order: 16
+    subsystem: context
+    requires: [analyzer-contract, abstract-conformance-checking, purity-checking]
+    status: done
+    from: >
+      emitter order 176 (structured-context), which delivered the representable half and left the
+      discipline with no reporter: its sample's `untested` list records "The missing-context diagnostic
+      is never triggered". Requirements 3.6, 3.7, 4.1, 4.2, 5, 7.5, 8, 9 and 14 of
+      .kiro/specs/structured-context, and backlog/general.md's 2026-10-01 entry "A call that needs a
+      context compiles with none in scope and throws at run time", found retiring classic, whose
+      ContextCheckerAnalyzer (MIST_CTX_0001 to 0006) was the only implementation
+    evidence: >
+      ADDED 2026-10-02. MEASURED FIRST, on 306b142f: `Console.WriteLine(Helper.GetString())` over
+      `static string GetString() with string s` built with no diagnostic and died in MistContext.Peek
+      with KeyNotFoundException, as did a `new` of a constructor with a clause, a call through an
+      abstract slot, a call after its `with` block ended ("Stack empty") and a call under a derived
+      type's or a union's context; a clause name was reassigned, one key was bound twice and an
+      implementation dropped its slot's clause, all silently.
+
+      THE RULE IS ContextAnalyzer (Rules/), over ContextCalls and ContextKeys, with the ids the spec's
+      design names. MIST_CTX_0001: a call, a `new`, a constructor chain, a method named as a value, a
+      loop's GetEnumerator or MoveNext or a collection element's Add whose callee declares `with T x`
+      is refused unless a context keyed T is HELD wherever the call can be run from. A key is held by a
+      `with` declaration or block whose body the call sits in -- the value expression of a `with` is
+      outside it -- or by a clause of the member the call is written in, whose own callers then answer.
+      A call holding no such key passes the question to every caller of the method, constructor or
+      local function it is in (9.3), through an abstract slot to the members answering it, and the
+      refusal is made where that walk reaches a site nobody can be asked from: the entry point (9.2), a
+      body that is not a method's or a constructor's (an accessor, an operator, a conversion, a static
+      initializer), or a member the language or the runtime runs with no call written (a Drop, a Clone,
+      an answer to a slot Standard or the CLR declares). The diagnostic sits on the call that is owed
+      the context, as 9.2 and 14.1 ask, once per key, and its message ends with the position of the
+      call that reaches it bare, which is the same position for a direct failure. A callable nothing
+      calls is not refused, the walk never reaching Main (9.2). Callers are followed breadth first and
+      each callable once, which ends a cycle (9.8). MIST_CTX_0002: one member binding a key twice, at
+      the later clause, naming the earlier. MIST_CTX_0005: a name standing for an ambient value -- a
+      clause's (7.5) or a named `with` declaration's (4.1, 4.2 "immutable") -- assigned, passed to a
+      ref or out parameter, or aliased by a writable ref local. MIST_CTX_0006: a member answering an
+      abstract slot, by base list or by a with block's mapping, whose clauses are not the slot's
+      exactly; one finding per member listing every missing and every undeclared key. MIST_CTX_0004: a
+      `with` whose key holds an anonymous type, which reached Roslyn as MIST_CS_ERROR; every other
+      untyped expression 14.5 means is already the binder's (MIST_PM_LAMBDA_PARAMETER_NO_TYPE,
+      _METHOD_GROUP_NOT_CONVERTED, _EMPTY_ARRAY_LITERAL_NO_TARGET, _DEFAULT_NO_TARGET,
+      _TARGET_TYPED_NEW_NO_TARGET). MIST_CTX_0003 has no descriptor: the grammar admits a `with`
+      declaration only as a statement, so one outside a body is MIST_PARSE_INCOMPLETE (14.4), and an
+      undefined clause type is MIST_PM_UNRESOLVED_TYPE (7.3, 14.2).
+
+      THE KEY (Requirement 5) HAS ONE HOME, ContextKeys.Same. An alias and a refinement key as what
+      they stand for, in both directions, as the sample's section 14 and the emitter's EmitContextKey
+      have it; the design document's "the refinement type is the key" is the one place the spec says
+      otherwise and the banked baseline contradicts it. A construction, a union, a tuple and a function
+      type key part by part, a pure function type apart from the plain one, a named tuple as its
+      elements; nothing is found through a base type; a type parameter is only itself.
+
+      WHAT THE BINDER NOW RECORDS, because the rule could not re-derive it. InvocationExpression,
+      NewExpression and FunctionReferenceExpression carry ContextTypes, the callee's clause types
+      through the call's own substitution, so `Get<int>()` over `T Get<T>() with T value` is owed an
+      int. LocalVariable.IsContextBound marks a clause's local and a named `with` declaration's.
+      ContextBinding.Node is the clause. AnalysisContext.Program is every type and body with source
+      whatever the scope judges, since a clone's callers sit in the program and the program's in a
+      clone; the runner builds it once.
+
+      DECISIONS WHERE THE SPEC IS SILENT, each with its alternative. (1) Every caller must hold the
+      key, not some caller: the user story says "always called within a scope that provides one". (2)
+      Accessors, operators, conversions and static initializers are not transparent, 9.3 naming
+      methods; treating a property read or an operator use as a call is the alternative, and
+      `get { return Consumers.GetString(); }` read under a context ran before and is refused now. (3)
+      A lambda's body is judged where the lambda is written and a method named as a value where it is
+      named; a function value that outlives the `with` it was made under is not seen. (4) A key naming
+      a type parameter does not pass through a transparent generic method, which must declare the
+      clause: `T Mid<T>() { return Get<T>(); }` ran before and is refused now; lifting it needs each
+      call's substitution on the model. (5) An instance initializer and a default block entry are left
+      to PurityAnalyzer, which judges each a pure scope with no inputs and already refuses every
+      ambient read reachable from one (MIST_PA_DEFAULT_NOT_CONSISTENT); judging them here was a second
+      complaint at the same node. (6) The messages follow the design's templates with "abstract" for
+      "interface/trait", "Constructor" for a constructor, the earlier clause's position in 0002, and
+      no position in 0005.
+
+      PROBED ON THE BUILT CLI, before and after, 83 programs. Each refusal above, one program each,
+      went from a run-time crash or a silent run to its diagnostic. Admitted and unchanged: the four
+      declaration forms and the block, a clause method calling another, a transparent chain, direct
+      recursion, an uncalled transparent method, an alias and a refinement on either side, a union
+      clause under a union, a constructor and its base chain, abstract dispatch with and without a
+      clause, nested scopes, a local function declared before its context, a lambda, type-parameter
+      and constructed keys, and the eight book snippets that have a .cs twin. samples/StructuredContext
+      runs clean alone and AllFeaturesV2 is byte-identical to its baseline; the rule costs 0.03s of its
+      50 scopes, building its graph only where a scope owes a context.
+
+      COVERAGE. StructuredContextDecisionTests, 12 Tier 1 facts over hand-built types: key identity
+      case by case, the repeat pairing and the contract's difference text. StructuredContextRefusalTests,
+      72 Tier 2 rows over hand-built bodies and the calls between them: 19 direct refusals at the site,
+      7 reached refusals naming the bare call, 25 admitted programs, and the name, repeat, contract and
+      anonymous-key findings with their admitted neighbours. StructuredContextTests, 7 Tier 3 rows for
+      what the binder records. MUTATIONS, 32, each failing exactly the rows it should: a site holding
+      every key, every key the same, a `with` value under its own key, each kind of unasked site made
+      liftable (the entry point, a body that is no method's, a Drop or Clone, a runtime slot's answer),
+      an open key lifted, a slot's callers not reaching its answer, the chain, named-method, loop and
+      Add call kinds dropped, a local function folded into its encloser, a call's keys read off the
+      declaration, callers read from the judged scope alone, an instance initializer judged, a key owed
+      twice at one site, each binder record removed, each name write admitted, and the repeat,
+      contract, alias, pure-function, anonymous and method-or-constructor decisions inverted. The cycle
+      guard alone has no mutation, removing it not terminating. VERIFIED: solution build with zero warnings
+      and errors, dotnet format --verify-no-changes exit 0 with empty output, and full ledger
+      20261002-024320 passing all 8,133 tests (7,170 compiler, 105 CLI, 812 source generator, 46 consumer),
+      failures.txt empty.
+    tasks:
+      - >
+        A REFINED CLAUSE IS NOT PROVEN. `with 0;` satisfies `int Reciprocal() with PositiveInt n`, the two
+        sharing a key, and `100 / n` divides by zero at run time. A clause binds like a parameter, so the
+        value that reaches it owes the predicate where the two meet: the nearest context of the key, on
+        every path, must be declared at a type that implies the clause's. Unspecified; a decision first.
+      - >
+        `string?` AND `string` SHARE A RUN-TIME KEY, EmitContextKey spelling an optional of a reference
+        type as the bare type, while ContextKeys keeps them apart. An absent `string?` pushed inside a
+        `string` context is what a `with string s` callee then reads: NullReferenceException, measured.
+      - >
+        A function value that leaves the `with` it was written under -- a lambda returned from the method
+        that declared the context -- runs with the stack popped ("Stack empty", measured). Decision 3.
+      - >
+        A `with` clause on an extension method, on an abstract's default body or on a restated default is
+        not emitted: ExtensionBlockEmitter and TypeEmitter write those bodies through EmitBlock, not
+        EmitMethodBody, so the clause's name does not exist in the generated C# (MIST_CS_ERROR, measured
+        for the first two). The constructor path had the same defect before order 176 fixed it.
+      - >
+        A method only a test framework or reflection runs (`[Fact]`) has no caller in the program, so a
+        context it needs transparently is never asked for. Nothing in the model says which attributes
+        mean "run from outside".
+      - >
+        Lift an open key through a transparent generic method, and treat an accessor read and an operator
+        use as calls, if decisions 4 and 2 are reversed. Both need the call's substitution or the read's
+        member recorded on the model first.

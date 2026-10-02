@@ -21,9 +21,17 @@ internal sealed class AnalysisContext(
     DiagnosticBag diagnostics,
     string analyzerId,
     IReadOnlyDictionary<CastOperator, ConversionRefusal> conversionRefusals,
-    AnalysisModel? scopedModel = null)
+    AnalysisModel? scopedModel = null,
+    AnalysisScope? program = null)
 {
     public AnalysisModel Model { get; } = scopedModel ?? new AnalysisModel(model, scope, sourcePaths);
+
+    /// <summary>
+    /// Every type and body with Mist source, whatever this scope judges. A rule that follows calls reads
+    /// it, because the callers of a body in scope sit wherever they sit: a clone's body is called from the
+    /// program, and the program's from a clone.
+    /// </summary>
+    public AnalysisScope Program { get; } = program ?? scope;
 
     public IReadOnlyList<MistType> Types { get; } = scope.Types;
 

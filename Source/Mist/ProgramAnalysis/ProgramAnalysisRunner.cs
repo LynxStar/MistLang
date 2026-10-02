@@ -39,6 +39,7 @@ internal static class ProgramAnalysisRunner
         new EscapeAnalyzer(),
         new RefinementAnalyzer(),
         new EntryPointAnalyzer(),
+        new ContextAnalyzer(),
     ];
 
     public static void Run(ProgramModelClass model, DiagnosticBag diagnostics, AnalysisTimings? timings = null)
@@ -48,11 +49,12 @@ internal static class ProgramAnalysisRunner
         var bodies = SourceBodies.Of(model).ToList();
         var clones = SourceTypes.Of(model).OfType<ConcreteType>().Where(IsClone).ToList();
         var conversions = bodies.Where(root => root.Member is CastOperator { ClonesThrough: not null }).ToList();
+        var whole = new AnalysisScope([.. SourceTypes.Of(model)], bodies, [.. SourceTypes.ExtensionsOf(model)], []);
 
         var refusals = CloneConversionRefusals.Judge(conversions, root =>
         {
             var findings = new DiagnosticBag();
-            Analyze(model, new AnalysisScope([], [root], [], [], RestrictToScope: true), sourcePaths, findings, CloneConversionRefusals.None, timings, AnalysisScopeKind.CloneConversion);
+            Analyze(model, new AnalysisScope([], [root], [], [], RestrictToScope: true), whole, sourcePaths, findings, CloneConversionRefusals.None, timings, AnalysisScopeKind.CloneConversion);
 
             return findings.ToImmutableArray();
         });
@@ -63,13 +65,14 @@ internal static class ProgramAnalysisRunner
             [.. SourceTypes.ExtensionsOf(model)],
             model.TypeNamings.Namings);
 
-        Analyze(model, program, sourcePaths, diagnostics, refusals, timings, AnalysisScopeKind.Program);
+        Analyze(model, program, whole, sourcePaths, diagnostics, refusals, timings, AnalysisScopeKind.Program);
 
         CloneDiagnostics.Run(
             clones,
             clone => Analyze(
                 model,
                 new AnalysisScope([clone], [.. bodies.Where(root => root.Owner == clone).Except(conversions)], [], [], RestrictToScope: true),
+                whole,
                 sourcePaths,
                 diagnostics,
                 refusals,
@@ -81,6 +84,7 @@ internal static class ProgramAnalysisRunner
     private static void Analyze(
         ProgramModelClass model,
         AnalysisScope scope,
+        AnalysisScope whole,
         IReadOnlySet<string> sourcePaths,
         DiagnosticBag diagnostics,
         IReadOnlyDictionary<CastOperator, ConversionRefusal> refusals,
@@ -111,7 +115,7 @@ internal static class ProgramAnalysisRunner
 
         foreach(var analyzer in Analyzers)
         {
-            var context = new AnalysisContext(model, scope, nodes, roots, assignedBy, sourcePaths, diagnostics, analyzer.Id, refusals, scopedModel);
+            var context = new AnalysisContext(model, scope, nodes, roots, assignedBy, sourcePaths, diagnostics, analyzer.Id, refusals, scopedModel, whole);
             var started = Stopwatch.GetTimestamp();
             analyzer.Analyze(context);
             timings.Record(analyzer, Stopwatch.GetElapsedTime(started));

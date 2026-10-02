@@ -276,7 +276,7 @@ Standard declares the promise of each member it supplies that keeps one:
 
 "Every member" means every member the type declares. `ToString` and `GetHashCode` come to every value from Standard's universal extension instead, which states no promise, so a pure scope may not call `n.ToString()` even on an `int`. To turn a value into text in a pure scope, interpolate it or concatenate it, as [Mist Is Culture-Invariant](#mist-is-culture-invariant) describes.
 
-Standard declares `List<T>` on the experimental pipeline, as an intrinsic over `System.Collections.Generic.List<T>`. It is never an `owned` class. `owned` on a class is the [cooperation contract](./ownership.md#the-cooperation-contract): every field assignment inside the type must come from an owned source. A container stores whatever its callers hand it, so it cannot promise to own its elements. A pure scope that changes a list owns the list itself, through an owned binding or by creating it, as `Seeded` and `Spread` do. The pure constructor is what lets a constructorless type hold a list in a field initializer.
+Standard declares `List<T>` as an intrinsic over `System.Collections.Generic.List<T>`. It is never an `owned` class. `owned` on a class is the [cooperation contract](./ownership.md#the-cooperation-contract): every field assignment inside the type must come from an owned source. A container stores whatever its callers hand it, so it cannot promise to own its elements. A pure scope that changes a list owns the list itself, through an owned binding or by creating it, as `Seeded` and `Spread` do. The pure constructor is what lets a constructorless type hold a list in a field initializer.
 
 ## Where Mist Requires Purity
 

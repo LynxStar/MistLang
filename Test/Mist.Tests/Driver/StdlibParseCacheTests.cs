@@ -1,7 +1,5 @@
 using System.Collections.Immutable;
-using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Driver;
@@ -9,7 +7,6 @@ using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Lexing.Contracts;
 using Mist.Parsing;
-using Mist.Semantics.Contracts;
 
 namespace Mist.Tests.Driver;
 
@@ -34,24 +31,23 @@ public sealed class StdlibParseCacheTests : IDisposable
     }
 
     [Fact]
+    [Trait("Tier", "4")]
     public void Compile_AfterACompileWhoseLexerRejectedTheStdlib_ParsesAndRecordsTheWholeStdlib()
     {
         var cache = new StdlibParseCache();
         var options = WriteProgram();
-        _ = CreateDriver(new RejectingLexer(), new CapturingSemanticModelBuilder(), cache).Compile(options);
+        _ = CreateDriver(new RejectingLexer(), cache).Compile(options);
 
-        var capture = new CapturingSemanticModelBuilder();
-        _ = CreateDriver(new MistLexer(), capture, cache).Compile(options);
+        var result = CreateDriver(new MistLexer(), cache).Compile(options);
 
-        var stdlibUnitCount = capture.Units.Count(u => u.IsStdlib);
         var whole = StdlibLoader.LoadFor(new DiagnosticBag());
-        Assert.NotEqual(0, stdlibUnitCount);
-        Assert.Equal(capture.Units.Length, capture.AstCount);
+        Assert.NotEmpty(whole);
         Assert.Equal(whole.Length, cache.TryGet(whole.Length)?.Asts.Length);
-        Assert.Equal(whole.Count(u => !u.IsExperimentalOnly), stdlibUnitCount);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Id == ProgramModelDiagnostics.AstUnitMismatch.Id);
     }
 
     [Fact]
+    [Trait("Tier", "1")]
     public void TryGet_ForAStdlibOfAnotherSize_ReturnsNothing()
     {
         var cache = new StdlibParseCache();
@@ -71,20 +67,12 @@ public sealed class StdlibParseCacheTests : IDisposable
             OutputDirectory: Path.Combine(scratchDir, "out"),
             BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "X",
-            NamespaceRoot: "X",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            EmitToDisk: false);
+            NamespaceRoot: "X");
     }
 
-    private static CompilerDriver CreateDriver(ILexer lexer, ISemanticModelBuilder builder, StdlibParseCache cache)
+    private static CompilerDriver CreateDriver(ILexer lexer, StdlibParseCache cache)
     {
-        return new CompilerDriver(
-            lexer,
-            new MistParser(),
-            builder,
-            ImmutableArray<IAnalyzer>.Empty,
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()),
-            cache);
+        return new CompilerDriver(lexer, new MistParser(), cache);
     }
 
     private sealed class RejectingLexer : ILexer
@@ -100,27 +88,6 @@ public sealed class StdlibParseCacheTests : IDisposable
                 source.Path,
                 null));
             return new TokenStream(source, ImmutableArray<Storm.Runtime.Token>.Empty);
-        }
-    }
-
-    private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
-    {
-        public ImmutableArray<CompilationUnit> Units { get; private set; } = ImmutableArray<CompilationUnit>.Empty;
-
-        public int AstCount { get; private set; }
-
-        public ISemanticModel Build(
-            MistCompilation compilation,
-            ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-            IAmbientTypeResolver? ambientTypeResolver,
-            string namespaceRoot,
-            string projectFolder,
-            DiagnosticBag diagnostics,
-            ImmutableHashSet<string>? directReferencePaths = null)
-        {
-            Units = compilation.Units;
-            AstCount = asts.Length;
-            return null!;
         }
     }
 }

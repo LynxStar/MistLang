@@ -1,21 +1,11 @@
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using Mist.Analysis.Builtin;
-using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
-using Mist.Common.Diagnostics;
-using Mist.Driver;
-using Mist.Driver.Contracts;
-using Mist.Lexing;
-using Mist.Parsing;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Integration;
 
 /// <summary>
 /// Regression guard that compiles and runs sample projects via the Mist CLI,
-/// then diffs the captured stdout against stored baselines. AllFeatures
+/// then diffs the captured stdout against stored baselines. AllFeaturesV2
 /// exercises every feature sample via project references, so that single
 /// test covers the entire sample suite. Individual sample tests verify
 /// standalone compilation and expected output for specific features.
@@ -34,56 +24,20 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    [Fact]
-    public async Task AllFeatures_CompilesRunsAndMatchesBaseline()
-    {
-        var repoRoot = FindRepoRoot();
-        var sampleDir = Path.Combine(repoRoot, "samples", "AllFeatures");
-        var baselineFile = Path.Combine(repoRoot, "samples", "__baselines__", "AllFeatures.out");
-        var cliProjectPath = Path.Combine(repoRoot, "Source", "Mist.CLI", "Mist.CLI.csproj");
-
-        Assert.True(Directory.Exists(sampleDir), $"Sample directory not found: {sampleDir}");
-        Assert.True(File.Exists(baselineFile), $"Baseline file not found: {baselineFile}");
-        Assert.True(File.Exists(cliProjectPath), $"CLI project not found: {cliProjectPath}");
-
-        // Invoke the Mist CLI to compile and run the sample with --quiet
-        // so only the program's stdout is captured (no progress output).
-        var (exitCode, stdout, stderr) = await RunMistCli(cliProjectPath, sampleDir);
-
-        Assert.True(
-            exitCode == 0,
-            $"AllFeatures failed to compile/run (exit code {exitCode}).\nStderr:\n{stderr}");
-
-        var expected = NormalizeLineEndings(await File.ReadAllTextAsync(baselineFile));
-        var actual = NormalizeLineEndings(stdout);
-
-        Assert.Equal(expected, actual);
-    }
-
     /// <summary>
-    /// Tier 6 full-system test for the EXPERIMENTAL pipeline, the counterpart to
-    /// <see cref="AllFeatures_CompilesRunsAndMatchesBaseline"/>. Exactly two Tier 6
-    /// tests are permitted, one per pipeline.
+    /// The one Tier 6 full-system test. It names no pipeline, so it holds the CLI's default.
     /// <para>
-    /// <c>samples/AllFeaturesV2</c> IS the recorded v2 progression: it references
-    /// exactly those samples that work on the experimental pipeline and calls each
-    /// one's <c>RunDemo()</c>. Enabling a sample on v2 means adding it there and
-    /// extending <c>samples/__baselines__/AllFeaturesV2.out</c>. Because a removed
-    /// sample shrinks the program's output, this baseline diff makes recorded
-    /// progress impossible to lose silently.
-    /// </para>
-    /// <para>
-    /// The stored baseline was captured from the classic pipeline, which compiles and
-    /// runs this sample correctly, so it is pipeline-independent: both pipelines are
-    /// held to the same output. The exceptions are the samples classic cannot run, each marked
-    /// V2-ONLY in backlog/emitter-v2-capability-progression.yaml with the reason: their lines were
-    /// captured from v2 and read against the program by hand.
+    /// <c>samples/AllFeaturesV2</c> IS the record of which samples work: it references each one
+    /// and calls its <c>RunDemo()</c>. Banking a sample means adding it there and extending
+    /// <c>samples/__baselines__/AllFeaturesV2.out</c>. Because a removed sample shrinks the
+    /// program's output, this baseline diff makes recorded progress impossible to lose silently.
     /// </para>
     /// <para>
     /// See <c>.claude/skills/testing-philosophy/SKILL.md</c>, Tier 6.
     /// </para>
     /// </summary>
     [Fact]
+    [Trait("Tier", "6")]
     public async Task AllFeaturesV2_CompilesRunsAndMatchesBaseline()
     {
         var repoRoot = FindRepoRoot();
@@ -95,11 +49,11 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
         Assert.True(File.Exists(baselineFile), $"Baseline file not found: {baselineFile}");
         Assert.True(File.Exists(cliProjectPath), $"CLI project not found: {cliProjectPath}");
 
-        var (exitCode, stdout, stderr) = await RunMistCli(cliProjectPath, sampleDir, "experimental");
+        var (exitCode, stdout, stderr) = await RunMistCli(cliProjectPath, sampleDir);
 
         Assert.True(
             exitCode == 0,
-            $"AllFeaturesV2 failed to compile/run on the experimental pipeline (exit code {exitCode}).\nStderr:\n{stderr}");
+            $"AllFeaturesV2 failed to compile/run (exit code {exitCode}).\nStderr:\n{stderr}");
 
         // THE FALSE-POSITIVE HALF OF THE ANALYSIS LEDGER. A Stage 5 rule that fires on a working program
         // may only WARN, which leaves the exit code clean and stdout untouched -- so without this, a rule
@@ -108,7 +62,7 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
         var warnings = stderr.Split('\n').Where(line => Regex.IsMatch(line, @": warning [A-Z0-9_]+:")).ToList();
         Assert.True(
             warnings.Count == 0,
-            $"AllFeaturesV2 compiled with warnings on the experimental pipeline:\n{string.Join("\n", warnings)}");
+            $"AllFeaturesV2 compiled with warnings:\n{string.Join("\n", warnings)}");
 
         var expected = NormalizeLineEndings(await File.ReadAllTextAsync(baselineFile));
         var actual = NormalizeLineEndings(stdout);
@@ -117,14 +71,15 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
     }
 
     /// <summary>
-    /// Tier 5, and the one sample the experimental orchestrator cannot hold: Testing is a library
+    /// Tier 5, and the one sample the orchestrator cannot hold: Testing is a library
     /// with no entry point, so it has no RunDemo to call and no stdout to diff, and its verdict
     /// comes from the external test runner. The runner's own tally is the assertion, and the
     /// absence of C# warnings is asserted with it because MSBuild is the only consumer that sees
     /// them -- the in-process compile does not treat a generated file as generated.
     /// </summary>
     [Fact]
-    public async Task Testing_RunsUnderTheTestCommandOnTheExperimentalPipeline()
+    [Trait("Tier", "5")]
+    public async Task Testing_RunsUnderTheTestCommand()
     {
         var repoRoot = FindRepoRoot();
         var sampleDir = Path.Combine(repoRoot, "samples", "Testing");
@@ -133,11 +88,11 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
         Assert.True(Directory.Exists(sampleDir), $"Sample directory not found: {sampleDir}");
         Assert.True(File.Exists(cliProjectPath), $"CLI project not found: {cliProjectPath}");
 
-        var (exitCode, stdout, stderr) = await RunMistCli(cliProjectPath, sampleDir, "experimental", command: "test");
+        var (exitCode, stdout, stderr) = await RunMistCli(cliProjectPath, sampleDir, command: "test");
 
         Assert.True(
             exitCode == 0,
-            $"Testing failed under 'mist test' on the experimental pipeline (exit code {exitCode}).\nStdout:\n{stdout}\nStderr:\n{stderr}");
+            $"Testing failed under 'mist test' (exit code {exitCode}).\nStdout:\n{stdout}\nStderr:\n{stderr}");
         Assert.Matches(@"Passed:\s+5\b", stdout);
         Assert.Matches(@"Failed:\s+0\b", stdout);
         Assert.DoesNotContain("warning CS", stdout, StringComparison.Ordinal);
@@ -150,6 +105,7 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
     /// union, member access, implicit conversion, pattern matching).
     /// </summary>
     [Fact]
+    [Trait("Tier", "5")]
     public async Task EnumReadonlyRestriction_CompilesAndProducesExpectedOutput()
     {
         var repoRoot = FindRepoRoot();
@@ -196,69 +152,7 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
     }
 
     /// <summary>
-    /// Verifies that the existing Enums sample passes Mist compilation
-    /// (parsing, semantic model, type checker) without errors after adding
-    /// the <c>readonly</c> modifier to Vec2, Label, and Animal.
-    /// This is a regression test ensuring the enum readonly restriction
-    /// does not break existing enum patterns with user-defined base types.
-    ///
-    /// Note: The full end-to-end run (including C# emitter output) is blocked
-    /// by a known emitter bug in __CreateDefault() for readonly structs with
-    /// fields. This test verifies the language-level compilation is correct.
-    /// </summary>
-    [Fact]
-    public void Enums_StillCompilesAfterReadonlyModifierAdditions()
-    {
-        var repoRoot = FindRepoRoot();
-        var sampleDir = Path.Combine(repoRoot, "samples", "Enums");
-        var sourceFiles = Directory.GetFiles(sampleDir, "*.mist");
-        Assert.NotEmpty(sourceFiles);
-
-        var driver = CreateRealDriver();
-        var options = new CompilerOptions(
-            ProjectFolder: sampleDir,
-            SourcePaths: sourceFiles.ToImmutableArray(),
-            Backend: new BackendId("csharp"),
-            OutputDirectory: Path.Combine(scratchDir, "out"),
-            BinDirectory: Path.Combine(scratchDir, "bin"),
-            ProjectName: "Enums",
-            NamespaceRoot: "Enums",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
-
-        var result = driver.Compile(options);
-
-        // Filter to only Mist-level errors (exclude MIST_CS_ERROR which is the
-        // known __CreateDefault() emitter bug for readonly structs with fields).
-        var mistErrors = result.Diagnostics
-            .Where(d => d.Severity == DiagnosticSeverity.Error
-                     && d.Id.Value != "MIST_CS_ERROR")
-            .ToList();
-
-        Assert.Empty(mistErrors);
-
-        // Verify the type checker did not reject the readonly enum base types
-        var enumReadonlyErrors = result.Diagnostics
-            .Where(d => d.Id.Value is "MIST_TC_0102" or "MIST_TC_0103")
-            .ToList();
-
-        Assert.Empty(enumReadonlyErrors);
-    }
-
-    // ─── Helpers ─────────────────────────────────────────────────────────
-
-    private static CompilerDriver CreateRealDriver()
-    {
-        return new CompilerDriver(
-            new MistLexer(),
-            new MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<Mist.Analysis.Contracts.IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
-    }
-
-    /// <summary>
-    /// Runs a sample through the Mist CLI. When <paramref name="pipeline"/> is null the
-    /// CLI default (classic) is used; pass "experimental" to select the v2 pipeline.
+    /// Runs a sample through the Mist CLI on its default pipeline.
     /// <para>
     /// --no-build IS LOAD-BEARING, not a speed-up. Without it this is a SECOND MSBuild inside the one
     /// running the suite, and it re-runs Mist.CLI's Content copy of Source/Standard into the very
@@ -275,9 +169,8 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
     /// </para>
     /// </summary>
     private async Task<(int ExitCode, string Stdout, string Stderr)> RunMistCli(
-        string cliProjectPath, string sampleDir, string? pipeline = null, string command = "run")
+        string cliProjectPath, string sampleDir, string command = "run")
     {
-        var pipelineFlag = pipeline is null ? "" : $" --pipeline {pipeline}";
         var outputFlags = $" --output \"{Path.Combine(scratchDir, "out")}\" --bin \"{Path.Combine(scratchDir, "bin")}\"";
 
         var process = new Process
@@ -286,7 +179,7 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
             {
                 FileName = "dotnet",
                 Arguments =
-                    $"run --project \"{cliProjectPath}\" --no-build -v q -- {command} \"{sampleDir}\" --quiet{pipelineFlag}{outputFlags}",
+                    $"run --project \"{cliProjectPath}\" --no-build -v q -- {command} \"{sampleDir}\" --quiet{outputFlags}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

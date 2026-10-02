@@ -6,12 +6,7 @@ namespace Mist.Driver.Contracts;
 public enum PipelineMode
 {
     /// <summary>
-    /// The classic pipeline: semantic model → analyzers → C# emitter.
+    /// ProgramModel → program analyzers → C# emitter.
     /// </summary>
-    Classic,
-
-    /// <summary>
-    /// The experimental pipeline: ProgramModel → new analyzers → new emitter.
-    /// </summary>
-    Experimental,
+    Standard,
 }

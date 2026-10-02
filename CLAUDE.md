@@ -3,55 +3,54 @@
 Mist is a programming language that transpiles to C#. This repo holds the compiler, the
 standard library, the sample suite and the language book.
 
-## The two pipelines
+## The pipeline
 
-**v1 / "classic" is a working compiler.** It compiles and runs every sample correctly.
-It is also the code we are escaping: three files carry most of it —
-`Semantics/Model/SemanticModelBuilder.cs` (~30k lines),
-`Analysis/Builtin/TypeCheckerAnalyzer.cs` (~24k), and
-`Backends/CSharpTranspiler/CSharpEmitter.cs` (~18k).
-
-**v2 is a rewrite in progress**, aiming at the opposite: separated responsibilities and
-classes a human can read. It lives in `Source/Mist/ProgramModel/` (frontend) and
-`Source/Mist/Backends/CSharpTranspiler/Emitter/` (backend). Keep files small. If a v2 file
+The compiler has one pipeline, named **standard**, built for separated responsibilities and
+classes a human can read. It lives in `Source/Mist/ProgramModel/` (frontend),
+`Source/Mist/ProgramAnalysis/` (Stage 5) and `Source/Mist/Backends/CSharpTranspiler/Emitter/`
+(backend), and `Source/Mist/Driver/StandardPipeline.cs` runs it. Keep files small. If a file
 is heading past ~700 lines, that is the signal to split it, not to keep appending.
 
-Source-to-AST is **shared**: `Source/Mist/Grammar/*.storm` drives the Storm source
-generator, which emits AST node classes into `Source/Mist/Generated/`. Both pipelines
-parse the same tree.
+Source-to-AST: `Source/Mist/Grammar/*.storm` drives the Storm source generator, which emits
+AST node classes into `Source/Mist/Generated/`.
 
-Select a pipeline with `--pipeline experimental` (v2); omitting the flag runs classic.
+`--pipeline` is the selector. Its one value, `standard`, is the default, so omit the flag; any
+other value is the parser's unknown-pipeline error.
+
+"v2" names this pipeline wherever it appears: in type names (`CSharpEmitterV2`), in
+`samples/AllFeaturesV2`, and in the registers and specs. "Classic" and "v1" there name the
+compiler it replaced, which is no longer in the tree.
 
 ## The clean-room rule (non-negotiable)
 
-**Classic's runtime behavior is the contract. Classic's code is not a reference.**
+**The observable output of the compiled program is the contract. Classic's code is not a reference.**
 
-- Do NOT read, port, or derive v2 code from `Mist.Semantics` or `Mist.Analysis`. The point
-  of the rewrite is to not re-import that architecture.
-- Code under `Source/Mist/ProgramModel/` must not reference the legacy system at all — see
-  the isolation rule in `Source/Mist/ProgramModel/CLAUDE.md`.
 - Specify behavior from the grammar and from `.kiro/specs/` — the delivered feature specs,
   each with `requirements.md` (formal acceptance criteria), `design.md` and `tasks.md`.
-  These are the sanctioned input for a from-scratch implementation.
-- What v2 must match is the **observable output of the compiled program**. The emitted C#
-  is free to differ, and several times has been deliberately better than classic's.
+- The contract is the **observable output of the compiled program**, held by the baseline
+  below. The emitted C# is free to change.
+- Classic's source survives only in git history. Do NOT read, port, or derive code from it:
+  it is not a design reference.
 
-## Where v2 progress is recorded
+## Where progress is recorded
 
-`samples/AllFeaturesV2` **is** the record. A sample runs on v2 if and only if it is
+`samples/AllFeaturesV2` **is** the record. A sample runs if and only if it is
 referenced from `samples/AllFeaturesV2/mist.toml`, its `RunDemo()` is called from
 `samples/AllFeaturesV2/Program.mist`, and its output is in
 `samples/__baselines__/AllFeaturesV2.out`. There is deliberately no second place asserting
 greenness. The one sample it cannot hold is `samples/Testing`, a library with no entry point,
-which `Testing_RunsUnderTheTestCommandOnTheExperimentalPipeline` holds under `mist test` instead.
+which `Testing_RunsUnderTheTestCommand` holds under `mist test` instead.
 
-The baseline was captured from classic and is pipeline-independent: both pipelines are held
-to the same stdout. The exceptions are the samples classic cannot run -- `samples/LocalFunctions`,
-which it cannot parse, and `samples/NewtypeClones`, written for a revision of the newtypes spec it
-does not implement, among them. Each is marked V2-ONLY, with the reason, in the register's
-`untested` list, is referenced from `AllFeaturesV2` alone, and has its lines captured from v2 and
-read against the program by hand. Note the blind spot — a stdout diff cannot
-see things like a dropped `sealed` modifier.
+The baseline's provenance: most samples' lines were captured from classic while it existed. The
+exceptions are the samples classic could not run -- `samples/LocalFunctions`, which it could not
+parse, and `samples/NewtypeClones`, written for a revision of the newtypes spec it did not
+implement, among them. Each is marked V2-ONLY, with the reason, in the register's `untested`
+list, and has its lines captured from v2 and read against the program by hand. Note the blind
+spot — a stdout diff cannot see things like a dropped `sealed` modifier.
+
+`samples/AllFeatures` and `samples/__baselines__/AllFeatures.out` are historical data: classic's
+orchestrator and its baseline. Nothing is added to them. Bank a new or changed sample in
+`AllFeaturesV2` only.
 
 ## Backlog registers
 
@@ -62,14 +61,14 @@ see things like a dropped `sealed` modifier.
 | `backlog/program-model-body-tasks.yaml` | The other axis: what the binder does not yet understand, by language construct. **Not valid YAML** despite the extension. |
 | `backlog/flaky-tests.yaml` | Flake register. Recording a flake is mandatory (see `Test/CLAUDE.md`). |
 | `backlog/refusal-corpus-migration.md` | Refusal test migration: measurements, tier choices and verification procedure. |
-| `backlog/classic-retirement.md` | What still depends on classic, the checklist for deleting it, and how v2 accounts for Stages 4-6 progress. |
+| `backlog/classic-retirement.md` | The completed retirement of classic: what was removed, what classic did that the standard pipeline does not, how it was verified, and how Stages 4-6 progress is accounted. |
 | `backlog/general.md` | Issues outside any active spec. |
 | `backlog/inventory-<date>.md` | Dated snapshots of what v2 still needs, counted from the registers above. |
 
 A capability in the emitter register is measured by what it makes **representable and
 emittable** — what new part of a program can be held in memory, or emitted and run. Rules
 that walk a finished model and judge it belong to Stage 5 and are recorded as
-`analysis_phase_tasks`, however early classic reports the equivalent. Getting this wrong
+`analysis_phase_tasks`, whichever stage a diagnostic is declared at. Getting this wrong
 once cost an implementation that was written and reverted.
 
 **Stage 5 is now open** and has its own register. `samples/AllFeaturesV2` is a stdout baseline
@@ -93,10 +92,10 @@ dotnet test Mist.slnx
 dotnet format Mist.slnx --verify-no-changes
 ```
 
-Run one sample through v2:
+Run one sample:
 
 ```bash
-dotnet run --project Source/Mist.CLI -- run samples/HelloMist --quiet --pipeline experimental
+dotnet run --project Source/Mist.CLI -- run samples/HelloMist --quiet
 ```
 
 Emitted C# lands in `samples/<Name>/out/` and is gitignored — it is scratch, not an artifact.
@@ -116,8 +115,8 @@ a namespace mismatch (IDE0130), fix that by hand first.
 ## Tests
 
 These are the binding rules of the testing philosophy,
-`.claude/skills/testing-philosophy/SKILL.md` (`/testing-philosophy`) — strict on v2, a guideline
-for classic. The skill holds the full per-tier detail and the reasoning.
+`.claude/skills/testing-philosophy/SKILL.md` (`/testing-philosophy`). They bind all test code.
+The skill holds the full per-tier detail and the reasoning.
 
 A test exists only to encode an invariant the language cannot guarantee. Decide its tier from
 the invariant — which stage owns it — then use only what that tier allows. Never let the
@@ -130,7 +129,7 @@ infrastructure at hand pick the tier.
 | 3 Component | One whole phase, real collaborators | Moderate: tens | Stages outside the domain; processes; Roslyn; asserting on stdout; property tests over 50 iterations |
 | 4 Integration | The seam between named stages | A handful per boundary, ~10–20 at most | Boundaries not under test; high-iteration property tests |
 | 5 System | One sample, whole pipeline | Sparse, justified per test | More than one test per sample; generated programs; coverage a lower tier already has |
-| 6 Full system | `AllFeatures`, `AllFeaturesV2` | Exactly 2, ever | A third orchestrator |
+| 6 Full system | `AllFeaturesV2` | Exactly 1, ever | A second orchestrator |
 
 Every new or migrated test must declare its tier in runnable test metadata. With xUnit, use
 `[Trait("Tier", "1")]` through `[Trait("Tier", "6")]`: exactly one effective tier per test.
@@ -150,7 +149,7 @@ exception. Count theory cases and repeated pipeline executions, not just classes
   `CompilerDriver.Compile` runs every stage, so a test that calls it is Tier 4 or above however
   small its program is.
 - **A diagnostic is owned by the rule that reports it**, and is proven at that rule's tier: Tier 1,
-  or Tier 2 when the rule walks a body. A refusal is worth testing because `AllFeatures` cannot see
+  or Tier 2 when the rule walks a body. A refusal is worth testing because `AllFeaturesV2` cannot see
   one; that says nothing about compiling a program to watch it fail.
 - **Push down, never up.** When a system test fails, prove the fix at a lower tier; do not add
   another system test. High-iteration property tests belong at Tier 1–2 only.
@@ -208,9 +207,9 @@ signature is at fault. Use an array literal instead:
 These load when you work in the directory:
 
 - `Source/CLAUDE.md` — C# coding style
-- `Source/Mist/ProgramModel/CLAUDE.md` — v2 isolation rule and verification policy
+- `Source/Mist/ProgramModel/CLAUDE.md` — the program model's design rules and verification policy
 - `Source/Mist/ProgramAnalysis/CLAUDE.md` — Stage 5: the analyzer contract, and how a rule proves itself
-- `samples/CLAUDE.md` — sample integrity, and how to bank a sample on v2
+- `samples/CLAUDE.md` — sample integrity, and how to bank a sample
 - `Test/CLAUDE.md` — compile cost, process spawning, encoding, failure triage (tiers: `## Tests` above)
 - `book/CLAUDE.md` — book snippet policy
 

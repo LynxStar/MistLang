@@ -1,18 +1,13 @@
 // Feature: binary-literals, Property 6: Verbatim emission of numeric literals
-// **Validates: Requirements 4.1, 4.2, 5.1, 8.11, 8.12**
+// **Validates: Requirements 5.1, 8.12**
 
-using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
-using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Parsing;
-using Mist.Semantics.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Backend;
 
@@ -21,35 +16,15 @@ namespace Mist.Tests.Backend;
 ///
 /// Property 6: Verbatim emission of numeric literals.
 /// For any numeric literal AST node (binary, hex, integer, or float, with or without
-/// digit separators and suffixes), both the pretty printer and the C# emitter SHALL
-/// output the token lexeme unchanged.
+/// digit separators and suffixes), the pretty printer SHALL output the token lexeme unchanged.
 ///
-/// **Validates: Requirements 4.1, 4.2, 5.1, 8.11, 8.12**
+/// **Validates: Requirements 5.1, 8.12**
 /// </summary>
-public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
+[Trait("Tier", "3")]
+public sealed class BinaryLiteralVerbatimEmissionPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-    private readonly SemanticModelBuilder builder = new();
-    private readonly string outputDir;
-
-    public BinaryLiteralVerbatimEmissionPropertyTests()
-    {
-        outputDir = Path.Combine(
-            Path.GetTempPath(),
-            "MistVerbatimEmission_" + Guid.NewGuid().ToString("N"));
-        _ = Directory.CreateDirectory(outputDir);
-    }
-
-    public void Dispose()
-    {
-        if(Directory.Exists(outputDir))
-        {
-            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
-        }
-
-        GC.SuppressFinalize(this);
-    }
 
     // ─── Suffix Constants ────────────────────────────────────────────────
 
@@ -209,36 +184,6 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
         return result.Root as CompilationUnitNode;
     }
 
-    private ISemanticModel BuildSemanticModel(Storm.Runtime.SyntaxNode ast, string source)
-    {
-        var sourceText = new SourceText("test.mist", source);
-        var compilation = new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText)));
-        var diagnostics = new DiagnosticBag();
-        return builder.Build(
-            compilation,
-            ImmutableArray.Create(ast),
-            ambientTypeResolver: null,
-            namespaceRoot: "TestProject",
-            projectFolder: "/test",
-            diagnostics);
-    }
-
-    private string EmitAndGetCsContent(ISemanticModel model)
-    {
-        // Clean the output directory for each emission
-        foreach(var file in Directory.GetFiles(outputDir))
-        {
-            File.Delete(file);
-        }
-
-        var diagnostics = new DiagnosticBag();
-        CSharpEmitter.Emit(model, outputDir, "TestProject", diagnostics);
-
-        var csFile = Directory.GetFiles(outputDir, "*.cs")
-            .FirstOrDefault(f => !f.EndsWith("MistVoid.g.cs", StringComparison.Ordinal));
-        return csFile is not null ? File.ReadAllText(csFile) : "";
-    }
-
     // ─── Property 6 ─────────────────────────────────────────────────────
 
     /// <summary>
@@ -268,35 +213,5 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests : IDisposable
 
         return printed.Contains(scenario.Literal).ToProperty()
             .Label($"Pretty printer output does not contain literal '{scenario.Literal}'.\nPrinted:\n{printed}");
-    }
-
-    /// <summary>
-    /// Property 6: Verbatim emission of numeric literals — C# Emitter.
-    ///
-    /// For any numeric literal (binary, hex, integer, or float, with or without
-    /// digit separators and suffixes), the C# emitter SHALL output the token
-    /// lexeme unchanged.
-    ///
-    /// **Validates: Requirements 4.1, 4.2, 8.11**
-    /// </summary>
-    [Property(
-        MaxTest = 100,
-        Arbitrary = new[] { typeof(BinaryLiteralVerbatimEmissionPropertyTests) })]
-    public Property NumericLiteral_CSharpEmitter_EmitsLexemeVerbatim(
-        VerbatimEmissionScenario scenario)
-    {
-        var root = ParseSource(scenario.Source);
-
-        if(root is null)
-        {
-            return false.ToProperty()
-                .Label($"Parse failed for: {scenario.Source}");
-        }
-
-        var model = BuildSemanticModel(root, scenario.Source);
-        var csContent = EmitAndGetCsContent(model);
-
-        return csContent.Contains(scenario.Literal).ToProperty()
-            .Label($"C# emitter output does not contain literal '{scenario.Literal}'.\nEmitted:\n{csContent}");
     }
 }

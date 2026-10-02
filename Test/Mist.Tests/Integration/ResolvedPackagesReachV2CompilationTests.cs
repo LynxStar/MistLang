@@ -1,17 +1,13 @@
 using System.Collections.Immutable;
-using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Tier 4, the boundary from package resolution (Stage 1.5) to the experimental pipeline's Roslyn
+/// Tier 4, the boundary from package resolution (Stage 1.5) to the standard pipeline's Roslyn
 /// compilation.
 /// <para>
 /// BINDING SUCCESS PROVES NOTHING ABOUT THIS SEAM. The ambient provider reads the same resolved
@@ -20,6 +16,7 @@ namespace Mist.Tests.Integration;
 /// generated file. Only compiling the emitted C# separates the two.
 /// </para>
 /// </summary>
+[Trait("Tier", "4")]
 public sealed class ResolvedPackagesReachV2CompilationTests : IDisposable
 {
     private readonly string scratchDir;
@@ -58,17 +55,12 @@ public sealed class ResolvedPackagesReachV2CompilationTests : IDisposable
         """;
 
     [Fact]
-    public void PackageTypeInEmittedCSharp_CompilesOnTheExperimentalPipeline()
+    public void PackageTypeInEmittedCSharp_CompilesOnTheStandardPipeline()
     {
         var sourcePath = Path.Combine(scratchDir, "Probe.mist");
         File.WriteAllText(sourcePath, UsesAPackageType);
 
-        var driver = new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
 
         var result = driver.Compile(new CompilerOptions(
             ProjectFolder: scratchDir,
@@ -78,9 +70,7 @@ public sealed class ResolvedPackagesReachV2CompilationTests : IDisposable
             BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "PackageProbe",
             NamespaceRoot: "PackageProbe",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            Packages: [new NuGetPackageReference("Newtonsoft.Json", "13.0.3")],
-            Pipeline: PipelineMode.Experimental));
+            Packages: [new NuGetPackageReference("Newtonsoft.Json", "13.0.3")]));
 
         var errors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)

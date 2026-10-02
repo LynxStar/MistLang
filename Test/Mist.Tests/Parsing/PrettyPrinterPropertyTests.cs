@@ -2,13 +2,8 @@
 // Feature: mist-language-v1, Property 3: Pretty printer semantic preservation
 
 using System.Collections.Immutable;
-using Mist.Common.Diagnostics;
-using Mist.Common.Source;
-using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.Parsing;
-using Mist.Semantics.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Parsing;
 
@@ -17,6 +12,7 @@ namespace Mist.Tests.Parsing;
 /// Uses hand-crafted representative ASTs since FsCheck generators (Task 16)
 /// and the full parser (skeletal) are not yet available.
 /// </summary>
+[Trait("Tier", "2")]
 public class PrettyPrinterPropertyTests
 {
     // ─── Helpers ─────────────────────────────────────────────────────────
@@ -819,89 +815,11 @@ public class PrettyPrinterPropertyTests
     // semantic model.
     //
     // Since the Storm-generated parser is skeletal, we verify semantic
-    // preservation by building the semantic model from the original AST,
-    // then verifying the pretty-printed output contains all the symbol names,
-    // kinds, and structural elements that the semantic model expects.
+    // preservation by verifying the pretty-printed output contains the names,
+    // modifiers, type references, and structural elements of the original AST.
     // ═══════════════════════════════════════════════════════════════════════
 
     // Feature: mist-language-v1, Property 3: Pretty printer semantic preservation
-
-    [Fact]
-    public void PrettyPrinter_SemanticPreservation_AllSymbolNamesAppearInOutput()
-    {
-        // Build a semantic model from the AST, then verify all user-code symbol
-        // names appear in the pretty-printed output.
-        var ast = BuildClassWithMembers();
-        var output = MistPrettyPrinter.Print(ast);
-
-        var builder = new SemanticModelBuilder();
-        var compilation = new MistCompilation(
-            ImmutableArray.Create(new CompilationUnit(new SourceText("test.mist", ""))));
-        var diagnostics = new DiagnosticBag();
-        var model = builder.Build(
-            compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
-            ambientTypeResolver: null,
-            namespaceRoot: "TestProject",
-            projectFolder: "/test",
-            diagnostics);
-
-        // Every user-code symbol name should appear in the output,
-        // except inferred namespace symbols which don't appear in source.
-        foreach(var symbol in model.AllSymbols)
-        {
-            if(symbol.Origin == SymbolOrigin.UserCode && symbol.Kind != SymbolKind.Namespace)
-            {
-                Assert.Contains(symbol.Name, output);
-            }
-        }
-    }
-
-    [Fact]
-    public void PrettyPrinter_SemanticPreservation_SymbolKindsPreserved()
-    {
-        // Verify that the pretty-printed output preserves the structural elements
-        // that correspond to each symbol kind.
-        var ast = BuildClassWithMembers();
-        var output = MistPrettyPrinter.Print(ast);
-
-        var builder = new SemanticModelBuilder();
-        var compilation = new MistCompilation(
-            ImmutableArray.Create(new CompilationUnit(new SourceText("test.mist", ""))));
-        var diagnostics = new DiagnosticBag();
-        var model = builder.Build(
-            compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
-            ambientTypeResolver: null,
-            namespaceRoot: "TestProject",
-            projectFolder: "/test",
-            diagnostics);
-
-        foreach(var symbol in model.AllSymbols)
-        {
-            if(symbol.Origin != SymbolOrigin.UserCode)
-            {
-                continue;
-            }
-
-            switch(symbol.Kind)
-            {
-                case SymbolKind.Class:
-                    Assert.Contains($"class {symbol.Name}", output);
-                    break;
-                case SymbolKind.Field:
-                    Assert.Contains(symbol.Name, output);
-                    break;
-                case SymbolKind.Constructor:
-                    // Constructor name appears as the class name followed by (
-                    Assert.Contains($"{symbol.Name}(", output);
-                    break;
-                case SymbolKind.Method:
-                    Assert.Contains($"{symbol.Name}(", output);
-                    break;
-            }
-        }
-    }
 
     [Fact]
     public void PrettyPrinter_SemanticPreservation_TypeReferencesPreserved()
@@ -935,58 +853,12 @@ public class PrettyPrinterPropertyTests
         var ast = BuildNamespaceWithStruct();
         var output = MistPrettyPrinter.Print(ast);
 
-        var builder = new SemanticModelBuilder();
-        var compilation = new MistCompilation(
-            ImmutableArray.Create(new CompilationUnit(new SourceText("test.mist", ""))));
-        var diagnostics = new DiagnosticBag();
-        _ = builder.Build(
-            compilation,
-            ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
-            ambientTypeResolver: null,
-            namespaceRoot: "TestProject",
-            projectFolder: "/test",
-            diagnostics);
-
         // Namespace should appear
         Assert.Contains("namespace MyApp;", output);
 
         // Struct and its members should appear
         Assert.Contains("struct Color", output);
         Assert.Contains("int r", output);
-    }
-
-    [Fact]
-    public void PrettyPrinter_SemanticPreservation_AllRepresentativeAstsPreserveSymbols()
-    {
-        // For each representative AST, build a semantic model and verify
-        // all user-code symbol names appear in the pretty-printed output.
-        var builder = new SemanticModelBuilder();
-
-        foreach(var ast in AllRepresentativeAsts())
-        {
-            var output = MistPrettyPrinter.Print(ast);
-
-            var compilation = new MistCompilation(
-                ImmutableArray.Create(new CompilationUnit(new SourceText("test.mist", ""))));
-            var diagnostics = new DiagnosticBag();
-            var model = builder.Build(
-                compilation,
-                ImmutableArray.Create<Storm.Runtime.SyntaxNode>(ast),
-                ambientTypeResolver: null,
-                namespaceRoot: "TestProject",
-                projectFolder: "/test",
-                diagnostics);
-
-            foreach(var symbol in model.AllSymbols)
-            {
-                // Skip inferred namespace symbols — they don't appear in source
-                if(symbol.Origin == SymbolOrigin.UserCode && symbol.Kind != SymbolKind.Namespace)
-                {
-                    Assert.True(output.Contains(symbol.Name),
-                        $"Symbol '{symbol.Name}' (kind: {symbol.Kind}) not found in pretty-printed output:\n{output}");
-                }
-            }
-        }
     }
 
     [Fact]

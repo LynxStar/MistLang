@@ -1,13 +1,9 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Integration;
 
@@ -17,6 +13,7 @@ namespace Mist.Tests.Integration;
 /// generic, or one whose name or signature misses its target, compiles and throws there, so only running the
 /// conversions tells a working accessor from one that is not.
 /// </summary>
+[Trait("Tier", "4")]
 public sealed class CloneConversionRuntimeTests : IDisposable
 {
     private const string ConvertsEachKindOfConstructedSource = """
@@ -747,12 +744,7 @@ public sealed class CloneConversionRuntimeTests : IDisposable
         var sourcePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(sourcePath, source);
 
-        var driver = new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
 
         var result = driver.Compile(new CompilerOptions(
             ProjectFolder: scratchDir,
@@ -761,9 +753,7 @@ public sealed class CloneConversionRuntimeTests : IDisposable
             OutputDirectory: Path.Combine(scratchDir, "out"),
             BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "Probe",
-            NamespaceRoot: "Probe",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            Pipeline: PipelineMode.Experimental));
+            NamespaceRoot: "Probe"));
 
         var errors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)

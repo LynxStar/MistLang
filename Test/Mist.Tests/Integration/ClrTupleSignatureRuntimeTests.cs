@@ -1,13 +1,9 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
 using Mist.Tests.InteropFixtures;
 
 namespace Mist.Tests.Integration;
@@ -18,6 +14,7 @@ namespace Mist.Tests.Integration;
 /// past seven elements every slot beyond the seventh travels inside a Rest, so only running the
 /// program shows each value arrived where the signature said it would.
 /// </summary>
+[Trait("Tier", "4")]
 public sealed class ClrTupleSignatureRuntimeTests(ClrTupleSignatureRuntimeFixture fixture)
     : IClassFixture<ClrTupleSignatureRuntimeFixture>
 {
@@ -161,12 +158,7 @@ public sealed class ClrTupleSignatureRuntimeFixture : IDisposable
         var sourcePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(sourcePath, Program);
 
-        var driver = new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
 
         var result = driver.Compile(new CompilerOptions(
             ProjectFolder: scratchDir,
@@ -175,9 +167,7 @@ public sealed class ClrTupleSignatureRuntimeFixture : IDisposable
             OutputDirectory: Path.Combine(scratchDir, "out"),
             BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "TupleInterop",
-            NamespaceRoot: "TupleInterop",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            Pipeline: PipelineMode.Experimental)
+            NamespaceRoot: "TupleInterop")
         {
             AssemblyPaths = [typeof(TupleSignatures).Assembly.Location],
         });

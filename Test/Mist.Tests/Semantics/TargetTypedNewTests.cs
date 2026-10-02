@@ -27,6 +27,7 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Semantics;
 
+[Trait("Tier", "3")]
 public sealed class TargetTypedNewTests : IDisposable
 {
     private const string NoTargetId = "MIST_PM_TARGET_TYPED_NEW_NO_TARGET";
@@ -326,8 +327,7 @@ public sealed class TargetTypedNewTests : IDisposable
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "Probe",
-            NamespaceRoot: "Probe",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+            NamespaceRoot: "Probe");
 
         var buildDiagnostics = new DiagnosticBag();
         var programModel = ProgramModelBuilder.Build(

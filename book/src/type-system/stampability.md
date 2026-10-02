@@ -25,7 +25,7 @@ The `Box<string>` declaration and construction are valid. It is its use as an el
 
 The analysis includes inherited fields, automatic-property backing storage, and backing storage created by explicit `field` use in custom accessors. Static fields and computed properties without backing storage do not contribute to an instance. An unused generic parameter does not need a bound merely because it appears in the declaration.
 
-In v2, this inference covers source-defined structs, intrinsic primitives, and supported tuples. Arbitrary imported CLR structs remain conservatively non-stampable because the compiler cannot yet prove their complete instance layout.
+This inference covers source-defined structs, intrinsic primitives, and supported tuples. Arbitrary imported CLR structs remain conservatively non-stampable because the compiler cannot yet prove their complete instance layout.
 
 ## An Explicit Declaration Guarantee
 
@@ -82,6 +82,6 @@ The C# backend uses `unmanaged` for the representation guarantee needed by gener
 | Ref struct | No |
 | Unconstrained stored type parameter | No proof |
 | Enum, newtype, or refinement type | Excluded by the current rules |
-| Arbitrary imported CLR struct | No complete layout proof in v2 |
+| Arbitrary imported CLR struct | No complete layout proof yet |
 
 Stampability is independent of mutability and readonly status. It also does not grant a constructor, create a new default, or replace the `default` constraint. See [Definite Assignment](./definite-assignment.md) for array initialization and [Stack-Only Spans](../advanced/stack-only-spans.md) for stack allocation and lifetime rules.

@@ -90,17 +90,21 @@ The Mist compiler CLI is currently silent during successful builds — it produc
 
 ---
 
-### Requirement 6: Stage 4 — Semantic Model
+### Requirement 6: Stage 4 — Program Model
 
-**User Story:** As a developer, I want to see how many top-level user-code constructs were resolved by the semantic model, so that I can confirm the compiler found all my types.
+**User Story:** As a developer, I want to see how many top-level constructs of my program were bound into the program model, so that I can confirm the compiler found all my types.
 
 #### Acceptance Criteria
 
-1. WHEN the driver finishes building the semantic model, THE `ICompilationProgressReporter` SHALL be notified of Stage 4 completion with the count of top-level user-code constructs.
-2. THE top-level user-code construct count SHALL be computed by filtering `ISemanticModel.AllSymbols` to symbols where `Origin == SymbolOrigin.UserCode` and `Kind` is one of `SymbolKind.Class`, `SymbolKind.Struct`, `SymbolKind.Interface`, or `SymbolKind.Trait`.
-3. `WithDeclarationNode` constructs SHALL NOT be counted because they do not register symbols in the semantic model.
-4. THE detail string for Stage 4 SHALL report the count in the format `    {N} top-level constructs`.
-5. WHEN Stage 4 completes, THE `ConsoleProgressReporter` SHALL emit the elapsed time for the semantic model step in the format `Took X.XXs`.
+1. WHEN Stages 1 through 3 reported no error, THE `StandardPipeline` SHALL report Stage 4 under the title `Program Model`. THE stage SHALL cover the creation of the ambient type provider and `ProgramModelBuilder.Build`.
+2. WHEN the pipeline finishes building the program model, THE `ICompilationProgressReporter` SHALL be notified of Stage 4 completion with the count of top-level constructs, computed by `Driver/TopLevelConstructs.cs`.
+3. THE top-level construct count SHALL be the number of class, struct and abstract types in the `Types` of every compilation unit of the program model's Self and Reference assemblies. An abstract type is what `Interface` and `Trait` mean elsewhere in this document.
+4. Types declared in a referenced project SHALL be counted. Types declared in Standard SHALL NOT be counted.
+5. Nested types SHALL NOT be counted, because `Types` holds only top-level declarations. Monomorphs, union carriers and closures SHALL NOT be counted, because the emitter produces them and they never appear in `Types`.
+6. Enums and type aliases SHALL NOT be counted. A newtype's clone, which replaces the newtype in its compilation unit as a class or struct, SHALL NOT be counted.
+7. THE detail line for Stage 4 SHALL be built by `StandardStageDetails` in the format `{N} top-level constructs`, formatted in the invariant culture and passed to the reporter unindented; the indentation is the reporter's (Requirement 10).
+8. WHEN model construction produces no model, THE `StandardPipeline` SHALL complete Stage 4 with a count of `0` and SHALL NOT start Stage 5 or Stage 6.
+9. WHEN Stage 4 completes, THE `ConsoleProgressReporter` SHALL emit the elapsed time for the program model step in the format `Took X.XXs`.
 
 ---
 
@@ -110,10 +114,18 @@ The Mist compiler CLI is currently silent during successful builds — it produc
 
 #### Acceptance Criteria
 
-1. WHEN the driver finishes running all analyzers, THE `ICompilationProgressReporter` SHALL be notified of Stage 5 completion with per-analyzer timing information.
-2. THE detail for Stage 5 SHALL include one entry per analyzer that ran, identified by its `IAnalyzer.AnalyzerId` string and the elapsed time for that analyzer.
-3. THE detail string for each analyzer entry SHALL follow the format `    {AnalyzerId}  {X.XXs}`.
-4. WHEN Stage 5 completes, THE `ConsoleProgressReporter` SHALL emit the elapsed time for the total analysis step in the format `Took X.XXs`.
+1. WHEN Stage 4 produced a program model, THE `StandardPipeline` SHALL run Stage 5 under the title `Analysis`, including when Stage 4 reported errors.
+2. `ProgramAnalysis/AnalysisTimings.cs` SHALL time each `IProgramAnalyzer.Analyze` call and add it to the entry of that analyzer instance, over every scope the runner analyzes: the program, each clone conversion that is judged (one with a `BindingFailure` is not), and each cloned type.
+3. WHEN the pipeline finishes running all analyzers, THE `ICompilationProgressReporter` SHALL be notified of Stage 5 completion with detail lines built by `StandardStageDetails`, in this order: one scope line, one line per analyzer instance, one remainder line.
+4. THE scope line SHALL follow the format `{A} analyzers over {S} scopes: {P} program, {C} clone conversions, {K} cloned types`.
+5. THE detail SHALL include one line per analyzer instance, in registration order, in the format `{Id} ({TypeName})  {X.XXs}`, where `{Id}` is its `IProgramAnalyzer.Id` and `{TypeName}` is the name of its type. Entries SHALL NOT be summed under an `Id`, because several analyzers share one and the type name is what keeps them apart.
+6. THE remainder line SHALL follow the format `outside analyzers  {X.XXs}`, reporting the stage's elapsed time minus the sum of the analyzer entries, clamped at zero, so that the lines account for the whole stage.
+7. Seconds in Stage 5 detail lines SHALL be formatted `F2` in the invariant culture. Detail lines SHALL be passed to the reporter unindented; the indentation is the reporter's (Requirement 10).
+8. WHEN Stage 5 completes, THE `ConsoleProgressReporter` SHALL emit the elapsed time for the total analysis step in the format `Took X.XXs`.
+9. THE `StandardPipeline` SHALL judge the diagnostics of Stage 4 and Stage 5 together, at one gate after Stage 5: Stage 6 SHALL run only when Stages 1 through 5 reported no error.
+10. WHEN Stage 6 runs, THE `.cs` file count of Requirement 8 SHALL be `CSharpEmitterV2.EmittedFileCount`, the files this run wrote, on every return path; the output directory SHALL NOT be recounted. THE artifact path line SHALL follow the count only when there is an artifact. A failed emission SHALL still complete Stage 6.
+11. A stage that reports its start SHALL report its completion on every handled path; an exception propagates with no completion. This holds outside the pipeline too: a load that fails SHALL complete Stage 1 with no detail lines, and a clean that fails SHALL complete the CLI's Stage 0 with no detail lines.
+12. THE `StandardPipeline` SHALL NOT report a build summary. THE summary of Requirement 9 SHALL be reported once, by the CLI.
 
 ---
 

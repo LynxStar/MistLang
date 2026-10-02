@@ -1,14 +1,10 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
-using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Integration;
 
@@ -166,12 +162,7 @@ public sealed class CultureInvariantEmissionTests : IDisposable
         var sourcePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(sourcePath, Program);
 
-        var driver = new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
 
         var options = new CompilerOptions(
             ProjectFolder: scratchDir,
@@ -180,9 +171,7 @@ public sealed class CultureInvariantEmissionTests : IDisposable
             OutputDirectory: Path.Combine(scratchDir, "out"),
             BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "Invariant",
-            NamespaceRoot: "Invariant",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            Pipeline: PipelineMode.Experimental);
+            NamespaceRoot: "Invariant");
 
         var previous = CultureInfo.CurrentCulture;
         CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");

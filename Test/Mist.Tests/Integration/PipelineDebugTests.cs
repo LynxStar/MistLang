@@ -1,41 +1,16 @@
-using System.Collections.Immutable;
-using Mist.Analysis.Builtin;
-using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
-using Mist.Driver;
-using Mist.Driver.Contracts;
 using Mist.Generated;
-using Mist.Semantics.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Diagnostic tests to trace the full pipeline and identify why the CLI
-/// fails with MIST_TC_0017 even though parser unit tests pass.
+/// Diagnostic tests that lex and parse whole programs and check the declarations
+/// reach the namespace body of the resulting tree.
 /// </summary>
-public sealed class PipelineDebugTests : IDisposable
+[Trait("Tier", "3")]
+public sealed class PipelineDebugTests
 {
-    private readonly string outputDir;
-
-    public PipelineDebugTests()
-    {
-        outputDir = Path.Combine(Path.GetTempPath(), "MistDebug_" + Guid.NewGuid().ToString("N"));
-        _ = Directory.CreateDirectory(outputDir);
-    }
-
-    public void Dispose()
-    {
-        if(Directory.Exists(outputDir))
-        {
-            try { Directory.Delete(outputDir, recursive: true); } catch { }
-        }
-
-        GC.SuppressFinalize(this);
-    }
-
     private static string FindRepoRoot()
     {
         var dir = Directory.GetCurrentDirectory();
@@ -53,8 +28,7 @@ public sealed class PipelineDebugTests : IDisposable
     }
 
     /// <summary>
-    /// Mimics the CompilerDriver pipeline step by step, checking the AST
-    /// structure at each stage to identify where symbols are lost.
+    /// Lexes and parses the HelloMist entry file, checking the AST structure at each step.
     /// </summary>
     [Fact]
     public void FullPipeline_ProgramMist_ParsedAstHasNonEmptyNamespaceBody()
@@ -198,114 +172,5 @@ public sealed class PipelineDebugTests : IDisposable
         Assert.NotNull(ns);
         Assert.True(ns!.Body.Length > 0,
             $"[{name}] Namespace body is empty!\nDiagnostics:\n{diagDump}");
-    }
-
-    /// <summary>
-    /// Tests the full pipeline from parsing through semantic model building
-    /// to verify that symbols are properly registered.
-    /// </summary>
-    [Fact]
-    public void FullPipeline_AllSampleFiles_SemanticModelHasClassAndMethodSymbols()
-    {
-        var sampleDir = Path.Combine(FindRepoRoot(), "samples", "HelloMist");
-        var sourceFiles = new[]
-        {
-            Path.Combine(sampleDir, "Program.mist"),
-            Path.Combine(sampleDir, "Point.mist"),
-            Path.Combine(sampleDir, "Color.mist"),
-        };
-
-        var lexer = new Mist.Lexing.MistLexer();
-        var parser = new Mist.Parsing.MistParser();
-
-        var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
-        var units = ImmutableArray.CreateBuilder<CompilationUnit>();
-
-        foreach(var file in sourceFiles)
-        {
-            var contents = File.ReadAllText(file);
-            var sourceText = new SourceText(file, contents);
-            units.Add(new CompilationUnit(sourceText));
-
-            var lexBag = new DiagnosticBag();
-            var tokenStream = lexer.Lex(sourceText, lexBag);
-            Assert.False(lexBag.HasErrors, $"Lexing failed for {file}");
-
-            var parseBag = new DiagnosticBag();
-            var parseResult = parser.Parse(tokenStream, parseBag);
-
-            var parseErrors = parseBag.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-            if(parseErrors.Any())
-            {
-                Assert.Fail($"Parse errors for {file}: {string.Join(", ", parseErrors.Select(d => d.Message))}");
-            }
-
-            if(parseResult.Root is not null)
-            {
-                asts.Add(parseResult.Root);
-            }
-            else
-            {
-                Assert.Fail($"Parse returned null root for {file}");
-            }
-        }
-
-        // Build semantic model
-        var compilation = new MistCompilation(units.ToImmutable());
-        var builder = new SemanticModelBuilder();
-        var resolver = new CSharpAmbientTypeResolver();
-        var semanticBag = new DiagnosticBag();
-        var model = builder.Build(compilation, asts.ToImmutable(), resolver, namespaceRoot: "TestProject", projectFolder: "/test", semanticBag);
-
-        // Check that we have more than just namespace symbols
-        var allSymbols = model.AllSymbols.ToList();
-        var namespaceSymbols = allSymbols.Where(s => s.Kind == SymbolKind.Namespace).ToList();
-        var classSymbols = allSymbols.Where(s => s.Kind == SymbolKind.Class).ToList();
-        var methodSymbols = allSymbols.Where(s => s.Kind == SymbolKind.Method).ToList();
-
-        Assert.True(classSymbols.Count > 0,
-            $"No class symbols found! Total symbols: {allSymbols.Count}. " +
-            $"Namespace symbols: {namespaceSymbols.Count}. " +
-            $"Symbol kinds: {string.Join(", ", allSymbols.Select(s => $"{s.Kind} '{s.Name}'"))}");
-
-        Assert.True(methodSymbols.Count > 0, "No method symbols found!");
-
-        // Specifically check for Main
-        var mainSymbol = methodSymbols.FirstOrDefault(s => s.Name == "Main");
-        Assert.NotNull(mainSymbol);
-    }
-
-    /// <summary>
-    /// Run the full CompilerDriver and verify it gets past MIST_TC_0017.
-    /// </summary>
-    [Fact]
-    public void FullDriver_SampleFiles_NoEntryPointError()
-    {
-        var sampleDir = Path.Combine(FindRepoRoot(), "samples", "HelloMist");
-        var sourceFiles = Directory.GetFiles(sampleDir, "*.mist");
-
-        var driver = new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<Mist.Analysis.Contracts.IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
-
-        var options = new CompilerOptions(
-            ProjectFolder: outputDir,
-            SourcePaths: sourceFiles.ToImmutableArray(),
-            Backend: new BackendId("csharp"),
-            OutputDirectory: outputDir,
-            BinDirectory: Path.Combine(outputDir, "bin"),
-            ProjectName: "TestProject",
-            NamespaceRoot: "TestProject",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
-
-        var result = driver.Compile(options);
-
-        var entryPointError = result.Diagnostics
-            .FirstOrDefault(d => d.Id.Value == "MIST_TC_0017");
-
-        Assert.Null(entryPointError);
     }
 }

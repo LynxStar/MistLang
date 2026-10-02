@@ -16,6 +16,7 @@ namespace Mist.Tests.Semantics;
 /// expression, counted as one argument however many it stood for.
 /// </para>
 /// </summary>
+[Trait("Tier", "3")]
 public sealed class ValuePackTests : ProgramModelProbe
 {
     public ValuePackTests()
@@ -143,5 +144,18 @@ public sealed class ValuePackTests : ProgramModelProbe
     {
         _ = Assert.Single(
             Errors(Run("var n = 5; var s = Calls.Add2(n...);"), "MIST_VAR_0011"));
+    }
+
+    [Fact]
+    public void SpreadOfAnOpenPack_IsRefused()
+    {
+        var diagnostics = BuildRun("var n = 5;", extraTypes: """
+            public class Forwarding
+            {
+                public static int Forward<params TArgs>(params TArgs args) { return Calls.Add2(args...); }
+            }
+            """);
+
+        _ = Assert.Single(Errors(diagnostics, "MIST_VAR_0011"));
     }
 }

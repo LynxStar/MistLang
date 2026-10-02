@@ -42,10 +42,10 @@ invariants:
 
   - id: classic-is-not-the-reference
     statement: >
-      The clean-room rule holds here as it did for the emitter, and binds harder: Mist.Analysis is named
-      in it. Classic's DIAGNOSTIC IDS and messages are fair game as a statement of what the language
-      refuses -- they are observable behaviour -- and are cited throughout the emitter register's tasks
-      for that reason. Its code is not. The sanctioned inputs are the grammar and .kiro/specs.
+      The clean-room rule holds here as it did for the emitter. Classic's DIAGNOSTIC IDS and messages
+      are fair game as a statement of what the language refuses -- they are observable behaviour -- and
+      are cited throughout the emitter register's tasks for that reason. Its code, which survives only in
+      git history, is not. The sanctioned inputs are the grammar and .kiro/specs.
 
   - id: a-refusal-is-a-language-decision
     statement: >
@@ -335,9 +335,6 @@ rules:
       samples/CLAUDE.md's zero-warnings rule where it had only been stated. Measured at zero lines before
       the change, so it was green on arrival.
     tasks:
-      - >
-        Honour CompilerOptions.EnabledAnalyzerIds, which the runner ignores. Decide first whether classic's
-        ids and v2's share one namespace: a caller passing classic's today would switch every v2 rule off.
       - >
         Decide whether ProgramModel/CLAUDE.md's SourceOrigin and "nothing that requires SyntaxNode" text
         should be amended to match the code. It states a design principle, so it is flagged here rather

@@ -7,46 +7,19 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Variadics;
 
 /// <summary>
-/// Smoke tests validating the task 1.3 infrastructure itself: the shared in-process
+/// Smoke tests validating the task 1.3 infrastructure itself: the shared parse-only
 /// <see cref="VariadicsCompilerFixture"/> and the <see cref="MistVariadicsGenerator"/>
-/// surface-form generators. These confirm the fixture compiles source entirely
-/// in-process (with zero external process spawns) and that every generated surface
+/// surface-form generators. These confirm that every representative and generated surface
 /// form is grammar-valid. Assertions about specific AST node kinds and print/parse
 /// round-trips belong to the dedicated parsing and pretty-printer tasks.
 /// </summary>
+[Trait("Tier", "3")]
 public sealed class VariadicsFixtureSmokeTests
 {
     /// <summary>Arbitrary registration for the FsCheck property below.</summary>
     public static Arbitrary<VariadicSurfaceScenario> VariadicScenarios()
     {
         return MistVariadicsGenerator.ArbitraryVariadicSurfaceScenario();
-    }
-
-    [Fact]
-    public void Fixture_CompilesTrivialProgramInProcess()
-    {
-        const string source = """
-            namespace VariadicsTest;
-
-            public class Sample
-            {
-                public int Value()
-                {
-                    return 42;
-                }
-            }
-            """;
-
-        var result = VariadicsCompilerFixture.Compile(source);
-
-        var errors = result.Diagnostics
-            .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .ToList();
-
-        Assert.True(
-            errors.Count == 0,
-            $"Expected a clean in-process compile but got errors: {DescribeDiagnostics(errors)}");
-        Assert.True(result.Succeeded);
     }
 
     [Fact]

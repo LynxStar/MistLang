@@ -183,8 +183,7 @@ public abstract class ProgramModelProbe : IDisposable
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "Probe",
-            NamespaceRoot: "Probe",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+            NamespaceRoot: "Probe");
 
         var buildDiagnostics = new DiagnosticBag();
         var programModel = ProgramModelBuilder.Build(

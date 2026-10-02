@@ -1,5 +1,5 @@
-// SnippetEmitter — Compiles .mist book snippets on the experimental pipeline and
-// writes the emitted C# to their corresponding .cs files. This ensures the book's
+// SnippetEmitter — Compiles .mist book snippets and writes the emitted C# to
+// their corresponding .cs files. This ensures the book's
 // "Emitted C#" tabs always reflect the actual compiler output.
 //
 // Usage:
@@ -181,14 +181,12 @@ string? EmitSnippet(string mistPath)
             BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: config?.Name ?? "Snippet",
             NamespaceRoot: config?.NamespaceRoot ?? "Snippet",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EntryPoint: config?.EntryPoint,
             GlobalUsings: config?.GlobalUsings ?? default,
             Packages: config?.Packages ?? default,
             FrameworkReferences: config?.FrameworkReferences ?? default,
             TargetFramework: config?.TargetFramework ?? "net10.0",
-            OutputType: config?.OutputType ?? ProjectOutputType.Executable,
-            Pipeline: PipelineMode.Experimental);
+            OutputType: config?.OutputType ?? ProjectOutputType.Executable);
 
         var result = driver.Compile(options);
 

@@ -1,143 +1,241 @@
-# Classic retirement: the remaining boundary
+# Classic retirement: completed
 
-Recorded 2026-09-29 by retirement tasks 2 and 3 (preparation and v2 progress reporting). Task 4 deletes
-classic, flips the default and removes classic's tests; this file is what it needs so that it does not
-have to investigate the architecture again. Re-run the checks at the end before trusting any list: they
-were measured at the commit that added this file, and again on 2026-10-01 at `75299f31`, where every
-list below still held.
+Classic was deleted on 2026-10-01, from `ba321ab0`. The compiler has one pipeline, named **standard**:
+the former experimental (v2) pipeline. This file records what was removed, what happened to classic's
+tests, what classic did that the standard pipeline does not, and how the change was verified.
 
-## What no longer needs classic
+## The selector
 
-- **Driver.** `new CompilerDriver(ILexer, IParser, ICompilationProgressReporter? = null)` is the v2 entry
-  point. It knows one backend id, `BackendId.CSharp`, and throws `InvalidOperationException` before any
-  stage runs if handed `PipelineMode.Classic`, rather than reinterpreting it. The legacy constructors
-  (taking `ISemanticModelBuilder`, `IAnalyzer`s and `IBackend`s) live in `Driver/CompilerDriver.Classic.cs`,
-  the only file that composes `ClassicPipeline`; the rest of the driver names no classic type.
-- **Contracts.** `PipelineInput` carries no `IBackend`; `StdlibLoader.LoadFor(DiagnosticBag)` takes none.
-  `ClassicPipeline` resolves its own backend from its registrations and applies the classic-only drop of
-  `Standard/Experimental` units itself.
-- **CLI.** `build`, `run` and `test` with `--pipeline experimental` construct only the clean driver.
-  Classic services are built in `Source/Mist.CLI/Composition/ClassicCompilerComposition.cs`, and only
-  when the classic pipeline is selected (still the default).
-- **SnippetEmitter** uses the clean constructor.
-- **`mist inspect`** (`TypeInspector.Inspect`, same public signature) creates the v2 provider exactly as
-  `ExperimentalPipeline` does and projects it beside Standard, because the provider cannot project
-  without Standard's well-known types. Visible members are the projected members, spelled by v2; hidden
-  reasons are the projectors' own decisions, exposed through `MethodProjector.Judge`,
-  `PropertyProjector.Judge`, `IndexerProjector.Judge` and `AmbientProvider/Withholding.cs`, which the
-  build's projection loops call too. A projected indexer is listed between the properties and the
-  methods as Mist declares one, `indexer this[int]: char`, since its CLR name (`Item`, `Chars`) is not
-  something Mist code can write; a withheld one is listed under that CLR name. The inspector adds only
-  two reasons of its own, both v2 facts: events (v2 projects none) and members of a base the Mist type
-  does not inherit. Fields, constructors and operators are projected by v2 but are not part of the
-  report, as they were not before (csharp-interop-v2 Requirement 10 names properties and methods).
-  Formatting is `Inspection/InspectionReport.cs`.
-- **Parser.** `MistParser`'s multiple-access-modifier check uses `Parsing/AccessModifierSyntax.cs`
-  (full-accessibility-model Requirement 2.6) instead of classic `AccessibilityFacts`, which only classic
-  and its `MultipleAccessModifierRejectionPropertyTests` still reach.
-- **Progress.** The experimental pipeline reports Stages 4 (`Program Model`), 5 (`Analysis`) and 6
-  (`Emit`); see "Progress accounting" below.
+`--pipeline`, `CliArguments.Pipeline`, `CompilerOptions.Pipeline` and `PipelineMode` are kept, in case
+another pipeline is added later (decided 2026-10-01, Arthur). The one CLI value is `standard` and the
+one enum member is `PipelineMode.Standard`; both are the default. `--pipeline classic` and
+`--pipeline experimental` are the parser's unknown-pipeline error, with no alias and no fallback
+(`CliPipelineArgumentTests`). `CompilerDriver.Compile` throws `InvalidOperationException` for a
+`PipelineMode` value that is not `Standard`, and `Program.CompileProject` for a pipeline string that is
+not `standard`. `ExperimentalPipeline` and `ExperimentalStageDetails` are `StandardPipeline` and
+`StandardStageDetails`, and their tests follow. Nothing else named V2 or Experimental was renamed:
+`CSharpEmitterV2`, `samples/AllFeaturesV2`, `Source/Standard/Experimental/` and the rest keep their
+names, and renaming `Mist.ProgramModel` to `Mist.Semantics` remains a separate change.
 
-## The classic-only boundary
+## What was removed
 
-### Driver and contracts
+- **Trees:** `Source/Mist/Semantics/` (71 files) and `Source/Mist/Analysis/` (30 files).
+- **Backend:** the 18 classic files at the top of `Source/Mist/Backends/CSharpTranspiler/`
+  (`CSharpEmitter`, `CSharpTranspilerBackend`, `CSharpTypeMap`, `IntrinsicTypeMap`,
+  `AssemblyTypeProvider`, `CSharpAmbientTypeResolver`, the top-level `TypeProjector`, `VisibilityFilter`,
+  `AmbientExtensionScanner`, `AmbientExtensionMethodInfo`, `CarrierStructRegistry`,
+  `DependentTypeHelpersGenerator`, `MistContextGenerator`, `NeedsAsyncPropagationPass`,
+  `UnionHelperGenerator`, `UnresolvedRelationship`, `ValueTaskUsageAnalysisPass`,
+  `VariadicMonomorphizer`), and `Backends/Contracts/IBackend.cs` and `BackendContext.cs`.
+- **Driver and CLI:** `ClassicPipeline.cs`, `CompilerDriver.Classic.cs` and
+  `Mist.CLI/Composition/ClassicCompilerComposition.cs`. `CompilerDriver` has one public constructor,
+  `(ILexer, IParser, ICompilationProgressReporter? = null)`, checks the backend against
+  `BackendId.CSharp`, and is no longer partial.
+- **Contract members:** `CompilerOptions.EnabledAnalyzerIds` (not reinterpreted as a filter: the runner
+  runs every Stage 5 rule), `CompilerOptions.EmitToDisk`, `CompilerResult.EmittedFiles`,
+  `PipelineInput.DirectReferencePaths` with the driver's `LoadResult` field, and
+  `CompilationUnit.IsExperimentalOnly` with the loader's assignment. `Source/Standard/Experimental/` is
+  ordinary Standard.
+- **Left with no reader by the deletion, and removed:** `CompilationUnit.HasTopLevelStatements` on the
+  driver's unit with the detection in `CompilerDriver.Parse` (the program model derives the fact in
+  `CompilationUnitBuilder`), and `MistCompilation.GetGlobalUsingsForUnit`.
+- **Descriptors nothing reports:** `GenericsDiagnostics`, `OwnershipDiagnostics`, `ReadonlyDiagnostics`,
+  `SemanticDiagnostics`, `TypeCheckDiagnostics` and `VariadicsDiagnostics` whole (279 descriptors), and
+  36 more: 27 in `CommonDiagnostics`, 7 in `EntryPointDiagnostics`, 2 in `BackendDiagnostics`. Each was
+  referenced only from deleted code at `ba321ab0`. Four descriptors that had no reference there either
+  were left: `CommonDiagnostics.NamespaceNotFound`, `TypeAmbiguous`, `PackageNoCompatibleTfm` and
+  `BackendDiagnostics.UnresolvedAmbientType`.
 
-| Item | Status | Task 4 |
+Kept, as shared: `BackendId`, `BackendResult`, `CSharpCompilationDriver`,
+`Diagnostics/RoslynDiagnosticMapper`, `Runtime/`, `TypeInspector`, `Inspection/`, and the `Emitter/`,
+`AmbientProvider/`, `Lowering/` and `Intrinsics/` trees. `mist inspect` stays on the v2 provider.
+
+**`Intrinsics/` has no caller left in `Source/`.** `IntrinsicEmissionTable`, `IIntrinsicEmissionRegistry`
+and `IntrinsicEmissionTemplate` were read only by `CSharpEmitter`, `SemanticModelBuilder` and
+`SymbolTable`; the standard pipeline spells intrinsics in `Lowering/IntrinsicCalls.cs`. The tree and
+`IntrinsicEmissionTableTests` were kept because the retirement brief named `Intrinsics/` as surviving.
+Deleting both is a decision left open.
+
+## What happened to the tests
+
+704 test files were deleted and 596 remain. Each legacy-dependent file was judged by what it proved:
+OBSOLETE (its subject is deleted code), COVERED (a surviving test or a sample in `AllFeaturesV2`
+already proves it), or UNIQUE (a supported contract about surviving code that nothing else proved,
+kept and migrated at its owning tier).
+
+| Area | Deleted | Disposition |
 |---|---|---|
-| `Source/Mist/Driver/CompilerDriver.Classic.cs` | legacy constructors | delete |
-| `Source/Mist/Driver/ClassicPipeline.cs` | classic Stages 4-6 | delete |
-| `CompilerDriver.cs`: `classicPipeline` field, the private constructor's `backendIds`/`classicPipeline` parameters, the `PipelineMode.Classic` branch in `Compile` | dispatch | collapse onto the experimental pipeline; keep the unknown-backend check against `BackendId.CSharp` |
-| `PipelineMode`, `CompilerOptions.Pipeline` (defaults to `Classic`) | selector | keep the selector, remove `Classic`, rename `Experimental` to `Standard` and default to it (decided, see the checklist) |
-| `CompilerOptions.EnabledAnalyzerIds` | read only by `ClassicPipeline` | remove (v2 runs every Stage 5 rule; do not reinterpret it as a v2 filter) |
-| `CompilerOptions.EmitToDisk`, `CompilerResult.EmittedFiles` | classic in-memory emission; v2 always writes to `OutputDirectory` and leaves `EmittedFiles` null | remove, or give v2 a real in-memory mode first if a test still needs one |
-| `PipelineInput.DirectReferencePaths` | read only by `ClassicPipeline` | remove, with the driver's `LoadResult` field that feeds it |
-| `CompilationUnit.IsExperimentalOnly`, and `StdlibLoader` setting it | read only by `ClassicPipeline`'s drop | remove; `Standard/Experimental` becomes ordinary Standard |
-| `Source/Mist/Backends/Contracts/IBackend.cs`, `BackendContext.cs` | legacy emission interface, unused placeholder | delete |
-| `BackendId`, `BackendResult` | shared: the CLI and options carry the id; `CSharpCompilationDriver` returns `BackendResult` | keep |
+| `Analysis/` | 280 | Direct tests of the classic analyzers and their engines over a classic model, and compile-and-diagnose tests asserting classic ids. The accept halves are in samples; the refusals are the Stage 5 rules' own tests. `ClrAccessibilityProjectionPropertyTests` and `ClrSealedProjectionPropertyTests` survive. |
+| `Semantics/` | 186 | Classic `SemanticModelBuilder`, model shapes and `AccessibilityFacts`. 61 files survive, the direct ProgramModel tests among them. |
+| `Backend/` | 139 | Classic CLR projection (26), classic type maps (10), classic-emitted C# text or "classic's output compiles" (95), and 8 compile-and-run tests covered by samples. 129 files survive. |
+| `Variadics/`, `ReadonlyContexts/`, `Generators/`, loose | 56 | Classic model shapes, `TypeCheckerAnalyzer` rules, classic emission and `VariadicMonomorphizer`; three generators of classic types and one with no user. |
+| `Integration/`, `Driver/` | 31 | Sample runs through classic (covered by `AllFeaturesV2`, sample by sample), generated-program property tests through classic, classic progress accounting, and tests that observed the driver through a wrapped classic builder. |
+| `Mist.Tests.InteropFixtures/` | 12 | Fixtures only the classic projection tests named. |
 
-### CLI
+Unique checks kept or moved:
 
-| Item | Task 4 |
-|---|---|
-| `Source/Mist.CLI/Composition/ClassicCompilerComposition.cs` | delete; `CompileProject` constructs the clean driver unconditionally |
-| `CliArguments.Pipeline` (default `"classic"`), `--pipeline` parsing in `CliArgumentParser` | keep the flag, default to v2 under the name `standard`, accept it only (decided, see the checklist) |
+- **Through the clean constructor, unchanged otherwise (Tier 4):** `WithBlockEmissionTests`,
+  `UnitHoistingRuntimeTests`, `ResolvedPackagesReachV2CompilationTests`, `RegexEmissionTests`,
+  `RefinementEmissionTests`, `MonomorphEmissionTests`, `FunctionTypeBridgeTests`,
+  `FieldInitializerRuntimeTests`, `CultureInvariantEmissionTests`, `ClrTupleSignatureRuntimeTests`,
+  `ClrDelegateLambdaTests`, `CloneConversionRuntimeTests`, `ReferencedManifestDependenciesTests`,
+  `LibraryOutputEmissionTests`.
+- **Driver contracts cut out of classic tests:** Stage 1, 2 and 3 detail lines
+  (`CompilerDriverProgressReportingTests`, Tier 4); an unresolvable project reference
+  (`CompilerDriverReferenceIntegrationTests`, Tier 4); a source file that cannot be read
+  (`EndToEndCompilationTests`, Tier 4); a unit whose lexing failed is not parsed
+  (`PipelineBackendPropertyTests`, Tier 4); the resolver-only properties of
+  `ProjectReferencePropertyTests` (Tier 2); package resolution (`PackageResolutionStageTests`, Tier 4);
+  the stdlib parse cache (`StdlibParseCacheTests`); the unknown-backend refusal
+  (`CompilerDriverConstructionTests`).
+- **Rewritten at the seam:** `CompilerDriverGlobalUsingsTests` read the compilation through a wrapped
+  classic builder. It is three Tier 4 compiles: the root manifest's `[global_usings]` reach its units,
+  `CompilerOptions.GlobalUsings` apply without a manifest, and a manifest wins.
+- **Parser tests split out of mixed files (Tier 2-3):** `NestedScopingPropertyTests`,
+  `UnknownInheritanceProhibitionTests`, `StdlibParseCompletenessTests`, `PrettyPrinterPropertyTests`,
+  `AttributeDeclarationPositionDisambiguationPropertyTests`,
+  `DeclarationPositionDisambiguationPropertyTests`, `BinaryLiteralVerbatimEmissionPropertyTests`,
+  `PipelineDebugTests`, `VariadicsFixtureSmokeTests`.
+- **Carried down to the owning tier as one row each (Tier 3):** a Mist extension through `?.`
+  (`ExtensionLookupTests.AnExtensionMemberIsFoundThroughOptionalChaining`), a spread of an open pack
+  refused with `MIST_VAR_0011` (`ValuePackTests.SpreadOfAnOpenPack_IsRefused`), and a `var` pattern over
+  a union (`UnionPatternMatchingEmissionTests`, now an emitter test of that branch).
+- **Moved:** the two `SourceText.ToLinePositionSpan` properties, to
+  `Common/SourceText/SpanToLocationPropertyTests` (Tier 1).
 
-### Backend files only classic reaches
+Nine kept property tests run 100 or 200 iterations at Tier 3, over its limit of 50. They only lex and
+parse, were tagged as they are and not restructured: five in `NestedScopingPropertyTests`, and one each
+in `BinaryLiteralVerbatimEmissionPropertyTests`, `DeclarationPositionDisambiguationPropertyTests`,
+`AttributeDeclarationPositionDisambiguationPropertyTests` and `VariadicsFixtureSmokeTests`.
 
-No file under `ProgramModel/`, `ProgramAnalysis/`, `Backends/CSharpTranspiler/{Emitter,AmbientProvider,Lowering,Intrinsics}`
-or the experimental driver path references these:
+Test helpers: `StdlibTestHelper` keeps `FindRepoRoot` and `LoadStdlib`; `VariadicsCompilerFixture` keeps
+`Parse`, `ParsedCleanly` and `ParseOutcome`, and no longer compiles anything.
 
-`AmbientExtensionMethodInfo`, `AmbientExtensionScanner`, `AssemblyTypeProvider`, `CSharpAmbientTypeResolver`,
-`CSharpEmitter`, `CSharpTranspilerBackend`, `CSharpTypeMap`, `CarrierStructRegistry`,
-`DependentTypeHelpersGenerator`, `IntrinsicTypeMap`, `MistContextGenerator`, `NeedsAsyncPropagationPass`,
-`TypeProjector` (the top-level one; `AmbientProvider/TypeProjector.cs` is v2's), `UnionHelperGenerator`,
-`UnresolvedRelationship`, `ValueTaskUsageAnalysisPass`, `VariadicMonomorphizer`, `VisibilityFilter` -- all
-in `Source/Mist/Backends/CSharpTranspiler/`. Since `mist inspect` moved, `AssemblyTypeProvider.FindClrTypeForInspection`
-has no caller, and `VisibilityFilter.Classify`, `MemberClassification` and `MemberHiddenReason` are
-reached only from the classic `RefStructProjectionTests`.
+The refusal migration (`backlog/refusal-corpus-migration.md`) was not repeated and its replacements
+are untouched.
 
-Shared with v2 and kept: `CSharpCompilationDriver.cs`, `Diagnostics/RoslynDiagnosticMapper.cs`,
-`Runtime/`, `TypeInspector.cs` and `Inspection/` (now on the v2 provider).
+## The sample check
 
-### Whole trees
+`AllFeaturesV2_CompilesRunsAndMatchesBaseline` is the one Tier 6 test, and it names no pipeline, so it
+holds the CLI's default. `Testing_RunsUnderTheTestCommand` holds `samples/Testing` under `mist test`,
+also on the default. `RepeatedCliInvocationTests` names `--pipeline standard`.
 
-`Source/Mist/Semantics/` and `Source/Mist/Analysis/`, and the diagnostic descriptors only they report.
-`Source/Mist/ProgramModel/CLAUDE.md` plans renaming `Mist.ProgramModel` to `Mist.Semantics` afterwards;
-that is a separate change.
+Before the classic guard `AllFeatures_CompilesRunsAndMatchesBaseline` was removed, measured on
+2026-10-01:
 
-### Tests that run v2 through the legacy constructor
+- All 70 references in `samples/AllFeatures/mist.toml` are among the 93 in
+  `samples/AllFeaturesV2/mist.toml`.
+- 69 of its 71 `RunDemo()` calls are in `AllFeaturesV2/Program.mist` as written. `VoidType.Program.RunDemo()`
+  is there as `VoidType.VoidDemo.RunDemo()`, which is all it calls. `UnknownTypeDemo.RunDemo()` is a
+  file of the classic orchestrator itself, `samples/AllFeatures/UnknownType.mist`; its three behaviours
+  (an `unknown` local, narrowing from `unknown`, covariant widening with a narrow back) are in
+  `samples/UnknownType`, which `AllFeaturesV2` composes. Its seven lines are the only lines of
+  `AllFeatures.out`, besides the header, absent from `AllFeaturesV2.out`.
+- The standard pipeline runs `samples/AllFeatures` with exit 0, nothing on stderr, and stdout equal to
+  `samples/__baselines__/AllFeatures.out` (1,796 lines).
 
-These pass `PipelineMode.Experimental` to the legacy constructor, so they keep working now but must move to
-the clean constructor before `CompilerDriver.Classic.cs` goes:
+`samples/AllFeatures` and `AllFeatures.out` are kept as historical data and nothing compiles them:
+`MemoizationCorrectnessAndPerformanceTests` reads the directory as a parse corpus and
+`SampleProjectTomlTests` as a project-file fixture. `SpecProofCodeMatchesSampleTest` reads
+`AllFeaturesV2.out` alone: all 26 expected-output blocks it checked are slices of it, and so is
+`delegate-func-conversion`'s, which the classic baseline could not hold, so both exemption lists are
+gone and 27 are checked. `Enums_StillCompilesAfterReadonlyModifierAdditions` compiled `samples/Enums`
+on classic in-process and is covered by the orchestrator.
 
-`Test/Mist.Tests/Integration/`: `WithBlockEmissionTests`, `UnitHoistingRuntimeTests`,
-`ResolvedPackagesReachV2CompilationTests`, `RegexEmissionTests`, `RefinementEmissionTests`,
-`MonomorphEmissionTests`, `FunctionTypeBridgeTests`, `FieldInitializerRuntimeTests`,
-`CultureInvariantEmissionTests`, `ClrTupleSignatureRuntimeTests`, `ClrDelegateLambdaTests`,
-`CloneConversionRuntimeTests`; `Test/Mist.Tests/Driver/ReferencedManifestDependenciesTests`;
-`Test/Mist.Tests/Backend/LibraryOutputEmissionTests`. Helpers that construct classic services:
-`Test/Mist.Tests/Helpers/VariadicsCompilerFixture.cs`, `Test/Mist.Tests/Helpers/StdlibTestHelper.cs`.
-`CompilerDriverConstructionTests` holds both routes; its legacy-route case goes with the legacy route.
-`CompilerDriverProgressReportingTests` and `TopLevelConstructCountPropertyTests` are classic's.
+## What classic did that the standard pipeline does not
 
-## Task 4 checklist
+Found while classifying classic's tests. None was fixed here; each is language work. The measured
+ones are entered in `backlog/general.md`.
 
-Steps 2 to 8 were confirmed as written on 2026-10-01; step 1 carries the one decision that was open.
+Measured on 2026-10-01:
 
-1. Flip the defaults (`CompilerOptions.Pipeline`, `CliArguments.Pipeline`) to v2. **Decided 2026-10-01
-   (Arthur):** the selector survives, in case another pipeline is added later, but v2 is the default and
-   the only option. So `--pipeline` and `PipelineMode` stay, `classic` and `PipelineMode.Classic` go, and
-   `--pipeline classic` becomes the parser's existing unknown-pipeline error rather than a silent
-   fallback. The remaining value is renamed: `experimental` becomes `standard` (`--pipeline standard`,
-   `PipelineMode.Standard`), and `--pipeline experimental` is then an unknown pipeline too. The value is
-   spelled as a string in `CliArgumentParser`, `CliArguments`, `Program.cs`, `RepeatedCliInvocationTests`
-   and `SamplesCompileAndMatchBaselineTest`; `PipelineMode.Experimental` is named in 20 files under
-   `Source`, `Test` and `tools`; and `--pipeline experimental` is written in the root `CLAUDE.md`,
-   `Source/Mist/ProgramModel/CLAUDE.md`, three specs and two other backlog files. The types named for
-   the old value (`ExperimentalPipeline`, `ExperimentalStageDetails` and their tests) follow it. Unrelated
-   and left alone: `Source/Standard/Experimental/` and `CompilationUnit.IsExperimentalOnly`, which mean
-   Standard-library files classic cannot compile (step 4 removes the flag).
-2. Move the tests listed above to `new CompilerDriver(lexer, parser[, reporter])`.
-3. Delete `CompilerDriver.Classic.cs`, `ClassicPipeline.cs`, `ClassicCompilerComposition.cs`; collapse the
-   driver's dispatch and private constructor.
-4. Remove the classic-only contract members in the table above.
-5. Delete the classic-only backend files, `IBackend.cs` and `BackendContext.cs`.
-6. Delete `Semantics/`, `Analysis/`, their tests, and descriptors nothing else reports.
-7. Update `.kiro/specs/compiler-progress-output/requirements.md` Requirements 6 and 7, whose wording
-   names classic symbols, to the v2 definitions below.
-8. Verify:
+- **Structured-context discipline.** A call needing a `with` context and having none compiles and
+  throws in `MistContext.Peek`. Classic refused it (`MIST_CTX_0001` to `MIST_CTX_0006`).
+- **A pack-typed abstract slot at a concrete arity** (variadics 22.2) is refused with
+  `MIST_PA_SLOT_SIGNATURE_MISMATCH`. The generic, spreading form is admitted.
+- **An undefined namespace in `[global_usings]`** (global-usings 4.3) reaches Roslyn as `MIST_CS_ERROR`
+  where classic warned `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE` and continued.
+- **A CLR extension called without its namespace**, `numbers.Count()` on a `List<int>`, is refused by
+  Roslyn (`MIST_CS_ERROR`) and not by the binder.
 
-   ```bash
-   grep -rlE 'Mist\.(Semantics|Analysis)\b' Source tools Test --include='*.cs'
-   ```
+Read from the source and the specs, not probed:
 
-   ```bash
-   grep -rn 'IBackend\b\|ClassicPipeline\|PipelineMode\.Classic' Source tools Test --include='*.cs'
-   ```
+- Entry-point validation beyond a duplicate entry point, a missing one and a library with top-level
+  statements: classic's `MIST_EP_0001` to `MIST_EP_0007`.
+- Variadics refusals with no reporter: Requirements 6.3, 6.4, 6.6 (`MIST_VAR_0002` to `0004`), 8.7
+  (`0006`), 7.9 and 13.5 (`0001` on a value-parameter list), 16.2 (`0010`), 10.5 (`0008`).
+- Transitive reference visibility (project-references Requirement 6.2). `MistProject` documents the
+  flat project list as deliberate, so this is a spec to amend and not a rule to write.
+- Continuing past a package-resolution error (csharp-interop-v2 Requirement 2.6): `StandardPipeline`
+  returns at its entry gate on any error.
+- Five refusals the standard pipeline does report are named in no test:
+  `MIST_PM_AWAIT_OF_NON_TASK`, `MIST_PM_ASYNC_NOT_ALLOWED`, `MIST_PM_DUPLICATE_ENTRY_POINT`,
+  `MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE` and `MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH`. That predates
+  the deletion.
+
+## Verification
+
+Run on 2026-10-01 and 2026-10-02 against the tree that became this change; no file under `Source/`,
+`Test/`, `tools/` or `samples/` changed after the full ledger started.
+
+- **Build.** `dotnet build Mist.slnx`, with the pinned Storm submodule at `4848cb01`, and
+  `dotnet build tools/SnippetEmitter/SnippetEmitter.csproj`: 0 warnings, 0 errors.
+  `dotnet format Mist.slnx --verify-no-changes`: exit 0.
+- **Audit**, over `*.cs` in `Source`, `tools` and `Test`: no file matches `Mist\.(Semantics|Analysis)\b`;
+  nothing matches `IBackend\b`, `ClassicPipeline`, `PipelineMode\.(Classic|Experimental)`,
+  `EnabledAnalyzerIds`, `EmitToDisk`, `EmittedFiles\b`, `DirectReferencePaths`, `IsExperimentalOnly`,
+  `ExperimentalPipeline`, `ExperimentalStageDetails`, `SemanticModelBuilder`, `TypeCheckerAnalyzer`,
+  `CSharpTranspilerBackend` or `CSharpEmitter\b`. `"classic"` and `"experimental"` appear only as the
+  refused values in `CliPipelineArgumentTests`. Comments that cite classic's verdict as the reason for
+  a rule were left as the evidence they are.
+- **Full ledger**, `tools/test-ledger/run.sh`, unfiltered, `20261001-234707`: test exit 0 after 92 s.
+
+  | Assembly | At `ba321ab0` | After | |
+  |---|---|---|---|
+  | `mist.tests.dll` | 10,610 | 7,079 | all passed |
+  | `mist.cli.tests.dll` | 99 | 105 | all passed |
+  | `storm.sourcegenerator.tests.dll` | 812 | 812 | all passed |
+  | `storm.consumerintegration.tests.dll` | 46 | 46 | all passed |
+
+  The `ba321ab0` column is the same script on an untouched worktree of that commit, the same night
+  (180 s, all passed). Mist.Tests is 3,531 lower: the 692 deleted files under `Test/Mist.Tests` held
+  classic's tests, and the rows added above are a handful. The CLI's six are `CliPipelineArgumentTests`.
+  In the run: `AllFeaturesV2_CompilesRunsAndMatchesBaseline` with its zero-warning assertion,
+  `Testing_RunsUnderTheTestCommand`, the refusal replacements, and the Storm and Mist integration
+  assemblies.
+- **Book snippets.** The updated SnippetEmitter over a scratch copy of the whole of `book/snippets`
+  (404 `.mist`, 382 `.cs`, the three sidecar manifests, the one `.support` directory): 381 pairs, 0
+  failed, 371 unchanged, 10 regenerated; a second pass regenerated none. The `ba321ab0` emitter over
+  another scratch copy regenerates the same ten, byte for byte, so they are stale tabs that predate
+  this change: each loses or gains `__CreateDefault` and default-initialisation lines, from the
+  defaultability commits of 2026-10-01 (`fcb2d967`, `60ca47cb`, `9421ad87`), after the tabs were last
+  generated on 2026-09-27. They are `advanced/attributes/type-arguments`,
+  `advanced/default-keyword/constructor-and-default`, `advanced/purity/accessor-promises`,
+  `basics/functions/static-methods`, `object-model/classes/constructor-chaining`,
+  `object-model/classes/static-methods`, `object-model/method-overloading/constructor-overloading`,
+  `object-model/properties/initializer-blocks`, `type-system/accessibility/defaults` and
+  `type-system/accessibility/protected-in-sealed`. No book output was regenerated in this change.
+- **Probes** behind the sample check and the list above were run with the built CLI on throwaway
+  projects.
+
+## Left open
+
+- Whether to delete `samples/AllFeatures`, `AllFeatures.out` and the `Intrinsics/` tree, each kept here
+  on the brief's wording and each with the evidence above.
+- The ten stale book tabs, which one `dotnet run --project tools/SnippetEmitter` regenerates.
+- `backlog/storm.md` defers four residue items "until classic is sunset"; that condition is now met.
+  No Storm change was made.
+- Specs that now describe classic only: project-references Requirement 6, csharp-interop-v2
+  Requirement 2.6, global-usings Requirement 4.3, and the Glossary and Introduction of
+  `compiler-progress-output`, whose Requirements 6 and 7 alone were rewritten (criteria 7.10 to 7.12
+  are cross-stage and sit there for that reason).
+- Plans written against classic types: `backlog/multi-project-emission.md`,
+  `backlog/refactor-ast-on-compilation-unit.md` and `backlog/grammar.md`.
 
 ## Progress accounting (v2)
 
-What `ExperimentalPipeline` reports, for when the spec's Requirements 6 and 7 are rewritten. Details are
+What `StandardPipeline` reports. `.kiro/specs/compiler-progress-output/requirements.md` Requirements 6
+and 7 state the same thing as acceptance criteria. Details are
 passed unindented; seconds are `F2` in the invariant culture.
 
 - **Stage 4 `Program Model`** covers ambient-provider creation and `ProgramModelBuilder.Build`. Detail:
@@ -146,10 +244,9 @@ passed unindented; seconds are `F2` in the invariant culture.
   top-level declarations, so a nested type is never counted, and monomorphs, union carriers and closures
   are the emitter's and never appear there. A newtype's clone replaces the newtype in its unit and is
   excluded explicitly; enums and aliases are not counted. Abstract is what the spec's "interface" and
-  "trait" mean today. Standard is excluded; referenced projects are included because classic includes
-  them (measured on a probe: classic counts a referenced project's class, struct and abstract types).
-  Classic's figure also includes Standard and nested types, so the two pipelines print different numbers
-  for the same program. A null model completes the stage with 0 and stops.
+  "trait" mean today. Standard is excluded; referenced projects are included, as classic included
+  them. Classic's figure also counted Standard and nested types, so a number recorded from classic is not
+  comparable. A null model completes the stage with 0 and stops.
 - **Stage 5 `Analysis`** runs only with a model. `ProgramAnalysis/AnalysisTimings.cs` times each existing
   `IProgramAnalyzer.Analyze` call and adds it to that analyzer *instance's* entry, over every scope the
   runner analyzes: the program, each clone conversion actually judged (one with a `BindingFailure` is

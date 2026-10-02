@@ -1,23 +1,20 @@
 using System.Collections.Immutable;
 using System.Xml.Linq;
-using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// Tier 4, the boundary from the driver's project options to what the experimental pipeline emits
+/// Tier 4, the boundary from the driver's project options to what the pipeline emits
 /// for a library: no entry point demanded, top-level statements refused as Mist's own error rather
 /// than Roslyn's, and the test SDK's generated entry point suppressed exactly when the sources carry
 /// a Main of their own. The project file is read back because nothing in the compiler does, and the
 /// suppression is invisible until `dotnet test` either finds two entry points or none.
 /// </summary>
+[Trait("Tier", "4")]
 public sealed class LibraryOutputEmissionTests : IDisposable
 {
     private readonly string scratchDir;
@@ -49,12 +46,7 @@ public sealed class LibraryOutputEmissionTests : IDisposable
 
     private static CompilerResult Compile(string projectDir, ProjectOutputType outputType, string? entryPoint = null)
     {
-        var driver = new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
         var name = Path.GetFileName(projectDir);
 
         return driver.Compile(new CompilerOptions(
@@ -65,10 +57,8 @@ public sealed class LibraryOutputEmissionTests : IDisposable
             BinDirectory: Path.Combine(projectDir, "bin"),
             ProjectName: name,
             NamespaceRoot: name,
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EntryPoint: entryPoint,
-            OutputType: outputType,
-            Pipeline: PipelineMode.Experimental));
+            OutputType: outputType));
     }
 
     private static XDocument ProjectFile(string projectDir)

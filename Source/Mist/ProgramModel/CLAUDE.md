@@ -3,19 +3,13 @@
 
 ## Purpose
 
-`Mist.ProgramModel` is the foundation for a new compiler frontend that will eventually replace the existing `Mist.Semantics` system. It represents the fully resolved semantic structure of a Mist program — types, members, namespaces, and relationships — navigable without reference to syntax trees.
+`Mist.ProgramModel` is the compiler's frontend. It represents the fully resolved semantic structure of a Mist program — types, members, namespaces, and relationships — navigable without reference to syntax trees.
 
 ## Isolation Rule
 
-Code under `Source/Mist/ProgramModel/` MUST NOT reference any type from the old semantic system. This means:
+`Mist.ProgramModel` is the only semantic model in the tree. The system it replaced, classic's `Mist.Semantics` (`ISemanticModel`, `ISymbol`, `IType`, `IScope`, `SymbolTable` and the rest), exists only in git history, and there is no adapter to it.
 
-- No `using Mist.Semantics.*`
-- No `using Mist.Semantics.Contracts.*`
-- No `using Mist.Semantics.Model.*`
-- No `using Mist.Semantics.Model.Types.*`
-- No references to `ISemanticModel`, `ISymbol`, `IType`, `IScope`, `SymbolTable`, `SemanticModel`, `ClassType`, `StructType`, `AbstractType`, `ExtensionRegistry`, `ConformanceMap`, or any other type from the legacy system
-
-The old and new systems are intentionally separate. The only bridge between them is an adapter layer that lives OUTSIDE of `ProgramModel/` and translates old representations into new ones.
+Code under `Source/Mist/ProgramModel/` MUST NOT reintroduce those types or be derived from that source — see the clean-room rule in the root `CLAUDE.md`.
 
 ## Design Principles
 
@@ -23,11 +17,11 @@ The old and new systems are intentionally separate. The only bridge between them
 
 2. **Contracts first**: All public API is defined through interfaces in `ProgramModel/Contracts/`. Implementations are internal details.
 
-3. **Own types**: The program model defines its own type reference system (`ITypeReference`), its own enums (`OwnershipKind`, `ParameterPassingKind`, etc.), and its own source location type (`SourceOrigin`). It does not reuse old-system types even when they look similar.
+3. **Own types**: The program model defines its own type reference system (`ITypeReference`), its own enums (`OwnershipKind`, `ParameterPassingKind`, etc.), and its own source location type (`SourceOrigin`).
 
 4. **Immutable after construction**: Once built, the program model is read-only. No `Record*` or `Set*` mutation methods on the model itself. Analysis results from later passes live in separate annotation stores.
 
-5. **No syntax nodes as keys**: Unlike the old `ISemanticModel` which uses `SyntaxNode` as the primary lookup key, the program model is indexed by its own semantic entities.
+5. **No syntax nodes as keys**: The program model is indexed by its own semantic entities, never by `SyntaxNode` as the primary lookup key.
 
 ## Structure
 
@@ -47,15 +41,9 @@ dotnet format Mist.slnx --include Source/Mist/ProgramModel/
 dotnet format Mist.slnx --verify-no-changes --include Source/Mist/ProgramModel/
 ```
 
-## Dual-Path Strategy
+## Planned Rename
 
-During the transition period:
-- The old `SemanticModelBuilder` continues to run and produce `ISemanticModel`
-- `ProgramModelBuilder` runs alongside it, producing `IProgramModel`, selected with
-  `--pipeline experimental`
-- Consumers (analyzers, emitter) are ported one at a time from old → new
-- When all consumers use `IProgramModel`, the old system is removed
-- The `Mist.ProgramModel` namespace is then renamed to `Mist.Semantics`
+`ProgramModelBuilder` is the only model builder, and every consumer (analyzers, emitter) reads `IProgramModel`. Renaming the `Mist.ProgramModel` namespace to `Mist.Semantics` is a separate, future change; the name is free, since classic's `Mist.Semantics` is no longer in the tree.
 
 ## What Belongs Here
 
@@ -108,7 +96,7 @@ These do NOT need individual build+test cycles.
 
 ## Tests
 
-ProgramModel is tested like every other part of v2, by the testing philosophy, `.claude/skills/testing-philosophy/SKILL.md` (`/testing-philosophy`), strictly. There is no exemption: ProgramModel is not "exercised indirectly through end-to-end tests". One binder method is Tier 1; a binder's dispatch chain is Tier 2; `ProgramModelBuilder.Build` over a minimal source with the real ambient provider is Tier 3. A program compiled end to end is not a binder test, and a sample does not verify the binder.
+ProgramModel is tested like every other part of the compiler, by the testing philosophy, `.claude/skills/testing-philosophy/SKILL.md` (`/testing-philosophy`), strictly. There is no exemption: ProgramModel is not "exercised indirectly through end-to-end tests". One binder method is Tier 1; a binder's dispatch chain is Tier 2; `ProgramModelBuilder.Build` over a minimal source with the real ambient provider is Tier 3. A program compiled end to end is not a binder test, and a sample does not verify the binder.
 
 After a batch, build, then run the tests that cover what you changed (`--filter`).
 

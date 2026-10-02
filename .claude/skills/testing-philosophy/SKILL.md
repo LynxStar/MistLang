@@ -1,6 +1,6 @@
 ---
 name: testing-philosophy
-description: The 6-tier test pyramid for MistLang in full - what tier a test belongs at, what infrastructure each tier may use, what is forbidden at each, and why. The binding rules are summarized in the root CLAUDE.md under "Tests". Use when writing, moving, or reviewing any test, or when deciding whether a test should exist at all. Strict adherence is required for the experimental (v2) pipeline.
+description: The 6-tier test pyramid for MistLang in full - what tier a test belongs at, what infrastructure each tier may use, what is forbidden at each, and why. The binding rules are summarized in the root CLAUDE.md under "Tests". Use when writing, moving, or reviewing any test, or when deciding whether a test should exist at all. Strict adherence is required for all test code.
 ---
 
 
@@ -18,10 +18,7 @@ Before writing any test, answer: **what intended behavior does this pin down, an
 
 ## Enforcement Scope
 
-- **Experimental pipeline** (ProgramModel, EmitterV2, AmbientProviderV2, ExperimentalPipeline): strict adherence required. Every test must land at the correct tier with the correct constraints. No exceptions.
-- **Classic pipeline** (SemanticModel, old emitter, old analyzers): this is a guideline. The classic pipeline and all its tests will eventually be discarded. Do not invest in reshaping existing classic tests. Do not write new classic pipeline tests that violate these tiers.
-
-The old world fixes itself when we delete it. The new world must not dig the same hole.
+Strict adherence is required for all test code. The compiler has one pipeline (ProgramModel, ProgramAnalysis, EmitterV2, AmbientProviderV2, StandardPipeline), and every test must land at the correct tier with the correct constraints. No exceptions.
 
 ## The 6-Tier Pyramid
 
@@ -113,7 +110,7 @@ Tests form a pyramid. The higher the tier, the more of the system it exercises, 
 
 **Scope:** Bridges two or more pipeline phases. The invariant being tested is the *seam* between them -- that data flows correctly across the boundary. Each integration test should name which boundary it tests.
 
-Boundaries in the experimental pipeline:
+Boundaries in the pipeline:
 - Source text -> Lexer/Parser -> AST
 - AST -> ProgramModel Builder -> IProgramModel
 - IProgramModel -> CSharpEmitterV2 -> Emitted C# source
@@ -156,47 +153,48 @@ Boundaries in the experimental pipeline:
 
 **Example:** `EnumReadonlyRestriction_CompilesAndProducesExpectedOutput` -- compiles one sample standalone through the CLI and asserts on its output.
 
-**Quantity:** Sparse, and justified per test. For the experimental pipeline, the Tier 6 orchestrator (`AllFeaturesV2`) already runs every working sample in one process, so a standalone Tier 5 test is redundant by default. Add one only when a sample needs a claim the orchestrator cannot make -- for example that it builds as its own root project rather than as a referenced one. Every Tier 5 test costs a process spawn, so the burden of proof is on adding it, not on omitting it.
+**Quantity:** Sparse, and justified per test. The Tier 6 orchestrator (`AllFeaturesV2`) already runs every working sample in one process, so a standalone Tier 5 test is redundant by default. Add one only when a sample needs a claim the orchestrator cannot make -- for example that it builds as its own root project rather than as a referenced one. Every Tier 5 test costs a process spawn, so the burden of proof is on adding it, not on omitting it.
 
 ---
 
 ### Tier 6: Full System
 
-**Purpose:** Prove an entire pipeline works end-to-end on the language surface area it claims to support.
+**Purpose:** Prove the entire pipeline works end-to-end on the language surface area it claims to support.
 
-**Scope:** An orchestrator sample that composes other samples by project reference, compiled and executed through the real CLI, with stdout diffed against a stored baseline. One per pipeline:
+**Scope:** One orchestrator sample that composes other samples by project reference, compiled and executed through the real CLI on its default pipeline, with stdout diffed against a stored baseline:
 
-| Pipeline | Sample | Baseline | Scope |
-|---|---|---|---|
-| Classic | `samples/AllFeatures` | `samples/__baselines__/AllFeatures.out` | Every implemented language construct |
-| Experimental | `samples/AllFeaturesV2` | `samples/__baselines__/AllFeaturesV2.out` | Every sample currently working on v2 |
+| Sample | Baseline | Scope |
+|---|---|---|
+| `samples/AllFeaturesV2` | `samples/__baselines__/AllFeaturesV2.out` | Every working sample |
 
-The two differ in what they claim. The classic orchestrator is a regression guard over a finished surface: it references every sample and must never shrink. The experimental orchestrator is a *progress ledger* over an unfinished one: it references only what v2 can actually compile and run today, and it grows.
+The orchestrator is a *progress ledger*: it references only what the compiler can actually compile and run today, and it grows. It is equally the regression guard: a sample it references must keep printing its baseline lines, so it must never shrink.
+
+`samples/AllFeatures` and `samples/__baselines__/AllFeatures.out` are historical data, the orchestrator and baseline of the retired classic pipeline. They are not a second orchestrator: no Tier 6 test runs them and nothing is added to them.
 
 **Allowed infrastructure:**
 - Everything
 
 **Forbidden:**
-- More than 2 tests at this tier. Ever. One per pipeline, no exceptions.
-- A third orchestrator for any reason. If a new pipeline appears, it replaces one of these, or it does not get a Tier 6 test.
+- More than 1 test at this tier. Ever. No exceptions.
+- A second orchestrator for any reason. If a new pipeline appears, it takes over this orchestrator, or it does not get a Tier 6 test.
 
-**Examples:** `AllFeatures_CompilesRunsAndMatchesBaseline`, `AllFeaturesV2_CompilesRunsAndMatchesBaseline`
+**Example:** `AllFeaturesV2_CompilesRunsAndMatchesBaseline`
 
-**Quantity:** Exactly 2.
+**Quantity:** Exactly 1.
 
-#### The experimental orchestrator IS the recorded progression
+#### The orchestrator IS the recorded progression
 
-`samples/AllFeaturesV2` is the single source of truth for which samples work on the v2 pipeline. A sample is working on v2 if and only if:
+`samples/AllFeaturesV2` is the single source of truth for which samples work. A sample is working if and only if:
 
 1. It is listed under `[references]` in `samples/AllFeaturesV2/mist.toml`, and
 2. Its `RunDemo()` is called from `samples/AllFeaturesV2/Program.mist`, and
 3. `AllFeaturesV2_CompilesRunsAndMatchesBaseline` is green.
 
-Recording progress means adding those two lines and extending the baseline. Nothing else records it. Do not track v2 progress in a status field, a checklist, or a hand-maintained list, because none of those are executable and all of them can drift from reality.
+Recording progress means adding those two lines and extending the baseline. Nothing else records it. Do not track progress in a status field, a checklist, or a hand-maintained list, because none of those are executable and all of them can drift from reality.
 
 This design makes progress impossible to lose silently. Deleting a reference removes output lines, which fails the baseline diff. Breaking a previously-working sample fails the same test. A declarative `status: done` field can be wrong forever without anything noticing; a Tier 6 baseline cannot.
 
-**Corollary:** "works standalone on v2" is not the same claim as "works in composition on v2," and only the second one counts. A sample can compile and run correctly on its own while still failing inside the orchestrator, because composition additionally exercises cross-project reference loading, namespace-qualified access into referenced projects, and entry-point selection across multiple `Main` methods. Only membership in `AllFeaturesV2` proves the composed claim.
+**Corollary:** "works standalone" is not the same claim as "works in composition," and only the second one counts. A sample can compile and run correctly on its own while still failing inside the orchestrator, because composition additionally exercises cross-project reference loading, namespace-qualified access into referenced projects, and entry-point selection across multiple `Main` methods. Only membership in `AllFeaturesV2` proves the composed claim.
 
 ---
 
@@ -204,8 +202,8 @@ This design makes progress impossible to lose silently. Deleting a reference rem
 
 ### Declare the tier in test metadata
 
-Every new or migrated test must carry its tier in the framework's discoverable metadata, on
-either pipeline. This repo uses xUnit: `[Trait("Tier", "1")]` through `[Trait("Tier", "6")]`.
+Every new or migrated test must carry its tier in the framework's discoverable metadata.
+This repo uses xUnit: `[Trait("Tier", "1")]` through `[Trait("Tier", "6")]`.
 Exactly one effective tier per test. Tag a concrete class only if all tests share its tier;
 otherwise tag individual methods and leave the class untagged. Class and method traits combine,
 so method traits cannot override a class tier. `[Fact]`, `[Theory]` and FsCheck `[Property]` all
@@ -249,7 +247,7 @@ An integration test should be named after the boundary it proves, not the featur
 
 ### Progress is recorded by composition, not by declaration
 
-Enabling a sample on the experimental pipeline is recorded by adding it to `samples/AllFeaturesV2` (reference + `RunDemo()` call + baseline lines), which the single Tier 6 experimental test then enforces. It is not recorded by adding a Tier 5 test per sample, and it is not recorded by a status field in a generated file.
+Enabling a sample is recorded by adding it to `samples/AllFeaturesV2` (reference + `RunDemo()` call + baseline lines), which the single Tier 6 test then enforces. It is not recorded by adding a Tier 5 test per sample, and it is not recorded by a status field in a generated file.
 
 `backlog/emitter-v2-capability-progression.yaml` is a *planning* artifact, not a progress artifact. It orders the compiler capabilities the v2 emitter still needs and records which sample unlocks at each one. It does not assert that anything works. Sample status there is derived, never declared — a sample is runnable only when every capability in its dependency closure is delivered — and `AllFeaturesV2` membership remains authoritative when the two disagree.
 
@@ -270,7 +268,7 @@ Do not write another system test to cover the edge case. Push it down.
 
 - **Language-guaranteed behavior.** The type system already proves it.
 - **Framework/library behavior.** Assume xUnit, Roslyn, and the BCL work.
-- **Positive behavior already proven by AllFeatures** -- unless the invariant is negative (rejection/diagnostic) which AllFeatures structurally cannot cover. That exception says a refusal is worth testing, not where: a diagnostic is owned by the rule that reports it, so it is proven at that rule's tier -- Tier 1, or Tier 2 when the rule walks a body. Compiling a program to watch it fail is Tier 4+ for a single-stage invariant, the most common violation above.
+- **Positive behavior already proven by the orchestrator** (`AllFeaturesV2`) -- unless the invariant is negative (rejection/diagnostic) which the orchestrator structurally cannot cover. That exception says a refusal is worth testing, not where: a diagnostic is owned by the rule that reports it, so it is proven at that rule's tier -- Tier 1, or Tier 2 when the rule walks a body. Compiling a program to watch it fail is Tier 4+ for a single-stage invariant, the most common violation above.
 - **Upstream stages.** If you're testing stage N, do not re-verify stages 1 through N-1. Their own tests cover them.
 
 ## Deciding Where a Test Belongs
@@ -283,7 +281,6 @@ Do not write another system test to cover the edge case. Push it down.
 
 ## Applies To
 
-- All test code under `Test/` targeting the experimental pipeline (strict enforcement)
-- All test code under `Test/` targeting the classic pipeline (guideline)
+- All test code under `Test/` (strict enforcement)
 - Test-strategy decisions in feature specs and design documents
 - Any change that adds, moves, or removes a test

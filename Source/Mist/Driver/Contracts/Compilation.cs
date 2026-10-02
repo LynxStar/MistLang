@@ -4,7 +4,7 @@ namespace Mist.Driver.Contracts;
 
 /// <summary>
 /// A logical grouping of one or more compilation units processed together,
-/// sharing a single semantic model.
+/// sharing a single program model.
 /// </summary>
 public sealed record MistCompilation(
     ImmutableArray<CompilationUnit> Units,
@@ -41,32 +41,4 @@ public sealed record MistCompilation(
     /// and the standard library has none.
     /// </summary>
     public ImmutableArray<string> GlobalUsings { get; init; } = ImmutableArray<string>.Empty;
-
-    /// <summary>
-    /// Resolves the global usings for a compilation unit by its owning project. Self and stdlib
-    /// units use <see cref="GlobalUsings"/>; referenced-project units use their project's
-    /// <see cref="MistProject.GlobalUsings"/>.
-    /// </summary>
-    public ImmutableArray<string> GetGlobalUsingsForUnit(CompilationUnit unit)
-    {
-        if(unit.IsStdlib)
-        {
-            return ImmutableArray<string>.Empty;
-        }
-
-        if(unit.OriginProjectPath is null)
-        {
-            return GlobalUsings;
-        }
-
-        foreach(var project in Projects)
-        {
-            if(project.CanonicalTomlPath == unit.OriginProjectPath)
-            {
-                return project.GlobalUsings;
-            }
-        }
-
-        return ImmutableArray<string>.Empty;
-    }
 }

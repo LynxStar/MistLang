@@ -14,6 +14,7 @@ namespace Mist.Tests.Driver;
 /// whichever manifest declared it, because a declared version is a floor.
 /// </para>
 /// </summary>
+[Trait("Tier", "1")]
 public sealed class ProjectDependencyUnionTests
 {
     private static CompilerOptions Root(
@@ -28,7 +29,6 @@ public sealed class ProjectDependencyUnionTests
             BinDirectory: "probe/bin",
             ProjectName: "Probe",
             NamespaceRoot: "Probe",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             Packages: packages,
             FrameworkReferences: frameworkReferences);
     }

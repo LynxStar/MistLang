@@ -14,6 +14,7 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
+[Trait("Tier", "3")]
 public sealed class MissingIntrinsicRefusalTests : IDisposable
 {
     private const string Statement = "var magnitude = Math.Abs(-1);";
@@ -43,7 +44,6 @@ public sealed class MissingIntrinsicRefusalTests : IDisposable
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "Probe",
             NamespaceRoot: "Probe",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             OutputType: ProjectOutputType.Library);
 
         var result = new CSharpEmitterV2(model, options, ImmutableArray<string>.Empty, new DiagnosticBag(), _ => null).Emit();

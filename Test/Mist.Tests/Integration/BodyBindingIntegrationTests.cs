@@ -36,6 +36,7 @@ namespace Mist.Tests.Integration;
 /// references (wired back to their declaration), and graceful placeholders for
 /// constructs the walking-skeleton slice does not yet handle.
 /// </summary>
+[Trait("Tier", "3")]
 public sealed class BodyBindingIntegrationTests : IDisposable
 {
     private readonly string outputDir;
@@ -400,8 +401,7 @@ public sealed class BodyBindingIntegrationTests : IDisposable
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: namespaceRoot,
-            NamespaceRoot: namespaceRoot,
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+            NamespaceRoot: namespaceRoot);
 
         var buildDiagnostics = new DiagnosticBag();
         var programModel = ProgramModelBuilder.Build(

@@ -4,19 +4,15 @@
 //   - Quiet build emits no 1.5 header/detail
 //   - Verbose build emits header + detail + summary
 //   - Resolution error surfaces in both modes
-//   - Unresolved type → diagnostic without aborting
+//   - Resolution error does not stop lexing and parsing
 //
-// Validates: Requirements 1.3, 1.6, 1.9, 2.2, 2.3
+// Validates: Requirements 1.3, 1.6, 1.9, 2.6
 
 using System.Collections.Immutable;
-using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Driver;
 
@@ -25,6 +21,7 @@ namespace Mist.Tests.Driver;
 /// through the <see cref="CompilerDriver"/>. All tests are in-process —
 /// no child processes are spawned (the resolver spawns dotnet restore internally).
 /// </summary>
+[Trait("Tier", "4")]
 public sealed class PackageResolutionStageTests : IDisposable
 {
     private readonly string scratchDir;
@@ -78,9 +75,6 @@ public sealed class PackageResolutionStageTests : IDisposable
         return new CompilerDriver(
             new Mist.Lexing.MistLexer(),
             new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()),
             spy);
     }
 
@@ -107,7 +101,6 @@ public sealed class PackageResolutionStageTests : IDisposable
             BinDirectory: binDir,
             ProjectName: "TestProject",
             NamespaceRoot: "TestProject",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             Packages: packages,
             FrameworkReferences: frameworkReferences,
             VerboseResolution: verboseResolution);
@@ -256,58 +249,12 @@ public sealed class PackageResolutionStageTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 4. Unresolved type → diagnostic without aborting (Requirement 2.3)
+    // 4. Resolution error does not stop lexing and parsing (Requirement 2.6)
     // ═══════════════════════════════════════════════════════════════════════
-
-    [Fact]
-    public void UnresolvedType_ProducesDiagnostic_WithoutAbortingBuild()
-    {
-        // Declare a package with an invalid version (triggers MIST_PKG_002).
-        // The source references a type from the "package" namespace. Because
-        // the package fails to resolve, the type won't be found. The driver
-        // should NOT abort — it continues through subsequent stages and
-        // produces a diagnostic for the unresolved type.
-        const string sourceWithUnresolvedType = """
-            namespace TestNs;
-            using SomePackage.Models;
-            public class Foo {
-                public static void Main() {
-                    var x = new Widget();
-                }
-            }
-            """;
-
-        var spy = new SpyProgressReporter();
-        var driver = CreateDriver(spy);
-        var options = CreateOptions(
-            sourceWithUnresolvedType,
-            packages: [new NuGetPackageReference("SomePackage", "invalid-ver")]);
-
-        var result = driver.Compile(options);
-
-        // The build should NOT have aborted before reaching the semantic
-        // model stage — the lexing and parsing stages should still run.
-        Assert.Contains(spy.StageStarts, s => s.StageId == "2"); // Lexing
-        Assert.Contains(spy.StageStarts, s => s.StageId == "3"); // Parsing
-        Assert.Contains(spy.StageStarts, s => s.StageId == "4"); // Semantic Model
-
-        // The MIST_PKG_002 diagnostic surfaces (package resolution error).
-        Assert.Contains(result.Diagnostics,
-            d => d.Id.Value == "MIST_PKG_002");
-
-        // The build does fail (because the type can't be resolved), but it
-        // did not abort — it continued past the package resolution stage and
-        // attempted semantic analysis.
-        Assert.False(result.Succeeded,
-            "Expected compilation to fail due to unresolved type, but not abort");
-    }
 
     [Fact]
     public void ResolutionError_DoesNotPreventSubsequentStages()
     {
-        // Even with a failing package, the driver continues to lex, parse,
-        // and attempt semantic model construction (Requirement 2.6: build
-        // continues with remaining resolved assemblies rather than aborting).
         var spy = new SpyProgressReporter();
         var driver = CreateDriver(spy);
         var options = CreateOptions(
@@ -316,17 +263,9 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         var result = driver.Compile(options);
 
-        // All core stages after 1.5 still execute.
         Assert.Contains(spy.StageStarts, s => s.StageId == "2"); // Lexing
         Assert.Contains(spy.StageStarts, s => s.StageId == "3"); // Parsing
-        Assert.Contains(spy.StageStarts, s => s.StageId == "4"); // Semantic Model
 
-        // The compilation succeeds (the source doesn't reference any type
-        // from the failing package, so there's no downstream error).
-        Assert.True(result.Succeeded,
-            "Expected compilation to succeed — source doesn't use the failed package");
-
-        // But the resolution diagnostic is still present in the output.
         Assert.Contains(result.Diagnostics,
             d => d.Id.Value == "MIST_PKG_002");
     }

@@ -62,8 +62,7 @@ internal static class StandardModelProbe
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "Probe",
-            NamespaceRoot: "Probe",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+            NamespaceRoot: "Probe");
 
         var buildDiagnostics = new DiagnosticBag();
 

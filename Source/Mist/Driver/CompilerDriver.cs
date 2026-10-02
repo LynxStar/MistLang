@@ -4,7 +4,6 @@ using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Driver.Contracts;
-using Mist.Generated;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
 
@@ -14,15 +13,13 @@ namespace Mist.Driver;
 /// Orchestrates Stages 1-3 (loading, lexing, parsing), then dispatches to
 /// the selected <see cref="ICompilationPipeline"/> for Stages 4-6.
 /// </summary>
-public sealed partial class CompilerDriver : ICompilerDriver
+public sealed class CompilerDriver : ICompilerDriver
 {
     private readonly ILexer lexer;
     private readonly IParser parser;
-    private readonly ImmutableHashSet<string> backendIds;
     private readonly StdlibParseCache stdlibParseCache;
     private readonly ICompilationProgressReporter progressReporter;
-    private readonly ICompilationPipeline? classicPipeline;
-    private readonly ICompilationPipeline experimentalPipeline;
+    private readonly ICompilationPipeline standardPipeline;
 
     public CompilerDriver(ILexer lexer, IParser parser, ICompilationProgressReporter? progressReporter = null)
         : this(lexer, parser, StdlibParseCache.Shared, progressReporter)
@@ -34,38 +31,25 @@ public sealed partial class CompilerDriver : ICompilerDriver
         IParser parser,
         StdlibParseCache stdlibParseCache,
         ICompilationProgressReporter? progressReporter = null)
-        : this(lexer, parser, stdlibParseCache, progressReporter, [BackendId.CSharp], classicPipeline: null)
-    {
-    }
-
-    private CompilerDriver(
-        ILexer lexer,
-        IParser parser,
-        StdlibParseCache stdlibParseCache,
-        ICompilationProgressReporter? progressReporter,
-        IEnumerable<BackendId> backendIds,
-        ICompilationPipeline? classicPipeline)
     {
         this.lexer = lexer;
         this.parser = parser;
-        this.backendIds = backendIds.Select(id => id.Value).ToImmutableHashSet(StringComparer.Ordinal);
         this.stdlibParseCache = stdlibParseCache;
         this.progressReporter = progressReporter ?? NullProgressReporter.Instance;
-        this.classicPipeline = classicPipeline;
-        experimentalPipeline = new ExperimentalPipeline(this.progressReporter);
+        standardPipeline = new StandardPipeline(this.progressReporter);
     }
 
     public CompilerResult Compile(CompilerOptions options)
     {
-        var pipeline = options.Pipeline == PipelineMode.Classic
-            ? classicPipeline ?? throw new InvalidOperationException(
-                "This CompilerDriver was constructed without the classic pipeline; construct it with the classic services or select PipelineMode.Experimental.")
-            : experimentalPipeline
-            ;
+        var pipeline = options.Pipeline switch
+        {
+            PipelineMode.Standard => standardPipeline,
+            _ => throw new InvalidOperationException($"Unknown pipeline: {options.Pipeline}."),
+        };
 
         var allDiagnostics = new DiagnosticBag();
 
-        if(!backendIds.Contains(options.Backend.Value))
+        if(options.Backend != BackendId.CSharp)
         {
             allDiagnostics.Report(DriverDiagnostics.UnknownBackend, default, "<unknown>", (object?)options.Backend.Value);
 
@@ -80,7 +64,6 @@ public sealed partial class CompilerDriver : ICompilerDriver
         }
 
         var compilation = loadResult.Compilation;
-        var directReferencePaths = loadResult.DirectReferencePaths;
         options = ProjectDependencyUnion.Apply(options, loadResult.ReferencedConfigurations);
 
         // Stage 1.5: Package Resolution (runs only when deps are declared)
@@ -90,7 +73,7 @@ public sealed partial class CompilerDriver : ICompilerDriver
         var lexResult = Lex(compilation, allDiagnostics);
 
         // Stage 3: Parsing
-        var parseResult = Parse(
+        var asts = Parse(
             compilation,
             lexResult.TokenStreams,
             lexResult.StdlibTokensForCache,
@@ -99,19 +82,18 @@ public sealed partial class CompilerDriver : ICompilerDriver
 
         // Dispatch to the compilation pipeline (Stages 4-6).
         var pipelineInput = new PipelineInput(
-            parseResult.Compilation, parseResult.Asts, resolvedAssemblyPaths,
-            options, directReferencePaths, allDiagnostics);
+            compilation, asts, resolvedAssemblyPaths,
+            options, allDiagnostics);
 
         return pipeline.Execute(pipelineInput);
     }
 
     /// <summary>
-    /// Result of Stage 1 (Loading): the combined compilation and any
-    /// directly-referenced project paths for transitive visibility enforcement.
+    /// Result of Stage 1 (Loading): the combined compilation and the configurations of the
+    /// projects it references.
     /// </summary>
     private sealed record LoadResult(
         MistCompilation Compilation,
-        ImmutableHashSet<string>? DirectReferencePaths,
         ImmutableArray<ProjectConfiguration> ReferencedConfigurations);
 
     /// <summary>
@@ -201,7 +183,6 @@ public sealed partial class CompilerDriver : ICompilerDriver
         var refUnits = ImmutableArray<CompilationUnit>.Empty;
         var refProjects = ImmutableArray<MistProject>.Empty;
         var refConfigurations = ImmutableArray<ProjectConfiguration>.Empty;
-        ImmutableHashSet<string>? directReferencePaths = null;
 
         // Track the root project's global usings. When a mist.toml is parsed,
         // we use its GlobalUsings for user units; otherwise we fall back to
@@ -230,15 +211,6 @@ public sealed partial class CompilerDriver : ICompilerDriver
 
                 if(!projectConfig.References.IsEmpty)
                 {
-                    // Build the set of directly-referenced canonical paths from
-                    // the root project's declared references. This set is passed
-                    // to the semantic model builder to enforce transitive
-                    // visibility: only symbols from direct references (and
-                    // stdlib / user code) are visible during name resolution.
-                    directReferencePaths = projectConfig.References
-                        .Select(r => r.Path)
-                        .ToImmutableHashSet(StringComparer.Ordinal);
-
                     var resolveBag = new DiagnosticBag();
                     var resolved = ProjectReferenceResolver.Resolve(
                         options.ProjectFolder,
@@ -325,7 +297,7 @@ public sealed partial class CompilerDriver : ICompilerDriver
             GlobalUsings = userGlobalUsings,
         };
 
-        return new LoadResult(compilation, directReferencePaths, refConfigurations);
+        return new LoadResult(compilation, refConfigurations);
     }
 
     /// <summary>
@@ -399,19 +371,10 @@ public sealed partial class CompilerDriver : ICompilerDriver
     }
 
     /// <summary>
-    /// Result of Stage 3 (Parsing): the parsed ASTs and the (possibly updated)
-    /// compilation reflecting any units that contain top-level statements.
-    /// </summary>
-    private sealed record ParseResult(
-        ImmutableArray<Storm.Runtime.SyntaxNode> Asts,
-        MistCompilation Compilation);
-
-    /// <summary>
     /// Stage 3 – Parsing: parses each unit's token stream, collects diagnostics,
-    /// detects top-level statements, and writes the stdlib cache if this is the
-    /// first successful compile. Returns the ASTs and updated compilation.
+    /// and writes the stdlib cache if this is the first successful compile.
     /// </summary>
-    private ParseResult Parse(
+    private ImmutableArray<Storm.Runtime.SyntaxNode> Parse(
         MistCompilation compilation,
         Dictionary<CompilationUnit, TokenStream> tokenStreams,
         ImmutableArray<TokenStream>.Builder? stdlibTokensForCache,
@@ -431,8 +394,6 @@ public sealed partial class CompilerDriver : ICompilerDriver
         {
             asts.AddRange(cachedStdlib.Asts);
         }
-
-        var unitsWithTopLevelStatements = new HashSet<CompilationUnit>();
 
         foreach(var (unit, tokenStream) in tokenStreams)
         {
@@ -457,25 +418,8 @@ public sealed partial class CompilerDriver : ICompilerDriver
                 {
                     stdlibAstsForCache?.Add(unitParseResult.Root);
                 }
-
-                // Detect top-level statements in the parsed AST.
-                if(unitParseResult.Root is CompilationUnitNode cu
-                    && cu.Items.Any(item => item is StatementItemTopLevelItemNode))
-                {
-                    _ = unitsWithTopLevelStatements.Add(unit);
-                }
             }
-            // If parse errors, exclude AST from semantic model (R16.4)
-        }
-
-        // Update CompilationUnits that contain top-level statements.
-        if(unitsWithTopLevelStatements.Count > 0)
-        {
-            var updatedUnits = compilation.Units.Select(u =>
-                unitsWithTopLevelStatements.Contains(u)
-                    ? u with { HasTopLevelStatements = true }
-                    : u).ToImmutableArray();
-            compilation = compilation with { Units = updatedUnits };
+            // If parse errors, exclude AST from the program model (R16.4)
         }
 
         // Populate the stdlib cache if this is the first successful compile.
@@ -494,7 +438,7 @@ public sealed partial class CompilerDriver : ICompilerDriver
             $"{totalNodes} AST nodes",
         });
 
-        return new ParseResult(asts.ToImmutable(), compilation);
+        return asts.ToImmutable();
     }
 
     /// <summary>

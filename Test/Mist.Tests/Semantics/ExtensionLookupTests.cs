@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.Tests.Helpers;
 
@@ -7,6 +8,7 @@ namespace Mist.Tests.Semantics;
 /// Finding a member on an extension block rather than on the receiver's own type, and choosing
 /// between blocks when more than one offers the name.
 /// </summary>
+[Trait("Tier", "3")]
 public sealed class ExtensionLookupTests : ProgramModelProbe
 {
     public ExtensionLookupTests()
@@ -153,6 +155,16 @@ public sealed class ExtensionLookupTests : ProgramModelProbe
         var errors = BuildRun("var chosen = new Duo<int, long>().Same();");
 
         Assert.Contains(errors, d => d.Id.Value == "MIST_PM_UNRESOLVED_MEMBER");
+    }
+
+    [Fact]
+    public void AnExtensionMemberIsFoundThroughOptionalChaining()
+    {
+        var found = BuildRun("var chosen = maybe?.OnlyAnimal();", extraPreamble: "Dog? maybe = dog;");
+        var missing = BuildRun("var chosen = maybe?.NoSuchMember();", extraPreamble: "Dog? maybe = dog;");
+
+        Assert.DoesNotContain(found, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(missing, d => d.Id.Value == "MIST_PM_UNRESOLVED_MEMBER");
     }
 
     [Fact]

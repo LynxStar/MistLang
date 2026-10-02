@@ -26,11 +26,12 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Integration tests verifying that the experimental pipeline (Program Model)
+/// Integration tests verifying that the Program Model
 /// correctly populates both the <see cref="Accessibility"/> value and the
 /// <see cref="ConcreteType.IsSealed"/> flag on user-declared types and on
 /// CLR-projected types/members.
 /// </summary>
+[Trait("Tier", "3")]
 public sealed class ExperimentalRepresentationIntegrationTests : IDisposable
 {
     private readonly string outputDir;
@@ -78,8 +79,7 @@ public sealed class ExperimentalRepresentationIntegrationTests : IDisposable
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "TestProject",
-            NamespaceRoot: "TestProject",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+            NamespaceRoot: "TestProject");
 
         var buildDiagnostics = new DiagnosticBag();
         var programModel = ProgramModelBuilder.Build(

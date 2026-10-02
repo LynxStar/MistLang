@@ -17,6 +17,7 @@ namespace Mist.Tests.Integration;
 /// <see cref="SamplesCompileAndMatchBaselineTest"/> for what paying that cost looks like.
 /// </para>
 /// </summary>
+[Trait("Tier", "2")]
 public class SpecProofCodeMatchesSampleTest
 {
     /// <summary>
@@ -47,25 +48,6 @@ public class SpecProofCodeMatchesSampleTest
     private static readonly Regex ExpectedOutput = new(
         @"#### Proof Code[^\n]*\n+```mist\n.*?\n```\s*\n+\*\*Expected output:\*\*\n```\n(.*?)\n```",
         RegexOptions.Compiled | RegexOptions.Singleline);
-
-    /// <summary>
-    /// Samples the classic orchestrator cannot reference, so their output is absent from its
-    /// baseline. samples/DelegateFuncConversion carries a <c>Microsoft.AspNetCore.App</c> framework
-    /// reference, and adding it to AllFeatures would give the whole orchestrator a web dependency.
-    /// </summary>
-    private static readonly HashSet<(string Spec, int Block)> OutsideTheOrchestrator =
-    [
-        ("delegate-func-conversion", 0),
-    ];
-
-    /// <summary>
-    /// Blocks whose sample is V2-ONLY: referenced from AllFeaturesV2 alone, so their output is a slice
-    /// of that baseline instead.
-    /// </summary>
-    private static readonly HashSet<(string Spec, int Block)> ExperimentalOnly =
-    [
-        ("purity", 0),
-    ];
 
     [Fact]
     public void EveryProofCodeBlock_AppearsVerbatim_InItsDesignatedSample()
@@ -123,11 +105,11 @@ public class SpecProofCodeMatchesSampleTest
     }
 
     /// <summary>
-    /// The companion invariant, asserted against the classic baseline rather than by running
-    /// anything. AllFeatures orchestrates nearly every sample, so its recorded stdout already says
+    /// The companion invariant, asserted against the orchestrator's baseline rather than by running
+    /// anything. AllFeaturesV2 orchestrates every banked sample, so its recorded stdout already says
     /// what they print, and <see cref="SamplesCompileAndMatchBaselineTest"/> is what keeps that file
     /// honest -- so this chains off an artifact something else already verifies instead of spawning
-    /// 26 compilations of its own.
+    /// 27 compilations of its own.
     /// <para>
     /// A SLICE rather than an equality, which is the same shape the proof-code assertion takes and is
     /// what makes it work for a spec documenting one section of a large sample. ownership-v2 states
@@ -135,15 +117,14 @@ public class SpecProofCodeMatchesSampleTest
     /// </para>
     /// </summary>
     [Fact]
-    public void EveryExpectedOutputBlock_AppearsAsASlice_OfTheClassicBaseline()
+    public void EveryExpectedOutputBlock_AppearsAsASlice_OfTheBaseline()
     {
         var repoRoot = FindRepoRoot();
         var specsDir = Path.Combine(repoRoot, ".kiro", "specs");
-        var baselineFile = Path.Combine(repoRoot, "samples", "__baselines__", "AllFeatures.out");
+        var baselineFile = Path.Combine(repoRoot, "samples", "__baselines__", "AllFeaturesV2.out");
         Assert.True(File.Exists(baselineFile), $"Baseline not found: {baselineFile}");
 
         var baseline = File.ReadAllText(baselineFile).Replace("\r\n", "\n");
-        var experimentalBaseline = File.ReadAllText(Path.Combine(repoRoot, "samples", "__baselines__", "AllFeaturesV2.out")).Replace("\r\n", "\n");
         var checkedBlocks = 0;
         var failures = new List<string>();
 
@@ -160,18 +141,17 @@ public class SpecProofCodeMatchesSampleTest
             var blocks = ExpectedOutput.Matches(text);
             for(var i = 0; i < blocks.Count; i++)
             {
-                if(Illustrations.Contains((spec, i)) || OutsideTheOrchestrator.Contains((spec, i)))
+                if(Illustrations.Contains((spec, i)))
                 {
                     continue;
                 }
 
                 checkedBlocks++;
                 var expected = blocks[i].Groups[1].Value.Replace("\r\n", "\n").Trim('\n');
-                var experimental = ExperimentalOnly.Contains((spec, i));
 
-                if(!(experimental ? experimentalBaseline : baseline).Contains(expected, StringComparison.Ordinal))
+                if(!baseline.Contains(expected, StringComparison.Ordinal))
                 {
-                    failures.Add($"{spec} block {i} expected output is not a slice of {(experimental ? "AllFeaturesV2.out" : "AllFeatures.out")}");
+                    failures.Add($"{spec} block {i} expected output is not a slice of AllFeaturesV2.out");
                 }
             }
         }

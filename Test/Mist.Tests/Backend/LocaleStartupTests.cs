@@ -51,9 +51,7 @@ public sealed class LocaleStartupTests
             BinDirectory: "bin",
             ProjectName: "Program",
             NamespaceRoot: "Program",
-            EnabledAnalyzerIds: [],
             OutputType: outputType,
-            Pipeline: PipelineMode.Experimental,
             Platform: platform);
     }
 }

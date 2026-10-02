@@ -38,6 +38,7 @@ public sealed class ClrSpellingTests : IDisposable
     }
 
     [Fact]
+    [Trait("Tier", "3")]
     public void EveryTopLevelIntrinsicTypeStandardDeclaresIsListed()
     {
         var model = StandardModelProbe.Build("", out _);
@@ -52,6 +53,7 @@ public sealed class ClrSpellingTests : IDisposable
     }
 
     [Fact]
+    [Trait("Tier", "3")]
     public void EveryListedNameIsAStandardDeclaration()
     {
         var model = StandardModelProbe.Build("", out _);
@@ -61,6 +63,7 @@ public sealed class ClrSpellingTests : IDisposable
     }
 
     [Fact]
+    [Trait("Tier", "3")]
     public void AnIntrinsicTypeIsWrittenInFull()
     {
         var emitted = EmitBody("Console.WriteLine(Math.Abs(-1));");
@@ -69,6 +72,7 @@ public sealed class ClrSpellingTests : IDisposable
     }
 
     [Fact]
+    [Trait("Tier", "3")]
     public void AKeywordAliasIsWrittenAsTheKeyword()
     {
         var emitted = EmitBody("Int32 n = 1;\nString s = \"a\";");
@@ -78,6 +82,7 @@ public sealed class ClrSpellingTests : IDisposable
     }
 
     [Fact]
+    [Trait("Tier", "4")]
     public void TheEmittedFileCarriesOnlyTheSourcesUsings()
     {
         var model = StandardModelProbe.Build("Console.WriteLine(1);", out var built);
@@ -91,7 +96,6 @@ public sealed class ClrSpellingTests : IDisposable
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "Probe",
             NamespaceRoot: "Probe",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             OutputType: ProjectOutputType.Library);
 
         _ = new CSharpEmitterV2(model, options, ImmutableArray<string>.Empty, new DiagnosticBag(), ClrType).Emit();

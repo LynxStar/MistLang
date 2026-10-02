@@ -16,6 +16,7 @@ namespace Mist.Tests.Backend;
 /// thing a fragment-assembling emitter can break invisibly: that the result is still XML.
 /// </para>
 /// </summary>
+[Trait("Tier", "1")]
 public sealed class ProjectFileEmitterTests
 {
     private static XDocument Emit(
@@ -33,7 +34,6 @@ public sealed class ProjectFileEmitterTests
             BinDirectory: "probe/bin",
             ProjectName: "Probe",
             NamespaceRoot: "Probe",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             Packages: packages,
             FrameworkReferences: frameworkReferences,
             CsprojProperties: csprojProperties,

@@ -5,7 +5,7 @@ namespace Mist.CLI.Tests;
 
 /// <summary>
 /// The real CLI, four times over one disposable project: lex, lex again, lex into gen/ inside the
-/// project, then an experimental build. The first two runs clean the output the run before wrote, so a
+/// project, then a build that names the standard pipeline. The first two runs clean the output the run before wrote, so a
 /// run that read that output back as source would name files the clean has deleted, and two sources
 /// named Foo.mist would share one set of artifacts. The last two runs do not share an output, so only
 /// the marker each lex leaves keeps the next run from reading the other's reconstructed sources.
@@ -14,7 +14,7 @@ namespace Mist.CLI.Tests;
 /// directories they clean, which is why this is Tier 5 and why it is the only one. util/Helper.mist
 /// sorts after out/, so a run reading its own output reaches a deleted file rather than one it has just
 /// rewritten. The project lives in a temp folder rather than under samples/ because the CLI writes into it.
-/// The experimental build keeps its progress output because only the real command composes the driver's
+/// The build keeps its progress output because only the real command composes the driver's
 /// stages with the CLI's own Stage 0 and summary: one header per stage, 0 to 6, and one summary.
 /// </summary>
 [Trait("Tier", "5")]
@@ -65,7 +65,7 @@ public sealed class RepeatedCliInvocationTests : IDisposable
     }
 
     [Fact]
-    public async Task RepeatedLexesThenExperimentalBuild_ReadOnlyTheProjectsOwnSources()
+    public async Task RepeatedLexesThenStandardBuild_ReadOnlyTheProjectsOwnSources()
     {
         for(var run = 1; run <= 2; run++)
         {
@@ -87,9 +87,9 @@ public sealed class RepeatedCliInvocationTests : IDisposable
         Assert.Equal(4, custom.Stdout.Split('\n').Count(line => line.StartsWith("Lexed ", StringComparison.Ordinal)));
         Assert.True(File.Exists(Path.Combine(project, "gen", "lexer", ".mist-generated")));
 
-        var build = await RunMist("build", project, "--pipeline", "experimental");
+        var build = await RunMist("build", project, "--pipeline", "standard");
 
-        Assert.True(build.ExitCode == 0, $"experimental build exited {build.ExitCode}:\n{build.Stdout}\n{build.Stderr}");
+        Assert.True(build.ExitCode == 0, $"standard build exited {build.ExitCode}:\n{build.Stdout}\n{build.Stderr}");
         var lines = build.Stdout.Split('\n').Select(line => line.TrimEnd('\r')).ToList();
         Assert.Equal(
             ["Stage 0 - Cleaning", "Stage 1 - Loading", "Stage 2 - Lexing", "Stage 3 - Parsing", "Stage 4 - Program Model", "Stage 5 - Analysis", "Stage 6 - Emit"],

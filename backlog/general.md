@@ -6,6 +6,8 @@ Tracked issues and improvements that don't belong to an active spec but should b
 
 ## 🟡 Classic only: Array (and Span) indexer upper bound is deferred to runtime for unknown-length types
 
+**Closed (2026-10-01):** classic is deleted (`backlog/classic-retirement.md`), and with it `ValidateArrayIndexRefinement`. The surviving rule is the one the paragraph above describes; the action list below was classic's and is void.
+
 **Severity: critical** — Mist advertises static bounds safety via the `ArrayBounds` refinement (`>= 0 and < Length`), but that guarantee silently degrades to a runtime check whenever the length is not a compile-time constant. A program can compile with zero errors and throw `System.IndexOutOfRangeException` at runtime.
 
 **Verified empirically** — the following compiles clean (0 errors, 0 warnings) and crashes at runtime:
@@ -32,6 +34,8 @@ numbers[7] = 10;   // compiles; throws System.IndexOutOfRangeException at runtim
 
 ## 🟡 Classic cannot compose DelegateFuncConversion beside a Mist type that implements a CLR interface
 
+**Closed (2026-10-01):** classic is deleted (`backlog/classic-retirement.md`). `AllFeaturesV2` is the one orchestrator and composes `DelegateFuncConversion`; `samples/AllFeatures` is historical data and is not extended.
+
 **Severity: medium** -- `samples/AllFeatures` is the classic regression guard, and it now lacks one sample that classic compiles fine standalone: `DelegateFuncConversion`.
 
 **Verified empirically** (2026-09-11) -- a root project referencing `DelegateFuncConversion` plus a second project whose only content is `public class Manual : IDisposable { public void Dispose() { } }` fails on classic with:
@@ -51,6 +55,8 @@ The same root without the second project compiles and runs, as it does when the 
 
 ## 🟡 Classic's `mist test` fails on any test project without a `Main`
 
+**Closed (2026-10-01):** classic is deleted (`backlog/classic-retirement.md`). `mist test` runs the standard pipeline with no flag, and `Testing_RunsUnderTheTestCommand` holds it to the runner's tally; `--pipeline experimental` is no longer a pipeline.
+
 **Severity: medium** -- `mist test samples/Testing` on classic ends in `CSC : error CS5001: Program does not contain a static 'Main' method`, and has since 12341680 (2026-06-28) added `<GenerateProgramFile>false</GenerateProgramFile>` to every library project. That is right when the library composes an executable (two entry points are CS0017) and wrong when nothing carries a `Main`: `Microsoft.NET.Test.Sdk` still makes the output an executable, and there is then no entry point at all. Nothing tested the command, so nothing noticed.
 
 **Where v2 stands:** `ProjectFileEmitter` emits the suppression only when an assembly in the program carries an entry point (emitter order 120), and `Testing_RunsUnderTheTestCommandOnTheExperimentalPipeline` holds `mist test` on v2 to the runner's tally. Classic's `CSharpEmitter.EmitCsproj` still writes it unconditionally and knows nothing about entry points at that point.
@@ -60,6 +66,8 @@ The same root without the second project compiles and runs, as it does when the 
 ---
 
 ## 🟡 Remove remaining Array/Span special-case paths in TypeCheckerAnalyzer
+
+**Closed (2026-10-01):** `TypeCheckerAnalyzer` is deleted with classic (`backlog/classic-retirement.md`), and the fast-paths went with it.
 
 **Severity: medium** — The compiler still has hardcoded fast-paths for array/span indexer element-type resolution and `.Length` that bypass the stdlib declarations. These should be removed so the stdlib `.mist` files are the single source of truth.
 
@@ -100,6 +108,8 @@ The same root without the second project compiles and runs, as it does when the 
 ---
 
 ## 🟡 Add `ResolvedType` non-nullable accessor to Symbol for post-construction consumers
+
+**Closed (2026-10-01):** `Symbol` and the phased classic model are deleted with classic (`backlog/classic-retirement.md`).
 
 **Severity: medium (architectural hygiene)** — `Symbol.DeclaredType` is `IType?` because the symbol exists before its type is resolved (Phase 1 creates the shell, Phase 4 fills the type). This nullable property is used by both construction-phase code (which legitimately reads null to check "is this resolved yet?") and post-construction code (Pass 2+, which should never see null).
 
@@ -257,6 +267,8 @@ every prefix it can start with. The counterexample, proof limits and tests are i
 ---
 
 ## 🟡 MIST_TC_0015 / MIST_TC_0016 reach the user with unformatted `{0}` placeholders, and both fire at once
+
+**Closed (2026-10-01):** both descriptors and the analyzer that reported them are deleted with classic (`backlog/classic-retirement.md`).
 
 **Severity: medium** — two static/instance access diagnostics in the classic pipeline are reported without substituting their message arguments, so the user sees a literal `'{0}'` where the member name belongs. The same program also triggers both at once, and they contradict each other.
 
@@ -1422,3 +1434,100 @@ Classic prints `7 3`, and v2 prints `0 3`. A derived class keeps C#'s implicit `
 1. When a derived struct constructor writes no chain, call the initializer of the base constructor that an implicit chain reaches. That is the parameterless or single-params constructor accessible from the derived struct. `ImplicitChains.Of` in `Source/Mist/ProgramAnalysis/` makes the same decision for analysis, so decide whether emission reads it or the model records it, rather than writing a second resolver.
 2. Pin it with a Tier 2 or Tier 3 test on the emitted text over a hand-built struct pair, and mutation-check it.
 3. Add the struct-inheritance 7.4 refusal as its own descriptor beside `MIST_PA_BASE_CTOR_UNSATISFIED`, reading the same decision.
+
+---
+
+## 🔴 A call that needs a context compiles with none in scope and throws at run time
+
+**Severity: critical** -- the structured-context discipline is not enforced by any surviving rule. Found
+2026-10-01 while retiring classic, whose `ContextCheckerAnalyzer` (`MIST_CTX_0001` to `MIST_CTX_0006`)
+was the only implementation and whose tests were its only proof.
+
+**Verified empirically** (2026-10-01):
+
+```mist
+using Standard;
+
+namespace Probe;
+
+public class Helper
+{
+    public static string GetString() with string s
+    {
+        return s;
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        Console.WriteLine(Helper.GetString());
+    }
+}
+```
+
+It builds with no diagnostic and ends in `KeyNotFoundException: The given key 'System.String' was not
+present in the dictionary` at `MistContext.Peek[T]()`. `.kiro/specs/structured-context` requires the
+call to be refused. `samples/StructuredContext` passes because every call in it has a context.
+
+**Not measured:** the abstract `with`-clause contract and reassignment of a context-bound name, which
+classic also refused. No file under `Source/Mist/ProgramAnalysis/Rules/` reads a context clause.
+
+**Action:** a Stage 5 rule, entered in `backlog/analysis-v2-capability-progression.yaml`, proven at
+Tier 2 since it walks a body.
+
+---
+
+## 🟡 A pack-typed abstract slot cannot be filled at a concrete arity
+
+**Severity: medium** -- variadics Requirement 22.2 says a variadic abstract is implementable at a
+concrete arity. Found 2026-10-01 while retiring classic, which admitted it.
+
+**Verified empirically** (2026-10-01):
+
+```mist
+public abstract IApplier<params TArgs, TResult>
+{
+    TResult Apply(params TArgs args);
+}
+
+public class Adder : IApplier<int, int, int>
+{
+    public int Apply(int a, int b)
+    {
+        return a + b;
+    }
+}
+```
+
+`error MIST_PA_SLOT_SIGNATURE_MISMATCH: 'Adder' does not fill slot 'int Apply((int, int))' of
+'IApplier': its 'Apply' has a different signature.` The slot keeps the pack as one parameter where the
+implementation spreads it. The generic form, `class Boxed<params TArgs> : IApplier<TArgs..., int>` with
+`int Apply(params TArgs args)`, is admitted, and a missing `Apply` is refused in both forms
+(`MIST_PA_SLOT_NOT_FILLED`). `samples/Variadics` implements only a slot with no pack in it.
+
+**Action:** expand a pack-typed slot at the instantiation's arity before conformance compares
+signatures; pin the two admitted forms and the refusal beside the conformance rule.
+
+---
+
+## 🟡 Two refusals reach Roslyn instead of the frontend
+
+**Severity: medium** -- the build fails, but with `MIST_CS_ERROR` over generated C#. Found 2026-10-01
+while retiring classic, which reported both itself.
+
+**Verified empirically** (2026-10-01):
+
+1. A `[global_usings]` namespace that exists nowhere, `namespaces = ["Standard", "No.Such.Namespace"]`:
+   `out/Probe/Program.cs: error MIST_CS_ERROR: The type or namespace name 'No' could not be found`.
+   global-usings Requirement 4.3 asks for the warning `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE` and a
+   build that continues; nothing reports it and the name is emitted as a `using`.
+2. A CLR extension called without its namespace, `numbers.Count()` on a `List<int>` with no
+   `using System.Linq`: `error MIST_CS_ERROR: Non-invocable member 'List<int>.Count' cannot be used
+   like a method.` The call binds to the `Count` property. extension-method-binding 3.2 and 7.1 make
+   the extension unavailable, which holds, but the refusal should be the binder's. With the `using`
+   the program prints `1`.
+
+**Action:** report the first at the point the assembly scope imports the name, and refuse invoking a
+non-callable member in the binder; one Tier 1-3 row each.

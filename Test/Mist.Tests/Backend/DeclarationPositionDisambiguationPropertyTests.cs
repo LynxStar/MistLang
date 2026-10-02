@@ -6,16 +6,11 @@
 // SHALL produce AttributeListNode only in declaration context and ArrayLiteralExpression/
 // IndexSuffix nodes in expression context -- never confusing the two.
 
-using System.Collections.Immutable;
 using System.Text;
 using FsCheck;
 using FsCheck.Fluent;
-using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
-using Mist.Driver;
-using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
@@ -26,45 +21,16 @@ namespace Mist.Tests.Backend;
 /// Generates programs containing BOTH attribute annotations on class/method
 /// declarations (e.g., [Serializable], [Obsolete("msg")]) AND bracket expressions
 /// in method bodies (array literals like [1, 2, 3], index access like arr[0]).
-/// Compiles in-memory and verifies no parse errors occur, proving the parser
+/// Lexes and parses each program and verifies no parse errors occur, proving the parser
 /// correctly disambiguates [ in declaration position vs expression position.
 ///
-/// Uses batched in-memory compilation via shared CompilerDriver (no process spawning).
 /// Minimum 100 iterations.
 ///
 /// **Validates: Requirements 1.10**
 /// </summary>
-public sealed class DeclarationPositionDisambiguationPropertyTests : IDisposable
+public sealed class DeclarationPositionDisambiguationPropertyTests
 {
     private const int IterationCount = 100;
-
-    // --- Shared driver (reused across all iterations) ---
-    // No analyzers needed -- we're testing parsing/disambiguation, not type checking.
-
-    private static readonly CompilerDriver SharedDriver = new(
-        new Mist.Lexing.MistLexer(),
-        new Mist.Parsing.MistParser(),
-        new SemanticModelBuilder(),
-        ImmutableArray<Mist.Analysis.Contracts.IAnalyzer>.Empty,
-        ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
-
-    private readonly string outputDir;
-
-    public DeclarationPositionDisambiguationPropertyTests()
-    {
-        outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_disambig_" + Guid.NewGuid().ToString("N"));
-        _ = Directory.CreateDirectory(outputDir);
-    }
-
-    public void Dispose()
-    {
-        if(Directory.Exists(outputDir))
-        {
-            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
-        }
-
-        GC.SuppressFinalize(this);
-    }
 
     // =========================================================================
     // Scenario model
@@ -245,52 +211,15 @@ public sealed class DeclarationPositionDisambiguationPropertyTests : IDisposable
     }
 
     // =========================================================================
-    // Compilation helper
+    // Parse helper
     // =========================================================================
 
-    /// <summary>
-    /// Compiles Mist source in-process and returns any parse errors.
-    /// We only check for parse-stage errors -- type-check or backend errors
-    /// are irrelevant to the disambiguation property.
-    /// </summary>
-    private (bool HasParseErrors, IReadOnlyList<Diagnostic> ParseErrors) CompileAndCheckParse(
-        string mistSource, int index)
+    private static IReadOnlyList<Diagnostic> ParseErrors(string mistSource)
     {
-        var iterDir = Path.Combine(outputDir, $"iter_{index}");
-        _ = Directory.CreateDirectory(iterDir);
-
-        try
-        {
-            var sourcePath = Path.Combine(iterDir, "Program.mist");
-            File.WriteAllText(sourcePath, mistSource);
-
-            var options = new CompilerOptions(
-                ProjectFolder: iterDir,
-                SourcePaths: ImmutableArray.Create(sourcePath),
-                Backend: new BackendId("csharp"),
-                OutputDirectory: Path.Combine(iterDir, "out"),
-                BinDirectory: Path.Combine(iterDir, "bin"),
-                ProjectName: $"DisambigTest{index}",
-                NamespaceRoot: $"DisambigTest{index}",
-                EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-                EmitToDisk: false,
-                OutputType: ProjectOutputType.Library);
-
-            var result = SharedDriver.Compile(options);
-
-            // Filter to only parse-stage errors (and lexing errors which would also
-            // indicate bracket confusion)
-            var parseErrors = result.Diagnostics
-                .Where(d => d.Severity == DiagnosticSeverity.Error)
-                .Where(d => d.Stage is PipelineStage.Parsing or PipelineStage.Lexing)
-                .ToList();
-
-            return (parseErrors.Count > 0, parseErrors);
-        }
-        finally
-        {
-            try { Directory.Delete(iterDir, recursive: true); } catch { /* best effort */ }
-        }
+        return VariadicsCompilerFixture.Parse(mistSource).Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .Where(d => d.Stage is PipelineStage.Parsing or PipelineStage.Lexing)
+            .ToList();
     }
 
     // =========================================================================
@@ -304,12 +233,13 @@ public sealed class DeclarationPositionDisambiguationPropertyTests : IDisposable
     /// inside method bodies (as arrays/indexing) should compile without parse errors
     /// (no ambiguity between the two contexts).
     ///
-    /// Generates 100 random disambiguation scenarios, compiles each in-memory,
+    /// Generates 100 random disambiguation scenarios, parses each,
     /// and verifies no parse errors occur.
     ///
     /// **Validates: Requirements 1.10**
     /// </summary>
     [Fact]
+    [Trait("Tier", "3")]
     [Trait("Category", "PropertyBased")]
     public void DeclarationPosition_Disambiguation_NoParseErrors()
     {
@@ -322,9 +252,9 @@ public sealed class DeclarationPositionDisambiguationPropertyTests : IDisposable
             var scenario = scenarios[i];
             var source = BuildProgram(scenario, i);
 
-            var (hasParseErrors, parseErrors) = CompileAndCheckParse(source, i);
+            var parseErrors = ParseErrors(source);
 
-            if(hasParseErrors)
+            if(parseErrors.Count > 0)
             {
                 var errorDetails = string.Join("\n",
                     parseErrors.Select(d => $"  {d.Stage} {d.Id.Value}: {d.Message} at {d.Location}"));

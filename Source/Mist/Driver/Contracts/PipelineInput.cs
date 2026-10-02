@@ -5,12 +5,11 @@ namespace Mist.Driver.Contracts;
 
 /// <summary>
 /// Bundles everything that Stage 3 produces and the pipeline needs to
-/// execute Stages 4-6 (semantic model, analysis, emit).
+/// execute Stages 4-6 (program model, analysis, emit).
 /// </summary>
 public sealed record PipelineInput(
     MistCompilation Compilation,
     ImmutableArray<Storm.Runtime.SyntaxNode> Asts,
     ImmutableArray<string> ResolvedAssemblyPaths,
     CompilerOptions Options,
-    ImmutableHashSet<string>? DirectReferencePaths,
     DiagnosticBag Diagnostics);

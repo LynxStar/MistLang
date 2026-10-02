@@ -13,8 +13,6 @@ namespace Mist.ProgramModel.Construction;
 
 /// <summary>
 /// Builds an <see cref="IProgramModel"/> from parsed ASTs and compilation metadata.
-/// This is the v2 equivalent of <c>SemanticModelBuilder</c> — it constructs
-/// the fully resolved program model without referencing the legacy semantic system.
 /// </summary>
 public sealed class ProgramModelBuilder
 {

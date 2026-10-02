@@ -22,8 +22,7 @@ public sealed class StdlibPublishLayoutTest
 {
     /// <summary>
     /// Walks up from the test assembly's output directory until a directory
-    /// containing <c>Mist.slnx</c> is found. Mirrors
-    /// <c>StdlibCompilesTest.FindRepoRoot</c>.
+    /// containing <c>Mist.slnx</c> is found.
     /// </summary>
     private static string FindRepoRoot()
     {

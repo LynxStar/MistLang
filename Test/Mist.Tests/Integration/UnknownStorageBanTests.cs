@@ -29,6 +29,7 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Integration;
 
+[Trait("Tier", "3")]
 public sealed class UnknownStorageBanTests : IDisposable
 {
     private const string StorageId = "MIST_PM_UNKNOWN_AT_STORAGE";
@@ -233,8 +234,7 @@ public sealed class UnknownStorageBanTests : IDisposable
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "Probe",
-            NamespaceRoot: "Probe",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty);
+            NamespaceRoot: "Probe");
 
         var buildDiagnostics = new DiagnosticBag();
         var programModel = ProgramModelBuilder.Build(

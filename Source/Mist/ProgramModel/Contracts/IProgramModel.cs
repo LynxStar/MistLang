@@ -5,7 +5,7 @@ namespace Mist.ProgramModel.Contracts;
 /// <summary>
 /// The fully resolved semantic representation of a Mist program.
 /// Contains all declared types, namespaces, and their relationships --
-/// navigable without reference to syntax trees or the legacy semantic model.
+/// navigable without reference to syntax trees.
 /// </summary>
 public interface IProgramModel
 {

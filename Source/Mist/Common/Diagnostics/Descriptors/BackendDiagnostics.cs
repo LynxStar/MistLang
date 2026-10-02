@@ -20,26 +20,6 @@ public static class BackendDiagnostics
         "No emission template found for intrinsic '{0}' in backend 'CSharp'.");
 
     /// <summary>
-    /// A method implicitly overrides a base class method and was emitted with
-    /// the <c>override</c> modifier. Informational notice to the developer.
-    /// </summary>
-    public static readonly DiagnosticDescriptor ImplicitOverrideInfo = new(
-        new DiagnosticId("MIST_BE_INFO_OVERRIDE"),
-        DiagnosticSeverity.Info,
-        PipelineStage.Backend,
-        "Method '{0}' implicitly overrides '{1}' (emitted as '{2} override'). If this was not intentional, rename the method.");
-
-    /// <summary>
-    /// An unhandled exception occurred in the C# transpiler backend.
-    /// The compilation cannot produce an output artifact.
-    /// </summary>
-    public static readonly DiagnosticDescriptor BackendError = new(
-        new DiagnosticId("MIST_BACKEND_ERROR"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Backend,
-        "C# transpiler backend failed: {0}");
-
-    /// <summary>
     /// No C# source files were found in the output directory for Roslyn compilation.
     /// </summary>
     public static readonly DiagnosticDescriptor BuildError = new(

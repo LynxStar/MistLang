@@ -328,7 +328,7 @@ Not all CLR members are visible in Mist. The Assembly Type Provider hides member
 |-------------|-----------------|
 | Pointer types (`int*`, `void*`) | Mist does not expose unsafe pointer operations |
 | Members referencing excluded types | If a method's signature uses a non-public type or pointer type in any position, the entire method is hidden |
-| Non-public members | `internal` and `private` members are not projected. On the experimental pipeline, `protected` members are projected as `protected`, so only a Mist type deriving from the CLR type can reach them |
+| Non-public members | `internal` and `private` members are not projected. `protected` members are projected as `protected`, so only a Mist type deriving from the CLR type can reach them |
 | Events | Mist does not yet support the .NET event model |
 
 ### Individual-Overload Hiding
@@ -414,7 +414,7 @@ slot = 99; // mutates the value in the dictionary
 
 ### CLR `ref readonly` Returns
 
-A CLR method, property or indexer that returns `ref readonly` hands back a reference you may read but not write through. On the experimental pipeline Mist admits it as exactly that, a readonly reference: read it as a value, or hold it in a `readonly ref` local, which aliases the element rather than copying it:
+A CLR method, property or indexer that returns `ref readonly` hands back a reference you may read but not write through. Mist admits it as exactly that, a readonly reference: read it as a value, or hold it in a `readonly ref` local, which aliases the element rather than copying it:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -431,7 +431,7 @@ A CLR method, property or indexer that returns `ref readonly` hands back a refer
 
 It prints `first=10, copied=1`: the builder's write shows through the alias and not through the copy. A readonly reference promises only that *you* will not write through it, which is all `ref readonly` promises, so the element can still change under you, as it does here.
 
-Taking a writable reference through one is refused with `MIST_PA_READONLY_REF_WRITTEN`: binding it to a `ref` local, passing it as a `ref` or `out` argument, assigning to it, or returning it by `ref`. A `readonly ref` local is a readonly reference in the same way. The classic pipeline hides these members.
+Taking a writable reference through one is refused with `MIST_PA_READONLY_REF_WRITTEN`: binding it to a `ref` local, passing it as a `ref` or `out` argument, assigning to it, or returning it by `ref`. A `readonly ref` local is a readonly reference in the same way.
 
 ### Working Around Hidden Members
 

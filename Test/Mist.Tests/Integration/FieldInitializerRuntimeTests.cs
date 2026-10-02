@@ -1,13 +1,9 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Integration;
 
@@ -148,12 +144,7 @@ public sealed class FieldInitializerRuntimeTests : IDisposable
         var sourcePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(sourcePath, source);
 
-        var driver = new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
 
         var result = driver.Compile(new CompilerOptions(
             ProjectFolder: scratchDir,
@@ -162,9 +153,7 @@ public sealed class FieldInitializerRuntimeTests : IDisposable
             OutputDirectory: Path.Combine(scratchDir, "out"),
             BinDirectory: Path.Combine(scratchDir, "bin"),
             ProjectName: "Initialized",
-            NamespaceRoot: "Initialized",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            Pipeline: PipelineMode.Experimental));
+            NamespaceRoot: "Initialized"));
 
         var errors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)

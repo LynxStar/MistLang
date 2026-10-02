@@ -3,12 +3,11 @@
 Before adding or moving a test under `Test/`, read the testing
 philosophy, `.claude/skills/testing-philosophy/SKILL.md` (`/testing-philosophy`), and decide its
 tier from the invariant it encodes — strict adherence is
-required for the experimental (v2) pipeline; for classic it is a guideline, since classic and its
-tests get deleted with the old world.
+required for all test code.
 
 # Test tier classification
 
-Every new or migrated test, on either pipeline, must carry a discoverable tier. Use xUnit's native
+Every new or migrated test must carry a discoverable tier. Use xUnit's native
 `[Trait("Tier", "N")]`, with the exact key `Tier` and a value from `"1"` to `"6"`: Unit, Functional,
 Component, Integration, System and Full system respectively. Existing tests may stay unmarked
 until classified; missing metadata means unclassified, never Tier 1 by default.
@@ -129,15 +128,12 @@ Arguments = $"run --project \"{cliProjectPath}\" -- run \"{tempDir}\"";
 
 ## Shared Driver
 
-When multiple test iterations need compilation, use a single shared `CompilerDriver` instance rather than constructing a new one per iteration. The driver is safe to reuse **sequentially, not concurrently**: classic's `TypeCheckerAnalyzer` keeps per-compile instance state (`currentEnclosingType` and others). A `private static` driver owned by one test class is sequential, because xunit runs a class's tests one at a time. A driver shared by several classes runs concurrently and needs a lock — see `Test/Mist.Tests/Helpers/VariadicsCompilerFixture.cs`.
+When multiple test iterations need compilation, use a single shared `CompilerDriver` instance rather than constructing a new one per iteration. Reuse it **sequentially, not concurrently**: no test establishes that one driver is safe for concurrent `Compile` calls, and a driver reports every compile's stage events to the one progress reporter it was constructed with. A `private static` driver owned by one test class is sequential, because xunit runs a class's tests one at a time. A driver shared by several classes runs concurrently, so give each class its own.
 
 The lexed and parsed standard library is cached once per process for every driver (`Source/Mist/Driver/StdlibParseCache.cs`), whatever lexer and parser each driver was given.
 
 ```csharp
-private static readonly CompilerDriver SharedDriver = new(
-    new MistLexer(), new MistParser(), new SemanticModelBuilder(),
-    ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-    ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+private static readonly CompilerDriver SharedDriver = new(new MistLexer(), new MistParser());
 ```
 
 # Test Output Encoding Policy

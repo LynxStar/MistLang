@@ -13,11 +13,6 @@ namespace Mist.Driver.Contracts;
 /// <param name="BinDirectory">Directory for final binary output.</param>
 /// <param name="ProjectName">Name of the project.</param>
 /// <param name="NamespaceRoot">Root namespace for the project.</param>
-/// <param name="EnabledAnalyzerIds">
-/// IDs of the classic analyzers to run; empty runs them all. Only the classic pipeline reads it: the
-/// experimental pipeline runs every Stage 5 rule, so it goes when the classic pipeline does.
-/// </param>
-/// <param name="EmitToDisk">Whether to write output files to disk.</param>
 /// <param name="GlobalUsings">
 /// Namespaces to implicitly import into every compilation unit.
 /// Enables in-process test compilation with global usings without requiring a mist.toml on disk.
@@ -37,8 +32,6 @@ public sealed record CompilerOptions(
     string BinDirectory,
     string ProjectName,
     string NamespaceRoot,
-    ImmutableArray<string> EnabledAnalyzerIds,
-    bool EmitToDisk = true,
     string? EntryPoint = null,
     ImmutableArray<string> GlobalUsings = default,
     ImmutableArray<NuGetPackageReference> Packages = default,
@@ -47,7 +40,7 @@ public sealed record CompilerOptions(
     bool VerboseResolution = false,
     ImmutableArray<CsprojProperty> CsprojProperties = default,
     ProjectOutputType OutputType = ProjectOutputType.Executable,
-    PipelineMode Pipeline = PipelineMode.Classic,
+    PipelineMode Pipeline = PipelineMode.Standard,
     TargetPlatform? Platform = null)
 {
     public TargetPlatform EffectivePlatform => Platform ?? TargetPlatforms.Host;

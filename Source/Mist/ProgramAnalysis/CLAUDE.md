@@ -5,9 +5,10 @@ The rules that judge a finished program model. What they are and in what order:
 
 ## Isolation
 
-The same rule as `Source/Mist/ProgramModel/`: nothing here may reference `Mist.Semantics` or
-`Mist.Analysis`. The second is classic's analyzer suite and is named in the clean-room rule. Classic's
-diagnostic ids and messages are observable behaviour and may be matched; its code may not be read.
+The same rule as `Source/Mist/ProgramModel/`: this is the only analyzer suite in the tree, and the one it
+replaced, classic's `Mist.Analysis`, exists only in git history. Nothing here may reintroduce its types
+or be derived from that source; see the clean-room rule in the root `CLAUDE.md`. Classic's diagnostic
+ids and messages, as the specs and registers record them, are observable behaviour and may be matched.
 
 ## The contract
 

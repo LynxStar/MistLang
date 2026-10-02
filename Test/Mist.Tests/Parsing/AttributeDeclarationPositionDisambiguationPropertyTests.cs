@@ -6,18 +6,13 @@
 // the parser SHALL produce AttributeListNode only in declaration context and
 // ArrayLiteralExpression/IndexSuffix nodes in expression context -- never confusing the two.
 
-using System.Collections.Immutable;
 using System.Text;
 using FsCheck;
 using FsCheck.Fluent;
-using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
-using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
-using Mist.Driver;
-using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
+using Mist.Common.Source;
+using Mist.Lexing;
+using Mist.Parsing;
 
 namespace Mist.Tests.Parsing;
 
@@ -26,41 +21,16 @@ namespace Mist.Tests.Parsing;
 ///
 /// Property 2: The parser never confuses attribute brackets with array/index brackets.
 /// Programs that contain BOTH attribute annotations on declarations AND bracket
-/// expressions in method bodies compile without parse errors, proving the parser
+/// expressions in method bodies parse without parse errors, proving the parser
 /// correctly disambiguates <c>[</c> in declaration vs expression position.
-///
-/// Uses batched in-memory compilation via shared CompilerDriver (no process spawning).
 /// </summary>
-public sealed class AttributeDeclarationPositionDisambiguationPropertyTests : IDisposable
+[Trait("Tier", "3")]
+public sealed class AttributeDeclarationPositionDisambiguationPropertyTests
 {
     private const int IterationCount = 100;
 
-    // --- Shared driver (reused across all iterations) ---
-
-    private static readonly CompilerDriver SharedDriver = new(
-        new Mist.Lexing.MistLexer(),
-        new Mist.Parsing.MistParser(),
-        new SemanticModelBuilder(),
-        ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-        ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
-
-    private readonly string outputDir;
-
-    public AttributeDeclarationPositionDisambiguationPropertyTests()
-    {
-        outputDir = Path.Combine(Path.GetTempPath(), "mist_pbt_disamb_" + Guid.NewGuid().ToString("N"));
-        _ = Directory.CreateDirectory(outputDir);
-    }
-
-    public void Dispose()
-    {
-        if(Directory.Exists(outputDir))
-        {
-            try { Directory.Delete(outputDir, recursive: true); } catch { /* best effort */ }
-        }
-
-        GC.SuppressFinalize(this);
-    }
+    private static readonly MistLexer Lexer = new();
+    private static readonly MistParser Parser = new();
 
     // === Scenario definition ===
 
@@ -176,45 +146,18 @@ public sealed class AttributeDeclarationPositionDisambiguationPropertyTests : ID
         return sb.ToString();
     }
 
-    // === Compilation helper ===
-
-    /// <summary>
-    /// Compiles a Mist source in-process and returns the diagnostics.
-    /// No process spawning occurs.
-    /// </summary>
-    private (bool Succeeded, IReadOnlyList<Diagnostic> Errors) CompileInMemory(string mistSource, string iterationId)
+    private static (bool Succeeded, IReadOnlyList<Diagnostic> Errors) ParseInMemory(string mistSource)
     {
-        var iterDir = Path.Combine(outputDir, iterationId);
-        _ = Directory.CreateDirectory(iterDir);
+        var diagnostics = new DiagnosticBag();
+        var tokens = Lexer.Lex(new SourceText("Program.mist", mistSource), diagnostics);
+        var parseResult = Parser.Parse(tokens, diagnostics);
 
-        try
-        {
-            var sourcePath = Path.Combine(iterDir, "Program.mist");
-            File.WriteAllText(sourcePath, mistSource);
+        var parseErrors = diagnostics.ToImmutableArray()
+            .AddRange(parseResult.Diagnostics)
+            .Where(d => d.Stage == PipelineStage.Parsing && d.Severity == DiagnosticSeverity.Error)
+            .ToList();
 
-            var options = new CompilerOptions(
-                ProjectFolder: iterDir,
-                SourcePaths: ImmutableArray.Create(sourcePath),
-                Backend: new BackendId("csharp"),
-                OutputDirectory: Path.Combine(iterDir, "out"),
-                BinDirectory: Path.Combine(iterDir, "bin"),
-                ProjectName: "TestDisambiguation",
-                NamespaceRoot: "TestDisambiguation",
-                EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-                EmitToDisk: false);
-
-            var result = SharedDriver.Compile(options);
-
-            var parseErrors = result.Diagnostics
-                .Where(d => d.Stage == PipelineStage.Parsing && d.Severity == DiagnosticSeverity.Error)
-                .ToList();
-
-            return (parseErrors.Count == 0, parseErrors);
-        }
-        finally
-        {
-            try { Directory.Delete(iterDir, recursive: true); } catch { /* best effort */ }
-        }
+        return (parseErrors.Count == 0, parseErrors);
     }
 
     // === Property test ===
@@ -223,8 +166,8 @@ public sealed class AttributeDeclarationPositionDisambiguationPropertyTests : ID
     /// Property 2: Declaration-Position Disambiguation.
     ///
     /// For any valid Mist program containing both attribute annotations on
-    /// declarations and bracket expressions in method bodies, compilation
-    /// succeeds without parse errors -- proving the parser correctly
+    /// declarations and bracket expressions in method bodies, parsing
+    /// reports no errors -- proving the parser correctly
     /// disambiguates [brackets] in declaration vs expression position.
     ///
     /// **Validates: Requirements 1.10**
@@ -240,7 +183,7 @@ public sealed class AttributeDeclarationPositionDisambiguationPropertyTests : ID
         {
             var scenario = scenarios[i];
             var source = BuildProgram(scenario);
-            var (succeeded, errors) = CompileInMemory(source, $"iter_{i}");
+            var (succeeded, errors) = ParseInMemory(source);
 
             if(!succeeded)
             {

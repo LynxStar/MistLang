@@ -233,7 +233,7 @@ A constraint on the source's type parameter moves to the newtype's parameter it 
 
 An instance of a generic newtype converts with the matching instance of its source, and with no other: with `type Twin<T> = new Pair<T, T>;`, a `Twin<int>` leaves to a `Pair<int, int>` and enters from one by a cast, while a `Pair<string, string>` needs a `Twin<string>`. A literal enters such an instance in the same visible slots, so `Id<User> id = 5;` is valid over `type Id<T> = new int;`.
 
-> **Not yet implemented:** an *operator* on an instance of a generic newtype, such as `id + id` with `type Id<T> = new int;`, is refused on the experimental pipeline. It waits on operators declared on generic types being found for their constructed instances, which no generic type has yet. A newtype that declares a pack, or whose source does, converts nothing yet either.
+> **Not yet implemented:** an *operator* on an instance of a generic newtype, such as `id + id` with `type Id<T> = new int;`, is refused. It waits on operators declared on generic types being found for their constructed instances, which no generic type has yet. A newtype that declares a pack, or whose source does, converts nothing yet either.
 
 ## How Newtypes Compile to C#
 

@@ -1,15 +1,9 @@
 using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
-using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
-using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Driver;
 
@@ -17,6 +11,7 @@ namespace Mist.Tests.Driver;
 /// Property-based tests for <see cref="ProjectReferenceResolver"/>.
 /// All tests are pure in-process — no process spawning.
 /// </summary>
+[Trait("Tier", "2")]
 public sealed class ProjectReferencePropertyTests
 {
     // ── Helpers ───────────────────────────────────────────────────────
@@ -247,42 +242,6 @@ public sealed class ProjectReferencePropertyTests
         });
     }
 
-    // ── CompilerDriver helpers for Property 6 and 7 ──────────────────
-
-    /// <summary>
-    /// Wraps <see cref="SemanticModelBuilder"/> to capture the
-    /// <see cref="MistCompilation"/> passed to <c>Build</c>.
-    /// </summary>
-    private sealed class CapturingSemanticModelBuilder : ISemanticModelBuilder
-    {
-        private readonly SemanticModelBuilder inner = new();
-
-        public MistCompilation? CapturedCompilation { get; private set; }
-
-        public ISemanticModel Build(
-            MistCompilation compilation,
-            ImmutableArray<Storm.Runtime.SyntaxNode> asts,
-            IAmbientTypeResolver? ambientTypeResolver,
-            string namespaceRoot,
-            string projectFolder,
-            DiagnosticBag diagnostics,
-            ImmutableHashSet<string>? directReferencePaths = null)
-        {
-            CapturedCompilation = compilation;
-            return inner.Build(compilation, asts, ambientTypeResolver, namespaceRoot, projectFolder, diagnostics, directReferencePaths);
-        }
-    }
-
-    private static CompilerDriver CreateDriverWithCapture(CapturingSemanticModelBuilder capture)
-    {
-        return new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            capture,
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
-    }
-
     /// <summary>
     /// Generates a valid project name: 3–10 lowercase letters.
     /// </summary>
@@ -292,185 +251,6 @@ public sealed class ProjectReferencePropertyTests
         return Gen.Choose(3, 10).SelectMany(len =>
             Gen.ArrayOf(Gen.Elements(letters), len)
                 .Select(chars => new string(chars)));
-    }
-
-    // ── Property 6: Referenced unit metadata is correct ───────────────
-    // Feature: project-references, Property 6: Referenced unit metadata is correct
-
-    [Fact]
-    public void P6_ReferencedUnitMetadata_IsCorrect()
-    {
-        var gen = GenProjectName().SelectMany(name =>
-            Gen.Choose(1, 3).Select(fileCount => (name, fileCount)));
-
-        RunProperty(gen, input =>
-        {
-            var (refName, fileCount) = input;
-            var rootDir = CreateTempDir();
-            var refDir = CreateTempDir();
-            try
-            {
-                // Create referenced project with random name and source files
-                WriteToml(refDir, $"name = \"{refName}\"\nnamespace_root = \"{refName}\"");
-                for(var i = 0; i < fileCount; i++)
-                {
-                    File.WriteAllText(
-                        Path.Combine(refDir, $"file{i}.mist"),
-                        $"// source file {i}");
-                }
-
-                // Create root project referencing it
-                var refTomlPath = Path.GetFullPath(
-                    Path.Combine(refDir, "mist.toml")).Replace("\\", "/");
-                WriteToml(rootDir, $"name = \"Root\"\nnamespace_root = \"Root\"\n\n[references]\n{refName} = {{ path = \"{refTomlPath}\" }}");
-                File.WriteAllText(
-                    Path.Combine(rootDir, "main.mist"), "// root source");
-
-                var capture = new CapturingSemanticModelBuilder();
-                var driver = CreateDriverWithCapture(capture);
-
-                var sourcePaths = Directory.GetFiles(rootDir, "*.mist");
-                var options = new CompilerOptions(
-                    ProjectFolder: rootDir,
-                    SourcePaths: sourcePaths.ToImmutableArray(),
-                    Backend: new BackendId("csharp"),
-                    OutputDirectory: Path.Combine(rootDir, "out"),
-                    BinDirectory: Path.Combine(rootDir, "bin"),
-                    ProjectName: "Root",
-                    NamespaceRoot: "Root",
-                    EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-                    EmitToDisk: false);
-
-                _ = driver.Compile(options);
-
-                Assert.NotNull(capture.CapturedCompilation);
-                var units = capture.CapturedCompilation!.Units;
-
-                var refTomlCanonical = Path.GetFullPath(
-                    Path.Combine(refDir, "mist.toml"));
-                var refUnits = units
-                    .Where(u => u.OriginProjectPath == refTomlCanonical)
-                    .ToList();
-
-                Assert.Equal(fileCount, refUnits.Count);
-
-                foreach(var unit in refUnits)
-                {
-                    Assert.Equal(refName, unit.NamespaceRoot);
-                    Assert.Equal(refDir, unit.ProjectFolder);
-                    Assert.Equal(refTomlCanonical, unit.OriginProjectPath);
-                }
-            }
-            finally
-            {
-                try { Directory.Delete(rootDir, recursive: true); } catch { }
-
-                try { Directory.Delete(refDir, recursive: true); } catch { }
-            }
-        });
-    }
-
-    // ── Property 7: Topological ordering — deepest dependency first ───
-    // Feature: project-references, Property 7: Topological ordering — deepest dependency first
-
-    [Fact]
-    public void P7_TopologicalOrdering_DeepestDependencyFirst()
-    {
-        // Generator: chain depth 2–4 (A→B→C or A→B→C→D etc.)
-        var gen = Gen.Choose(2, 4);
-
-        RunProperty(gen, depth =>
-        {
-            var rootDir = CreateTempDir();
-            var chainDirs = new List<string>();
-            try
-            {
-                // Create chain of projects: chain[0] is deepest, chain[depth-1] is shallowest
-                for(var i = 0; i < depth; i++)
-                {
-                    chainDirs.Add(CreateTempDir());
-                }
-
-                // Deepest project has no references
-                WriteToml(chainDirs[0], "name = \"Depth0\"\nnamespace_root = \"Depth0\"");
-                File.WriteAllText(
-                    Path.Combine(chainDirs[0], "d0.mist"), "// depth 0");
-
-                // Each subsequent project references the previous one
-                for(var i = 1; i < depth; i++)
-                {
-                    var prevToml = Path.GetFullPath(
-                        Path.Combine(chainDirs[i - 1], "mist.toml")).Replace("\\", "/");
-                    WriteToml(chainDirs[i], $"name = \"Depth{i}\"\nnamespace_root = \"Depth{i}\"\n\n[references]\nDepth{i - 1} = {{ path = \"{prevToml}\" }}");
-                    File.WriteAllText(
-                        Path.Combine(chainDirs[i], $"d{i}.mist"), $"// depth {i}");
-                }
-
-                // Root references the shallowest in the chain
-                var shallowToml = Path.GetFullPath(
-                    Path.Combine(chainDirs[depth - 1], "mist.toml")).Replace("\\", "/");
-                WriteToml(rootDir, $"name = \"Root\"\nnamespace_root = \"Root\"\n\n[references]\nDepth{depth - 1} = {{ path = \"{shallowToml}\" }}");
-                File.WriteAllText(
-                    Path.Combine(rootDir, "main.mist"), "// root source");
-
-                var capture = new CapturingSemanticModelBuilder();
-                var driver = CreateDriverWithCapture(capture);
-
-                var sourcePaths = Directory.GetFiles(rootDir, "*.mist");
-                var options = new CompilerOptions(
-                    ProjectFolder: rootDir,
-                    SourcePaths: sourcePaths.ToImmutableArray(),
-                    Backend: new BackendId("csharp"),
-                    OutputDirectory: Path.Combine(rootDir, "out"),
-                    BinDirectory: Path.Combine(rootDir, "bin"),
-                    ProjectName: "Root",
-                    NamespaceRoot: "Root",
-                    EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-                    EmitToDisk: false);
-
-                _ = driver.Compile(options);
-
-                Assert.NotNull(capture.CapturedCompilation);
-                var units = capture.CapturedCompilation!.Units;
-
-                // Verify ordering: units from deeper projects appear before shallower
-                for(var i = 0; i < depth - 1; i++)
-                {
-                    var deeperToml = Path.GetFullPath(
-                        Path.Combine(chainDirs[i], "mist.toml"));
-                    var shallowerToml = Path.GetFullPath(
-                        Path.Combine(chainDirs[i + 1], "mist.toml"));
-
-                    var deeperIndices = units
-                        .Select((u, idx) => (u, idx))
-                        .Where(x => x.u.OriginProjectPath == deeperToml)
-                        .Select(x => x.idx)
-                        .ToList();
-
-                    var shallowerIndices = units
-                        .Select((u, idx) => (u, idx))
-                        .Where(x => x.u.OriginProjectPath == shallowerToml)
-                        .Select(x => x.idx)
-                        .ToList();
-
-                    Assert.NotEmpty(deeperIndices);
-                    Assert.NotEmpty(shallowerIndices);
-
-                    Assert.True(deeperIndices.Max() < shallowerIndices.Min(),
-                        $"Depth {i} units (max index {deeperIndices.Max()}) should appear " +
-                        $"before depth {i + 1} units (min index {shallowerIndices.Min()})");
-                }
-            }
-            finally
-            {
-                try { Directory.Delete(rootDir, recursive: true); } catch { }
-
-                foreach(var d in chainDirs)
-                {
-                    try { Directory.Delete(d, recursive: true); } catch { }
-                }
-            }
-        });
     }
 
     // ── Property 2 (named-references): Name-mismatch detection ─────────
@@ -544,93 +324,6 @@ public sealed class ProjectReferencePropertyTests
                 try { Directory.Delete(rootDir, recursive: true); } catch { }
 
                 try { Directory.Delete(targetDir, recursive: true); } catch { }
-            }
-        });
-    }
-
-    // ── Property 8: Transitive types are not directly visible ─────────
-    // Feature: project-references, Property 8: Transitive types are not directly visible
-
-    /// <summary>
-    /// Generates a valid Mist type name: 3–8 uppercase-starting letters.
-    /// </summary>
-    private static Gen<string> GenTypeName()
-    {
-        var upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray();
-        var lower = "abcdefghijklmnopqrstuvwxyz".ToCharArray();
-        return Gen.Elements(upper).SelectMany(first =>
-            Gen.Choose(2, 7).SelectMany(restLen =>
-                Gen.ArrayOf(Gen.Elements(lower), restLen)
-                    .Select(rest => first + new string(rest))));
-    }
-
-    [Fact]
-    public void P8_TransitiveTypes_AreNotDirectlyVisible()
-    {
-        var gen = GenTypeName();
-
-        // Use a shared static driver for all iterations
-        var sharedDriver = new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
-
-        RunProperty(gen, typeName =>
-        {
-            var rootDir = CreateTempDir();
-            var dirB = CreateTempDir();
-            var dirC = CreateTempDir();
-            try
-            {
-                // Project C: declares a type with the random name
-                WriteToml(dirC, "name = \"CLib\"\nnamespace_root = \"CLib\"");
-                File.WriteAllText(
-                    Path.Combine(dirC, "type.mist"),
-                    $"namespace CLib;\n\npublic class {typeName}\n{{\n    public static int Value()\n    {{\n        return 1;\n    }}\n}}");
-
-                // Project B: references C
-                var cToml = Path.GetFullPath(
-                    Path.Combine(dirC, "mist.toml")).Replace("\\", "/");
-                WriteToml(dirB, $"name = \"BLib\"\nnamespace_root = \"BLib\"\n\n[references]\nCLib = {{ path = \"{cToml}\" }}");
-                File.WriteAllText(
-                    Path.Combine(dirB, "bridge.mist"),
-                    "namespace BLib;\n\npublic class Bridge\n{\n    public static int Get()\n    {\n        return 0;\n    }\n}");
-
-                // Root: references only B, tries to use C's type
-                var bToml = Path.GetFullPath(
-                    Path.Combine(dirB, "mist.toml")).Replace("\\", "/");
-                WriteToml(rootDir, $"name = \"Root\"\nnamespace_root = \"Root\"\n\n[references]\nBLib = {{ path = \"{bToml}\" }}");
-                File.WriteAllText(
-                    Path.Combine(rootDir, "main.mist"),
-                    $"namespace Root;\n\npublic class Program\n{{\n    public static void Main()\n    {{\n        var x = CLib.{typeName}.Value();\n    }}\n}}");
-
-                var sourcePaths = Directory.GetFiles(rootDir, "*.mist");
-                var options = new CompilerOptions(
-                    ProjectFolder: rootDir,
-                    SourcePaths: sourcePaths.ToImmutableArray(),
-                    Backend: new BackendId("csharp"),
-                    OutputDirectory: Path.Combine(rootDir, "out"),
-                    BinDirectory: Path.Combine(rootDir, "bin"),
-                    ProjectName: "Root",
-                    NamespaceRoot: "Root",
-                    EnabledAnalyzerIds: ImmutableArray<string>.Empty);
-
-                var result = sharedDriver.Compile(options);
-
-                // Compilation should fail — C's type is not directly visible
-                Assert.False(result.Succeeded,
-                    $"Expected compilation to fail when using transitive type CLib.{typeName}. " +
-                    $"Diagnostics: {string.Join("; ", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}"))}");
-            }
-            finally
-            {
-                try { Directory.Delete(rootDir, recursive: true); } catch { }
-
-                try { Directory.Delete(dirB, recursive: true); } catch { }
-
-                try { Directory.Delete(dirC, recursive: true); } catch { }
             }
         });
     }

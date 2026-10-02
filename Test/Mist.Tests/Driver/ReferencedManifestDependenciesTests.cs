@@ -1,19 +1,15 @@
 using System.Collections.Immutable;
 using System.Xml.Linq;
-using Mist.Analysis.Builtin;
-using Mist.Analysis.Contracts;
 using Mist.Backends.Contracts;
-using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Driver;
 
 /// <summary>
 /// Tier 4, the boundary from a REFERENCED project's manifest to package resolution (Stage 1.5) and
-/// on through the experimental pipeline to the project file it emits.
+/// on through the pipeline to the project file it emits.
 /// <para>
 /// Standalone, a project's own manifest is all resolution ever reads, so a sample declaring the
 /// framework its files use is green on its own and unresolved the moment another project
@@ -21,6 +17,7 @@ namespace Mist.Tests.Driver;
 /// later. The project file is asserted here too because nothing in the compiler reads it back.
 /// </para>
 /// </summary>
+[Trait("Tier", "4")]
 public sealed class ReferencedManifestDependenciesTests : IDisposable
 {
     private readonly string scratchDir;
@@ -96,12 +93,7 @@ public sealed class ReferencedManifestDependenciesTests : IDisposable
             }
             """);
 
-        var driver = new CompilerDriver(
-            new Mist.Lexing.MistLexer(),
-            new Mist.Parsing.MistParser(),
-            new SemanticModelBuilder(),
-            ImmutableArray.Create<IAnalyzer>(new TypeCheckerAnalyzer()),
-            ImmutableArray.Create<IBackend>(new CSharpTranspilerBackend()));
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
 
         var outputDir = Path.Combine(appDir, "out");
         var result = driver.Compile(new CompilerOptions(
@@ -111,9 +103,7 @@ public sealed class ReferencedManifestDependenciesTests : IDisposable
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(appDir, "bin"),
             ProjectName: "App",
-            NamespaceRoot: "App",
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
-            Pipeline: PipelineMode.Experimental));
+            NamespaceRoot: "App"));
 
         var errors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)

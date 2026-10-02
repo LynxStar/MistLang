@@ -106,8 +106,7 @@ public static class TypeInspector
             OutputDirectory: standardRoot,
             BinDirectory: standardRoot,
             ProjectName: "Inspect",
-            NamespaceRoot: "Inspect",
-            EnabledAnalyzerIds: []);
+            NamespaceRoot: "Inspect");
 
         var compilation = new MistCompilation(units) { HasStandardLibrary = true };
         return ProgramModelBuilder.Build(compilation, asts.MoveToImmutable(), options, diagnostics, provider) is not null

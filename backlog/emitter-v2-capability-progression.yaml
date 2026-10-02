@@ -79,7 +79,7 @@
 #
 #   Building a program model, and emitting from it. NOT verifying that the program is valid.
 #   v2 will need many analyzers and NONE of them are in scope here -- Stage 5 is an empty stub
-#   on purpose, and source-to-AST is shared with classic, which is untouched.
+#   on purpose, and source-to-AST is the grammar's, which is untouched.
 #
 #   So a capability is measured by what it makes REPRESENTABLE and EMITTABLE. Ask of any
 #   proposed work: what new part of a program can now be held in memory, or emitted and run?
@@ -13248,7 +13248,7 @@ uncovered_constructs:
 #
 #   210 sites, 24 samples, 20 distinct constructs.
 #
-# To reproduce: run each sample on --pipeline experimental and count the
+# To reproduce: run each sample and count the
 # '/* unsupported: Kind */' markers left in the emitted .cs. Emission writes every file before
 # the error gate, so a failing run still leaves them on disk, and the marker names the AST node
 # kind rather than the sentinel's own type.
@@ -13312,7 +13312,7 @@ uncovered_constructs:
 # against generated files, which is this file's own worst category, and it recorded
 # zero `broken` entries while that was true.
 #
-# HOW TO RE-TAKE IT: build every unbanked sample on `--pipeline experimental`, redirect
+# HOW TO RE-TAKE IT: build every unbanked sample, redirect
 # output away from samples/, and split the diagnostics per sample into MIST_CS_ERROR
 # (Roslyn, against generated C#) versus MIST_PM_* / MIST_BE_* (a refusal at Mist
 # source). A sample in the first column with an empty second column is a defect of this

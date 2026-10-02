@@ -1,10 +1,8 @@
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.CLI.Args;
-using Mist.CLI.Composition;
 using Mist.CLI.Layout;
 using Mist.CLI.Output;
 using Mist.CLI.Steering;
@@ -49,6 +47,7 @@ internal class Program
             Console.Error.WriteLine("  --output <dir>     Output directory for emitted files");
             Console.Error.WriteLine("  --bin <dir>        Binary output directory");
             Console.Error.WriteLine("  --mode <mode>      Compiler mode: compile, lex");
+            Console.Error.WriteLine("  --pipeline <name>  Compilation pipeline: standard (default: standard)");
             Console.Error.WriteLine("  --platform <os>    Platform to compile for: windows, linux, macos (default: this machine)");
             Console.Error.WriteLine("  --verbose, -v      Show detailed output");
             Console.Error.WriteLine("  --quiet, -q        Suppress progress output");
@@ -111,6 +110,7 @@ internal class Program
         Console.WriteLine("  --output <dir>     Output directory for emitted files");
         Console.WriteLine("  --bin <dir>        Binary output directory");
         Console.WriteLine("  --mode <mode>      Compiler mode: compile, lex");
+        Console.WriteLine("  --pipeline <name>  Compilation pipeline: standard (default: standard)");
         Console.WriteLine("  --platform <os>    Platform to compile for: windows, linux, macos (default: this machine)");
         Console.WriteLine("  --verbose, -v      Show detailed output");
         Console.WriteLine("  --quiet, -q        Suppress progress output");
@@ -322,7 +322,6 @@ internal class Program
             BinDirectory: cliArgs.BinDirectory,
             ProjectName: config.Name,
             NamespaceRoot: config.NamespaceRoot,
-            EnabledAnalyzerIds: ImmutableArray<string>.Empty,
             EntryPoint: config.EntryPoint,
             Packages: config.Packages,
             FrameworkReferences: config.FrameworkReferences,
@@ -330,14 +329,14 @@ internal class Program
             VerboseResolution: cliArgs.Verbose,
             CsprojProperties: config.CsprojProperties,
             OutputType: config.OutputType,
-            Pipeline: cliArgs.Pipeline == "experimental"
-                ? PipelineMode.Experimental
-                : PipelineMode.Classic,
+            Pipeline: cliArgs.Pipeline switch
+            {
+                "standard" => PipelineMode.Standard,
+                _ => throw new InvalidOperationException($"Unknown pipeline: '{cliArgs.Pipeline}'."),
+            },
             Platform: cliArgs.Platform);
 
-        var driver = options.Pipeline == PipelineMode.Experimental
-            ? new CompilerDriver(new MistLexer(), new MistParser(), progressReporter)
-            : ClassicCompilerComposition.CreateDriver(progressReporter);
+        var driver = new CompilerDriver(new MistLexer(), new MistParser(), progressReporter);
 
         // Run compilation
         return driver.Compile(options);

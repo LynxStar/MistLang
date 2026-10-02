@@ -38,7 +38,7 @@ public sealed record CliArguments(
     bool Quiet = false,
     bool Verbose = false,
     string? InspectTypeName = null,
-    string Pipeline = "classic",
+    string Pipeline = "standard",
     TargetPlatform? Platform = null);
 
 /// <summary>

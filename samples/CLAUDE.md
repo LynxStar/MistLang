@@ -5,18 +5,17 @@
 
 When implementing a new feature causes a pre-existing sample or test to fail, you MUST fix the root cause in the NEW code — never delete or modify the previously-working code in the other sample.
 
-The ONLY permitted modifications to other sample apps are:
-
-- Adding the new feature's `RunDemo()` call to `samples/AllFeatures/Program.mist` and its reference to `samples/AllFeatures/mist.toml`.
-- Adding a sample's `RunDemo()` call to `samples/AllFeaturesV2/Program.mist` and its reference to `samples/AllFeaturesV2/mist.toml`, when that sample starts working on the experimental pipeline. This is how v2 progress is recorded (see the testing philosophy, `.claude/skills/testing-philosophy/SKILL.md`, Tier 6).
+The ONLY permitted modification to other sample apps is adding a sample to the orchestrator, `samples/AllFeaturesV2`: its reference in `samples/AllFeaturesV2/mist.toml`, its `RunDemo()` call in `samples/AllFeaturesV2/Program.mist`, and its output lines in `samples/__baselines__/AllFeaturesV2.out`. This is how progress is recorded (see the testing philosophy, `.claude/skills/testing-philosophy/SKILL.md`, Tier 6).
 
 No other changes to any other sample are allowed.
+
+`samples/AllFeatures` and `samples/__baselines__/AllFeatures.out` are retained historical data: the orchestrator and baseline of the retired classic pipeline. They are not extended, edited or deleted. `MemoizationCorrectnessAndPerformanceTests` reads the directory as a parse corpus and `SampleProjectTomlTests` reads it as a project-file fixture.
 
 **Forbidden:**
 - Removing lines from other samples because the emitter broke them
 - Commenting out previously-working code in unrelated samples
 - Updating baselines to accept degraded output from other samples
-- Modifying ANY file under `samples/` other than the new feature's own directory and the two orchestrators (`AllFeatures`, `AllFeaturesV2`)
+- Modifying ANY file under `samples/` other than the new feature's own directory and the orchestrator (`AllFeaturesV2`)
 
 **Required:**
 - Diagnose WHY the new feature broke the existing sample
@@ -73,9 +72,9 @@ If a specific aspect of the feature cannot be exercised in the sample due to a k
 
 ## Rule 4: Samples Are System Tests
 
-A sample is Tier 5, and through `AllFeatures` or `AllFeaturesV2` Tier 6, in the testing philosophy (`.claude/skills/testing-philosophy/SKILL.md`). It proves that a valid program compiles and prints the right output, so it should fail to compile or produce wrong output if:
+A sample is Tier 5, and through `AllFeaturesV2` Tier 6, in the testing philosophy (`.claude/skills/testing-philosophy/SKILL.md`). It proves that a valid program compiles and prints the right output, so it should fail to compile or produce wrong output if:
 - The parser doesn't recognize the syntax
-- The semantic model doesn't register the types correctly
+- The program model doesn't register the types correctly
 - The emitter doesn't generate correct code
 
 It cannot prove a refusal. Every sample is a valid program, so a checker that enforces nothing passes it. What a rule refuses is proven at Tier 1–2 beside the rule, never with a sample or a program compiled to fail.
@@ -91,4 +90,4 @@ If a sample triggers a diagnostic:
 2. If the sample is using a pattern that should be valid without diagnostics, fix the compiler — do not suppress or ignore the diagnostic.
 3. If the sample genuinely has redundant or suboptimal code, fix the sample.
 
-After any change to samples or to analyzer/diagnostic code, verify by building the affected sample AND `samples/AllFeatures` and confirming zero diagnostic output.
+After any change to samples or to analyzer/diagnostic code, verify by building the affected sample AND `samples/AllFeaturesV2` and confirming zero diagnostic output.

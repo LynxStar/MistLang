@@ -5,7 +5,6 @@ using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
-using Mist.Semantics.Model;
 
 namespace Mist.Tests.Driver;
 
@@ -13,44 +12,19 @@ namespace Mist.Tests.Driver;
 public sealed class CompilerDriverConstructionTests
 {
     [Fact]
-    public void CleanDriver_RefusesTheClassicPipelineBeforeAnyStage()
-    {
-        var reporter = new RecordingReporter();
-        var driver = new CompilerDriver(new UnusedLexer(), new UnusedParser(), reporter);
-
-        _ = Assert.Throws<InvalidOperationException>(() => driver.Compile(Options(PipelineMode.Classic, BackendId.CSharp)));
-        Assert.Empty(reporter.Stages);
-    }
-
-    [Fact]
     public void CleanDriver_RejectsABackendOtherThanCSharpBeforeLoading()
     {
         var reporter = new RecordingReporter();
         var driver = new CompilerDriver(new UnusedLexer(), new UnusedParser(), reporter);
 
-        var result = driver.Compile(Options(PipelineMode.Experimental, new BackendId("llvm")));
+        var result = driver.Compile(Options(new BackendId("llvm")));
 
         Assert.False(result.Succeeded);
         Assert.Equal(DriverDiagnostics.UnknownBackend.Id, Assert.Single(result.Diagnostics).Id);
         Assert.Empty(reporter.Stages);
     }
 
-    [Theory]
-    [InlineData(PipelineMode.Classic)]
-    [InlineData(PipelineMode.Experimental)]
-    public void LegacyDriver_KnowsOnlyTheBackendsItWasGiven(PipelineMode pipeline)
-    {
-        var reporter = new RecordingReporter();
-        var driver = new CompilerDriver(new UnusedLexer(), new UnusedParser(), new SemanticModelBuilder(), [], [], reporter);
-
-        var result = driver.Compile(Options(pipeline, BackendId.CSharp));
-
-        Assert.False(result.Succeeded);
-        Assert.Equal(DriverDiagnostics.UnknownBackend.Id, Assert.Single(result.Diagnostics).Id);
-        Assert.Empty(reporter.Stages);
-    }
-
-    private static CompilerOptions Options(PipelineMode pipeline, BackendId backend)
+    private static CompilerOptions Options(BackendId backend)
     {
         return new CompilerOptions(
             ProjectFolder: "unread",
@@ -59,9 +33,7 @@ public sealed class CompilerDriverConstructionTests
             OutputDirectory: "unread/out",
             BinDirectory: "unread/bin",
             ProjectName: "Unread",
-            NamespaceRoot: "Unread",
-            EnabledAnalyzerIds: [],
-            Pipeline: pipeline);
+            NamespaceRoot: "Unread");
     }
 
     private sealed class UnusedLexer : ILexer

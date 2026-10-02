@@ -28,7 +28,7 @@ public static class CliArgumentParser
         var mode = CompilerMode.Compile;
         var quiet = false;
         var verbose = false;
-        var pipeline = "classic";
+        var pipeline = "standard";
         TargetPlatform? platform = null;
 
         for(var i = 0; i < args.Length; i++)
@@ -110,9 +110,9 @@ public static class CliArgumentParser
                 {
                     i++;
                     pipeline = args[i].ToLowerInvariant();
-                    if(pipeline is not ("classic" or "experimental"))
+                    if(pipeline is not "standard")
                     {
-                        errors.Add(new CliParseError($"Unknown pipeline: '{args[i]}'. Valid pipelines: classic, experimental"));
+                        errors.Add(new CliParseError($"Unknown pipeline: '{args[i]}'. Valid pipelines: standard"));
                     }
                 }
             }

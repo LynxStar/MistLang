@@ -198,6 +198,12 @@ constructor, field or property, and a duplicate entry point.
   7.2 says warning.
 - **A `Type[N]` pack closed with another count is `MIST_PA_CONSTRAINT_NOT_SATISFIED`**; it was
   admitted before and the spec names no diagnostic.
+- **An optional or union over an element of an unconstrained pack (`TArgs[1]?`) is refused by the
+  backend**, `MIST_BE_UNION_OVER_PACK_ELEMENT`: a union over a type parameter is emitted per
+  instantiation and a variadic declaration per arity. Under `where TArgs : struct` or `: class` it
+  works. Lifting it means emitting variadic types per instantiation.
+- **A forwarded pack must declare each constraint of the pack it is forwarded into**; implication
+  between two different constraints is not attempted.
 
 ### Still open
 
@@ -223,9 +229,14 @@ Found while closing the gaps, each measured, none established as something class
   the delegate.
 - **Variadics**: a spread-typed parameter `M(TArgs... x)` and a spread into a non-pack slot
   `List<TArgs...>` reach Roslyn; a variadic method inside a variadic type, or in an extension block,
-  is not specialized; `if (TArgs is Type[2] narrowed)` (6.7); a whole-pack constraint on a method-level
-  pack; `Buffer<true>` over `Buffer<Size:int>`; a newtype over a tuple; `: this(args...)` and
+  is not specialized; `if (TArgs is Type[2] narrowed)` (6.7); `where Ts : IRank<Ts>` on a pack;
+  `Buffer<true>` over `Buffer<Size:int>`; a newtype over a tuple; `: this(args...)` and
   `: base(args...)`; a base-list spread `: TBases...` (9.3).
+- **Generics, the same with and without packs**: an unconstrained type parameter forwarded into a
+  constrained one is not refused; `where T : default` on a class's type parameter does not emit;
+  an implicit `new Box<Widget>()` over a constructorless generic uses C#'s `default(T)` where
+  `default(Box<Widget>)` uses Widget's own default; `default(T)` on an unconstrained parameter is
+  refused by the backend and not by Stage 5.
 - **Modifiers**: `async`, `static`, `readonly`, `owned`, `affine` on an enum, alias, newtype or class
   are dropped silently; `ref` on an operator reaches Roslyn.
 - **Packages**: the emitted csproj still carries a failed `<PackageReference>`, so `mist test` fails in
@@ -284,6 +295,24 @@ Run on 2026-10-01 and 2026-10-02 against the tree that became this change; no fi
   `type-system/accessibility/protected-in-sealed`. No book output was regenerated in this change.
 - **Probes** behind the sample check and the list above were run with the built CLI on throwaway
   projects.
+
+### The follow-up work (2026-10-02)
+
+The sample fold-in, the deletions and the gap fixes above, as 26 commits on top of `306b142f`.
+
+- `dotnet build Mist.slnx` and the SnippetEmitter: 0 warnings, 0 errors.
+  `dotnet format Mist.slnx --verify-no-changes`: exit 0.
+- Full ledger `20261002-041727`, unfiltered: `mist.tests.dll` 7,658, `mist.cli.tests.dll` 105,
+  `storm.sourcegenerator.tests.dll` 812, `storm.consumerintegration.tests.dll` 46, all passed, exit 0
+  after 93 s. The 579 added Mist tests are the fixes' own, at Tiers 1 to 3 with six Tier 4 compiles
+  (three entry-point manifest seams and three package-resolution seams).
+- Each fix was probed with the CLI before and after, mutation-checked, and ledgered alone in its own
+  worktree before it was merged. The two variadics changes were then cross-checked together: 244
+  probe programs through the merged compiler, every difference from each change alone accounted for,
+  and the only programs still reaching Roslyn are the ones listed under "Still open".
+- `samples/AllFeaturesV2` prints its 2,151-line baseline with nothing on stderr.
+- Book snippets over a scratch copy: 381 pairs, 0 failed, the same ten stale tabs, and the whole
+  emitted tree byte-identical to the `ba321ab0` emitter's. No fix changed any snippet's C#.
 
 ## Left open
 

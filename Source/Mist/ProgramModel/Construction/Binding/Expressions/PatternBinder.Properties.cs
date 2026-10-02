@@ -28,7 +28,8 @@ internal static partial class PatternBinder
 
         if(node.TypeName is { } typeName)
         {
-            var tested = context.Resolver.ResolveNamedType(QualifiedNameHelper.Build(typeName), ctx.Scope, typeName);
+            var tested = PackPosition.AsSingleType(
+                context.Resolver.ResolveNamedType(QualifiedNameHelper.Build(typeName), ctx.Scope, typeName), ctx.Scope, typeName, context.Diagnostics);
 
             if(tested is TypeAlias alias)
             {

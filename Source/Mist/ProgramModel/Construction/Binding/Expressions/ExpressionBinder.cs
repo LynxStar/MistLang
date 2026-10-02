@@ -282,7 +282,7 @@ internal static class ExpressionBinder
             }
             else
             {
-                type = definition;
+                type = PackPosition.AsSingleType(definition, ctx.Scope, node, context.Diagnostics);
             }
         }
 
@@ -496,8 +496,8 @@ internal static class ExpressionBinder
         {
             PrimitiveElementTypeRefElementTypeRefNode primitiveRef => ResolvePrimitiveElementType(primitiveRef, context),
             UnknownElementTypeRefElementTypeRefNode => UnknownType.Instance,
-            NamedElementTypeRefElementTypeRefNode namedRef => context.Resolver.ResolveNamed(
-                namedRef.Name, namedRef.TypeArgs, ctx.Scope, namedRef),
+            NamedElementTypeRefElementTypeRefNode namedRef => PackPosition.AsSingleType(
+                context.Resolver.ResolveNamed(namedRef.Name, namedRef.TypeArgs, ctx.Scope, namedRef), ctx.Scope, namedRef, context.Diagnostics),
             FuncElementTypeRefElementTypeRefNode funcRef => context.Resolver.ResolveFunction(
                 funcRef.TypeArgs, ctx.Scope, funcRef),
             _ => ErrorType.Instance,

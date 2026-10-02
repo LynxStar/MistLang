@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
@@ -109,6 +110,86 @@ public sealed class ValuePackTests : ProgramModelProbe
     public void ADeclarationCSharpWouldAccept_AndAMiddlePack_AreNot(string declaration)
     {
         Assert.Empty(Errors(BuildRun("", $"public class Fine {{ {declaration} }}"), "MIST_VAR_0012"));
+    }
+
+    /// <summary>
+    /// Variadics Requirements 7.9 and 13.5, on declarations nothing instantiates or calls: a list has one
+    /// `params`, whichever of a tuple or an array each of them would collect.
+    /// </summary>
+    [Theory]
+    [InlineData("public class Bad<params TArgs> { public void M(params TArgs a, params TArgs b) { } }")]
+    [InlineData("public class Bad<params TArgs> { public void M(params TArgs a, params string[] b) { } }")]
+    [InlineData("public class Bad<params TArgs> { public Bad(params TArgs a, params TArgs b) { } }")]
+    [InlineData("public abstract IBad<params TArgs> { int Take(params TArgs a, params TArgs b); }")]
+    [InlineData("public class Bad { public static int M<params TArgs>(params TArgs a, params TArgs b) { return 0; } }")]
+    [InlineData("public class Bad { public static int M(params int[] a, params int[] b) { return 0; } }")]
+    [InlineData("public class Bad<params TArgs> { public void M(params int[] a, params TArgs b) { } }")]
+    public void ASecondParamsInOneList_IsRefusedAtTheDeclaration(string declaration)
+    {
+        var error = Assert.Single(Errors(BuildRun("", declaration), "MIST_VAR_0001"));
+
+        Assert.Contains("'b' is a second 'params' parameter after 'a'", error.Message);
+    }
+
+    [Fact]
+    public void EveryParamsAfterTheFirst_IsRefusedOnItsOwn()
+    {
+        var errors = Errors(
+            BuildRun("", "public class Bad<params TArgs> { public void M(params TArgs a, params TArgs b, params TArgs c) { } }"),
+            "MIST_VAR_0001").ToList();
+
+        Assert.Equal(["'b' is a second", "'c' is a second"], errors.Select(error => error.Message[..15]));
+    }
+
+    [Fact]
+    public void ASecondParamsInALocalFunctionsList_IsRefused()
+    {
+        _ = Assert.Single(Errors(Run("int Count(params int[] a, int mid, params int[] b) { return 0; }"), "MIST_VAR_0001"));
+    }
+
+    [Fact]
+    public void TheRefusedParams_IsLeftAPlainTupleParameter()
+    {
+        var model = BuildModel(
+            statement: "", extraTypes: "public class Bad<params TArgs> { public void M(params TArgs a, params TArgs b) { } }",
+            extraPreamble: "", out _);
+        var method = Assert.IsAssignableFrom<MemberType>(model.TypesByFQN["Probe.Bad<>"]).MethodsList.Single();
+
+        Assert.Equal([true, false], method.ParametersList.Select(parameter => parameter.IsFlattened));
+        Assert.True(method.ParametersList[1].Type is TupleType { ElementTypes: [SpreadType] });
+    }
+
+    [Theory]
+    [InlineData("public static int M(params int[] a, params int[] b) { return 0; }", 1)]
+    [InlineData("public static int M(params int[] a, string mid, params int[] b) { return 0; }", 1)]
+    [InlineData("public static int M<params TArgs>(params TArgs a, params int[] b, string tail) { return 0; }", 0)]
+    [InlineData("public static int M(params int x, string tail) { return 0; }", 0)]
+    public void OnlyAWellFormedArrayStillAbsorbing_IsRefusedForItsPosition(string declaration, int notLast)
+    {
+        Assert.Equal(notLast, Errors(BuildRun("", $"public class Bad {{ {declaration} }}"), "MIST_VAR_0012").Count());
+    }
+
+    [Theory]
+    [InlineData("public static int M(params int x) { return 0; }", "its type 'int' cannot collect a flat argument list")]
+    [InlineData("public static int M<T>(params T x) { return 0; }", "its type 'T' cannot collect a flat argument list")]
+    [InlineData("public static int M(params int[]? xs) { return 0; }", "cannot collect a flat argument list")]
+    [InlineData("public static int M(params ref int[] xs) { return 0; }", "it is passed by reference")]
+    public void AParamsThatCannotCollectAFlatListOfValues_IsRefused(string declaration, string reason)
+    {
+        var error = Assert.Single(Errors(BuildRun("", $"public class Bad {{ {declaration} }}"), "MIST_VAR_0013"));
+
+        Assert.Contains(reason, error.Message);
+    }
+
+    [Theory]
+    [InlineData("public static int M(params int[] xs) { return 0; }")]
+    [InlineData("public static int M(string head, params int[] xs) { return 0; }")]
+    [InlineData("public static int M(params (int, string) pair) { return 0; }")]
+    [InlineData("public static int M<params TArgs>(int head, params TArgs args, string[] names) { return 0; }")]
+    [InlineData("public static int M<TFirst, params TMid, TLast>(TFirst f, params TMid m, TLast l) { return 0; }")]
+    public void AListWithOneWellFormedParams_IsNotRefused(string declaration)
+    {
+        Assert.Empty(BuildRun("", $"public class Fine {{ {declaration} }}").Where(d => d.Severity == DiagnosticSeverity.Error));
     }
 
     /// <summary>

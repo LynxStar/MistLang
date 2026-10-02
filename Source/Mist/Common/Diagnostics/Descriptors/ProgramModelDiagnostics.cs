@@ -1038,6 +1038,23 @@ public static class ProgramModelDiagnostics
         "'{0}' is a second bracket-free pack after '{1}'. Only one pack can absorb a flat argument list; declare this one as 'Type[]:{0}' and supply it in brackets.");
 
     /// <summary>
+    /// The value-parameter side of <see cref="MultipleUnbracketedPacks"/>, under the same id because the
+    /// variadics spec states them as one rule (Requirements 7.9 and 13.5): a `params` parameter is where a
+    /// caller may write a flat list, whichever of a tuple or an array collects it, and a list has one.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MultipleParamsParameters = new(
+        new DiagnosticId("MIST_VAR_0001"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is a second 'params' parameter after '{1}'. Only one parameter of a value-parameter list can absorb a flat argument list; declare this one without 'params' and pass it as one tuple or array.");
+
+    public static readonly DiagnosticDescriptor PackInTypePosition = new(
+        new DiagnosticId("MIST_VAR_0002"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is a pack, a list of types, and this position needs one type. Spread it with '{0}...' where a list is accepted: a type-argument list, a tuple type, or a member declaration.");
+
+    /// <summary>
     /// A dependent parameter's domain is outside the set whose values can carry type identity. The
     /// line is drawn at equality: a construction is identified BY its argument, so a domain whose
     /// equality is partial or approximate would make type identity the same, which is why the
@@ -1105,6 +1122,12 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "'{0}' is declared 'params' but is not the last parameter. A 'params' array collects the arguments after the fixed ones, so nothing may follow it.");
+
+    public static readonly DiagnosticDescriptor ParamsParameterMalformed = new(
+        new DiagnosticId("MIST_VAR_0013"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is declared 'params' but {1}. A 'params' parameter is a value pack, 'params TArgs {0}', or an array, 'params T[] {0}', passed by value.");
 
     /// <summary>
     /// A spread whose expansion is not known. The suffix promises a definite number of arguments,

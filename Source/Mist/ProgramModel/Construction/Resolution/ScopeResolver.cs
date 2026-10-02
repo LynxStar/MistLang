@@ -209,6 +209,12 @@ internal sealed class ScopeResolver
             _ => ReportUnsupported(singleRef),
         };
 
+        // A sized rank is left to pass: `TArgs[1]` indexes the pack, where `TArgs[]` is an array of it.
+        if(GetArrayRank(singleRef) is not SizedArrayRankArrayRankSuffixNode)
+        {
+            inner = PackPosition.AsSingleType(inner, scope, singleRef, context.Diagnostics);
+        }
+
         // If the type reference has an array rank suffix, wrap the inner type
         // in a constructed Standard.Array<TValue, Length>.
         if(GetArrayRank(singleRef) is { } rank)

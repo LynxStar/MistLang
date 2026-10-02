@@ -98,7 +98,7 @@ internal sealed class ConstraintResolver
             switch(clause)
             {
                 case GenericConstraintClauseWhereClauseNode generic when targets.TryGetValue(generic.Name.Lexeme, out var target):
-                    ResolveConstraintList(generic.Constraints, target.ConstraintsList, scope);
+                    ResolveConstraintList(generic.Constraints, target.ConstraintsList, Constraining(target, scope));
                     break;
 
                 case AdhocRefinementConstraintWhereClauseNode adhoc when targets.TryGetValue(adhoc.Name.Lexeme, out var target):
@@ -131,7 +131,12 @@ internal sealed class ConstraintResolver
             return;
         }
 
-        ResolveConstraintList(generic.Constraints, target.ConstraintsList, scope);
+        ResolveConstraintList(generic.Constraints, target.ConstraintsList, Constraining(target, scope));
+    }
+
+    private static Scope Constraining(TypeParameter target, Scope scope)
+    {
+        return target.IsPack ? new PackConstraintScope(scope, target) : scope;
     }
 
     /// <summary>

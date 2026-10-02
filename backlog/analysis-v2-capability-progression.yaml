@@ -2431,6 +2431,11 @@ rules:
       argument to any flattened parameter reaches Roslyn (AssignabilityAnalyzer skips such callees); a
       plain `(TArgs...) args` parameter is read as a parenthesized spread and takes no tuple (7.7); and a
       default body that reads its abstract's pack does not emit when restated into a closed conformer.
+
+      OF THOSE FIVE, FOUR CLOSED THE SAME DAY (2026-10-02): forwarding into a parameter over the same
+      pack, the argument check against a flattened parameter (ArgumentTargets), `(TArgs...)` as the
+      tuple of the pack, and the restated default reading its pack's width. The with block over a
+      variadic abstract stays open: neither spec defines the combination and classic refused it.
     tasks:
       - >
         A mapping onto a NON-PUBLIC source member is admitted. Classic requires public; C# accepts the

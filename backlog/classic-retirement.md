@@ -145,36 +145,100 @@ for that directory instead. `SpecProofCodeMatchesSampleTest` reads
 gone and 27 are checked. `Enums_StillCompilesAfterReadonlyModifierAdditions` compiled `samples/Enums`
 on classic in-process and is covered by the orchestrator.
 
-## What classic did that the standard pipeline does not
+## What classic did that the standard pipeline did not
 
-Found while classifying classic's tests. None was fixed here; each is language work. The measured
-ones are entered in `backlog/general.md`.
+Found while classifying classic's tests, then probed (2026-10-01 and 2026-10-02). Classic's tests were
+read as statements of what it accepted and printed; its source was not. Each row below was measured on
+the standard pipeline before and after, and is closed unless it says otherwise.
 
-Measured on 2026-10-01:
+| Gap | Closed by |
+|---|---|
+| A call needing a `with` context with none held compiled and threw in `MistContext.Peek` | `ContextAnalyzer`, analysis order 16: `MIST_CTX_0001`, and `0002`, `0004`, `0005`, `0006` for the rest of the discipline |
+| A pack-typed abstract slot could not be filled at a concrete arity (variadics 22.2) | `ValuePack.Expand`: the slot is read at the arity the conformer binds; an explicit bridge unpacks the tuple the interface declares |
+| An undefined `[global_usings]` namespace reached Roslyn (global-usings 4.3) | `UsingValidation`: warning `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE`, the name withdrawn, the build continues |
+| An explicit `using` of an undefined namespace reached Roslyn | `UsingValidation`: error `MIST_UNDEFINED_NAMESPACE` at the directive |
+| `numbers.Count()` without `System.Linq` was refused by Roslyn | `MIST_PM_NOT_CALLABLE` at the call, naming the unimported namespace; general for any value that is not a function |
+| A package or framework-reference error stopped the build before Stage 4 (csharp-interop-v2 2.6) | `Driver/ResolutionDiagnostics.cs`: Stage 1.5's diagnostics are kept apart from the bag the gates read and joined into the result |
+| Entry points: statements beside a `Main` never ran, a second statements file was dropped, `entry_point = "<class>"` was never read, statements alone were refused (top-level-statements 2 to 4) | `EntryPointSelection.Decide`, read by `EntryPointAnalyzer` (order 15: `MIST_EP_0001` to `0005`, `0007`, `0008`) and by the emitter |
+| `async` on an operator or cast operator was accepted and dropped | `MIST_PM_ASYNC_NOT_ALLOWED` from `OperatorBuilder` and `CastOperatorBuilder` |
+| A promoted (inferred-async) call used as a receiver, index target or `?.` operand was emitted without parentheses | `BodyEmitter`: the await is written in one place and ranked as the prefix operator it is |
+| Variadics refusals leaked or were silent: a bare pack as a type (6.3), several value-side `params` (7.9, 13.5), a function over 16 inputs (16.2), a wrongly typed argument to a `params` parameter (13.7) | `MIST_VAR_0002`, `MIST_VAR_0001`, new `MIST_VAR_0013`, `MIST_VAR_0010` (backend), and `ArgumentTargets` read by assignability and the refinement prover |
+| Variadics forms missing: forwarding a pack (12.7), `(TArgs...)` as a parameter type (7.7, 7.8), `TArgs[i]` in a type position (6.4 to 6.6), a restated default reading its pack | `ArgumentBinder`, `PackTypePositions`, `MIST_VAR_0003` and `0004`, `MonomorphReference.Width` |
 
-- **Structured-context discipline.** A call needing a `with` context and having none compiles and
-  throws in `MistContext.Peek`. Classic refused it (`MIST_CTX_0001` to `MIST_CTX_0006`).
-- **A pack-typed abstract slot at a concrete arity** (variadics 22.2) is refused with
-  `MIST_PA_SLOT_SIGNATURE_MISMATCH`. The generic, spreading form is admitted.
-- **An undefined namespace in `[global_usings]`** (global-usings 4.3) reaches Roslyn as `MIST_CS_ERROR`
-  where classic warned `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE` and continued.
-- **A CLR extension called without its namespace**, `numbers.Count()` on a `List<int>`, is refused by
-  Roslyn (`MIST_CS_ERROR`) and not by the binder.
+Probed and found not to be gaps: variadics 8.7 (unequal zip, `MIST_PA_NO_IMPLICIT_CONVERSION`), two
+`params T[]` (`MIST_VAR_0012`), 10.5 (not expressible), `await` on a non-task, `async` on a
+constructor, field or property, and a duplicate entry point.
 
-Read from the source and the specs, not probed:
+### Decisions made where a spec was silent, for Arthur to confirm or overrule
 
-- Entry-point validation beyond a duplicate entry point, a missing one and a library with top-level
-  statements: classic's `MIST_EP_0001` to `MIST_EP_0007`.
-- Variadics refusals with no reporter: Requirements 6.3, 6.4, 6.6 (`MIST_VAR_0002` to `0004`), 8.7
-  (`0006`), 7.9 and 13.5 (`0001` on a value-parameter list), 16.2 (`0010`), 10.5 (`0008`).
-- Transitive reference visibility (project-references Requirement 6.2). `MistProject` documents the
-  flat project list as deliberate, so this is a spec to amend and not a rule to write.
-- Continuing past a package-resolution error (csharp-interop-v2 Requirement 2.6): `StandardPipeline`
-  returns at its entry gate on any error.
-- Five refusals the standard pipeline does report are named in no test:
-  `MIST_PM_AWAIT_OF_NON_TASK`, `MIST_PM_ASYNC_NOT_ALLOWED`, `MIST_PM_DUPLICATE_ENTRY_POINT`,
-  `MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE` and `MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH`. That predates
-  the deletion.
+- **A build with only a resolution error succeeds**: `Build succeeded  1 error(s)`, exit 0, the error
+  line printed. csharp-interop-v2 2.6 says "continue the build" and classic did this.
+- **Top-level statements beside a block namespace work**; top-level-statements 1.6 and
+  `book/src/getting-started/top-level-statements.md` say they are refused (`MIST_EP_0006`). No refusal
+  was added.
+- **A referenced project's entry point is judged against its own manifest**, so a reference with two
+  `Main`s and no `entry_point` is `MIST_EP_0004`. `MIST_EP_0004` lists classes in ordinal order; the
+  book's example shows declaration order.
+- **Context**: every caller must hold the key; accessors, operators, conversions and static
+  initializers are not transparent, so a getter, operator or `Dispose` that needs a context is refused
+  even when read under one (those ran before); a key naming a type parameter does not pass through a
+  transparent generic method; alias and refinement share the underlying key in both directions.
+- **An optional `func?` called without narrowing is still admitted**; a general union is refused
+  (first-class-functions 6.10).
+- **A promoted call inside a non-async lambda blocks** (`.GetAwaiter().GetResult()`), as the emitter
+  already did for a declared-async one; first-class-functions 9.9 says the lambda is emitted `async`.
+- **The tuple-parameter form no longer fills a pack-typed slot** (`int Apply((int, int) pair)`), and a
+  class redeclaring an inherited member whose pack its base list closed is
+  `MIST_PA_MEMBER_REDECLARATION`.
+- **`params` on anything but a pack or an array is `MIST_VAR_0013`**, an id outside the spec's table;
+  `params List<int>` and `params int[]?` built before. `MIST_VAR_0010` is the backend's (16.1, 16.4).
+- **A forwarded pack reaches its callee as N arguments** (12.3, 7.5); classic passed one tuple and
+  printed 1 where 3 is right.
+- **An explicit undefined `using` is an error** (inferred-namespaces design.md); its requirements.md
+  7.2 says warning.
+- **A `Type[N]` pack closed with another count is `MIST_PA_CONSTRAINT_NOT_SATISFIED`**; it was
+  admitted before and the spec names no diagnostic.
+
+### Still open
+
+Not built, by rule: a `with` block naming a variadic abstract. Neither spec defines the combination
+and classic, run, refused it. It needs `ConformanceBuilder` to resolve through `BindPack` and compare
+the expanded slot, and `ConformanceEmitter` to unpack the tuple.
+
+Found while closing the gaps, each measured, none established as something classic did:
+
+- **Context**: a refined clause is not proven (`with 0;` satisfies `with PositiveInt n`); `string?` and
+  `string` share a runtime key; a lambda that outlives its context's scope fails at run time; the
+  emitter drops the clause on extension methods and abstract default bodies (`MIST_CS_ERROR`).
+- **Async**: an extension-block method ignores `async` and is never promoted; an `await` in a property
+  getter or constructor body is emitted where C# refuses it; the `async` functor's lift lambda is not
+  async; a promoted method used as a method group has the wrong return type; promotion does not reach
+  an abstract slot; `some?.M()` on a promoted `M`.
+- **Usings**: a `using` of a namespace holding only type aliases reaches Roslyn (the emitter writes a
+  using for a namespace it emits nothing into); a namespace holding only `with` declarations is never
+  registered, so a `using` of it is now `MIST_UNDEFINED_NAMESPACE`.
+- **CLR binding**: `System.Func<int, int>` written fully qualified does not resolve;
+  `numbers.Select(n => n * 2)` is `MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED` and `numbers.Where(n => n > 1)`
+  `MIST_PM_UNRESOLVABLE_OVERLOAD`; `List<int>.Capacity` is not found; a CLR delegate call is typed as
+  the delegate.
+- **Variadics**: a spread-typed parameter `M(TArgs... x)` and a spread into a non-pack slot
+  `List<TArgs...>` reach Roslyn; a variadic method inside a variadic type, or in an extension block,
+  is not specialized; `if (TArgs is Type[2] narrowed)` (6.7); a whole-pack constraint on a method-level
+  pack; `Buffer<true>` over `Buffer<Size:int>`; a newtype over a tuple; `: this(args...)` and
+  `: base(args...)`; a base-list spread `: TBases...` (9.3).
+- **Modifiers**: `async`, `static`, `readonly`, `owned`, `affine` on an enum, alias, newtype or class
+  are dropped silently; `ref` on an operator reaches Roslyn.
+- **Packages**: the emitted csproj still carries a failed `<PackageReference>`, so `mist test` fails in
+  `dotnet test`'s restore; csharp-interop-v2 3.5 (the error surfaced during Stage 1.5) is not
+  implemented.
+- **Refusals named by no test**: `MIST_PM_AWAIT_OF_NON_TASK`, `MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE`,
+  `MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH`.
+
+Specs that now disagree with the implementation, beyond the decisions above: project-references
+Requirement 6 (transitive visibility; `MistProject` documents the flat list as deliberate), the
+structured-context design's keying and message templates and its Requirement 8.4/8.5, the variadics
+diagnostic table (no `MIST_VAR_0012` or `0013`) and its two-pipeline Architecture section, and the
+Glossary and Introduction of `compiler-progress-output`.
 
 ## Verification
 
@@ -226,10 +290,8 @@ Run on 2026-10-01 and 2026-10-02 against the tree that became this change; no fi
 - The ten stale book tabs, which one `dotnet run --project tools/SnippetEmitter` regenerates.
 - `backlog/storm.md` defers four residue items "until classic is sunset"; that condition is now met.
   No Storm change was made.
-- Specs that now describe classic only: project-references Requirement 6, csharp-interop-v2
-  Requirement 2.6, global-usings Requirement 4.3, and the Glossary and Introduction of
-  `compiler-progress-output`, whose Requirements 6 and 7 alone were rewritten (criteria 7.10 to 7.12
-  are cross-stage and sit there for that reason).
+- `compiler-progress-output` had Requirements 6 and 7 alone rewritten; criteria 7.10 to 7.12 are
+  cross-stage and sit there for that reason.
 - Plans written against classic types: `backlog/multi-project-emission.md`,
   `backlog/refactor-ast-on-compilation-unit.md` and `backlog/grammar.md`.
 

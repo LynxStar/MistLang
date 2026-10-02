@@ -403,11 +403,6 @@ internal static class BodyEmitter
     private static void EmitCarrierCall(
         InvocationExpression call, MemberAccessExpression callee, string carrier, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        if(AsyncPromotion.IsPromoted(call.Method))
-        {
-            writer.Append("await ");
-        }
-
         var (arguments, parameters) = ExtensionBlockEmitter.CallTypeArguments(call.Method, callee.TypeArguments);
         writer.Append($"{carrier}.{CalleeName(call.Method!.Name, arguments, parameters)}{EmitTypeArguments(arguments, parameters)}(");
         EmitExpression(callee.Receiver, writer, diagnostics);
@@ -921,6 +916,36 @@ internal static class BodyEmitter
             return;
         }
 
+        if(!CompletesPromoted(expression))
+        {
+            EmitDirect(expression, writer, diagnostics);
+        }
+        else if(blockingAwaits)
+        {
+            EmitDirect(expression, writer, diagnostics);
+            writer.Append(".GetAwaiter().GetResult()");
+        }
+        else
+        {
+            writer.Append("await ");
+            EmitDirect(expression, writer, diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Whether the expression calls a PROMOTED callee. Its task exists only in the emitted C#, so the
+    /// model carries no await for it and <see cref="EmitExpression"/> writes one, blocking where
+    /// <see cref="EmitTaskDrop"/> would. <see cref="GetPrecedence(Expression)"/> asks the same question,
+    /// so an operator applied to the call parenthesizes an await the model cannot show it. See
+    /// <see cref="AsyncPromotion"/>.
+    /// </summary>
+    private static bool CompletesPromoted(Expression expression)
+    {
+        return expression is InvocationExpression invocation && AsyncPromotion.IsPromoted(invocation.Method);
+    }
+
+    private static void EmitDirect(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
         switch(expression)
         {
             // A lift needs a task built around a value C# has no other way to wrap; a suppression needs
@@ -1004,13 +1029,6 @@ internal static class BodyEmitter
                 break;
 
             case InvocationExpression invocation:
-                // A PROMOTED callee's task exists only in the emitted C#, so the model carries no
-                // await for it and one is written here. See AsyncPromotion.
-                if(AsyncPromotion.IsPromoted(invocation.Method))
-                {
-                    writer.Append("await ");
-                }
-
                 if(UnsafeReach.Call(invocation, receiver => RenderAt(receiver, PostfixPrecedence, diagnostics)) is { } reached)
                 {
                     writer.Append(reached.Open);
@@ -2935,6 +2953,7 @@ internal static class BodyEmitter
             UnaryExpression => PrefixPrecedence,
             LiteralExpression negative when EmitLiteral(negative).StartsWith('-') => PrefixPrecedence,
             InvocationExpression drop when TaskResult.Dropped(drop) is not null => PrefixPrecedence,
+            InvocationExpression when CompletesPromoted(expression) && !blockingAwaits => PrefixPrecedence,
             IsPatternExpression => RelationalPrecedence,
             AsExpression { Kind: AsConversionKind.Identity } identity => GetPrecedence(identity.Operand),
             SwitchExpression => SwitchPrecedence,

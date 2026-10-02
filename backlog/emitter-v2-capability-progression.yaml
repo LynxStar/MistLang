@@ -9407,6 +9407,15 @@ capabilities:
         reads it (variadics Requirement 11.1, each element on its own) since 2026-09-25: it admits that
         closing and refuses `Row<Score, Grade>` against 'IRank<Grade>'. A constraint naming a sibling,
         `Keys<K, params Vs> where Vs : IKeyed<K>`, already emits and runs.
+      - >
+        Emit a variadic declaration once per instantiation when it holds a union over a pack element.
+        `TArgs[1]?`, `TArgs[0] | string` and `Box<TArgs[1]>` over a `T?` are refused by the backend
+        (MIST_BE_UNION_OVER_PACK_ELEMENT, 2026-10-02) because a union over a type parameter is spelled
+        per instantiation and a variadic declaration per arity; under `where TArgs : struct` or `: class`
+        they work. Lifting it: UnionSpecialization owns pack elements, TypeNameEmitter prefers the
+        specialized name over the arity name, and SpreadProjectionEmitter, PackSlotBridgeEmitter and
+        UnspellableTypeGuard work without a specialization in scope. Valid Mist refused by the
+        target, so it is owed (Arthur, 2026-10-02: store, not immediate).
     unlocks: [Variadics]
 
   # ===================================================================

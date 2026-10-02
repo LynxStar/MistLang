@@ -67,6 +67,12 @@ internal sealed class BuilderContext
     public AttributeBuilder Attributes { get; }
 
     /// <summary>
+    /// Using directives collected during Phase 1, judged by <see cref="UsingValidation"/> once every
+    /// namespace they could name is registered.
+    /// </summary>
+    public List<PendingUsing> PendingUsings { get; } = [];
+
+    /// <summary>
     /// Extension block AST nodes collected during Phase 1.
     /// Processed in Phase 2 after all types are registered.
     /// </summary>

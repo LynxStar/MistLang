@@ -55,6 +55,12 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "File-scoped namespace declarations cannot appear inside a block namespace.");
 
+    public static readonly DiagnosticDescriptor UndefinedNamespace = new(
+        new DiagnosticId("MIST_UNDEFINED_NAMESPACE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The namespace '{0}' could not be found.");
+
     public static readonly DiagnosticDescriptor GlobalUsingUndefinedNamespace = new(
         new DiagnosticId("MIST_GLOBAL_USING_UNDEFINED_NAMESPACE"),
         DiagnosticSeverity.Warning,

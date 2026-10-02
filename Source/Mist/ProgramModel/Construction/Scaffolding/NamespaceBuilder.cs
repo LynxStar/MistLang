@@ -235,21 +235,16 @@ internal sealed class NamespaceBuilder
     /// <summary>
     /// Populates the file scope with using declarations from the AST.
     /// </summary>
-    private static void PopulateImports(CompilationUnitNode ast, SourceText sourceText, FileScope fileScope)
+    private void PopulateImports(CompilationUnitNode ast, SourceText sourceText, FileScope fileScope)
     {
-        foreach(var usingDecl in ast.Usings)
-        {
-            var usingName = ExtractQualifiedName(usingDecl.Name, sourceText);
-            fileScope.DeclareImport(usingName);
-        }
+        var directives = ast.Usings.Concat(
+            ast.Items.OfType<UsingItemTopLevelItemNode>().Select(item => item.UsingDeclaration));
 
-        foreach(var item in ast.Items)
+        foreach(var directive in directives)
         {
-            if(item is UsingItemTopLevelItemNode usingItem)
-            {
-                var usingName = ExtractQualifiedName(usingItem.UsingDeclaration.Name, sourceText);
-                fileScope.DeclareImport(usingName);
-            }
+            var usingName = ExtractQualifiedName(directive.Name, sourceText);
+            fileScope.DeclareImport(usingName);
+            context.PendingUsings.Add(new PendingUsing(directive, usingName));
         }
     }
 

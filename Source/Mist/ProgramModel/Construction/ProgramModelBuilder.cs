@@ -93,7 +93,7 @@ public sealed class ProgramModelBuilder
         // well-known type aliases. All ambient types become visible for Phase 2.
         ambientProvider.BuildAndRegister(programModel);
 
-        GlobalUsingValidation.Run(context);
+        UsingValidation.Run(context);
 
         // Phase 1c: newtypes over Mist classes and structs become their renamed clones.
         NewtypeCloner.CloneAll(context);

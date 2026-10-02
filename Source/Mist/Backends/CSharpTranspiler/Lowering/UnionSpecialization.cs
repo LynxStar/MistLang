@@ -271,6 +271,8 @@ internal sealed class UnionSpecialization
         var requiredTypes = new HashSet<MemberType>();
         var requiredMethods = new HashSet<Method>();
 
+        var overPackElements = new SortedDictionary<string, PackElementType>(StringComparer.Ordinal);
+
         void require(IMistType type)
         {
             foreach(var parameter in TypeParameterReach.Collect(type))
@@ -282,6 +284,10 @@ internal sealed class UnionSpecialization
                 else if(methodOwners.TryGetValue(parameter, out var method))
                 {
                     _ = requiredMethods.Add(method);
+                }
+                else if(parameter is PackElementType element)
+                {
+                    _ = overPackElements.TryAdd(TypeDisplay.Mist(type), element);
                 }
             }
         }
@@ -437,6 +443,19 @@ internal sealed class UnionSpecialization
                 {
                     admitMethod(method, [.. arguments.Select(argument => substitution.Apply(argument, interner))]);
                 }
+            }
+        }
+
+        foreach(var (written, element) in overPackElements)
+        {
+            if(element.Pack.DeclaringType is MemberType { DeclarationNode: { } node })
+            {
+                diagnostics.ReportAtNode(BackendDiagnostics.UnionOverPackElement, node, null, written, element.Name, element.Pack.Name);
+            }
+            else
+            {
+                diagnostics.Report(
+                    BackendDiagnostics.UnionOverPackElement, default, string.Empty, written, element.Name, element.Pack.Name);
             }
         }
 

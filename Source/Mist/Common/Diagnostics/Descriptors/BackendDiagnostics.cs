@@ -339,6 +339,18 @@ public static class BackendDiagnostics
         PipelineStage.Backend,
         "'{0}' mentions the pack '{1}' where no arity is fixed, so no C# signature can be written for it.");
 
+    /// <summary>
+    /// A union over one element of a pack, or a construction that holds one. Such a type is emitted once
+    /// per instantiation (<c>UnionSpecialization</c>) and a variadic declaration once per arity
+    /// (<c>MonomorphSet</c>); nothing yet emits a variadic declaration per instantiation, and written
+    /// per arity the union loses its optional for a value type.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnionOverPackElement = new(
+        new DiagnosticId("MIST_BE_UNION_OVER_PACK_ELEMENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "'{0}' is spelled differently in C# for each type argument, and it names '{1}', an element of a pack that a variadic declaration leaves open: the C# backend emits such a declaration once per arity and cannot yet emit it once per instantiation. An optional becomes spellable when '{2}' is constrained with 'class' or 'struct'.");
+
     public static readonly DiagnosticDescriptor UnboundedSpecialization = new(
         new DiagnosticId("MIST_BE_UNBOUNDED_SPECIALIZATION"),
         DiagnosticSeverity.Error,

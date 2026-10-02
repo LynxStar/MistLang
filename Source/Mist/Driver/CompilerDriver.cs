@@ -67,7 +67,10 @@ public sealed class CompilerDriver : ICompilerDriver
         options = ProjectDependencyUnion.Apply(options, loadResult.ReferencedConfigurations);
 
         // Stage 1.5: Package Resolution (runs only when deps are declared)
-        var resolvedAssemblyPaths = ResolvePackages(options, allDiagnostics).AddRange(options.AssemblyPaths);
+        var resolutionBag = new DiagnosticBag();
+        var reportedBeforeResolution = allDiagnostics.ToImmutableArray().Length;
+        var resolvedAssemblyPaths = ResolvePackages(options, resolutionBag).AddRange(options.AssemblyPaths);
+        var resolutionDiagnostics = new ResolutionDiagnostics(resolutionBag.ToImmutableArray(), reportedBeforeResolution);
 
         // Stage 2: Lexing
         var lexResult = Lex(compilation, allDiagnostics);
@@ -85,7 +88,7 @@ public sealed class CompilerDriver : ICompilerDriver
             compilation, asts, resolvedAssemblyPaths,
             options, allDiagnostics);
 
-        return pipeline.Execute(pipelineInput);
+        return resolutionDiagnostics.JoinInto(pipeline.Execute(pipelineInput));
     }
 
     /// <summary>
@@ -447,7 +450,7 @@ public sealed class CompilerDriver : ICompilerDriver
     /// array when no packages or framework references are declared.
     /// On resolution failure: continues with whatever resolved successfully.
     /// </summary>
-    private ImmutableArray<string> ResolvePackages(CompilerOptions options, DiagnosticBag allDiagnostics)
+    private ImmutableArray<string> ResolvePackages(CompilerOptions options, DiagnosticBag resolutionDiagnostics)
     {
         var hasPackages = !options.Packages.IsDefaultOrEmpty;
         var hasFrameworkRefs = !options.FrameworkReferences.IsDefaultOrEmpty;
@@ -463,8 +466,6 @@ public sealed class CompilerDriver : ICompilerDriver
         {
             progressReporter.ReportStageStart("1.5", "Package Resolution");
         }
-
-        var resolutionDiagnostics = new DiagnosticBag();
 
         // Resolve NuGet packages (passes framework references for deduplication
         // against framework-provided assemblies to prevent duplicate loading)
@@ -488,13 +489,6 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         var resolvedAssemblyPaths = ImmutableArray.CreateRange(mergedPaths);
-
-        // Add diagnostics to the shared bag (they always surface through
-        // normal diagnostic printing regardless of verbose).
-        foreach(var d in resolutionDiagnostics.ToImmutableArray())
-        {
-            allDiagnostics.Add(d);
-        }
 
         resolutionStopwatch.Stop();
 

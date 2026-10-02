@@ -96,7 +96,7 @@ The Mist compiler CLI is currently silent during successful builds — it produc
 
 #### Acceptance Criteria
 
-1. WHEN Stages 1 through 3 reported no error, THE `StandardPipeline` SHALL report Stage 4 under the title `Program Model`. THE stage SHALL cover the creation of the ambient type provider and `ProgramModelBuilder.Build`.
+1. WHEN Stages 1, 2 and 3 reported no error, THE `StandardPipeline` SHALL report Stage 4 under the title `Program Model`, including when Stage 1.5 (Package Resolution) reported errors (csharp-interop-v2 Requirement 2.6). THE stage SHALL cover the creation of the ambient type provider and `ProgramModelBuilder.Build`.
 2. WHEN the pipeline finishes building the program model, THE `ICompilationProgressReporter` SHALL be notified of Stage 4 completion with the count of top-level constructs, computed by `Driver/TopLevelConstructs.cs`.
 3. THE top-level construct count SHALL be the number of class, struct and abstract types in the `Types` of every compilation unit of the program model's Self and Reference assemblies. An abstract type is what `Interface` and `Trait` mean elsewhere in this document.
 4. Types declared in a referenced project SHALL be counted. Types declared in Standard SHALL NOT be counted.
@@ -122,7 +122,7 @@ The Mist compiler CLI is currently silent during successful builds — it produc
 6. THE remainder line SHALL follow the format `outside analyzers  {X.XXs}`, reporting the stage's elapsed time minus the sum of the analyzer entries, clamped at zero, so that the lines account for the whole stage.
 7. Seconds in Stage 5 detail lines SHALL be formatted `F2` in the invariant culture. Detail lines SHALL be passed to the reporter unindented; the indentation is the reporter's (Requirement 10).
 8. WHEN Stage 5 completes, THE `ConsoleProgressReporter` SHALL emit the elapsed time for the total analysis step in the format `Took X.XXs`.
-9. THE `StandardPipeline` SHALL judge the diagnostics of Stage 4 and Stage 5 together, at one gate after Stage 5: Stage 6 SHALL run only when Stages 1 through 5 reported no error.
+9. THE `StandardPipeline` SHALL judge the diagnostics of Stage 4 and Stage 5 together, at one gate after Stage 5: Stage 6 SHALL run only when Stages 1, 2, 3, 4 and 5 reported no error. An error from Stage 1.5 (Package Resolution) is preserved in the result and does not stop Stage 6 (csharp-interop-v2 Requirement 2.6).
 10. WHEN Stage 6 runs, THE `.cs` file count of Requirement 8 SHALL be `CSharpEmitterV2.EmittedFileCount`, the files this run wrote, on every return path; the output directory SHALL NOT be recounted. THE artifact path line SHALL follow the count only when there is an artifact. A failed emission SHALL still complete Stage 6.
 11. A stage that reports its start SHALL report its completion on every handled path; an exception propagates with no completion. This holds outside the pipeline too: a load that fails SHALL complete Stage 1 with no detail lines, and a clean that fails SHALL complete the CLI's Stage 0 with no detail lines.
 12. THE `StandardPipeline` SHALL NOT report a build summary. THE summary of Requirement 9 SHALL be reported once, by the CLI.

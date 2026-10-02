@@ -4,9 +4,9 @@
 //   - Quiet build emits no 1.5 header/detail
 //   - Verbose build emits header + detail + summary
 //   - Resolution error surfaces in both modes
-//   - Resolution error does not stop lexing and parsing
+//   - Resolution error does not stop the build
 //
-// Validates: Requirements 1.3, 1.6, 1.9, 2.6
+// Validates: Requirements 1.3, 1.6, 1.9, 2.3, 2.6
 
 using System.Collections.Immutable;
 using Mist.Backends.Contracts;
@@ -249,7 +249,7 @@ public sealed class PackageResolutionStageTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 4. Resolution error does not stop lexing and parsing (Requirement 2.6)
+    // 4. Resolution error does not stop the build (Requirements 2.3, 2.6)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
@@ -263,10 +263,61 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         var result = driver.Compile(options);
 
-        Assert.Contains(spy.StageStarts, s => s.StageId == "2"); // Lexing
-        Assert.Contains(spy.StageStarts, s => s.StageId == "3"); // Parsing
+        Assert.Equal(["1", "2", "3", "4", "5", "6"], spy.StageStarts.Select(s => s.StageId));
+        Assert.True(result.Succeeded, "The source uses nothing from the package that failed to resolve.");
+        Assert.NotNull(result.PrimaryOutputArtifactPath);
+        Assert.Equal(["MIST_PKG_002"], result.Diagnostics.Select(d => d.Id.Value));
+    }
 
-        Assert.Contains(result.Diagnostics,
-            d => d.Id.Value == "MIST_PKG_002");
+    [Fact]
+    public void UnresolvedType_ProducesDiagnostic_WithoutAbortingBuild()
+    {
+        const string sourceWithUnresolvedType = """
+            using SomePackage.Models;
+            namespace TestNs;
+            public class Foo {
+                public static void Main() {
+                    var x = new Widget();
+                }
+            }
+            """;
+
+        var spy = new SpyProgressReporter();
+        var driver = CreateDriver(spy);
+        var options = CreateOptions(
+            sourceWithUnresolvedType,
+            packages: [new NuGetPackageReference("SomePackage", "invalid-ver")]);
+
+        var result = driver.Compile(options);
+
+        Assert.Equal(["1", "2", "3", "4", "5"], spy.StageStarts.Select(s => s.StageId));
+        Assert.False(result.Succeeded);
+        Assert.Equal(["MIST_PKG_002", "MIST_PM_UNRESOLVED_TYPE"], result.Diagnostics.Select(d => d.Id.Value));
+        Assert.Contains("Widget", result.Diagnostics[1].Message);
+    }
+
+    [Fact]
+    public void ResolutionError_IsReportedInStageOrder_AndLeavesTheEntryGateToTheStagesAroundIt()
+    {
+        const string sourceThatDoesNotParse = """
+            namespace TestNs;
+            public class Foo {
+                public static void Main() {
+            """;
+
+        var spy = new SpyProgressReporter();
+        var driver = CreateDriver(spy);
+        var options = CreateOptions(
+            sourceThatDoesNotParse,
+            packages: [new NuGetPackageReference("Missing", "bogus-ver")]);
+        options = options with { SourcePaths = [Path.Combine(scratchDir, "Absent.mist"), .. options.SourcePaths] };
+
+        var result = driver.Compile(options);
+
+        Assert.Equal(["1", "2", "3"], spy.StageStarts.Select(s => s.StageId));
+        Assert.False(result.Succeeded);
+        Assert.Equal(
+            ["MIST_FILE_ERROR", "MIST_PKG_002", "MIST_PARSE_INCOMPLETE"],
+            result.Diagnostics.Select(d => d.Id.Value));
     }
 }

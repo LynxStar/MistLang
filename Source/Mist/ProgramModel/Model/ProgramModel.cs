@@ -119,9 +119,14 @@ public sealed class ProgramModel : IProgramModel
     /// Establishes the assembly for the project being compiled. Called once, before any
     /// type is registered.
     /// </summary>
-    internal MistAssembly AddSelfAssembly(string name, ImmutableArray<string> globalUsings = default)
+    internal MistAssembly AddSelfAssembly(
+        string name, ImmutableArray<string> globalUsings = default, string? entryPointSetting = null, bool isLibrary = false)
     {
-        SelfAssembly = new MistAssembly(name, MistAssemblyKind.Self, projectPath: null, globalUsings);
+        SelfAssembly = new MistAssembly(name, MistAssemblyKind.Self, projectPath: null, globalUsings)
+        {
+            EntryPointSetting = entryPointSetting,
+            IsLibrary = isLibrary,
+        };
         assemblies.Add(SelfAssembly);
         return SelfAssembly;
     }
@@ -143,14 +148,22 @@ public sealed class ProgramModel : IProgramModel
     /// name remain distinct assemblies.
     /// </summary>
     internal MistAssembly AddReferenceAssembly(
-        string name, string projectPath, ImmutableArray<string> globalUsings = default)
+        string name,
+        string projectPath,
+        ImmutableArray<string> globalUsings = default,
+        string? entryPointSetting = null,
+        bool isLibrary = false)
     {
         if(referencesByProjectPath.TryGetValue(projectPath, out var existing))
         {
             return existing;
         }
 
-        var assembly = new MistAssembly(name, MistAssemblyKind.Reference, projectPath, globalUsings);
+        var assembly = new MistAssembly(name, MistAssemblyKind.Reference, projectPath, globalUsings)
+        {
+            EntryPointSetting = entryPointSetting,
+            IsLibrary = isLibrary,
+        };
         referencesByProjectPath[projectPath] = assembly;
         assemblies.Add(assembly);
         return assembly;

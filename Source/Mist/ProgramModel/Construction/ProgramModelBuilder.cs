@@ -56,7 +56,11 @@ public sealed class ProgramModelBuilder
         // Implicit usings are supplied here and nowhere else. They belong to a project, so an
         // assembly is the only thing that can hold them without one project's choice reaching
         // another's files. The standard library declares none and has no mechanism to.
-        _ = programModel.AddSelfAssembly(options.ProjectName, compilation.GlobalUsings);
+        _ = programModel.AddSelfAssembly(
+            options.ProjectName,
+            compilation.GlobalUsings,
+            compilation.EntryPoint,
+            compilation.OutputType == ProjectOutputType.Library);
 
         if(compilation.HasStandardLibrary)
         {
@@ -66,7 +70,11 @@ public sealed class ProgramModelBuilder
         foreach(var project in compilation.Projects)
         {
             _ = programModel.AddReferenceAssembly(
-                project.Name, project.CanonicalTomlPath, project.GlobalUsings);
+                project.Name,
+                project.CanonicalTomlPath,
+                project.GlobalUsings,
+                project.EntryPoint,
+                project.OutputType == ProjectOutputType.Library);
         }
 
         // Validate that all assembly names are unique across the compilation.

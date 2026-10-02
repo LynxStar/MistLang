@@ -130,10 +130,10 @@ internal sealed class TypeBuilder
     /// would have nowhere to get.
     /// </para>
     /// <para>
-    /// Deliberately does NOT claim the assembly's entry point. A declared <c>Main</c>
+    /// Deliberately NOT recorded among the assembly's entry points. A declared <c>Main</c>
     /// elsewhere in the project is still a valid method and must still be recorded, so
-    /// choosing between the two is the emitter's, decided from <c>entry_point</c> in
-    /// <c>mist.toml</c>.
+    /// choosing between the two is left to whoever judges the finished model, decided from
+    /// <c>entry_point</c> in <c>mist.toml</c>.
     /// </para>
     /// </summary>
     private Method SynthesizeTopLevelProgram(
@@ -141,8 +141,11 @@ internal sealed class TypeBuilder
         string fileNamespace,
         ImmutableArray<StatementNode> statements)
     {
+        var name = topLevelPrograms == 0 ? TopLevelTypeName : $"{TopLevelTypeName}{topLevelPrograms}";
+        topLevelPrograms++;
+
         var syntheticType = new ClassType(
-            TopLevelTypeName, fileNamespace, fileLevel, declaringType: null, declarationNode: null)
+            name, fileNamespace, fileLevel, declaringType: null, declarationNode: null)
         {
             Assembly = currentAssembly,
             Modifiers = new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true },
@@ -175,6 +178,14 @@ internal sealed class TypeBuilder
     /// unspellable as a Mist identifier, so it cannot collide with a declared type.
     /// </summary>
     private const string TopLevelTypeName = "$TopLevel";
+
+    /// <summary>
+    /// Numbers every synthesized type after the first, because two files of top-level statements can
+    /// share a namespace -- a project and one it references, or two files the entry-point rule is
+    /// about to refuse -- and a type that fails to register is never walked, so its statements would
+    /// go unbound and be emitted as nothing.
+    /// </summary>
+    private int topLevelPrograms;
 
     /// <summary>
     /// Processes types inside a block namespace. Creates a namespace level for the block and

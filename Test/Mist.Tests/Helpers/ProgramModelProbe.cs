@@ -162,7 +162,10 @@ public abstract class ProgramModelProbe : IDisposable
         string? referenced,
         out ImmutableArray<Diagnostic> diagnostics,
         ImmutableArray<string> globalUsings = default,
-        ImmutableArray<string> referencedGlobalUsings = default)
+        ImmutableArray<string> referencedGlobalUsings = default,
+        string? entryPoint = null,
+        ProjectOutputType outputType = ProjectOutputType.Executable,
+        string? referencedEntryPoint = null)
     {
         var fileName = Path.Combine(outputDir, "Program.mist");
         var (sourceText, root) = Parse(fileName, source);
@@ -176,6 +179,7 @@ public abstract class ProgramModelProbe : IDisposable
             var library = new MistProject("Library", folder, Path.Combine(folder, "mist.toml"))
             {
                 GlobalUsings = referencedGlobalUsings.IsDefault ? [] : referencedGlobalUsings,
+                EntryPoint = referencedEntryPoint,
             };
 
             var (libraryText, libraryRoot) = Parse(Path.Combine(folder, "Library.mist"), referenced);
@@ -196,7 +200,7 @@ public abstract class ProgramModelProbe : IDisposable
 
         var buildDiagnostics = new DiagnosticBag();
         var programModel = ProgramModelBuilder.Build(
-            new MistCompilation([.. units])
+            new MistCompilation([.. units], entryPoint, outputType)
             {
                 Projects = projects,
                 GlobalUsings = globalUsings.IsDefault ? [] : globalUsings,

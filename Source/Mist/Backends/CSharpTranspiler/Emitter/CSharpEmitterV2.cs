@@ -52,45 +52,48 @@ internal sealed class CSharpEmitterV2
     /// Emitting per TYPE instead would either lose the usings or leak one file's imports
     /// into another's.
     /// </para>
-    /// <para>
-    /// Every assembly is emitted into a single CLR assembly, so a composed program contains
-    /// one <c>Main</c> per project and Roslyn reports CS0017 unless told which to use. The
-    /// compiled project's own entry point, recorded during member resolution, is what
-    /// disambiguates. Once emission splits per assembly this becomes unnecessary; see
-    /// <c>backlog/multi-project-emission.md</c>.
-    /// </para>
     /// </summary>
     public CompilerResult Emit()
     {
-        var isTopLevelEntry = options.EntryPoint == "top-level";
-
-        // A top-level-statement entry point is C#'s to find: the statements compile into a
-        // synthesized type whose name is not ours to predict, so naming one would be wrong.
-        var entryPoint = isTopLevelEntry ? null : programModel.SelfAssembly?.EntryPoint;
-
-        // An executable with no entry point cannot be produced. Reported here as a Mist
-        // error rather than left to Roslyn, because it is the emitter that cannot do its
-        // job and the Mist-level cause is clearer than the C# symptom. Duplicate entry
-        // points are caught earlier, during member resolution.
-        if(entryPoint is null && !isTopLevelEntry && options.OutputType == ProjectOutputType.Executable)
+        if(Transpile() is not { } startup)
         {
-            diagnostics.Report(
-                BackendDiagnostics.MissingEntryPoint, default, options.ProjectName, (object?)options.ProjectName);
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());
         }
 
-        if(isTopLevelEntry && options.OutputType == ProjectOutputType.Library)
+        // Compile the emitted sources using the in-process Roslyn driver.
+        var binDir = options.BinDirectory;
+        _ = Directory.CreateDirectory(binDir);
+
+        var compileResult = CSharpCompilationDriver.Compile(
+            options.OutputDirectory,
+            binDir,
+            options.ProjectName,
+            diagnostics,
+            emittedFileCount: emittedFiles.Count,
+            mainTypeName: startup.MainTypeName,
+            additionalReferencePaths: referencePaths,
+            outputType: options.OutputType);
+
+        if(!compileResult.Succeeded)
         {
-            var files = programModel.Assemblies
-                .SelectMany(assembly => assembly.CompilationUnits)
-                .Where(unit => unit.HasTopLevelStatements)
-                .Select(unit => unit.SourcePath);
-            diagnostics.Report(
-                EntryPointDiagnostics.LibraryWithTopLevelStatements, default, options.ProjectName, (object?)string.Join(", ", files));
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());
         }
 
-        var carriesEntryPoint = isTopLevelEntry || programModel.Assemblies.Any(assembly => assembly.EntryPoint is not null);
+        return new CompilerResult(true, compileResult.PrimaryArtifactPath, diagnostics.ToImmutableArray());
+    }
+
+    /// <summary>
+    /// Everything short of compiling the C#: the sources and the project file on disk, and what the
+    /// program starts at, or null when a Mist error means there is nothing worth compiling.
+    /// </summary>
+    internal Startup? Transpile()
+    {
+        if(Startup.Of(programModel, options, diagnostics) is not { } startup)
+        {
+            return null;
+        }
+
+        var carriesEntryPoint = programModel.Assemblies.Any(assembly => assembly.EntryPoints.Count > 0);
 
         var outputDir = options.OutputDirectory;
         _ = Directory.CreateDirectory(outputDir);
@@ -130,7 +133,7 @@ internal sealed class CSharpEmitterV2
             foreach(var unit in assembly.CompilationUnits)
             {
                 EmitCompilationUnit(
-                    unit, assembly, isTopLevelEntry, closures, outputDir, emittedFiles);
+                    unit, assembly, ReferenceEquals(unit, startup.TopLevelUnit), closures, outputDir, emittedFiles);
             }
         }
 
@@ -149,31 +152,7 @@ internal sealed class CSharpEmitterV2
         // which describe symptoms in code the user never wrote and bury the Mist-level cause
         // that is already sitting in the bag. The pipeline gates Stages 4 and 5 before calling
         // here, so an error at this point is emission's own.
-        if(diagnostics.HasErrors)
-        {
-            return new CompilerResult(false, null, diagnostics.ToImmutableArray());
-        }
-
-        // Compile the emitted sources using the in-process Roslyn driver.
-        var binDir = options.BinDirectory;
-        _ = Directory.CreateDirectory(binDir);
-
-        var compileResult = CSharpCompilationDriver.Compile(
-            outputDir,
-            binDir,
-            options.ProjectName,
-            diagnostics,
-            emittedFileCount: emittedFiles.Count,
-            mainTypeName: entryPoint?.FullyQualifiedName,
-            additionalReferencePaths: referencePaths,
-            outputType: options.OutputType);
-
-        if(!compileResult.Succeeded)
-        {
-            return new CompilerResult(false, null, diagnostics.ToImmutableArray());
-        }
-
-        return new CompilerResult(true, compileResult.PrimaryArtifactPath, diagnostics.ToImmutableArray());
+        return diagnostics.HasErrors ? null : startup;
     }
 
     /// <summary>
@@ -182,7 +161,7 @@ internal sealed class CSharpEmitterV2
     private void EmitCompilationUnit(
         CompilationUnit unit,
         IAssembly assembly,
-        bool isTopLevelEntry,
+        bool emitsStatements,
         ConstraintClosureMap closures,
         string outputDir,
         List<string> emittedFiles)
@@ -197,7 +176,7 @@ internal sealed class CSharpEmitterV2
 
         // A file that declares nothing emittable would produce a .cs holding only usings,
         // which Roslyn accepts but which adds a file to the compilation for no reason.
-        if(emittableTypes.Count == 0 && emittableBlocks.Count == 0 && !unit.HasTopLevelStatements)
+        if(emittableTypes.Count == 0 && emittableBlocks.Count == 0 && !emitsStatements)
         {
             return;
         }
@@ -206,20 +185,19 @@ internal sealed class CSharpEmitterV2
 
         EmitUsings(unit, assembly, writer);
 
-        if(unit.HasTopLevelStatements && isTopLevelEntry)
+        if(emitsStatements)
         {
             EmitTopLevelStatements(unit, writer);
         }
 
         if(emittableTypes.Count > 0 || emittableBlocks.Count > 0)
         {
-            if(unit.HasTopLevelStatements && isTopLevelEntry)
+            if(emitsStatements)
             {
                 writer.WriteBlankLine();
             }
 
-            EmitFileTypes(
-                emittableTypes, emittableBlocks, unit.HasTopLevelStatements && isTopLevelEntry, closures, writer);
+            EmitFileTypes(emittableTypes, emittableBlocks, emitsStatements, closures, writer);
         }
 
         // Determine output path: {outputDir}/{Assembly.Name}/{RelativePath}/{FileName}.cs

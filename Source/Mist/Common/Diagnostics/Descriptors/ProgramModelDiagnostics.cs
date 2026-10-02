@@ -813,18 +813,6 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "An initializer block element must name a member and assign to it, as in 'Count = 1'. Collection initializers are not supported by the experimental pipeline; add the elements after construction.");
 
-    // ── Entry points ─────────────────────────────────────────────────────
-    /// <summary>
-    /// A second entry point was found in an assembly that already had one. Detected as the
-    /// duplicate is recorded, so the type named is the one that already claimed the
-    /// assembly's entry point rather than necessarily the first in source order.
-    /// </summary>
-    public static readonly DiagnosticDescriptor DuplicateEntryPoint = new(
-        new DiagnosticId("MIST_PM_DUPLICATE_ENTRY_POINT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' declares an entry point, but '{1}' already declares one in the same assembly. A program can have only one entry point.");
-
     /// <summary>
     /// Two assemblies in the same compilation share a name. An assembly's name is how a Mist
     /// program refers to it, so two of them sharing one leaves references between projects

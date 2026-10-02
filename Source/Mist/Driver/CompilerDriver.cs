@@ -247,6 +247,8 @@ public sealed class CompilerDriver : ICompilerDriver
                                 proj.CanonicalTomlPath)
                             {
                                 GlobalUsings = projGlobalUsings,
+                                EntryPoint = proj.Configuration.EntryPoint,
+                                OutputType = proj.Configuration.OutputType,
                             });
 
                             foreach(var path in proj.SourcePaths)

@@ -38,6 +38,7 @@ internal static class ProgramAnalysisRunner
         new PurityAnalyzer(),
         new EscapeAnalyzer(),
         new RefinementAnalyzer(),
+        new EntryPointAnalyzer(),
     ];
 
     public static void Run(ProgramModelClass model, DiagnosticBag diagnostics, AnalysisTimings? timings = null)

@@ -1,5 +1,7 @@
+using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -32,6 +34,14 @@ internal sealed class AnalysisContext(
     public IReadOnlyList<TypeNaming> Namings { get; } = scope.Namings;
 
     public IReadOnlyList<object> Nodes { get; } = nodes;
+
+    /// <summary>
+    /// The projects the compilation is made of, in the program pass only: a rule about a project as a
+    /// whole has nothing to say again for each cloned type or conversion the runner re-analyzes.
+    /// </summary>
+    public IReadOnlyList<MistAssembly> Projects => scope.RestrictToScope
+        ? []
+        : [.. model.Assemblies.Where(assembly => assembly.Kind is MistAssemblyKind.Self or MistAssemblyKind.Reference)];
 
     public IReadOnlyDictionary<CastOperator, ConversionRefusal> ConversionRefusals { get; } = conversionRefusals;
 
@@ -101,5 +111,17 @@ internal sealed class AnalysisContext(
         }
 
         diagnostics.ReportAtNode(descriptor, at, analyzerId, args);
+    }
+
+    public void ReportAtProject(DiagnosticDescriptor descriptor, MistAssembly project, params ReadOnlySpan<object?> args)
+    {
+        diagnostics.Add(new Diagnostic(
+            descriptor.Id,
+            descriptor.DefaultSeverity,
+            descriptor.Stage,
+            string.Format(CultureInfo.InvariantCulture, descriptor.MessageTemplate, args.ToArray()),
+            Location: default,
+            CompilationUnitPath: project.ProjectPath ?? project.Name,
+            AnalyzerName: analyzerId));
     }
 }

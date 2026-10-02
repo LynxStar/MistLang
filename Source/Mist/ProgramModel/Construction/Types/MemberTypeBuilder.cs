@@ -1,4 +1,3 @@
-using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Construction.Resolution;
@@ -55,36 +54,23 @@ internal abstract class MemberTypeBuilder
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Records the declaring type as its assembly's entry point if the method just
-    /// resolved has the shape of one, reporting a diagnostic when the assembly already
-    /// had one.
+    /// Records the method just resolved on its assembly if it has the shape of an entry point.
     /// <para>
-    /// Called after each method is resolved, so the duplicate case is caught by the second
-    /// assignment rather than by counting candidates once the whole program is built. Which
-    /// of the two is left recorded does not matter: the diagnostic is an error and the
-    /// pipeline stops before emission.
+    /// Called after each method is resolved and judging nothing: two of them, or one beside a file
+    /// of top-level statements, is settled by the project's manifest, which the binder does not
+    /// read.
     /// </para>
     /// </summary>
-    protected void RecordEntryPointIfPresent(MethodDeclarationNode methodDecl, MemberType typeDef)
+    protected static void RecordEntryPointIfPresent(MemberType typeDef)
     {
         var method = typeDef.MethodsList.LastOrDefault();
 
-        if(method is null || !IsEntryPoint(method))
+        if(method is null || !IsEntryPoint(method) || typeDef.Assembly.EntryPoints.Contains(method))
         {
             return;
         }
 
-        var assembly = typeDef.Assembly;
-
-        if(assembly.EntryPoint is not null)
-        {
-            Context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.DuplicateEntryPoint, methodDecl, null,
-                typeDef.FullyQualifiedName, assembly.EntryPoint.FullyQualifiedName);
-            return;
-        }
-
-        assembly.EntryPoint = typeDef;
+        typeDef.Assembly.EntryPoints.Add(method);
     }
 
     /// <summary>

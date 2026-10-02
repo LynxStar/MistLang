@@ -43,9 +43,9 @@ public interface IAssembly
     bool HasMistSource { get; }
 
     /// <summary>
-    /// The type declaring this assembly's entry point, or null if it has none.
+    /// The methods of this assembly with the shape of an entry point, empty if it has none.
     /// </summary>
-    IMistType? EntryPoint { get; }
+    IReadOnlyList<IMethod> EntryPoints { get; }
 
     /// <summary>
     /// The implicit usings every file in this assembly resolves through, declared in the project's

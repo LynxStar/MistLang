@@ -36,4 +36,8 @@ public sealed record MistProject(
     /// one compilation may declare different ones, and neither should see the other's.
     /// </summary>
     public ImmutableArray<string> GlobalUsings { get; init; } = ImmutableArray<string>.Empty;
+
+    public string? EntryPoint { get; init; }
+
+    public ProjectOutputType OutputType { get; init; } = ProjectOutputType.Executable;
 }

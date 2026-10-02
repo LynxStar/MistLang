@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
+using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 
 namespace Mist.ProgramModel.Model;
 
@@ -21,14 +23,15 @@ public sealed class MistAssembly(
     public string? ProjectPath { get; } = projectPath;
 
     /// <summary>
-    /// The type declaring this assembly's entry point, or null if it has none. Recorded
-    /// during member resolution as soon as an entry-point method is seen.
+    /// Every method of this assembly with the shape of an entry point, recorded during member
+    /// resolution as each is seen. Which of them the program starts at, if any, is not decided
+    /// here: that takes <see cref="EntryPointSetting"/> and the files holding top-level statements,
+    /// and belongs to whoever judges the finished model.
     /// <para>
     /// Per assembly rather than per compilation, because that is the granularity the rule
     /// actually has: a referenced project having its own <c>Main</c> is not an error, and
-    /// two in one project is one regardless of which project it is. Assigning twice is
-    /// therefore the error condition, which makes duplicate detection local instead of a
-    /// whole-program count.
+    /// two in one project is a question for that project's manifest regardless of which project
+    /// it is.
     /// </para>
     /// <para>
     /// Only <see cref="MistAssemblyKind.Self"/>, <see cref="MistAssemblyKind.Reference"/>
@@ -37,7 +40,13 @@ public sealed class MistAssembly(
     /// consequently never written, despite being process-wide.
     /// </para>
     /// </summary>
-    public IMistType? EntryPoint { get; internal set; }
+    internal List<Method> EntryPoints { get; } = [];
+
+    IReadOnlyList<IMethod> IAssembly.EntryPoints => EntryPoints;
+
+    public string? EntryPointSetting { get; init; }
+
+    public bool IsLibrary { get; init; }
 
     /// <summary>
     /// The source files (compilation units) belonging to this assembly, in processing
@@ -51,7 +60,7 @@ public sealed class MistAssembly(
     /// Empty for the standard library, which has no mechanism to declare any, and for the ambient
     /// and synthetic assemblies, which have no files.
     /// <para>
-    /// Per assembly for the same reason <see cref="EntryPoint"/> is: a referenced project declaring
+    /// Per assembly for the same reason <see cref="EntryPoints"/> is: a referenced project declaring
     /// its own is not an error, and its choice must not reach another project's files. Set at
     /// registration and narrowed once to the names that are namespaces, before any type is resolved.
     /// </para>

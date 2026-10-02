@@ -1367,6 +1367,12 @@ capabilities:
       EntryPointDiagnostics defines MIST_EP_0001 through MIST_EP_0008 for the classic pipeline;
       no v2 equivalent has been checked, so the diagnostics remain unverified even though
       selection is correct.
+
+      CHECKED 2026-10-02, AND SELECTION WAS NOT CORRECT OUTSIDE THE SAMPLE'S OWN SHAPE. The emitter
+      compared entry_point with "top-level" and read nothing else, so a class name was ignored and
+      statements that were not the entry point were dropped silently. Selection is now one decision
+      read by the emitter and by a Stage 5 rule that reports MIST_EP_0001 to 0005, 0007 and 0008; the
+      measurements and the rule are order 15 of backlog/analysis-v2-capability-progression.yaml.
     unlocks: [TopLevelStatements]
 
   # ===================================================================

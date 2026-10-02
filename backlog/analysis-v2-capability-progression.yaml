@@ -4932,3 +4932,100 @@ rules:
         run-time string. The flow already knows its value, but letting a flow fact decide whether a cast
         compiles makes a distant reassignment flip it, so this is to be its own spec rather than an
         extension of the literal sugar. Decided 2026-09-28.
+
+  - id: entry-point-resolution
+    name: What a project starts at, and the projects that do not say
+    order: 15
+    subsystem: entry-point
+    requires: [analyzer-contract]
+    status: done
+    from: >
+      emitter order 33 (entry-point-resolution), whose evidence left MIST_EP_0001 to MIST_EP_0008
+      unverified on this pipeline, and order 120 (project-output-type-library), which reported
+      MIST_EP_0008 from the emitter; top-level-statements Requirements 2 to 4 and
+      attributes-and-test-command Requirement 14.7 and 14.8
+    evidence: >
+      ADDED 2026-10-02, closing the entry-point gap backlog/classic-retirement.md lists under "What
+      classic did that the standard pipeline does not". MEASURED FIRST at 306b142f, 48 probe projects
+      through the CLI, each rerun after: the emitter read the manifest's entry_point only to compare it
+      with "top-level", so a class name was never read, a file of top-level statements was emitted only
+      under that value and dropped without a word otherwise, and two Mains were refused by the binder
+      whatever the manifest said. A file of statements beside a Main ran the Main; entry_point =
+      "Probe.A" beside statements ran A and dropped them; entry_point naming no class ran whichever class
+      had a Main; "top-level" with no such file ran the Main, or with none reached Roslyn as
+      MIST_CS_ERROR; two files of statements under "top-level" ran the first file's only; statements
+      alone were refused as MIST_MISSING_ENTRY_POINT (Requirement 4.5 admits them); two Mains with
+      entry_point = "Probe.B" were refused (4.2 admits them); a library with statements and no
+      entry_point built clean; a library with one Main reached Roslyn as "Cannot specify /main if
+      building a module or library".
+
+      ONE DECISION, TWO READERS. EntryPointSelection.Decide is a pure function of four facts -- the files
+      holding top-level statements, the class declaring each Main-shaped method, the manifest's
+      entry_point, and whether the project is a library -- answering the statements of one file, one
+      class's Main, nothing, or a refusal. EntryPointAnalyzer reports the refusal; the emitter's Startup
+      reads the same answer for which file's statements to write and which type Roslyn is told holds
+      Main, so the two cannot disagree. The binder only RECORDS: MistAssembly.EntryPoints holds every
+      Main-shaped method (it held one type and refused the second), and each assembly carries its own
+      manifest's entry_point and output type, the compiled project's from MistCompilation and a
+      referenced one's from MistProject.
+
+      THE ROWS, each refusal reported against the project (its name for the compiled one, its mist.toml
+      for a referenced one) with the wording top-level-statements' design records: several files of
+      statements, MIST_EP_0001, whatever the setting; statements beside a Main with no setting, 0002,
+      naming every class; a class setting beside statements, 0003, whether or not the class has a Main
+      (4.7); several Mains with no setting, 0004, suggesting the first; "top-level" with no such file,
+      0005; a class setting naming no class with a Main, 0007; a library with statements, 0008, whatever
+      the setting (it needed entry_point = "top-level" before). Admitted: statements alone; one Main;
+      "top-level" beside any number of Mains, which stay ordinary methods; a class setting among several
+      Mains; a library, which starts at nothing however many Mains it declares. Names and paths are
+      listed in ordinal order, since source discovery is Directory.EnumerateFiles and its order is the
+      file system's.
+
+      MIST_EP_0006 IS DELIBERATELY NOT REPORTED. Requirement 1.6 refuses a block namespace beside
+      top-level statements; emitter order 32 supports it, statements before, between and after blocks
+      running in source order (measured again here, unchanged). The requirement and the implementation
+      disagree and the requirement is the one to revisit.
+
+      WHAT KEPT ITS OLD ID. MIST_MISSING_ENTRY_POINT stays the emitter's, for an executable that starts
+      at nothing: mist-language-v1 10.2 and attributes-and-test-command 14.6 give it to analysis, but
+      every Stage 5 probe model is an executable with no Main, so as a rule it would fire on all of them.
+      MIST_PM_DUPLICATE_ENTRY_POINT is no longer the binder's and no longer means two classes (that is
+      0004): it is the selected class declaring two Main-shaped methods, `Main()` and `Main(string[])`,
+      which entry_point cannot choose between because it names a class, and which Roslyn would refuse as
+      CS0017. Elsewhere the pair are ordinary overloads and admitted (4.1, 5.5).
+
+      A REFERENCED PROJECT IS JUDGED TOO, against its own manifest, because a build that composes it
+      emits none of its statements and names none of its Mains, so nothing else would say its entry
+      point is broken. Before, the emitter wrote the statements of every file under "top-level", a
+      referenced project's included: a project and a reference both set to "top-level" reached Roslyn as
+      "Only one compilation unit can have top-level statements". Now only the selected file's are
+      written.
+
+      FOUND ON THE WAY, A PROGRAM THAT RAN THE WRONG STATEMENTS. TypeBuilder synthesized the type holding
+      a file's statements under one name, `$TopLevel`, so a second file in the same namespace failed to
+      register, was never walked, and its statements were emitted as nothing. Measured at 306b142f: a
+      project and a referenced project sharing a namespace root, both "top-level", built clean and
+      printed the REFERENCED project's line. The synthesized types are now numbered, and the project
+      prints its own.
+
+      COVERAGE: EntryPointSelectionTests, 41 Tier 1 rows over Decide, one theory per outcome, each
+      refusal asserted as its whole message because Requirements 2.2, 3.3 and 3.4 are claims about what
+      the message names. EntryPointAnalyzerTests, seven Tier 2 rows over a hand-built model (which
+      projects are judged, against whose manifest, where the finding lands, not again in a restricted
+      pass) and one Tier 3 through ProgramAnalysisRunner. EntryPointRecordingTests, three Tier 3 rows on
+      what the binder records. EntryPointEmissionTests, seven Tier 3 rows on the emitted sources and the
+      main type, through CSharpEmitterV2.Transpile, which stops short of Roslyn. EntryPointManifestSeamTests,
+      three Tier 4 compiles for the manifest reaching the decision and the selection reaching Roslyn.
+      MUTATIONS: 30, each removing one branch of the decision, one reader, or one hop of the manifest,
+      and each failing at least one of those tests.
+    tasks:
+      - >
+        Requirement 1.6 (MIST_EP_0006) to be withdrawn or the block-namespace support removed; the book's
+        top-level-statements chapter still documents the refusal.
+      - >
+        MIST_MISSING_ENTRY_POINT is reported by the emitter, so only once every Stage 4 and 5 error is
+        fixed, because the probe harnesses build executables with no Main. Moving it here needs the
+        probes to build libraries first.
+      - >
+        The book's MIST_EP_0004 example lists the classes in declaration order and suggests the first
+        declared; the message lists them in ordinal order and suggests the first of that.

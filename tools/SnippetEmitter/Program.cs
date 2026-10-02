@@ -190,17 +190,12 @@ string? EmitSnippet(string mistPath)
 
         var result = driver.Compile(options);
 
-        // A snippet without a Main is either a top-level-statements program or a library, which a
-        // project file would say and a snippet cannot; the emitter refuses an executable without an
-        // entry point, so each shape is tried in turn and the emitted C# is the same either way.
+        // A snippet with neither a Main nor top-level statements is a library, which a project file
+        // would say and a snippet cannot; the emitter refuses an executable without an entry point,
+        // so it is compiled again as the library it is and the emitted C# is the same either way.
         if (result.Diagnostics.Any(d => d.Id.Value == "MIST_MISSING_ENTRY_POINT"))
         {
-            result = driver.Compile(options with { EntryPoint = "top-level" });
-
-            if (!result.Succeeded)
-            {
-                result = driver.Compile(options with { OutputType = ProjectOutputType.Library });
-            }
+            result = driver.Compile(options with { OutputType = ProjectOutputType.Library });
         }
 
         if (!result.Succeeded)

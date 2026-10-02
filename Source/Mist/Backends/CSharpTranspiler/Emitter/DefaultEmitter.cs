@@ -1,7 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Model;
-using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -35,12 +35,7 @@ internal static class DefaultEmitter
 
         using(writer.Block())
         {
-            foreach(var ancestor in DefaultSynthesis.FlattenedAncestors(type))
-            {
-                EmitAssignments(ancestor, writer, diagnostics);
-            }
-
-            EmitAssignments(type, writer, diagnostics);
+            EmitAssignments(DefaultSynthesis.FlattenedAssignments(type), writer, diagnostics);
         }
 
         SeparateMember(writer, ref anyEmitted);
@@ -54,31 +49,31 @@ internal static class DefaultEmitter
         }
     }
 
-    private static void EmitAssignments(ConcreteType type, CSharpWriter writer, DiagnosticBag diagnostics)
+    private static void EmitAssignments(List<DefaultAssignment> assignments, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        foreach(var (field, value, binding) in DefaultSynthesis.Assignments(type))
+        foreach(var (slot, value, binding) in assignments)
         {
             if(binding is not null)
             {
-                EmitBinding(field, binding, writer, diagnostics);
+                EmitBinding(slot, binding, writer, diagnostics);
                 continue;
             }
 
-            // FieldEmitter writes the initializer onto the field, and C# runs field initializers in every
-            // constructor that does not chain to another -- this one included -- so the field already holds
-            // it here, and assigning it again would run the initializer twice.
-            if(value is not null && ReferenceEquals(value, field.Initializer))
+            // FieldEmitter and PropertyEmitter write the initializer onto the declaration, and C# runs
+            // initializers in every constructor that does not chain to another -- this one included -- so
+            // the slot already holds it here, and assigning it again would run the initializer twice.
+            if(value is not null && ReferenceEquals(value, slot.Initializer))
             {
                 continue;
             }
 
             if(value is not null)
             {
-                BodyEmitter.EmitSequenced(value, $"this.{field.Name} = ", writer, diagnostics);
+                BodyEmitter.EmitSequenced(value, $"this.{slot.Name} = ", writer, diagnostics);
                 continue;
             }
 
-            writer.WriteLine($"this.{field.Name} = {DefaultSynthesis.Expression(field.Type)!};");
+            writer.WriteLine($"this.{slot.Name} = {DefaultSynthesis.StorageZero(slot.Type)!};");
         }
     }
 
@@ -89,7 +84,7 @@ internal static class DefaultEmitter
     /// members would not be reachable through it.
     /// </summary>
     private static void EmitBinding(
-        Field field, DefaultBindingEntry binding, CSharpWriter writer, DiagnosticBag diagnostics)
+        InstanceStorage field, DefaultBindingEntry binding, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var local = $"__default_{field.Name}";
 

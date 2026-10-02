@@ -273,19 +273,11 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
 
         private void JudgeDefaults(ConcreteType type)
         {
-            foreach(var field in Defaultability.InstanceFields(type))
+            foreach(var slot in InstanceStorage.Of(type))
             {
-                if(field.Initializer is { } initializer)
+                if(slot.Initializer is { } initializer)
                 {
-                    JudgeDefault(initializer, field, ScopeDescription.FieldInitializer(field.Name, type.Name), type);
-                }
-            }
-
-            foreach(var property in type.PropertiesList)
-            {
-                if(property is { Initializer: { } initializer, HasBackingStorage: true, Modifiers.IsStatic: false })
-                {
-                    JudgeDefault(initializer, property, ScopeDescription.FieldInitializer(property.Name, type.Name), type);
+                    JudgeDefault(initializer, slot.Member, ScopeDescription.FieldInitializer(slot.Name, type.Name), type);
                 }
             }
 

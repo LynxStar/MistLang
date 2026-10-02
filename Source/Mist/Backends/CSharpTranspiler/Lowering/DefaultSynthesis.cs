@@ -3,7 +3,6 @@ using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
@@ -30,8 +29,11 @@ internal static class DefaultSynthesis
 
     /// <summary>
     /// The default of a type as a C# expression, or null where this backend cannot name one. Every site
-    /// that needs a default -- the expression, a field the synthesis is answering for, and the witness a
-    /// call passes for a constrained type argument -- resolves it here, so the three cannot disagree.
+    /// that needs a default -- the expression, a slot of storage the synthesis is answering for, and the
+    /// witness a call passes for a constrained type argument -- resolves it here, so the three cannot
+    /// disagree. A refinement has none, no rule judging a <c>default</c> of one: only its storage starts
+    /// from its base's zero, through <see cref="StorageZero"/>, after DefaultabilityAnalyzer has held that
+    /// zero against the predicate.
     /// </summary>
     public static string? Expression(IMistType type)
     {
@@ -63,6 +65,11 @@ internal static class DefaultSynthesis
     private static string Factory(IMistType type)
     {
         return $"{TypeNameEmitter.Emit(type)}.{FactoryName}()";
+    }
+
+    public static string? StorageZero(IMistType type)
+    {
+        return type is RefinedType refined ? StorageZero(refined.BaseType) : Expression(type);
     }
 
     public static bool IsDefaultable(MemberType type)
@@ -108,21 +115,41 @@ internal static class DefaultSynthesis
     }
 
     /// <summary>
-    /// Each field paired with what its default assigns, in declaration order. A default block entry
-    /// REPLACES the field's own answer rather than adding to it, which is what makes a block on a type
-    /// that also has initializers mean the block's values and not both.
+    /// Each slot of storage paired with what its default assigns, fields before properties, each in
+    /// declaration order. A default block entry REPLACES the field's own answer rather than adding to
+    /// it, which is what makes a block on a type that also has initializers mean the block's values and
+    /// not both.
     /// </summary>
     public static List<DefaultAssignment> Assignments(ConcreteType type)
     {
         var assignments = new List<DefaultAssignment>();
 
-        foreach(var field in Defaultability.InstanceFields(type))
+        foreach(var slot in InstanceStorage.Of(type))
         {
-            var entry = Defaultability.BlockEntry(type, field);
+            var entry = Defaultability.BlockEntry(type, slot);
             assignments.Add(new DefaultAssignment(
-                field,
-                (entry as DefaultValueEntry)?.Value ?? (entry is null ? field.Initializer : null),
+                slot,
+                (entry as DefaultValueEntry)?.Value ?? (entry is null ? slot.Initializer : null),
                 entry as DefaultBindingEntry));
+        }
+
+        return assignments;
+    }
+
+    /// <summary>
+    /// Everything a struct's default assigns, its ancestors' storage first. An ancestor's property that a
+    /// nearer struct redeclares is left out: flattening keeps only the nearer declaration, so the
+    /// ancestor's assignment would land on it after its initializer had run.
+    /// </summary>
+    public static List<DefaultAssignment> FlattenedAssignments(ConcreteType type)
+    {
+        var chain = FlattenedAncestors(type).Append(type).ToList();
+        var assignments = new List<DefaultAssignment>();
+
+        for(var i = 0; i < chain.Count; i++)
+        {
+            var nearer = chain.Skip(i + 1).SelectMany(declaring => declaring.PropertiesList).Select(property => property.Name).ToHashSet();
+            assignments.AddRange(Assignments(chain[i]).Where(assignment => assignment.Storage.Property is not { } property || !nearer.Contains(property.Name)));
         }
 
         return assignments;
@@ -130,8 +157,8 @@ internal static class DefaultSynthesis
 }
 
 /// <summary>
-/// What one field's default assigns: an expression, a type binding to construct and override, or
-/// neither, meaning the field type's own literal default.
+/// What one slot's default assigns: an expression, a type binding to construct and override, or
+/// neither, meaning the slot type's own literal default.
 /// </summary>
 internal readonly record struct DefaultAssignment(
-    Field Field, Expression? Value, DefaultBindingEntry? Binding);
+    InstanceStorage Storage, Expression? Value, DefaultBindingEntry? Binding);

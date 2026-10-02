@@ -11,18 +11,20 @@ namespace Mist.ProgramModel.Construction;
 /// instance the emitter synthesizes, which exists only when the type states a zero -- a default block,
 /// or no instance constructor of its own, a declared one being construction however few parameters it
 /// takes -- its base has a default, which the derived default starts from without running any base
-/// constructor, and every instance field has an answer. A type reached again through its own fields
-/// answers NOT defaultable: a cycle means the default is infinitely deep, so there is no instance to
-/// build.
+/// constructor, and every slot of <see cref="InstanceStorage"/> has an answer. A type reached again
+/// through its own storage answers NOT defaultable: a cycle means the default is infinitely deep, so
+/// there is no instance to build.
 /// </summary>
 internal static class Defaultability
 {
+    /// <summary>
+    /// Never true of a refinement, although storage of one starts from its base's zero: there
+    /// DefaultabilityAnalyzer asks the predicate whether it admits that zero, and nothing asks it for a
+    /// <c>default</c> of the refinement or a <c>default</c> constraint closed over one.
+    /// </summary>
     public static bool HasDefault(IMistType type)
     {
-        return OptionalUnion.IsOptional(type)
-            || type is ConcreteType { IsIntrinsic: true }
-            || (type is EnumType { MembersList: { } variants } && variants.Exists(variant => variant.IsDefault))
-            || (type is MemberType member && IsDefaultable(member));
+        return type is not RefinedType && HasZero(type, []);
     }
 
     public static bool IsDefaultable(MemberType type)
@@ -30,9 +32,9 @@ internal static class Defaultability
         return IsDefaultable(type, []);
     }
 
-    public static bool FieldHasDefault(ConcreteType type, Field field)
+    public static bool StorageHasDefault(ConcreteType type, InstanceStorage slot)
     {
-        return CanDefault(type, field, []);
+        return CanDefault(type, slot, []);
     }
 
     public static bool NeedsSentinel(ConcreteType type)
@@ -45,9 +47,24 @@ internal static class Defaultability
         return type.DefaultBlock is not null || !NeedsSentinel(type);
     }
 
-    public static IEnumerable<Field> FieldsWithoutDefault(ConcreteType type)
+    public static IEnumerable<InstanceStorage> StorageWithoutDefault(ConcreteType type)
     {
-        return InstanceFields(type).Where(field => !IsUndecided(field.Type) && !FieldHasDefault(type, field));
+        return InstanceStorage.Of(type).Where(slot => !IsUndecided(slot.Type) && !StorageHasDefault(type, slot));
+    }
+
+    public static bool StartsFromZero(ConcreteType type, InstanceStorage slot)
+    {
+        return BlockEntry(type, slot) is null && slot.Initializer is null;
+    }
+
+    public static MemberType? AnsweredThrough(ConcreteType type, InstanceStorage slot)
+    {
+        return BlockEntry(type, slot) switch
+        {
+            DefaultBindingEntry binding => binding.BoundType as MemberType,
+            null when slot.Initializer is null => Unrefined(slot.Type) as MemberType,
+            _ => null,
+        };
     }
 
     public static ConcreteType? BaseWithoutDefault(ConcreteType type)
@@ -69,9 +86,9 @@ internal static class Defaultability
         return type.FieldsList.Where(field => !field.Modifiers.IsStatic);
     }
 
-    public static DefaultEntry? BlockEntry(ConcreteType type, Field field)
+    public static DefaultEntry? BlockEntry(ConcreteType type, InstanceStorage slot)
     {
-        if(type.DefaultBlock is null)
+        if(type.DefaultBlock is null || slot.Field is not { } field)
         {
             return null;
         }
@@ -99,7 +116,7 @@ internal static class Defaultability
             return type is ConcreteType { IsIntrinsic: false } concrete
                 && StatesAZero(concrete)
                 && BaseIsDefaultable(concrete, visiting)
-                && InstanceFields(concrete).All(field => CanDefault(concrete, field, visiting))
+                && InstanceStorage.Of(concrete).All(slot => CanDefault(concrete, slot, visiting))
                 ;
         }
         finally
@@ -108,21 +125,32 @@ internal static class Defaultability
         }
     }
 
-    private static bool CanDefault(ConcreteType type, Field field, HashSet<MemberType> visiting)
+    private static bool CanDefault(ConcreteType type, InstanceStorage slot, HashSet<MemberType> visiting)
     {
-        var entry = BlockEntry(type, field);
+        var entry = BlockEntry(type, slot);
 
         if(entry is DefaultBindingEntry binding)
         {
             return binding.BoundType is MemberType bound && IsDefaultable(bound, visiting);
         }
 
-        return entry is not null
-            || field.Initializer is not null
-            || OptionalUnion.IsOptional(field.Type)
-            || field.Type is ConcreteType { IsIntrinsic: true }
-            || (field.Type is MemberType nested && IsDefaultable(nested, visiting))
-            ;
+        return entry is not null || slot.Initializer is not null || HasZero(slot.Type, visiting);
+    }
+
+    private static bool HasZero(IMistType type, HashSet<MemberType> visiting)
+    {
+        return type is RefinedType refined
+            ? HasZero(refined.BaseType, visiting)
+            : OptionalUnion.IsOptional(type)
+                || type is ConcreteType { IsIntrinsic: true }
+                || (type is EnumType { MembersList: { } variants } && variants.Exists(variant => variant.IsDefault))
+                || (type is MemberType member && IsDefaultable(member, visiting))
+                ;
+    }
+
+    private static IMistType Unrefined(IMistType type)
+    {
+        return type is RefinedType refined ? Unrefined(refined.BaseType) : type;
     }
 
     private static bool BaseIsDefaultable(ConcreteType type, HashSet<MemberType> visiting)

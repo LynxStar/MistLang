@@ -2061,13 +2061,73 @@ rules:
         - Auto-properties are outside Defaultability. On v2 `default(Holder)` leaves a class-typed
           auto-property null where classic gives its type's default. A constructorless type's
           auto-property of a type with no default is null on both pipelines.
+          DONE 2026-10-01 (claude/v2-defaultability-storage-coverage): InstanceStorage is the one notion of
+          instance storage, every instance field and then every instance property with a backing field,
+          and Defaultability, the synthesis, definite assignment and the purity of defaults all read it.
+          A property's initializer or its type's default answers it. A type that states a zero is
+          refused when one has neither (MIST_PA_PROPERTY_HAS_NO_DEFAULT), and a type with constructors
+          and no block leaves it to definite assignment, as before. The evidence is under emitter order
+          50, default-value-synthesis.
         - DONE 2026-10-01, in the entry below: a user constructor that writes no chain, over a Mist class
           base with no constructor it can call with nothing, is refused at the constructor
           (class-inheritance 8.3).
         - A chain of constructorless types is refused at every link, not only where the field without a
           default is written.
+          DONE 2026-10-01: one mistake, one complaint. DefaultabilityAnalyzer leaves a slot or base to
+          the type its default would come from when that type needs a default and has a slot or base of
+          its own to refuse. Three constructorless links over a Connection field report once, at the
+          field. A chain of bases reports once too, at the root's field, and a `default` of the outer
+          link is not refused at its use. Two exceptions keep this sound:
+          - A holder of a type that has nothing of its own to refuse is refused itself. That covers a
+            constructorless type over a CLR base, which 9.8 makes non-defaultable without an error.
+          - A slot or base whose type reaches the holder again closes a cycle, which nothing below
+            explains, so it is refused. `Node { Node next; }` reports once. `X { Y y; }` with
+            `Y { X x; }` reports at both fields, one per type, rather than at a choice between them.
+          Without the cycle exception both cycle rows go silent. Without the CLR exception the holder
+          row goes silent. Without suppression both chain rows report at every link.
         - A refinement whose predicate admits its base's zero, such as NonNegativeInt, is refused as a
           field without a default too. Defaultability does not consult the predicate.
+          DONE 2026-10-01: classification gives a refinement's storage its base's default and never reads
+          the predicate. Refinements/RefinedZero asks whether the predicate admits that zero, as
+          Requirement and LiteralPredicates decide it: integral sets through `Admitted.Contains(0)`, and
+          reals and strings through the literal decision.
+          - Where the zero is not admitted, DefaultabilityAnalyzer refuses the slot in a type that states
+            a zero (MIST_PA_REFINEMENT_ZERO_NOT_ADMITTED), and definite assignment requires a constructor
+            to assign it. Rules/StorageDefaults is the one place both read.
+          - Emission writes the base's zero through DefaultSynthesis.StorageZero.
+          - `public NonNegativeInt Held;` is admitted and prints 0, as on classic.
+          - `public PositiveInt Held;` is refused at the field. Classic admits it and prints 0, which
+            breaks its predicate.
+          - An initializer or a default block entry answers a refinement slot as it answers any slot.
+          - RefinedReturnDispatchDecisionTests keeps its `= 1` initializers. They are no longer needed for
+            the NonNegativeInt rows, and no row's invariant depends on them.
+          Tests: RefinedZeroDecisionTests (Tier 1, 13 cases), the refinement rows of
+          DefaultabilityRefusalTests and ConstructorStorageAssignmentTests (Tier 2), and
+          StorageDefaultEmissionTests (Tier 2). Two mutations were each caught: admitting every zero fails
+          11 rows, and giving a refinement no default in classification fails 6.
+        - A default block entry names a field only (DeclarationShapeAnalyzer.CheckEntries, and the spec's
+          Field_Override "names a field"). An entry naming an auto-property is refused as
+          MIST_PA_DEFAULT_ENTRY_NOT_A_FIELD, though the property is now storage the default answers.
+          Whether an entry may name one is a question for the language's owner.
+        - `default(PositiveInt)` and a `default` constraint closed over a refinement have no ruling.
+          Defaultability.HasDefault answers no refinement, so the constraint refuses one. The expression
+          is MIST_BE_UNSUPPORTED_EXPRESSION on v2, where classic prints 0 even for PositiveInt.
+          RefinedZero is the decision a ruling would use.
+        - A refinement over a base that is not intrinsic, such as an enum with a designated variant or a
+          defaultable class, has no zero RefinedZero can test, so its slot is refused as not admitted.
+          That is conservative, and no sample declares one.
+        - Defaultability 10.1 asks a user constructor to inject the default of a defaultable type into a
+          slot with no initializer. Neither pipeline does: `new Holder(1).Item.Value`, over
+          `public Inner Item;` and a constructor that assigns nothing, throws NullReferenceException on
+          both (measured 2026-10-01). Definite assignment does not track such a slot, since its type has
+          a default. Fields, auto-properties and now enum slots share the gap.
+        - Definite assignment counts a default block entry as an answer inside a constructor, which never
+          runs the block (10.2). A field of a type with no default, answered only by an entry, can be
+          left unassigned by a user constructor without a refusal.
+        - The synthesized default assigns a property through its setter, as classic does, so a bodied
+          setter runs inside a default. Nothing judges that setter's purity (Requirement 6).
+        - v2 does not refuse `field` in a lone bodied getter, which classic refuses as a computed property
+          (MIST_TC_0024). InstanceStorage leaves such a property out, as having no backing field.
       - >
         DONE 2026-10-01: A USER CONSTRUCTOR WHOSE IMPLICIT BASE CALL IS UNSATISFIED. Class-inheritance 8.3
         is now met on v2 for every constructor a derived class declares; its Amended banner gives a derived

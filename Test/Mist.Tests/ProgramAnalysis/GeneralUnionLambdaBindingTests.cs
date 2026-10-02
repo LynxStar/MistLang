@@ -172,13 +172,13 @@ public sealed class GeneralUnionLambdaBindingTests
     }
 
     [Fact]
-    public void AGeneralUnionValueDoesNotAcquireAnInvocationSignature()
+    public void AGeneralUnionValueIsNotCalledThroughItsCallableArm()
     {
         var f = new BindingFragments();
         var (_, target, _) = Target(f, includesVoid: false, pure: false);
         _ = f.Local("transform", target);
 
-        var call = Assert.IsType<InvocationExpression>(f.Bind(BindingFragments.Identifier("transform"),
+        _ = Assert.IsType<ErrorExpression>(f.Bind(BindingFragments.Identifier("transform"),
             new InvocationSuffixPostfixSuffixNode
             {
                 Arguments = BindingFragments.Arguments(BindingFragments.Expression(new StringLiteralExpressionPrimaryNode
@@ -187,8 +187,7 @@ public sealed class GeneralUnionLambdaBindingTests
                 })),
             }));
 
-        Assert.Null(call.ParameterTypes);
-        Assert.Same(target, call.Type);
+        Assert.Equal("MIST_PM_NOT_CALLABLE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
     }
 
     private static (TypeReferenceNode Syntax, IMistType Target, FunctionType Signature) Target(BindingFragments f, bool includesVoid, bool pure)

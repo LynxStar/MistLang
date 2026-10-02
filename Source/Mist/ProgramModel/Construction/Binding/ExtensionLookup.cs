@@ -118,6 +118,29 @@ internal static class ExtensionLookup
         return new NotFoundResult();
     }
 
+    public static IReadOnlyList<string> NamespacesOffering(
+        IMistType receiver, string methodName, MemberVisibility visibility, ProgramModelClass programModel)
+    {
+        var offering = new SortedSet<string>(StringComparer.Ordinal);
+
+        foreach(var (namespaceName, ns) in programModel.Namespaces)
+        {
+            foreach(var (blockReceiver, blocks) in ns.Extensions)
+            {
+                foreach(var block in blocks)
+                {
+                    if(Accepts(blockReceiver, receiver, block, programModel.TypeInterner)
+                        && block.MethodsList.Exists(method => method.Name == methodName && Permits(visibility, method.Modifiers.IsStatic)))
+                    {
+                        _ = offering.Add(namespaceName);
+                    }
+                }
+            }
+        }
+
+        return [.. offering];
+    }
+
     /// <summary>
     /// The namespaces a use site can see: every namespace it is written inside, everything its file
     /// or its project imports, and the global one. Walked outward from the use rather than read off

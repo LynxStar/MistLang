@@ -41,11 +41,7 @@ internal static class MemberResolution
         Scope? callSite = null,
         bool allowExtensionProperties = false)
     {
-        // A refinement is a nominal SUBTYPE of what it refines, so its members are that type's. The
-        // predicate says which VALUES the type admits, never which members they answer to. An alias
-        // named in expression position, `Task.Yield()`, is likewise its aliased type's.
-        var unaliased = type is TypeAlias { AliasedType: { } aliased } ? aliased : type;
-        var receiver = unaliased is RefinedType refined ? refined.BaseType : unaliased;
+        var receiver = Answering(type);
         var constructed = receiver as ConstructedType;
 
         if((constructed?.Definition ?? receiver) is not MistType declaring)
@@ -76,6 +72,25 @@ internal static class MemberResolution
         var reported = Report(found, declaring, memberName, node, context);
 
         return new MemberLookup(found, constructed, reported);
+    }
+
+    public static MemberLookup ResolveExtensionMethods(
+        IMistType type, string memberName, MemberVisibility visibility, BuilderContext context, Scope callSite)
+    {
+        var found = ExtensionLookup.Find(
+            type, memberName, visibility, callSite, allowProperties: false, context.ProgramModel);
+
+        return new MemberLookup(found, Answering(type) as ConstructedType, Reported: false);
+    }
+
+    // A refinement is a nominal SUBTYPE of what it refines, so its members are that type's. The
+    // predicate says which VALUES the type admits, never which members they answer to. An alias
+    // named in expression position, `Task.Yield()`, is likewise its aliased type's.
+    private static IMistType Answering(IMistType type)
+    {
+        var unaliased = type is TypeAlias { AliasedType: { } aliased } ? aliased : type;
+
+        return unaliased is RefinedType refined ? refined.BaseType : unaliased;
     }
 
     internal readonly record struct StorageLookup(IMistType? Type, LookupResult Found);

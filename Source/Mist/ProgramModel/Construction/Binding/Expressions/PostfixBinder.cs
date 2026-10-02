@@ -331,7 +331,9 @@ internal static class PostfixBinder
         BuilderContext context,
         bool isImplicit = false)
     {
-        if(receiver is not MethodGroupExpression group)
+        var group = receiver as MethodGroupExpression ?? Callability.ExtensionMethods(receiver, ctx, context);
+
+        if(group is null)
         {
             return BindFunctionInvocation(node, receiver, arguments, ctx, context);
         }
@@ -472,7 +474,10 @@ internal static class PostfixBinder
         if(receiver.Type is not IFunctionType function)
         {
             var untargeted = ArgumentBinder.Bind(arguments, ctx, context);
-            return new InvocationExpression(node, receiver, untargeted, receiver.Type, null, parameterTypes: null);
+
+            return Callability.Refuses(receiver, node, context)
+                ? new ErrorExpression(node)
+                : new InvocationExpression(node, receiver, untargeted, receiver.Type, null, parameterTypes: null);
         }
 
         var bound = ArgumentBinder.BindTargeted(arguments, function.ParameterTypes, ctx, context);

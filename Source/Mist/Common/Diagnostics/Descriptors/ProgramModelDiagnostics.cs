@@ -649,6 +649,24 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'{0}' takes {1} arguments but {2} were passed.");
 
+    public static readonly DiagnosticDescriptor NotCallable = new(
+        new DiagnosticId("MIST_PM_NOT_CALLABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is not a method, and its type '{1}' is not a function type, so it cannot be called.");
+
+    public static readonly DiagnosticDescriptor NotCallableExtensionNotImported = new(
+        new DiagnosticId("MIST_PM_NOT_CALLABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' is not a method, and its type '{1}' is not a function type, so it cannot be called. An extension method named '{0}' is declared in {2}, which is not imported here.");
+
+    public static readonly DiagnosticDescriptor ValueNotCallable = new(
+        new DiagnosticId("MIST_PM_NOT_CALLABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "A value of type '{0}' is not a function, so it cannot be called.");
+
     /// <summary>A deconstruction declares a different number of targets than the tuple it reads holds.</summary>
     public static readonly DiagnosticDescriptor DeconstructionArityMismatch = new(
         new DiagnosticId("MIST_PM_DECONSTRUCTION_ARITY"),

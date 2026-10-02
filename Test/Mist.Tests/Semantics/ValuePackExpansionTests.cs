@@ -1,6 +1,7 @@
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -49,6 +50,25 @@ public sealed class ValuePackExpansionTests
         var declared = new List<Parameter> { new("xs", array) { IsFlattened = true } };
 
         Assert.Same(declared[0], Assert.Single(ValuePack.Expand(declared, TypeSubstitution.Empty, interner: null)));
+    }
+
+    [Fact]
+    public void AForwardedPack_IsAbsorbedAsTheSpreadOfThatPack()
+    {
+        var spread = new SpreadType(rest);
+        var tuple = new TupleType([spread]);
+        var forwarded = new SpreadExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(tuple), tuple);
+
+        Assert.Same(spread, ValuePack.AbsorbedAs(forwarded));
+    }
+
+    [Fact]
+    public void AnArgumentThatIsNotAForwardedPack_IsAbsorbedAsItsOwnType()
+    {
+        var pair = new TupleType([built.Type("Int32"), built.Type("String")]);
+
+        Assert.Same(pair, ValuePack.AbsorbedAs(HandBuiltModel.Literal(pair)));
+        Assert.Same(pair, ValuePack.AbsorbedAs(new SpreadExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(pair), pair)));
     }
 
     private List<Parameter> Declared()

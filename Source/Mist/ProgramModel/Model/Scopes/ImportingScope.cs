@@ -28,6 +28,11 @@ internal abstract class ImportingScope(Scope? parent, ProgramModel programModel,
         }
     }
 
+    public void WithdrawImport(string namespaceName)
+    {
+        _ = imports.Remove(namespaceName);
+    }
+
     /// <summary>
     /// The namespace names brought into scope by using directives on this level.
     /// </summary>

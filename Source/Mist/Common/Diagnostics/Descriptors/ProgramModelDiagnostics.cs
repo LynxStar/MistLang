@@ -55,6 +55,12 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "File-scoped namespace declarations cannot appear inside a block namespace.");
 
+    public static readonly DiagnosticDescriptor GlobalUsingUndefinedNamespace = new(
+        new DiagnosticId("MIST_GLOBAL_USING_UNDEFINED_NAMESPACE"),
+        DiagnosticSeverity.Warning,
+        PipelineStage.SemanticModelConstruction,
+        "Global using namespace '{0}' in project '{1}' could not be found, so it imports nothing.");
+
     // ── Type resolution ──────────────────────────────────────────────────
 
     /// <summary>A type with the same name already exists in this namespace.</summary>

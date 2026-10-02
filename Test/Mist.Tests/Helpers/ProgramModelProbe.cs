@@ -157,7 +157,12 @@ public abstract class ProgramModelProbe : IDisposable
     /// alongside as a referenced project's file, which puts its declarations in an assembly of their own -- the
     /// only way a probe can reach something another compilation declares internal.
     /// </summary>
-    private protected ProgramModelClass Build(string source, string? referenced, out ImmutableArray<Diagnostic> diagnostics)
+    private protected ProgramModelClass Build(
+        string source,
+        string? referenced,
+        out ImmutableArray<Diagnostic> diagnostics,
+        ImmutableArray<string> globalUsings = default,
+        ImmutableArray<string> referencedGlobalUsings = default)
     {
         var fileName = Path.Combine(outputDir, "Program.mist");
         var (sourceText, root) = Parse(fileName, source);
@@ -168,7 +173,11 @@ public abstract class ProgramModelProbe : IDisposable
         if(referenced is not null)
         {
             var folder = Path.Combine(outputDir, "Library");
-            var library = new MistProject("Library", folder, Path.Combine(folder, "mist.toml"));
+            var library = new MistProject("Library", folder, Path.Combine(folder, "mist.toml"))
+            {
+                GlobalUsings = referencedGlobalUsings.IsDefault ? [] : referencedGlobalUsings,
+            };
+
             var (libraryText, libraryRoot) = Parse(Path.Combine(folder, "Library.mist"), referenced);
 
             units.Add(new CompilationUnit(libraryText) { OriginProjectPath = library.CanonicalTomlPath, ProjectFolder = folder });
@@ -187,7 +196,11 @@ public abstract class ProgramModelProbe : IDisposable
 
         var buildDiagnostics = new DiagnosticBag();
         var programModel = ProgramModelBuilder.Build(
-            new MistCompilation([.. units]) { Projects = projects },
+            new MistCompilation([.. units])
+            {
+                Projects = projects,
+                GlobalUsings = globalUsings.IsDefault ? [] : globalUsings,
+            },
             [.. roots],
             options,
             buildDiagnostics,

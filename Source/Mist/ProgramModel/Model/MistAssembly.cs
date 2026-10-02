@@ -52,11 +52,11 @@ public sealed class MistAssembly(
     /// and synthetic assemblies, which have no files.
     /// <para>
     /// Per assembly for the same reason <see cref="EntryPoint"/> is: a referenced project declaring
-    /// its own is not an error, and its choice must not reach another project's files. Set once at
-    /// registration, before any type is resolved.
+    /// its own is not an error, and its choice must not reach another project's files. Set at
+    /// registration and narrowed once to the names that are namespaces, before any type is resolved.
     /// </para>
     /// </summary>
-    public ImmutableArray<string> GlobalUsings { get; } = globalUsings.IsDefault
+    public ImmutableArray<string> GlobalUsings { get; internal set; } = globalUsings.IsDefault
         ? ImmutableArray<string>.Empty
         : globalUsings
         ;

@@ -228,10 +228,13 @@ internal sealed class TypeBuilder
 
     /// <summary>
     /// Stashes an extension block AST for deferred processing in Phase 2.
-    /// The receiver type cannot be resolved until all types are registered.
+    /// The receiver type cannot be resolved until all types are registered. Its namespace is
+    /// registered here all the same, because a using is judged before Phase 2 and a namespace
+    /// holding nothing but extension blocks is one a file may import.
     /// </summary>
     private void StashExtension(Scope scope, string namespaceName, ExtensionBlockDeclarationNode extensionDecl)
     {
+        _ = context.ProgramModel.GetOrAddNamespace(namespaceName);
         context.PendingExtensions.Add(new PendingExtension(extensionDecl, scope, namespaceName));
     }
 

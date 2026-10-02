@@ -252,8 +252,8 @@ public sealed class ProgramModel : IProgramModel
     /// also counts if it is a proper prefix of a registered one -- <c>A.B.C</c> is what makes
     /// <c>A</c> and <c>A.B</c> namespaces.
     /// <para>
-    /// Source-declared namespaces only. Ambient projection registers types but not namespaces, so
-    /// <c>System.Console</c>-style qualification is not resolvable yet.
+    /// Ambient namespaces are registered by the ambient projection, so the answer covers them only
+    /// once it has run.
     /// </para>
     /// </summary>
     internal bool IsKnownNamespace(string name)

@@ -44,13 +44,13 @@ internal static class ImplicitConversions
             return [.. arguments.Select((argument, i) => i < parameterTypes.Count ? At(argument, parameterTypes[i], interner) : argument)];
         }
 
-        if(flattened >= parameterTypes.Count || Indexability.ArrayElement(parameterTypes[flattened]) is not { } element)
+        if(flattened >= parameterTypes.Count || ParamsCollection.ElementOf(parameterTypes[flattened]) is not { } element)
         {
             return arguments;
         }
 
         var parameters = method.ParametersList;
-        var expanded = arguments.Count != parameters.Count || Indexability.ArrayElement(arguments[flattened].Type) is null;
+        var expanded = arguments.Count != parameters.Count || !ParamsCollection.IsHandedWhole(arguments[flattened].Type);
 
         return [.. arguments.Select((argument, i) =>
         {

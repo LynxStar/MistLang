@@ -58,7 +58,7 @@ internal static class ValuePack
 
     public static IMistType? ElementOf(Parameter parameter)
     {
-        return parameter.IsFlattened ? Indexability.ArrayElement(parameter.Type) : null;
+        return parameter.IsFlattened ? ParamsCollection.ElementOf(parameter.Type) : null;
     }
 
     /// <summary>

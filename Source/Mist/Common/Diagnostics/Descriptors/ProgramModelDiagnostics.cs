@@ -1121,13 +1121,13 @@ public static class ProgramModelDiagnostics
         new DiagnosticId("MIST_VAR_0012"),
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
-        "'{0}' is declared 'params' but is not the last parameter. A 'params' array collects the arguments after the fixed ones, so nothing may follow it.");
+        "'{0}' is declared 'params' but is not the last parameter. A 'params' collection collects the arguments after the fixed ones, so nothing may follow it.");
 
     public static readonly DiagnosticDescriptor ParamsParameterMalformed = new(
         new DiagnosticId("MIST_VAR_0013"),
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
-        "'{0}' is declared 'params' but {1}. A 'params' parameter is a value pack, 'params TArgs {0}', or an array, 'params T[] {0}', passed by value.");
+        "'{0}' is declared 'params' but {1}. A 'params' parameter is a value pack, 'params TArgs {0}', or a collection a flat list is gathered into -- an array, 'params T[] {0}', a span, a list, or an enumerable interface -- passed by value.");
 
     /// <summary>
     /// A spread whose expansion is not known. The suffix promises a definite number of arguments,

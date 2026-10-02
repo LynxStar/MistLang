@@ -238,7 +238,7 @@ internal static partial class PurityJudge
                 var argument = arguments[i];
                 var lent = parameters[i].Modifier.Ownership == OwnershipKind.Frozen && !TierAnalyzer.RefusesLend(argument, ThisTier.Frozen);
                 var whole = i == flattened && arguments.Count == parameters.Count && parameters[i].Type is not ITupleType
-                    && Indexability.ArrayElement(Unwrapped(argument).Type) is not null;
+                    && ParamsCollection.IsHandedWhole(Unwrapped(argument).Type);
 
                 if((!lent && !whole) || silenced.Contains(argument) || ThisTiers.IsValue(argument.Type) || Origins.IsUnchangeable(argument.Type))
                 {

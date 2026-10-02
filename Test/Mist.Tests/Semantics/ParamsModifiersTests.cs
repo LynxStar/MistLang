@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Construction.Members;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -44,8 +45,9 @@ public sealed class ParamsModifiersTests
     [Theory]
     [InlineData("scalar", "its type 'int' cannot collect a flat argument list")]
     [InlineData("type-parameter", "its type 'T' cannot collect a flat argument list")]
-    [InlineData("optional-array", "cannot collect a flat argument list")]
+    [InlineData("string", "its type 'string' cannot collect a flat argument list")]
     [InlineData("ref-array", "it is passed by reference, where the arguments it collects are values")]
+    [InlineData("ref-list", "it is passed by reference, where the arguments it collects are values")]
     [InlineData("ref-scalar", "its type 'int' cannot collect a flat argument list")]
     public void AParamsThatCannotCollectAFlatListOfValuesIsMalformed(string shape, string reason)
     {
@@ -56,8 +58,11 @@ public sealed class ParamsModifiersTests
     [InlineData("pack")]
     [InlineData("tuple")]
     [InlineData("array")]
+    [InlineData("optional-array")]
+    [InlineData("list")]
+    [InlineData("enumerable")]
     [InlineData("failed-type")]
-    public void AParamsOverATupleOrAnArrayIsWellFormed(string shape)
+    public void AParamsOverATupleOrACollectionIsWellFormed(string shape)
     {
         Assert.Null(ParamsModifiers.WhyMalformed(Shaped(shape, isParams: true)));
     }
@@ -88,7 +93,10 @@ public sealed class ParamsModifiersTests
             "tuple" => built.Interner.GetOrCreateTupleType([integer, integer]),
             "array" or "ref-array" => array,
             "optional-array" => built.Interner.GetOrCreateUnionType([array, built.Type("Void")]),
+            "list" or "ref-list" => List(integer),
+            "enumerable" => built.Interner.GetOrCreateConstructedType(Enumerable(), [integer]),
             "scalar" or "ref-scalar" => integer,
+            "string" => built.Type("String"),
             "type-parameter" => plain,
             "failed-type" => ErrorType.Instance,
             _ => throw new ArgumentOutOfRangeException(nameof(shape)),
@@ -100,5 +108,19 @@ public sealed class ParamsModifiersTests
         {
             IsFlattened = isParams,
         };
+    }
+
+    private static AbstractType Enumerable()
+    {
+        return new AbstractType("IEnumerable<>", "Standard", new Scope(null), null, null);
+    }
+
+    private ClassType List(IMistType element)
+    {
+        var list = HandBuiltModel.Class("List");
+        list.BaseAbstractTypes.Add(built.Interner.GetOrCreateConstructedType(Enumerable(), [element]));
+        list.MethodsList.Add(new Method("Add", built.Type("Void"), [new Parameter("item", element)], default) { DeclaringType = list });
+
+        return list;
     }
 }

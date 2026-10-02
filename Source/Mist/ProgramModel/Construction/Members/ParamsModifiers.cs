@@ -52,6 +52,6 @@ internal static class ParamsModifiers
 
     private static bool Collects(IMistType type)
     {
-        return type is TupleType or NamedTupleType or ErrorType || Indexability.ArrayElement(type) is not null;
+        return type is TupleType or NamedTupleType or ErrorType || ParamsCollection.ElementOf(type) is not null;
     }
 }

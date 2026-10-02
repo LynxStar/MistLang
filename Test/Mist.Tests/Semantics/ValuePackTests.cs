@@ -31,6 +31,9 @@ public sealed class ValuePackTests : ProgramModelProbe
             public static int Describe<params TArgs>(params TArgs args) { return TArgs.Length; }
             public static int Middle<TFirst, params TMid, TLast>(TFirst f, params TMid m, TLast l) { return TMid.Length; }
             public static int Add2(int a, int b) { return a + b; }
+            public static int Listed(params Standard.List<int> xs) { return xs.Count; }
+            public static int Optional(params int[]? xs) { return 0; }
+            public static int Applied(params Standard.List<func<int, int>> steps) { return steps.Count; }
         }
 
         public class Packs
@@ -172,8 +175,9 @@ public sealed class ValuePackTests : ProgramModelProbe
     [Theory]
     [InlineData("public static int M(params int x) { return 0; }", "its type 'int' cannot collect a flat argument list")]
     [InlineData("public static int M<T>(params T x) { return 0; }", "its type 'T' cannot collect a flat argument list")]
-    [InlineData("public static int M(params int[]? xs) { return 0; }", "cannot collect a flat argument list")]
+    [InlineData("public static int M(params string s) { return 0; }", "its type 'string' cannot collect a flat argument list")]
     [InlineData("public static int M(params ref int[] xs) { return 0; }", "it is passed by reference")]
+    [InlineData("public static int M(params ref Standard.List<int> xs) { return 0; }", "it is passed by reference")]
     public void AParamsThatCannotCollectAFlatListOfValues_IsRefused(string declaration, string reason)
     {
         var error = Assert.Single(Errors(BuildRun("", $"public class Bad {{ {declaration} }}"), "MIST_VAR_0013"));
@@ -184,12 +188,36 @@ public sealed class ValuePackTests : ProgramModelProbe
     [Theory]
     [InlineData("public static int M(params int[] xs) { return 0; }")]
     [InlineData("public static int M(string head, params int[] xs) { return 0; }")]
+    [InlineData("public static int M(params int[]? xs) { return 0; }")]
+    [InlineData("public static int M(params Standard.List<int> xs) { return 0; }")]
+    [InlineData("public static int M(params Standard.IEnumerable<int> xs) { return 0; }")]
+    [InlineData("public static int M(params Standard.Span<int, 2> xs) { return 0; }")]
     [InlineData("public static int M(params (int, string) pair) { return 0; }")]
     [InlineData("public static int M<params TArgs>(int head, params TArgs args, string[] names) { return 0; }")]
     [InlineData("public static int M<TFirst, params TMid, TLast>(TFirst f, params TMid m, TLast l) { return 0; }")]
     public void AListWithOneWellFormedParams_IsNotRefused(string declaration)
     {
         Assert.Empty(BuildRun("", $"public class Fine {{ {declaration} }}").Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    [Theory]
+    [InlineData("var n = Calls.Listed(1, 2, 3);")]
+    [InlineData("var n = Calls.Listed();")]
+    [InlineData("var whole = new Standard.List<int>(); var n = Calls.Listed(whole);")]
+    [InlineData("var n = Calls.Optional(1, 2);")]
+    [InlineData("var n = Calls.Applied(x => x + 1, x => x * 2);")]
+    public void FlatArgumentsCollapseIntoAParamsCollection(string statement)
+    {
+        Assert.Empty(Run(statement).Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    [Theory]
+    [InlineData("public static int M(params Standard.List<int> xs, string tail) { return 0; }", "MIST_VAR_0012")]
+    [InlineData("public static int M(params Standard.List<int> a, params Standard.List<int> b) { return 0; }", "MIST_VAR_0001")]
+    [InlineData("public static int M<params TArgs>(params TArgs a, params Standard.List<int> b) { return 0; }", "MIST_VAR_0001")]
+    public void AParamsCollection_CountsAsTheOneParamsOfItsList(string declaration, string id)
+    {
+        _ = Assert.Single(Errors(BuildRun("", $"public class Bad {{ {declaration} }}"), id));
     }
 
     /// <summary>

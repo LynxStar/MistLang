@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -403,6 +404,7 @@ internal static class PostfixBinder
             returnType, selected, parameterTypes)
         {
             IsImplicit = isImplicit,
+            ContextTypes = ContextBinding.TypesOf(selected, type => choice.Substitution.Apply(type, interner)),
         };
 
         return TaskResult.IsDrop(selected) ? invocation : AutoDrop(invocation, ctx, context);

@@ -25,5 +25,7 @@ internal sealed class FunctionReferenceExpression(
 
     public IReadOnlyList<IMistType> TypeArguments { get; init; } = [];
 
+    public IReadOnlyList<IMistType> ContextTypes { get; init; } = ContextBinding.TypesOf(method);
+
     public override IMistType Type { get; } = type;
 }

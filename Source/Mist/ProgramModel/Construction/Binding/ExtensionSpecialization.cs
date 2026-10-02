@@ -58,7 +58,7 @@ internal static class ExtensionSpecialization
 
         closed.TypeParametersList.AddRange(method.TypeParametersList);
         closed.ContextBindingsList.AddRange(method.ContextBindingsList.Select(binding =>
-            new ContextBinding(substitution.Apply(binding.ContextType, interner), binding.Identifier)));
+            new ContextBinding(substitution.Apply(binding.ContextType, interner), binding.Identifier) { Node = binding.Node }));
         closed.AttributesList.AddRange(method.AttributesList);
         closed.DeclaredAttributesList.AddRange(method.DeclaredAttributesList);
         return closed;

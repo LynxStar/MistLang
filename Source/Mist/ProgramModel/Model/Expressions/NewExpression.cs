@@ -32,6 +32,8 @@ internal sealed class NewExpression(
     /// </summary>
     public IReadOnlyList<IMistType>? ParameterTypes { get; } = parameterTypes;
 
+    public IReadOnlyList<IMistType> ContextTypes { get; init; } = ContextBinding.TypesOf(constructor);
+
     public IReadOnlyList<ObjectInitializerAssignment> Initializer { get; } = initializer;
 
     public override IMistType Type { get; } = type;

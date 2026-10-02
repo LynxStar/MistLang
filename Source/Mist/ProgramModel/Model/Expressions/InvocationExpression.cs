@@ -46,6 +46,13 @@ internal sealed class InvocationExpression(
     public IReadOnlyList<IMistType>? ParameterTypes { get; } = parameterTypes;
 
     /// <summary>
+    /// The type each <c>with</c> clause of <see cref="Method"/> reads AT THIS CALL, through the call's own
+    /// substitution and for the reason <see cref="ParameterTypes"/> is recorded: a clause over the
+    /// callee's type parameter reads the call's type argument, which the declaration alone cannot say.
+    /// </summary>
+    public IReadOnlyList<IMistType> ContextTypes { get; init; } = ContextBinding.TypesOf(method);
+
+    /// <summary>
     /// Whether the binder supplied this call rather than the author writing it: the Drop a sync
     /// context inserts on a task-returning call, which an explicit <c>await</c> or <c>async</c> undoes.
     /// </summary>

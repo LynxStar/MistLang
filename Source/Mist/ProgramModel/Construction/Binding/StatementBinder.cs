@@ -156,7 +156,7 @@ internal static class StatementBinder
 
         if(name is not null)
         {
-            local = new LocalVariable(name, keyType ?? value.Type) { IsFailed = keyType is null && PriorFailure.Of(value) };
+            local = new LocalVariable(name, keyType ?? value.Type) { IsFailed = keyType is null && PriorFailure.Of(value), IsContextBound = true };
             scope.DeclareLocal(local, context.Diagnostics);
         }
 

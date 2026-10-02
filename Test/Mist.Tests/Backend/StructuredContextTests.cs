@@ -6,6 +6,7 @@ using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -138,6 +139,53 @@ public sealed class StructuredContextTests : ProgramModelProbe
         var scope = Assert.IsType<WithBlockStatement>(BodyIn(statement).Statements.Single());
 
         Assert.Null(scope.Binding);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("int r = Generic.Get<int>();")]
+    [InlineData("Box<int> r = new Box<int>();")]
+    [InlineData("func<int> r = Generic.Get<int>;")]
+    public void ACallRecordsTheKeyItsCalleesClauseReadsThroughTheCallsOwnTypeArguments(string statement)
+    {
+        const string generics = """
+            public class Generic { public static T Get<T>() with T value { return value; } }
+
+            public class Box<T> { public Box() with T value { } }
+            """;
+
+        var keys = DeclarationIn(statement, generics).Initializer switch
+        {
+            InvocationExpression call => call.ContextTypes,
+            NewExpression allocation => allocation.ContextTypes,
+            FunctionReferenceExpression reference => reference.ContextTypes,
+            var other => throw new Xunit.Sdk.XunitException($"Unexpected initializer {other?.GetType().Name}"),
+        };
+
+        Assert.Equal("Standard.Int32", Assert.Single(keys).FullyQualifiedName);
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void TheNameAClauseBindsIsMarkedAsStandingForAnAmbientValue()
+    {
+        var model = BuildModel(statement: "", extraTypes: "", extraPreamble: "", out _);
+        var consumer = Assert.IsAssignableFrom<MemberType>(model.TypesByFQN["Probe.Consumer"]);
+        var returned = Assert.IsType<ReturnStatement>(consumer.MethodsList.Single(method => method.Name == "Get").Body!.Statements.Single());
+
+        Assert.True(Assert.IsType<LocalReferenceExpression>(returned.Value).Local.IsContextBound);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("with var a = \"x\";")]
+    [InlineData("with string a = \"x\";")]
+    [InlineData("with (var a = \"x\") { }")]
+    public void TheNameAWithDeclarationBindsIsMarkedAsStandingForAnAmbientValue(string statement)
+    {
+        var scope = Assert.IsType<WithBlockStatement>(BodyIn(statement).Statements.Single());
+
+        Assert.True(scope.Binding!.IsContextBound);
     }
 
     private System.Collections.Immutable.ImmutableArray<Diagnostic> Diagnostics(string statements)

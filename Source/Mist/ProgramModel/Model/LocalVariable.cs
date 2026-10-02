@@ -47,4 +47,12 @@ internal sealed class LocalVariable(string name, IMistType type)
     public bool IsFailed { get; init; }
 
     public Parameter? Parameter { get; init; }
+
+    /// <summary>
+    /// The name stands for an ambient value, a <c>with</c> clause's or a named <c>with</c> declaration's.
+    /// Recorded because nothing else tells a clause's local from an ordinary one, and structured-context
+    /// Requirements 4.1 and 7.5 make such a name unassignable: a second value under it would no longer
+    /// be the one a callee reads.
+    /// </summary>
+    public bool IsContextBound { get; init; }
 }

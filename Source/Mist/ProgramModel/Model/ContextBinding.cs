@@ -1,5 +1,7 @@
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
+using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model;
 
@@ -21,4 +23,13 @@ internal sealed class ContextBinding : IContextBinding
 
     /// <summary>The name bound to the peeked context value inside the callable body.</summary>
     public string Identifier { get; }
+
+    public SyntaxNode? Node { get; init; }
+
+    internal static IReadOnlyList<IMistType> TypesOf(Method? callee, Func<IMistType, IMistType>? closing = null)
+    {
+        return callee is { ContextBindingsList.Count: > 0 }
+            ? [.. callee.ContextBindingsList.Select(binding => closing is null ? binding.ContextType : closing(binding.ContextType))]
+            : [];
+    }
 }

@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -345,7 +346,10 @@ internal static class ExpressionBinder
                 ImplicitConversions.AtParameters(settled, choice.Selected, parameterTypes, interner), choice.Selected?.ParametersList),
             choice.Selected,
             ObjectInitializerBinder.Bind(initializer, type, ctx, context),
-            parameterTypes);
+            parameterTypes)
+        {
+            ContextTypes = ContextBinding.TypesOf(choice.Selected, contextType => choice.Substitution.Apply(contextType, interner)),
+        };
     }
 
     /// <summary>

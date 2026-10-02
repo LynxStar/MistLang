@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -69,6 +70,7 @@ internal static class MethodGroupConversion
         return new FunctionReferenceExpression(group.Node, group.Receiver, match, target)
         {
             TypeArguments = match.TypeParametersList.ConvertAll(parameter => substitution.Apply(parameter, interner)),
+            ContextTypes = ContextBinding.TypesOf(match, type => substitution.Apply(type, interner)),
         };
     }
 

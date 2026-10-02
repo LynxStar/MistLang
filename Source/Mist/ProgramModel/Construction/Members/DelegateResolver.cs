@@ -91,7 +91,7 @@ internal sealed class DelegateResolver
 
                 case ContextWithClauseWithClauseNode contextClause:
                     var resolvedType = scopeResolver.Resolve(contextClause.Type, scope);
-                    contextBindings.Add(new ContextBinding(resolvedType, contextClause.Name.Lexeme));
+                    contextBindings.Add(new ContextBinding(resolvedType, contextClause.Name.Lexeme) { Node = contextClause });
                     break;
 
                 default:

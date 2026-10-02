@@ -35,7 +35,7 @@ internal static class BodyBinder
         foreach(var binding in method.ContextBindingsList)
         {
             bodyScope.DeclareLocal(
-                new LocalVariable(binding.Identifier, binding.ContextType), context.Diagnostics);
+                new LocalVariable(binding.Identifier, binding.ContextType) { IsContextBound = true }, context.Diagnostics);
         }
 
         // A constructor chain's arguments are bound in the same scope as the body, since

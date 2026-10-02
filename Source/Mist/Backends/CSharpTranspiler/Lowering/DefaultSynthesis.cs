@@ -44,27 +44,27 @@ internal static class DefaultSynthesis
             return literal;
         }
 
-        if(type is TypeParameter parameter && DefaultConstraintWitness.Constrains(parameter))
+        if(type is TypeParameter parameter && DefaultWitnesses.IsWitnessed(parameter))
         {
             return $"{DefaultConstraintWitness.Name(parameter)}()";
         }
 
-        if(type is MemberType member && IsDefaultable(member))
+        if(Defaultability.DeclarationOf(type) is { } declaration && IsDefaultable(declaration))
         {
-            return Factory(type);
+            return DefaultWitnesses.Arguments(declaration, type) is { } witnesses ? Factory(type, witnesses) : null;
         }
 
         // An enum is defaultable exactly when it designates a variant, there being no other way to
         // choose between them -- unlike a class, whose fields each have a zero of their own.
         return type is EnumType { MembersList: { } variants } && variants.Exists(variant => variant.IsDefault)
-            ? Factory(type)
+            ? Factory(type, [])
             : null
             ;
     }
 
-    private static string Factory(IMistType type)
+    private static string Factory(IMistType type, List<string> witnesses)
     {
-        return $"{TypeNameEmitter.Emit(type)}.{FactoryName}()";
+        return $"{TypeNameEmitter.Emit(type)}.{FactoryName}({string.Join(", ", witnesses)})";
     }
 
     public static string? StorageZero(IMistType type)
@@ -82,14 +82,30 @@ internal static class DefaultSynthesis
         return Defaultability.NeedsSentinel(type);
     }
 
+    public static bool UsesSentinel(ConcreteType type)
+    {
+        return NeedsSentinel(type) || DefaultWitnesses.Of(type).Count > 0;
+    }
+
     /// <summary>
     /// A derived class's default reaches its base's part through the base's sentinel, never C#'s
     /// implicit <c>base()</c>: that would run a user constructor, and a default runs none. A base without
-    /// constructors of its own needs no sentinel, its public parameterless constructor being its default.
+    /// constructors of its own needs no sentinel, its public parameterless constructor being its default,
+    /// unless it takes witnesses, which that constructor cannot be passed.
     /// </summary>
     public static bool ChainsToBaseSentinel(ConcreteType type)
     {
-        return type is ClassType && type.BaseType is ConcreteType { IsIntrinsic: false } baseType && NeedsSentinel(baseType);
+        return type is ClassType && BaseDeclaration(type) is { } baseType && UsesSentinel(baseType);
+    }
+
+    public static List<string> BaseWitnesses(ConcreteType type)
+    {
+        return BaseDeclaration(type) is { } baseType ? DefaultWitnesses.Arguments(baseType, type.BaseType!) ?? [] : [];
+    }
+
+    private static ConcreteType? BaseDeclaration(ConcreteType type)
+    {
+        return type.BaseType is { } baseType ? Defaultability.DeclarationOf(baseType) : null;
     }
 
     public static string SentinelAccessibility(ConcreteType type)
@@ -97,18 +113,25 @@ internal static class DefaultSynthesis
         return type is ClassType { Modifiers.IsSealed: false } ? "protected" : "private";
     }
 
-    public static IEnumerable<ConcreteType> FlattenedAncestors(ConcreteType type)
+    public static List<(ConcreteType Ancestor, IReadOnlyList<ConstructedType> Path)> FlattenedAncestors(ConcreteType type)
     {
-        var ancestors = new List<ConcreteType>();
+        var ancestors = new List<(ConcreteType, IReadOnlyList<ConstructedType>)>();
 
         if(type is not StructType)
         {
             return ancestors;
         }
 
-        for(var ancestor = type.BaseType as ConcreteType; ancestor is not null; ancestor = ancestor.BaseType as ConcreteType)
+        var path = new List<ConstructedType>();
+
+        for(var written = type.BaseType; written is not null && Defaultability.DeclarationOf(written) is { } ancestor; written = ancestor.BaseType)
         {
-            ancestors.Insert(0, ancestor);
+            if(written is ConstructedType constructed)
+            {
+                path.Add(constructed);
+            }
+
+            ancestors.Insert(0, (ancestor, path.ToList()));
         }
 
         return ancestors;
@@ -143,13 +166,16 @@ internal static class DefaultSynthesis
     /// </summary>
     public static List<DefaultAssignment> FlattenedAssignments(ConcreteType type)
     {
-        var chain = FlattenedAncestors(type).Append(type).ToList();
+        var chain = FlattenedAncestors(type).Append((type, [])).ToList();
         var assignments = new List<DefaultAssignment>();
 
         for(var i = 0; i < chain.Count; i++)
         {
-            var nearer = chain.Skip(i + 1).SelectMany(declaring => declaring.PropertiesList).Select(property => property.Name).ToHashSet();
-            assignments.AddRange(Assignments(chain[i]).Where(assignment => assignment.Storage.Property is not { } property || !nearer.Contains(property.Name)));
+            var (declaring, path) = chain[i];
+            var nearer = chain.Skip(i + 1).SelectMany(link => link.Ancestor.PropertiesList).Select(property => property.Name).ToHashSet();
+            assignments.AddRange(Assignments(declaring)
+                .Where(assignment => assignment.Storage.Property is not { } property || !nearer.Contains(property.Name))
+                .Select(assignment => assignment with { Path = path }));
         }
 
         return assignments;
@@ -161,4 +187,7 @@ internal static class DefaultSynthesis
 /// neither, meaning the slot type's own literal default.
 /// </summary>
 internal readonly record struct DefaultAssignment(
-    InstanceStorage Storage, Expression? Value, DefaultBindingEntry? Binding);
+    InstanceStorage Storage, Expression? Value, DefaultBindingEntry? Binding)
+{
+    public IReadOnlyList<ConstructedType> Path { get; init; } = [];
+}

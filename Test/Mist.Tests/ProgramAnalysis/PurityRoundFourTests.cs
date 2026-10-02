@@ -308,6 +308,12 @@ public sealed class PurityRoundFourTests
     }
 
     [Fact]
+    public void GenericDefinitionsFieldInitializerIsHeldToADefaultsConsistency()
+    {
+        Refused("generic-definitions-field-initializer-is-a-default-of-every-instantiation", "MIST_PA_DEFAULT_NOT_CONSISTENT", "'Note'");
+    }
+
+    [Fact]
     public void GenericExtensionDeclaringPureToStringIsTrustedWhileTheRuntimeObjectsToStringRuns()
     {
         Refused("generic-extension-declaring-pure-tostring-is-trusted-while-the-runtime-objects-tostring-runs", CallsImpure, "'ToString'");

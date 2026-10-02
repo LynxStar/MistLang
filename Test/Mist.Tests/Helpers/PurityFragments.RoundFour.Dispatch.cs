@@ -61,7 +61,8 @@ internal sealed partial class PurityFragments
             "abstract-slot-attributed-to-the-first-overload-a-type-parameter-agrees-with" => AbstractSlotAttributedToTheFirstOverloadATypeParameterAgreesWith(),
             "abstract-slot-attributed-to-another-conformances-with-mapping" => AbstractSlotAttributedToAnotherConformancesWithMapping(),
             "abstract-indexer-implemented-in-a-generic-base-class-is-never-found-so-the-slot-meets-to-pure" => AbstractIndexerImplementedInAGenericBaseClass(),
-            "pure-non-defaultable-types-implicit-constructor-runs-unjudged-field-initializers" => PureNonDefaultableTypesImplicitConstructor(),
+            "pure-non-defaultable-types-implicit-constructor-runs-unjudged-field-initializers" => PureGenericTypesFieldInitializer(overIntrinsicBase: true),
+            "generic-definitions-field-initializer-is-a-default-of-every-instantiation" => PureGenericTypesFieldInitializer(overIntrinsicBase: false),
             "generic-extension-declaring-pure-tostring-is-trusted-while-the-runtime-objects-tostring-runs" => GenericExtensionDeclaringPureToString(),
             "abstract-default-methods-declared-promise-joins-the-defaults-inference-and-skips-the-implementations-meet" => AbstractDefaultMethodsDeclaredPromise(),
             "readonly-default-methods-replacing-member-is-never-held-to-readonly" => ReadonlyDefaultMethodsReplacingMember(),
@@ -219,7 +220,7 @@ internal sealed partial class PurityFragments
         return Judge(new PurityAnalyzer(), at, indexed, root, derived);
     }
 
-    private IReadOnlyList<Diagnostic> PureNonDefaultableTypesImplicitConstructor()
+    private IReadOnlyList<Diagnostic> PureGenericTypesFieldInitializer(bool overIntrinsicBase)
     {
         var log = HandBuiltModel.Class("Log");
         var note = Method(log, "Note", integer, Static, HandBuiltModel.Block(WriteStatic(ticks), new ReturnStatement(Literal(integer, 1L), integer)));
@@ -227,6 +228,15 @@ internal sealed partial class PurityFragments
         holder.Modifiers = Pure;
         var parameter = new TypeParameter("T", 0, holder.Scope, holder);
         holder.TypeParametersList.Add(parameter);
+
+        if(overIntrinsicBase)
+        {
+            var bag = HandBuiltModel.Class("Bag<>");
+            bag.Modifiers = Public with { IsIntrinsic = true };
+            bag.TypeParametersList.Add(new TypeParameter("E", 0, bag.Scope, bag));
+            holder.BaseType = new ConstructedType(bag, [integer]);
+        }
+
         _ = Field(holder, "Item", parameter);
         var stamp = Field(holder, "Stamp", integer);
         stamp.Initializer = Call(note, null, 37);

@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 
@@ -10,7 +11,10 @@ namespace Mist.ProgramAnalysis.Rules;
 /// A type that needs a default and has none, and a <c>default</c> of a class or struct with none. A type
 /// needs one when it declares a default block or no constructor, its only value then being its default:
 /// it is refused at its declaration, naming each slot of storage and the base without one, and a
-/// <c>default</c> of it is not refused a second time. Order 6 of the analysis register;
+/// <c>default</c> of it is not refused a second time. A generic declaration is refused only for what
+/// fails under every argument; an instantiation whose arguments leave it no default is refused where
+/// that default is needed, which for a constructorless declaration includes an implicit <c>new</c>.
+/// Order 6 of the analysis register;
 /// <see cref="Defaultability"/> is the decision.
 /// <para>
 /// One mistake, one complaint: a slot or base whose default would come from another type that needs a
@@ -47,11 +51,19 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
 
         foreach(var node in context.Nodes)
         {
-            if(node is DefaultExpression { Type: ConcreteType { IsIntrinsic: false } type } defaulted
-                && !Explained(type, judged)
-                && !Defaultability.IsDefaultable(type))
+            if(node is DefaultExpression { Type: ConcreteType { IsIntrinsic: false } or ConstructedType } defaulted
+                && !Explained(Defaultability.DeclarationOf(defaulted.Type), judged)
+                && !Defaultability.HasDefault(defaulted.Type))
             {
-                context.Report(ProgramAnalysisDiagnostics.NotDefaultable, defaulted.Node, [defaulted], TypeDisplay.Mist(type));
+                context.Report(ProgramAnalysisDiagnostics.NotDefaultable, defaulted.Node, [defaulted], TypeDisplay.Mist(defaulted.Type));
+            }
+            else if(node is NewExpression { Constructor: null, Type: ConstructedType constructed } allocation
+                && Defaultability.DeclarationOf(constructed) is { } declaration
+                && !Defaultability.NeedsSentinel(declaration)
+                && Defaultability.IsDefaultable(declaration)
+                && !Defaultability.HasDefault(constructed))
+            {
+                context.Report(ProgramAnalysisDiagnostics.NotDefaultable, allocation.Node, [allocation], TypeDisplay.Mist(constructed));
             }
         }
     }
@@ -64,17 +76,17 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
         {
             if(!Defaultability.StorageHasDefault(type, slot))
             {
-                failures.Add(new Failure(slot, Defaultability.AnsweredThrough(type, slot) as ConcreteType, ZeroRefused: false));
+                failures.Add(new Failure(slot, Base: null, Defaultability.AnsweredThrough(type, slot) as ConcreteType, ZeroRefused: false));
             }
             else if(StorageDefaults.ZeroRefused(type, slot))
             {
-                failures.Add(new Failure(slot, Through: null, ZeroRefused: true));
+                failures.Add(new Failure(slot, Base: null, Through: null, ZeroRefused: true));
             }
         }
 
         if(Defaultability.BaseWithoutDefault(type) is { } baseType)
         {
-            failures.Add(new Failure(Slot: null, baseType, ZeroRefused: false));
+            failures.Add(new Failure(Slot: null, baseType, Defaultability.DeclarationOf(baseType), ZeroRefused: false));
         }
 
         return failures;
@@ -87,9 +99,9 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
             || Reaches(through, holder, judged, new HashSet<ConcreteType>(ReferenceEqualityComparer.Instance));
     }
 
-    private static bool Explained(ConcreteType type, Dictionary<ConcreteType, List<Failure>> judged)
+    private static bool Explained(ConcreteType? type, Dictionary<ConcreteType, List<Failure>> judged)
     {
-        return judged.TryGetValue(type, out var failures) && failures.Exists(failure => !failure.ZeroRefused);
+        return type is not null && judged.TryGetValue(type, out var failures) && failures.Exists(failure => !failure.ZeroRefused);
     }
 
     private static bool Reaches(
@@ -115,7 +127,7 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.BaseNotDefaultable, declaration, [],
-                    TypeDisplay.Mist(type), declares, TypeDisplay.Mist(failure.Through!));
+                    TypeDisplay.Mist(type), declares, TypeDisplay.Mist(failure.Base!));
             }
 
             return;
@@ -139,5 +151,5 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
             slot.Name, TypeDisplay.Mist(type), declares, TypeDisplay.Mist(slot.Type));
     }
 
-    private readonly record struct Failure(InstanceStorage? Slot, ConcreteType? Through, bool ZeroRefused);
+    private readonly record struct Failure(InstanceStorage? Slot, IMistType? Base, ConcreteType? Through, bool ZeroRefused);
 }

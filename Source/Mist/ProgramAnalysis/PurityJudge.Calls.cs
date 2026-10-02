@@ -106,7 +106,7 @@ internal static partial class PurityJudge
         return constructor switch
         {
             Constructor declared => declared.ChainedConstructor ?? ImplicitlyChained(declared),
-            ConcreteType type => Defaultability.IsDefaultable(type) && type.BaseType is ConcreteType { IsIntrinsic: false } defaulted
+            ConcreteType type => Defaultability.IsDefaultable(type) && type.BaseType is { } baseType && Defaultability.DeclarationOf(baseType) is { } defaulted
                 ? defaulted
                 : ImplicitChains.Of(type),
             _ => null,

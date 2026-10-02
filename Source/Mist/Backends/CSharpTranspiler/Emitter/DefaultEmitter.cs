@@ -15,22 +15,37 @@ internal static class DefaultEmitter
 {
     public static void Emit(ConcreteType type, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted)
     {
+        using var witnessing = DefaultWitnesses.Witnessing(type);
         var self = TypeEmitter.EmitTypeName(type);
-        var sentinel = DefaultSynthesis.NeedsSentinel(type);
-        var chains = DefaultSynthesis.ChainsToBaseSentinel(type);
+        var name = TypeEmitter.CleanName(type);
+        var sentinel = DefaultSynthesis.UsesSentinel(type);
+        var witnesses = DefaultWitnesses.Of(type).Select(DefaultConstraintWitness.Name).ToList();
+        // The marker argument is TYPED rather than a bare `default`, which converts to every
+        // one-parameter constructor and so leaves the call ambiguous on any type declaring one.
+        var marker = $"default({DefaultSynthesis.MarkerType})";
+        var chain = DefaultSynthesis.ChainsToBaseSentinel(type)
+            ? $" : base({string.Join(", ", DefaultSynthesis.BaseWitnesses(type).Prepend(sentinel ? "marker" : marker))})"
+            : "";
+
+        if(sentinel && !DefaultSynthesis.NeedsSentinel(type))
+        {
+            SeparateMember(writer, ref anyEmitted);
+            writer.WriteLine($"public {name}() : this({string.Join(", ", DefaultWitnesses.Defaults(type).Prepend(marker))})");
+            using(writer.Block())
+            {
+            }
+        }
 
         SeparateMember(writer, ref anyEmitted);
 
         if(sentinel)
         {
-            var chain = chains ? " : base(marker)" : "";
-            writer.WriteLine(
-                $"{DefaultSynthesis.SentinelAccessibility(type)} {TypeEmitter.CleanName(type)}({DefaultSynthesis.MarkerType} marker){chain}");
+            var parameters = DefaultWitnesses.Parameters(type).Prepend($"{DefaultSynthesis.MarkerType} marker");
+            writer.WriteLine($"{DefaultSynthesis.SentinelAccessibility(type)} {name}({string.Join(", ", parameters)}){chain}");
         }
         else
         {
-            var chain = chains ? $" : base(default({DefaultSynthesis.MarkerType}))" : "";
-            writer.WriteLine($"public {TypeEmitter.CleanName(type)}(){chain}");
+            writer.WriteLine($"public {name}(){chain}");
         }
 
         using(writer.Block())
@@ -39,20 +54,21 @@ internal static class DefaultEmitter
         }
 
         SeparateMember(writer, ref anyEmitted);
-        writer.WriteLine($"public static {self} {DefaultSynthesis.FactoryName}()");
+        writer.WriteLine($"public static {self} {DefaultSynthesis.FactoryName}({string.Join(", ", DefaultWitnesses.Parameters(type))})");
         using(writer.Block())
         {
-            // The marker argument is TYPED rather than a bare `default`, which converts to every
-            // one-parameter constructor and so leaves the call ambiguous on any type declaring one.
-            var argument = sentinel ? $"default({DefaultSynthesis.MarkerType})" : "";
-            writer.WriteLine($"return new {self}({argument});");
+            var arguments = sentinel ? string.Join(", ", witnesses.Prepend(marker)) : "";
+            writer.WriteLine($"return new {self}({arguments});");
         }
     }
 
     private static void EmitAssignments(List<DefaultAssignment> assignments, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        foreach(var (slot, value, binding) in assignments)
+        foreach(var assignment in assignments)
         {
+            var (slot, value, binding) = assignment;
+            using var through = TypeEmitter.Substituting(assignment.Path);
+
             if(binding is not null)
             {
                 EmitBinding(slot, binding, writer, diagnostics);

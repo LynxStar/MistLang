@@ -1,6 +1,5 @@
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
-using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
@@ -27,9 +26,7 @@ internal static class DefaultConstraintWitness
 {
     public static bool Constrains(IMistType type)
     {
-        return type is TypeParameter parameter
-            && parameter.ConstraintsList.Exists(
-                constraint => constraint is KeywordConstraint { Kind: TypeParameterConstraintKind.Default });
+        return type is TypeParameter parameter && Defaultability.IsDefaultConstrained(parameter);
     }
 
     public static string Name(TypeParameter parameter)
@@ -46,11 +43,15 @@ internal static class DefaultConstraintWitness
 
         foreach(var parameter in Constrained(typeParameters))
         {
-            witnesses.Add(
-                $"System.Func<{DependentCarrierNames.Parameter(parameter)}> {Name(parameter)}");
+            witnesses.Add(Parameter(parameter));
         }
 
         return witnesses;
+    }
+
+    public static string Parameter(TypeParameter parameter)
+    {
+        return $"System.Func<{DependentCarrierNames.Parameter(parameter)}> {Name(parameter)}";
     }
 
     /// <summary>

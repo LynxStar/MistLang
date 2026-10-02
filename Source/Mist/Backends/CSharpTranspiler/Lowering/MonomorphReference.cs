@@ -37,6 +37,21 @@ internal static class MonomorphReference
     }
 
     /// <summary>
+    /// How many types a pack holds where it is being emitted, read off whatever closed it there: the
+    /// specialization in scope for a pack that is still its own parameter, or the elements a base list
+    /// wrote for it, which is all a member restated into a conformer has. Null while it is open.
+    /// </summary>
+    public static int? Width(IMistType pack)
+    {
+        return pack switch
+        {
+            TypeParameter open when Monomorph.InScope() is { } monomorph && monomorph.Binds(open) => monomorph.Expansion(open).Count,
+            LiftedType { Value: TypePackValue closed } when Expand(closed, out var elements) => elements.Count,
+            _ => null,
+        };
+    }
+
+    /// <summary>
     /// The widths a call bound a method's packs to, or null when the callee has no pack or one is
     /// still symbolic -- a call made from inside another variadic declaration, outside any
     /// specialization of it.

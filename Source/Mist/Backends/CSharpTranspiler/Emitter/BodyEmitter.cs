@@ -2766,7 +2766,7 @@ internal static class BodyEmitter
     /// </summary>
     private static int? TupleWidth(IMistType type)
     {
-        var elements = type switch
+        var elements = TypeNameEmitter.Closed(type) switch
         {
             NamedTupleType named => named.Underlying.ElementTypes,
             TupleType tuple => tuple.ElementTypes,
@@ -2809,16 +2809,14 @@ internal static class BodyEmitter
     }
 
     /// <summary>
-    /// The arity a <c>TArgs.Length</c> stands for in the specialization being emitted, or null when
-    /// this access is anything else.
+    /// The arity a <c>TArgs.Length</c> stands for where it is being emitted, or null when this access
+    /// is anything else.
     /// </summary>
     private static int? PackArity(MemberAccessExpression memberAccess)
     {
         return memberAccess.MemberName == "Length"
             && memberAccess.Receiver is TypeReferenceExpression { ReferencedType: TypeParameter { IsPack: true } pack }
-            && Monomorph.InScope() is { } monomorph
-            && monomorph.Binds(pack)
-                ? monomorph.Expansion(pack).Count
+                ? MonomorphReference.Width(TypeNameEmitter.Closed(pack))
                 : null;
     }
 
@@ -2839,7 +2837,7 @@ internal static class BodyEmitter
             return specialized;
         }
 
-        return MonomorphReference.MethodWidths(typeArguments, parameters) is { } widths
+        return MonomorphReference.MethodWidths([.. typeArguments.Select(TypeNameEmitter.Closed)], parameters) is { } widths
             ? MonomorphSet.SpecializedName(declaredName, widths)
             : declaredName;
     }
@@ -2854,9 +2852,11 @@ internal static class BodyEmitter
 
         // A pack argument is not written: the specialization already fixed the width, and its
         // elements stand where the pack did.
-        if(MonomorphReference.MethodWidths(typeArguments, parameters) is not null)
+        var closed = typeArguments.Select(TypeNameEmitter.Closed).ToList();
+
+        if(MonomorphReference.MethodWidths(closed, parameters) is not null)
         {
-            return MonomorphReference.SpecializedArguments(typeArguments, parameters!, TypeNameEmitter.Emit);
+            return MonomorphReference.SpecializedArguments(closed, parameters!, TypeNameEmitter.Emit);
         }
 
         var spelled = typeArguments.Select((argument, ordinal) =>

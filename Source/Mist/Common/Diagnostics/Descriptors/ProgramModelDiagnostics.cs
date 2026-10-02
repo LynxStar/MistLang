@@ -1050,6 +1050,23 @@ public static class ProgramModelDiagnostics
         "Type '{0}' cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.");
 
     /// <summary>
+    /// A pack indexed in a type position where its length is not fixed. A declaration is judged for
+    /// every instantiation, and one of them is the empty pack, so no index is provably inside a
+    /// <c>Type[]</c>; only a <c>Type[N]</c> domain fixes the length the index is held to.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnprovenPackIndex = new(
+        new DiagnosticId("MIST_VAR_0003"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}[{1}]' indexes a pack whose length is not known here, so it may hold no element {1}. Only a pack declared with a fixed size, 'Type[N]:{0}', can be indexed in a type position.");
+
+    public static readonly DiagnosticDescriptor PackIndexOutOfBounds = new(
+        new DiagnosticId("MIST_VAR_0004"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}[{1}]' is outside the pack: '{0}' is declared to hold exactly {2} element(s), indexed from 0.");
+
+    /// <summary>
     /// A flat type-argument list cannot reach the fixed slots even with the pack absorbing nothing.
     /// A pack makes the count flexible UPWARD only: the slots around it still each need an
     /// argument, so there is a floor and this is it.

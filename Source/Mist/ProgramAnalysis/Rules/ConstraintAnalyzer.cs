@@ -30,6 +30,13 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
                 continue;
             }
 
+            if(!FillsDeclaredLength(closing.Parameter, closing.Argument))
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.ConstraintNotSatisfied, closing.Node, [],
+                    TypeDisplay.Mist(closing.Argument), $"Type[{closing.Parameter.PackLength}]", closing.Parameter.Name);
+            }
+
             foreach(var constraint in closing.Parameter.ConstraintsList)
             {
                 if(closing.Argument is TypeParameter && constraint.Kind != TypeParameterConstraintKind.Stampable)
@@ -44,6 +51,40 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Whether a pack declared <c>Type[N]</c> is closed with exactly N types, a spread among them
+    /// counting for the fixed size of the pack it spreads and proving nothing when that pack has none.
+    /// Judged at every closing because indexing the pack in a type position (variadics Requirement 6.5)
+    /// is held to the declared N alone, once, where the index is written.
+    /// </summary>
+    internal static bool FillsDeclaredLength(TypeParameter parameter, IMistType argument)
+    {
+        if(parameter.PackLength is not { } declared || argument is not LiftedType { Value: TypePackValue pack })
+        {
+            return true;
+        }
+
+        var given = 0;
+
+        foreach(var element in pack.Elements)
+        {
+            if(element is not SpreadType spread)
+            {
+                given++;
+                continue;
+            }
+
+            if(spread.Operand is not TypeParameter { PackLength: { } spliced })
+            {
+                return false;
+            }
+
+            given += spliced;
+        }
+
+        return given == declared;
     }
 
     private static IEnumerable<IMistType> Arguments(TypeArgumentClosing closing, TypeParameterConstraint constraint)

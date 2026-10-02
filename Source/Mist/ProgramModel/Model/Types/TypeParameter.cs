@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
@@ -60,6 +61,18 @@ internal class TypeParameter : MistType, ITypeParameter
     /// <c>Type[]</c> and the use site decides.
     /// </summary>
     public int? PackLength { get; internal set; }
+
+    private ConcurrentDictionary<int, PackElementType>? elements;
+
+    /// <summary>
+    /// The element of this pack at <paramref name="index"/>. One object per index, since a type
+    /// parameter is compared by reference and two mentions of <c>TArgs[0]</c> are one type.
+    /// </summary>
+    public PackElementType ElementAt(int index)
+    {
+        return LazyInitializer.EnsureInitialized(ref elements)
+            .GetOrAdd(index, static (element, pack) => new PackElementType(pack, element), this);
+    }
 
     /// <summary>
     /// What the declaration annotated the domain with, carried from construction to resolution

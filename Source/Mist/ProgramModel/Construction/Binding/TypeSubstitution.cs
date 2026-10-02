@@ -175,6 +175,13 @@ internal sealed class TypeSubstitution
             return type;
         }
 
+        if(type is PackElementType element)
+        {
+            return bindings.TryGetValue(element.Pack, out var bound) && bound is LiftedType { Value: TypePackValue closing }
+                ? ElementAt(closing, element.Index) ?? type
+                : type;
+        }
+
         if(type is TypeParameter parameter)
         {
             if(!bindings.TryGetValue(parameter, out var argument))
@@ -261,6 +268,43 @@ internal sealed class TypeSubstitution
         }
 
         return Construct(constructed.Definition, substituted, enclosing, interner);
+    }
+
+    /// <summary>
+    /// The type a pack's element at <paramref name="index"/> is once the pack is closed with
+    /// <paramref name="closing"/>: the type written there, or the element of a fixed-size pack spread
+    /// across that position. Null where a spread of no fixed size comes first, which no index can be
+    /// counted past.
+    /// </summary>
+    private static IMistType? ElementAt(TypePackValue closing, int index)
+    {
+        foreach(var written in closing.Elements)
+        {
+            if(written is not SpreadType spread)
+            {
+                if(index == 0)
+                {
+                    return written;
+                }
+
+                index--;
+                continue;
+            }
+
+            if(spread.Operand is not TypeParameter { PackLength: { } length } spliced)
+            {
+                return null;
+            }
+
+            if(index < length)
+            {
+                return spliced.ElementAt(index);
+            }
+
+            index -= length;
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -276,7 +276,7 @@ internal static class TypeMemberLookup
             return null;
         }
 
-        return new PackElementType(pack, index - 1);
+        return pack.ElementAt(index - 1);
     }
 
     /// <summary>

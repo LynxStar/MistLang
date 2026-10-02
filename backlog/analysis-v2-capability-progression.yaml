@@ -1817,6 +1817,29 @@ rules:
       Classic refuses both pack forms, valid closings included, as MIST_VAR_0009 against the declared
       constraint.
 
+      A FIXED-SIZE PACK IS CLOSED WITH EXACTLY ITS DECLARED LENGTH, since 2026-10-02. Nothing held a
+      `Type[N]:TArgs` pack to N at a closing. MEASURED on v2 at e12f1cd8: over `Pair<Type[2]:TArgs>`,
+      `new Pair<int>().Count()` and `new Pair<int, string, bool>().Count()` built and printed 1 and 3,
+      and `Two<Type[2]:T>(params T args)` called as `Two(1)` and as `Two<[int, int, int]>(1, 2, 3)`
+      printed 1 and 3. The declaration is checked once against N -- `TArgs[1]` in a type position is
+      admitted there because the domain says two (variadics Requirement 6.5, built the same day in the
+      binder: MIST_VAR_0003 for an index into a pack of no fixed size, MIST_VAR_0004 for one outside N)
+      -- so a closing of another length reaches a specialization that has no such element, and Roslyn.
+      ConstraintAnalyzer.FillsDeclaredLength judges every recorded closing of a pack carrying a
+      PackLength: the elements written are counted, a spread counts for the fixed size of the pack it
+      spreads, and a spread of a pack of no fixed size proves nothing and is refused. Reported as
+      MIST_PA_CONSTRAINT_NOT_SATISFIED naming the domain, "Type argument '[Int32]' does not satisfy the
+      'Type[2]' constraint on type parameter 'TArgs'", at the closing: the domain is a constraint on
+      what may fill the slot, and the variadics spec names no diagnostic for this. After, the four
+      closings above and `Pair<TAny...>` inside `Open<params TAny>` are refused, one finding each, and
+      `Pair<int, string>`, `Two(1, "x")` and `Pair<TBoth...>` inside `Holder<Type[2]:TBoth>` are
+      not. PROVED BY PackLengthDecisionTests: eleven Tier 1 rows and one fact over
+      FillsDeclaredLength with hand-built parameters and packs, and one Tier 2 fact that a registered
+      closing is reported at its own node. Three mutations, three caught: any length admitted (four rows
+      and the site fact), an unsized spread admitted (its row), and the analyzer not asking (the site
+      fact). A dependent parameter over a VALUE domain is still not judged: `Buffer<true>` and
+      `Buffer<string>` over `Buffer<Size:int>` both reach Roslyn.
+
       THREE OF THE NEW ADMITS REACH A BACKEND THAT CANNOT EXPRESS THEM, each measured failing Roslyn and
       each failing the same way with nothing closing it, so none is this order's to refuse: a constructor
       signature naming a parameter (emitter order 57's task), a whole-pack constraint naming its pack

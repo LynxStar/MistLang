@@ -28,12 +28,38 @@ public sealed class PackTypePositionEmissionTests
             public int Both(params TArgs flat, (TArgs...) whole) { return TArgs.Length; }
             public int Relay(params TArgs args) { return this.Take(args...); }
         }
+
+        public class Indexed<Type[2]:TArgs>
+        {
+            public TArgs[0] First;
+            public TArgs[1] Second;
+
+            public Indexed(TArgs[0] first, TArgs[1] second) { First = first; Second = second; }
+
+            public TArgs[1] Copy()
+            {
+                TArgs[1] copy = Second;
+                return copy;
+            }
+        }
+
+        public class Through<Type[2]:TBoth>
+        {
+            public Indexed<TBoth...> Inner;
+
+            public Through(TBoth[0] first, TBoth[1] second) { Inner = new Indexed<TBoth...>(first, second); }
+
+            public TBoth[1] Last() { return Inner.Second; }
+        }
         """;
 
     private const string Closings = """
         var plain = new Plain<int, string>((1, "x"));
         var taken = plain.Take((2, "y"));
         var both = plain.Both(3, "z", (4, "w"));
+        var indexed = new Indexed<int, string>(7, "seven");
+        var second = indexed.Second;
+        var last = new Through<bool, string>(true, "last").Last();
         """;
 
     private static readonly Lazy<ProgramModel.Model.ProgramModel> Model = new(() =>
@@ -63,6 +89,28 @@ public sealed class PackTypePositionEmissionTests
     [InlineData("int taken = plain.Take((2, \"y\"));")]
     [InlineData("int both = plain.Both((3, \"z\"), (4, \"w\"));")]
     public void ATupleParameterOverAPack_IsPassedTheTupleTheCallWrote(string line)
+    {
+        Assert.Contains(line, Lines(Emit("Probe", widths: null)));
+    }
+
+    [Theory]
+    [InlineData("Indexed", "public T1 First;")]
+    [InlineData("Indexed", "public T2 Second;")]
+    [InlineData("Indexed", "public Indexed_2(T1 first, T2 second)")]
+    [InlineData("Indexed", "public T2 Copy()")]
+    [InlineData("Indexed", "T2 copy = Second;")]
+    [InlineData("Through", "public Indexed_2<T1, T2> Inner;")]
+    [InlineData("Through", "public Through_2(T1 first, T2 second)")]
+    [InlineData("Through", "public T2 Last()")]
+    public void AnIndexedPackElement_IsSpelledAsTheSpecializationsParameterAtThatIndex(string typeName, string line)
+    {
+        Assert.Contains(line, Lines(Emit(typeName, [2])));
+    }
+
+    [Theory]
+    [InlineData("string second = indexed.Second;")]
+    [InlineData("string last = new Through_2<bool, string>(true, \"last\").Last();")]
+    public void AnIndexedPackElement_IsTheClosingsTypeAtTheUse(string line)
     {
         Assert.Contains(line, Lines(Emit("Probe", widths: null)));
     }

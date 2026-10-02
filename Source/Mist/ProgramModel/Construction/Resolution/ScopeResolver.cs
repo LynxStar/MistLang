@@ -211,9 +211,9 @@ internal sealed class ScopeResolver
 
         // If the type reference has an array rank suffix, wrap the inner type
         // in a constructed Standard.Array<TValue, Length>.
-        if(HasArrayRank(singleRef))
+        if(GetArrayRank(singleRef) is { } rank)
         {
-            inner = ResolveArrayType(singleRef, inner);
+            inner = PackTypePositions.Indexed(inner, rank, singleRef, context.Diagnostics) ?? ResolveArrayType(singleRef, inner);
         }
 
         if(HasOptionalToken(singleRef) && inner is not ErrorType)
@@ -881,11 +881,6 @@ internal sealed class ScopeResolver
     // ═══════════════════════════════════════════════════════════════════════
     // Helpers
     // ═══════════════════════════════════════════════════════════════════════
-
-    private static bool HasArrayRank(SingleTypeRefNode singleRef)
-    {
-        return GetArrayRank(singleRef) is not null;
-    }
 
     private static ArrayRankSuffixNode? GetArrayRank(SingleTypeRefNode singleRef)
     {

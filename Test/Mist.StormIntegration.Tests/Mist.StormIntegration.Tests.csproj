@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <AssemblyName>Storm.ConsumerIntegration.Tests</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

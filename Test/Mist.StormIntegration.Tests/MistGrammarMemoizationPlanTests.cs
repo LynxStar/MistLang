@@ -2,12 +2,13 @@ using Storm.SourceGenerator.Analyze;
 using Storm.SourceGenerator.IR;
 using Storm.SourceGenerator.Resolve;
 
-namespace Storm.SourceGenerator.Tests;
+namespace Mist.StormIntegration.Tests;
 
 /// <summary>
 /// Integration test that parses the full Mist grammar through the source generator
 /// pipeline and verifies that all 7 @memo-annotated rules appear in the MemoizationPlan.
 /// </summary>
+[Trait("Tier", "4")]
 public class MistGrammarMemoizationPlanTests
 {
     private static readonly string[] ExpectedMemoizedRules =

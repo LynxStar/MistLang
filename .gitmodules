@@ -1,0 +1,3 @@
+[submodule "Source/Storm.SourceGenerator"]
+	path = Source/Storm.SourceGenerator
+	url = https://github.com/LynxStar/StormLang.git

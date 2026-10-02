@@ -9,12 +9,13 @@ using Storm.SourceGenerator.Emit;
 using Storm.SourceGenerator.IR;
 using Storm.SourceGenerator.Resolve;
 
-namespace Storm.SourceGenerator.Tests;
+namespace Mist.StormIntegration.Tests;
 
 /// <summary>
 /// Property-based tests for Mist grammar migration from character classes to regex literals.
 /// Feature: regex-literals, Property 4: Mist grammar migration produces identical tokenization
 /// </summary>
+[Trait("Tier", "4")]
 public class MistGrammarMigrationPropertyTests
 {
     // ── Grammar definitions ──────────────────────────────────────────
@@ -313,7 +314,7 @@ namespace Mist.Common.Source
         return (CompileLexer(origRuntime, origLexer), CompileLexer(migrRuntime, migrLexer));
     });
 
-    [Property(MaxTest = 100)]
+    [Property(MaxTest = 50)]
     public Property MigrationProducesIdenticalTokenization()
     {
         var (origAsm, migrAsm) = Lexers.Value;

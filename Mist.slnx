@@ -5,7 +5,8 @@
     <Project Path="Source/Mist.CLI/Mist.CLI.csproj" />
   </Folder>
   <Folder Name="/Test/">
-    <Project Path="Test/Storm.SourceGenerator.Tests/Storm.SourceGenerator.Tests.csproj" />
+    <Project Path="Source/Storm.SourceGenerator/Test/Storm.SourceGenerator.Tests/Storm.SourceGenerator.Tests.csproj" />
+    <Project Path="Test/Mist.StormIntegration.Tests/Mist.StormIntegration.Tests.csproj" />
     <Project Path="Test/Mist.Tests/Mist.Tests.csproj" />
     <Project Path="Test/Mist.CLI.Tests/Mist.CLI.Tests.csproj" />
   </Folder>

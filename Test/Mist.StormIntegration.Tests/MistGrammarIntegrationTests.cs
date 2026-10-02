@@ -6,13 +6,14 @@ using Storm.SourceGenerator.IR;
 using Storm.SourceGenerator.Resolve;
 using Storm.SourceGenerator.Validate;
 
-namespace Storm.SourceGenerator.Tests;
+namespace Mist.StormIntegration.Tests;
 
 /// <summary>
 /// Integration tests that parse the full Mist grammar through the source generator
 /// pipeline and verify the generated AST output for key node types affected by the
 /// repetition and optional-sequence bugfixes.
 /// </summary>
+[Trait("Tier", "4")]
 public class MistGrammarIntegrationTests
 {
     // ---------------------------------------------------------------

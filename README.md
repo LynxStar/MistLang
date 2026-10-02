@@ -49,6 +49,14 @@ mist build --mode lex
 
 ### Running from source
 
+Clone with the private Storm submodule available at its source generator path:
+
+```bash
+git clone --recurse-submodules https://github.com/LynxStar/MistLang.git
+```
+
+For an existing checkout, run `git submodule update --init --recursive` before building.
+
 ```bash
 dotnet run --project Source/Mist.CLI -- build ./my-project
 ```

@@ -3,12 +3,12 @@ using Storm.SourceGenerator.Emit;
 namespace Mist.Tests.Common.SourceText;
 
 /// <summary>
-/// Verifies that AstEmitter.EmitRuntimeTypes() emits the Origin property
+/// Verifies that AstEmitter.EmitRuntimeTypes("Mist.Common.Source.NodeOrigin") emits the Origin property
 /// on the SyntaxNode base class.
 /// </summary>
 public class AstEmitterOriginPropertyTests
 {
-    private readonly string output = AstEmitter.EmitRuntimeTypes();
+    private readonly string output = AstEmitter.EmitRuntimeTypes("Mist.Common.Source.NodeOrigin");
 
     [Fact]
     public void EmitRuntimeTypes_SyntaxNode_ContainsOriginProperty()

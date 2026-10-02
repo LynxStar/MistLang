@@ -81,17 +81,9 @@ internal sealed partial class PurityInference
 
     public static IEnumerable<Expression> InstanceInitializers(ConcreteType type)
     {
-        foreach(var field in type.FieldsList)
+        foreach(var slot in InstanceStorage.Of(type))
         {
-            if(field is { Modifiers.IsStatic: false, Initializer: { } initializer })
-            {
-                yield return initializer;
-            }
-        }
-
-        foreach(var property in type.PropertiesList)
-        {
-            if(property is { Initializer: { } initializer, HasBackingStorage: true, Modifiers.IsStatic: false })
+            if(slot.Initializer is { } initializer)
             {
                 yield return initializer;
             }

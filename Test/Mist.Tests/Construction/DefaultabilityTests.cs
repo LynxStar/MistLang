@@ -144,7 +144,7 @@ public sealed class DefaultabilityTests
         holder.FieldsList.Add(field);
         List<Field> expected = named ? [field] : [];
 
-        Assert.Equal(expected, Defaultability.FieldsWithoutDefault(holder));
+        Assert.Equal(expected, Defaultability.StorageWithoutDefault(holder).Select(slot => slot.Field));
     }
 
     [Theory]
@@ -159,7 +159,7 @@ public sealed class DefaultabilityTests
             initialized ? new NewExpression(HandBuiltModel.Node(), counter, [], constructor, [], []) : null);
         holder.FieldsList.Add(field);
 
-        Assert.Equal(initialized, Defaultability.FieldHasDefault(holder, field));
+        Assert.Equal(initialized, Defaultability.StorageHasDefault(holder, Assert.Single(InstanceStorage.Of(holder))));
         Assert.Equal(initialized, Defaultability.HasDefault(holder));
     }
 
@@ -180,6 +180,106 @@ public sealed class DefaultabilityTests
         node.FieldsList.Add(FieldOf("next", node));
 
         Assert.False(Defaultability.HasDefault(node));
+    }
+
+    [Theory]
+    [InlineData("auto", true)]
+    [InlineData("get-only-auto", true)]
+    [InlineData("init-only-auto", true)]
+    [InlineData("auto-getter-bodied-setter", true)]
+    [InlineData("bodied-accessors-naming-field", true)]
+    [InlineData("bodied-getter-alone", false)]
+    [InlineData("bodied-getter-alone-naming-field", false)]
+    [InlineData("static-auto", false)]
+    [InlineData("intrinsic-auto", false)]
+    public void InstanceStorage_HoldsAPropertyExactlyWhenItHasABackingField(string shape, bool held)
+    {
+        var holder = HandBuiltModel.Class("Holder");
+        var property = PropertyOf(shape, "Value", integer);
+        holder.PropertiesList.Add(property);
+        List<Property?> expected = held ? [property] : [];
+
+        Assert.Equal(expected, InstanceStorage.Of(holder).Select(slot => slot.Property));
+    }
+
+    [Theory]
+    [InlineData("defaultable", true)]
+    [InlineData("initialized", true)]
+    [InlineData("no-default", false)]
+    [InlineData("static", true)]
+    public void AutoProperty_AnswersForItsHolderAsAFieldWould(string shape, bool defaultable)
+    {
+        var holder = HandBuiltModel.Class("Holder");
+        var connection = Shaped("argument-taking-constructor", isStruct: false);
+        var property = shape switch
+        {
+            "defaultable" => PropertyOf("auto", "Link", Counter(isStruct: false)),
+            "static" => PropertyOf("static-auto", "Link", connection),
+            _ => PropertyOf("auto", "Link", connection),
+        };
+        property.Initializer = shape == "initialized" ? new NewExpression(HandBuiltModel.Node(), connection, [], null, [], []) : null;
+        holder.PropertiesList.Add(property);
+        List<Property?> unanswered = defaultable ? [] : [property];
+
+        Assert.Equal(defaultable, Defaultability.HasDefault(holder));
+        Assert.Equal(unanswered, Defaultability.StorageWithoutDefault(holder).Select(slot => slot.Property));
+    }
+
+    [Theory]
+    [InlineData("intrinsic", true)]
+    [InlineData("type-with-a-constructor", false)]
+    public void RefinementSlot_StartsFromItsBasesDefaultWhateverItsPredicate(string beneath, bool answered)
+    {
+        IMistType baseType = beneath == "intrinsic" ? integer : Shaped("argument-taking-constructor", isStruct: false);
+        var refined = HandBuiltModel.Refined(baseType, "Refined");
+        var holder = HandBuiltModel.Class("Holder");
+        holder.FieldsList.Add(FieldOf("held", refined));
+
+        Assert.Equal(answered, Defaultability.StorageHasDefault(holder, Assert.Single(InstanceStorage.Of(holder))));
+        Assert.Equal(answered, Defaultability.HasDefault(holder));
+        Assert.False(Defaultability.HasDefault(refined));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void EnumSlot_IsAnsweredByItsDesignatedVariant(bool designates)
+    {
+        var direction = HandBuiltModel.Enum("Direction", integer);
+        direction.MembersList.Add(new EnumMember("North", designates, null));
+        var holder = HandBuiltModel.Class("Holder");
+        holder.FieldsList.Add(FieldOf("heading", direction));
+
+        Assert.Equal(designates, Defaultability.HasDefault(holder));
+    }
+
+    [Theory]
+    [InlineData("type-with-a-constructor", "Counter")]
+    [InlineData("refinement-of-it", "Counter")]
+    [InlineData("binding", "Square")]
+    [InlineData("initialized", null)]
+    [InlineData("intrinsic", "Int32")]
+    public void AnsweredThrough_NamesTheTypeWhoseDefaultAnswersTheSlot(string shape, string? expected)
+    {
+        var holder = HandBuiltModel.Class("Holder");
+        var connection = Shaped("argument-taking-constructor", isStruct: false);
+        var field = shape switch
+        {
+            "refinement-of-it" => FieldOf("link", HandBuiltModel.Refined(connection, "Linked")),
+            "initialized" => FieldOf("link", connection, new NewExpression(HandBuiltModel.Node(), connection, [], null, [], [])),
+            "intrinsic" => FieldOf("link", integer),
+            _ => FieldOf("link", connection),
+        };
+        holder.FieldsList.Add(field);
+
+        if(shape == "binding")
+        {
+            holder.DefaultBlock = new DefaultBlock(
+                [new DefaultBindingEntry("link", HandBuiltModel.Class("Square"), [], new DefaultTypeBindingDefaultFieldInitializerNode())],
+                new DefaultBlockDeclarationNode());
+        }
+
+        Assert.Equal(expected, Defaultability.AnsweredThrough(holder, Assert.Single(InstanceStorage.Of(holder)))?.Name);
     }
 
     private ConcreteType Counter(bool isStruct)
@@ -224,5 +324,30 @@ public sealed class DefaultabilityTests
     private static Field FieldOf(string name, IMistType type, Expression? initializer = null)
     {
         return new Field(name, type, OwnershipKind.Unrestricted, Public) { Initializer = initializer };
+    }
+
+    private static Property PropertyOf(string shape, string name, IMistType type)
+    {
+        var auto = new PropertyAccessor { IsAuto = true };
+        var bodied = new PropertyAccessor { Body = HandBuiltModel.Block() };
+        var modifiers = shape switch
+        {
+            "static-auto" => Public with { IsStatic = true },
+            "intrinsic-auto" => Public with { IsIntrinsic = true },
+            _ => Public,
+        };
+
+        return new Property(name, type, modifiers)
+        {
+            Getter = shape.StartsWith("bodied", StringComparison.Ordinal) ? bodied : auto,
+            Setter = shape switch
+            {
+                "get-only-auto" or "bodied-getter-alone" or "bodied-getter-alone-naming-field" => null,
+                "init-only-auto" => new PropertyAccessor { IsAuto = true, IsInit = true },
+                "auto-getter-bodied-setter" or "bodied-accessors-naming-field" => bodied,
+                _ => auto,
+            },
+            UsesBackingField = shape.EndsWith("naming-field", StringComparison.Ordinal) || shape == "auto-getter-bodied-setter",
+        };
     }
 }

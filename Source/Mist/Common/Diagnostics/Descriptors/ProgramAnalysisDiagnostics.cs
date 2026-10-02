@@ -687,4 +687,16 @@ public static partial class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Base class '{0}' requires constructor arguments that are not provided.");
+
+    public static readonly DiagnosticDescriptor PropertyHasNoDefault = new(
+        new DiagnosticId("MIST_PA_PROPERTY_HAS_NO_DEFAULT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Property '{0}' of '{1}' has no default, which '{1}' needs because it declares {2}: its type '{3}' has none. Give the property an initializer, or give '{1}' a constructor that assigns it and no default block.");
+
+    public static readonly DiagnosticDescriptor RefinementZeroNotAdmitted = new(
+        new DiagnosticId("MIST_PA_REFINEMENT_ZERO_NOT_ADMITTED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' of '{1}' has no default, which '{1}' needs because it declares {2}: its type '{3}' would start from the zero of '{4}', which '{3}' does not admit. Give '{0}' a value '{3}' admits, by an initializer or a default block entry, or give '{1}' a constructor that assigns it and no default block.");
 }

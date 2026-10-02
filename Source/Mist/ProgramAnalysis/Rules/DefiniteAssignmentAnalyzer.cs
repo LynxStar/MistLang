@@ -75,26 +75,10 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
 
     private static List<object> Unassigned(ConcreteType owner)
     {
-        var storage = new List<object>();
-
-        foreach(var field in Defaultability.InstanceFields(owner))
-        {
-            if(field.Initializer is null && !Defaultability.IsUndecided(field.Type) && !Defaultability.FieldHasDefault(owner, field))
-            {
-                storage.Add(field);
-            }
-        }
-
-        foreach(var property in owner.PropertiesList)
-        {
-            if(property is { Modifiers.IsStatic: false, Initializer: null, Getter.IsAuto: true }
-                && !Defaultability.IsUndecided(property.Type) && !Defaultability.HasDefault(property.Type))
-            {
-                storage.Add(property);
-            }
-        }
-
-        return storage;
+        return InstanceStorage.Of(owner)
+            .Where(slot => !Defaultability.IsUndecided(slot.Type) && !StorageDefaults.HasDefault(owner, slot))
+            .Select(slot => slot.Member)
+            .ToList();
     }
 
     private static string NameOf(object member)

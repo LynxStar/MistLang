@@ -2412,6 +2412,49 @@ capabilities:
         with a constructorless `Inner`, throws NullReferenceException on v2 and prints 7 on classic. A
         constructorless type's auto-property whose type has no default is null on both pipelines.
         Including them is one change: count them in the classification, and assign them in the synthesis.
+
+        DELIVERED 2026-10-01 (claude/v2-defaultability-storage-coverage). AN AUTO-PROPERTY IS STORAGE,
+        exactly as a field is: defaultability 6.1 makes its initializer the Field_Initializer of its
+        backing field.
+        - InstanceStorage (ProgramModel/Construction) is the one notion of instance storage. It holds every
+          instance field, then every instance property with a backing field: an automatic accessor, or
+          `field` named in a property that has a setter. It leaves out an intrinsic property and a lone
+          bodied getter, which is computed and has none.
+        - Defaultability, DefaultSynthesis, DefaultEmitter, DefiniteAssignmentAnalyzer,
+          PurityAnalyzer.JudgeDefaults and PurityInference.InstanceInitializers read it. That is the one
+          storage notion order 10's definite assignment and order 13's purity of defaults share.
+        - The synthesized constructor or sentinel assigns a property as it assigns a field, through the
+          property, so a get-only auto-property is assigned where C# allows it. An initializer is left to
+          the declaration, which C# runs in that constructor.
+        - A flattened struct leaves out an ancestor's property that a nearer struct redeclares. Flattening
+          keeps the nearer declaration, and the ancestor's assignment would overwrite its initializer.
+        - A refinement slot starts from its base's zero through DefaultSynthesis.StorageZero, which the
+          analysis register's declaration-shape-checks entry records. DefaultSynthesis.Expression still
+          answers no refinement, so `default(PositiveInt)` stays unsupported until it has a ruling.
+        Classic assigns the same way, through the property, for auto, mixed (`get; set { field = value; }`)
+        and `field`-keyword properties. Measured 2026-10-01 on v2 after the change:
+        - `new Holder().Defaulted.Value`, `default(Holder).Defaulted.Value` and the get-only, mixed and
+          `field` forms all print 7, as classic does.
+        - `public int Count { get; set; } = 5;` prints 5. Classic prints 0, because it overwrites the
+          initializer with its zero (the field defect recorded above).
+        - A constructorless `Bad { public Connection Link { get; set; } }` is MIST_PA_PROPERTY_HAS_NO_DEFAULT.
+          Both pipelines had left it null.
+        The original measurement of classic printing 7 for an inline `default(Holder).Defaulted.Value` did
+        not reproduce. Classic emits an inline `default(Holder)` receiver as C#'s `default`, which is null,
+        and throws there. Through `new` or a typed local it prints 7.
+        ALSO FIXED BY THE SAME NOTION: a slot whose type is an enum with a designated variant is answered by
+        that variant (3.2's Zero_Initialization). v2 had refused `public Direction D;` in a constructorless
+        class as MIST_PA_FIELD_HAS_NO_DEFAULT, although `default(Direction)` worked. It now prints N. Classic
+        leaves the field null and throws.
+        Tests: Construction.DefaultabilityTests (Tier 1, 22 new cases); DefaultabilityRefusalTests,
+        ConstructorStorageAssignmentTests and Backend.StorageDefaultEmissionTests (Tier 2, over hand-built
+        types). Taking properties out of InstanceStorage fails 15 of their rows. AllFeaturesV2 and
+        AllFeatures match their baselines with zero diagnostics. Integrated with main 2026-10-01: rebased
+        onto d69153c9 (the unsatisfied-base-constructor rule), whose conflicts were appended lines only.
+        Ledger 20261001-212942 passed 11,504 of 11,504, both sample baselines included, with zero warnings
+        and dotnet format clean. What stays open is listed in the analysis
+        register under declaration-shape-checks: block entries naming a property, 10.1's missing
+        injection, and setters run by a default.
     analysis_phase_tasks:
       - >
         Report a type that cannot be defaulted where something defaults it, rather than silently emitting

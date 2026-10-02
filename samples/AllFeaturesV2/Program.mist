@@ -1,10 +1,9 @@
-// AllFeaturesV2 -- Orchestrator that exercises every sample currently working on
-// the experimental (v2) compiler pipeline, by calling into each sample project
-// via [references].
+// AllFeaturesV2 -- Orchestrator that exercises every working sample by calling
+// into each sample project via [references].
 //
-// THIS FILE IS THE RECORDED V2 PROGRESSION. A sample is "working on v2" if and
-// only if it is referenced here and its RunDemo() is called below. Enabling a
-// sample means adding it in both places and extending the stored baseline at
+// THIS FILE IS THE RECORD. A sample is working if and only if it is referenced
+// here and its RunDemo() is called below. Banking a sample means adding it in
+// both places and extending the stored baseline at
 // samples/__baselines__/AllFeaturesV2.out.
 //
 // Progress cannot be silently lost: removing a sample shrinks the program's
@@ -57,6 +56,7 @@ public class Program
         Enums.Program.RunDemo();
         EnumReadonlyRestriction.Program.RunDemo();
         UnknownType.Program.RunDemo();
+        UnknownTypeDemo.RunDemo();
         SwitchExpressions.Program.RunDemo();
         AsOperator.Program.RunDemo();
         AssociatedTypes.Program.RunDemo();

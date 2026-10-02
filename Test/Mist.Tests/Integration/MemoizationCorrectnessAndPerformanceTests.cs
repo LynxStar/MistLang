@@ -10,26 +10,27 @@ namespace Mist.Tests.Integration;
 /// <summary>
 /// Integration tests verifying that the expanded memoization (multi-caller heuristic
 /// + @memo annotations) preserves parsing correctness and meets performance targets
-/// when applied to the AllFeatures corpus.
+/// when applied to the AllFeaturesV2 corpus.
 /// </summary>
 [Collection(WallClockCollection.Name)]
+[Trait("Tier", "3")]
 public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper output)
 {
     /// <summary>
-    /// Verifies that parsing the AllFeatures corpus with expanded memoization
+    /// Verifies that parsing the AllFeaturesV2 corpus with expanded memoization
     /// produces no parse errors — confirming that memoization is transparent
     /// to parsing results. Lexes and parses every .mist file in the samples
     /// directory tree (all referenced projects included).
     /// </summary>
     [Fact]
-    public void AllFeatures_ParsesWithoutErrors_WithExpandedMemoization()
+    public void AllFeaturesV2_ParsesWithoutErrors_WithExpandedMemoization()
     {
         var repoRoot = FindRepoRoot();
-        var sampleDir = Path.Combine(repoRoot, "samples", "AllFeatures");
+        var sampleDir = Path.Combine(repoRoot, "samples", "AllFeaturesV2");
 
-        Assert.True(Directory.Exists(sampleDir), $"AllFeatures sample directory not found: {sampleDir}");
+        Assert.True(Directory.Exists(sampleDir), $"AllFeaturesV2 sample directory not found: {sampleDir}");
 
-        // Collect all corpus files (AllFeatures + referenced projects)
+        // Collect all corpus files (AllFeaturesV2 + referenced projects)
         var sourceFiles = CollectAllCorpusFiles(repoRoot);
         Assert.NotEmpty(sourceFiles);
 
@@ -79,20 +80,20 @@ public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper 
     }
 
     /// <summary>
-    /// Verifies that lexing and parsing the AllFeatures corpus completes within
+    /// Verifies that lexing and parsing the AllFeaturesV2 corpus completes within
     /// 2 seconds wall-clock time, confirming the performance benefit of expanded
     /// memoization. Measures only the lex + parse stages (no semantic model,
     /// type checking, or emission) to isolate parser performance.
     /// </summary>
     [Fact]
-    public void AllFeatures_ParsesWithinPerformanceTarget()
+    public void AllFeaturesV2_ParsesWithinPerformanceTarget()
     {
         var repoRoot = FindRepoRoot();
-        var sampleDir = Path.Combine(repoRoot, "samples", "AllFeatures");
+        var sampleDir = Path.Combine(repoRoot, "samples", "AllFeaturesV2");
 
-        Assert.True(Directory.Exists(sampleDir), $"AllFeatures sample directory not found: {sampleDir}");
+        Assert.True(Directory.Exists(sampleDir), $"AllFeaturesV2 sample directory not found: {sampleDir}");
 
-        // Collect all .mist source files from AllFeatures and its referenced projects
+        // Collect all .mist source files from AllFeaturesV2 and its referenced projects
         var sourceFiles = CollectAllCorpusFiles(repoRoot);
         Assert.NotEmpty(sourceFiles);
 
@@ -146,7 +147,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper 
         // Release mode CI.
         Assert.True(
             elapsed.TotalSeconds < 15.0,
-            $"AllFeatures corpus lex+parse took {elapsed.TotalSeconds:F2}s, " +
+            $"AllFeaturesV2 corpus lex+parse took {elapsed.TotalSeconds:F2}s, " +
             $"exceeding the 15-second regression ceiling ({sourceFiles.Count} files). " +
             $"The production target is 2 seconds (Release mode). During the measured pass: {conditions}.");
     }
@@ -154,8 +155,8 @@ public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper 
     // ─── Helpers ─────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Collects all .mist source files that constitute the AllFeatures corpus:
-    /// the AllFeatures project files plus all referenced sample project files.
+    /// Collects all .mist source files that constitute the AllFeaturesV2 corpus:
+    /// the AllFeaturesV2 project files plus all referenced sample project files.
     /// Excludes bin/out/obj directories.
     /// </summary>
     private static IReadOnlyList<string> CollectAllCorpusFiles(string repoRoot)

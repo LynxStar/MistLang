@@ -169,8 +169,6 @@ Boundaries in the pipeline:
 
 The orchestrator is a *progress ledger*: it references only what the compiler can actually compile and run today, and it grows. It is equally the regression guard: a sample it references must keep printing its baseline lines, so it must never shrink.
 
-`samples/AllFeatures` and `samples/__baselines__/AllFeatures.out` are historical data, the orchestrator and baseline of the retired classic pipeline. They are not a second orchestrator: no Tier 6 test runs them and nothing is added to them.
-
 **Allowed infrastructure:**
 - Everything
 

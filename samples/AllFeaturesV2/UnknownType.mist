@@ -1,4 +1,4 @@
-// AllFeatures UnknownType demo — demonstrates the user-facing `unknown`
+// AllFeaturesV2 UnknownType demo — demonstrates the user-facing `unknown`
 // top type as part of the comprehensive feature showcase.
 //
 // Task 35.1 — Covers the three acceptance criteria:
@@ -6,9 +6,7 @@
 //   * At least one Covariant_Unknown_Widening assignment.
 //   * At least one pattern-match narrowing.
 //
-// This file is additive: it is a new file in `samples/AllFeatures/`
-// rather than a modification of the existing `Program.mist`. The
-// demonstration is invoked from `Program.Main` via
+// The demonstration is invoked from `Program.Main` via
 // `UnknownTypeDemo.RunDemo()`.
 //
 // Under the Option C C# emission strategy, a Closed_Generic_With_Unknown
@@ -20,7 +18,7 @@
 
 using Standard;
 
-namespace AllFeatures;
+namespace AllFeaturesV2;
 
 // A minimal generic container used in the Covariant_Unknown_Widening
 // demonstration. `Box<T>` holds a single value of type `T` plus an
@@ -57,7 +55,7 @@ public class UnknownTypeBox<T>
     }
 }
 
-// Invoked from `AllFeatures.Program.Main`.
+// Invoked from `AllFeaturesV2.Program.Main`.
 public class UnknownTypeDemo
 {
     public static void RunDemo()

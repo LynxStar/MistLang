@@ -34,7 +34,7 @@ numbers[7] = 10;   // compiles; throws System.IndexOutOfRangeException at runtim
 
 ## 🟡 Classic cannot compose DelegateFuncConversion beside a Mist type that implements a CLR interface
 
-**Closed (2026-10-01):** classic is deleted (`backlog/classic-retirement.md`). `AllFeaturesV2` is the one orchestrator and composes `DelegateFuncConversion`; `samples/AllFeatures` is historical data and is not extended.
+**Closed (2026-10-01):** classic is deleted (`backlog/classic-retirement.md`). `AllFeaturesV2` is the one orchestrator and composes `DelegateFuncConversion`; `samples/AllFeatures` is deleted.
 
 **Severity: medium** -- `samples/AllFeatures` is the classic regression guard, and it now lacks one sample that classic compiles fine standalone: `DelegateFuncConversion`.
 

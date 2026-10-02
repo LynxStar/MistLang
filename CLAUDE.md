@@ -48,10 +48,6 @@ implement, among them. Each is marked V2-ONLY, with the reason, in the register'
 list, and has its lines captured from v2 and read against the program by hand. Note the blind
 spot — a stdout diff cannot see things like a dropped `sealed` modifier.
 
-`samples/AllFeatures` and `samples/__baselines__/AllFeatures.out` are historical data: classic's
-orchestrator and its baseline. Nothing is added to them. Bank a new or changed sample in
-`AllFeaturesV2` only.
-
 ## Backlog registers
 
 | File | Role |

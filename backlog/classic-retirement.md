@@ -48,13 +48,12 @@ names, and renaming `Mist.ProgramModel` to `Mist.Semantics` remains a separate c
 
 Kept, as shared: `BackendId`, `BackendResult`, `CSharpCompilationDriver`,
 `Diagnostics/RoslynDiagnosticMapper`, `Runtime/`, `TypeInspector`, `Inspection/`, and the `Emitter/`,
-`AmbientProvider/`, `Lowering/` and `Intrinsics/` trees. `mist inspect` stays on the v2 provider.
+`AmbientProvider/` and `Lowering/` trees. `mist inspect` stays on the v2 provider.
 
-**`Intrinsics/` has no caller left in `Source/`.** `IntrinsicEmissionTable`, `IIntrinsicEmissionRegistry`
-and `IntrinsicEmissionTemplate` were read only by `CSharpEmitter`, `SemanticModelBuilder` and
-`SymbolTable`; the standard pipeline spells intrinsics in `Lowering/IntrinsicCalls.cs`. The tree and
-`IntrinsicEmissionTableTests` were kept because the retirement brief named `Intrinsics/` as surviving.
-Deleting both is a decision left open.
+**`Backends/CSharpTranspiler/Intrinsics/` went in a second commit** (decided 2026-10-02, Arthur), with
+`IntrinsicEmissionTableTests`. `IntrinsicEmissionTable`, `IIntrinsicEmissionRegistry` and
+`IntrinsicEmissionTemplate` were read only by `CSharpEmitter`, `SemanticModelBuilder` and `SymbolTable`;
+the standard pipeline spells intrinsics in `Lowering/IntrinsicCalls.cs`.
 
 ## What happened to the tests
 
@@ -104,7 +103,8 @@ Unique checks kept or moved:
   `Common/SourceText/SpanToLocationPropertyTests` (Tier 1).
 
 Nine kept property tests run 100 or 200 iterations at Tier 3, over its limit of 50. They only lex and
-parse, were tagged as they are and not restructured: five in `NestedScopingPropertyTests`, and one each
+parse, and stay Tier 3: the count makes a test a more expensive Tier 3, not a Tier 4 (Arthur,
+2026-10-02). They are five in `NestedScopingPropertyTests`, and one each
 in `BinaryLiteralVerbatimEmissionPropertyTests`, `DeclarationPositionDisambiguationPropertyTests`,
 `AttributeDeclarationPositionDisambiguationPropertyTests` and `VariadicsFixtureSmokeTests`.
 
@@ -134,9 +134,12 @@ Before the classic guard `AllFeatures_CompilesRunsAndMatchesBaseline` was remove
 - The standard pipeline runs `samples/AllFeatures` with exit 0, nothing on stderr, and stdout equal to
   `samples/__baselines__/AllFeatures.out` (1,796 lines).
 
-`samples/AllFeatures` and `AllFeatures.out` are kept as historical data and nothing compiles them:
-`MemoizationCorrectnessAndPerformanceTests` reads the directory as a parse corpus and
-`SampleProjectTomlTests` as a project-file fixture. `SpecProofCodeMatchesSampleTest` reads
+`samples/AllFeatures` and `AllFeatures.out` went in a second commit (decided 2026-10-02, Arthur).
+`UnknownType.mist` moved to `samples/AllFeaturesV2/` first, with its `UnknownTypeDemo.RunDemo()` call
+and its seven baseline lines, so the orchestrator holds everything the classic one did: 93 references,
+94 calls, 2,151 lines. `SampleProjectTomlTests` reads `AllFeaturesV2`'s manifest instead, and
+`MemoizationCorrectnessAndPerformanceTests`, whose corpus was always every sample directory, checks
+for that directory instead. `SpecProofCodeMatchesSampleTest` reads
 `AllFeaturesV2.out` alone: all 26 expected-output blocks it checked are slices of it, and so is
 `delegate-func-conversion`'s, which the classic baseline could not hold, so both exemption lists are
 gone and 27 are checked. `Enums_StillCompilesAfterReadonlyModifierAdditions` compiled `samples/Enums`
@@ -220,8 +223,6 @@ Run on 2026-10-01 and 2026-10-02 against the tree that became this change; no fi
 
 ## Left open
 
-- Whether to delete `samples/AllFeatures`, `AllFeatures.out` and the `Intrinsics/` tree, each kept here
-  on the brief's wording and each with the evidence above.
 - The ten stale book tabs, which one `dotnet run --project tools/SnippetEmitter` regenerates.
 - `backlog/storm.md` defers four residue items "until classic is sunset"; that condition is now met.
   No Storm change was made.

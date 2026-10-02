@@ -20,7 +20,7 @@ public class SampleProjectTomlTests
 
     [Theory]
     [InlineData("HelloMist")]
-    [InlineData("AllFeatures")]
+    [InlineData("AllFeaturesV2")]
     [InlineData("Simpliest")]
     [InlineData("Inheritance")]
     [InlineData("AbstractTypes")]

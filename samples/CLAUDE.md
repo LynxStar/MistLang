@@ -9,8 +9,6 @@ The ONLY permitted modification to other sample apps is adding a sample to the o
 
 No other changes to any other sample are allowed.
 
-`samples/AllFeatures` and `samples/__baselines__/AllFeatures.out` are retained historical data: the orchestrator and baseline of the retired classic pipeline. They are not extended, edited or deleted. `MemoizationCorrectnessAndPerformanceTests` reads the directory as a parse corpus and `SampleProjectTomlTests` reads it as a project-file fixture.
-
 **Forbidden:**
 - Removing lines from other samples because the emitter broke them
 - Commenting out previously-working code in unrelated samples

@@ -795,6 +795,13 @@ narrowed element at 3: 30
 base list size: 4
 base list element at 0: 10
 Done!
+=== UnknownType Sample (AllFeatures) ===
+--- Unknown local ---
+narrowed int: 123
+--- Covariant widening ---
+widened tag: 7
+widened value: 99
+narrowed-back value: 42
 === Switch Expressions Sample ===
 --- Constant patterns: integer ---
 Day 3 is Wednesday

@@ -126,6 +126,37 @@ public sealed partial class CompilerDriver : ICompilerDriver
         var loadingStopwatch = Stopwatch.StartNew();
         progressReporter.ReportStageStart("1", "Loading");
 
+        var loadResult = ReadCompilationUnits(options, allDiagnostics);
+
+        loadingStopwatch.Stop();
+        progressReporter.ReportStageComplete("1", loadingStopwatch.Elapsed, LoadingDetails(loadResult?.Compilation));
+
+        return loadResult;
+    }
+
+    private static IReadOnlyList<string> LoadingDetails(MistCompilation? compilation)
+    {
+        if(compilation is null)
+        {
+            return [];
+        }
+
+        var stdlibCount = compilation.Units.Count(u => u.IsStdlib);
+        var refCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is not null);
+        var userFileCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is null);
+
+        return
+        [
+            $"{stdlibCount} stdlib files",
+            $"{refCount} referenced project files",
+            $"{userFileCount} user files",
+        ];
+    }
+
+    private static LoadResult? ReadCompilationUnits(
+        CompilerOptions options,
+        DiagnosticBag allDiagnostics)
+    {
         // Step 1a: Load source files into CompilationUnits
         var userUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
         foreach(var path in options.SourcePaths)
@@ -293,17 +324,6 @@ public sealed partial class CompilerDriver : ICompilerDriver
             HasStandardLibrary = !stdlibUnits.IsEmpty,
             GlobalUsings = userGlobalUsings,
         };
-
-        loadingStopwatch.Stop();
-        var stdlibCount = compilation.Units.Count(u => u.IsStdlib);
-        var refCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is not null);
-        var userFileCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is null);
-        progressReporter.ReportStageComplete("1", loadingStopwatch.Elapsed, new[]
-        {
-            $"{stdlibCount} stdlib files",
-            $"{refCount} referenced project files",
-            $"{userFileCount} user files",
-        });
 
         return new LoadResult(compilation, directReferencePaths, refConfigurations);
     }

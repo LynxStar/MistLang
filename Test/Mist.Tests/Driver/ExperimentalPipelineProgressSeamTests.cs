@@ -72,6 +72,23 @@ public sealed class ExperimentalPipelineProgressSeamTests : IDisposable
         Assert.Equal(["start 1", "complete 1", "start 2", "complete 2", "start 3", "complete 3"], reporter.Sequence);
     }
 
+    [Fact]
+    public void ALoadFailureCompletesTheStageItStartedAndStartsNoOther()
+    {
+        File.WriteAllText(Path.Combine(scratchDir, "mist.toml"), """
+            name = "Probe"
+
+            [references]
+            Absent = { path = "absent" }
+            """);
+
+        var result = Compile("");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(["start 1", "complete 1"], reporter.Sequence);
+        Assert.Empty(reporter.DetailsOf("1"));
+    }
+
     private CompilerResult Compile(string source)
     {
         var sourcePath = Path.Combine(scratchDir, "Program.mist");

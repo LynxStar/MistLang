@@ -169,6 +169,7 @@ internal class Program
         }
         catch(IOException ex)
         {
+            reporter.ReportStageComplete("0", cleanStopwatch.Elapsed, []);
             Console.Error.WriteLine($"error: Failed to clean build directories: {ex.Message}");
             return null;
         }

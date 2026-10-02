@@ -200,7 +200,7 @@ internal sealed class ScopeResolver
             NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef.Name, namedRef.TypeArgs, scope, namedRef),
             NestedGenericSingleTypeRefSingleTypeRefNode nestedRef => ResolveNestedGeneric(
                 nestedRef.Outer, nestedRef.OuterArgs, nestedRef.Nested, nestedRef.TypeArgs, scope, nestedRef),
-            ParenthesizedTypeRefSingleTypeRefNode parenRef => Resolve(parenRef.Inner, scope),
+            ParenthesizedTypeRefSingleTypeRefNode parenRef => PackTypePositions.Parenthesized(Resolve(parenRef.Inner, scope), Interner),
             TupleSingleTypeRefSingleTypeRefNode tupleRef => ResolveTuple(tupleRef, scope),
             FuncSingleTypeRefSingleTypeRefNode { Pure: not null } funcRef => PureFunctionReference.Apply(
                 ResolveFunction(funcRef.TypeArgs, scope, funcRef), funcRef, context),

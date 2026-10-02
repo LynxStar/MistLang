@@ -13,9 +13,9 @@ namespace Mist.ProgramAnalysis.Rules;
 /// A value at a position that expects a type it cannot implicitly become. Order 5 of the analysis
 /// register: one question, <see cref="Assignability"/>, asked at every position the binder gave a
 /// target type to, and reported at the value, since the value is what has to change. An argument is
-/// judged only where it pairs with a parameter by position: not across a flattened pack slot, which
-/// absorbs several, and not on a CLR-projected member, whose optional parameters the model does not
-/// represent yet, so the overload it names can be one Roslyn will not choose. An index is judged against
+/// judged against what <see cref="ArgumentTargets"/> pairs it with, and not on a CLR-projected member,
+/// whose optional parameters the model does not represent yet, so the overload it names can be one
+/// Roslyn will not choose. An index is judged against
 /// the indexer it selected, an intrinsic one included, and not into a CLR-projected indexer, for that reason.
 /// </summary>
 internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
@@ -41,7 +41,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     break;
 
                 case InvocationExpression call:
-                    CheckArguments(context, call.Arguments, call.ParameterTypes, call.Method);
+                    CheckArguments(context, call.Arguments, call.ParameterTypes, call.Method, call.Node);
                     break;
 
                 case NewExpression creation:
@@ -157,7 +157,9 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 
         foreach(var constructor in (member as ConcreteType)?.ConstructorsList ?? [])
         {
-            CheckArguments(context, constructor.ChainArgumentsList, constructor.ChainParameterTypes, constructor.ChainedConstructor);
+            CheckArguments(
+                context, constructor.ChainArgumentsList, constructor.ChainParameterTypes, constructor.ChainedConstructor,
+                constructor.DeclarationNode);
         }
     }
 
@@ -170,26 +172,38 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
     }
 
     private static void CheckArguments(
-        AnalysisContext context, IReadOnlyList<Expression> arguments, IReadOnlyList<IMistType>? parameters, Method? callee)
+        AnalysisContext context, IReadOnlyList<Expression> arguments, IReadOnlyList<IMistType>? parameters, Method? callee, SyntaxNode? call)
     {
-        if(parameters is null || parameters.Count != arguments.Count || AbsorbsArguments(callee))
+        if(parameters is null || callee is { Modifiers.IsClrProjected: true })
+        {
+            return;
+        }
+
+        var interner = context.Model.TypeInterner;
+        var passed = arguments.Select(argument => argument is SpreadExpression ? null : argument.Type).ToList();
+
+        if(ArgumentTargets.Unpaired(callee?.ParametersList, parameters, passed, interner) is { } slot)
+        {
+            var absorbed = arguments.Skip(slot.First).Take(slot.Count).ToList();
+
+            if((absorbed.FirstOrDefault()?.Node ?? call) is { } at)
+            {
+                Check(context, slot.From, slot.To, at, absorbed);
+            }
+        }
+
+        if(ArgumentTargets.Of(callee?.ParametersList, parameters, passed, interner) is not { } targets)
         {
             return;
         }
 
         for(var i = 0; i < arguments.Count; i++)
         {
-            if(arguments[i] is not SpreadExpression)
+            if(arguments[i] is not SpreadExpression && targets[i] is { } target)
             {
-                Check(context, arguments[i], parameters[i]);
+                Check(context, arguments[i], target);
             }
         }
-    }
-
-    private static bool AbsorbsArguments(Method? method)
-    {
-        return method is not null
-            && (method.Modifiers.IsClrProjected || ValuePack.FlattenedSlot(method.ParametersList) is not null);
     }
 
     private static bool PairsWithIndex(Indexer? indexer)
@@ -199,7 +213,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 
     private static void CheckConstruction(AnalysisContext context, NewExpression creation)
     {
-        CheckArguments(context, creation.Arguments, creation.ParameterTypes, creation.Constructor);
+        CheckArguments(context, creation.Arguments, creation.ParameterTypes, creation.Constructor, creation.Node);
 
         foreach(var entry in creation.Initializer)
         {

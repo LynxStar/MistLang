@@ -183,21 +183,26 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return;
             }
 
-            for(var i = 0; i < arguments.Count && i < parameterTypes.Count; i++)
+            var flattened = parameters is not null && ValuePack.FlattenedSlot(parameters) is not null;
+            var targets = flattened
+                ? ArgumentTargets.Of(
+                    parameters, parameterTypes, [.. arguments.Select(argument => argument is SpreadExpression ? null : argument.Type)],
+                    context.Model.TypeInterner)
+                : parameterTypes;
+
+            for(var i = 0; targets is not null && i < arguments.Count && i < targets.Count; i++)
             {
-                var parameter = parameters is not null && i < parameters.Count ? parameters[i] : null;
+                var slot = flattened ? ValuePack.SlotOf(parameters!, arguments.Count, i) : i;
+                var parameter = parameters is not null && slot < parameters.Count ? parameters[slot] : null;
 
-                if(parameter is { IsFlattened: true })
-                {
-                    return;
-                }
-
-                if(parameter is { Modifier.Direction: ByRefDirection.Out })
+                if(parameter is { Modifier.Direction: ByRefDirection.Out }
+                    || targets[i] is not { } target
+                    || (flattened && arguments[i] is SpreadExpression))
                 {
                     continue;
                 }
 
-                Need(state, arguments[i], parameterTypes[i], arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]), measured: Measured(receiver));
+                Need(state, arguments[i], target, arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]), measured: Measured(receiver));
             }
         }
 

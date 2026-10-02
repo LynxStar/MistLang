@@ -172,7 +172,7 @@ public sealed class AssignabilitySiteTests
     [Theory]
     [InlineData("clr-call")]
     [InlineData("unpaired-call")]
-    [InlineData("flattened-call")]
+    [InlineData("elementless-params-call")]
     [InlineData("clr-index")]
     [InlineData("from-end-index")]
     [InlineData("void-return")]
@@ -183,11 +183,11 @@ public sealed class AssignabilitySiteTests
         var integer = input.Type("Int32");
         var value = HandBuiltModel.Literal(input.Type("String"), "bad");
         var receiver = HandBuiltModel.Literal(integer);
-        var parameter = new Parameter("value", integer) { IsFlattened = site == "flattened-call" };
+        var parameter = new Parameter("value", integer) { IsFlattened = site == "elementless-params-call" };
         var method = new Method("Take", integer, [parameter], new MemberModifiers { IsClrProjected = site == "clr-call" });
         object root = site switch
         {
-            "clr-call" or "flattened-call" => new InvocationExpression(HandBuiltModel.Node(), receiver, [value], integer, method, [integer]),
+            "clr-call" or "elementless-params-call" => new InvocationExpression(HandBuiltModel.Node(), receiver, [value], integer, method, [integer]),
             "unpaired-call" => new InvocationExpression(HandBuiltModel.Node(), receiver, [value], integer, method, []),
             "clr-index" => new IndexExpression(HandBuiltModel.Node(), receiver, value, integer)
             {

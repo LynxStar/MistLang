@@ -1204,6 +1204,44 @@ rules:
       (indexer-constraint-unproven-through-a-conversion printing 1). The full suite -- 6451, 664 and 68
       tests, AllFeaturesV2's baseline among them -- passed with no failure and no rerun, AllFeaturesV2 run
       by hand was byte-identical and reported nothing, and the build and `dotnet format` were clean.
+
+      AN ARGUMENT A `params` PARAMETER ABSORBS IS JUDGED (2026-10-02; variadics Requirement 13.7 and its
+      value-pack sibling). The NOT JUDGED paragraph above lists "an argument absorbed by a flattened pack
+      slot", and CheckArguments' one guard skipped the whole call for it: every argument to a callee with
+      a `params` parameter, the fixed ones beside the slot included. MEASURED at e12f1cd8, each ending in
+      MIST_CS_ERROR: `SumAll(1, "x")` over `params int[]`; `Rest("h", 1, 2, "x", 4)` over
+      `(string, params int[])`; `SumAll(names)` with a `string[]`; `SumAll(pair...)` over an
+      `(int, string)`; `applier.Apply(2, "x")` through `IApplier<int, int, int>` and
+      `new Boxed<int, int>().Apply(2, "x")`; `new Bundle<int, string>("x", 1)` and `new Bag(1, "x", 3)`;
+      `b.M("five", 1, "x", true)` and `b.M(5, 1, "x", "true")` over `M(int n, params TArgs a, bool flag)`;
+      `Describe<[int, string]>("x", 1)`; and `Describe<[int, string]>(1)`, a two-element pack given one
+      argument. `Take(1, 2)` written inside `Bundle<params TArgs>` over its own `Take(params TArgs a)`
+      built clean, and failed in `__Variadics.g.cs` once a `Bundle<string, string>` existed. Each is now
+      MIST_PA_NO_IMPLICIT_CONVERSION at the argument.
+
+      THE PAIRING IS ArgumentTargets, one decision over the callee's declared parameters, the closed
+      parameter types the call recorded, and the argument types. The fixed parameters pair inward from
+      both ends, as ValuePack.SlotOf binds them. An absorbed argument pairs with the array's element for
+      `params T[]`; a lone array argument that is not itself an element pairs with the array, C#'s normal
+      form, so `SumAll(names)` reads 'string[]' to 'int[]'. For a value pack the call closed it pairs with
+      the pack element at its position. A pack still open, or one holding another count than the call
+      passed, pairs with no single argument and is judged whole: the tuple the absorbed arguments form
+      against the slot, reported at the first of them, or at the call when there is none -- '(int, int)' to
+      '(TArgs...)', the verdict `Take(5)` over `Take(T x)` already draws inside `Foo<T>`, 'int' to 'T'. A
+      spread the binder kept unexpanded is proven against its slot and is skipped. A CLR-projected callee
+      is still not judged, for the reason given above.
+
+      PROVED BY ArgumentTargetsTests at Tier 1 (29 rows: the pairing for an array, a closed pack, an empty
+      pack, both normal forms and a function value; the whole-slot judgement and its silences) and
+      FlattenedArgumentSiteTests at Tier 2 over hand-built calls (ten refusals asserting the column and
+      the conversion named, five admits, a kept spread, a failed argument, a CLR callee, a construction
+      and a chain). AssignabilitySiteTests' silent row for a flattened call is now a `params` parameter
+      with no element, the one shape left with nothing to pair. Eight mutations on confirmed builds: the
+      callee skipped as before (12 rows), a CLR callee judged (2), every element paired with the first
+      (5), the whole-slot judgement silenced (9), an open pack paired by element (1), the normal form
+      dropped (4), and the fixed parameters left unpaired (10) were caught on the first pass. A KEPT
+      SPREAD JUDGED SURVIVED, no row holding one at a function value's slot, where it does pair with a
+      target; the row was added and the rerun caught it.
     tasks:
       - >
         A value that could enter a union through two constituents neither containing the other is emitted
@@ -4236,6 +4274,20 @@ rules:
       closes through `(?#`, a newline and `(?#)`, as the emitted test does, so a pattern ending in an
       `(?x)` `#` comment is decided rather than failing to parse. RegexFullMatchDecisionTests gains seven
       Tier 1 rows, four x-mode and three whose pattern parses only once wrapped, 28 in all.
+
+      AN ARGUMENT A `params` PARAMETER ABSORBS OWES ITS REFINEMENT (2026-10-02). NeedArguments stopped at
+      the first flattened parameter, so nothing at or after a `params` slot was proven. MEASURED at
+      e12f1cd8, each building and running: `Oldest(20, 5)` over `params AdultAge[]` printed 2;
+      `b.M(1, "x", 5)` over `M(params TArgs a, int tail) where tail >= 18` printed 5; `b.M(5, "x")` on a
+      `Bundle<AdultAge, string>` printed 2. They are now MIST_PA_REFINEMENT_VIOLATED at the 5,
+      MIST_PA_CONSTRAINT_VIOLATED on parameter 'tail', and MIST_PA_REFINEMENT_VIOLATED at the 5. The
+      prover reads the pairing order 5 reads, ArgumentTargets, so the two agree on what an argument lands
+      in: order 5 leaves a refined element to this order, and this order now reaches it. An argument
+      absorbed by a pack still open is paired with nothing, and a fixed parameter beside it is judged.
+      PROVED BY FlattenedArgumentRefinementTests at Tier 2, ten rows over a hand-built call: five
+      refusals at the argument's column, four admits, and the constraint named by its parameter. Two
+      mutations on confirmed builds, both caught: the loop stopped at a `params` callee again (6 rows),
+      and the parameter read by argument position (1).
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>

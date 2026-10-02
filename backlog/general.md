@@ -1439,6 +1439,8 @@ Classic prints `7 3`, and v2 prints `0 3`. A derived class keeps C#'s implicit `
 
 ## 🔴 A call that needs a context compiles with none in scope and throws at run time
 
+**Closed (2026-10-02):** `ContextAnalyzer` (order 16 of the analysis register) reports `MIST_CTX_0001` for a call, `new`, constructor chain or method reference owed a context that is not held on every path from the entry point, and `MIST_CTX_0002` (duplicate clause key), `0004` (anonymous-typed key), `0005` (context-bound name reassigned) and `0006` (an implementation's clauses differ from its slot's). The program below is now `MIST_CTX_0001: Method 'GetString' requires context of type 'string', but no matching context declaration is in scope`. Still open, measured, and recorded as tasks on the register entry: a refined clause type is not proven (`with 0;` satisfies `with PositiveInt n`), `string?` and `string` share a runtime key, a lambda that outlives its context's scope fails at run time, and the emitter drops the clause on extension methods and abstract default bodies.
+
 **Severity: critical** -- the structured-context discipline is not enforced by any surviving rule. Found
 2026-10-01 while retiring classic, whose `ContextCheckerAnalyzer` (`MIST_CTX_0001` to `MIST_CTX_0006`)
 was the only implementation and whose tests were its only proof.
@@ -1481,6 +1483,8 @@ Tier 2 since it walks a body.
 
 ## 🟡 A pack-typed abstract slot cannot be filled at a concrete arity
 
+**Closed (2026-10-02):** a pack-typed slot is read through `ValuePack.Expand` at the arity the conformer's base list binds, so the program below is admitted, runs through the abstract and directly, and prints `5`; one-element, zero-arity and mixed bindings follow the same rule, and a wrong arity or type is `MIST_PA_SLOT_SIGNATURE_MISMATCH` against the expanded signature. Two consequences: the tuple-parameter form (`int Apply((int, int) pair)`), the only one admitted before, no longer fills the slot, and a class redeclaring an inherited member whose pack its base list closed is `MIST_PA_MEMBER_REDECLARATION`.
+
 **Severity: medium** -- variadics Requirement 22.2 says a variadic abstract is implementable at a
 concrete arity. Found 2026-10-01 while retiring classic, which admitted it.
 
@@ -1513,6 +1517,8 @@ signatures; pin the two admitted forms and the refusal beside the conformance ru
 ---
 
 ## 🟡 Two refusals reach Roslyn instead of the frontend
+
+**Closed (2026-10-02):** an undefined `[global_usings]` namespace is the warning `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE`, once per project and name, and is withdrawn from the scope and the emitted usings so the build continues; an explicit `using` of one is the error `MIST_UNDEFINED_NAMESPACE` at the directive (`UsingValidation`). A call on a value whose type is not a function or delegate is `MIST_PM_NOT_CALLABLE` at the call, naming the namespace when an extension method of that name exists unimported; a union-typed callee is refused before narrowing, and an optional `func?` called un-narrowed is left as it was. Still open: a `using` of a namespace that holds only type aliases reaches Roslyn, because the emitter writes a using for a namespace it emits nothing into.
 
 **Severity: medium** -- the build fails, but with `MIST_CS_ERROR` over generated C#. Found 2026-10-01
 while retiring classic, which reported both itself.

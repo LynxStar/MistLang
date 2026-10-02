@@ -681,4 +681,10 @@ public static partial class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Member '{0}' produces '{1}', which is not proven to satisfy the refinement contract '{2}' required by '{3}'.");
+
+    public static readonly DiagnosticDescriptor BaseConstructorUnsatisfied = new(
+        new DiagnosticId("MIST_PA_BASE_CTOR_UNSATISFIED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Base class '{0}' requires constructor arguments that are not provided.");
 }

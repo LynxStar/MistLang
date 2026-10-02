@@ -1368,3 +1368,57 @@ dotnet format Mist.slnx --verify-no-changes --report TestResults/sdk-cache-forma
 - Merged current `main` at `f1839449`. Nothing conflicted, and `SdkDiscovery.cs` had not changed on `main` since `666c596c`.
 - The full ledger `20260928-011405` passed 11,041 of 11,041, including all 32 new cases and `CultureInvariantEmissionTests`. An earlier merge, at `50543abc`, had passed 11,013 of 11,013 in `20260928-010931`.
 - `dotnet build Mist.slnx --no-incremental` had 0 warnings and 0 errors. The formatter reported only the IDE0047 already on `main` at `ClrSpellingTests.cs:30`.
+
+---
+
+## 🔴 v2 never runs a base struct's constructor for a derived struct constructor that writes no chain
+
+**Severity: critical** -- a silent wrong result. The program compiles and prints a value that differs from classic's.
+
+**Verified empirically** (2026-10-01) on both pipelines:
+
+```mist
+using Standard;
+
+namespace P6;
+
+public struct Meter
+{
+    public int reading;
+
+    public Meter()
+    {
+        this.reading = 7;
+    }
+}
+
+public struct Dial : Meter
+{
+    public int face;
+
+    public Dial(int face)
+    {
+        this.face = face;
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        var d = new Dial(3);
+        Console.WriteLine($"{d.reading} {d.face}");
+    }
+}
+```
+
+Classic prints `7 3`, and v2 prints `0 3`. A derived class keeps C#'s implicit `base()`, but a flattened struct has nothing to stand in for it.
+
+**Cause:** `StructInitEmitter.EmitChainCall` emits a call only for a written `: base(...)` or `: this(...)`. When `ChainKind` is `None` it emits nothing, so no ancestor initializer runs.
+
+**The refusal half of the same hole.** With `Meter(int reading)` as the base's only constructor instead, v2 still compiles the program and prints `0 3`. Classic reports `MIST_STRUCT_BASE_CTOR_REQUIRED`: "Struct 'Meter' requires constructor arguments. Add ': base(...)' to the constructor of 'Dial'." That is struct-inheritance Requirement 7.4, which no v2 rule enforces yet. It is recorded under `declaration-shape-checks` in `backlog/analysis-v2-capability-progression.yaml`.
+
+**Action:**
+1. When a derived struct constructor writes no chain, call the initializer of the base constructor that an implicit chain reaches. That is the parameterless or single-params constructor accessible from the derived struct. `ImplicitChains.Of` in `Source/Mist/ProgramAnalysis/` makes the same decision for analysis, so decide whether emission reads it or the model records it, rather than writing a second resolver.
+2. Pin it with a Tier 2 or Tier 3 test on the emitted text over a hand-built struct pair, and mutation-check it.
+3. Add the struct-inheritance 7.4 refusal as its own descriptor beside `MIST_PA_BASE_CTOR_UNSATISFIED`, reading the same decision.

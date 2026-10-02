@@ -2061,12 +2061,68 @@ rules:
         - Auto-properties are outside Defaultability. On v2 `default(Holder)` leaves a class-typed
           auto-property null where classic gives its type's default. A constructorless type's
           auto-property of a type with no default is null on both pipelines.
-        - A user constructor that does not chain to a base whose constructors all take arguments still
-          leaks CS7036 (class-inheritance 8.3).
+        - DONE 2026-10-01, in the entry below: a user constructor that writes no chain, over a Mist class
+          base with no constructor it can call with nothing, is refused at the constructor
+          (class-inheritance 8.3).
         - A chain of constructorless types is refused at every link, not only where the field without a
           default is written.
         - A refinement whose predicate admits its base's zero, such as NonNegativeInt, is refused as a
           field without a default too. Defaultability does not consult the predicate.
+      - >
+        DONE 2026-10-01: A USER CONSTRUCTOR WHOSE IMPLICIT BASE CALL IS UNSATISFIED. Class-inheritance 8.3
+        is now met on v2 for every constructor a derived class declares; its Amended banner gives a derived
+        class with no constructor to defaultability 9.1. A constructor that writes no chain runs its base's
+        constructor that can be called with nothing. Where the base is a Mist class and no such constructor
+        is accessible from the derived class, the constructor is refused at its declaration as
+        MIST_PA_BASE_CTOR_UNSATISFIED, "Base class '{0}' requires constructor arguments that are not
+        provided." -- classic's id stem and message.
+        Measured that day on both pipelines, before the change:
+        - `class Dial : Meter { public Dial() { } }` over `Meter(int)` only: classic
+          MIST_BASE_CTOR_UNSATISFIED at the constructor (17,5); v2 MIST_CS_ERROR, Roslyn's CS7036.
+        - The same over a constructed base, `DerivedContainer<T> : BaseContainer<T>` with only
+          `BaseContainer(T item)`: the same pair, classic naming 'BaseContainer<T>'.
+        - A base whose parameterless constructor is private: MIST_CS_ERROR (CS0122) on BOTH pipelines.
+        - A base whose only constructor is `Meter(params int[] readings)`: classic refuses; v2 runs it and
+          prints 40.
+        After: the first three are MIST_PA_BASE_CTOR_UNSATISFIED, at classic's location for the first
+        two. The fourth still prints 40, a deliberate divergence from classic: C#'s implicit `base()` binds
+        the params form, 8.3 refuses only a base that "requires constructor arguments", and purity already
+        read the params form as callable.
+        One home: ImplicitChains decides what an unchained constructor runs. That is a parameterless or
+        single-params constructor accessible from the derived type, read through AccessDomains, or the base
+        itself when it declares no instance constructor. PurityJudge.ChainedOf reads it in place of the
+        private copy it had, so purity no longer judges a base constructor the chain cannot reach.
+        DeclarationShapeAnalyzer reports each constructor ImplicitChains.UnsatisfiedBase names.
+        Not judged, deliberately:
+        - An explicit `: base(...)` or `: this(...)`, whose arguments are the binder's.
+        - A derived class with no constructor. MIST_PA_BASE_NOT_DEFAULTABLE refuses it already (9.1), and
+          one mistake is one complaint.
+        - An Ambient (CLR) or intrinsic base. The projection drops constructors whose parameters it cannot
+          type and records no optional or params parameter, so it cannot show that nothing is callable with
+          nothing; Roslyn stays the judge. samples/Attributes' `ParamTagAttribute : Attribute`, whose
+          constructor writes no chain, is silent.
+        - A derived struct, below.
+        Tests: ImplicitChainsTests (Tier 1, 22 cases) and BaseConstructorRefusalTests (Tier 2, 9, over
+        hand-built types). DeclarationShapeDecisionTests' silence list gained the id. Mutations, each built
+        clean and run over those 31 cases:
+        - Treating every base as satisfied failed the 11 refusal rows.
+        - Dropping accessibility failed the 6 private and internal rows.
+        - Judging Ambient bases failed the 2 Ambient rows.
+        - Judging explicit chains failed the 3 chain rows.
+        Ledger 20261001-203136 passed 11,437 of 11,437, both sample baselines included, with zero warnings
+        and dotnet format clean. No banked sample is refused.
+        Left open:
+        - A DERIVED STRUCT HAS THE SAME HOLE, and it is silent. `struct Dial : Meter` with
+          `public Dial(int face) { ... }` over a struct whose only constructor is `Meter(int)`: classic
+          reports MIST_STRUCT_BASE_CTOR_REQUIRED (struct-inheritance 7.4); v2 compiles it and prints `0 3`.
+          ImplicitChains already answers it; it needs its own descriptor at the same constructor, which was
+          outside this change. Over a base with `Meter()`, v2 prints `0 3` where classic prints `7 3`:
+          StructInitEmitter lowers only a written chain, so the base constructor never runs. That is
+          emission, filed in backlog/general.md.
+        - An explicit `: base()` to a private base constructor is judged by nothing. AccessibilityAnalyzer
+          reads `new` only, and both pipelines leak CS0122 as MIST_CS_ERROR, measured.
+        - A single value-pack params parameter counts as callable with nothing, whatever its pack holds.
+          From reading the decision; no program measured.
 
   - id: abstract-conformance-checking
     name: Slot filling, accessor shape and retroactive conformance

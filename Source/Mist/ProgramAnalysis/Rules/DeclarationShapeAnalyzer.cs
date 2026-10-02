@@ -20,8 +20,9 @@ namespace Mist.ProgramAnalysis.Rules;
 /// logical operator off Boolean, or takes no parameter of the type declaring it, a refinement predicate
 /// -- every one <see cref="DeclaredPredicates"/> finds -- that orders a type <see cref="Comparability"/>
 /// gives no order or reads a member <see cref="StableMembers"/> does not vouch for, a method,
-/// constructor or indexer repeating an earlier one's signature on its type, and a member hiding one its
-/// type inherits, which Mist admits only as an overload. Order 6 of the analysis register; each shape is classic's verdict, measured, or
+/// constructor or indexer repeating an earlier one's signature on its type, a member hiding one its
+/// type inherits, which Mist admits only as an overload, and a constructor writing no chain to a base
+/// <see cref="ImplicitChains"/> finds nothing to run in. Order 6 of the analysis register; each shape is classic's verdict, measured, or
 /// the spec's where classic dropped the declaration unread, and the enum and sealed rules are the
 /// full-accessibility-model and enum-readonly-restriction specs' own.
 /// </summary>
@@ -53,6 +54,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                     CheckOperators(context, concrete);
                     CheckSignatures(context, concrete);
                     CheckRedeclarations(context, concrete);
+                    CheckImplicitChains(context, concrete);
                     break;
 
                 case ConcreteType concrete:
@@ -304,6 +306,17 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                 Report(
                     context, member.Node, ProgramAnalysisDiagnostics.MemberRedeclaration,
                     TypeDisplay.Mist(type), member.Name, TypeDisplay.Mist(ancestor));
+            }
+        }
+    }
+
+    private static void CheckImplicitChains(AnalysisContext context, ConcreteType type)
+    {
+        foreach(var constructor in type.ConstructorsList)
+        {
+            if(ImplicitChains.UnsatisfiedBase(constructor) is { } baseType)
+            {
+                Report(context, constructor.DeclarationNode, ProgramAnalysisDiagnostics.BaseConstructorUnsatisfied, TypeDisplay.Mist(baseType));
             }
         }
     }

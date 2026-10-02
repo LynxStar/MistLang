@@ -108,7 +108,7 @@ internal static partial class PurityJudge
             Constructor declared => declared.ChainedConstructor ?? ImplicitlyChained(declared),
             ConcreteType type => Defaultability.IsDefaultable(type) && type.BaseType is ConcreteType { IsIntrinsic: false } defaulted
                 ? defaulted
-                : ImplicitlyChained(type.BaseType),
+                : ImplicitChains.Of(type),
             _ => null,
         };
     }
@@ -131,31 +131,18 @@ internal static partial class PurityJudge
 
     private static object? ImplicitlyChained(Constructor constructor)
     {
-        if(constructor.ChainKind == ConstructorChainKind.This)
+        var declaring = constructor.DeclaringType as ConcreteType;
+
+        if(constructor.ChainKind != ConstructorChainKind.This)
         {
-            return CalledWithNothing((constructor.DeclaringType as ConcreteType)?.ConstructorsList.FindAll(
-                candidate => !candidate.Modifiers.IsStatic && !ReferenceEquals(candidate, constructor)) ?? []);
+            return ImplicitChains.Of(declaring);
         }
 
-        return ImplicitlyChained((constructor.DeclaringType as ConcreteType)?.BaseType);
-    }
-
-    private static object? ImplicitlyChained(IMistType? baseType)
-    {
-        if(baseType is null || DefinitionOf(baseType) is not ConcreteType { IsIntrinsic: false } type)
-        {
-            return null;
-        }
-
-        var declared = type.ConstructorsList.FindAll(candidate => !candidate.Modifiers.IsStatic);
-
-        return declared.Count == 0 ? type : CalledWithNothing(declared);
-    }
-
-    private static Constructor? CalledWithNothing(List<Constructor> candidates)
-    {
-        return candidates.Find(candidate => candidate.ParametersList.Count == 0)
-            ?? candidates.Find(candidate => candidate.ParametersList is [{ IsFlattened: true }]);
+        return declaring is null
+            ? null
+            : ImplicitChains.CalledWithNothing(
+                declaring.ConstructorsList.FindAll(candidate => !candidate.Modifiers.IsStatic && !ReferenceEquals(candidate, constructor)),
+                declaring);
     }
 
     private sealed partial class Walk

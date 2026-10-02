@@ -3,7 +3,8 @@
 Recorded 2026-09-29 by retirement tasks 2 and 3 (preparation and v2 progress reporting). Task 4 deletes
 classic, flips the default and removes classic's tests; this file is what it needs so that it does not
 have to investigate the architecture again. Re-run the checks at the end before trusting any list: they
-were measured at the commit that added this file.
+were measured at the commit that added this file, and again on 2026-10-01 at `75299f31`, where every
+list below still held.
 
 ## What no longer needs classic
 
@@ -23,9 +24,14 @@ were measured at the commit that added this file.
   `ExperimentalPipeline` does and projects it beside Standard, because the provider cannot project
   without Standard's well-known types. Visible members are the projected members, spelled by v2; hidden
   reasons are the projectors' own decisions, exposed through `MethodProjector.Judge`,
-  `PropertyProjector.Judge` and `AmbientProvider/Withholding.cs`, which the build's projection loops
-  call too. The inspector adds only two reasons of its own, both v2 facts: events (v2 projects none) and
-  members of a base the Mist type does not inherit. Formatting is `Inspection/InspectionReport.cs`.
+  `PropertyProjector.Judge`, `IndexerProjector.Judge` and `AmbientProvider/Withholding.cs`, which the
+  build's projection loops call too. A projected indexer is listed between the properties and the
+  methods as Mist declares one, `indexer this[int]: char`, since its CLR name (`Item`, `Chars`) is not
+  something Mist code can write; a withheld one is listed under that CLR name. The inspector adds only
+  two reasons of its own, both v2 facts: events (v2 projects none) and members of a base the Mist type
+  does not inherit. Fields, constructors and operators are projected by v2 but are not part of the
+  report, as they were not before (csharp-interop-v2 Requirement 10 names properties and methods).
+  Formatting is `Inspection/InspectionReport.cs`.
 - **Parser.** `MistParser`'s multiple-access-modifier check uses `Parsing/AccessModifierSyntax.cs`
   (full-accessibility-model Requirement 2.6) instead of classic `AccessibilityFacts`, which only classic
   and its `MultipleAccessModifierRejectionPropertyTests` still reach.
@@ -41,7 +47,7 @@ were measured at the commit that added this file.
 | `Source/Mist/Driver/CompilerDriver.Classic.cs` | legacy constructors | delete |
 | `Source/Mist/Driver/ClassicPipeline.cs` | classic Stages 4-6 | delete |
 | `CompilerDriver.cs`: `classicPipeline` field, the private constructor's `backendIds`/`classicPipeline` parameters, the `PipelineMode.Classic` branch in `Compile` | dispatch | collapse onto the experimental pipeline; keep the unknown-backend check against `BackendId.CSharp` |
-| `PipelineMode`, `CompilerOptions.Pipeline` (defaults to `Classic`) | selector | the default/selector cutover |
+| `PipelineMode`, `CompilerOptions.Pipeline` (defaults to `Classic`) | selector | keep the selector, remove `Classic`, default to v2 (decided, see the checklist) |
 | `CompilerOptions.EnabledAnalyzerIds` | read only by `ClassicPipeline` | remove (v2 runs every Stage 5 rule; do not reinterpret it as a v2 filter) |
 | `CompilerOptions.EmitToDisk`, `CompilerResult.EmittedFiles` | classic in-memory emission; v2 always writes to `OutputDirectory` and leaves `EmittedFiles` null | remove, or give v2 a real in-memory mode first if a test still needs one |
 | `PipelineInput.DirectReferencePaths` | read only by `ClassicPipeline` | remove, with the driver's `LoadResult` field that feeds it |
@@ -54,7 +60,7 @@ were measured at the commit that added this file.
 | Item | Task 4 |
 |---|---|
 | `Source/Mist.CLI/Composition/ClassicCompilerComposition.cs` | delete; `CompileProject` constructs the clean driver unconditionally |
-| `CliArguments.Pipeline` (default `"classic"`), `--pipeline` parsing in `CliArgumentParser` | the cutover decides whether the flag survives |
+| `CliArguments.Pipeline` (default `"classic"`), `--pipeline` parsing in `CliArgumentParser` | keep the flag, default to v2, accept v2 only (decided, see the checklist) |
 
 ### Backend files only classic reaches
 
@@ -96,7 +102,13 @@ the clean constructor before `CompilerDriver.Classic.cs` goes:
 
 ## Task 4 checklist
 
-1. Flip the defaults (`CompilerOptions.Pipeline`, `CliArguments.Pipeline`) and decide `--pipeline`.
+Steps 2 to 8 were confirmed as written on 2026-10-01; step 1 carries the one decision that was open.
+
+1. Flip the defaults (`CompilerOptions.Pipeline`, `CliArguments.Pipeline`) to v2. **Decided 2026-10-01
+   (Arthur):** the selector survives, in case another pipeline is added later, but v2 is the default and
+   the only option. So `--pipeline` and `PipelineMode` stay, `classic` and `PipelineMode.Classic` go, and
+   `--pipeline classic` becomes the parser's existing unknown-pipeline error rather than a silent
+   fallback. Not decided: whether the one remaining value keeps the name `experimental`.
 2. Move the tests listed above to `new CompilerDriver(lexer, parser[, reporter])`.
 3. Delete `CompilerDriver.Classic.cs`, `ClassicPipeline.cs`, `ClassicCompilerComposition.cs`; collapse the
    driver's dispatch and private constructor.
@@ -143,4 +155,7 @@ passed unindented; seconds are `F2` in the invariant culture.
   directory is never recounted), then the artifact path when there is one. A failed emission still
   completes the stage.
 - A stage that starts completes on every handled path; an exception propagates with no completion. The
-  build summary is the CLI's alone.
+  build summary is the CLI's alone. That holds for the shared stages too: a load that fails (Standard
+  does not parse, a manifest or a project reference does not resolve) completes Stage 1 with no detail
+  lines, since no group was fully loaded, and a clean that fails completes the CLI's Stage 0 the same
+  way. The driver has one completion point for Stage 1, in `CompilerDriver.LoadCompilationUnits`.

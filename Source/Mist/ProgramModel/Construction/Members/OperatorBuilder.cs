@@ -43,6 +43,11 @@ internal sealed class OperatorBuilder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.OperatorMustBeStatic, opDecl, null);
         }
 
+        if(common.Modifiers.IsAsync)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, opDecl, null);
+        }
+
         ValidateParameterCount(kind, common.Parameters.Count, opDecl);
 
         var op = new Operator(kind, returnType, common.Parameters, common.Modifiers)

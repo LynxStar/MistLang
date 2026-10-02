@@ -42,6 +42,11 @@ internal sealed class CastOperatorBuilder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.OperatorMustBeStatic, castOpDecl, null);
         }
 
+        if(common.Modifiers.IsAsync)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, castOpDecl, null);
+        }
+
         if(common.Parameters.Count == 0)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.CastOperatorMissingParameter, castOpDecl, null);

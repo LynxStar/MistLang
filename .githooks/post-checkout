@@ -1,0 +1,26 @@
+#!/bin/sh
+# `git worktree add` never populates submodules, so a new worktree gets them here.
+# Always exits 0: this hook's status becomes the status of the checkout or
+# `git worktree add` that ran it, and a tool creating a worktree reads a failure
+# as the worktree not existing.
+
+[ "$3" = 1 ] || exit 0
+
+common=$(git rev-parse --path-format=absolute --git-common-dir) || exit 0
+own=$(git rev-parse --absolute-git-dir) || exit 0
+
+git submodule status | while read -r state path; do
+    case "$state" in
+        -*) ;;
+        *) continue ;;
+    esac
+
+    reference="$common/modules/$path"
+    if [ "$own" != "$common" ] && [ -d "$reference" ]; then
+        git submodule update --init --reference "$reference" --dissociate -- "$path" </dev/null
+    else
+        git submodule update --init -- "$path" </dev/null
+    fi || echo "post-checkout: could not initialize $path; run 'git submodule update --init $path' once whatever blocked it is cleared" >&2
+done
+
+exit 0

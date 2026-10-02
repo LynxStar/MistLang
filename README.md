@@ -57,6 +57,13 @@ git clone --recurse-submodules https://github.com/LynxStar/MistLang.git
 
 For an existing checkout, run `git submodule update --init --recursive` before building.
 
+`git worktree add` does not populate submodules. Enable the tracked hooks once per clone and
+every new worktree initializes the submodule itself, borrowing objects from the main checkout:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ```bash
 dotnet run --project Source/Mist.CLI -- build ./my-project
 ```

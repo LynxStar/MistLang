@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Rules;
@@ -46,6 +47,23 @@ public sealed class EntryPointAnalyzerTests
         Main(self, "B");
 
         Assert.Empty(hand.Analyze(new EntryPointAnalyzer()));
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void TheBlockNamespacesRecordedOnTheStatementsFileReachTheDecision()
+    {
+        var self = hand.Model.AddSelfAssembly("Probe", entryPointSetting: "top-level");
+        TopLevelFile(self, "Program.mist", blockNamespaces: ["Foo", "Baz"]);
+        Main(self, "A");
+
+        var refusal = Assert.Single(hand.Analyze(new EntryPointAnalyzer()));
+
+        Assert.Equal(("MIST_EP_0006", "Probe"), (refusal.Id.Value, refusal.CompilationUnitPath));
+        Assert.StartsWith(
+            "File 'Program.mist' has both top-level statements and a block namespace declaration: namespace Foo { ... }, namespace Baz { ... }. ",
+            refusal.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -138,9 +156,14 @@ public sealed class EntryPointAnalyzerTests
         Assert.Equal(("MIST_EP_0004", "/lib/mist.toml", "entry-point-resolution"), (refusal.Id.Value, refusal.CompilationUnitPath, refusal.AnalyzerName));
     }
 
-    private static void TopLevelFile(MistAssembly assembly, string path)
+    private static void TopLevelFile(MistAssembly assembly, string path, ImmutableArray<string> blockNamespaces = default)
     {
-        assembly.CompilationUnits.Add(new CompilationUnit { SourcePath = path, HasTopLevelStatements = true });
+        assembly.CompilationUnits.Add(new CompilationUnit
+        {
+            SourcePath = path,
+            HasTopLevelStatements = true,
+            BlockNamespaces = blockNamespaces.IsDefault ? [] : blockNamespaces,
+        });
     }
 
     private void Main(MistAssembly assembly, string className)

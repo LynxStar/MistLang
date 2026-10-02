@@ -59,6 +59,14 @@ public sealed class CompilationUnit
     public bool HasTopLevelStatements { get; init; }
 
     /// <summary>
+    /// The outermost block namespace declarations in this file, by declared name and in declaration
+    /// order: those written at the file's top level and those directly inside its file-scoped
+    /// namespace. Recorded for every file, since whether they may sit beside
+    /// <see cref="HasTopLevelStatements"/> is the entry-point rule's to judge.
+    /// </summary>
+    public ImmutableArray<string> BlockNamespaces { get; init; } = [];
+
+    /// <summary>
     /// The synthetic <c>Main</c> holding the bound top-level statements, non-null exactly
     /// when <see cref="HasTopLevelStatements"/> is true.
     /// <para>

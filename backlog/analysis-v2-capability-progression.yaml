@@ -5022,7 +5022,7 @@ rules:
     from: >
       emitter order 33 (entry-point-resolution), whose evidence left MIST_EP_0001 to MIST_EP_0008
       unverified on this pipeline, and order 120 (project-output-type-library), which reported
-      MIST_EP_0008 from the emitter; top-level-statements Requirements 2 to 4 and
+      MIST_EP_0008 from the emitter; top-level-statements Requirements 1.6 and 2 to 4 and
       attributes-and-test-command Requirement 14.7 and 14.8
     evidence: >
       ADDED 2026-10-02, closing the entry-point gap backlog/classic-retirement.md lists under "What
@@ -5098,10 +5098,46 @@ rules:
       three Tier 4 compiles for the manifest reaching the decision and the selection reaching Roslyn.
       MUTATIONS: 30, each removing one branch of the decision, one reader, or one hop of the manifest,
       and each failing at least one of those tests.
+
+      MIST_EP_0006 ADDED 2026-10-02, the requirement standing by decision (Arthur). MEASURED FIRST at
+      007a68b6, ten probe projects through the CLI, each rerun after: a file of statements beside
+      `namespace Foo { ... }` ran, with no entry_point and under "top-level", with the block before,
+      between and after the statements, and with the block nested directly inside the file's
+      file-scoped namespace (`namespace Outer; namespace Inner { ... } Console.WriteLine(...)`, which
+      parses because a statement ends the file-scoped body). THE FACT IS THE BINDER'S:
+      CompilationUnit.BlockNamespaces holds every file's outermost block namespaces by declared name in
+      declaration order, the top-level ones and those directly inside its file-scoped namespace, read off
+      the AST by BlockNamespaceName.DeclaredIn (a block inside a block is left to its parent, naming which
+      already names what to change); it is recorded for every file, since whether a block may sit beside
+      statements is not the binder's to judge. THE JUDGEMENT IS THE DECISION'S: Decide takes each
+      statements file as a TopLevelFile (path and block namespaces), and StatementsOf refuses the SELECTED
+      file, naming it and each distinct block as `namespace Foo { ... }`, in the two places the answer
+      would otherwise be that file's statements. PRECEDENCE: after every project-level refusal (0008,
+      0001, 0002, 0003), as MIST_PM_DUPLICATE_ENTRY_POINT is judged on the selected class after them,
+      because removing the statements, or not selecting them, resolves each of those and 1.6 with it,
+      while a file-scoped namespace resolves nothing else; so a library's statements file with a block is
+      0008, a second statements file is 0001, one beside a Main is 0002 or 0003, and the file the project
+      would start at is 0006. One diagnostic per project either way. The reader on the emitter's side is
+      unchanged and a refused program is never emitted; the emitter's own support for the combination
+      (order 32) stays, unreachable from a judged project. Measured after: the four combinations above are
+      refused as MIST_EP_0006 naming the file and `namespace Foo { ... }` (two blocks named in declaration
+      order, the nested one as `namespace Inner { ... }`), while a statements file under a file-scoped
+      namespace, one with no namespace, and a Main inside a block namespace run as before. Every .mist
+      under samples/ and book/snippets/ was parsed (557 files, 70 with statements: TopLevelStatements'
+      Program.mist and 69 snippets) and none holds both, so nothing banked is touched.
+
+      COVERAGE: EntryPointSelectionTests, 13 more Tier 1 rows (54 in all): the selected file refused
+      naming file and namespace with no setting and under "top-level" beside zero, one and two Mains;
+      every block named once in declaration order; and seven precedence rows where the project-level
+      refusal stands. EntryPointAnalyzerTests, one Tier 2 row: the names recorded on the unit reach the
+      decision. EntryPointRecordingTests, five Tier 3 rows on what the binder records: top-level blocks
+      with statements between, a block nested in a file-scoped namespace (and its own nested block left
+      to it), a file-scoped namespace alone, no namespace, and a block in a file with no statements.
+      MUTATIONS: six -- the refusal removed (7 rows fail), the names sorted (3), duplicates kept (1),
+      1.6 judged before the project-level refusals (the 7 precedence rows), Of dropping the fact (the
+      Tier 2 row), the binder skipping the file-scoped body (1) or recording nothing (3) -- each failing
+      exactly the rows named and no other.
     tasks:
-      - >
-        Requirement 1.6 (MIST_EP_0006) to be withdrawn or the block-namespace support removed; the book's
-        top-level-statements chapter still documents the refusal.
       - >
         MIST_MISSING_ENTRY_POINT is reported by the emitter, so only once every Stage 4 and 5 error is
         fixed, because the probe harnesses build executables with no Main. Moving it here needs the

@@ -37,6 +37,12 @@ public static class EntryPointDiagnostics
         PipelineStage.Analysis,
         "entry_point = \"top-level\" specified in mist.toml but no file contains top-level statements.");
 
+    public static readonly DiagnosticDescriptor TopLevelStatementsWithBlockNamespace = new(
+        new DiagnosticId("MIST_EP_0006"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "File '{0}' has both top-level statements and a block namespace declaration: {1}. Top-level statements cannot coexist with block namespace declarations in the same file. Use a file-scoped namespace (namespace X;) instead.");
+
     public static readonly DiagnosticDescriptor EntryPointClassNotFound = new(
         new DiagnosticId("MIST_EP_0007"),
         DiagnosticSeverity.Error,

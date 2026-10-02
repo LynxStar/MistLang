@@ -66,6 +66,7 @@ internal sealed class CompilationUnitBuilder
             Usings = [.. fileScope.Imports],
             HasTopLevelStatements = result.TopLevelMethod is not null,
             TopLevelMethod = result.TopLevelMethod,
+            BlockNamespaces = BlockNamespaceName.DeclaredIn(ast),
         };
         modelUnit.Types.AddRange(result.Types);
 

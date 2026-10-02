@@ -77,6 +77,22 @@ public sealed class EntryPointRecordingTests : ProgramModelProbe
         Assert.Equal(("top-level", false), (library.EntryPointSetting, library.IsLibrary));
     }
 
+    [Theory]
+    [InlineData("namespace Foo { public class A { } } var x = 1; namespace Baz { public class B { } } namespace Baz { public class C { } }", true, "Foo,Baz,Baz")]
+    [InlineData("namespace Outer; namespace Inner { public class A { } } namespace Inner { namespace Deep { public class B { } } } var x = 1;", true, "Inner,Inner")]
+    [InlineData("namespace Outer.Place; var x = 1; public class A { }", true, "")]
+    [InlineData("var x = 1; public class A { }", true, "")]
+    [InlineData("namespace Foo.Bar { public class A { } }", false, "Foo.Bar")]
+    public void TheOutermostBlockNamespacesOfEveryFileAreRecordedByDeclaredNameInDeclarationOrder(
+        string source, bool hasStatements, string blockNamespaces)
+    {
+        var model = Build(source, out var diagnostics);
+
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+        var unit = Assert.Single(model.SelfAssembly!.CompilationUnits);
+        Assert.Equal((hasStatements, blockNamespaces), (unit.HasTopLevelStatements, string.Join(",", unit.BlockNamespaces)));
+    }
+
     [Fact]
     public void TwoFilesOfTopLevelStatementsInOneNamespaceAreBothBound()
     {

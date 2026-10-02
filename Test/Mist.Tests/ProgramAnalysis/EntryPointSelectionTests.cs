@@ -1,14 +1,16 @@
+using System.Collections.Immutable;
 using System.Globalization;
 using Mist.ProgramAnalysis;
 
 namespace Mist.Tests.ProgramAnalysis;
 
 /// <summary>
-/// The rows of top-level-statements Requirements 2 to 4 and attributes-and-test-command's library rule,
-/// over the four facts the decision reads: the files holding top-level statements, the class declaring
-/// each <c>Main</c> (named twice when it declares two), the manifest's <c>entry_point</c>, and whether
-/// the project is a library. Lists are separated by <c>;</c>. A refusal is asserted as its whole
-/// message because Requirements 2.2, 3.3 and 3.4 are claims about what the message names.
+/// The rows of top-level-statements Requirements 1.6 and 2 to 4 and attributes-and-test-command's library
+/// rule, over the four facts the decision reads: the files holding top-level statements (each followed by
+/// the block namespaces it declares in brackets, <c>Program.mist[Foo,Baz]</c>), the class declaring each
+/// <c>Main</c> (named twice when it declares two), the manifest's <c>entry_point</c>, and whether the
+/// project is a library. Lists are separated by <c>;</c>. A refusal is asserted as its whole message
+/// because Requirements 1.6, 2.2, 3.3 and 3.4 are claims about what the message names.
 /// </summary>
 [Trait("Tier", "1")]
 public sealed class EntryPointSelectionTests
@@ -152,9 +154,48 @@ public sealed class EntryPointSelectionTests
             Decide("", mains, setting));
     }
 
+    [Theory]
+    [InlineData("", null)]
+    [InlineData("", "top-level")]
+    [InlineData("Probe.A", "top-level")]
+    [InlineData("Probe.A;Probe.B", "top-level")]
+    public void TheSelectedFile_DeclaringABlockNamespace_IsRefusedNamingTheFileAndTheNamespace(string mains, string? setting)
+    {
+        Assert.Equal(
+            "MIST_EP_0006: File 'Program.mist' has both top-level statements and a block namespace declaration: namespace Foo { ... }. "
+            + "Top-level statements cannot coexist with block namespace declarations in the same file. "
+            + "Use a file-scoped namespace (namespace X;) instead.",
+            Decide("Program.mist[Foo]", mains, setting));
+    }
+
+    [Theory]
+    [InlineData("Program.mist[Foo,Baz]", "namespace Foo { ... }, namespace Baz { ... }")]
+    [InlineData("Program.mist[Foo.Inner,Baz,Foo.Inner]", "namespace Foo.Inner { ... }, namespace Baz { ... }")]
+    public void EveryBlockNamespaceIsNamedOnce_InDeclarationOrder(string files, string named)
+    {
+        Assert.StartsWith(
+            $"MIST_EP_0006: File 'Program.mist' has both top-level statements and a block namespace declaration: {named}. ",
+            Decide(files, "", setting: null),
+            StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Program.mist[Foo]", "Lib.A", null, true, "MIST_EP_0008")]
+    [InlineData("Program.mist[Foo]", "", "top-level", true, "MIST_EP_0008")]
+    [InlineData("First.mist[Foo];Second.mist", "", null, false, "MIST_EP_0001")]
+    [InlineData("First.mist[Foo];Second.mist[Baz]", "", "top-level", false, "MIST_EP_0001")]
+    [InlineData("Program.mist[Foo]", "Probe.A", null, false, "MIST_EP_0002")]
+    [InlineData("Program.mist[Foo]", "Probe.A", "Probe.A", false, "MIST_EP_0003")]
+    [InlineData("Program.mist[Foo]", "", "Probe.A", false, "MIST_EP_0003")]
+    public void ABlockNamespace_InStatementsTheProjectWouldNotStartAt_IsNotWhatIsRefused(
+        string files, string mains, string? setting, bool isLibrary, string refusal)
+    {
+        Assert.StartsWith($"{refusal}: ", Decide(files, mains, setting, isLibrary), StringComparison.Ordinal);
+    }
+
     private static string Decide(string files, string mains, string? setting, bool isLibrary = false)
     {
-        return EntryPointSelection.Decide(Split(files), Split(mains), setting, isLibrary) switch
+        return EntryPointSelection.Decide([.. Split(files).Select(TopLevelFile)], Split(mains), setting, isLibrary) switch
         {
             EntryPointSelection.TopLevelStatements statements => $"statements {statements.File}",
             EntryPointSelection.Main main => $"main {main.Class}",
@@ -168,5 +209,17 @@ public sealed class EntryPointSelectionTests
     private static string[] Split(string list)
     {
         return list.Split(';', StringSplitOptions.RemoveEmptyEntries);
+    }
+
+    private static EntryPointSelection.TopLevelFile TopLevelFile(string entry)
+    {
+        var bracket = entry.IndexOf('[', StringComparison.Ordinal);
+        if(bracket < 0)
+        {
+            return new EntryPointSelection.TopLevelFile(entry, []);
+        }
+
+        var namespaces = entry[(bracket + 1)..entry.IndexOf(']', StringComparison.Ordinal)].Split(',');
+        return new EntryPointSelection.TopLevelFile(entry[..bracket], ImmutableArray.Create(namespaces));
     }
 }

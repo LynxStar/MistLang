@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -107,11 +108,13 @@ internal static class ArgumentBinder
     }
 
     /// <summary>
-    /// The argument position a value pack parameter takes, and the pack the call is still to infer for
-    /// it. A spread there stays a spread, the parameter being the flat list it stands for; anywhere else
-    /// a slot typed as the pack's tuple takes the tuple itself.
+    /// The argument position a value pack parameter takes, with the callee's own pack where the slot is
+    /// over one and whether the call is still to infer it. A spread there stays a spread, the parameter
+    /// being the flat list it stands for; anywhere else a slot typed as the pack's tuple takes the tuple
+    /// itself. A callee's own pack accepts the forwarded one for every instantiation only if the
+    /// forwarded pack carries each constraint it declares, which is why it is kept.
     /// </summary>
-    internal readonly record struct PackSlot(int Index, TypeParameter? Inferred);
+    internal readonly record struct PackSlot(int Index, TypeParameter? Own, bool Inferring);
 
     private static PostfixNode? ValueOf(SyntaxNode argument)
     {
@@ -148,7 +151,7 @@ internal static class ArgumentBinder
         // survives unexpanded: there is nothing to expand it into yet and nothing that needs it to
         // be. Forwarding `args...` into a function whose parameter list is TArgs is the case, and
         // it is the one spread whose correctness does not depend on the arity being known.
-        if(ProvenAgainst(spread.Operand.Type, target, absorbing?.Inferred))
+        if(ProvenAgainst(spread.Operand.Type, target, absorbing))
         {
             bound.Add(target is SpreadType || absorbing is not null ? spread : spread.Operand);
             return;
@@ -175,12 +178,31 @@ internal static class ArgumentBinder
     /// Whether the spread's operand and the slot it fills are the same pack, which is what makes an
     /// unknown length harmless: however many the pack turns out to hold, the slot holds that many.
     /// </summary>
-    private static bool ProvenAgainst(IMistType operand, IMistType? target, TypeParameter? inferred)
+    private static bool ProvenAgainst(IMistType operand, IMistType? target, PackSlot? absorbing)
     {
         return Pack(operand) is { } spreadPack
             && target is not null
             && Pack(target) is { } targetPack
-            && (ReferenceEquals(spreadPack, targetPack) || ReferenceEquals(targetPack, inferred));
+            && (ReferenceEquals(spreadPack, targetPack) || (absorbing is { Inferring: true, Own: { } inferred } && ReferenceEquals(targetPack, inferred)))
+            && (absorbing?.Own is not { } own || Carries(spreadPack, own));
+    }
+
+    private static bool Carries(TypeParameter forwarded, TypeParameter destination)
+    {
+        return ReferenceEquals(forwarded, destination)
+            || destination.ConstraintsList.TrueForAll(required => forwarded.ConstraintsList.Exists(held => Same(held, required)));
+    }
+
+    private static bool Same(TypeParameterConstraint held, TypeParameterConstraint required)
+    {
+        return (held, required) switch
+        {
+            (TypeConstraint left, TypeConstraint right) => ConversionRelation.IsIdentity(left.ConstraintType, right.ConstraintType),
+            (ConstructorConstraint left, ConstructorConstraint right) => left.ParameterTypes.Count == right.ParameterTypes.Count
+                && left.ParameterTypes.Zip(right.ParameterTypes).All(pair => ConversionRelation.IsIdentity(pair.First, pair.Second)),
+            (KeywordConstraint left, KeywordConstraint right) => left.Kind == right.Kind,
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -262,7 +284,7 @@ internal static class ArgumentBinder
     {
         return ValuePack.FlattenedSlot(sole.ParametersList) is { } flattened
             && ValuePack.PackParameterOf(sole.ParametersList[flattened]) is { } pack
-                ? new PackSlot(flattened, inferring && sole.TypeParametersList.Contains(pack) ? pack : null)
+                ? new PackSlot(flattened, sole.TypeParametersList.Contains(pack) ? pack : null, inferring)
                 : null;
     }
 

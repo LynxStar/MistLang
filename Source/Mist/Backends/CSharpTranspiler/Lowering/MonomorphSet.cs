@@ -1,9 +1,9 @@
-using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
+using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
@@ -58,166 +58,86 @@ internal static class MonomorphSet
 
     /// <summary>
     /// Every (variadic definition, widths) pair the program constructs, ordered so emission is
-    /// deterministic.
+    /// deterministic, and beside it the widths every variadic method is called at.
     /// </summary>
-    public static IReadOnlyList<(MistType Definition, IReadOnlyList<int> Widths)> Discover(TypeInterner interner)
+    public static (IReadOnlyList<(MistType Definition, IReadOnlyList<int> Widths)> Types, VariadicUseRegistry Methods) Discover(
+        ProgramModelClass model)
     {
         var found = new SortedSet<(string Name, string Widths)>();
         var definitions = new Dictionary<string, MistType>(StringComparer.Ordinal);
         var entries = new Dictionary<(string, string), IReadOnlyList<int>>();
-        var pending = new Queue<(MistType Definition, IReadOnlyList<int> Widths)>();
+        var methods = new VariadicUseRegistry();
+        var pending = new Queue<Monomorph>();
 
-        void enqueue(MistType definition, IReadOnlyList<int> widths)
+        void enqueue(IReadOnlyList<TypeParameter> parameters, IReadOnlyList<int> widths)
         {
+            if(Monomorph.For(parameters, widths) is { } monomorph)
+            {
+                pending.Enqueue(monomorph);
+            }
+        }
+
+        void require(ConstructedType constructed, Monomorph? monomorph)
+        {
+            if(constructed.Definition is not MistType definition
+                || definition is not IHasTypeParameters generic
+                || Widths(generic.TypeParametersList, constructed.TypeArguments, monomorph) is not { } widths)
+            {
+                return;
+            }
+
             var key = (definition.FullyQualifiedName, string.Join("_", widths));
 
             if(found.Add(key))
             {
                 definitions[definition.FullyQualifiedName] = definition;
                 entries[key] = widths;
-                pending.Enqueue((definition, widths));
+                enqueue(generic.TypeParametersList, widths);
             }
         }
 
-        foreach(var constructed in interner.ConstructedTypes)
+        var constructions = model.TypeInterner.ConstructedTypes.ToList();
+        var calls = model.GenericCalls.All().ToList();
+
+        foreach(var constructed in constructions)
         {
-            if(constructed.Definition is MistType definition
-                && definition is IHasTypeParameters generic
-                && Widths(generic, constructed) is { } widths)
+            require(constructed, monomorph: null);
+        }
+
+        foreach(var (method, widths) in model.VariadicUses.All())
+        {
+            if(methods.Record(method, widths))
             {
-                enqueue(definition, widths);
+                enqueue(method.TypeParametersList, widths);
             }
         }
 
         // A SPECIALIZATION ASKS FOR MORE. `Outer<params TArgs> { Inner<TArgs...> nested; }` at width
         // two needs Inner at width two, and nothing constructs Inner directly -- the only
-        // construction of it is symbolic and names no width until Outer's is fixed. So the set is
-        // closed rather than collected: each specialization is walked for the constructions its own
-        // widths imply, until nothing new appears. Finite because widths come from a finite program
-        // and each pair is enqueued once.
+        // construction of it is symbolic and names no width until Outer's is fixed. A call forwarding
+        // the pack asks the same of the method it calls. So the set is closed rather than collected:
+        // each specialization is read against every construction and call that names its packs,
+        // wherever in the declaration they were written, until nothing new appears. Finite because
+        // widths come from a finite program and each pair is enqueued once.
         while(pending.Count > 0)
         {
-            var (definition, widths) = pending.Dequeue();
+            var monomorph = pending.Dequeue();
 
-            if(definition is not MemberType member
-                || definition is not IHasTypeParameters generic
-                || Monomorph.For(generic.TypeParametersList, widths) is not { } monomorph)
+            foreach(var constructed in constructions)
             {
-                continue;
+                require(constructed, monomorph);
             }
 
-            using(monomorph.Enter())
+            foreach(var (method, typeArguments) in calls)
             {
-                foreach(var implied in ImpliedConstructions(member, monomorph))
+                if(Widths(method.TypeParametersList, typeArguments, monomorph) is { } widths && methods.Record(method, widths))
                 {
-                    enqueue(implied.Definition, implied.Widths);
+                    enqueue(method.TypeParametersList, widths);
                 }
             }
         }
 
-        return [.. found.Select(entry => (definitions[entry.Name], entries[entry]))];
-    }
-
-    private static IEnumerable<(MistType Definition, IReadOnlyList<int> Widths)> ImpliedConstructions(
-        MemberType member, Monomorph monomorph)
-    {
-        foreach(var signature in SignatureTypes(member))
-        {
-            foreach(var constructed in Constructions(signature, new HashSet<IMistType>()))
-            {
-                if(constructed.Definition is MistType definition
-                    && definition is IHasTypeParameters generic
-                    && WidthsUnder(generic, constructed, monomorph) is { } widths)
-                {
-                    yield return (definition, widths);
-                }
-            }
-        }
-    }
-
-    private static IReadOnlyList<int>? WidthsUnder(
-        IHasTypeParameters generic, ConstructedType constructed, Monomorph monomorph)
-    {
-        return Widths(generic, constructed, monomorph);
-    }
-
-    private static IEnumerable<ConstructedType> Constructions(IMistType type, HashSet<IMistType> seen)
-    {
-        if(!seen.Add(type))
-        {
-            yield break;
-        }
-
-        if(type is ConstructedType constructed)
-        {
-            yield return constructed;
-
-            foreach(var argument in constructed.TypeArguments)
-            {
-                foreach(var nested in Constructions(argument, seen))
-                {
-                    yield return nested;
-                }
-            }
-        }
-
-        var children = type switch
-        {
-            LiftedType { Value: TypePackValue pack } => pack.Elements,
-            TupleType tuple => tuple.ElementTypes,
-            NamedTupleType named => named.ElementTypes,
-            UnionType union => union.Constituents,
-            _ => null,
-        };
-
-        foreach(var child in children ?? [])
-        {
-            foreach(var nested in Constructions(child, seen))
-            {
-                yield return nested;
-            }
-        }
-    }
-
-    private static IEnumerable<IMistType> SignatureTypes(MemberType member)
-    {
-        foreach(var method in member.MethodsList)
-        {
-            yield return method.ReturnType;
-
-            foreach(var parameter in method.ParametersList)
-            {
-                yield return parameter.Type;
-            }
-        }
-
-        foreach(var property in member.PropertiesList)
-        {
-            yield return property.Type;
-        }
-
-        foreach(var baseType in member.BaseAbstractTypes)
-        {
-            yield return baseType;
-        }
-
-        if(member is not ConcreteType concrete)
-        {
-            yield break;
-        }
-
-        foreach(var field in concrete.FieldsList)
-        {
-            yield return field.Type;
-        }
-
-        foreach(var constructor in concrete.ConstructorsList)
-        {
-            foreach(var parameter in constructor.ParametersList)
-            {
-                yield return parameter.Type;
-            }
-        }
+        return ([.. found.Select(entry => (definitions[entry.Name], entries[entry]))], methods);
     }
 
     /// <summary>
@@ -227,19 +147,18 @@ internal static class MonomorphSet
     /// specialization in scope supplies one.
     /// </summary>
     private static IReadOnlyList<int>? Widths(
-        IHasTypeParameters generic, ConstructedType constructed, Monomorph? monomorph = null)
+        IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType> arguments, Monomorph? monomorph)
     {
-        var parameters = generic.TypeParametersList;
         var widths = new List<int>();
 
-        for(var i = 0; i < parameters.Count && i < constructed.TypeArguments.Count; i++)
+        for(var i = 0; i < parameters.Count && i < arguments.Count; i++)
         {
             if(parameters[i].PackKind == TypePackKind.None)
             {
                 continue;
             }
 
-            if(constructed.TypeArguments[i] is not LiftedType { Value: TypePackValue pack }
+            if(arguments[i] is not LiftedType { Value: TypePackValue pack }
                 || Width(pack, monomorph) is not { } width)
             {
                 return null;

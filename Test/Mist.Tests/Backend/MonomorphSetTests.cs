@@ -38,7 +38,7 @@ public sealed class MonomorphSetTests : ProgramModelProbe
 
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
-        return [.. MonomorphSet.Discover(model.TypeInterner)
+        return [.. MonomorphSet.Discover(model).Types
             .Select(entry => $"{entry.Definition.Name}/{string.Join("_", entry.Widths)}")];
     }
 

@@ -335,7 +335,7 @@ internal static class TypeArgumentInference
         }
 
         var absorbed = ValuePack.Absorbed(
-            parameters, [.. arguments.Select(a => a.Type)], flattened);
+            parameters, [.. arguments.Select(ValuePack.AbsorbedAs)], flattened);
 
         var domain = pack.Domain ?? pack;
         Record(pack, interner.LiftPack(domain, new TypePackValue(absorbed)),

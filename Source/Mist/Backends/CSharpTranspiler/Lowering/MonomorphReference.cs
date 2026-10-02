@@ -38,8 +38,8 @@ internal static class MonomorphReference
 
     /// <summary>
     /// The widths a call bound a method's packs to, or null when the callee has no pack or one is
-    /// still symbolic -- a call made from inside another variadic declaration, which the enclosing
-    /// specialization has yet to fix.
+    /// still symbolic -- a call made from inside another variadic declaration, outside any
+    /// specialization of it.
     /// </summary>
     public static IReadOnlyList<int>? MethodWidths(
         IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter>? parameters)
@@ -58,13 +58,12 @@ internal static class MonomorphReference
                 continue;
             }
 
-            if(typeArguments[i] is not LiftedType { Value: TypePackValue pack }
-                || pack.Elements.Any(element => element is SpreadType))
+            if(typeArguments[i] is not LiftedType { Value: TypePackValue pack } || !Expand(pack, out var elements))
             {
                 return null;
             }
 
-            widths.Add(pack.Elements.Length);
+            widths.Add(elements.Count);
         }
 
         return widths.Count == 0 ? null : widths;
@@ -84,9 +83,10 @@ internal static class MonomorphReference
         for(var i = 0; i < parameters.Count && i < typeArguments.Count; i++)
         {
             if(parameters[i].PackKind != TypePackKind.None
-                && typeArguments[i] is LiftedType { Value: TypePackValue pack })
+                && typeArguments[i] is LiftedType { Value: TypePackValue pack }
+                && Expand(pack, out var elements))
             {
-                written.AddRange(pack.Elements.Select(emitType));
+                written.AddRange(elements.Select(emitType));
                 continue;
             }
 

@@ -44,18 +44,35 @@ internal sealed class VariadicUseRegistry
             observed.Add(pack.Elements.Length);
         }
 
-        if(observed.Count == 0)
+        if(observed.Count > 0)
         {
-            return;
+            _ = Record(method, observed);
         }
+    }
 
+    /// <summary>
+    /// False when this method was already recorded at these widths.
+    /// </summary>
+    public bool Record(Method method, IReadOnlyList<int> observed)
+    {
         if(!widths.TryGetValue(method, out var recorded))
         {
             recorded = new(StringComparer.Ordinal);
             widths[method] = recorded;
         }
 
-        recorded[string.Join("_", observed)] = observed;
+        return recorded.TryAdd(string.Join("_", observed), observed);
+    }
+
+    public IEnumerable<(Method Method, IReadOnlyList<int> Widths)> All()
+    {
+        foreach(var (method, recorded) in widths)
+        {
+            foreach(var observed in recorded.Values)
+            {
+                yield return (method, observed);
+            }
+        }
     }
 
     /// <summary>

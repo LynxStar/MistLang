@@ -21,7 +21,8 @@ internal sealed class CSharpEmitterV2
 {
     private readonly IProgramModel programModel;
 
-    private VariadicUseRegistry VariadicUses => ((ProgramModel.Model.ProgramModel)programModel).VariadicUses;
+    private IReadOnlyList<(MistType Definition, IReadOnlyList<int> Widths)> monomorphs = [];
+    private VariadicUseRegistry variadicUses = new();
     private readonly CompilerOptions options;
     private readonly ImmutableArray<string> referencePaths;
     private readonly DiagnosticBag diagnostics;
@@ -108,6 +109,8 @@ internal sealed class CSharpEmitterV2
         using var promotion = AsyncPromotion.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var supply = IntrinsicSupply.Enter((ProgramModel.Model.ProgramModel)programModel, clrType);
         using var specialization = UnionSpecialization.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
+
+        (monomorphs, variadicUses) = MonomorphSet.Discover((ProgramModel.Model.ProgramModel)programModel);
 
         ReportForeignConformances();
 
@@ -436,10 +439,7 @@ internal sealed class CSharpEmitterV2
     /// </summary>
     private void EmitMonomorphs(string outputDir, List<string> emittedFiles, ConstraintClosureMap closures)
     {
-        var interner = ((ProgramModel.Model.ProgramModel)programModel).TypeInterner;
-        var specializations = MonomorphSet.Discover(interner);
-
-        if(specializations.Count == 0)
+        if(monomorphs.Count == 0)
         {
             return;
         }
@@ -447,7 +447,7 @@ internal sealed class CSharpEmitterV2
         var writer = new CSharpWriter();
         var anyEmitted = false;
 
-        foreach(var (definition, widths) in specializations)
+        foreach(var (definition, widths) in monomorphs)
         {
             if(definition is not MemberType member
                 || definition is not IHasTypeParameters generic
@@ -458,7 +458,7 @@ internal sealed class CSharpEmitterV2
 
             using(monomorph.Enter())
             {
-                TypeEmitter.Emit(member, closures, VariadicUses, writer, diagnostics, ref anyEmitted);
+                TypeEmitter.Emit(member, closures, variadicUses, writer, diagnostics, ref anyEmitted);
             }
         }
 
@@ -870,13 +870,13 @@ internal sealed class CSharpEmitterV2
                 foreach(var instance in UnionSpecialization.InstancesOf(member))
                 {
                     using var specializing = TypeEmitter.Specializing(instance);
-                    TypeEmitter.Emit(type, closures, VariadicUses, writer, diagnostics, ref anyEmitted);
+                    TypeEmitter.Emit(type, closures, variadicUses, writer, diagnostics, ref anyEmitted);
                 }
 
                 continue;
             }
 
-            TypeEmitter.Emit(type, closures, VariadicUses, writer, diagnostics, ref anyEmitted);
+            TypeEmitter.Emit(type, closures, variadicUses, writer, diagnostics, ref anyEmitted);
         }
 
         foreach(var block in blocks)

@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -87,6 +88,18 @@ internal static class ValuePack
         var count = argumentTypes.Count - flattened - trailing;
 
         return count <= 0 ? [] : [.. argumentTypes.Skip(flattened).Take(count)];
+    }
+
+    /// <summary>
+    /// What an argument contributes to the pack that absorbs it: its type, or for a forwarded pack
+    /// (<c>args...</c> left unexpanded by the argument binder) the spread of that pack, so the callee's
+    /// pack is bound to the caller's elements and not to one element holding the caller's tuple.
+    /// </summary>
+    public static IMistType AbsorbedAs(Expression argument)
+    {
+        return argument is SpreadExpression { Type: TupleType { ElementTypes: [SpreadType forwarded] } }
+            ? forwarded
+            : argument.Type;
     }
 
     /// <summary>

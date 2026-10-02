@@ -71,7 +71,8 @@ internal static class ArgumentBinder
         BindingContext ctx,
         BuilderContext context,
         bool settlesMethodGroups = false,
-        bool defersLambdas = false)
+        bool defersLambdas = false,
+        PackSlot? absorbing = null)
     {
         if(argumentList is null)
         {
@@ -96,12 +97,21 @@ internal static class ArgumentBinder
             using(ctx.PushTargetType(target))
             using(ctx.PushMethodGroupSettlement(settlesMethodGroups ? ValueOf(expressions[i]) : null))
             {
-                Add(ExpressionBinder.BindExpression(expressions[i], ctx, context), target, bound, context);
+                Add(
+                    ExpressionBinder.BindExpression(expressions[i], ctx, context), target,
+                    absorbing is { } slot && slot.Index == i ? slot : null, bound, context);
             }
         }
 
         return bound;
     }
+
+    /// <summary>
+    /// The argument position a value pack parameter takes, and the pack the call is still to infer for
+    /// it. A spread there stays a spread, the parameter being the flat list it stands for; anywhere else
+    /// a slot typed as the pack's tuple takes the tuple itself.
+    /// </summary>
+    internal readonly record struct PackSlot(int Index, TypeParameter? Inferred);
 
     private static PostfixNode? ValueOf(SyntaxNode argument)
     {
@@ -126,7 +136,7 @@ internal static class ArgumentBinder
     /// unexpanded would count as one.
     /// </summary>
     private static void Add(
-        Expression argument, IMistType? target, List<Expression> bound, BuilderContext context)
+        Expression argument, IMistType? target, PackSlot? absorbing, List<Expression> bound, BuilderContext context)
     {
         if(argument is not SpreadExpression spread)
         {
@@ -138,9 +148,9 @@ internal static class ArgumentBinder
         // survives unexpanded: there is nothing to expand it into yet and nothing that needs it to
         // be. Forwarding `args...` into a function whose parameter list is TArgs is the case, and
         // it is the one spread whose correctness does not depend on the arity being known.
-        if(ProvenAgainst(spread.Operand.Type, target))
+        if(ProvenAgainst(spread.Operand.Type, target, absorbing?.Inferred))
         {
-            bound.Add(spread);
+            bound.Add(target is SpreadType || absorbing is not null ? spread : spread.Operand);
             return;
         }
 
@@ -165,12 +175,12 @@ internal static class ArgumentBinder
     /// Whether the spread's operand and the slot it fills are the same pack, which is what makes an
     /// unknown length harmless: however many the pack turns out to hold, the slot holds that many.
     /// </summary>
-    private static bool ProvenAgainst(IMistType operand, IMistType? target)
+    private static bool ProvenAgainst(IMistType operand, IMistType? target, TypeParameter? inferred)
     {
         return Pack(operand) is { } spreadPack
-            && target is SpreadType targetSpread
-            && Pack(targetSpread) is { } targetPack
-            && ReferenceEquals(spreadPack, targetPack);
+            && target is not null
+            && Pack(target) is { } targetPack
+            && (ReferenceEquals(spreadPack, targetPack) || ReferenceEquals(targetPack, inferred));
     }
 
     /// <summary>
@@ -244,7 +254,16 @@ internal static class ArgumentBinder
         return BindTargeted(
             argumentList, targets, ctx, context,
             settlesMethodGroups: settled,
-            defersLambdas: settled && candidates.Count > 0 && !candidates.Any(candidate => ValuePack.FlattenedSlot(candidate.ParametersList) is not null));
+            defersLambdas: settled && candidates.Count > 0 && !candidates.Any(candidate => ValuePack.FlattenedSlot(candidate.ParametersList) is not null),
+            absorbing: sole is null ? null : Absorbing(sole, inferring: typeArguments is null));
+    }
+
+    private static PackSlot? Absorbing(Method sole, bool inferring)
+    {
+        return ValuePack.FlattenedSlot(sole.ParametersList) is { } flattened
+            && ValuePack.PackParameterOf(sole.ParametersList[flattened]) is { } pack
+                ? new PackSlot(flattened, inferring && sole.TypeParametersList.Contains(pack) ? pack : null)
+                : null;
     }
 
     /// <summary>

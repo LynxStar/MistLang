@@ -2705,6 +2705,12 @@ internal static class BodyEmitter
             return;
         }
 
+        if(count == 1 && arguments[start] is SpreadExpression forwarded)
+        {
+            EmitExpression(forwarded.Operand, writer, diagnostics);
+            return;
+        }
+
         writer.Append(count == 1 ? "System.ValueTuple.Create(" : "(");
 
         var elements = tupleType switch

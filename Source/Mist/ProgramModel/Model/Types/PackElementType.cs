@@ -5,7 +5,7 @@ namespace Mist.ProgramModel.Model.Types;
 /// are not -- <c>TShapes[0]</c> inside <c>ShapePair&lt;Type[2]:TShapes&gt;</c>.
 /// <para>
 /// A type parameter, which is what carries the whole-pack constraint down to it: a
-/// <c>where TShapes : IShape</c> holds of every element, so seeding this with the pack's own
+/// <c>where TShapes : IShape</c> holds of every element, so answering with the pack's own
 /// constraints is what makes <c>Shape1.Area()</c> resolve. Being a parameter rather than the pack
 /// is equally load-bearing in the other direction -- the pack is a <c>Type[]</c> and would answer
 /// for <c>Length</c>, which one element must not.
@@ -18,10 +18,15 @@ internal sealed class PackElementType : TypeParameter
     {
         Pack = pack;
         Index = index;
-        ConstraintsList.AddRange(pack.ConstraintsList);
     }
 
     public TypeParameter Pack { get; }
 
     public int Index { get; }
+
+    /// <summary>
+    /// The pack's own list and not a copy of it: an element named in a signature is created before the
+    /// declaration's <c>where</c> clauses are resolved, and a copy taken then would stay empty.
+    /// </summary>
+    public override List<TypeParameterConstraint> ConstraintsList => Pack.ConstraintsList;
 }

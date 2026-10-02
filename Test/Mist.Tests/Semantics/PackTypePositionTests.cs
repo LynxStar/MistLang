@@ -141,6 +141,16 @@ public sealed class PackTypePositionTests : ProgramModelProbe
     }
 
     [Theory]
+    [InlineData("public class Good<Type[2]:TArgs> where TArgs : INamed { public string First(TArgs[0] a) { return a.Name(); } }")]
+    [InlineData("public class Good { public static string First<Type[2]:T>(T[0] a) where T : INamed { return a.Name(); } }")]
+    public void AnIndexedElement_AnswersForItsPacksConstraint(string declaration)
+    {
+        var diagnostics = BuildRun("", $"public abstract INamed {{ string Name(); }} {declaration}");
+
+        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    [Theory]
     [InlineData(1, 0)]
     [InlineData(3, 2)]
     [InlineData(4, 0)]

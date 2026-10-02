@@ -37,18 +37,23 @@ internal static class MonomorphReference
     }
 
     /// <summary>
-    /// How many types a pack holds where it is being emitted, read off whatever closed it there: the
+    /// The types a pack holds where it is being emitted, read off whatever closed it there: the
     /// specialization in scope for a pack that is still its own parameter, or the elements a base list
     /// wrote for it, which is all a member restated into a conformer has. Null while it is open.
     /// </summary>
-    public static int? Width(IMistType pack)
+    public static IReadOnlyList<IMistType>? Elements(IMistType pack)
     {
         return pack switch
         {
-            TypeParameter open when Monomorph.InScope() is { } monomorph && monomorph.Binds(open) => monomorph.Expansion(open).Count,
-            LiftedType { Value: TypePackValue closed } when Expand(closed, out var elements) => elements.Count,
+            TypeParameter open when Monomorph.InScope() is { } monomorph && monomorph.Binds(open) => monomorph.Expansion(open),
+            LiftedType { Value: TypePackValue closed } when Expand(closed, out var elements) => elements,
             _ => null,
         };
+    }
+
+    public static int? Width(IMistType pack)
+    {
+        return Elements(pack)?.Count;
     }
 
     /// <summary>

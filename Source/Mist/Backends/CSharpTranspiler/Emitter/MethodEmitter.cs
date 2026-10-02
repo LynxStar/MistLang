@@ -29,7 +29,7 @@ internal static class MethodEmitter
 
         AttributeEmitter.EmitLines(method.DeclaredAttributesList, writer, diagnostics);
         writer.WriteLine($"{modifiers}{EmitSignature(method, diagnostics)}");
-        ConstraintEmitter.Emit(method.TypeParametersList, writer, liftSlots: true);
+        ConstraintEmitter.Emit(Declared(method), writer, liftSlots: true);
         using(writer.Block())
         {
             if(method.Body is not null)
@@ -84,12 +84,11 @@ internal static class MethodEmitter
         // A specialization declares the pack's expansion in the pack's place and carries the width
         // in its name, exactly as a specialized TYPE does -- and for the same reason: the widths
         // differ in what they declare, so they cannot be one C# method.
-        var declared = method.TypeParametersList;
+        var declared = Declared(method);
         var name = method.Name;
 
         if(Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList))
         {
-            declared = [.. monomorph.Parameters(method.TypeParametersList)];
             name = MonomorphSet.SpecializedName(method.Name, monomorph.Widths);
         }
         else if(UnionSpecialization.CurrentMethod() is { } instance && ReferenceEquals(instance.Method, method))
@@ -115,6 +114,13 @@ internal static class MethodEmitter
         }
 
         return $"{returnType} {name}{typeParams}({string.Join(", ", parts)})";
+    }
+
+    private static List<TypeParameter> Declared(Method method)
+    {
+        return Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList)
+            ? [.. monomorph.Parameters(method.TypeParametersList)]
+            : method.TypeParametersList;
     }
 
     /// <summary>

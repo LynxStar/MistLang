@@ -55,7 +55,19 @@ internal static class Defaultability
     {
         var needed = Needed(declaration, new HashSet<ConcreteType>(ReferenceEqualityComparer.Instance));
 
-        return InScope(declaration).Where(needed.Contains).ToList();
+        return InScope(declaration).SelectMany(parameter => ZeroesOf(parameter, needed)).ToList();
+    }
+
+    /// <summary>
+    /// What a declared parameter contributes to <see cref="ZeroNeeded"/>: itself, or for a pack each
+    /// element storage is typed by (<c>TArgs[0]</c>), in index order. A pack has no zero of its own;
+    /// its elements are closed separately, so each owes one separately.
+    /// </summary>
+    private static IEnumerable<TypeParameter> ZeroesOf(TypeParameter parameter, HashSet<TypeParameter> needed)
+    {
+        return needed.Contains(parameter)
+            ? [parameter]
+            : needed.OfType<PackElementType>().Where(element => ReferenceEquals(element.Pack, parameter)).OrderBy(element => element.Index);
     }
 
     public static bool IsDefaultConstrained(TypeParameter parameter)

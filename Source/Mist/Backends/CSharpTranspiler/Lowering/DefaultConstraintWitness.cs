@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
@@ -70,11 +71,17 @@ internal static class DefaultConstraintWitness
 
         for(var i = 0; i < typeParameters.Count && i < typeArguments.Count; i++)
         {
-            if(Constrains(typeParameters[i]))
+            if(!Constrains(typeParameters[i]))
             {
-                witnesses.Add(
-                    DefaultSynthesis.Expression(typeArguments[i]) is { } value ? $"() => {value}" : null);
+                continue;
             }
+
+            var filling = typeParameters[i].IsPack && MonomorphReference.Elements(TypeNameEmitter.Closed(typeArguments[i])) is { } elements
+                ? elements
+                : [typeArguments[i]];
+
+            witnesses.AddRange(filling.Select(
+                argument => DefaultSynthesis.Expression(argument) is { } value ? $"() => {value}" : null));
         }
 
         return witnesses;

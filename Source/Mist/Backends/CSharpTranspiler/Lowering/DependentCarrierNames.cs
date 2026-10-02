@@ -42,6 +42,11 @@ internal static class DependentCarrierNames
     /// </summary>
     public static string Parameter(TypeParameter parameter)
     {
+        if(parameter is PackElementType element && Monomorph.InScope()?.Element(element.Pack, element.Index) is TypeParameter specialized)
+        {
+            return specialized.Name;
+        }
+
         return parameter.IsDependent && !parameter.IsPack ? $"T{parameter.Name}" : parameter.Name;
     }
 

@@ -104,7 +104,7 @@ internal class TypeParameter : MistType, ITypeParameter
     /// The constraints declared on this type parameter via where clauses.
     /// Populated during Phase 2 when constraints are resolved.
     /// </summary>
-    public List<TypeParameterConstraint> ConstraintsList { get; } = [];
+    public virtual List<TypeParameterConstraint> ConstraintsList { get; } = [];
 
     /// <summary>
     /// The adhoc refinement predicate AST node for this type parameter, if any

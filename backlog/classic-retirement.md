@@ -242,9 +242,17 @@ Found while closing the gaps, each measured, none established as something class
   getter or constructor body is emitted where C# refuses it; the `async` functor's lift lambda is not
   async; a promoted method used as a method group has the wrong return type; promotion does not reach
   an abstract slot; `some?.M()` on a promoted `M`.
-- **Usings**: a `using` of a namespace holding only type aliases reaches Roslyn (the emitter writes a
-  using for a namespace it emits nothing into); a namespace holding only `with` declarations is never
-  registered, so a `using` of it is now `MIST_UNDEFINED_NAMESPACE`.
+- **Usings** -- closed 2026-10-03 (`7705ba3a`): a `using` of a namespace holding only type aliases
+  reached Roslyn (the emitter wrote a using for a namespace it emits nothing into); a namespace holding
+  only `with` declarations was never registered, so a `using` of it was `MIST_UNDEFINED_NAMESPACE`.
+  `TypeBuilder` now registers a `with` declaration's namespace where it stashes it, as it did an
+  extension block's, and `NamespaceBuilder` registers a block nested in a file-scoped namespace, which
+  it skipped (`namespace Outer; namespace Empty { }` made `using Outer.Empty;` undefined).
+  `UsingSelection` keeps an emitted using, explicit, global or synthesized for top-level statements,
+  only for a namespace the C# compilation declares: one an emitted declaration, an extension block, a
+  CLR assembly or the Void stand-in sits in, or one enclosing it. A namespace nothing declares is still
+  `MIST_UNDEFINED_NAMESPACE`. Unchanged: a conformance is active whether or not its namespace is
+  imported (emitter order 73).
 - **CLR binding**: `System.Func<int, int>` written fully qualified does not resolve;
   `numbers.Select(n => n * 2)` is `MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED` and `numbers.Where(n => n > 1)`
   `MIST_PM_UNRESOLVABLE_OVERLOAD`; `List<int>.Capacity` is not found; a CLR delegate call is typed as
@@ -276,8 +284,10 @@ Found while closing the gaps, each measured, none established as something class
 Specs that now disagree with the implementation, beyond the decisions above: project-references
 Requirement 6 (transitive visibility; `MistProject` documents the flat list as deliberate), the
 structured-context design's keying and message templates and its Requirement 8.4/8.5, the variadics
-diagnostic table (no `MIST_VAR_0012` or `0013`) and its two-pipeline Architecture section, and the
-Glossary and Introduction of `compiler-progress-output`.
+diagnostic table (no `MIST_VAR_0012` or `0013`) and its two-pipeline Architecture section, the
+Glossary and Introduction of `compiler-progress-output`, and inferred-namespaces Requirement 8.6 and
+global-usings Requirement 6.1, which emit a using for every one written where a using naming a
+namespace C# does not have is now left out.
 
 ## Verification
 
@@ -344,6 +354,12 @@ The sample fold-in, the deletions and the gap fixes above, as 26 commits on top 
 - After the four reversals (commits `03de12ed`, `bd4b7f37`, `520e3d45`, `a14ca057` and their docs):
   full ledger `20261002-202000`, 7,796 / 105 / 812 / 46, all passed; `dotnet format` exit 0; the
   snippet run over a scratch copy again 381 pairs, 0 failed, the same ten, byte-identical to the base.
+- The usings fix (`7705ba3a`, 2026-10-03): full ledger `20261002-230524`, 7,813 / 105 / 812 / 46, all
+  passed; `dotnet format` exit 0; the snippet run over a scratch copy 381 pairs, 0 failed, the same
+  ten, no `using` line changed. Its 17 tests are Tier 2 (`UsingSelectionTests` and five rows of
+  `NamespaceConstructionTests`) and one Tier 4 model-to-emitter seam
+  (`ErasedNamespaceImportEmissionTests`); each of seven parts of the fix, reverted alone, failed its
+  test.
 
 ## Left open
 

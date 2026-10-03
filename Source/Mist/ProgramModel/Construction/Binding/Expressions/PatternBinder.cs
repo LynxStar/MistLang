@@ -30,30 +30,30 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 internal static partial class PatternBinder
 {
     internal static Pattern? Bind(
-        PatternNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context)
+        PatternNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed = false)
     {
-        return Bind(node, scrutineeType, bindingsPermitted: true, ctx, context);
+        return Bind(node, scrutineeType, bindingsPermitted: true, ctx, context, scrutineeFailed);
     }
 
     private static Pattern? Bind(
-        PatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context)
+        PatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
-        return BindOr(node.OrPattern, scrutineeType, bindingsPermitted, ctx, context);
+        return BindOr(node.OrPattern, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
     }
 
     private static Pattern? BindOr(
-        OrPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context)
+        OrPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
         if(OperatorBinder.IsBare(node.AndPatterns, node.Left, node.Right))
         {
-            return BindAnd(node.Left, scrutineeType, bindingsPermitted, ctx, context);
+            return BindAnd(node.Left, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
         }
 
         var operands = new List<Pattern>();
 
         foreach(var operand in GrammarRepetition.LeadAndRepeated(node.Left, node.AndPatterns))
         {
-            if(BindAnd(operand, scrutineeType, bindingsPermitted: false, ctx, context) is not { } bound)
+            if(BindAnd(operand, scrutineeType, bindingsPermitted: false, ctx, context, scrutineeFailed) is not { } bound)
             {
                 return null;
             }
@@ -61,22 +61,22 @@ internal static partial class PatternBinder
             operands.Add(bound);
         }
 
-        return new DisjunctionPattern(node, scrutineeType, operands);
+        return new DisjunctionPattern(node, scrutineeType, operands) { IsFailed = scrutineeFailed || operands.Any(operand => operand.IsFailed) };
     }
 
     private static Pattern? BindAnd(
-        AndPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context)
+        AndPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
         if(OperatorBinder.IsBare(node.UnaryPatterns, node.Left, node.Right))
         {
-            return BindUnary(node.Left, scrutineeType, bindingsPermitted, ctx, context);
+            return BindUnary(node.Left, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
         }
 
-        return BindConjunction(node, GrammarRepetition.LeadAndRepeated(node.Left, node.UnaryPatterns), scrutineeType, bindingsPermitted, ctx, context);
+        return BindConjunction(node, GrammarRepetition.LeadAndRepeated(node.Left, node.UnaryPatterns), scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
     }
 
     private static Pattern? BindConjunction(
-        SyntaxNode node, List<UnaryPatternNode> unaryPatterns, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context)
+        SyntaxNode node, List<UnaryPatternNode> unaryPatterns, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
         var operands = new List<Pattern>();
         var narrowed = scrutineeType;
@@ -87,12 +87,13 @@ internal static partial class PatternBinder
         // it produced.
         foreach(var operand in unaryPatterns)
         {
-            if(BindUnary(operand, narrowed, bindingsPermitted, ctx, context) is not { } bound)
+            if(BindUnary(operand, narrowed, bindingsPermitted, ctx, context, scrutineeFailed) is not { } bound)
             {
                 return null;
             }
 
             operands.Add(bound);
+            scrutineeFailed |= bound.IsFailed;
 
             if(ConversionRelation.IsWithin(bound.NarrowedType, narrowed))
             {
@@ -100,73 +101,75 @@ internal static partial class PatternBinder
             }
         }
 
-        return new ConjunctionPattern(node, narrowed, operands);
+        return new ConjunctionPattern(node, narrowed, operands) { IsFailed = scrutineeFailed || operands.Any(operand => operand.IsFailed) };
     }
 
     private static Pattern? BindUnary(
-        UnaryPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context)
+        UnaryPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
         return node switch
         {
             DirectPatternUnaryPatternNode direct =>
-                BindPrimary(direct.Primary, scrutineeType, bindingsPermitted, ctx, context),
-            NotPatternUnaryPatternNode negated => Negate(negated, scrutineeType, ctx, context),
+                BindPrimary(direct.Primary, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed),
+            NotPatternUnaryPatternNode negated => Negate(negated, scrutineeType, ctx, context, scrutineeFailed),
             _ => null,
         };
     }
 
     private static Pattern? Negate(
-        NotPatternUnaryPatternNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context)
+        NotPatternUnaryPatternNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
-        return BindPrimary(node.Operand, scrutineeType, bindingsPermitted: false, ctx, context) is { } operand
-            ? new NegatedPattern(node, scrutineeType, operand)
+        return BindPrimary(node.Operand, scrutineeType, bindingsPermitted: false, ctx, context, scrutineeFailed) is { } operand
+            ? new NegatedPattern(node, scrutineeType, operand) { IsFailed = scrutineeFailed || operand.IsFailed }
             : null
             ;
     }
 
     private static Pattern? BindPrimary(
-        PrimaryPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context)
+        PrimaryPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
         switch(node)
         {
             case TypePatternPrimaryPatternNode typePattern:
                 {
-                    var tested = CloneConversionBody.Tested(
-                        context.Resolver.Resolve(typePattern.Type, ctx.Scope), scrutineeType, ctx.Scope);
+                    var resolution = context.Resolver.ResolveWithFailure(typePattern.Type, ctx.Scope);
+                    var tested = CloneConversionBody.Tested(resolution.Type, scrutineeType, ctx.Scope);
+                    var failed = scrutineeFailed || resolution.IsFailed;
 
                     if(tested is NamedTupleType namedTuple)
                     {
                         return BindNamedTupleDeconstruction(
-                            node, namedTuple, typePattern.Name, scrutineeType, bindingsPermitted, ctx, context);
+                            node, namedTuple, typePattern.Name, scrutineeType, bindingsPermitted, ctx, context, failed);
                     }
 
-                    var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context);
-                    return BindTypeTest(node, tested, binding, scrutineeType, ctx, context);
+                    var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context, failed);
+                    return BindTypeTest(node, tested, binding, scrutineeType, ctx, context, failed);
                 }
 
             case BareTypePatternPrimaryPatternNode bareType:
-                return BindBareType(node, bareType, scrutineeType, ctx, context);
+                return BindBareType(node, bareType, scrutineeType, ctx, context, scrutineeFailed);
 
             case VarPatternPrimaryPatternNode varPattern:
                 return new CatchAllPattern(
                     node,
                     scrutineeType,
-                    Declare(node, varPattern.Name, scrutineeType, bindingsPermitted, ctx, context));
+                    Declare(node, varPattern.Name, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed))
+                { IsFailed = scrutineeFailed };
 
             case DiscardPatternPrimaryPatternNode:
-                return new CatchAllPattern(node, scrutineeType, binding: null);
+                return new CatchAllPattern(node, scrutineeType, binding: null) { IsFailed = scrutineeFailed };
 
             case PropertyPatternPrimaryPatternNode propertyPattern:
-                return BindPropertyPattern(propertyPattern, scrutineeType, bindingsPermitted, ctx, context);
+                return BindPropertyPattern(propertyPattern, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
 
             case TuplePositionalPatternPrimaryPatternNode tuplePattern:
-                return BindTuplePattern(tuplePattern, scrutineeType, bindingsPermitted, ctx, context);
+                return BindTuplePattern(tuplePattern, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
 
             case ListPatternPrimaryPatternNode listPattern:
-                return BindListPattern(listPattern, scrutineeType, bindingsPermitted, ctx, context);
+                return BindListPattern(listPattern, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
 
             case ParenthesizedPatternPrimaryPatternNode paren:
-                return Bind(paren.Inner, scrutineeType, bindingsPermitted, ctx, context);
+                return Bind(paren.Inner, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
 
             case ConstantPatternPrimaryPatternNode constant:
                 return BindConstant(constant, scrutineeType, context);
@@ -210,20 +213,23 @@ internal static partial class PatternBinder
         BareTypePatternPrimaryPatternNode bareType,
         IMistType scrutineeType,
         BindingContext ctx,
-        BuilderContext context)
+        BuilderContext context, bool scrutineeFailed)
     {
         if(EnumVariant(node, bareType.Type, ctx, context) is { } variant)
         {
             return new ComparisonPattern(node, scrutineeType, ComparisonKind.Equal, variant);
         }
 
+        var resolution = context.Resolver.ResolveWithFailure(bareType.Type, ctx.Scope);
+
         return BindTypeTest(
             node,
-            CloneConversionBody.Tested(context.Resolver.Resolve(bareType.Type, ctx.Scope), scrutineeType, ctx.Scope),
+            CloneConversionBody.Tested(resolution.Type, scrutineeType, ctx.Scope),
             binding: null,
             scrutineeType,
             ctx,
-            context);
+            context,
+            scrutineeFailed || resolution.IsFailed);
     }
 
     /// <summary>
@@ -246,17 +252,17 @@ internal static partial class PatternBinder
 
         return refined.PredicateNode switch
         {
-            SimpleRefinementPredicateRefinementPredicateNode simple => BindAnd(simple.Predicate, refined.BaseType, bindingsPermitted: false, ctx, context),
-            AndPatternNode adhoc => BindAnd(adhoc, refined.BaseType, bindingsPermitted: false, ctx, context),
+            SimpleRefinementPredicateRefinementPredicateNode simple => BindAnd(simple.Predicate, refined.BaseType, bindingsPermitted: false, ctx, context, false),
+            AndPatternNode adhoc => BindAnd(adhoc, refined.BaseType, bindingsPermitted: false, ctx, context, false),
             CompoundRefinementPredicateRefinementPredicateNode compound => BindConjunction(
-                compound, GrammarRepetition.LeadAndRepeated(compound.First, compound.UnaryPatterns), refined.BaseType, bindingsPermitted: false, ctx, context),
+                compound, GrammarRepetition.LeadAndRepeated(compound.First, compound.UnaryPatterns), refined.BaseType, bindingsPermitted: false, ctx, context, false),
             _ => null,
         };
     }
 
     internal static Pattern? BindPredicate(AndPatternNode predicate, IMistType baseType, BindingContext ctx, BuilderContext context)
     {
-        return BindAnd(predicate, baseType, bindingsPermitted: false, ctx, context);
+        return BindAnd(predicate, baseType, bindingsPermitted: false, ctx, context, false);
     }
 
     private static Expression? EnumVariant(
@@ -299,7 +305,8 @@ internal static partial class PatternBinder
         LocalVariable? binding,
         IMistType scrutineeType,
         BindingContext ctx,
-        BuilderContext context)
+        BuilderContext context,
+        bool isFailed = false)
     {
         var refinement = BindRefinement(tested, ctx, context);
 
@@ -308,20 +315,19 @@ internal static partial class PatternBinder
             return new TypeTestPattern(node, tested, binding, constituent: null, refinement)
             {
                 TestsAbsence = OptionalUnion.IsOptional(scrutineeType) && OptionalUnion.IsVoid(tested),
+                IsFailed = isFailed,
             };
         }
 
         if(MatchConstituent(union, tested) is { } constituent)
         {
-            return new TypeTestPattern(node, tested, binding, constituent, refinement);
+            return new TypeTestPattern(node, tested, binding, constituent, refinement) { IsFailed = isFailed };
         }
 
         context.Diagnostics.ReportAtNode(
             ProgramModelDiagnostics.PatternTypeNotAConstituent, node, null, tested.Name, union.Name);
 
-        // ErrorType rather than the tested type, so BindIs answers with an ErrorExpression through the
-        // check it already makes instead of needing a second channel for "reported but shaped fine".
-        return new TypeTestPattern(node, ErrorType.Instance, binding, constituent: null);
+        return new TypeTestPattern(node, ErrorType.Instance, binding, constituent: null) { IsFailed = true };
     }
 
     private static Pattern? BindTuplePattern(
@@ -329,7 +335,7 @@ internal static partial class PatternBinder
         IMistType scrutineeType,
         bool bindingsPermitted,
         BindingContext ctx,
-        BuilderContext context)
+        BuilderContext context, bool scrutineeFailed)
     {
         var elementNodes = GrammarRepetition.TwoLeadsAndRepeated(node.First, node.Rest, node.Patterns);
         var matched = OptionalLifting.NonVoidPortion(scrutineeType, context.ProgramModel.TypeInterner);
@@ -341,7 +347,7 @@ internal static partial class PatternBinder
                 ProgramModelDiagnostics.TuplePatternArityMismatch, node, null,
                 matched.Name, held.Count, elementNodes.Count);
 
-            return new TuplePattern(node, [], ErrorType.Instance, testedType: null, binding: null);
+            return new TuplePattern(node, [], ErrorType.Instance, testedType: null, binding: null) { IsFailed = true };
         }
 
         if(scrutineeElements is null && matched is not (UnknownType or ErrorType))
@@ -349,16 +355,18 @@ internal static partial class PatternBinder
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.TuplePatternScrutineeNotATuple, node, null, matched.Name);
 
-            return new TuplePattern(node, [], ErrorType.Instance, testedType: null, binding: null);
+            return new TuplePattern(node, [], ErrorType.Instance, testedType: null, binding: null) { IsFailed = true };
         }
 
         var elements = new List<Pattern>(elementNodes.Count);
 
         for(var i = 0; i < elementNodes.Count; i++)
         {
-            var elementScrutinee = scrutineeElements is null ? UnknownType.Instance : scrutineeElements[i];
+            var elementScrutinee = scrutineeElements is null
+                ? matched is ErrorType ? ErrorType.Instance : UnknownType.Instance
+                : scrutineeElements[i];
 
-            if(Bind(elementNodes[i], elementScrutinee, bindingsPermitted, ctx, context) is not { } bound)
+            if(Bind(elementNodes[i], elementScrutinee, bindingsPermitted, ctx, context, scrutineeFailed) is not { } bound)
             {
                 return null;
             }
@@ -368,16 +376,16 @@ internal static partial class PatternBinder
 
         if(scrutineeElements is not null)
         {
-            return new TuplePattern(node, elements, matched, testedType: null, binding: null);
+            return new TuplePattern(node, elements, matched, testedType: null, binding: null) { IsFailed = scrutineeFailed || elements.Any(element => element.IsFailed) };
         }
 
         if(matched is ErrorType)
         {
-            return new TuplePattern(node, elements, ErrorType.Instance, testedType: null, binding: null);
+            return new TuplePattern(node, elements, ErrorType.Instance, testedType: null, binding: null) { IsFailed = scrutineeFailed || elements.Any(element => element.IsFailed) };
         }
 
         return TupleFromElementPatterns(elements, context) is { } tested
-            ? new TuplePattern(node, elements, tested, tested, binding: null)
+            ? new TuplePattern(node, elements, tested, tested, binding: null) { IsFailed = scrutineeFailed || elements.Any(element => element.IsFailed) }
             : null
             ;
     }
@@ -400,17 +408,17 @@ internal static partial class PatternBinder
         IMistType scrutineeType,
         bool bindingsPermitted,
         BindingContext ctx,
-        BuilderContext context)
+        BuilderContext context, bool scrutineeFailed)
     {
         var matched = OptionalLifting.NonVoidPortion(scrutineeType, context.ProgramModel.TypeInterner);
         var elementType = Indexability.ElementType(matched, Indexability.Position(node, context), context);
 
-        if(elementType is ErrorType)
+        if(elementType is ErrorType && matched is not ErrorType)
         {
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.ListPatternScrutineeNotIndexable, node, null, matched.Name);
 
-            return new ListPattern(node, [], ErrorType.Instance);
+            return new ListPattern(node, [], ErrorType.Instance) { IsFailed = true };
         }
 
         CountedIndexer? reads = null;
@@ -444,7 +452,7 @@ internal static partial class PatternBinder
                     context.Diagnostics.ReportAtNode(
                         ProgramModelDiagnostics.ListPatternMultipleSlices, node, null);
 
-                    return new ListPattern(node, [], ErrorType.Instance);
+                    return new ListPattern(node, [], ErrorType.Instance) { IsFailed = true };
                 }
 
                 sliceSeen = true;
@@ -455,17 +463,17 @@ internal static partial class PatternBinder
                     continue;
                 }
 
-                var sliceType = Indexability.SliceType(matched, context);
+                var sliceType = matched is ErrorType ? ErrorType.Instance : Indexability.SliceType(matched, context);
 
-                if(sliceType is ErrorType)
+                if(sliceType is ErrorType && matched is not ErrorType)
                 {
                     context.Diagnostics.ReportAtNode(
                         ProgramModelDiagnostics.ReceiverNotSliceable, node, null, matched.Name);
 
-                    return new ListPattern(node, [], ErrorType.Instance);
+                    return new ListPattern(node, [], ErrorType.Instance) { IsFailed = true };
                 }
 
-                if(Bind(slice.Subpattern, sliceType, bindingsPermitted, ctx, context) is not { } boundSlice)
+                if(Bind(slice.Subpattern, sliceType, bindingsPermitted, ctx, context, scrutineeFailed) is not { } boundSlice)
                 {
                     return null;
                 }
@@ -475,7 +483,7 @@ internal static partial class PatternBinder
             }
 
             if(elementNode is not PatternElementListPatternElementNode positional
-                || Bind(positional.Pattern, elementType, bindingsPermitted, ctx, context) is not { } bound)
+                || Bind(positional.Pattern, elementType, bindingsPermitted, ctx, context, scrutineeFailed) is not { } bound)
             {
                 return null;
             }
@@ -483,7 +491,7 @@ internal static partial class PatternBinder
             elements.Add(new ListPatternElement(bound, IsSlice: false));
         }
 
-        return new ListPattern(node, elements, matched) { Reads = reads };
+        return new ListPattern(node, elements, matched) { Reads = reads, IsFailed = scrutineeFailed || elements.Any(element => element.Subpattern?.IsFailed is true) };
     }
 
     /// <summary>
@@ -526,7 +534,7 @@ internal static partial class PatternBinder
         IMistType scrutineeType,
         bool bindingsPermitted,
         BindingContext ctx,
-        BuilderContext context)
+        BuilderContext context, bool scrutineeFailed)
     {
         var elementTypes = namedTuple.Underlying.ElementTypes;
         var elements = new List<Pattern>(elementTypes.Count);
@@ -537,7 +545,7 @@ internal static partial class PatternBinder
 
             var elementBinding = elementName is null
                 ? null
-                : DeclareNamed(node, elementName, elementTypes[i], bindingsPermitted, ctx, context)
+                : DeclareNamed(node, elementName, elementTypes[i], bindingsPermitted, ctx, context, scrutineeFailed)
                 ;
 
             elements.Add(new CatchAllPattern(node, elementTypes[i], elementBinding));
@@ -550,7 +558,8 @@ internal static partial class PatternBinder
             elements,
             namedTuple.Underlying,
             matched is ITupleType ? null : namedTuple.Underlying,
-            Declare(node, name, namedTuple.Underlying, bindingsPermitted, ctx, context));
+            Declare(node, name, namedTuple.Underlying, bindingsPermitted, ctx, context, scrutineeFailed))
+        { IsFailed = scrutineeFailed };
     }
 
     private static IReadOnlyList<ListPatternElementNode> Elements(ListPatternElementListNode? list)
@@ -634,45 +643,4 @@ internal static partial class PatternBinder
         return new ComparisonPattern(node, scrutineeType, kind, bound);
     }
 
-    /// <summary>
-    /// Declares a pattern's binding, or answers null where the pattern keeps nothing. The grammar puts
-    /// the discard in the SAME slot as a name (<c>name:(IDENTIFIER | DISCARD)</c>), so <c>int _</c>
-    /// arrives as a type pattern carrying a discard token, never as a discard pattern, and the token's
-    /// kind is the only thing separating the two readings.
-    /// </summary>
-    private static LocalVariable? Declare(
-        SyntaxNode node,
-        Token name,
-        IMistType type,
-        bool bindingsPermitted,
-        BindingContext ctx,
-        BuilderContext context)
-    {
-        return name.Kind == (int)TokenKind.DISCARD
-            ? null
-            : DeclareNamed(node, name.Lexeme, type, bindingsPermitted, ctx, context)
-            ;
-    }
-
-    private static LocalVariable? DeclareNamed(
-        SyntaxNode node,
-        string name,
-        IMistType type,
-        bool bindingsPermitted,
-        BindingContext ctx,
-        BuilderContext context)
-    {
-        if(!bindingsPermitted)
-        {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.PatternBindingNotEstablished, node, null, name);
-
-            return null;
-        }
-
-        var local = new LocalVariable(name, type);
-        ctx.Scope.DeclareLocal(local, context.Diagnostics);
-
-        return local;
-    }
 }

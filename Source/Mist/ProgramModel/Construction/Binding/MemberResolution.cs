@@ -93,7 +93,10 @@ internal static class MemberResolution
         return unaliased is RefinedType refined ? refined.BaseType : unaliased;
     }
 
-    internal readonly record struct StorageLookup(IMistType? Type, LookupResult Found);
+    internal readonly record struct StorageLookup(IMistType? Type, LookupResult Found)
+    {
+        public bool Reported { get; init; }
+    }
 
     /// <summary>
     /// The type of a field or property reached on an instance of <paramref name="type"/>, for the two
@@ -108,7 +111,7 @@ internal static class MemberResolution
     public static StorageLookup ResolveStorage(
         IMistType type, string memberName, SyntaxNode node, BuilderContext context)
     {
-        var (found, constructed, _) = Resolve(type, memberName, MemberVisibility.InstanceOnly, node, context);
+        var (found, constructed, reported) = Resolve(type, memberName, MemberVisibility.InstanceOnly, node, context);
 
         var memberType = found switch
         {
@@ -127,7 +130,8 @@ internal static class MemberResolution
                         .Apply(memberType, context.ProgramModel.TypeInterner),
                     context.Resolver.LookupWellKnown(WellKnownTypes.Void),
                     context.ProgramModel.TypeInterner),
-            found);
+            found)
+        { Reported = reported };
     }
 
     public static bool AnswersMembers(IMistType type)

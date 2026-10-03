@@ -35,5 +35,7 @@ internal sealed class TypeAlias(
     /// </summary>
     public IMistType? AliasedType { get; internal set; }
 
+    internal bool IsFailed { get; set; }
+
     IMistType? ITypeAlias.AliasedType => AliasedType;
 }

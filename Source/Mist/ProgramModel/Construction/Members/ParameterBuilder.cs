@@ -85,9 +85,9 @@ internal sealed class ParameterBuilder
         // `params TArgs args` gives args the tuple the pack expands to, which is what makes it a
         // real value: one parameter slot, a tuple type, and a flat call site. The homogeneous
         // `params string[]` keeps the array it was written with and only takes the convention.
-        var type = PackNamedBy(param, scope) is { } pack
-            ? scopeResolver.Interner.GetOrCreateTupleType([new SpreadType(pack)])
-            : scopeResolver.Resolve(param.Type, scope);
+        var resolution = PackNamedBy(param, scope) is { } pack
+            ? new TypeResolution(scopeResolver.Interner.GetOrCreateTupleType([new SpreadType(pack)]))
+            : scopeResolver.ResolveWithFailure(param.Type, scope);
 
         var isReadonly = param.Modifier is not null;
         var isRef = param.RefModifier is not null;
@@ -106,7 +106,7 @@ internal sealed class ParameterBuilder
                 ? ByRefDirection.None
                 : isReadonly ? ByRefDirection.In : ByRefDirection.Ref);
 
-        var parameter = new Parameter(name, type, modifier) { IsFlattened = param.ParamsModifier is not null };
+        var parameter = new Parameter(name, resolution.Type, modifier) { IsFlattened = param.ParamsModifier is not null, IsFailed = resolution.IsFailed };
         attributeBuilder.Build(param.Attributes, parameter.DeclaredAttributesList, scope);
 
         return parameter;

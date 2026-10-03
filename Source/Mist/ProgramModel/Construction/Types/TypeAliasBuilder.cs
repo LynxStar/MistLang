@@ -46,6 +46,7 @@ internal sealed class TypeAliasBuilder
                 ProgramModelDiagnostics.CyclicTypeAlias, typeDef.DeclarationNode, null,
                 MistType.StripArity(typeDef.Name));
             typeDef.AliasedType = ErrorType.Instance;
+            typeDef.IsFailed = true;
             return;
         }
 
@@ -109,7 +110,9 @@ internal sealed class TypeAliasBuilder
     /// </summary>
     private IMistType ResolvePossiblyRefined(RefinableSingleTypeExprNode node, TypeAlias alias)
     {
-        var baseType = scopeResolver.Resolve(node.Type, alias.Scope);
+        var resolution = scopeResolver.ResolveWithFailure(node.Type, alias.Scope);
+        alias.IsFailed |= resolution.IsFailed;
+        var baseType = resolution.Type;
 
         if(node.Refinement is not null)
         {

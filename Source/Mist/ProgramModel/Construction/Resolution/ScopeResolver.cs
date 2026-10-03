@@ -14,7 +14,7 @@ namespace Mist.ProgramModel.Construction.Resolution;
 /// Resolves AST type reference nodes into <see cref="IMistType"/> by performing
 /// scope-based name lookup against the program model.
 /// </summary>
-internal sealed class ScopeResolver
+internal sealed partial class ScopeResolver
 {
     /// <summary>
     /// The prefix shared by every reserved positional tuple accessor
@@ -133,7 +133,7 @@ internal sealed class ScopeResolver
 
         if(typeArguments.Count == 0)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.FunctionTypeNeedsAResult, node, null);
+            ReportResolutionFailure(ProgramModelDiagnostics.FunctionTypeNeedsAResult, node, null);
             return ErrorType.Instance;
         }
 
@@ -149,7 +149,7 @@ internal sealed class ScopeResolver
 
         if(name is not null && IsReservedTupleElementName(name))
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ReservedTupleElementName, element, null, name);
+            ReportResolutionFailure(ProgramModelDiagnostics.ReservedTupleElementName, element, null, name);
 
             // Drop the reserved name so it does not collide with the positional field.
             name = null;
@@ -193,17 +193,17 @@ internal sealed class ScopeResolver
             VoidSingleTypeRefSingleTypeRefNode => LookupWellKnown(WellKnownTypes.Void),
             UnknownSingleTypeRefSingleTypeRefNode => UnknownType.Instance,
             PrimitiveSingleTypeRefSingleTypeRefNode { Pure: not null } primitiveRef => PureFunctionReference.Apply(
-                ResolveReservedAlias(primitiveRef), primitiveRef, context),
+                ResolveReservedAlias(primitiveRef), primitiveRef, context, MarkResolutionFailure),
             PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef => ResolveReservedAlias(primitiveRef),
             NamedSingleTypeRefSingleTypeRefNode { Pure: not null } namedRef => PureFunctionReference.Apply(
-                ResolveNamed(namedRef.Name, namedRef.TypeArgs, scope, namedRef), namedRef, context),
+                ResolveNamed(namedRef.Name, namedRef.TypeArgs, scope, namedRef), namedRef, context, MarkResolutionFailure),
             NamedSingleTypeRefSingleTypeRefNode namedRef => ResolveNamed(namedRef.Name, namedRef.TypeArgs, scope, namedRef),
             NestedGenericSingleTypeRefSingleTypeRefNode nestedRef => ResolveNestedGeneric(
                 nestedRef.Outer, nestedRef.OuterArgs, nestedRef.Nested, nestedRef.TypeArgs, scope, nestedRef),
             ParenthesizedTypeRefSingleTypeRefNode parenRef => PackTypePositions.Parenthesized(Resolve(parenRef.Inner, scope), Interner),
             TupleSingleTypeRefSingleTypeRefNode tupleRef => ResolveTuple(tupleRef, scope),
             FuncSingleTypeRefSingleTypeRefNode { Pure: not null } funcRef => PureFunctionReference.Apply(
-                ResolveFunction(funcRef.TypeArgs, scope, funcRef), funcRef, context),
+                ResolveFunction(funcRef.TypeArgs, scope, funcRef), funcRef, context, MarkResolutionFailure),
             FuncSingleTypeRefSingleTypeRefNode funcRef => ResolveFunction(funcRef.TypeArgs, scope, funcRef),
             SpreadSingleTypeRefSingleTypeRefNode spread => ResolveSpread(spread, scope),
             _ => ReportUnsupported(singleRef),
@@ -212,14 +212,14 @@ internal sealed class ScopeResolver
         // A sized rank is left to pass: `TArgs[1]` indexes the pack, where `TArgs[]` is an array of it.
         if(GetArrayRank(singleRef) is not SizedArrayRankArrayRankSuffixNode)
         {
-            inner = PackPosition.AsSingleType(inner, scope, singleRef, context.Diagnostics);
+            inner = PackPosition.AsSingleType(inner, scope, singleRef, context.Diagnostics, MarkResolutionFailure);
         }
 
         // If the type reference has an array rank suffix, wrap the inner type
         // in a constructed Standard.Array<TValue, Length>.
         if(GetArrayRank(singleRef) is { } rank)
         {
-            inner = PackTypePositions.Indexed(inner, rank, singleRef, context.Diagnostics) ?? ResolveArrayType(singleRef, inner);
+            inner = PackTypePositions.Indexed(inner, rank, singleRef, context.Diagnostics, MarkResolutionFailure) ?? ResolveArrayType(singleRef, inner);
         }
 
         if(HasOptionalToken(singleRef) && inner is not ErrorType)
@@ -444,7 +444,7 @@ internal sealed class ScopeResolver
                 || TypeMemberLookup.Find(declaring, LookupRequest.Member(lookupName, MemberVisibility.None, node))
                     is not TypeResult { Type: DeclaredType member } found)
             {
-                context.Diagnostics.ReportAtNode(
+                ReportResolutionFailure(
                     ProgramModelDiagnostics.UnresolvedType, node, null, $"{TypeDisplay.Mist(current)}.{name}");
 
                 return ErrorType.Instance;
@@ -606,7 +606,7 @@ internal sealed class ScopeResolver
             return bound;
         }
 
-        context.Diagnostics.ReportAtNode(
+        ReportResolutionFailure(
             ProgramModelDiagnostics.TooFewTypeArgumentsForPack, locationNode, null,
             MistType.StripArity(baseType.Name), parameters.Count - 1, typeArgs.Count);
 
@@ -644,6 +644,11 @@ internal sealed class ScopeResolver
         if(alias.AliasedType is null)
         {
             AliasCompleter?.Invoke(alias);
+        }
+
+        if(alias.IsFailed)
+        {
+            MarkResolutionFailure();
         }
 
         if(alias.AliasedType is not { } aliased)
@@ -753,7 +758,7 @@ internal sealed class ScopeResolver
                 break;
 
             default:
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, arg, null, arg.GetType().Name);
+                ReportResolutionFailure(ProgramModelDiagnostics.UnknownTypeRefNode, arg, null, arg.GetType().Name);
                 args.Add(ErrorType.Instance);
                 break;
         }
@@ -810,7 +815,7 @@ internal sealed class ScopeResolver
             return LiftInt((long)lifted);
         }
 
-        context.Diagnostics.ReportAtNode(
+        ReportResolutionFailure(
             ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, negated ? $"-{lexeme}" : lexeme, WellKnownTypes.Int64.Keyword ?? WellKnownTypes.Int64.Name);
         return ErrorType.Instance;
     }
@@ -868,18 +873,18 @@ internal sealed class ScopeResolver
                 return typeResult.Type;
 
             case AmbiguousResult:
-                context.Diagnostics.ReportAtNode(
+                ReportResolutionFailure(
                     ProgramModelDiagnostics.AmbiguousType, locationNode, null,
                     name, "<scope>", "<scope>");
                 return ErrorType.Instance;
 
             case VariableResult:
-                context.Diagnostics.ReportAtNode(
+                ReportResolutionFailure(
                     ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
                 return ErrorType.Instance;
 
             default:
-                context.Diagnostics.ReportAtNode(
+                ReportResolutionFailure(
                     ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
                 return ErrorType.Instance;
         }
@@ -985,7 +990,7 @@ internal sealed class ScopeResolver
 
             if(length is null)
             {
-                context.Diagnostics.ReportAtNode(
+                ReportResolutionFailure(
                     ProgramModelDiagnostics.NumericLiteralOutOfRange, sized, null, sized.Size.Lexeme, WellKnownTypes.Int32.Keyword ?? WellKnownTypes.Int32.Name);
                 return ErrorType.Instance;
             }
@@ -994,7 +999,7 @@ internal sealed class ScopeResolver
         var arrayType = ConstructArray(elementType, length);
         if(arrayType is ErrorType)
         {
-            context.Diagnostics.ReportAtNode(
+            ReportResolutionFailure(
                 ProgramModelDiagnostics.UnresolvedType, singleRef, null, WellKnownTypes.Array.FullyQualifiedName);
         }
 
@@ -1017,13 +1022,13 @@ internal sealed class ScopeResolver
             return new SpreadType(resolved);
         }
 
-        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, spread, null, name);
+        ReportResolutionFailure(ProgramModelDiagnostics.UnknownTypeRefNode, spread, null, name);
         return ErrorType.Instance;
     }
 
     private IMistType ReportUnsupported(SingleTypeRefNode node)
     {
-        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeRefNode, node, null, node.GetType().Name);
+        ReportResolutionFailure(ProgramModelDiagnostics.UnknownTypeRefNode, node, null, node.GetType().Name);
         return ErrorType.Instance;
     }
 }

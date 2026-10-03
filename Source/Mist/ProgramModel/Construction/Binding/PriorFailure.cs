@@ -27,6 +27,7 @@ internal static class PriorFailure
             InvocationExpression call => Of(call.Receiver),
             MemberAccessExpression access => access.IsFailed || Of(access.Receiver),
             IndexExpression index => Of(index.Receiver),
+            ImplicitConversionExpression conversion => Of(conversion.Operand),
             UnaryExpression unary => Of(unary.Operand),
             BinaryExpression binary => Of(binary.Left) || Of(binary.Right),
             _ => false,

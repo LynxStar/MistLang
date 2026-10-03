@@ -141,6 +141,6 @@ internal static class ValuePack
     {
         return ReferenceEquals(type, parameter.Type) && name == parameter.Name
             ? parameter
-            : new Parameter(name, type, parameter.Modifier) { IsFlattened = isFlattened };
+            : new Parameter(name, type, parameter.Modifier) { IsFlattened = isFlattened, IsFailed = parameter.IsFailed };
     }
 }

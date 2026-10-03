@@ -2,25 +2,25 @@
 
 ## Introduction
 
-The Mist compiler CLI is currently silent during successful builds — it produces no output unless there are errors. This feature adds structured, per-stage progress output to the CLI so developers can see what the compiler is doing, how long each stage takes, and a final build summary. The output covers seven stages: cleaning, loading, lexing, parsing, semantic model construction, analysis, and emission. The compiler driver is extended with a progress-reporter interface so the feature remains testable (tests inject a no-op reporter; the CLI injects a console reporter).
+The Mist CLI reports progress through the standard compilation pipeline. It reports cleaning (Stage 0); `CompilerDriver` reports loading, optional package resolution, lexing, and parsing (Stages 1, 1.5, 2, and 3); and `StandardPipeline` reports program-model construction, analysis, and emission (Stages 4–6). The current `ICompilationProgressReporter` contract carries stage events and the final build summary. The CLI uses `ConsoleProgressReporter` when progress is enabled and `NullProgressReporter` when it is disabled. Stage details below describe the current driver and pipeline behavior.
 
 ## Glossary
 
-- **CLI**: The `Mist.CLI` executable (`Program.cs`) that parses arguments and drives compilation.
-- **CompilerDriver**: The `Mist.Driver.CompilerDriver` class that orchestrates the full compilation pipeline.
-- **ICompilationProgressReporter**: The new interface through which the driver emits progress events.
-- **ConsoleProgressReporter**: The CLI-side implementation of `ICompilationProgressReporter` that writes formatted output to stdout.
-- **NullProgressReporter**: A no-op singleton implementation of `ICompilationProgressReporter` used in tests and any context where progress output is unwanted.
-- **Stage**: A numbered, named phase of the compilation pipeline (0–6).
-- **CompilationUnit**: A single Mist source file passed through the pipeline, carrying an `IsStdlib` flag and an optional `OriginProjectPath`.
+- **CLI**: The `Mist.CLI` executable (`Program.cs`), which reports Stage 0 cleaning, selects a progress reporter, and reports the final build summary.
+- **CompilerDriver**: The driver for loading, optional package resolution, lexing, and parsing; it passes parsed inputs to the compilation pipeline for Stages 4–6.
+- **StandardPipeline**: The sole compilation pipeline. It builds the program model (Stage 4), runs analyzers against it (Stage 5), and emits through the C# backend (Stage 6).
+- **ICompilationProgressReporter**: The current driver contract for stage start and completion events and the final build summary.
+- **ConsoleProgressReporter**: The CLI implementation of `ICompilationProgressReporter` that writes formatted progress to its `TextWriter`.
+- **NullProgressReporter**: A no-op singleton implementation used when progress output is disabled or unwanted.
+- **Stage**: A numbered, named unit of reported work: cleaning (0), loading (1), optional package resolution (1.5), lexing (2), parsing (3), program-model construction (4), analysis (5), and emission (6).
+- **CompilationUnit**: A single Mist source file passed through the pipeline, carrying standard-library, project, namespace, and parsed-AST metadata.
 - **TokenStream**: The lexer output for one compilation unit; exposes `DefaultChannelTokens` (parser-visible) and `AllTokens`.
-- **ParseResult**: The parser output for one compilation unit; exposes a `Root` `SyntaxNode`.
-- **ISemanticModel**: The semantic model built from all ASTs; exposes `AllSymbols`.
-- **SymbolKind**: Enum of semantic symbol kinds (`Class`, `Struct`, `Interface`, `Trait`, `Namespace`, etc.).
-- **SymbolOrigin**: Enum distinguishing `UserCode` from `Backend` symbols.
-- **IAnalyzer**: A pluggable analysis pass with an `AnalyzerId` string property.
-- **BackendResult**: The emission result; carries `Succeeded` and `PrimaryArtifactPath`.
-- **UserCode top-level construct**: A symbol whose `Origin == UserCode` and whose `Kind` is one of `Class`, `Struct`, `Interface`, or `Trait`. `Namespace` symbols and stdlib symbols are excluded.
+- **ParseResult**: The parser result for one compilation unit; carries its source, token stream, nullable AST root, and diagnostics.
+- **IProgramModel**: The fully resolved semantic representation passed to Stage 5 analyzers and the Stage 6 emitter.
+- **IProgramAnalyzer**: An internal Stage 5 rule that analyzes the completed `IProgramModel` and reports diagnostics.
+- **CompilerResult**: The driver result carrying `Succeeded`, `PrimaryOutputArtifactPath`, and diagnostics.
+- **BackendResult**: The C# backend's emission result carrying success, primary artifact path, diagnostics, and emitted-file count.
+- **Top-level construct**: A top-level class, struct, or abstract type in the Self or Reference assemblies. Standard-library types, nested types, enums, aliases, and newtype clones are excluded; the count comes from `Driver/TopLevelConstructs.cs`, not symbol-kind totals.
 
 ---
 

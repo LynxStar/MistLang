@@ -347,13 +347,33 @@ The sample fold-in, the deletions and the gap fixes above, as 26 commits on top 
 
 ## Left open
 
-- The ten stale book tabs, which one `dotnet run --project tools/SnippetEmitter` regenerates.
 - `backlog/storm.md` defers four residue items "until classic is sunset"; that condition is now met.
   No Storm change was made.
 - `compiler-progress-output` had Requirements 6 and 7 alone rewritten; criteria 7.10 to 7.12 are
   cross-stage and sit there for that reason.
 - Plans written against classic types: `backlog/multi-project-emission.md`,
   `backlog/refactor-ast-on-compilation-unit.md` and `backlog/grammar.md`.
+
+## Closeout: book output and live guidance (2026-10-03)
+
+- **The ten stale book tabs are regenerated.** Built the current SnippetEmitter with
+  `dotnet build tools/SnippetEmitter/SnippetEmitter.csproj` (0 warnings, 0 errors). On a scratch copy
+  of the complete snippets tree, including sidecars, companions and `.support` folders, the first
+  `dotnet run --no-build --project tools/SnippetEmitter/SnippetEmitter.csproj -- /private/tmp/mist-snippets-refresh`
+  pass found 381 pairs: 10 updated, 371 unchanged, 0 failed. The second pass found 0 updated, 381
+  unchanged, 0 failed. The ten outputs are the inventory listed above; a final tree comparison found
+  no other snippet differences.
+- **Live guidance is corrected.** The emitter register now distinguishes representability/emission
+  work from Stage 5 rules and points to `backlog/analysis-v2-capability-progression.yaml`. The
+  compiler-progress-output Introduction and Glossary now describe the active reporter contract,
+  `IProgramModel`, Stage 5 analyzers, the current results, and Stage 4 top-level construct count;
+  Requirements 6 and 7 are unchanged. The variadics Architecture introduction describes the sole
+  standard pipeline and labels the following dual-pipeline account as a pre-retirement snapshot.
+  Current references are `Source/Mist/Driver/CompilerDriver.cs`,
+  `Source/Mist/Driver/StandardPipeline.cs`, and `Source/Mist/Driver/TopLevelConstructs.cs`.
+- `git diff --check` passed and local Markdown links in both edited spec files resolve. No compiler
+  source, tests, sample baselines, or language acceptance criteria changed, so the compiler ledger
+  and solution formatter were not rerun.
 
 ## Progress accounting (v2)
 

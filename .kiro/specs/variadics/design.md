@@ -660,9 +660,17 @@ new Between<int, string, bool, double>();
 
 ## Architecture
 
-Mist compiles through a **shared front end** and then one of **two pipelines**. This split is central
-to where variadics lives, because only one of the two pipelines type-checks and emits today, so the
-feature has to be realized in both.
+Mist compiles through one pipeline, named **standard**. `CompilerDriver` loads sources, resolves
+optional packages, lexes, and parses them (Stages 1–3 and 1.5). `StandardPipeline` then builds the
+`IProgramModel` (Stage 4), runs analyzers against that model (Stage 5), and emits C# through
+`CSharpEmitterV2` (Stage 6). Variadics is implemented along this same pipeline.
+
+### Historical migration snapshot (pre-retirement)
+
+The following architecture, diagram, implementation-status notes, and later references to parallel
+tracks preserve the migration account written before Classic was retired. Statements there that
+Classic is the default or only emitting pipeline, or that ProgramModel cannot emit, describe that
+earlier state and are not current compiler guidance.
 
 The shared front end (`CompilerDriver`, Stages 1-3) loads sources, loads and parses the standard
 library on **every** compile, lexes, and parses. It produces ASTs and dispatches them to the selected

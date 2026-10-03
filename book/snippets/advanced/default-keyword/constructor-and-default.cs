@@ -13,7 +13,7 @@ public class Config
         this.MaxRetries = 3;
     }
 
-    private Config(Mist.Emission.CSharp.__DefaultInit marker)
+    protected Config(Mist.Emission.CSharp.__DefaultInit marker)
     {
         this.Environment = "development";
         this.MaxRetries = 1;

@@ -164,7 +164,7 @@ finish_if_interrupted() {
     echo "target:   $target $*"
     echo "head:     $(git rev-parse HEAD)"
     echo "ulimit-n: $(ulimit -n)"
-    echo "cpus:     $(sysctl -n hw.ncpu 2>/dev/null || nproc)"
+    echo "cpus:     $(sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || nproc)"
     echo
     echo "--- git status --short"
     git status --short

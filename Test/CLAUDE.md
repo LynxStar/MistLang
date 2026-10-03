@@ -245,7 +245,9 @@ Pass a project and `dotnet test` arguments after it, e.g.
 `LEDGER_NO_BUILD=1` when the binaries are current.
 
 Running `dotnet test` while another worktree's suite or build is running changes timing. The ledger
-records other `dotnet` processes in `env.txt`, so check it before reading a slow test as a defect. A
+records other `dotnet` processes in `env.txt`, so check it before reading a slow test as a defect. It
+captures the CPU count with `sysctl`, then `getconf`, then `nproc`, so a restricted macOS environment
+can still record it when `sysctl` is denied and `nproc` is absent. A
 test that asserts on elapsed time belongs in `[Collection(WallClockCollection.Name)]`, which runs
 after the parallel phase; in parallel, most of what a stopwatch reads is other tests' garbage
 collection.

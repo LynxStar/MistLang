@@ -271,7 +271,18 @@ Found while closing the gaps, each measured, none established as something class
   `Drop`; it stays a root. A Mist `IDisposable` handed to a CLR API that disposes it runs its `Dispose`
   with no site in the program.
 - **Refusals named by no test**: `MIST_PM_AWAIT_OF_NON_TASK`, `MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE`,
-  `MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH`.
+  `MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH`. CLOSED 2026-10-03. Each is held at Tier 2, at the binder
+  seam that reports it, by `AwaitOperandBindingTests`, `InitializerTargetBindingTests` and
+  `ExplicitTypeArgumentCountTests` (`724cab90`). They pin the id, the severity, the message arguments
+  and the span, with an accepted control beside each refusal and no second complaint. With all three
+  refusals removed, the full suite failed only those classes' five refusal rows. Two defects found on
+  the way are fixed. An `await` over a value that already failed added `MIST_PM_AWAIT_OF_NON_TASK`
+  naming `'<error>'` (`d7dcda16`; program-model-body-tasks, error-expression sentinel, item (6)). Both
+  storage refusals carried an `EnumMemberResult` arm that `ResolveStorage` cannot produce
+  (`c5d33302`). Still open: an enum variant, or a static field or method, named in an initializer or
+  a property pattern is `MIST_PM_UNRESOLVED_MEMBER`, "'Widget' has no member named 'Count'", though
+  the member is declared. An `await` over an ErrorType value nothing reported keeps its `'<error>'`
+  wording until that entry's item (5) lands.
 
 Specs that now disagree with the implementation, beyond the decisions above: project-references
 Requirement 6 (transitive visibility; `MistProject` documents the flat list as deliberate), the

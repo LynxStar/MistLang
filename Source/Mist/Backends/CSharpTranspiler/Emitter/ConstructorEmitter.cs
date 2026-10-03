@@ -51,7 +51,18 @@ internal static class ConstructorEmitter
         {
             var target = constructor.ChainKind == ConstructorChainKind.This ? "this" : "base";
             writer.Append($" : {target}(");
-            for(var i = 0; i < constructor.ChainArgumentsList.Count; i++)
+
+            // Through the call path whenever nothing has to be hoisted, so a flat argument list into
+            // a value pack is packed exactly as a `new` of the same constructor packs it.
+            var hoists = constructor.ChainArgumentsList.Exists(argument => BodyEmitter.NeedsStatements(argument, discarded: false));
+
+            if(!hoists)
+            {
+                BodyEmitter.EmitArguments(constructor.ChainArgumentsList, constructor.ChainedConstructor?.ParametersList,
+                    constructor.ChainParameterTypes, writer, diagnostics, constructor.ChainedConstructor);
+            }
+
+            for(var i = 0; hoists && i < constructor.ChainArgumentsList.Count; i++)
             {
                 if(i > 0)
                 {

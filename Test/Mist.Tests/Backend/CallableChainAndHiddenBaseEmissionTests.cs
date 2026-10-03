@@ -98,6 +98,36 @@ public sealed class CallableChainAndHiddenBaseEmissionTests
     }
 
     [Theory]
+    [InlineData(ConstructorChainKind.Base, 2, ": base((4, true))")]
+    [InlineData(ConstructorChainKind.This, 1, ": this(System.ValueTuple.Create(4))")]
+    [InlineData(ConstructorChainKind.Base, 0, ": base(default(System.ValueTuple))")]
+    public void AClassChainIntoAValuePack_PacksTheFlatArgumentsAsANewWould(ConstructorChainKind kind, int width, string expected)
+    {
+        var elements = new IMistType[] { model.Type("Int32"), model.Type("Boolean") }.Take(width).ToList();
+        var pack = new TupleType(elements);
+        var baseType = HandBuiltModel.Class("Base");
+        var derived = HandBuiltModel.Class("Derived", baseType);
+        var owner = kind == ConstructorChainKind.Base ? baseType : derived;
+        var target = new Constructor(owner.Name, owner, [new Parameter("values", pack) { IsFlattened = true }], new MemberModifiers())
+        { DeclaringType = owner };
+        var source = new Constructor("Derived", derived, [], new MemberModifiers())
+        {
+            DeclaringType = derived,
+            ChainKind = kind,
+            ChainedConstructor = target,
+            ChainParameterTypes = [pack],
+            Body = HandBuiltModel.Block(),
+        };
+        source.ChainArgumentsList.AddRange(elements.Select((element, i) =>
+            HandBuiltModel.Literal(element, i == 0 ? 4L : true)));
+
+        var writer = new CSharpWriter();
+        ConstructorEmitter.Emit(source, derived, writer, new DiagnosticBag());
+
+        Assert.Contains(expected, writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void ExplicitHiddenBaseCallCastsReceiverAndPinsCallable(bool conditional)

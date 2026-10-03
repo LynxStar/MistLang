@@ -9479,6 +9479,17 @@ capabilities:
       left as it was) and PackConstraintOwnerEmissionTests (Tier 3, a type at widths one and two, the
       sibling control and a method owner). Mutation: copying the clauses unchanged again fails seven of
       the twelve.
+
+      A CLASS CONSTRUCTOR'S CHAIN IS A CALL SITE OF THE FLATTENED CONVENTION TOO, since 2026-10-03.
+      `class Sub : Bundle<int, string> { Sub() : base(4, "s") { } }` over `Bundle(params Ts values)`
+      emitted `: base(4, "s")` against `Bundle_2((T1, T2) values)` and failed Roslyn (no constructor
+      taking 2 arguments), while `new Bundle<int, string>(4, "s")` packed its arguments; a struct's
+      lowered chain already went through BodyEmitter.EmitArguments and packed. ConstructorEmitter now
+      takes the same path whenever no chain argument needs hoisting: `: base((4, "s"))`,
+      `System.ValueTuple.Create(..)` at width one and `default(System.ValueTuple)` at zero, pinned by
+      CallableChainAndHiddenBaseEmissionTests (Tier 2, three rows; a mutant keeping the per-argument
+      loop fails two). A chain argument that does need hoisting keeps the per-argument path and is not
+      packed: no program measured reaches it.
     tasks:
       - >
         Emit a variadic declaration once per instantiation when it holds a union over a pack element.

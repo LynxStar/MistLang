@@ -2075,6 +2075,21 @@ rules:
       8815/8815 (7852 Mist, 812 Storm, 46 Storm consumer, 105 CLI), zero build warnings, dotnet format
       verify clean. ConstraintRefusalTests and ConstraintClosingSiteTests unchanged and green; no
       banked sample is refused.
+
+      A TYPE CONSTRAINT ASKS WHAT THE ARGUMENT IS (2026-10-03), found while closing emitter order 86's newtype
+      conversion residues. ConstraintAnalyzer met a type constraint by any implicit classification, so a
+      conversion that calls something counted: MEASURED on v2 through the standard CLI, `Shop.M<Reading>()`
+      under `where T : Meters` with `implicit operator Meters(Reading)`, `Shop.Y<Cash>()` under `where T :
+      Money` over `type Cash = new Money`, and `Shop.Generic<Cash>` under `where T : IPriced` with `with Money :
+      IPriced`, explicit or inferred, each reached Roslyn as MIST_CS_ERROR, there being no implicit reference
+      conversion. The generic-constraints spec asks that the argument implement the abstract or be or derive
+      from the class, so an Implicit classification now satisfies a type constraint only where it is free --
+      no operator selected -- and is not a newtype's copy (ConversionRelation.CopiesAClone, which also follows a
+      copy into an abstract only the source conforms to): MIST_PA_CONSTRAINT_NOT_SATISFIED for all three. A
+      derived class, and an abstract a newtype's own declaration names, still satisfy. PROVED BY three
+      ConstraintRefusalTests rows and a Tier 1 fact admitting Dog for Animal and a Cash and its Money for an
+      abstract both declare; mutating the rule back to any Implicit fails the three rows, and dropping only the
+      copy test fails the copy row.
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains

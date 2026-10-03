@@ -35,6 +35,9 @@ public sealed class ConstraintRefusalTests
     [InlineData("sibling-constraint-inside-a-constructed-constraint", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
     [InlineData("stampable-constraint-with-a-reference-argument", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
     [InlineData("stampable-constraint-with-unproven-forwarding", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
+    [InlineData("type-constraint-reached-only-through-a-declared-implicit-operator", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
+    [InlineData("type-constraint-reached-only-through-a-newtypes-copy", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
+    [InlineData("type-constraint-an-abstract-only-the-newtypes-source-conforms-to", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
     public void RefusesNamedCase(string name, string expected)
     {
         var built = new HandBuiltModel();
@@ -142,6 +145,37 @@ public sealed class ConstraintRefusalTests
         Assert.Equal(expected, ConstraintAnalyzer.Decide(closing, constraint, built.Interner)?.Id.Value);
     }
 
+    // A type constraint asks what the argument is (generic-constraints spec): a Dog is an Animal, and a
+    // newtype is whatever abstract its own declaration names, while a conversion only makes another value.
+    [Fact]
+    public void ATypeConstraintTheArgumentIsWithoutAConversion_IsSatisfied()
+    {
+        var built = new HandBuiltModel();
+        var parameter = new TypeParameter("T", 0, new Scope(null), null);
+        var animal = HandBuiltModel.Class("Animal");
+        var dog = HandBuiltModel.Class("Dog", animal);
+        var striped = new AbstractType("IStriped", "Refusal", new Scope(null), null, null);
+        var (money, cash) = Copyable(HandBuiltModel.Class("Money"), HandBuiltModel.Class("Cash"));
+        money.BaseAbstractTypes.Add(striped);
+        cash.BaseAbstractTypes.Add(striped);
+
+        foreach(var (argument, required) in new (IMistType, IMistType)[] { (dog, animal), (cash, striped), (money, striped) })
+        {
+            var closing = new TypeArgumentClosing(parameter, argument, HandBuiltModel.Node(25), TypeSubstitution.Empty.With(parameter, argument));
+            Assert.Null(ConstraintAnalyzer.Decide(closing, new TypeConstraint(required), built.Interner));
+        }
+    }
+
+    private static (ClassType Source, ClassType Clone) Copyable(ClassType source, ClassType clone)
+    {
+        source.Modifiers = new MemberModifiers { IsReadonly = true };
+        clone.CloneSource = source;
+        clone.CloneSourceType = source;
+        clone.CastOperatorsList.Add(new CastOperator(source, new Parameter("value", clone), true, default) { CopiesClone = true, DeclaringType = clone });
+        clone.CastOperatorsList.Add(new CastOperator(clone, new Parameter("value", source), false, default) { CopiesClone = true, DeclaringType = clone });
+        return (source, clone);
+    }
+
     private static (TypeArgumentClosing Closing, TypeParameterConstraint Constraint) Build(HandBuiltModel built, string name)
     {
         var parameter = new TypeParameter("T", 0, new Scope(null), null)
@@ -231,6 +265,23 @@ public sealed class ConstraintRefusalTests
                 argument = animal;
                 substitution = substitution.With(receiver, dog);
                 constraint = new TypeConstraint(receiver);
+                break;
+
+            case "type-constraint-reached-only-through-a-declared-implicit-operator":
+                var reading = HandBuiltModel.Class("Reading");
+                var meters = HandBuiltModel.Class("Meters");
+                _ = HandBuiltModel.Conversion(reading, reading, meters);
+                argument = reading;
+                constraint = new TypeConstraint(meters);
+                break;
+
+            case "type-constraint-reached-only-through-a-newtypes-copy":
+            case "type-constraint-an-abstract-only-the-newtypes-source-conforms-to":
+                var (money, cash) = Copyable(HandBuiltModel.Class("Money"), HandBuiltModel.Class("Cash"));
+                var priced = new AbstractType("IPriced", "Refusal", new Scope(null), null, null);
+                money.ConformancesList.Add(new ConformanceDeclaration(money, priced, "Refusal", [], [], HandBuiltModel.Node()));
+                argument = cash;
+                constraint = new TypeConstraint(name == "type-constraint-reached-only-through-a-newtypes-copy" ? money : priced);
                 break;
 
             default:

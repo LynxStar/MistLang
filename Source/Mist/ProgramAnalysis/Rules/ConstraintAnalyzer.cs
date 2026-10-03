@@ -156,8 +156,7 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 
         var satisfied = constraint switch
         {
-            TypeConstraint typed => ConversionClassifier.Classify(argument, typed.ConstraintType, interner)
-                is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified,
+            TypeConstraint typed => Is(argument, typed.ConstraintType, interner),
             ConstructorConstraint constructor => HasConstructor(argument, constructor.ParameterTypes, interner),
             KeywordConstraint keyword => Keyword(keyword.Kind, argument, definition),
             _ => true,
@@ -171,6 +170,20 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
         return constraint is ConstructorConstraint
             ? ProgramAnalysisDiagnostics.ConstructorConstraintNotSatisfied
             : ProgramAnalysisDiagnostics.ConstraintNotSatisfied;
+    }
+
+    /// <summary>
+    /// A type constraint asks what the argument IS (generic-constraints spec), so an operator conversion
+    /// satisfies nothing.
+    /// </summary>
+    private static bool Is(IMistType argument, IMistType constraint, TypeInterner interner)
+    {
+        return ConversionClassifier.Classify(argument, constraint, interner) switch
+        {
+            ConversionKind.Identity or ConversionKind.Unclassified => true,
+            ConversionKind.Implicit => ConversionClassifier.IsFree(argument, constraint, interner) && !ConversionRelation.CopiesAClone(argument, constraint),
+            _ => false,
+        };
     }
 
     /// <summary>

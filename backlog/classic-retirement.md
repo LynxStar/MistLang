@@ -169,39 +169,60 @@ Probed and found not to be gaps: variadics 8.7 (unequal zip, `MIST_PA_NO_IMPLICI
 `params T[]` (`MIST_VAR_0012`), 10.5 (not expressible), `await` on a non-task, `async` on a
 constructor, field or property, and a duplicate entry point.
 
-### Decisions made where a spec was silent, for Arthur to confirm or overrule
+### Decisions made where a spec was silent
 
-- **A build with only a resolution error succeeds**: `Build succeeded  1 error(s)`, exit 0, the error
-  line printed. csharp-interop-v2 2.6 says "continue the build" and classic did this.
-- **Top-level statements beside a block namespace work**; top-level-statements 1.6 and
-  `book/src/getting-started/top-level-statements.md` say they are refused (`MIST_EP_0006`). No refusal
-  was added.
+Four were overruled by Arthur on 2026-10-02 and reversed the same day:
+
+- **A build with only a resolution error now fails.** Lexing, parsing, binding and analysis still run
+  so every diagnostic is reported beside it (csharp-interop-v2 2.3, 2.6), Stage 6 does not, and the
+  CLI prints `Build failed  N error(s)` with exit 1; the resolution bag rides on `PipelineInput` and
+  the emission gate reads it. It had been `Build succeeded  1 error(s)`, exit 0, as classic did.
+- **Accessors, operators, conversions, extension properties, `Drop` and `IDisposable.Dispose` are
+  transparent** to the context rule: judged where they are read, applied or run, including the drop
+  the language inserts at a scope's end. Only a static initializer, an enum value, a `Clone` and an
+  answer to another Standard or CLR slot remain roots. A key naming a type parameter still does not
+  pass through a transparent generic method.
+- **Top-level statements beside a block namespace are refused** as `MIST_EP_0006`, naming the file
+  and each block, judged after the project-level refusals (top-level-statements 1.6 stands). Nothing
+  banked combined the two.
+- **`params` is admitted over every collection C# 13 gathers a flat list into**: an array, an optional
+  array, a span, `IEnumerable<T>` and the four `IReadOnlyCollection`/`IReadOnlyList`/`ICollection`/
+  `IList` interfaces, and a constructible class or struct enumerable with an `Add` of its element.
+  `MIST_VAR_0013` keeps only what C# refuses: `params` on a non-collection type, or by reference.
+  `ParamsCollection` decides the element once for the binder, `ArgumentTargets` and the purity judge.
+
+Awaiting Arthur's decision:
+
+- **The tuple-parameter form of a pack-typed slot** (`int Apply((int, int) pair)` for
+  `IApplier<int, int, int>`): refused since the concrete-arity fix admitted the flat form the spec
+  names. Admitting both is a small change; the open question is which answers when a type declares
+  both.
+
+Filed as a task, by decision (`variadic-monomorphization` in the emitter register):
+
+- **An optional or union over an element of an unconstrained pack** is refused by the backend
+  (`MIST_BE_UNION_OVER_PACK_ELEMENT`) until variadic declarations are emitted per instantiation.
+
+Standing, not raised:
+
 - **A referenced project's entry point is judged against its own manifest**, so a reference with two
   `Main`s and no `entry_point` is `MIST_EP_0004`. `MIST_EP_0004` lists classes in ordinal order; the
   book's example shows declaration order.
-- **Context**: every caller must hold the key; accessors, operators, conversions and static
-  initializers are not transparent, so a getter, operator or `Dispose` that needs a context is refused
-  even when read under one (those ran before); a key naming a type parameter does not pass through a
-  transparent generic method; alias and refinement share the underlying key in both directions.
+- **Context**: every caller must hold the key; alias and refinement share the underlying key in both
+  directions.
 - **An optional `func?` called without narrowing is still admitted**; a general union is refused
   (first-class-functions 6.10).
 - **A promoted call inside a non-async lambda blocks** (`.GetAwaiter().GetResult()`), as the emitter
   already did for a declared-async one; first-class-functions 9.9 says the lambda is emitted `async`.
-- **The tuple-parameter form no longer fills a pack-typed slot** (`int Apply((int, int) pair)`), and a
-  class redeclaring an inherited member whose pack its base list closed is
+- **A class redeclaring an inherited member whose pack its base list closed** is
   `MIST_PA_MEMBER_REDECLARATION`.
-- **`params` on anything but a pack or an array is `MIST_VAR_0013`**, an id outside the spec's table;
-  `params List<int>` and `params int[]?` built before. `MIST_VAR_0010` is the backend's (16.1, 16.4).
+- **`MIST_VAR_0010` is the backend's** (variadics 16.1, 16.4).
 - **A forwarded pack reaches its callee as N arguments** (12.3, 7.5); classic passed one tuple and
   printed 1 where 3 is right.
 - **An explicit undefined `using` is an error** (inferred-namespaces design.md); its requirements.md
   7.2 says warning.
 - **A `Type[N]` pack closed with another count is `MIST_PA_CONSTRAINT_NOT_SATISFIED`**; it was
   admitted before and the spec names no diagnostic.
-- **An optional or union over an element of an unconstrained pack (`TArgs[1]?`) is refused by the
-  backend**, `MIST_BE_UNION_OVER_PACK_ELEMENT`: a union over a type parameter is emitted per
-  instantiation and a variadic declaration per arity. Under `where TArgs : struct` or `: class` it
-  works. Lifting it means emitting variadic types per instantiation.
 - **A forwarded pack must declare each constraint of the pack it is forwarded into**; implication
   between two different constraints is not attempted.
 
@@ -239,9 +260,15 @@ Found while closing the gaps, each measured, none established as something class
   refused by the backend and not by Stage 5.
 - **Modifiers**: `async`, `static`, `readonly`, `owned`, `affine` on an enum, alias, newtype or class
   are dropped silently; `ref` on an operator reaches Roslyn.
-- **Packages**: the emitted csproj still carries a failed `<PackageReference>`, so `mist test` fails in
-  `dotnet test`'s restore; csharp-interop-v2 3.5 (the error surfaced during Stage 1.5) is not
-  implemented.
+- **Packages**: csharp-interop-v2 3.5 (the error surfaced during Stage 1.5, before the next stage) is
+  not implemented; the diagnostic prints after the summary.
+- **CLR conformances**: a CLR `List<int>` is not assignable to a CLR `IReadOnlyList<int>`,
+  `IReadOnlyCollection<int>`, `ICollection<int>` or `IList<int>` anywhere (the projection records the
+  bases; assignability over projected conformances does not read them), which keeps a whole list from
+  being handed to a `params` of those types. `List<int>` to `IEnumerable<int>` works.
+- **Context**: a `Clone` the language inserts has a locatable site and could be transparent like
+  `Drop`; it stays a root. A Mist `IDisposable` handed to a CLR API that disposes it runs its `Dispose`
+  with no site in the program.
 - **Refusals named by no test**: `MIST_PM_AWAIT_OF_NON_TASK`, `MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE`,
   `MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH`.
 
@@ -313,6 +340,9 @@ The sample fold-in, the deletions and the gap fixes above, as 26 commits on top 
 - `samples/AllFeaturesV2` prints its 2,151-line baseline with nothing on stderr.
 - Book snippets over a scratch copy: 381 pairs, 0 failed, the same ten stale tabs, and the whole
   emitted tree byte-identical to the `ba321ab0` emitter's. No fix changed any snippet's C#.
+- After the four reversals (commits `03de12ed`, `bd4b7f37`, `520e3d45`, `a14ca057` and their docs):
+  full ledger `20261002-202000`, 7,796 / 105 / 812 / 46, all passed; `dotnet format` exit 0; the
+  snippet run over a scratch copy again 381 pairs, 0 failed, the same ten, byte-identical to the base.
 
 ## Left open
 

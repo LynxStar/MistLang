@@ -61,6 +61,8 @@ The chosen strategy uses `[Obsolete]`-attributed shim properties that forward to
 
 6. THE parent rule's node class SHALL NOT contain the individual labelled fields that exist inside an anonymous group; those fields SHALL appear only on the Group_Struct (except as Obsolete_Shim properties during migration — see Requirement 5).
 
+7. WHEN unnamed alternatives share one generated node type, THE AST_Emitter SHALL preserve the union of their captures. A common property with the same name and type SHALL remain shared. Anonymous groups with different field shapes SHALL receive distinct generated properties and struct types rather than dropping later fields or constructing a struct with nonexistent fields; for example a conflicting later `Group0` becomes `Group0Alternative2` with type `{RuleName}NodeGroup0Alternative2`. Conflicting ordinary property types SHALL receive distinct numeric-suffixed names, preserving the existing common name and type.
+
 ---
 
 ### Requirement 2: Pure-Token Alternation Optimisation
@@ -170,7 +172,7 @@ The chosen strategy uses `[Obsolete]`-attributed shim properties that forward to
 
 1. WHEN the generated AST node classes change shape (Requirement 4), THE Mist_Compiler's analysis and backend stages that currently read the Obsolete_Shim properties SHALL be updated to use the corresponding `Group0` `ImmutableArray` property instead, eliminating the CS0618 warning at each call site.
 
-2. THE `Children()` override on each affected node class SHALL yield all `SyntaxNode` children contained in the Group_Struct list, by iterating the list and yielding each node-typed field from each struct element.
+2. THE `Children()` override SHALL yield canonical node captures once in grammar order across direct properties and interleaved group structs, including scalar, nullable, list and nested node fields. A parsed shared node SHALL use its selected alternative's capture order and ownership; unset captures SHALL yield no null children. Traversal SHALL reach every supported capture so parent links and origin stamping cover group descendants.
 
 3. THE Mist_Compiler SHALL compile, analyse, and emit correct C# for a Mist program containing a multi-term additive expression such as `a + b - c`, producing a C# expression with the correct number of operands.
 

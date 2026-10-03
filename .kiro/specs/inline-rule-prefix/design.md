@@ -11,12 +11,12 @@ The motivating case is `MemberDeclaration` in `Mist.storm`, where `MemberTypeAli
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Prefix clause form | Nominal only (rule reference) | Keeps grammar DRY; prefix is already factored into a rule like `ModifiedTypeHead`. Literal sequences would duplicate structure. |
-| Prefix verification | Nominal (arm must reference prefix rule by name) | Eliminates ambiguity around variable names, types, and quantifiers. Simpler than structural element-by-element comparison. |
-| Arm references | Single-sequence rules only | Enables prefix stripping as first-element removal. Alternations within arms are architecturally incompatible. |
+| Prefix verification | Direct reference or structural leading sequence; labels ignored | Preserves admitted expanded prefixes and permits arm-specific capture names. |
+| Arm references | Single-sequence rules only | The matched reference or leading prefix sequence is stripped before parsing the tail. |
 | `as AltName` | Mandatory on every arm | Required for flat-node naming. No default name can be inferred. |
 | Arm ordering | PEG ordered-choice | Consistent with existing Storm semantics. First matching arm wins. |
 | Delimiter | Braces + commas | Visually groups arms without ambiguity with the `|` pipe used in alternations. Trailing comma allowed for diff friendliness. |
-| AST shape | Flat nodes (prefix hoisted) | Consumers see the same shape as standalone alternatives. No wrapper types. Zero breaking change on refactor. |
+| AST shape | Arm directly extends parent; original capture ownership preserved | Expanded prefix captures retain arm labels; a captured direct prefix remains a node. No wrapper is added for the inline block. |
 | Nesting | Supported | An arm can itself be an inline block for multi-level prefix sharing. |
 
 ### Syntax Example
@@ -49,7 +49,7 @@ rule ModifiedAssociatedTypeSlotDeclaration = head:ModifiedTypeHead
     SEMICOLON;
 ```
 
-This is the **nominal contract**: each arm must call the prefix rule by name as its first element. The emitter then parses `ModifiedTypeHead` once and uses the tokens after the prefix to predict which arm to take.
+This example uses a direct prefix reference. An arm may instead repeat the prefix rule's leading structure, with different field labels. Verification ignores labels in both forms. The parser consumes the shared prefix once and projects its values into the selected arm's original capture slots before parsing the tail.
 
 ## Architecture
 
@@ -73,11 +73,11 @@ graph TD
 1. **Lexer** — Add `InlineKeyword` and `Comma` token kinds.
 2. **Parser** — Parse `inline PrefixRule: { arm, arm, ... }` within alternations.
 3. **Syntax AST** — New `StormInlineBlockExpr` and `StormInlineArm` node types.
-4. **Validation** — Nominal prefix verification (new pass, emits STORM0017).
+4. **Validation** — Direct or structural prefix verification (new pass, emits STORM0017).
 5. **Reachability Pass** — Treat inline blocks as opaque for inter-alternative analysis; check tail divergence among arms.
 6. **IR Lowering** — Produce `InlineBlockIR` / `InlineArmIR` with prefix stripped from arms.
 7. **Parser Emitter** — Emit parse-once-then-predict code for inline blocks.
-8. **AST Emitter** — Emit flat node classes with prefix fields hoisted into each arm.
+8. **AST Emitter** — Emit arm node classes preserving each target rule's capture names and ownership.
 9. **TextMate Grammar** — Highlight `inline` as a keyword in `.storm` files.
 
 ### Invariant: Non-Breaking for Non-Inline Grammars
@@ -150,7 +150,7 @@ InlineArm := (IDENTIFIER COLON)? (InlineBlock | IDENTIFIER) AS IDENTIFIER
 
 The inline block is parsed at the primary expression level and produces a `StormInlineBlockExpr`. Within alternations, it occupies a single slot (may itself be wrapped with `as AltName` by the existing `ParseNamedAlternative` logic, though typically it won't be since arms have their own names).
 
-### 4. Nominal Prefix Verification (New Pass)
+### 4. Prefix Verification
 
 A new validation pass (`InlinePrefixVerification`) that runs after grammar construction but before IR lowering:
 
@@ -161,13 +161,13 @@ public static class InlinePrefixVerification
 }
 ```
 
-The verification is **nominal**, not structural. For each `StormInlineBlockExpr` found in rule bodies:
+Verification accepts a direct reference or the supported structural leading sequence. For each `StormInlineBlockExpr` found in rule bodies:
 1. Resolve the prefix rule reference → must exist, must have a single-sequence body (not an alternation).
 2. For each arm, resolve the arm's rule reference → must exist, must have a single-sequence body.
-3. Check that the arm's rule body **begins with a rule reference to the exact same rule** named in the prefix clause. That is, the first element of the arm's body (ignoring labels) must be a `StormReferenceExpr` whose name matches the prefix rule name.
+3. Accept a first element naming the prefix rule, ignoring its label. Otherwise compare the arm's leading elements against the prefix rule's body, ignoring labels and comparing supported references, literals and optional/repeated expressions.
 4. On mismatch → emit STORM0017.
 
-This nominal approach eliminates ambiguity around variable names, types, and quantifiers — the arm simply must reference the prefix rule by name as its first element. The prefix rule's internal structure is irrelevant to the check.
+Capture labels describe the resulting API, not prefix acceptance. A structural match does not expand arbitrary referenced rules or introduce a new namespace-identity policy.
 
 ### 5. IR Types
 
@@ -214,15 +214,15 @@ public sealed class InlineArmIR
 When encountering a `StormInlineBlockExpr` during rule expression lowering:
 
 1. Resolve the prefix rule → look up the `RuleIR` for the prefix rule name.
-2. Lower the prefix rule reference as a `RuleRefIR` node. Collect any field labels from the prefix rule's body (these become the prefix fields on the flat node).
+2. Lower the prefix rule's body elements and labels for the shared parse. Retain the target arm's original capture description for projection.
 3. For each arm:
    - Resolve the arm's target rule.
    - Get the target rule's body sequence elements.
-   - Strip the prefix: remove the first element (which is the rule reference to the prefix rule, already verified nominally).
+   - Strip one element for a direct prefix reference, or the matched number of leading elements for an expanded prefix.
    - Lower the remaining tail elements into IR with their labels.
 4. Produce an `InlineBlockIR` wrapped in a `RuleAlternativeIR` with null alternative name.
 
-The prefix stripping is simple because the nominal verification guarantees the first element of each arm's rule body is a reference to the prefix rule. We just skip that element and lower the rest as the tail.
+Prefix stripping removes precisely the verified parse prefix; capture projection maps the shared parsed values to the arm's own prefix slots. Relabelling changes slot names without changing prefix acceptance.
 
 ### 7. ParserEmitter Extensions
 
@@ -264,9 +264,11 @@ When encountering an `InlineBlockIR` in a rule's alternatives:
 
 For each arm, emit a sealed node class named `{AltName}{ParentRuleName}Node` that:
 - Extends the parent rule's abstract base node.
-- Contains properties for all prefix fields (hoisted, in sequence order).
-- Followed by properties for the arm's tail fields.
-- The property names, types, and order match exactly what the standalone-alternative grammar would produce.
+- Preserves the target arm's capture names and types for the prefix and tail.
+- Projects expanded prefix captures using the arm's labels.
+- Retains a directly captured `head:Prefix` as a Prefix node holding its own captures.
+- Yields canonical children once in grammar order; the captured Prefix owns its descendants so parent and origin walks reach them without duplicate ownership.
+- Retains a labelled target-rule arm as the parent arm node's target-rule property.
 
 This ensures AST compatibility when refactoring from standalone alternatives to inline blocks.
 
@@ -280,8 +282,8 @@ When encountering a `StormInlineBlockExpr`:
 
 ```
 STORM0017: Arm 'ModifiedAssociatedTypeMember' in inline block references rule 
-'ModifiedAssociatedTypeSlotDeclaration' which does not begin with a reference 
-to prefix rule 'ModifiedTypeHead'.
+'ModifiedAssociatedTypeSlotDeclaration' which does not match prefix rule
+'ModifiedTypeHead' by reference or leading structure.
 ```
 
 Severity: Error. Suppresses code generation for the entire grammar.
@@ -343,28 +345,29 @@ classDiagram
     }
 ```
 
-### Nominal Prefix Matching Algorithm
+### Prefix Matching Algorithm
 
-The verification is nominal — not structural. For each arm in an inline block:
+For each arm in an inline block:
 
 1. Get the arm's referenced rule body.
-2. If the body is a `StormSequenceExpr`, look at the first element (unwrapping any `StormLabeledExpr` wrapper).
-3. That first element must be a `StormReferenceExpr` whose `Name` matches the prefix clause's rule name.
-4. If it's not a rule reference, or the name doesn't match → STORM0017.
+2. Accept a first reference naming the prefix rule, ignoring its capture label.
+3. Otherwise compare the leading arm elements to the prefix-body elements structurally, ignoring capture labels. Reference names, literal values and supported modifiers must match.
+4. If neither form matches → STORM0017.
 
-This eliminates all ambiguity around structural comparison of variable names, types, quantifiers, and labels. The grammar author's contract is: "each arm's rule body starts with a call to the prefix rule."
+Labels are excluded from acceptance but retained for capture projection. Existing structural matching is preserved; broader expression equivalence is outside this change.
 
 ### Prefix Stripping in IR Lowering
 
-Since verification guarantees the arm's rule body starts with a reference to the prefix rule:
+Strip the prefix form accepted by verification:
 
 | Arm Rule Body | After Stripping | Notes |
 |---------------|-----------------|-------|
 | `PrefixRule tail...` | `tail...` | First element removed |
 | `label:PrefixRule tail...` | `tail...` | Label captured, first element removed |
 | `PrefixRule` (no tail) | empty `SequenceIR` | Arm is pure prefix |
+| Expanded prefix-body elements followed by tail | `tail...` | Matching leading element count removed; arm labels retained |
 
-The prefix rule's own body is parsed by the emitter as a sub-call, and its resulting fields are hoisted into the arm's flat node.
+The prefix body is parsed once. Expanded arm captures receive the corresponding values in their own slots. A directly captured prefix node is reconstructed from those same values and owns the prefix descendants; it is yielded before the tail. There is no additional node representing the inline block.
 
 ## Correctness Properties
 
@@ -400,13 +403,13 @@ The prefix rule's own body is parsed by the emitter as a sub-call, and its resul
 
 **Validates: Requirements 2.4**
 
-### Property 6: Nominal Prefix Verification Correctness
+### Property 6: Prefix Verification Correctness
 
 *For any* grammar containing an inline block:
-- If every arm's referenced rule body begins with a rule reference (by name) to the prefix rule, the verification pass SHALL emit zero STORM0017 diagnostics.
-- If any arm's referenced rule body does NOT begin with a rule reference to the prefix rule, the verification pass SHALL emit exactly one STORM0017 diagnostic per failing arm.
+- If every arm begins with a direct prefix reference or a supported structural match, regardless of field labels, verification SHALL emit zero STORM0017 diagnostics.
+- If an arm matches neither form, verification SHALL emit one STORM0017 diagnostic for that failing arm.
 
-**Validates: Requirements 4.1, 4.2, 4.3, 4.8**
+**Validates: Requirements 4.1, 4.2, 4.3**
 
 ### Property 7: Reachability — Inline Block Opaque for Sibling Analysis
 
@@ -426,9 +429,9 @@ The prefix rule's own body is parsed by the emitter as a sub-call, and its resul
 
 **Validates: Requirements 5.4**
 
-### Property 10: IR Lowering — Prefix Stripping by First-Element Removal
+### Property 10: IR Lowering — Matched Prefix Stripping
 
-*For any* valid inline block, after IR lowering, each `InlineArmIR.TailExpression` SHALL equal the arm's rule body with its first element (the prefix rule reference) removed. The `InlineBlockIR.PrefixElements` SHALL contain the lowered prefix rule's body elements. Concatenating a `RuleRefIR` to the prefix rule with the tail reconstructs the original arm rule body.
+*For any* valid inline block, each arm's tail SHALL equal its rule body after removing the matched direct reference or structural leading sequence. The prefix elements SHALL contain the lowered prefix-rule body; the original arm capture description SHALL retain labels and direct-prefix ownership for projection.
 
 **Validates: Requirements 6.1, 6.2, 6.3, 6.5**
 
@@ -438,9 +441,9 @@ The prefix rule's own body is parsed by the emitter as a sub-call, and its resul
 
 **Validates: Requirements 8.1, 8.3**
 
-### Property 12: AST Emission — Property Ordering Matches Prefix+Tail
+### Property 12: AST Emission — Prefix and Tail Capture Fidelity
 
-*For any* arm in an inline block, the generated node class's property list (names and types, in order) SHALL equal the prefix rule's fields concatenated with the arm's tail fields — identical to what a standalone alternative declaring the full sequence would produce.
+*For any* supported arm, expanded prefix captures SHALL retain its original labels, a direct captured prefix SHALL remain a node containing its descendants, and the tail captures SHALL survive. `Children()` SHALL expose each canonical child once in grammar order so parent links and origin stamping cover every capture.
 
 **Validates: Requirements 8.2, 8.4, 8.5**
 
@@ -472,7 +475,7 @@ The parser uses the existing `SynchronizeToDeclaration()` method for recovery at
 
 ### Validation Errors (STORM0017)
 
-Emitted when nominal prefix verification fails — an arm's rule body does not begin with a rule reference to the prefix rule. Each failing arm gets its own diagnostic. The diagnostic includes:
+Emitted when an arm matches neither a direct prefix reference nor its supported leading structure. Each failing arm gets its own diagnostic. The diagnostic includes:
 - The prefix rule name
 - The failing arm's rule name  
 - The arm's alternative name
@@ -501,10 +504,10 @@ Unit tests cover individual components in isolation:
 
 1. **Lexer tests**: `inline` keyword classification, comma classification, boundary cases (identifiers containing "inline").
 2. **Parser tests**: Valid inline blocks (varying arm count, labels, trailing comma, nesting), error cases (malformed blocks, empty arms, missing `as`).
-3. **Nominal verification tests**: Matching (arm starts with prefix rule ref) and mismatching (arm doesn't start with prefix rule ref) scenarios, unresolved prefix rule, alternation-bodied prefix rule, alternation-bodied arm rule.
+3. **Prefix verification tests**: Direct-reference and structural matches (including differing labels), and nonmatching controls, unresolved prefix rule, alternation-bodied prefix rule, alternation-bodied arm rule.
 4. **Reachability tests**: Inline block treated as opaque, tail divergence detection, FIRST-k computation for blocks.
 5. **IR lowering tests**: Prefix stripping correctness, empty tail case, label preservation, nested lowering.
-6. **AST emitter tests**: Class naming, property ordering, prefix field hoisting, no wrapper class.
+6. **AST emitter tests**: Class naming, original capture names, direct-prefix ownership, grammar child order and no inline wrapper class.
 7. **Parser emitter tests**: Generated code structure (save/restore pattern, prediction dispatch, flat node construction).
 
 ### Property-Based Tests

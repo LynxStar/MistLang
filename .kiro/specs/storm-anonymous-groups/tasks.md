@@ -243,3 +243,10 @@ This plan implements anonymous group projection in the Storm source generator, r
   ]
 }
 ```
+
+## Capture fidelity amendment -- 2026-10-03
+
+- [x] Preserve the union of unnamed alternative captures and allocate distinct property/struct names for differing group shapes.
+- [x] Yield canonical captures in source order across direct properties and interleaved groups, using the parsed alternative’s ownership plan.
+
+Storm `b4e5853`: 65 requested focused tests and 852 full-suite tests pass; four additional Tier 2 inline projection cases pass. Build, format verification and whitespace checks pass. The fidelity seam remains 20 cases / 27 parses. Consumer verification and exact remaining limits are recorded in `backlog/storm.md`.

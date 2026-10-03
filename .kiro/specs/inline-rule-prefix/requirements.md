@@ -21,8 +21,8 @@ This feature introduces an `inline` keyword that allows grammar authors to expli
 - **Inline_Block**: The new syntactic construct `inline <PrefixClause>: { arms }` that occupies a single `|` slot in a parent alternation and declares a shared prefix with multiple diverging arms.
 - **Prefix_Clause**: The portion of an `inline` block that names the shared prefix — a rule reference (e.g., `ModifiedTypeHead`). Literal sequences are not supported; the prefix must always be a named rule.
 - **Inline_Arm**: A single arm within an Inline_Block, taking the form `RuleRef as AltName` or `label:RuleRef as AltName`.
-- **Nominal_Prefix_Verification**: The compile-time check that each Inline_Arm's referenced rule begins with a rule reference (by name) to the prefix rule.
-- **Flat_Node**: An AST node type where the prefix fields are hoisted into the arm's node type, identical to what a standalone alternative would produce (no wrapper or intermediate node).
+- **Prefix_Verification**: The compile-time check that each Inline_Arm begins with a reference to the prefix rule or leading elements structurally matching its body, independent of field labels.
+- **Flat_Node**: An arm node directly extending the parent rule's base node, without a wrapper for the Inline_Block. Expanded prefix elements retain the arm's own capture names; a directly captured prefix reference retains its prefix node and the captures inside it.
 - **Tail_Token_Divergence**: The property that after consuming the shared prefix, the next token(s) uniquely identify which arm to take.
 - **Prediction**: The parse-time strategy where, after parsing the shared prefix once, the parser peeks at the next token(s) to determine which arm to continue with.
 - **Pre_Feature_Baseline**: The behavior of the Storm_Generator and generated parser immediately before this feature is added, used as the comparison oracle.
@@ -67,19 +67,19 @@ This feature introduces an `inline` keyword that allows grammar authors to expli
 2. THE Storm_Syntax SHALL define a `StormInlineArm` sealed record type (not extending `StormExpression`) containing: an `Expression` property of type `StormExpression` (the rule reference or nested inline block), an `AlternativeName` property of type `string`, and an optional `Label` property of type `string?`.
 3. WHEN a `StormInlineBlockExpr` appears within a `StormAlternationExpr`, THE Storm_Syntax SHALL represent it as exactly one element in the alternation's `Alternatives` list, occupying the position where the inline block was declared.
 
-### Requirement 4: Nominal Prefix Verification
+### Requirement 4: Prefix Verification
 
-**User Story:** As a Storm grammar author, I want the source generator to verify at compile time that each arm's referenced rule begins with a call to the prefix rule, so that misuse of `inline` is caught early as a hard error.
+**User Story:** As a Storm grammar author, I want the source generator to verify at compile time that each arm begins with the declared prefix, through a direct reference or a structurally matching leading sequence, so that misuse of `inline` is caught early as a hard error.
 
 #### Acceptance Criteria
 
-1. WHEN the Storm_Generator processes an Inline_Block, THE Storm_Generator SHALL verify for each Inline_Arm that the referenced rule's body begins with a rule reference (by name) to the prefix rule declared in the Inline_Block.
-2. IF an Inline_Arm's referenced rule body does NOT begin with a rule reference to the prefix rule (ignoring any field label on that reference), THEN THE Storm_Generator SHALL emit a hard error diagnostic (STORM0017) identifying the arm, the rule, and the expected prefix rule name.
-3. THE verification SHALL unwrap any `StormLabeledExpr` wrapping the first element of the arm's rule body before checking whether it is a `StormReferenceExpr` matching the prefix rule name.
+1. WHEN the Storm_Generator processes an Inline_Block, THE Storm_Generator SHALL verify that each arm begins with a reference to the declared prefix rule or a leading sequence structurally matching that prefix rule's body. Structural matching ignores field labels and compares reference names, literals and supported repetition/optional modifiers.
+2. IF an Inline_Arm's referenced rule body matches neither the prefix reference nor the prefix body's leading structure (ignoring capture labels), THEN THE Storm_Generator SHALL emit a hard error diagnostic (STORM0017) identifying the arm, the rule, and the expected prefix rule name.
+3. THE verification SHALL ignore capture labels when matching both the direct prefix reference and corresponding structural prefix elements; relabelling an element SHALL NOT invalidate an otherwise admitted prefix.
 4. IF the Prefix_Clause references a rule that does not exist in the grammar, THEN THE Storm_Generator SHALL emit a hard error diagnostic indicating an unresolved prefix rule reference.
 5. IF the Prefix_Clause rule's body is an alternation (multiple alternatives), THEN THE Storm_Generator SHALL emit a hard error diagnostic indicating that a prefix rule must resolve to a single sequence, not an alternation.
 6. IF an Inline_Arm references a rule whose body is an alternation (multiple alternatives), THEN THE Storm_Generator SHALL emit a hard error diagnostic indicating that inline arms must reference rules with a single-sequence body.
-7. WHEN verifying nested inline blocks, THE Storm_Generator SHALL recursively apply the same nominal verification to the nested prefix and arm rules.
+7. WHEN verifying nested inline blocks, THE Storm_Generator SHALL recursively apply the same prefix verification to the nested prefix and arm rules.
 
 ### Requirement 5: Reachability Pass Integration
 
@@ -88,7 +88,7 @@ This feature introduces an `inline` keyword that allows grammar authors to expli
 #### Acceptance Criteria
 
 1. WHEN the Reachability_Pass encounters an Inline_Block within an alternation, THE Reachability_Pass SHALL treat the entire Inline_Block as a single opaque alternative for inter-alternative reachability analysis, meaning the pass SHALL NOT compare individual arms of the Inline_Block against sibling alternatives outside the block.
-2. WHEN the Reachability_Pass analyzes the arms within an Inline_Block, THE Reachability_Pass SHALL compute the FIRST-k set (where k equals the configured MaxLookahead, currently 3) for each arm using only the tail portion of that arm's rule body (the elements remaining after the first element — the prefix rule reference — is removed), and SHALL determine that two arms diverge when neither arm's tail FIRST-k set is a subset of the other.
+2. WHEN the Reachability_Pass analyzes the arms within an Inline_Block, THE Reachability_Pass SHALL compute the FIRST-k set (where k equals the configured MaxLookahead, currently 3) for each arm using only the tail portion of that arm's rule body (the elements remaining after the matched direct prefix reference or structurally matched leading sequence is removed), and SHALL determine that two arms diverge when neither arm's tail FIRST-k set is a subset of the other.
 3. IF two arms within the same Inline_Block have tail FIRST-k sets where the later arm's set (by declaration order within the arms list) is a subset of the union of all earlier arms' tail FIRST-k sets, THEN THE Reachability_Pass SHALL emit a STORM0006 warning identifying the later arm as unreachable within the inline block.
 4. WHEN the Reachability_Pass computes the FIRST-k set for an Inline_Block as a whole (for comparison against sibling alternatives in the parent alternation), THE Reachability_Pass SHALL use the FIRST-k set of the Prefix_Clause.
 5. WHEN the Reachability_Pass encounters a nested Inline_Block (an Inline_Block appearing as an arm within a parent Inline_Block), THE Reachability_Pass SHALL recursively apply the same opaque-treatment and tail-divergence analysis to the nested block's arms.
@@ -101,7 +101,7 @@ This feature introduces an `inline` keyword that allows grammar authors to expli
 
 1. WHEN the IR lowering pass encounters a `StormInlineBlockExpr`, THE IR lowering pass SHALL produce an `InlineBlockIR` node (a subtype of `ExpressionIR`) containing the lowered prefix expression sequence, the list of lowered `InlineArmIR` nodes, and a `RuleIR` reference for each arm linking it to its resolved target rule.
 2. WHEN the IR lowering pass lowers an Inline_Arm, THE IR lowering pass SHALL produce an `InlineArmIR` node containing the alternative name, the optional label, the `RuleIR` reference to the target rule, and the lowered tail expression (the arm's rule body with the prefix stripped).
-3. WHEN the IR lowering pass strips the prefix from an arm's rule body, THE IR lowering pass SHALL remove the first element of the arm's rule body sequence (the rule reference to the prefix rule, possibly wrapped in a label), leaving only the remaining tail portion as the arm's lowered expression.
+3. WHEN the IR lowering pass strips the prefix from an arm's rule body, THE IR lowering pass SHALL remove one leading element for a direct prefix reference, or the number of matched prefix-body elements for an expanded structural prefix, leaving only the tail. The arm's original capture names and ownership SHALL remain available for projection.
 4. WHEN a parent rule contains an Inline_Block, THE IR lowering pass SHALL represent the Inline_Block as a single `RuleAlternativeIR` entry (with a null alternative name) in the parent rule's alternatives list, where the `RuleAlternativeIR.Expression` is the `InlineBlockIR` node.
 5. IF the prefix stripping consumes all elements of an arm's rule body leaving an empty tail, THEN THE IR lowering pass SHALL produce an `InlineArmIR` whose tail expression is an empty `SequenceIR` (zero elements).
 6. WHEN the IR lowering pass encounters a nested `StormInlineBlockExpr` within an arm's expression, THE IR lowering pass SHALL recursively produce a nested `InlineBlockIR` node applying the same lowering rules to the nested prefix and arms.
@@ -121,28 +121,28 @@ This feature introduces an `inline` keyword that allows grammar authors to expli
 7. WHEN emitting prediction code, THE Parser_Emitter SHALL use the FIRST set of each arm's tail expression to build a token-based dispatch (switch or if-else chain), with arms sharing a FIRST token grouped into a sequential try-and-backtrack within that dispatch branch.
 8. WHEN emitting code for nested inline blocks, THE Parser_Emitter SHALL recursively apply the same parse-once-then-predict pattern for the nested prefix.
 9. WHEN the Inline_Block is one alternative among others in a multi-alternative rule, THE Parser_Emitter SHALL emit the inline block's parsing code within the standard PEG ordered-choice structure (save position, try, restore on failure).
-10. WHEN the Parser_Emitter constructs the arm's AST node after successful tail parsing, THE Parser_Emitter SHALL assign both the prefix-parsed local variables and the tail-parsed local variables to the node's properties, producing a complete flat node.
+10. WHEN the Parser_Emitter constructs the arm's AST node after successful tail parsing, THE Parser_Emitter SHALL project the prefix-parsed values into the arm's original capture slots and assign the tail captures. Expanded prefix elements SHALL use the arm's labels, including relabelled elements. A directly captured `head:Prefix` SHALL hold a Prefix node containing the parsed prefix captures, followed by the tail. `Children()` SHALL expose each canonical capture once in grammar order; parent links and origin assignment SHALL reach every supported capture.
 
 ### Requirement 8: AST Emission (Flat Nodes)
 
-**User Story:** As a Storm grammar author, I want the generated AST nodes for inline arms to be flat (prefix fields hoisted into each arm's node type), so that consumers see the same AST shape as if each arm were a standalone alternative.
+**User Story:** As a Storm grammar author, I want the generated AST nodes for inline arms to extend the parent rule directly and preserve each arm's prefix and tail captures, so that consumers see the same AST shape as if each arm were a standalone alternative.
 
 #### Acceptance Criteria
 
 1. WHEN the AST_Emitter emits node types for an Inline_Block's arms, THE AST_Emitter SHALL generate a distinct node class for each arm, named according to the arm's `AltName` and the parent rule name (e.g., `MemberTypeAliasMemberMemberDeclarationNode`).
-2. WHEN the AST_Emitter generates an arm's node class, THE AST_Emitter SHALL include properties for all fields from the prefix clause (hoisted into the arm's node, in expression order) followed by the arm's own tail fields, such that the property order matches the concatenation of prefix fields then tail fields.
+2. WHEN the AST_Emitter generates an arm's node class, THE AST_Emitter SHALL preserve the target arm's capture names and types across its prefix and tail. Structurally expanded prefix elements SHALL retain the arm's labels; a direct captured prefix reference SHALL remain a prefix-node property. Child enumeration SHALL follow grammar capture order across node properties and anonymous-group fields.
 3. THE AST_Emitter SHALL NOT generate a wrapper or intermediate node type for the Inline_Block itself — each arm's node SHALL be directly a subtype of the parent rule's base node type.
-4. WHEN an Inline_Arm has a label (e.g., `label:RuleRef as AltName`), THE AST_Emitter SHALL use the label as the property name for the tail expression's value on the arm's node class.
+4. WHEN an Inline_Arm has a label (e.g., `label:RuleRef as AltName`), THE AST_Emitter SHALL retain that labelled target-rule capture on the parent arm node, with its prefix and tail captures inside the target-rule node.
 5. WHEN grammars that currently define rules as standalone alternatives are refactored to use an Inline_Block grouping the same alternatives, THE AST_Emitter SHALL produce node types with the same class names, property names, property types, property order, base class, and `Children()` enumeration as the standalone-alternative grammar produced — ensuring no AST breaking change for consumers.
 
-### Requirement 9: Diagnostic for Nominal Prefix Mismatch
+### Requirement 9: Diagnostic for Prefix Mismatch
 
 **User Story:** As a Storm grammar author, I want a clear diagnostic when an inline arm's rule does not structurally match the declared prefix, so that I can fix the grammar quickly.
 
 #### Acceptance Criteria
 
-1. WHEN the Nominal_Prefix_Verification detects a mismatch, THE Storm_Generator SHALL emit a diagnostic with diagnostic code `STORM0017` at severity Error.
-2. THE diagnostic message SHALL include the prefix rule name, the failing arm's rule name, and an explanation that the arm's rule body does not begin with a reference to the prefix rule.
+1. WHEN the Prefix_Verification detects a mismatch, THE Storm_Generator SHALL emit a diagnostic with diagnostic code `STORM0017` at severity Error.
+2. THE diagnostic message SHALL include the prefix rule name, the failing arm's rule name, and an explanation that the arm's rule body matches neither a reference to the prefix rule nor its supported leading structure.
 3. THE diagnostic location SHALL reference the source span of the failing Inline_Arm declaration within the `.storm` file.
 4. WHEN the Storm_Generator emits a prefix-mismatch diagnostic, THE Storm_Generator SHALL suppress generated parser and AST source output for the containing grammar (no partial code generation).
 5. WHEN multiple arms in the same Inline_Block fail verification, THE Storm_Generator SHALL emit one diagnostic per failing arm, continuing verification of all remaining arms before halting code generation.
@@ -211,12 +211,12 @@ rule MemberDeclaration
 ```storm
 rule ModifiedTypeHead = modifiers:Modifier+ TYPE name:IDENTIFIER typeParams:TypeParameterList?;
 
-rule MemberTypeAliasDeclaration = head:ModifiedTypeHead
+rule MemberTypeAliasDeclaration = modifiers:Modifier+ TYPE name:IDENTIFIER typeParams:TypeParameterList?
     EQUAL type:RefinableTypeExpression
     constraints:WhereClause*
     SEMICOLON;
 
-rule ModifiedAssociatedTypeSlotDeclaration = head:ModifiedTypeHead
+rule ModifiedAssociatedTypeSlotDeclaration = modifiers:Modifier+ TYPE name:IDENTIFIER typeParams:TypeParameterList?
     constraintClause:(COLON constraints:ConstraintList slotWhereConstraints:WhereClause*)?
     SEMICOLON;
 

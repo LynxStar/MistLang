@@ -95,6 +95,8 @@ void WalkForGroups(ExpressionIR expr, IReadOnlyList<FieldLabelIR> labels,
 
 **Key invariant**: Group_Index is assigned by a single left-to-right walk of the alternative's expression tree. The first anonymous group encountered is `Group0`, the second `Group1`, etc.
 
+Unnamed alternatives share a node type whose public slots are the union of their captures. Common names and types remain shared. A later group with a different field shape receives a distinct property and struct name, such as `Group0Alternative2` and `{RuleName}NodeGroup0Alternative2`; same-shaped groups retain the common slot. Conflicting ordinary property types receive numeric-suffixed names. The parser assigns the selected alternative's slots and records its alternative identity internally; `Children()` follows that alternative's grammar-order capture plan, including its canonical forwarding ownership, rather than public property declaration order. Absent scalar slots are guarded and default arrays are not enumerated.
+
 ### 2. Pure_Token_Alternation (nested, field-level)
 
 Under the capture-count rule, a whole group that is nothing but a single token alternation carries one value-bearing element, so it is never projected as a struct — it keeps its existing single promotion (`Token` / `Token?` / `ImmutableArray<Token>`). The Pure_Token_Alternation optimisation therefore applies **per field inside a struct**: a labelled token-only alternation such as `operator:(PLUS | MINUS)` inside `(operator:(PLUS | MINUS) right:Multiplicative)*` collapses to a single `Token` field rather than a nested discriminated struct. The check is invoked with the single labelled element wrapped in a one-element list:
@@ -412,7 +414,7 @@ The project enforces a zero-warnings policy (see workspace rule `zero-warnings-p
 
 ### Property 9: Children() yields all node-typed group fields
 
-*For any* rule with a `*`- or `+`-modified anonymous group containing node-typed fields, the emitted `Children()` override SHALL contain a `foreach` over the group list that yields each node-typed field.
+*For any* supported capture plan, the emitted `Children()` override SHALL yield canonical children once in grammar order across direct captures and anonymous groups. It SHALL walk scalar, nullable, list and nested node fields, guard absent captures, and select the parsed alternative's own capture plan when alternatives share a node type.
 
 **Validates: Requirements 7.2**
 

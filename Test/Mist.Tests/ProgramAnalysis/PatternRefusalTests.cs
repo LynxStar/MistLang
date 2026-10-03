@@ -68,6 +68,63 @@ public sealed class PatternRefusalTests
 
     [Theory]
     [Trait("Tier", "1")]
+    [InlineData("identity", true)]
+    [InlineData("derived-after-base", true)]
+    [InlineData("conformer-after-abstract", true)]
+    [InlineData("refined-after-its-base", true)]
+    [InlineData("anything-after-unknown", true)]
+    [InlineData("sized-after-unsized", true)]
+    [InlineData("base-after-derived", false)]
+    [InlineData("int-after-long", false)]
+    [InlineData("int-constituent-after-long-constituent", false)]
+    [InlineData("converted-after-its-implicit-target", false)]
+    public void TypeTestArmCoversOnlyWhatItsValueIs(string shape, bool covered)
+    {
+        var fixture = Types();
+        var integer = fixture.Types["Int32"];
+        var wide = fixture.Types["Int64"];
+        var input = (IMistType)UnknownType.Instance;
+        static TypeTestPattern test(IMistType tested, IMistType? constituent = null)
+        {
+            return new TypeTestPattern(HandBuiltModel.Node(), tested, null, constituent);
+        }
+
+        var shapeType = (AbstractType)fixture.Types["IShape"];
+        var square = HandBuiltModel.Class("Square");
+        square.BaseAbstractTypes.Add(shapeType);
+        var celsius = HandBuiltModel.Class("Celsius");
+        var kelvin = HandBuiltModel.Class("Kelvin");
+        _ = HandBuiltModel.Conversion(celsius, celsius, kelvin);
+        var adult = new HandBuiltRefinements().Refine(integer, ComparisonKind.GreaterThanOrEqual, 18, "AdultAge");
+        var rack = HandBuiltModel.Class("Rack");
+        var sized = fixture.Model.Interner.GetOrCreateConstructedType(rack, [integer, new LiftedType(integer, 3L)]);
+        var unsized = fixture.Model.Interner.GetOrCreateConstructedType(rack, [integer, new UnknownValueType(integer)]);
+        if(shape == "int-constituent-after-long-constituent")
+        {
+            input = new UnionType([integer, wide]);
+        }
+
+        var (earlier, later) = shape switch
+        {
+            "identity" => (test(integer), test(integer)),
+            "derived-after-base" => (test(fixture.Types["Animal"]), test(fixture.Types["Dog"])),
+            "conformer-after-abstract" => (test(shapeType), test(square)),
+            "refined-after-its-base" => (test(integer), new TypeTestPattern(HandBuiltModel.Node(), adult, null, refinement: adult.Predicate)),
+            "anything-after-unknown" => (test(UnknownType.Instance), test(fixture.Types["Dog"])),
+            "sized-after-unsized" => (test(unsized), test(sized)),
+            "base-after-derived" => (test(fixture.Types["Dog"]), test(fixture.Types["Animal"])),
+            "int-after-long" => (test(wide), test(integer)),
+            "int-constituent-after-long-constituent" => (test(wide, wide), test(integer, integer)),
+            "converted-after-its-implicit-target" => (test(kelvin), test(celsius)),
+            _ => throw new ArgumentOutOfRangeException(nameof(shape)),
+        };
+
+        var finding = PatternAnalyzer.ArmFinding([earlier], later, input, fixture.Model.Interner);
+        Assert.Equal(covered ? "MIST_PA_SWITCH_ARM_UNREACHABLE" : null, finding?.Id.Value);
+    }
+
+    [Theory]
+    [Trait("Tier", "1")]
     [InlineData("strict-containment")]
     [InlineData("inclusive-endpoint")]
     [InlineData("constant-inside-interval")]
@@ -439,6 +496,7 @@ public sealed class PatternRefusalTests
         return (model, new Dictionary<string, IMistType>(StringComparer.Ordinal)
         {
             ["Int32"] = model.Type("Int32"),
+            ["Int64"] = model.Type("Int64"),
             ["String"] = model.Type("String"),
             ["Boolean"] = model.Type("Boolean"),
             ["unknown"] = UnknownType.Instance,

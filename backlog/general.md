@@ -1557,3 +1557,26 @@ while retiring classic, which reported both itself.
 
 **Action:** report the first at the point the assembly scope imports the name, and refuse invoking a
 non-callable member in the binder; one Tier 1-3 row each.
+
+## 🔴 A type test against a sized array never tests the length
+
+**Severity: high** -- a silent wrong answer. dependent-types Requirement 9.1 makes a pattern on a closed
+dependent type branch on the embedded value, and for an array that value is the length. Found 2026-10-03
+while proving pattern-checking's type-test arm relation (analysis register order 8); not caused by it.
+
+**Verified empirically** (2026-10-03, v2 at `d3dc6a0f`):
+
+```mist
+unknown five = new int[5];
+if(five is int[3] three) { Console.WriteLine($"matched {three.Length}"); }
+```
+
+prints `matched 5`: the test is emitted as `five is int[] three`, so `three`, typed `int[3]`, holds five
+elements. `u switch { int[3] b => 1, int[] a => 2, _ => 3 }` reaches Roslyn as `MIST_CS_ERROR` CS8510,
+both arms being `int[]` there. A user-declared dependent type is unaffected: `FixedBuffer<6>` is emitted
+as `FixedBuffer<Const_Int_6>`, and `six is FixedBuffer<5>` answers false.
+
+**Action:** decide the runtime form -- emit the length, `int[] { Length: 3 } three`, wherever a sized
+array is tested at run time (a type test, a typed property pattern, `as`, a cast, a tuple's tested type),
+or refuse a sized test whose input does not already carry the length -- and apply the same to
+`Span<T, Length>`. Pin the emission at Tier 1 beside `EmitTypeTest`, and the decision at its owning tier.

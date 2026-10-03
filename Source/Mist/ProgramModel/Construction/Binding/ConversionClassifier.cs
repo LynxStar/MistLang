@@ -161,7 +161,7 @@ internal static class ConversionClassifier
         return Same(from, to) || Within(from, to, visited);
     }
 
-    private static bool AgreesUpToUnknownValues(IMistType from, IMistType to)
+    public static bool AgreesUpToUnknownValues(IMistType from, IMistType to)
     {
         if(from is not ConstructedType source
             || to is not ConstructedType target

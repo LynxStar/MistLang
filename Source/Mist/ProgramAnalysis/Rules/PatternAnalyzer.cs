@@ -4,6 +4,7 @@ using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Types;
@@ -309,13 +310,37 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         {
             CatchAllPattern => true,
             TypeTestPattern { Refinement: null } wide when later is TypeTestPattern narrow
-                => ConversionClassifier.Classify(narrow.Constituent ?? narrow.NarrowedType, wide.Constituent ?? wide.NarrowedType, interner)
-                    is ConversionKind.Identity or ConversionKind.Implicit,
+                => IsAlways(
+                    ConversionClassifier.Normalized(narrow.Constituent ?? narrow.NarrowedType, interner),
+                    ConversionClassifier.Normalized(wide.Constituent ?? wide.NarrowedType, interner),
+                    new HashSet<string>(StringComparer.Ordinal)),
             ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: { } first } }
                 when later is ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: { } second } }
                 => SameConstant(first, second),
             _ => false,
         };
+    }
+
+    /// <summary>
+    /// Whether every value a test of <paramref name="narrow"/> passes is one a test of <paramref name="wide"/>
+    /// passes, which asks what the value IS: a numeric widening, an implicit operator and a clone's copy each
+    /// make a second value, so they count for <see cref="ConversionClassifier"/> and not here.
+    /// </summary>
+    private static bool IsAlways(IMistType narrow, IMistType wide, HashSet<string> visited)
+    {
+        narrow = ConversionRelation.Unrefined(narrow);
+
+        if(ReferenceEquals(narrow, wide) || ConversionRelation.IsIdentity(narrow, wide) || ConversionClassifier.AgreesUpToUnknownValues(narrow, wide)
+            || (wide is UnknownType && !OptionalUnion.IsVoid(narrow)))
+        {
+            return true;
+        }
+
+        var wider = narrow is TypeParameter parameter
+            ? parameter.ConstraintsList.OfType<TypeConstraint>().Select(constraint => constraint.ConstraintType)
+            : ConversionRelation.Bases(narrow);
+
+        return visited.Add(narrow.FullyQualifiedName) && wider.Any(type => IsAlways(type, wide, visited));
     }
 
     private static bool SameConstant(object first, object second)

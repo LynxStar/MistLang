@@ -2737,6 +2737,21 @@ rules:
       the walk skipping lists (12 rows), the binder recording the subpattern's narrowing (1), `not` leaving
       the domain (1), a refined-over-refined test read (1), an empty later arm reported (1), and the set
       check removed (17).
+
+      A TYPE-TEST ARM COVERS WHAT ITS VALUE IS (2026-10-03). The type-test pair asked ConversionClassifier
+      for Identity or Implicit, which counts a numeric widening, an implicit operator and a clone's copy --
+      each a second value, not the same one. MEASURED: `unknown u = 4; u switch { long x => 1, int i => 2,
+      _ => 3 }` and `int | long v = 4; v switch { long x => 1, int i => 2 }` were refused as
+      MIST_PA_SWITCH_ARM_UNREACHABLE, though C# runs both and prints 2; they now build and print 2.
+      PatternAnalyzer.IsAlways answers instead: identity, a sized type within its unsized one
+      (ConversionClassifier.AgreesUpToUnknownValues, so `int[] a => 1, int[3] b => 2` is still refused at
+      the arm), the base and abstract chain with conformances, a type parameter's constraints, a refined
+      test read as its base, and anything non-void within an `unknown` test. A function type and a CLR
+      delegate of the same shape no longer count: `Predicate<int>` and `func<int, bool>` share a shape, not
+      a runtime type. PROVED BY ten Tier 1 rows -- six covering, four not -- of which the three conversion
+      rows failed on the old relation; three mutations each caught by their own rows (the inheritance
+      walk, the unknown target, the unrefining). Probing it found that a sized array's type test never
+      tests the length (`five is int[3]` matches five elements), recorded in backlog/general.md.
     tasks:
       - >
         The always-true test is not reported, in any severity: classic is silent, samples/DependentTypes

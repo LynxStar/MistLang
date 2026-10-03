@@ -80,6 +80,11 @@ return failed > 0 ? 1 : 0;
 
 // --- Compilation logic ---
 
+void CopyAsLf(string from, string to)
+{
+    File.WriteAllText(to, File.ReadAllText(from).ReplaceLineEndings("\n"));
+}
+
 IReadOnlyList<string> Companions(string mistPath)
 {
     var found = new List<string>();
@@ -120,12 +125,12 @@ string? EmitSnippet(string mistPath)
 
     try
     {
-        var source = File.ReadAllText(mistPath);
         var fileName = Path.GetFileName(mistPath);
 
-        // Copy the .mist file to a temp directory for compilation.
+        // Copy the .mist file to a temp directory for compilation, as LF whatever the checkout: emitted
+        // temporaries are named by source offset, so a CRLF working copy would rename them.
         var tempMistPath = Path.Combine(scratchDir, fileName);
-        File.WriteAllText(tempMistPath, source);
+        CopyAsLf(mistPath, tempMistPath);
 
         // A snippet that needs a package or a framework reference says so in a project file beside
         // it, named as the snippet is, which becomes the scratch project's mist.toml.
@@ -153,7 +158,7 @@ string? EmitSnippet(string mistPath)
         foreach (var companion in Companions(mistPath))
         {
             var copied = Path.Combine(scratchDir, Path.GetFileName(companion));
-            File.Copy(companion, copied);
+            CopyAsLf(companion, copied);
             sources.Add(copied);
         }
 
@@ -165,7 +170,7 @@ string? EmitSnippet(string mistPath)
                 var relative = Path.GetRelativePath(supportDir, supportFile);
                 var copied = Path.Combine(scratchDir, relative);
                 Directory.CreateDirectory(Path.GetDirectoryName(copied)!);
-                File.Copy(supportFile, copied);
+                CopyAsLf(supportFile, copied);
                 sources.Add(copied);
             }
         }

@@ -392,7 +392,8 @@ The sample fold-in, the deletions and the gap fixes above, as 26 commits on top 
 ## Left open
 
 - `backlog/storm.md` defers four residue items "until classic is sunset"; that condition is now met.
-  No Storm change was made.
+  No Storm change was made. Closed 2026-10-03 by Storm `56945a87`, recorded in `backlog/storm.md`
+  under "Children() yields each node a node holds once".
 - `compiler-progress-output` had Requirements 6 and 7 alone rewritten; criteria 7.10 to 7.12 are
   cross-stage and sit there for that reason.
 - Plans written against classic types: `backlog/multi-project-emission.md`,

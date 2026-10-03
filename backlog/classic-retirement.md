@@ -191,12 +191,13 @@ Four were overruled by Arthur on 2026-10-02 and reversed the same day:
   `MIST_VAR_0013` keeps only what C# refuses: `params` on a non-collection type, or by reference.
   `ParamsCollection` decides the element once for the binder, `ArgumentTargets` and the purity judge.
 
-Awaiting Arthur's decision:
+Decided by Arthur (2026-10-02), as implemented:
 
-- **The tuple-parameter form of a pack-typed slot** (`int Apply((int, int) pair)` for
-  `IApplier<int, int, int>`): refused since the concrete-arity fix admitted the flat form the spec
-  names. Admitting both is a small change; the open question is which answers when a type declares
-  both.
+- **The slot's own spelling says which form fills it.** `TResult Apply(params TArgs args)` at
+  `IApplier<int, int, int>` is filled by `Apply(int a, int b)`, called `Apply(1, 2)`;
+  `TResult Apply((TArgs...) args)` is filled by `Apply((int, int) pair)`, called `Apply((1, 2))`
+  (variadics 7.7: `params` is the sole marker of the flat convention). A bare `TArgs args` is
+  `MIST_VAR_0002` (6.3). The other form against either slot is `MIST_PA_SLOT_SIGNATURE_MISMATCH`.
 
 Filed as a task, by decision (`variadic-monomorphization` in the emitter register):
 

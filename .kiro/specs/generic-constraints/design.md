@@ -21,7 +21,7 @@ The implementation touches every stage of the compiler pipeline:
 
 - **Parameterized constructor constraint lowering**: Since C# only supports `new()` (parameterless) constructor constraints, parameterized constructor constraints (e.g., `new(int)`) are lowered to a **factory delegate parameter** pattern. The generic type/method receives an additional `Func<TArgs, T>` parameter that the caller must supply. This is the simplest lowering that preserves type safety without requiring runtime reflection.
 
-- **OR semantics for multiple constructor constraints**: When multiple `new(...)` constraints are declared on the same type parameter, the type argument must have at least one matching constructor. At the call site, each `new T(...)` expression is validated against the specific signatures declared.
+- **Conjunctive semantics for multiple constructor constraints**: When multiple `new(...)` constraints are declared on the same type parameter, the type argument must have a matching constructor for every one of them, because the generic body may call any of them. Inside the body, each `new T(...)` expression is validated against the specific signatures declared.
 
 - **Constraint ordering is a C# emission concern only**: Mist accepts constraints in any order. The pretty printer preserves source order. Only the C# emitter reorders to satisfy C#'s required order (`class`/`struct` → base class → interfaces → `new()`).
 
@@ -206,7 +206,7 @@ public sealed class TypeParameterConstraints
     /// <summary>
     /// Constructor constraints. Each entry is a list of parameter types
     /// for one constructor signature. Empty list = new().
-    /// Multiple entries use OR semantics.
+    /// Multiple entries are conjunctive: every signature is required.
     /// </summary>
     public IReadOnlyList<IReadOnlyList<IType>> ConstructorConstraints { get; init; }
         = Array.Empty<IReadOnlyList<IType>>();
@@ -266,9 +266,9 @@ private static void CheckConstraintSatisfaction(
     foreach (var trait in constraints.TraitConstraints)
         // verify typeArgument satisfies trait
 
-    // Check constructor constraints (OR semantics)
-    if (constraints.ConstructorConstraints.Count > 0)
-        // verify typeArgument has at least one matching constructor
+    // Check constructor constraints (conjunctive)
+    foreach signature in constraints.ConstructorConstraints
+        // verify typeArgument has a matching constructor for this signature
 }
 ```
 
@@ -451,7 +451,7 @@ The constraint resolution and satisfaction checking for type aliases follows the
 | `BaseClassConstraint` | `IType?` | The base class constraint type, if any |
 | `InterfaceConstraints` | `IReadOnlyList<IType>` | Interface constraint types |
 | `TraitConstraints` | `IReadOnlyList<IType>` | Trait constraint types |
-| `ConstructorConstraints` | `IReadOnlyList<IReadOnlyList<IType>>` | Constructor parameter type lists (OR semantics) |
+| `ConstructorConstraints` | `IReadOnlyList<IReadOnlyList<IType>>` | Constructor parameter type lists (conjunctive: every signature is required) |
 
 ### Constraint Validation Rules
 
@@ -477,7 +477,7 @@ The constraint resolution and satisfaction checking for type aliases follows the
 | Trait | Type argument satisfies the trait (structural match) |
 | `new()` | Type argument has a public parameterless constructor (or is a struct) |
 | `new(T1, T2, ...)` | Type argument has a public constructor with matching parameter types |
-| Multiple `new(...)` (OR) | Type argument satisfies at least one of the constructor constraints |
+| Multiple `new(...)` (conjunctive) | Type argument satisfies every one of the constructor constraints |
 
 ## Correctness Properties
 
@@ -491,7 +491,7 @@ The constraint resolution and satisfaction checking for type aliases follows the
 
 ### Property 2: Constraint Satisfaction Correctness
 
-*For any* constrained generic type and any type argument, the type checker SHALL accept the type argument if and only if it satisfies all declared constraints (class/struct kind check, base class derivation, interface implementation, trait satisfaction, and at least one matching constructor for OR-semantics constructor constraints).
+*For any* constrained generic type and any type argument, the type checker SHALL accept the type argument if and only if it satisfies all declared constraints (class/struct kind check, base class derivation, interface implementation, trait satisfaction, and a matching constructor for every declared constructor constraint).
 
 **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10**
 
@@ -580,7 +580,7 @@ Unit tests cover specific examples, edge cases, and error conditions:
 - Each diagnostic message format (Requirements 10.1–10.10)
 - Backward compatibility with unconstrained generics
 - Factory delegate lowering for parameterized constructor constraints
-- Multiple constructor constraints with OR semantics
+- Multiple constructor constraints, every signature required
 - Constraint ordering preservation in pretty printer vs reordering in emitter
 - Integration with existing features (traits, interfaces, inheritance)
 

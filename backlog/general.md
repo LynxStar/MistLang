@@ -1060,6 +1060,22 @@ back between quotes unescaped.
 `LiftCharLiteral` share, and emit a `char` escaped (`\uXXXX`, as `DependentCarrierNames` already spells
 one). Pin the value at Tier 2 in each position and the emitted text at Tier 3.
 
+**Closed on v2 (2026-10-03):** `CharacterLiterals.Decode` gives expression and dependent-argument
+binding the same character for every grammar escape, rejecting malformed direct lexemes instead of
+substituting NUL. Pattern constants and enum values consume the expression binder's decoded value;
+refinement comparisons bind `\t` as 9. `BodyEmitter.EmitLiteral` keeps safe printable ASCII readable
+and reuses `DependentCarrierNames.Literal` for quotes, backslash, controls and non-ASCII characters.
+The carrier name remains based on the character value: newline is `Const_Char_0x000a`, distinct from
+backslash's `Const_Char_0x005c`. `CharacterLiteralValueTests` covers all seven escapes at Tier 1;
+`CharacterLiteralBindingTests` covers expressions, lifted arguments, patterns, refinement bounds and
+enum values at Tier 2; `LiteralEmissionTests` and `DependentCarrierNameTests` cover C# spelling and
+identity at Tier 1. Focused ledger: 91/91. Unfiltered ledger after rebasing onto main
+(`TestResults/ledger/20261003-012304`): 8,940/8,940, zero build warnings;
+`dotnet format Mist.slnx --verify-no-changes` passed. On this macOS host the full-system sample
+stalled during ASP.NET configuration reload with the default environment; the unfiltered ledger
+passed with `DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false`. No character grammar, string literal or
+regex behavior was changed.
+
 ## A binary literal in an expression is not bound
 
 **Closed on v2 (2026-09-27):** `ExpressionBinder` binds hex and binary literals through the decimal path,

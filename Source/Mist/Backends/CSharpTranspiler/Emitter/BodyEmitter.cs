@@ -2889,7 +2889,9 @@ internal static class BodyEmitter
             double d => EmitDoubleLiteral(d),
             decimal m => $"{m.ToString(CultureInfo.InvariantCulture)}m",
             bool b => b ? "true" : "false",
-            char c => $"'{c}'",
+            char c => c is >= ' ' and <= '~' and not ('\'' or '\\' or '"')
+                ? $"'{c}'"
+                : DependentCarrierNames.Literal(c),
             var value when IntegralConstant.Of(value) is { } integral => EmitIntegerLiteral(integral, literal.Type),
             _ => Convert.ToString(literal.Value, CultureInfo.InvariantCulture)!,
         };

@@ -113,11 +113,21 @@ public sealed class LiteralEmissionTests
         Assert.Equal("false", BodyEmitter.EmitLiteral(literal));
     }
 
-    [Fact]
-    public void CharLiteral_EmitsWithSingleQuotes()
+    [Theory]
+    [Trait("Tier", "1")]
+    [InlineData('Z', "'Z'")]
+    [InlineData('é', "'\\u00e9'")]
+    [InlineData('\\', "'\\u005c'")]
+    [InlineData('"', "'\\u0022'")]
+    [InlineData('\'', "'\\u0027'")]
+    [InlineData('\n', "'\\u000a'")]
+    [InlineData('\r', "'\\u000d'")]
+    [InlineData('\t', "'\\u0009'")]
+    [InlineData('\0', "'\\u0000'")]
+    public void CharLiteral_EmitsValidCSharp(char value, string expected)
     {
-        var literal = MakeLiteral('Z', "Char");
-        Assert.Equal("'Z'", BodyEmitter.EmitLiteral(literal));
+        var literal = MakeLiteral(value, "Char");
+        Assert.Equal(expected, BodyEmitter.EmitLiteral(literal));
     }
 
     [Fact]

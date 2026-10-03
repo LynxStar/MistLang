@@ -35,6 +35,12 @@ internal abstract class ConcreteType : MemberType, IConcreteType
     public MistType? BaseType { get; internal set; }
 
     /// <summary>
+    /// Recorded because <see cref="BaseType"/> is null both when no base was written and when the one
+    /// written failed to resolve, and only the second can hide inherited members no rule can see.
+    /// </summary>
+    public bool BaseUnresolved { get; internal set; }
+
+    /// <summary>
     /// Whether this type is backend-backed (intrinsic keyword).
     /// </summary>
     public bool IsIntrinsic => Modifiers.IsIntrinsic;

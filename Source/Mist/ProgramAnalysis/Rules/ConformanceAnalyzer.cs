@@ -193,6 +193,11 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         AnalysisContext context, ConcreteType concrete, SyntaxNode at, AbstractType abstractType, ConformanceDeclaration? mappings,
         string signature, string member, bool named)
     {
+        if(InheritsUnseen(concrete))
+        {
+            return;
+        }
+
         if(mappings is not null)
         {
             context.Report(
@@ -205,6 +210,26 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                 named ? ProgramAnalysisDiagnostics.SlotSignatureMismatch : ProgramAnalysisDiagnostics.SlotNotFilled, at, [],
                 TypeDisplay.Mist(concrete), signature, TypeDisplay.Mist(abstractType), member);
         }
+    }
+
+    private static bool InheritsUnseen(ConcreteType concrete)
+    {
+        for(IMistType? current = concrete; current is not null;)
+        {
+            if((current is ConstructedType constructed ? constructed.Definition : current) is not ConcreteType type)
+            {
+                return false;
+            }
+
+            if(type.BaseUnresolved)
+            {
+                return true;
+            }
+
+            current = type.BaseType;
+        }
+
+        return false;
     }
 
     private static void ReportContract(AnalysisContext context, ConcreteType concrete, AbstractType abstractType, string member, SyntaxNode at)

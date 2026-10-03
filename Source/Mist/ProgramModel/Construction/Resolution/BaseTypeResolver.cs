@@ -76,6 +76,7 @@ internal sealed class BaseTypeResolver
         if(resolved is ErrorType)
         {
             // Diagnostic already emitted by ResolveNamedType.
+            typeDef.BaseUnresolved = true;
             return true;
         }
 

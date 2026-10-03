@@ -2577,6 +2577,17 @@ rules:
       closing. Proving the mapped twin end to end found the with-block forwarder dropping `ref`, `void`
       and a ref return; order 73 of the emitter register records that fix.
 
+      A CONFORMER OVER AN UNRESOLVED BASE OWES NO UNANSWERED SLOT (2026-10-03). MEASURED by CLI probe:
+      `class X : Base, IGet` with `Base` unresolved drew MIST_PM_UNRESOLVED_TYPE and then
+      MIST_PA_SLOT_NOT_FILLED for the `Get` the missing base might hold, two complaints for one mistake.
+      BaseTypeResolver now records ConcreteType.BaseUnresolved, BaseType being null either way, and no
+      unanswered or mismatched slot is reported for a type whose concrete chain reaches one; an answered
+      slot is still judged. The probe now reports MIST_PM_UNRESOLVED_TYPE alone. PROVED BY four
+      ConformanceRefusalTests rows at Tier 2 (a method, property and indexer slot, and an unresolved base
+      one class up) and one BindingToAnalysisBoundaryTests row at Tier 4, the seam the no-cascade claim
+      crosses. Three mutations, each caught: the base not recorded, not consulted, and consulted on the
+      conformer alone.
+
       LEFT OPEN: operator and static abstract slots; an associated type slot in a member's signature still
       agrees with any type; a generic slot's `where` constraints are not compared with its filler's, the
       emitted interface omitting them, so no mismatch reaches Roslyn (measured: `string Show<T>(T x)

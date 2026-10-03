@@ -59,4 +59,24 @@ public sealed class BindingToAnalysisBoundaryTests : ProgramModelProbe
         Assert.True(diagnostics is [var only] && only.Id.Value == expected,
             $"{caseName}: expected only {expected}; got {string.Join(", ", diagnostics.Select(diagnostic => diagnostic.Id.Value))}");
     }
+
+    [Fact]
+    public void AnUnresolvedBaseDoesNotCascadeIntoTheSlotsItMightFill()
+    {
+        var model = Build("""
+            namespace Probe;
+            public abstract IGet { int Get(); }
+            public class Thing : Missing, IGet { }
+            """, out var binding);
+        var bag = new DiagnosticBag();
+        foreach(var finding in binding)
+        {
+            bag.Add(finding);
+        }
+
+        ProgramAnalysisRunner.Run(model, bag);
+        var diagnostics = bag.ToImmutableArray().Where(diagnostic => diagnostic.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning).ToArray();
+        Assert.True(diagnostics is [{ Id.Value: "MIST_PM_UNRESOLVED_TYPE" }],
+            $"expected only MIST_PM_UNRESOLVED_TYPE; got {string.Join(", ", diagnostics.Select(diagnostic => diagnostic.Id.Value))}");
+    }
 }

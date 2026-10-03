@@ -96,6 +96,39 @@ public sealed class ConformanceRefusalTests
         Assert.Empty(Exact(name).Fragment.Run(new ConformanceAnalyzer()));
     }
 
+    [Theory]
+    [InlineData("method", false)]
+    [InlineData("property", false)]
+    [InlineData("indexer", false)]
+    [InlineData("method", true)]
+    public void AConformerOverAnUnresolvedBase_OwesNoUnansweredSlot(string member, bool throughAnotherBase)
+    {
+        var fragment = new DeclarationFragments();
+        var integer = fragment.Built.Type("Int32");
+        var contract = fragment.Abstract("IContract");
+        var concrete = fragment.Class("Thing");
+        concrete.BaseAbstractTypes.Add(contract);
+        var unresolved = throughAnotherBase ? fragment.Class("Middle") : concrete;
+        unresolved.BaseUnresolved = true;
+        concrete.BaseType = throughAnotherBase ? unresolved : null;
+
+        switch(member)
+        {
+            case "method":
+                _ = DeclarationFragments.Method(contract, "Describe", integer);
+                _ = DeclarationFragments.Method(concrete, "Describe", integer, integer);
+                break;
+            case "property":
+                contract.PropertiesList.Add(new Property("Size", integer, DeclarationFragments.Public) { DeclaringType = contract, Getter = new PropertyAccessor() });
+                break;
+            default:
+                _ = Indexed(contract, integer, integer, getter: true, setter: false);
+                break;
+        }
+
+        Assert.Empty(fragment.Run(new ConformanceAnalyzer()));
+    }
+
     [Fact]
     public void UnresolvedMappingTargetOwesNoUnansweredSlot()
     {

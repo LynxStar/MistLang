@@ -129,6 +129,89 @@ public sealed class NamespaceConstructionTests
         _ = Assert.IsType<NotFoundResult>(types[0].Scope.Lookup(Request("Third")));
     }
 
+    [Theory]
+    [InlineData("alias")]
+    [InlineData("with")]
+    [InlineData("alias and class")]
+    public void AFileWhoseDeclarationsEraseStillDeclaresItsNamespaceForAnEarlierFilesUsing(string declarations)
+    {
+        var f = new Construction();
+        _ = f.Build(Importing("Inferred"));
+        _ = f.Build(new CompilationUnitNode { Items = [.. TopLevel(declarations)] });
+
+        Assert.Empty(f.Validate());
+        Assert.Equal(["Inferred"], f.Model.Namespaces.Keys);
+    }
+
+    [Fact]
+    public void AUsingOfANamespaceNoFileDeclaresIsStillRefused()
+    {
+        var f = new Construction();
+        _ = f.Build(Importing("Inferred.Missing"));
+        _ = f.Build(new CompilationUnitNode { Items = [.. TopLevel("alias"), .. TopLevel("with")] });
+
+        Assert.Equal("MIST_UNDEFINED_NAMESPACE", Assert.Single(f.Validate()).Id.Value);
+    }
+
+    [Fact]
+    public void ABlockInAFileScopedNamespaceIsRegisteredWhereItsTypesAreEvenWhenEmpty()
+    {
+        var f = new Construction();
+        var types = f.Build(new CompilationUnitNode
+        {
+            Items =
+            [
+                new NamespaceItemTopLevelItemNode
+                {
+                    NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode
+                    {
+                        Name = Name("Outer"),
+                        Body = [Nested(Block("Empty")), Nested(Block("Full", Type("Value")))],
+                    },
+                },
+            ],
+        }).Types;
+
+        Assert.Equal("Outer.Full.Value", Assert.Single(types).FullyQualifiedName);
+        Assert.Equal(new[] { "Outer.Empty", "Outer.Full" }, f.Model.Namespaces.Keys.Order());
+    }
+
+    private static CompilationUnitNode Importing(string namespaceName)
+    {
+        return new CompilationUnitNode { Usings = [new UsingDeclarationNode { Name = Name(namespaceName) }] };
+    }
+
+    private static IEnumerable<TopLevelItemNode> TopLevel(string declarations)
+    {
+        if(declarations.Contains("alias", StringComparison.Ordinal))
+        {
+            yield return new TypeItemTopLevelItemNode
+            {
+                TypeDeclaration = new TypeAliasTypeTypeDeclarationNode
+                {
+                    TypeAliasDeclaration = new TypeAliasDeclarationNode { Name = MistTypeGenerator.MakeToken("Count") },
+                },
+            };
+        }
+
+        if(declarations.Contains("with", StringComparison.Ordinal))
+        {
+            yield return new WithItemTopLevelItemNode
+            {
+                WithDeclaration = new WithDeclarationNode
+                {
+                    TypeName = MistTypeGenerator.MakeToken("Logger"),
+                    AbstractName = MistTypeGenerator.MakeToken("INamed"),
+                },
+            };
+        }
+
+        if(declarations.Contains("class", StringComparison.Ordinal))
+        {
+            yield return new TypeItemTopLevelItemNode { TypeDeclaration = Type("Box").TypeDeclaration };
+        }
+    }
+
     private static LookupRequest Request(string name)
     {
         return new LookupRequest(name, MemberVisibility.None, null);
@@ -203,6 +286,12 @@ public sealed class NamespaceConstructionTests
         public string Register(params BlockNamespaceNamespaceDeclarationNode[] blocks)
         {
             return Register(Unit(blocks));
+        }
+
+        public ImmutableArray<Diagnostic> Validate()
+        {
+            UsingValidation.Run(context);
+            return Diagnostics.ToImmutableArray();
         }
 
         private string Register(CompilationUnitNode ast)

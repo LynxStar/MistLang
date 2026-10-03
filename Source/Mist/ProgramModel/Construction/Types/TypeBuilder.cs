@@ -239,19 +239,28 @@ internal sealed class TypeBuilder
 
     /// <summary>
     /// Stashes an extension block AST for deferred processing in Phase 2.
-    /// The receiver type cannot be resolved until all types are registered. Its namespace is
-    /// registered here all the same, because a using is judged before Phase 2 and a namespace
-    /// holding nothing but extension blocks is one a file may import.
+    /// The receiver type cannot be resolved until all types are registered.
     /// </summary>
     private void StashExtension(Scope scope, string namespaceName, ExtensionBlockDeclarationNode extensionDecl)
     {
-        _ = context.ProgramModel.GetOrAddNamespace(namespaceName);
+        RegisterDeferredNamespace(namespaceName);
         context.PendingExtensions.Add(new PendingExtension(extensionDecl, scope, namespaceName));
     }
 
     private void StashConformance(Scope scope, string namespaceName, WithDeclarationNode withDecl)
     {
+        RegisterDeferredNamespace(namespaceName);
         context.PendingConformances.Add(new PendingConformance(withDecl, scope, namespaceName));
+    }
+
+    /// <summary>
+    /// Registered at the stash rather than when Phase 2 builds the declaration, because a using is
+    /// judged before Phase 2 and a namespace holding nothing but extension blocks or <c>with</c>
+    /// declarations is one a file may import.
+    /// </summary>
+    private void RegisterDeferredNamespace(string namespaceName)
+    {
+        _ = context.ProgramModel.GetOrAddNamespace(namespaceName);
     }
 
     /// <summary>

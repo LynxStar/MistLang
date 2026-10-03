@@ -123,6 +123,8 @@ internal sealed class CSharpEmitterV2
         EmitVoidStandIn(outputDir, emittedFiles);
         IntrinsicMemberEmitter.EmitFile((ProgramModel.Model.ProgramModel)programModel, outputDir, emittedFiles, diagnostics);
 
+        var usings = UsingSelection.Of(programModel);
+
         // Standard's compilation units go through the same path as a user's, and what the target
         // already supplies is dropped one declaration at a time by TypeEmitter.ProducesDeclaration:
         // Bootstrap is intrinsic throughout and so emits nothing, IClonable is ordinary Mist and
@@ -137,7 +139,7 @@ internal sealed class CSharpEmitterV2
             foreach(var unit in assembly.CompilationUnits)
             {
                 EmitCompilationUnit(
-                    unit, assembly, ReferenceEquals(unit, startup.TopLevelUnit), closures, outputDir, emittedFiles);
+                    unit, assembly, ReferenceEquals(unit, startup.TopLevelUnit), closures, usings, outputDir, emittedFiles);
             }
         }
 
@@ -167,15 +169,11 @@ internal sealed class CSharpEmitterV2
         IAssembly assembly,
         bool emitsStatements,
         ConstraintClosureMap closures,
+        UsingSelection usings,
         string outputDir,
         List<string> emittedFiles)
     {
-        // A variadic family is not emitted where it was written: C# cannot express it once, so
-        // EmitMonomorphs writes one declaration per arity instead and this skips the original.
-        var emittableTypes = unit.Types
-            .Where(TypeEmitter.ProducesDeclaration)
-            .Where(type => Monomorph.PacksOf(type).Count == 0)
-            .ToList();
+        var emittableTypes = WrittenDeclarations(unit);
         var emittableBlocks = unit.Extensions;
 
         // A file that declares nothing emittable would produce a .cs holding only usings,
@@ -187,11 +185,11 @@ internal sealed class CSharpEmitterV2
 
         var writer = new CSharpWriter();
 
-        EmitUsings(unit, assembly, writer);
+        EmitUsings(unit, assembly, usings, writer);
 
         if(emitsStatements)
         {
-            EmitTopLevelStatements(unit, writer);
+            EmitTopLevelStatements(unit, usings, writer);
         }
 
         if(emittableTypes.Count > 0 || emittableBlocks.Count > 0)
@@ -223,6 +221,17 @@ internal sealed class CSharpEmitterV2
 
         File.WriteAllText(fullPath, writer.ToString());
         emittedFiles.Add(fullPath);
+    }
+
+    /// <summary>
+    /// A variadic family is not emitted where it was written: C# cannot express it once, so
+    /// EmitMonomorphs writes one declaration per arity instead and this skips the original.
+    /// </summary>
+    internal static List<DeclaredType> WrittenDeclarations(CompilationUnit unit)
+    {
+        return [.. unit.Types
+            .Where(TypeEmitter.ProducesDeclaration)
+            .Where(type => Monomorph.PacksOf(type).Count == 0)];
     }
 
     /// <summary>
@@ -765,17 +774,15 @@ internal sealed class CSharpEmitterV2
     }
 
     /// <summary>
-    /// Exactly the directives the Mist source wrote, the manifest's global usings included, because
-    /// they are what an extension method or a bare ambient name in the body still binds through.
-    /// Nothing is added: every name the emitter substitutes for a Mist type is written in full
-    /// (<see cref="ClrSpelling"/>), so no directive exists for the emitter's own sake. And Standard
-    /// is not dropped, being a namespace the output always declares.
+    /// The directives the Mist source wrote, the manifest's global usings included, because they are
+    /// what an extension method or a bare ambient name in the body still binds through -- less those
+    /// <see cref="UsingSelection"/> finds C# has no namespace for. Nothing is added: every name the
+    /// emitter substitutes for a Mist type is written in full (<see cref="ClrSpelling"/>), so no
+    /// directive exists for the emitter's own sake.
     /// </summary>
-    private static void EmitUsings(CompilationUnit unit, IAssembly assembly, CSharpWriter writer)
+    private static void EmitUsings(CompilationUnit unit, IAssembly assembly, UsingSelection usings, CSharpWriter writer)
     {
-        var usings = new HashSet<string>(unit.Usings.Concat(assembly.GlobalUsings), StringComparer.Ordinal);
-
-        foreach(var ns in usings.OrderBy(n => n, StringComparer.Ordinal))
+        foreach(var ns in usings.Directives(unit, assembly))
         {
             writer.WriteLine($"using {ns};");
         }
@@ -783,13 +790,9 @@ internal sealed class CSharpEmitterV2
         writer.WriteBlankLine();
     }
 
-    private void EmitTopLevelStatements(CompilationUnit unit, CSharpWriter writer)
+    private void EmitTopLevelStatements(CompilationUnit unit, UsingSelection usings, CSharpWriter writer)
     {
-        var declared = unit.Types
-            .Select(type => type.NamespaceName)
-            .Where(name => !string.IsNullOrEmpty(name))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        var declared = usings.StatementImports(unit);
 
         foreach(var name in declared)
         {

@@ -39,7 +39,7 @@ internal sealed class NamespaceBuilder
 
         var fileNamespace = DetermineFileNamespace(ast, sourceText, namespaceRoot, projectFolder);
 
-        RegisterNamespaces(ast);
+        RegisterNamespaces(ast, fileNamespace);
         PopulateImports(ast, sourceText, fileScope);
 
         return fileNamespace;
@@ -201,14 +201,19 @@ internal sealed class NamespaceBuilder
     /// Declaring a type registers its namespace, so a file that does have top-level items still
     /// gets one.
     /// </summary>
-    private void RegisterNamespaces(CompilationUnitNode ast)
+    private void RegisterNamespaces(CompilationUnitNode ast, string fileNamespace)
     {
-        foreach(var item in ast.Items)
+        foreach(var item in ast.Items.OfType<NamespaceItemTopLevelItemNode>())
         {
-            if(item is NamespaceItemTopLevelItemNode nsItem
-                && nsItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode blockNs)
+            switch(item.NamespaceDeclaration)
             {
-                RegisterBlockNamespace(blockNs, "");
+                case BlockNamespaceNamespaceDeclarationNode blockNs:
+                    RegisterBlockNamespace(blockNs, "");
+                    break;
+
+                case FileScopedNamespaceNamespaceDeclarationNode fileScopedNs:
+                    RegisterNestedBlocks(fileScopedNs.Body, fileNamespace);
+                    break;
             }
         }
     }
@@ -217,13 +222,17 @@ internal sealed class NamespaceBuilder
     {
         var namespaceName = BlockNamespaceName.Build(blockNs, parentNamespace);
         _ = context.ProgramModel.GetOrAddNamespace(namespaceName);
+        RegisterNestedBlocks(blockNs.Body, namespaceName);
+    }
 
-        foreach(var item in blockNs.Body)
+    private void RegisterNestedBlocks(System.Collections.Immutable.ImmutableArray<NamespaceBodyItemNode> body, string parentNamespace)
+    {
+        foreach(var item in body)
         {
             if(item is NamespaceNamespaceItemNamespaceBodyItemNode nestedItem
                 && nestedItem.NamespaceDeclaration is BlockNamespaceNamespaceDeclarationNode nestedBlock)
             {
-                RegisterBlockNamespace(nestedBlock, namespaceName);
+                RegisterBlockNamespace(nestedBlock, parentNamespace);
             }
         }
     }

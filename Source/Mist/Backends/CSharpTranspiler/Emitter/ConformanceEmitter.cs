@@ -46,16 +46,17 @@ internal static class ConformanceEmitter
         MethodMapping mapping, string interfaceName, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var slot = mapping.Target;
-        var returnType = TypeNameEmitter.Emit(slot.ReturnType);
+        var returnType = MethodEmitter.EmitReturnType(slot);
         var typeParams = slot.TypeParametersList.Count > 0
             ? $"<{string.Join(", ", slot.TypeParametersList.Select(tp => tp.Name))}>"
             : "";
         var parameters = ParameterEmitter.Emit(slot.ParametersList, diagnostics);
-        var arguments = string.Join(", ", slot.ParametersList.Select(parameter => parameter.Name));
+        var arguments = string.Join(", ", slot.ParametersList.Select(parameter => $"{ArgumentKeywords.For(parameter)}{parameter.Name}"));
+        var aliased = slot.Modifiers.IsRef ? "ref " : "";
 
         writer.WriteLine(
             $"{returnType} {interfaceName}.{slot.Name}{typeParams}({parameters})"
-            + $" => this.{mapping.Source.Name}({arguments});");
+            + $" => {aliased}this.{mapping.Source.Name}({arguments});");
     }
 
     private static void EmitProperty(PropertyMapping mapping, string interfaceName, CSharpWriter writer)

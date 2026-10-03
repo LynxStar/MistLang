@@ -4348,6 +4348,19 @@ capabilities:
       relocation remain separate work. Verified by a zero-warning solution build, solution-wide
       formatting verification and 7474 of 7474 tests through the test ledger, including both
       AllFeatures orchestrator baselines and the refusal corpus.
+
+      A MAPPING'S FORWARDER REPEATS THE SLOT'S RETURN AND PASSING (2026-10-03). MEASURED by CLI probe with
+      ConformanceEmitter as at 34be2ddc: `with Plain : IDo { Poke as Do; }` over `void Do()` emitted
+      `Standard.Void Probe.IDo.Do() => this.Poke();`, three MIST_CS_ERRORs, the interface declaring `void`;
+      `Grab as Get` over `ref int Get()` emitted a by-value return, so nothing implemented the slot; and
+      `Poke as Act` over `int Act(ref T x)` closed to int forwarded `this.Poke(x)`, "Argument 1 must be
+      passed with the 'ref' keyword". ConformanceEmitter now spells the return through
+      MethodEmitter.EmitReturnType, as the interface member is spelled, forwards a ref return with `ref`,
+      and passes each argument with ArgumentKeywords. The three programs print `poked`, 5, and 2 four times.
+      ConformanceForwarderEmissionTests holds the void, ref, readonly ref and ref-return spellings at Tier
+      1; three mutations -- arguments without their keyword, the return as a plain type name, and the ref
+      return unforwarded -- are each caught. Found while proving order 7 of the analysis register admits a
+      mapped conformance whose passing matches.
     tasks: []
     analysis_phase_tasks:
       - >

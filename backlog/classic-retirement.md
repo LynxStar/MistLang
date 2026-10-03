@@ -262,7 +262,22 @@ Found while closing the gaps, each measured, none established as something class
   `default(Box<Widget>)` uses Widget's own default; `default(T)` on an unconstrained parameter is
   refused by the backend and not by Stage 5.
 - **Modifiers**: `async`, `static`, `readonly`, `owned`, `affine` on an enum, alias, newtype or class
-  are dropped silently; `ref` on an operator reaches Roslyn.
+  were dropped silently, and `ref` on an operator reached Roslyn. Audited against the specs on
+  2026-10-03 and closed where a spec decides (`b199134c`): `async` on an enum, alias, newtype, class,
+  struct or abstract is `MIST_PM_ASYNC_NOT_ALLOWED` (structured-concurrency 2.3, read as the member
+  builders already read it), and `ref` on an operator, `readonly ref` included, is
+  `MIST_PM_REF_ON_OPERATOR` (standard-library 4.2; ref-parameters 4.1 gives ref returns to methods
+  only). Both come from `DeclarationModifierPlacement`, called by `ModifierBuilder.Build`, pinned by
+  `DeclarationModifierPlacementTests` (Tier 1) and `ModifierPlacementBuildTests` (Tier 2); full ledger
+  `20261003-005944`, 7,851 / 105 / 812 / 46, all passed. `readonly`, `owned` and `affine` on a class
+  or struct, and `readonly` on an enum, were valid and already held. Still dropped, and decided by
+  no spec: `static` on any type (nested-scoping 1.7 admits it on a nested type with no meaning),
+  `owned` and `affine` on an enum, alias or newtype, `affine` on an abstract, `readonly` on an alias,
+  and `ref` on a cast operator. Valid but not carried: `readonly` on a newtype over a mutable class
+  or struct (purity Deferred 2) never reaches the clone, since `ConcreteTypeBuilder.BuildDeclaration`
+  takes only the newtype's accessibility. A `ref` operator parameter (ref-parameters 1.2) reaches
+  Roslyn, and `sealed`, `readonly`, `owned` and `affine` on an operator compile, though
+  standard-library 4.2 refuses any operator modifier beyond `public static`.
 - **Packages**: csharp-interop-v2 3.5 (the error surfaced during Stage 1.5, before the next stage) is
   not implemented; the diagnostic prints after the summary.
 - **CLR conformances**: a CLR `List<int>` is not assignable to a CLR `IReadOnlyList<int>`,

@@ -117,6 +117,11 @@ internal static class ModifierBuilder
 
         ValidatePurity(node, diagnostics, modifiers, result);
 
+        foreach(var refusal in DeclarationModifierPlacement.Refusals(node, modifiers))
+        {
+            diagnostics.ReportAtNode(refusal, node, null);
+        }
+
         return result;
     }
 

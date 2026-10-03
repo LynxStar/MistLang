@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -42,6 +43,57 @@ public sealed class ConformanceRefusalTests
         Assert.Equal(expected, diagnostic.Id.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(offset + 1, diagnostic.Location.Start.Column);
+    }
+
+    [Theory]
+    [InlineData("indexer-not-filled", "MIST_PA_SLOT_NOT_FILLED", "slot 'int this[int]' of 'IContract': it declares no public member named 'this[]'")]
+    [InlineData("indexer-not-public", "MIST_PA_SLOT_NOT_FILLED", "slot 'int this[int]'")]
+    [InlineData("indexer-other-type", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'int this[int]' of 'IContract': its 'this[]' has a different signature")]
+    [InlineData("indexer-other-parameter", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'int this[int]'")]
+    [InlineData("indexer-passed-by-ref", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'int this[int]'")]
+    [InlineData("indexer-setter-missing", "MIST_PA_PROPERTY_SLOT_ACCESSOR_MISSING", "'Thing.this[int]' does not implement the 'set' accessor")]
+    [InlineData("indexer-getter-missing", "MIST_PA_PROPERTY_SLOT_ACCESSOR_MISSING", "'Thing.this[int]' does not implement the 'get' accessor")]
+    [InlineData("indexer-inherited-from-a-base-closed-otherwise", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'int this[int]'")]
+    [InlineData("indexer-closed-generic-slot-other-type", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'int this[int]'")]
+    [InlineData("with-block-indexer-unanswered", "MIST_PA_CONFORMANCE_SLOT_UNANSWERED", "leaves slot 'int this[int]' unanswered")]
+    [InlineData("parameter-passed-by-value", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'int Act(ref int)'")]
+    [InlineData("parameter-passed-readonly", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'int Act(ref int)'")]
+    [InlineData("parameter-inherited-by-value", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'int Act(ref int)'")]
+    [InlineData("parameter-closed-generic-by-value", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'int Act(ref int)'")]
+    [InlineData("parameter-mapped-readonly", "MIST_PA_CONFORMANCE_SLOT_UNANSWERED", "leaves slot 'int Act(ref int)' unanswered")]
+    [InlineData("return-not-by-ref", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'ref int Act(ref int)'")]
+    [InlineData("generic-method-concrete-return", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'T Identity<T>(T)'")]
+    [InlineData("generic-method-concrete-parameter", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'T Identity<T>(T)'")]
+    [InlineData("generic-method-nested-concrete", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'List<T> Identity<T>(T)'")]
+    [InlineData("generic-method-not-generic", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "slot 'T Identity<T>(T)'")]
+    public void AnInexactMember_IsRefusedAtTheConformer(string name, string expected, string message)
+    {
+        var (fragment, offset) = Exact(name);
+        var diagnostic = Assert.Single(fragment.Run(new ConformanceAnalyzer()));
+
+        Assert.Equal(expected, diagnostic.Id.Value);
+        Assert.Contains(message, diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal(offset + 1, diagnostic.Location.Start.Column);
+    }
+
+    [Theory]
+    [InlineData("indexer-answered")]
+    [InlineData("indexer-get-slot-answered-by-get-and-set")]
+    [InlineData("indexer-inherited")]
+    [InlineData("indexer-inherited-from-a-base-closed-alike")]
+    [InlineData("indexer-closed-generic-slot")]
+    [InlineData("indexer-diamond")]
+    [InlineData("with-block-indexer-answered")]
+    [InlineData("parameter-passed-by-ref")]
+    [InlineData("parameter-inherited-by-ref")]
+    [InlineData("parameter-closed-generic-by-ref")]
+    [InlineData("parameter-mapped-by-ref")]
+    [InlineData("return-by-ref")]
+    [InlineData("generic-method-renamed")]
+    [InlineData("generic-method-nested-renamed")]
+    public void AnExactMember_AnswersTheSlot(string name)
+    {
+        Assert.Empty(Exact(name).Fragment.Run(new ConformanceAnalyzer()));
     }
 
     [Fact]
@@ -206,6 +258,168 @@ public sealed class ConformanceRefusalTests
         }
 
         return (fragment, 10);
+    }
+
+    private static (DeclarationFragments Fragment, int Offset) Exact(string name)
+    {
+        var fragment = new DeclarationFragments();
+        var interner = fragment.Built.Interner;
+        IMistType integer = fragment.Built.Type("Int32");
+        IMistType text = fragment.Built.Type("String");
+        var contract = fragment.Abstract("IContract");
+        var concrete = fragment.Class("Thing");
+        concrete.BaseAbstractTypes.Add(contract);
+
+        if(name.Contains("indexer", StringComparison.Ordinal))
+        {
+            var bothAccessors = name is "indexer-answered" or "indexer-setter-missing" or "indexer-getter-missing";
+            var slotType = name.Contains("closed-generic", StringComparison.Ordinal) ? Generic(contract, "T", interner, integer, concrete) : integer;
+            _ = Indexed(contract, slotType, integer, getter: true, setter: bothAccessors);
+            var owner = name.StartsWith("indexer-inherited", StringComparison.Ordinal) ? fragment.Class("Base") : concrete;
+
+            if(owner != concrete)
+            {
+                concrete.BaseType = owner;
+            }
+
+            var (type, key) = (integer, integer);
+
+            if(name.StartsWith("indexer-inherited-from-a-base", StringComparison.Ordinal))
+            {
+                type = DeclarationFragments.Parameter(owner, owner.Scope, "U");
+                concrete.BaseType = interner.GetOrCreateConstructedType(owner, [name.EndsWith("alike", StringComparison.Ordinal) ? integer : text]);
+            }
+
+            switch(name)
+            {
+                case "indexer-not-filled" or "with-block-indexer-unanswered":
+                    break;
+                case "indexer-not-public":
+                    _ = Indexed(owner, type, key, getter: true, setter: false, Accessibility.Private);
+                    break;
+                case "indexer-other-type" or "indexer-closed-generic-slot-other-type":
+                    _ = Indexed(owner, text, key, getter: true, setter: false);
+                    break;
+                case "indexer-other-parameter":
+                    _ = Indexed(owner, type, text, getter: true, setter: false);
+                    break;
+                case "indexer-passed-by-ref":
+                    owner.IndexersList.Add(new Indexer(type, [Passed("key", key, ByRefDirection.Ref)], DeclarationFragments.Public)
+                    {
+                        DeclaringType = owner,
+                        Getter = new PropertyAccessor(),
+                    });
+                    break;
+                case "indexer-getter-missing":
+                    _ = Indexed(owner, type, key, getter: false, setter: true);
+                    break;
+                default:
+                    _ = Indexed(owner, type, key, getter: true, setter: name is "indexer-answered" or "indexer-get-slot-answered-by-get-and-set");
+                    break;
+            }
+
+            if(name == "indexer-diamond")
+            {
+                var left = fragment.Abstract("ILeft");
+                var right = fragment.Abstract("IRight");
+                left.BaseAbstractTypes.Add(contract);
+                right.BaseAbstractTypes.Add(contract);
+                concrete.BaseAbstractTypes.Clear();
+                concrete.BaseAbstractTypes.AddRange([left, right]);
+            }
+
+            if(name.StartsWith("with-block", StringComparison.Ordinal))
+            {
+                concrete.BaseAbstractTypes.Clear();
+                concrete.ConformancesList.Add(new ConformanceDeclaration(concrete, contract, "Refusal", [], [], HandBuiltModel.Node(40)));
+                return (fragment, 40);
+            }
+
+            return (fragment, 10);
+        }
+
+        if(name.StartsWith("generic-method", StringComparison.Ordinal))
+        {
+            var list = fragment.Built.Type("List<>");
+            var nested = name.Contains("nested", StringComparison.Ordinal);
+            var t = new TypeParameter("T", 0, contract.Scope, contract);
+            var slot = DeclarationFragments.Method(contract, "Identity", nested ? interner.GetOrCreateConstructedType(list, [t]) : t, t);
+            slot.TypeParametersList.Add(t);
+
+            var u = new TypeParameter("U", 0, concrete.Scope, concrete);
+            var returned = name is "generic-method-concrete-return" or "generic-method-not-generic" ? integer : u;
+            var filler = DeclarationFragments.Method(
+                concrete, "Identity",
+                nested ? interner.GetOrCreateConstructedType(list, [name.EndsWith("concrete", StringComparison.Ordinal) ? integer : u]) : returned,
+                name is "generic-method-concrete-parameter" or "generic-method-not-generic" ? integer : u);
+
+            if(name != "generic-method-not-generic")
+            {
+                filler.TypeParametersList.Add(u);
+            }
+
+            return (fragment, 10);
+        }
+
+        var takes = name.Contains("closed-generic", StringComparison.Ordinal) ? Generic(contract, "T", interner, integer, concrete) : integer;
+        var refReturn = name.StartsWith("return", StringComparison.Ordinal);
+        contract.MethodsList.Add(new Method("Act", integer, [Passed("x", takes, ByRefDirection.Ref)], DeclarationFragments.Public with { IsRef = refReturn })
+        {
+            DeclaringType = contract,
+        });
+
+        var passing = name.EndsWith("by-value", StringComparison.Ordinal) ? ByRefDirection.None
+            : name.EndsWith("readonly", StringComparison.Ordinal) ? ByRefDirection.In
+            : ByRefDirection.Ref;
+        var holder = name.Contains("inherited", StringComparison.Ordinal) ? fragment.Class("Base") : concrete;
+        var mapped = name.Contains("mapped", StringComparison.Ordinal);
+        var answer = new Method(mapped ? "Poke" : "Act", integer, [Passed("y", integer, passing)], DeclarationFragments.Public with { IsRef = name == "return-by-ref" })
+        {
+            DeclaringType = holder,
+        };
+        holder.MethodsList.Add(answer);
+
+        if(holder != concrete)
+        {
+            concrete.BaseType = holder;
+        }
+
+        if(mapped)
+        {
+            concrete.BaseAbstractTypes.Clear();
+            concrete.ConformancesList.Add(new ConformanceDeclaration(concrete, contract, "Refusal",
+                [new MethodMapping(answer, contract.MethodsList[0], contract)], [], HandBuiltModel.Node(40)));
+            return (fragment, 40);
+        }
+
+        return (fragment, 10);
+    }
+
+    private static TypeParameter Generic(AbstractType contract, string name, TypeInterner interner, IMistType argument, ClassType concrete)
+    {
+        var parameter = new TypeParameter(name, 0, contract.Scope, contract);
+        contract.TypeParametersList.Add(parameter);
+        concrete.BaseAbstractTypes.Clear();
+        concrete.BaseAbstractTypes.Add(interner.GetOrCreateConstructedType(contract, [argument]));
+        return parameter;
+    }
+
+    private static Indexer Indexed(
+        MemberType owner, IMistType type, IMistType key, bool getter, bool setter, Accessibility access = Accessibility.Public)
+    {
+        var indexer = new Indexer(type, [new Parameter("key", key)], DeclarationFragments.Public with { Accessibility = access })
+        {
+            DeclaringType = owner,
+            Getter = getter ? new PropertyAccessor() : null,
+            Setter = setter ? new PropertyAccessor() : null,
+        };
+        owner.IndexersList.Add(indexer);
+        return indexer;
+    }
+
+    private static Parameter Passed(string name, IMistType type, ByRefDirection passing)
+    {
+        return new Parameter(name, type, new ParameterModifier(passing == ByRefDirection.In, passing != ByRefDirection.None, OwnershipKind.Unrestricted, passing));
     }
 
     private static (DeclarationFragments Fragment, int Offset) Readonly(

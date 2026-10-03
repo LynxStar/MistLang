@@ -18,7 +18,7 @@ internal static class ConformanceAnswers
 
             if(mapping.TargetName == slot.Name && SlotSignatures.Answers(slot, mapping.Source, substitution, source, interner))
             {
-                return new MethodAnswer(mapping.Source, source, MethodClosing(slot, mapping.Source, substitution));
+                return new MethodAnswer(mapping.Source, source, SlotSignatures.Closing(slot, mapping.Source, substitution));
             }
         }
 
@@ -27,7 +27,7 @@ internal static class ConformanceAnswers
             if(filler.Method is { } method && method.Name == slot.Name
                 && SlotSignatures.Answers(slot, method, substitution, filler.Substitution, interner))
             {
-                return new MethodAnswer(method, filler.Substitution, MethodClosing(slot, method, substitution));
+                return new MethodAnswer(method, filler.Substitution, SlotSignatures.Closing(slot, method, substitution));
             }
         }
 
@@ -61,15 +61,17 @@ internal static class ConformanceAnswers
         return null;
     }
 
-    private static TypeSubstitution SourceClosing(object member, IReadOnlyList<ConformanceAnalyzer.Filler> fillers)
+    public static Indexer? Indexer(
+        Indexer slot, TypeSubstitution substitution, IReadOnlyList<ConformanceAnalyzer.Filler> fillers, TypeInterner interner)
+    {
+        return fillers.FirstOrDefault(filler => filler.Indexer is { } indexer
+            && SlotSignatures.Answers(slot, indexer, substitution, filler.Substitution, interner))?.Indexer;
+    }
+
+    public static TypeSubstitution SourceClosing(object member, IReadOnlyList<ConformanceAnalyzer.Filler> fillers)
     {
         return fillers.FirstOrDefault(filler => ReferenceEquals(filler.Method, member) || ReferenceEquals(filler.Property, member))?.Substitution
             ?? TypeSubstitution.Empty;
-    }
-
-    private static TypeSubstitution MethodClosing(Method slot, Method filler, TypeSubstitution substitution)
-    {
-        return substitution.Extend(TypeSubstitution.ForParameters(slot.TypeParametersList, [.. filler.TypeParametersList]));
     }
 
     internal sealed record MethodAnswer(Method Member, TypeSubstitution Source, TypeSubstitution Target);

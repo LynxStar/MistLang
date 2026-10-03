@@ -261,7 +261,7 @@ internal sealed partial class ContextCalls
 
             foreach(var slot in abstractType.IndexersList.Where(indexer => !indexer.Modifiers.IsStatic))
             {
-                if(ConformanceAnalyzer.AnsweringIndexer(concrete, slot, substitution, interner) is { } indexer)
+                if(ConformanceAnswers.Indexer(slot, substitution, fillers, interner) is { } indexer)
                 {
                     foreach(var (answered, answering) in Paired(slot.Getter, slot.Setter, indexer.Getter, indexer.Setter))
                     {

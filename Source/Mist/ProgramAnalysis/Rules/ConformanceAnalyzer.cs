@@ -110,26 +110,9 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                 continue;
             }
 
-            var signature = SlotSignatures.Display(slot, substitution, interner);
-
-            if(mappings is not null)
-            {
-                context.Report(
-                    ProgramAnalysisDiagnostics.ConformanceSlotUnanswered, at, [],
-                    TypeDisplay.Mist(concrete), TypeDisplay.Mist(abstractType), signature);
-            }
-            else if(fillers.Any(filler => filler.Method?.Name == slot.Name))
-            {
-                context.Report(
-                    ProgramAnalysisDiagnostics.SlotSignatureMismatch, at, [],
-                    TypeDisplay.Mist(concrete), signature, TypeDisplay.Mist(abstractType), slot.Name);
-            }
-            else
-            {
-                context.Report(
-                    ProgramAnalysisDiagnostics.SlotNotFilled, at, [],
-                    TypeDisplay.Mist(concrete), signature, TypeDisplay.Mist(abstractType), slot.Name);
-            }
+            ReportUnanswered(
+                context, concrete, at, abstractType, mappings, SlotSignatures.Display(slot, substitution, interner),
+                slot.Name, fillers.Any(filler => filler.Method?.Name == slot.Name));
         }
 
         foreach(var slot in abstractType.PropertiesList.Where(IsPropertySlot))
@@ -143,19 +126,13 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
             if(answer is null)
             {
-                var signature = $"{TypeDisplay.Mist(substitution.Apply(slot.Type, interner))} {slot.Name}";
-
-                context.Report(
-                    mappings is null ? ProgramAnalysisDiagnostics.SlotNotFilled : ProgramAnalysisDiagnostics.ConformanceSlotUnanswered,
-                    at, [],
-                    TypeDisplay.Mist(concrete),
-                    mappings is null ? signature : TypeDisplay.Mist(abstractType),
-                    mappings is null ? TypeDisplay.Mist(abstractType) : signature,
-                    slot.Name);
+                ReportUnanswered(
+                    context, concrete, at, abstractType, mappings, $"{TypeDisplay.Mist(substitution.Apply(slot.Type, interner))} {slot.Name}",
+                    slot.Name, named: false);
                 continue;
             }
 
-            foreach(var accessor in MissingAccessors(slot, answer))
+            foreach(var accessor in MissingAccessors(slot.Getter, slot.Setter, answer.Getter, answer.Setter))
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.PropertySlotAccessorMissing, at, [],
@@ -173,12 +150,20 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
         foreach(var slot in abstractType.IndexersList.Where(indexer => IsSlot(indexer.Getter, indexer.Setter)))
         {
-            if(AnsweringIndexer(concrete, slot, substitution, interner) is not { } answer)
+            var name = SlotSignatures.Display(slot, substitution, interner);
+
+            if(ConformanceAnswers.Indexer(slot, substitution, fillers, interner) is not { } answer)
             {
+                ReportUnanswered(context, concrete, at, abstractType, mappings, name, "this[]", fillers.Any(filler => filler.Indexer is not null));
                 continue;
             }
 
-            var name = SlotSignatures.Display(slot, substitution, interner);
+            foreach(var accessor in MissingAccessors(slot.Getter, slot.Setter, answer.Getter, answer.Setter))
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.PropertySlotAccessorMissing, at, [],
+                    TypeDisplay.Mist(concrete), SlotSignatures.Name(slot, substitution, interner), accessor, TypeDisplay.Mist(abstractType));
+            }
 
             if(slot is { Getter: not null, Modifiers.IsReadonly: true } && answer.Getter is not null && !inference.IsReadonlyGetter(answer))
             {
@@ -204,37 +189,22 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         }
     }
 
-    internal static Indexer? AnsweringIndexer(ConcreteType concrete, Indexer slot, TypeSubstitution substitution, TypeInterner interner)
+    private static void ReportUnanswered(
+        AnalysisContext context, ConcreteType concrete, SyntaxNode at, AbstractType abstractType, ConformanceDeclaration? mappings,
+        string signature, string member, bool named)
     {
-        var chain = TypeSubstitution.Empty;
-
-        for(IMistType? current = concrete; current is not null;)
+        if(mappings is not null)
         {
-            var definition = current is ConstructedType constructed ? constructed.Definition : current;
-
-            if(definition is not ConcreteType type)
-            {
-                return null;
-            }
-
-            chain = chain.Extend(TypeSubstitution.ForReceiver(current as ConstructedType));
-            var applied = substitution.Extend(chain);
-
-            var answering = type.IndexersList.Find(candidate =>
-                candidate.Modifiers is { Accessibility: Accessibility.Public, IsStatic: false }
-                && candidate.ParametersList.Count == slot.ParametersList.Count
-                && SlotSignatures.Agree(applied.Apply(slot.Type, interner), candidate.Type)
-                && candidate.ParametersList.Zip(slot.ParametersList).All(pair => SlotSignatures.Agree(applied.Apply(pair.Second.Type, interner), pair.First.Type)));
-
-            if(answering is not null)
-            {
-                return answering;
-            }
-
-            current = type.BaseType;
+            context.Report(
+                ProgramAnalysisDiagnostics.ConformanceSlotUnanswered, at, [],
+                TypeDisplay.Mist(concrete), TypeDisplay.Mist(abstractType), signature);
         }
-
-        return null;
+        else
+        {
+            context.Report(
+                named ? ProgramAnalysisDiagnostics.SlotSignatureMismatch : ProgramAnalysisDiagnostics.SlotNotFilled, at, [],
+                TypeDisplay.Mist(concrete), signature, TypeDisplay.Mist(abstractType), member);
+        }
     }
 
     private static void ReportContract(AnalysisContext context, ConcreteType concrete, AbstractType abstractType, string member, SyntaxNode at)
@@ -329,14 +299,15 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
             && setter is not { Body: not null } and not { ExpressionBody: not null };
     }
 
-    private static IEnumerable<string> MissingAccessors(Property slot, Property answer)
+    private static IEnumerable<string> MissingAccessors(
+        PropertyAccessor? slotGetter, PropertyAccessor? slotSetter, PropertyAccessor? getter, PropertyAccessor? setter)
     {
-        if(slot.Getter is not null && answer.Getter is null)
+        if(slotGetter is not null && getter is null)
         {
             yield return "get";
         }
 
-        if(slot.Setter is not null && answer.Setter is null)
+        if(slotSetter is not null && setter is null)
         {
             yield return "set";
         }
@@ -366,23 +337,28 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
             substitution = substitution.Extend(TypeSubstitution.ForReceiver(current as ConstructedType));
 
-            foreach(var method in type.MethodsList.Where(IsPublicInstance))
+            foreach(var method in type.MethodsList.Where(method => IsPublicInstance(method.Modifiers)))
             {
-                yield return new Filler(method, null, substitution);
+                yield return new Filler(method, null, null, substitution);
             }
 
-            foreach(var property in type.PropertiesList.Where(property => property.Modifiers is { Accessibility: Accessibility.Public, IsStatic: false }))
+            foreach(var property in type.PropertiesList.Where(property => IsPublicInstance(property.Modifiers)))
             {
-                yield return new Filler(null, property, substitution);
+                yield return new Filler(null, property, null, substitution);
+            }
+
+            foreach(var indexer in type.IndexersList.Where(indexer => IsPublicInstance(indexer.Modifiers)))
+            {
+                yield return new Filler(null, null, indexer, substitution);
             }
 
             current = type.BaseType is { } baseType ? substitution.Apply(baseType, interner: null) : null;
         }
     }
 
-    private static bool IsPublicInstance(Method method)
+    private static bool IsPublicInstance(MemberModifiers modifiers)
     {
-        return method.Modifiers is { Accessibility: Accessibility.Public, IsStatic: false };
+        return modifiers is { Accessibility: Accessibility.Public, IsStatic: false };
     }
 
     private static string Name(IMistType type)
@@ -390,5 +366,5 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         return type.FullyQualifiedName;
     }
 
-    internal sealed record Filler(Method? Method, Property? Property, TypeSubstitution Substitution);
+    internal sealed record Filler(Method? Method, Property? Property, Indexer? Indexer, TypeSubstitution Substitution);
 }

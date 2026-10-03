@@ -51,13 +51,14 @@ internal sealed partial class PurityInference
 
     private Method? AnsweringMethod(ConcreteType concrete, Method slot, TypeSubstitution substitution, TypeInterner interner)
     {
+        var fillers = FillersOf(concrete);
         var mapped = concrete.ConformancesList.SelectMany(conformance => conformance.Mappings).OfType<MethodMapping>()
             .FirstOrDefault(mapping => mapping.TargetName == slot.Name && Declares(mapping.Declarer, slot.DeclaringType)
-                && SlotSignatures.Answers(slot, mapping.Source, substitution, interner));
+                && SlotSignatures.Answers(slot, mapping.Source, substitution, ConformanceAnswers.SourceClosing(mapping.Source, fillers), interner));
 
         return mapped?.Source
-            ?? SlotSignatures.ExactFirst(FillersOf(concrete), slot, substitution, interner).FirstOrDefault(filler => filler.Method is { } method && method.Name == slot.Name
-                && SlotSignatures.Answers(slot, method, substitution.Extend(filler.Substitution), interner))?.Method;
+            ?? SlotSignatures.ExactFirst(fillers, slot, substitution, interner).FirstOrDefault(filler => filler.Method is { } method && method.Name == slot.Name
+                && SlotSignatures.Answers(slot, method, substitution, filler.Substitution, interner))?.Method;
     }
 
     private static bool Declares(IMistType declarer, MemberType? slotOwner)
@@ -68,21 +69,24 @@ internal sealed partial class PurityInference
     private PropertyAccessor? AnsweringAccessor(ConcreteType concrete, PropertyAccessor slot, TypeSubstitution substitution, TypeInterner interner)
     {
         var owner = accessors[slot];
+        var fillers = FillersOf(concrete);
 
         if(owner.Property is { } property)
         {
             var mapped = concrete.ConformancesList.SelectMany(conformance => conformance.Mappings).OfType<PropertyMapping>()
                 .FirstOrDefault(mapping => mapping.TargetName == property.Name && Declares(mapping.Declarer, property.DeclaringType)
-                    && SlotSignatures.Agree(substitution.Apply(property.Type, interner), mapping.Source.Type));
+                    && SlotSignatures.Agree(
+                        substitution.Apply(property.Type, interner),
+                        ConformanceAnswers.SourceClosing(mapping.Source, fillers).Apply(mapping.Source.Type, interner)));
 
             var answering = mapped?.Source
-                ?? FillersOf(concrete).Find(filler => filler.Property is { } candidate && candidate.Name == property.Name
-                    && SlotSignatures.Agree(substitution.Extend(filler.Substitution).Apply(property.Type, interner), candidate.Type))?.Property;
+                ?? fillers.Find(filler => filler.Property is { } candidate && candidate.Name == property.Name
+                    && SlotSignatures.Agree(substitution.Apply(property.Type, interner), filler.Substitution.Apply(candidate.Type, interner)))?.Property;
 
             return owner.IsSetter ? answering?.Setter : answering?.Getter;
         }
 
-        var answered = ConformanceAnalyzer.AnsweringIndexer(concrete, owner.Indexer!, substitution, interner);
+        var answered = ConformanceAnswers.Indexer(owner.Indexer!, substitution, fillers, interner);
 
         return owner.IsSetter ? answered?.Setter : answered?.Getter;
     }

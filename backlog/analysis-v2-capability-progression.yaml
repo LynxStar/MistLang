@@ -2520,6 +2520,67 @@ rules:
       pack, the argument check against a flattened parameter (ArgumentTargets), `(TArgs...)` as the
       tuple of the pack, and the restated default reading its pack's width. The with block over a
       variadic abstract stays open: neither spec defines the combination and classic refused it.
+
+      EVERY INDEXER AND METHOD SIGNATURE IS NOW ANSWERED EXACTLY OR REFUSED HERE (2026-10-03;
+      Requirements 14.5 and 28.4, ref-parameters Requirement 7.5). MEASURED at 34be2ddc by CLI probe,
+      each reaching Roslyn as MIST_CS_ERROR with no Stage 5 finding: a conformer with no indexer for
+      `int this[int x] { get; }`; a get-only indexer for a `get; set;` slot; `int Act(int x)` for
+      `int Act(ref int x)`, and `ref int` for `readonly ref int`; `int Get()` for `ref int Get()`;
+      `int Identity<T>(int x)` for `T Identity<T>(T x)`; `B First<A, B>` for `A First<A, B>`;
+      `List<int> Wrap<T>(int x)` for `List<T> Wrap<T>(T x)`; `U Get()` on `Box<T, U> : IBox<T>`; and
+      `int Get()` for `unknown Get()`. The other way, the alpha-renamed `(U, U) Pair<U>(U x)` and
+      `U? Find<U>(U x)` were REFUSED as signature mismatches although C# implements both. Each is now
+      decided by SlotSignatures, as are a `string this[int]` for an `int` slot and
+      `E : Base<string>, ILookup<int>` over Base's `U this[int]`, probed after the change; the valid
+      twins build and run.
+
+      THE RULE. A slot's own method type parameters are renamed to the filler's by position
+      (SlotSignatures.Closing, the closing RefinementContracts already read its answers through), and
+      types then agree part by part: a construction by definition, arguments and enclosing construction,
+      a tuple, union or function type by its parts, and a type parameter only with itself. What still
+      agrees with anything is decided by who DECLARED the parameter, which is what says which
+      substitution it stood for. One declared by an abstract that survives the slot's substitution is an
+      argument the conformer never gave -- no measured program reaches one, only a Tier 1 row -- and an
+      associated type slot is the conformer's nested type under another name, which TypeSlots judges; both
+      stay wildcards, as an error does, so nothing cascades. A method type parameter, the conformer's own
+      and a base class's once read through its closing are exact. `unknown` is the top type and no longer
+      a wildcard. Every parameter is passed the same way -- ParameterModifier.Direction, what the emitter
+      spells -- and a ref return answers only a ref return; ownership tiers take no part, an owned return
+      remaining MIST_PA_SLOT_RETURN_NOT_OWNED's. The refinement look-through keeps its boundary: through at
+      the top and in a construction's arguments, nominal inside a tuple, union or function type, as
+      RefinedReturnDispatchDecisionTests pins. A displayed slot carries its type parameters and passing:
+      'T Identity<T>(T)', 'int Act(ref int)', 'ref int Get()'.
+
+      INDEXER SLOTS ARE JUDGED AS METHOD AND PROPERTY SLOTS ARE. Fillers now include the public instance
+      indexers along the concrete chain, each read through the substitution of the base it came from.
+      ConformanceAnswers.Indexer replaces ConformanceAnalyzer.AnsweringIndexer, which applied that walk to
+      the SLOT and compared the candidate's raw type, so an inherited generic candidate was always a
+      wildcard, and which left each next base unclosed. Unanswered, an indexer slot is
+      MIST_PA_SLOT_NOT_FILLED naming the member 'this[]' when the chain has no public indexer,
+      MIST_PA_SLOT_SIGNATURE_MISMATCH when it has one, and MIST_PA_CONFORMANCE_SLOT_UNANSWERED in a with
+      block; a missing accessor is MIST_PA_PROPERTY_SLOT_ACCESSOR_MISSING on 'Thing.this[int]'; all at the
+      conforming declaration, readonly and purity promises judged after as before. PurityInference and
+      ContextCalls read the same answer, and PurityInference now applies an inherited filler's closing to
+      the FILLER rather than folding it into the slot's, which the exact comparison would read as a
+      mismatch and so lose the implementation.
+
+      PROVED BY SlotSignatureDecisionTests at Tier 1 (46 cases over passing, ownership, ref returns, every
+      generic position, correspondence by position, both substitutions, the three wildcards, `unknown`,
+      indexers and display); ConformanceRefusalTests at Tier 2 (20 refusals asserting id, message and
+      column, and 14 exact twins -- direct, inherited, closed generic, mapped, diamond and with-block);
+      and one PurityRoundFourTests fragment for a method answered through a closed generic base. 13
+      mutations on a confirmed build, each caught: passing ignored, ref return ignored, the method closing
+      dropped, every parameter a wildcard, abstract parameters and associated slots exact, abstract
+      parameters alone exact, `unknown` a wildcard, an indexer filler's substitution dropped, an
+      unanswered indexer and a missing indexer accessor not reported, refinements looked through inside a
+      tuple, indexers not collected as fillers, and purity reading an inherited filler through the slot's
+      closing. Proving the mapped twin end to end found the with-block forwarder dropping `ref`, `void`
+      and a ref return; order 73 of the emitter register records that fix.
+
+      LEFT OPEN: operator and static abstract slots; an associated type slot in a member's signature still
+      agrees with any type; a generic slot's `where` constraints are not compared with its filler's, the
+      emitted interface omitting them, so no mismatch reaches Roslyn (measured: `string Show<T>(T x)
+      where T : INamed` answered by an unconstrained `Show<T>` builds and runs).
     tasks:
       - >
         A mapping onto a NON-PUBLIC source member is admitted. Classic requires public; C# accepts the
@@ -2529,9 +2590,14 @@ rules:
         A conformance's namespace scoping is recorded and read by nothing, on both pipelines.
         Requirement 19.2 gives the syntax and Requirement 20 what conformance means; neither settles it.
       - >
-        Indexer and operator slots are not judged, and a static abstract member is not a slot.
+        Operator slots are not judged, and a static abstract member is not a slot. Indexer slots have
+        been judged since 2026-10-03, as the evidence above records.
       - >
-        A slot mentioning an open type parameter or an associated type slot is checked on arity alone.
+        An associated type slot in a slot's signature agrees with any type, so a member answering it is
+        checked there on shape alone; TypeSlots judges only that the nested filler exists and meets the
+        slot's constraints. A generic slot's `where` constraints are not compared with its filler's.
+        Method type parameters, the conformer's own and a base class's closed ones have been matched
+        exactly since 2026-10-03, as the evidence above records.
       - >
         Requirement 14 wants a clause saying a default restated on a derived abstract HIDES the base's
         slot; the rule does what both pipelines measure, and the spec still does not say it.

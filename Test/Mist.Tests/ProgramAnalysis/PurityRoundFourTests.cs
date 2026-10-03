@@ -302,6 +302,12 @@ public sealed class PurityRoundFourTests
     }
 
     [Fact]
+    public void AbstractMethodImplementedInAGenericBaseClassIsReadThroughItsClosedBase()
+    {
+        Refused("abstract-method-implemented-in-a-generic-base-class-is-read-through-its-closed-base", CallsImpure, "'Get'");
+    }
+
+    [Fact]
     public void PureNonDefaultableTypesImplicitConstructorRunsUnjudgedFieldInitializers()
     {
         Refused("pure-non-defaultable-types-implicit-constructor-runs-unjudged-field-initializers", CallsImpure, "'Note'");

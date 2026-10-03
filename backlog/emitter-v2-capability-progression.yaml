@@ -3964,6 +3964,9 @@ capabilities:
         written in terms of its abstract's type parameters is not compared at the instantiation the
         conformer supplies, so reading an open position as a mismatch refuses correct programs --
         `IntBox : IBox<int>` among them. The cost is that a generic slot is checked on arity alone.
+        SUPERSEDED 2026-10-03: the slot is now read at that instantiation and a method's type parameters
+        correspond by position, so only an unsupplied abstract parameter and an associated type slot still
+        agree with anything; order 7 of the analysis register records the rule.
       - >
         Slots come from the type's OWN base list, transitively through the abstract hierarchy: a
         slot reached through a concrete base is that base's obligation and is reported on its own

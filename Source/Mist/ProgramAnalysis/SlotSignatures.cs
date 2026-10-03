@@ -9,37 +9,28 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Whether a member answers a slot: the same arity, with a value pack the conformer bound written out
-/// (<see cref="ValuePack.Expand"/>), and a return type and parameter types that AGREE
-/// -- identical by name once the abstract's own type arguments are applied, structurally through a
-/// construction, or indeterminate on either side. A type parameter the conformer supplies no argument
-/// for, and an associated type slot, which the conformer's nested type IS by another name, both count
-/// as agreeing, since reading either as a mismatch refuses <c>IntBox : IBox&lt;int&gt;</c> and every
-/// conformer of an abstract with a slot-typed signature; the cost is that such a slot is checked on
-/// arity alone. A refinement, named or a parameter's `where`, is looked through: it is the same
-/// signature over a narrower set of values, and whether the filler narrows MORE than the slot
-/// promised is the refinement rule's to judge, not a reason to say no member answers at all.
+/// Whether a member answers a slot, which abstract-type-unification Requirements 14.5 and 28.4 want
+/// exact: the same arity, with a value pack the conformer bound written out
+/// (<see cref="ValuePack.Expand"/>); every parameter passed the same way and a <c>ref</c> return
+/// answered by one (ref-parameters Requirement 7.5); and every type AGREEING once the slot is read
+/// through the abstract's type arguments with its own method type parameters renamed to the filler's
+/// (<see cref="Closing"/>), and the filler through the base it was inherited from. Types agree part by
+/// part and a type parameter only with itself, so a generic <c>Identity</c> returning <c>int</c> does not
+/// answer one returning its own <c>T</c>. What still agrees with anything is what no substitution here
+/// could have closed: an error, and a parameter DECLARED BY AN ABSTRACT, which surviving the slot's
+/// substitution is one the conformer gave no argument for -- someone else's complaint already -- or an
+/// associated type slot, the conformer's nested type under another name, whose filler
+/// <see cref="ConformanceAnalyzer"/> judges on its own. A refinement, named or a parameter's `where`, is
+/// looked through, at the top and in a construction's arguments: it is the same signature over a
+/// narrower set of values, and whether the filler narrows MORE than the slot promised is the refinement
+/// rule's to judge. Inside a tuple, union or function type it is not, those signatures being nominal.
+/// Ownership is no part of passing: an `owned` return is <see cref="ReturnsOwned"/>'s to judge.
 /// </summary>
 internal static class SlotSignatures
 {
     public static bool Agree(IMistType slot, IMistType filler)
     {
-        slot = Structural(slot);
-        filler = Structural(filler);
-
-        if(IsIndeterminate(slot) || IsIndeterminate(filler))
-        {
-            return true;
-        }
-
-        if(slot is ConstructedType left && filler is ConstructedType right)
-        {
-            return left.Definition.FullyQualifiedName == right.Definition.FullyQualifiedName
-                && left.TypeArguments.Count == right.TypeArguments.Count
-                && left.TypeArguments.Zip(right.TypeArguments).All(pair => Agree(pair.First, pair.Second));
-        }
-
-        return slot.FullyQualifiedName == filler.FullyQualifiedName;
+        return Agree(slot, filler, nominal: false);
     }
 
     public static bool Answers(Method slot, Method filler, TypeSubstitution substitution, TypeInterner interner)
@@ -50,24 +41,29 @@ internal static class SlotSignatures
     public static bool Answers(
         Method slot, Method filler, TypeSubstitution slotSubstitution, TypeSubstitution fillerSubstitution, TypeInterner? interner)
     {
-        var parameters = ValuePack.Expand(slot.ParametersList, slotSubstitution, interner);
-
-        if(parameters.Count != filler.ParametersList.Count
-            || slot.TypeParametersList.Count != filler.TypeParametersList.Count
-            || !Agree(slotSubstitution.Apply(slot.ReturnType, interner), fillerSubstitution.Apply(filler.ReturnType, interner)))
+        if(slot.TypeParametersList.Count != filler.TypeParametersList.Count || !SameReturnPassing(slot.Modifiers, filler.Modifiers))
         {
             return false;
         }
 
-        for(var i = 0; i < parameters.Count; i++)
-        {
-            if(!Agree(parameters[i].Type, fillerSubstitution.Apply(filler.ParametersList[i].Type, interner)))
-            {
-                return false;
-            }
-        }
+        var closing = Closing(slot, filler, slotSubstitution);
 
-        return true;
+        return Agree(closing.Apply(slot.ReturnType, interner), fillerSubstitution.Apply(filler.ReturnType, interner))
+            && ParametersAgree(
+                ValuePack.Expand(slot.ParametersList, closing, interner), TypeSubstitution.Empty, filler.ParametersList, fillerSubstitution, interner);
+    }
+
+    public static bool Answers(
+        Indexer slot, Indexer filler, TypeSubstitution slotSubstitution, TypeSubstitution fillerSubstitution, TypeInterner? interner)
+    {
+        return SameReturnPassing(slot.Modifiers, filler.Modifiers)
+            && Agree(slotSubstitution.Apply(slot.Type, interner), fillerSubstitution.Apply(filler.Type, interner))
+            && ParametersAgree(slot.ParametersList, slotSubstitution, filler.ParametersList, fillerSubstitution, interner);
+    }
+
+    public static TypeSubstitution Closing(Method slot, Method filler, TypeSubstitution substitution)
+    {
+        return substitution.Extend(TypeSubstitution.ForParameters(slot.TypeParametersList, [.. filler.TypeParametersList]));
     }
 
     public static IEnumerable<ConformanceAnalyzer.Filler> ExactFirst(
@@ -91,23 +87,131 @@ internal static class SlotSignatures
     public static string Display(Method slot, TypeSubstitution substitution, TypeInterner interner)
     {
         var parameters = string.Join(", ", ValuePack.Expand(slot.ParametersList, substitution, interner).Select(
-            parameter => TypeDisplay.Mist(parameter.Type)));
+            parameter => Display(parameter.Modifier.Direction, parameter.Type)));
         var owned = ReturnsOwned(slot) ? "owned " : "";
+        var generic = slot.TypeParametersList.Count > 0 ? $"<{string.Join(", ", slot.TypeParametersList.Select(parameter => parameter.Name))}>" : "";
 
-        return $"{owned}{TypeDisplay.Mist(substitution.Apply(slot.ReturnType, interner))} {slot.Name}({parameters})";
+        return $"{owned}{Returned(slot.Modifiers)}{TypeDisplay.Mist(substitution.Apply(slot.ReturnType, interner))} {slot.Name}{generic}({parameters})";
     }
 
     public static string Display(Indexer slot, TypeSubstitution substitution, TypeInterner interner)
     {
-        var parameters = string.Join(", ", slot.ParametersList.Select(
-            parameter => TypeDisplay.Mist(substitution.Apply(parameter.Type, interner))));
+        return $"{Returned(slot.Modifiers)}{TypeDisplay.Mist(substitution.Apply(slot.Type, interner))} {Name(slot, substitution, interner)}";
+    }
 
-        return $"{TypeDisplay.Mist(substitution.Apply(slot.Type, interner))} this[{parameters}]";
+    public static string Name(Indexer slot, TypeSubstitution substitution, TypeInterner interner)
+    {
+        var parameters = string.Join(", ", slot.ParametersList.Select(
+            parameter => Display(parameter.Modifier.Direction, substitution.Apply(parameter.Type, interner))));
+
+        return $"this[{parameters}]";
+    }
+
+    private static bool Agree(IMistType slot, IMistType filler, bool nominal)
+    {
+        if(nominal && (IsNamed(slot) || IsNamed(filler)))
+        {
+            return slot.FullyQualifiedName == filler.FullyQualifiedName;
+        }
+
+        slot = Structural(slot);
+        filler = Structural(filler);
+
+        if(ReferenceEquals(slot, filler) || IsIndeterminate(slot) || IsIndeterminate(filler))
+        {
+            return true;
+        }
+
+        return (slot, filler) switch
+        {
+            (PackElementType left, PackElementType right) => ReferenceEquals(left.Pack, right.Pack) && left.Index == right.Index,
+            (TypeParameter, _) or (_, TypeParameter) => false,
+            (ConstructedType left, ConstructedType right) => Agree(left.Definition, right.Definition, nominal)
+                && AgreeEach(left.TypeArguments, right.TypeArguments, nominal)
+                && AgreeEnclosing(left.Enclosing, right.Enclosing, nominal),
+            (TupleType left, TupleType right) => AgreeEach(left.ElementTypes, right.ElementTypes, nominal: true),
+            (UnionType left, UnionType right) => left.Constituents.Count == right.Constituents.Count
+                && left.Constituents.All(constituent => right.Constituents.Any(other => Agree(constituent, other, nominal: true))),
+            (FunctionType left, FunctionType right) => left.IsPure == right.IsPure
+                && Agree(left.ReturnType, right.ReturnType, nominal: true)
+                && AgreeEach(left.ParameterTypes, right.ParameterTypes, nominal: true),
+            (SpreadType left, SpreadType right) => Agree(left.Operand, right.Operand, nominal),
+            (LiftedType { Value: TypePackValue left }, LiftedType { Value: TypePackValue right }) => AgreeEach(left.Elements, right.Elements, nominal),
+            (ConstructedType or TupleType or UnionType or FunctionType or SpreadType, _) => false,
+            (_, ConstructedType or TupleType or UnionType or FunctionType or SpreadType) => false,
+            _ => slot.FullyQualifiedName == filler.FullyQualifiedName,
+        };
+    }
+
+    private static bool ParametersAgree(
+        IReadOnlyList<Parameter> slot, TypeSubstitution slotSubstitution, IReadOnlyList<Parameter> filler, TypeSubstitution fillerSubstitution,
+        TypeInterner? interner)
+    {
+        if(slot.Count != filler.Count)
+        {
+            return false;
+        }
+
+        for(var i = 0; i < slot.Count; i++)
+        {
+            if(slot[i].Modifier.Direction != filler[i].Modifier.Direction
+                || !Agree(slotSubstitution.Apply(slot[i].Type, interner), fillerSubstitution.Apply(filler[i].Type, interner)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool SameReturnPassing(MemberModifiers slot, MemberModifiers filler)
+    {
+        return slot.IsRef == filler.IsRef && slot.ReturnsReadonlyRef == filler.ReturnsReadonlyRef;
+    }
+
+    private static bool AgreeEach(IReadOnlyList<IMistType> slot, IReadOnlyList<IMistType> filler, bool nominal)
+    {
+        return slot.Count == filler.Count && slot.Zip(filler).All(pair => Agree(pair.First, pair.Second, nominal));
+    }
+
+    private static bool AgreeEnclosing(ConstructedType? slot, ConstructedType? filler, bool nominal)
+    {
+        return slot is null || filler is null ? slot is null && filler is null : Agree(slot, filler, nominal);
+    }
+
+    private static string Display(ByRefDirection direction, IMistType type)
+    {
+        var passing = direction switch
+        {
+            ByRefDirection.Ref => "ref ",
+            ByRefDirection.In => "readonly ref ",
+            ByRefDirection.Out => "out ",
+            _ => "",
+        };
+
+        return $"{passing}{TypeDisplay.Mist(type)}";
+    }
+
+    private static string Returned(MemberModifiers modifiers)
+    {
+        return !modifiers.IsRef ? "" : modifiers.ReturnsReadonlyRef ? "readonly ref " : "ref ";
     }
 
     private static bool IsIndeterminate(IMistType type)
     {
-        return type is TypeParameter or ErrorType or UnknownType or ConstructedType { Definition: TypeParameter };
+        return type switch
+        {
+            ErrorType or NotProjectedType => true,
+            PackElementType element => IsIndeterminate(element.Pack),
+            TypeParameter parameter => parameter.DeclaringType is AbstractType,
+            ConstructedType { Definition: TypeParameter definition } => IsIndeterminate(definition),
+            _ => false,
+        };
+    }
+
+    private static bool IsNamed(IMistType type)
+    {
+        return type is INamedTupleType or RefinedType or TypeAlias;
     }
 
     private static IMistType Structural(IMistType type)

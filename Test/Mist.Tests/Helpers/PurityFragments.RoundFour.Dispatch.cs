@@ -61,6 +61,7 @@ internal sealed partial class PurityFragments
             "abstract-slot-attributed-to-the-first-overload-a-type-parameter-agrees-with" => AbstractSlotAttributedToTheFirstOverloadATypeParameterAgreesWith(),
             "abstract-slot-attributed-to-another-conformances-with-mapping" => AbstractSlotAttributedToAnotherConformancesWithMapping(),
             "abstract-indexer-implemented-in-a-generic-base-class-is-never-found-so-the-slot-meets-to-pure" => AbstractIndexerImplementedInAGenericBaseClass(),
+            "abstract-method-implemented-in-a-generic-base-class-is-read-through-its-closed-base" => AbstractMethodImplementedInAGenericBaseClass(),
             "pure-non-defaultable-types-implicit-constructor-runs-unjudged-field-initializers" => PureGenericTypesFieldInitializer(overIntrinsicBase: true),
             "generic-definitions-field-initializer-is-a-default-of-every-instantiation" => PureGenericTypesFieldInitializer(overIntrinsicBase: false),
             "generic-extension-declaring-pure-tostring-is-trusted-while-the-runtime-objects-tostring-runs" => GenericExtensionDeclaringPureToString(),
@@ -218,6 +219,21 @@ internal sealed partial class PurityFragments
         var at = Method(probe, "At", integer, PureStatic,
             Returning(new IndexExpression(Node(37), Ref(x), Literal(integer, 7L), integer) { Indexer = slot }), x);
         return Judge(new PurityAnalyzer(), at, indexed, root, derived);
+    }
+
+    private IReadOnlyList<Diagnostic> AbstractMethodImplementedInAGenericBaseClass()
+    {
+        var getter = Contract("IGet");
+        var slot = Method(getter, "Get", integer, Public, null);
+        var root = HandBuiltModel.Class("Base<>");
+        var held = new TypeParameter("T", 0, root.Scope, root);
+        root.TypeParametersList.Add(held);
+        _ = Method(root, "Get", held, Public, HandBuiltModel.Block(WriteStatic(ticks), new ReturnStatement(Literal(integer, 7L), integer)));
+        var derived = HandBuiltModel.Class("Derived", model.Interner.GetOrCreateConstructedType(root, [integer]));
+        derived.BaseAbstractTypes.Add(getter);
+        var x = Input("x", getter);
+        var at = Method(probe, "At", integer, PureStatic, Returning(Call(slot, Ref(x), 37)), x);
+        return Judge(new PurityAnalyzer(), at, getter, root, derived);
     }
 
     private IReadOnlyList<Diagnostic> PureGenericTypesFieldInitializer(bool overIntrinsicBase)

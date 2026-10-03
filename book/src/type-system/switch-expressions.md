@@ -137,6 +137,20 @@ Relational patterns (`<`, `<=`, `>`, `>=`) compare the scrutinee against a const
 
 Relational patterns eliminate the need for `when` guards in many numeric scenarios. The `and` combinator creates range checks — `>= 80 and < 90` matches values in the half-open interval [80, 90). Arms are evaluated top-to-bottom, so order matters when ranges overlap.
 
+An arm whose every value the earlier arms already match can never run, and is a compile-time error. Earlier arms count together, endpoints count exactly, and an arm with a `when` guard covers nothing, since its guard may fail. Here every value above 10 is already above 0:
+
+```mist
+// error MIST_PA_SWITCH_ARM_UNREACHABLE: This switch arm is unreachable: an earlier arm already matches everything it could.
+var size = count switch
+{
+    > 0 => "some",
+    > 10 => "many",
+    _ => "none",
+};
+```
+
+A `double` keeps its catch-all reachable after `< 0.0` and `>= 0.0`, because `NaN` matches neither.
+
 ## Tuple Positional Pattern Arms
 
 Tuple positional patterns match tuple elements by position using parenthesized syntax. Each element in the pattern corresponds to the element at the same position in the tuple, and can use any subpattern — constants, relational, logical, discard, or var patterns. This provides a concise way to branch on multiple tuple elements simultaneously without referencing `Item1`, `Item2`, etc.

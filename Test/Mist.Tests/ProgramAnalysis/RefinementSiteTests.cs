@@ -47,8 +47,8 @@ public sealed class RefinementSiteTests
                 var constraint = h.Between(h.Int, 0L, 2L, null);
                 var indexer = new Indexer(h.Int, [new Parameter("entry", constraint)], new MemberModifiers());
                 var count = new Property("Count", h.Int, new MemberModifiers());
-                var elements = Enumerable.Range(0, 8).Select(_ => new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(3), h.Int, null), false)).ToList();
-                elements.Add(new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(24), h.Int, new LocalVariable("last", h.Int)), false));
+                var elements = Enumerable.Range(0, 8).Select(_ => new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(3), h.Int, null), false, h.Int)).ToList();
+                elements.Add(new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(24), h.Int, new LocalVariable("last", h.Int)), false, h.Int));
                 var list = new ListPattern(HandBuiltModel.Node(3), elements, ledger) { Reads = new CountedIndexer(indexer, constraint, count) };
                 root = new IsPatternExpression(HandBuiltModel.Node(3), HandBuiltRefinements.Local(ledger), list, h.Bool);
                 expected = "MIST_PA_CONSTRAINT_VIOLATED"; break;

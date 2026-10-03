@@ -31,6 +31,6 @@ internal sealed class ListPattern(
 
 /// <summary>
 /// One element of a list pattern. <see cref="Subpattern"/> is null only on a slice, <c>..</c> being the
-/// one element form C# spells with no pattern after it.
+/// one element form C# spells with no pattern after it, and <see cref="ScrutineeType"/> is null with it.
 /// </summary>
-internal sealed record ListPatternElement(Pattern? Subpattern, bool IsSlice);
+internal sealed record ListPatternElement(Pattern? Subpattern, bool IsSlice, IMistType? ScrutineeType);

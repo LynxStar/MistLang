@@ -459,7 +459,7 @@ internal static partial class PatternBinder
 
                 if(slice.Subpattern is null)
                 {
-                    elements.Add(new ListPatternElement(Subpattern: null, IsSlice: true));
+                    elements.Add(new ListPatternElement(Subpattern: null, IsSlice: true, ScrutineeType: null));
                     continue;
                 }
 
@@ -478,7 +478,7 @@ internal static partial class PatternBinder
                     return null;
                 }
 
-                elements.Add(new ListPatternElement(boundSlice, IsSlice: true));
+                elements.Add(new ListPatternElement(boundSlice, IsSlice: true, sliceType));
                 continue;
             }
 
@@ -488,7 +488,7 @@ internal static partial class PatternBinder
                 return null;
             }
 
-            elements.Add(new ListPatternElement(bound, IsSlice: false));
+            elements.Add(new ListPatternElement(bound, IsSlice: false, elementType));
         }
 
         return new ListPattern(node, elements, matched) { Reads = reads, IsFailed = scrutineeFailed || elements.Any(element => element.Subpattern?.IsFailed is true) };

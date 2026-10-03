@@ -2703,16 +2703,56 @@ rules:
       and NEITHER `as` row, which is what shows the two halves are held apart; `as` back to IsWithin fails the
       two `as` rows only; the optional judged as its carrier fails the `Position?` row alone; and dropping the
       reverse direction fails `money is Cash` alone. Full suite green, 7440 of 7440.
+
+      LIST ELEMENTS AND RELATIONAL ARMS (2026-10-03). Both reached Roslyn on valid-looking programs:
+      `int[] a = [1]; a is ["x"]` as MIST_CS_ERROR CS0029 and `a is [string s]` as CS8121, and
+      `n switch { > 0 => 1, > 10 => 2, _ => 3 }` as CS8510. ListPatternElement now records the type the
+      binder matched each subpattern against -- the selected indexer's element type, or the slice type, and
+      null only for a bare `..` -- and the walk follows it, so the existing MIST_PA_PATTERN_CONSTANT_MISMATCH
+      and MIST_PA_PATTERN_NEVER_MATCHES name the failing subpattern at its own node, through nested lists,
+      slices, tuples, property patterns and and/or/not. It is recorded rather than re-derived because
+      re-deriving selects the indexer a second time, and a type test's narrowing is not what flowed in.
+
+      ARM CONTAINMENT IS A SUBSET QUESTION. Refinements/MatchedValues reads each arm into the set of values
+      it matches over the input's own domain -- Admitted for int, long, short, sbyte, uint, ushort, byte,
+      char and bool, RealSet for float, double and decimal with NaN and the infinities -- through Requirement
+      and RealRequirement, composing and/or/not exactly; a type test of the input's own type reads as the
+      whole domain, and a refined one over an unrefined base as its predicate. A later arm is unreachable
+      when its set is non-empty and within the UNION of the earlier unguarded arms' sets, which is what
+      CS8510 judges. A pattern with no exact reading covers nothing and proves nothing. The finding is
+      still MIST_PA_SWITCH_ARM_UNREACHABLE at the later arm and still an ERROR: switch-expressions
+      Requirement 7.1 says warning, and the severity is the one this order fixed against CS8510 above,
+      which this change does not reopen.
+
+      MEASURED on the CLI before and after, 27 switch shapes and the two list reproductions, which now stop
+      at the element. Every strict containment Roslyn refused is refused at the arm: `> 10` after `> 0`, `0` after `>= 0`, `5` inside `> 0 and < 10`, `5` after `not 0`, `20` after
+      `< 0 or > 10`, `_` after `< 0, >= 0`, `_` after `true, false`, `_` after a byte's `>= 0`, `'q'` inside
+      `>= 'a' and <= 'z'`, the long, double and decimal forms, and `> 5` or `_` after `int i`. Still built:
+      `0` after `> 0`, a covering arm with a guard, `_` after `< 0.0, >= 0.0` (NaN reaches it), and enum
+      variant arms, a duplicated one included. PROVED BY 16 refusal and 13 silence rows at Tier 1 on ArmFinding; a Tier 2 walk reporting at the
+      arm and silent when the covering arm is guarded; 12 Tier 2 list rows naming the failing subpattern and
+      the type it was judged against (a slice's being the slice type); 8 silent list rows -- valid, derived,
+      custom shape, unknown, error, bare slice, already refused; and a Tier 2 binder chain over hand-built
+      syntax for the recorded element and slice types. Six mutations, each caught by its own rows alone:
+      the walk skipping lists (12 rows), the binder recording the subpattern's narrowing (1), `not` leaving
+      the domain (1), a refined-over-refined test read (1), an empty later arm reported (1), and the set
+      check removed (17).
     tasks:
       - >
         The always-true test is not reported, in any severity: classic is silent, samples/DependentTypes
         does it deliberately, and Roslyn's CS0183 is a warning the driver does not collect. Whether Mist
         wants a warning that the sample would then have to lose is a decision.
       - >
-        A list pattern's elements are not judged against the collection's element type.
+        An arm no value of its input can match at all (`> 10 and < 3`) is not reported: that is the
+        never-matching-value question, the twin of the always-true one above, and it reaches Roslyn's
+        CS8510 meanwhile.
       - >
-        An arm is judged unreachable only against a catch-all, a covering type test, or the same
-        literal; relational overlap and exhausted unions are left to order 12's range reasoning.
+        Value-set containment stays silent, leaving CS8510 to Roslyn, over a ulong (its range is not a set
+        of longs), an optional or union input, a refined type test over a refined base (emission tests
+        only the outermost predicate), a symbolic bound, and list, property and tuple arms. An enum has no
+        domain on purpose: its variant arms are emitted as equality guards C# never judges, so
+        `Color.Red => 1, Color.Red => 2` compiles today, and refusing it at Error is the open
+        warning-policy decision. Exhausted unions and tuple products remain order 12's range reasoning.
       - >
         A tuple pattern on a pack-typed scrutinee is not judged at all, as it cannot be until the pack
         is closed.

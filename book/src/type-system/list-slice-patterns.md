@@ -36,6 +36,17 @@ Each element position accepts any pattern. You can mix constants, relational pat
 {{#endtab }}
 {{#endtabs }}
 
+Each element sub-pattern is checked against the element type, and a slice's sub-pattern against the slice type, exactly as a pattern on a value of that type would be. An element pattern that no element could ever match is a compile-time error at that element:
+
+```mist
+// error MIST_PA_PATTERN_CONSTANT_MISMATCH: A constant of type 'string' cannot be compared with a value of type 'int'.
+// error MIST_PA_PATTERN_NEVER_MATCHES: A value of type 'int' can never be 'string', so this pattern never matches.
+int[] numbers = [1, 2, 3];
+if (numbers is ["x", ..] || numbers is [string first, ..])
+{
+}
+```
+
 ## The Slice Pattern `..`
 
 A slice pattern `..` inside a list pattern matches zero or more contiguous elements not consumed by the surrounding element sub-patterns. With a slice present, the pattern matches when the receiver length is at least the number of element sub-patterns: the patterns before the slice match from the start and the patterns after it match from the end. A bare `..` matches the intervening elements without binding them.
@@ -111,7 +122,7 @@ The empty list pattern `[]` matches only a zero-length receiver. It is the shape
 A list pattern may contain at most one slice pattern. A single slice is what makes "match from both ends" unambiguous; a second slice would leave the boundary between them undefined. Two slices in one list pattern is a compile-time error:
 
 ```mist
-// error MIST_TC_0186: A list pattern may contain at most one slice pattern
+// error MIST_PM_LIST_PATTERN_MULTIPLE_SLICES: A list pattern can spell at most one '..' slice, because the slice is what divides the elements counted from the front from those counted from the back.
 if (numbers is [.. var a, .. var b])
 {
 }

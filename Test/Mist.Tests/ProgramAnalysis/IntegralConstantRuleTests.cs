@@ -18,7 +18,7 @@ public sealed class IntegralConstantRuleTests
         var earlier = new ComparisonPattern(HandBuiltModel.Node(), wide, ComparisonKind.Equal, HandBuiltModel.Literal(built.Type("Int32"), 1));
         var later = new ComparisonPattern(HandBuiltModel.Node(), wide, ComparisonKind.Equal, HandBuiltModel.Literal(wide, 1L));
 
-        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", PatternAnalyzer.ArmFinding([earlier], later, built.Interner)?.Id.Value);
+        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", PatternAnalyzer.ArmFinding([earlier], later, wide, built.Interner)?.Id.Value);
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public sealed class IntegralConstantRuleTests
         var earlier = new ComparisonPattern(HandBuiltModel.Node(), wide, ComparisonKind.Equal, HandBuiltModel.Literal(wide, 1L));
         var later = new ComparisonPattern(HandBuiltModel.Node(), wide, ComparisonKind.Equal, HandBuiltModel.Literal(wide, 2L));
 
-        Assert.Null(PatternAnalyzer.ArmFinding([earlier], later, built.Interner));
+        Assert.Null(PatternAnalyzer.ArmFinding([earlier], later, wide, built.Interner));
     }
 
     [Fact]

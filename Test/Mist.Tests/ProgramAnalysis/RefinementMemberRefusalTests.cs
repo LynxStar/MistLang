@@ -72,14 +72,14 @@ public sealed class RefinementMemberRefusalTests
         if(name.StartsWith("list", StringComparison.Ordinal))
         {
             var elements = new List<ListPatternElement>();
-            if(name == "list-pattern-element-after-a-slice-unproven") { elements.Add(new ListPatternElement(null, true)); }
+            if(name == "list-pattern-element-after-a-slice-unproven") { elements.Add(new ListPatternElement(null, true, null)); }
 
             if(name == "list-pattern-element-violates-indexer-constraint")
             {
-                for(var i = 0; i < 8; i++) { elements.Add(new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(), h.Int, null), false)); }
+                for(var i = 0; i < 8; i++) { elements.Add(new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(), h.Int, null), false, h.Int)); }
             }
 
-            elements.Add(new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(), h.Int, new LocalVariable("element", h.Int)), false));
+            elements.Add(new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(), h.Int, new LocalVariable("element", h.Int)), false, h.Int));
             var list = new ListPattern(HandBuiltModel.Node(), elements, owner) { Reads = counted };
             root = new IsPatternExpression(HandBuiltModel.Node(), receiverValue, list, h.Bool);
         }

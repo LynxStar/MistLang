@@ -90,7 +90,7 @@ internal sealed partial class StructuredContextFragments
 
         IsPatternExpression listed(int offset)
         {
-            var pattern = new ListPattern(HandBuiltModel.Node(offset), [new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(), text, null), IsSlice: false)], holder)
+            var pattern = new ListPattern(HandBuiltModel.Node(offset), [new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(), text, null), IsSlice: false, ScrutineeType: text)], holder)
             {
                 Reads = new CountedIndexer(indexer, integer, count),
             };

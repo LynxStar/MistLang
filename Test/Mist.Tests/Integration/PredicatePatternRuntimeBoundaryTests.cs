@@ -50,7 +50,7 @@ public sealed class PredicatePatternRuntimeBoundaryTests
         var tuple = new TuplePattern(null!, [notLetters, new ComparisonPattern(null!, Integer, ComparisonKind.Equal,
             PropertyPatternEmissionTests.Number(1))], tupleType, null, null);
         var arrayType = PropertyPatternEmissionTests.Type("StringArray");
-        var list = new ListPattern(null!, [new ListPatternElement(either, false)], arrayType);
+        var list = new ListPattern(null!, [new ListPatternElement(either, false, Text)], arrayType);
         var negatedProperty = new NegatedPattern(null!, dog, property);
         var union = new UnionType([Text, dog]);
         var unionTyped = new TypeTestPattern(null!, refined, binding, Text, either);

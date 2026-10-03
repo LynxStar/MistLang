@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
@@ -14,7 +15,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// test no value of the input could pass, a relational or constant bound the
 /// input cannot be compared with or that is not a constant, and an arm an earlier arm already covers.
 /// Order 8 of the analysis register. Each pattern is judged against the type flowing INTO it -- the
-/// scrutinee's, a conjunct's predecessor's narrowing, a member's, a tuple element's -- and an input
+/// scrutinee's, a conjunct's predecessor's narrowing, a member's, a tuple element's, a list element's
+/// or slice's -- and an input
 /// that is indeterminate, <c>unknown</c> above all, admits any test, since that is what a test of it
 /// is for. A test of an unsealed class against an abstract is possible whichever side is which,
 /// because a derivation may implement it, which is C#'s rule and classic's verdict.
@@ -98,6 +100,9 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
                     .Concat(property.Subpatterns.SelectMany(subpattern => Flatten(subpattern.Pattern, subpattern.MemberType))),
             TuplePattern tuple when Elements(input) is { } elements && elements.Count == tuple.Elements.Count
                 => tuple.Elements.SelectMany((element, i) => Flatten(element, elements[i])),
+            ListPattern list => list.Elements.SelectMany(element => element is { Subpattern: { } subpattern, ScrutineeType: { } scrutinee }
+                ? Flatten(subpattern, scrutinee)
+                : []),
             _ => [],
         };
 
@@ -279,7 +284,7 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
 
         foreach(var arm in switchExpression.Arms)
         {
-            if(ArmFinding(covering, arm.Pattern, context.Model.TypeInterner) is { } descriptor)
+            if(ArmFinding(covering, arm.Pattern, switchExpression.Scrutinee.Type, context.Model.TypeInterner) is { } descriptor)
             {
                 context.Report(descriptor, arm.Node, [switchExpression.Scrutinee]);
             }
@@ -291,9 +296,11 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         }
     }
 
-    internal static DiagnosticDescriptor? ArmFinding(IEnumerable<Pattern> earlier, Pattern later, TypeInterner interner)
+    internal static DiagnosticDescriptor? ArmFinding(IReadOnlyList<Pattern> earlier, Pattern later, IMistType input, TypeInterner interner)
     {
-        return earlier.Any(pattern => Covers(pattern, later, interner)) ? ProgramAnalysisDiagnostics.SwitchArmUnreachable : null;
+        return earlier.Any(pattern => Covers(pattern, later, interner)) || MatchedValues.Covered(earlier, later, input)
+            ? ProgramAnalysisDiagnostics.SwitchArmUnreachable
+            : null;
     }
 
     private static bool Covers(Pattern earlier, Pattern later, TypeInterner interner)

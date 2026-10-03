@@ -167,13 +167,13 @@ internal sealed class PatternAssignmentFixture
                     [new PropertySubpattern(HandBuiltModel.Node(), value.Name, tuple, pair, new FieldResult(value, holder, []))], holderBinding);
                 return kind == "property"
                     ? (property, [first, second, whole, holderBinding])
-                    : (new ListPattern(HandBuiltModel.Node(), [new ListPatternElement(property, false)], ArrayOf(holder)),
+                    : (new ListPattern(HandBuiltModel.Node(), [new ListPatternElement(property, false, holder)], ArrayOf(holder)),
                         [first, second, whole, holderBinding]);
             case "list-slice":
                 var slice = Variable("slice", ArrayOf(Integer));
                 return (new ListPattern(HandBuiltModel.Node(),
-                    [new ListPatternElement(firstPattern, false),
-                     new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(), slice.Type, slice), true)], ArrayOf(Integer)),
+                    [new ListPatternElement(firstPattern, false, Integer),
+                     new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(), slice.Type, slice), true, slice.Type)], ArrayOf(Integer)),
                     [first, slice]);
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind));

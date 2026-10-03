@@ -244,6 +244,11 @@ Pass a project and `dotnet test` arguments after it, e.g.
 `tools/test-ledger/run.sh Test/Mist.Tests --filter "FullyQualifiedName~X"`, and set
 `LEDGER_NO_BUILD=1` when the binaries are current.
 
+If AllFeaturesV2 stalls in ASP.NET configuration reload callbacks on macOS, inspect the managed
+stack before treating it as a product failure. `DOTNET_USE_POLLING_FILE_WATCHER=1` avoids the observed
+file watcher callback recursion without changing the sample or baseline. Record the setting in the
+ledger, retain any interrupted run as interrupted, and rerun the full suite.
+
 Running `dotnet test` while another worktree's suite or build is running changes timing. The ledger
 records other `dotnet` processes in `env.txt`, so check it before reading a slow test as a defect. It
 captures the CPU count with `sysctl`, then `getconf`, then `nproc`, so a restricted macOS environment

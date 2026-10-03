@@ -268,8 +268,22 @@ Found while closing the gaps, each measured, none established as something class
   regression (fixed by keeping callee identity separate from Invoke parameter metadata), and three
   `LinqProjectedExtensionSelectsTheClosedUnarySignature` rows included unrelated LINQ receiver families
   (fixture narrowed to IEnumerable). Private CLI probes print `2, 4, 6` then `2, 3` for Select/Where,
-  `2`, `42`, `done` for qualified
-  callables and `True` for a Predicate invocation. **Capacity history remains unclosed**: the old
+  `2`, `42`, `done` for qualified callables and `True` for a Predicate invocation.
+  Full ledger `20261003-191759` on the combined failure-recovery/callable implementation passed
+  9,134/9,134. Earlier full ledger `20261003-190427` was interrupted by SIGTERM, not passed:
+  AllFeaturesV2 stalled in ASP.NET configuration reload callbacks under the default macOS file watcher.
+  A bounded audit reproduced that working-directory-dependent stall; polling file watching completed
+  the same executable with byte-identical baseline output. The successful ledger used
+  `DOTNET_USE_POLLING_FILE_WATCHER=1`; Test/CLAUDE.md records this environment recovery.
+  After integrating main `794ce1c1` and recursively updating Storm to its recorded
+  `b4e5853ccca45623e59fcdb9ee0afd6e90e836ce` pin, final ledger `20261003-192541` passed
+  9,144/9,144 (Mist 8,141; CLI 105; Storm consumer 46; Storm generator 852), including the single
+  AllFeaturesV2 baseline. The integrated build had zero warnings/errors; unrestricted solution format
+  verification, diff check and mdbook build passed. All four affected snippet pairs regenerated
+  unchanged on the final pin. The ledger CPU fallback independently records 18 in the restricted
+  macOS environment; no existing backlog entry tracked that adjacent tooling issue.
+  Delegate variance, optional-callable policy, async promotion, generic default witnesses and unrelated
+  CLR inventories retain their existing limits. **Capacity history remains unclosed**: the old
   `List<int>.Capacity` observation resolved Standard.List and is not evidence of a qualified CLR provider
   defect. No replacement Capacity task or provider closeout is inferred from that probe.
 - **Variadics**: a spread-typed parameter `M(TArgs... x)` and a spread into a non-pack slot

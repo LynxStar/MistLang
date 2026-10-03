@@ -8,6 +8,7 @@ public class Dial
 
     public Dial()
     {
+        this.Level = default(int);
     }
 
     public static Dial __CreateDefault()

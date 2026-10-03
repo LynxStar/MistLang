@@ -20,14 +20,6 @@ internal class CustomList
 
 public class TaggedAttribute<T> : System.Attribute
 {
-    public TaggedAttribute()
-    {
-    }
-
-    public static TaggedAttribute<T> __CreateDefault()
-    {
-        return new TaggedAttribute<T>();
-    }
 }
 
 [Snippet.TaggedAttribute<int>]

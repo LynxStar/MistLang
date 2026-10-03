@@ -22,13 +22,4 @@ public class Counter
         Snippet.Counter c2 = new Snippet.Counter();
         System.Console.WriteLine(System.FormattableString.Invariant($"Total: {Snippet.Counter.GetTotalCreated()}"));
     }
-
-    private Counter(Mist.Emission.CSharp.__DefaultInit marker)
-    {
-    }
-
-    public static Counter __CreateDefault()
-    {
-        return new Counter(default(Mist.Emission.CSharp.__DefaultInit));
-    }
 }

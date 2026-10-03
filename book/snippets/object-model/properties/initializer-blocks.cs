@@ -16,15 +16,6 @@ public class Config
     public bool Verbose { get; set; } = false;
 
     public string Name { get; set; } = "";
-
-    private Config(Mist.Emission.CSharp.__DefaultInit marker)
-    {
-    }
-
-    public static Config __CreateDefault()
-    {
-        return new Config(default(Mist.Emission.CSharp.__DefaultInit));
-    }
 }
 
 public class Program

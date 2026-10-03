@@ -62,7 +62,7 @@ internal static class LiteralBinder
 
     internal static Expression BindCharLiteral(SyntaxNode node, string lexeme, BuilderContext context)
     {
-        var value = lexeme.Length >= 3 ? lexeme[1] : '\0';
+        var value = CharacterLiterals.Decode(lexeme);
         var type = context.Resolver.LookupWellKnown(WellKnownTypes.Char);
         return new LiteralExpression(node, value, type);
     }

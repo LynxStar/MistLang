@@ -6,13 +6,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// What a constructor that writes no chain runs first, which purity judges and class-inheritance 8.3
-/// refuses the absence of: the base's constructor that can be called with nothing -- no parameter, or a
-/// single params one -- and is accessible from the derived type, as C# picks it for an implicit
-/// <c>base()</c>, or the base itself when it declares no instance constructor. Only a Mist class base is
-/// refused for having none: an Ambient one's projection drops constructors it cannot type and knows no
-/// optional or params parameter, so Roslyn stays its judge, and a derived struct's is struct-inheritance
-/// 7.4, a refusal of its own.
+/// What a constructor that writes no chain runs first: an accessible base constructor callable with
+/// nothing, or the base itself when it declares no instance constructor. Class and struct refusals
+/// share this decision; an Ambient class base stays with Roslyn because its projection can omit
+/// constructors and optional or params parameters.
 /// </summary>
 internal static class ImplicitChains
 {
@@ -41,6 +38,15 @@ internal static class ImplicitChains
     {
         return constructor is { ChainKind: ConstructorChainKind.None, Modifiers.IsStatic: false, DeclaringType: ClassType { BaseType: { } baseType } derived }
             && PurityJudge.DefinitionOf(baseType) is ClassType { IsIntrinsic: false, Assembly.Kind: not MistAssemblyKind.Ambient }
+            && Of(derived) is null
+            ? baseType
+            : null;
+    }
+
+    public static MistType? UnsatisfiedStructBase(Constructor constructor)
+    {
+        return constructor is { ChainKind: ConstructorChainKind.None, Modifiers.IsStatic: false, DeclaringType: StructType { BaseType: { } baseType } derived }
+            && PurityJudge.DefinitionOf(baseType) is StructType { IsIntrinsic: false }
             && Of(derived) is null
             ? baseType
             : null;

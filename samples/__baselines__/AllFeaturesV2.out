@@ -2149,3 +2149,16 @@ eight levels: 8
 [read] second=20
 [alias] middle=99, copied=2
 [pass] doubled=6
+=== Variadic Specialization ===
+[constraint] top=rook top=knight9
+[constraint] roster=2 width=3
+[union] a/1 none
+[union] a/1 kept 1
+[union] 2/b kept b
+[union] 2/b none width=2
+[union] first then text named
+[nested] box empty then box 6 | True/8 none
+[closed] label/7 none
+[abstract] fixed e
+[bridge] 101
+[method] maybe 5 | maybe absent | maybe 9

@@ -152,6 +152,8 @@ A union type can be passed as a type argument to a generic type, and type parame
 
 `Box<int | string>` uses a union as a type argument — the box holds a union value. `Result<TError>` uses a type parameter as a union constituent — each instantiation produces a different union type. `Result<string>` is `int | string`, `Result<bool>` would be `int | bool`, and so on.
 
+An element of a variadic pack, such as `TArgs[0] | string`, is a constituent in the same way; see [Pack Elements in Optionals and Unions](./variadics.md#pack-elements-in-optionals-and-unions).
+
 ## Reassignment
 
 A union-typed variable can be reassigned from one constituent type to another freely.

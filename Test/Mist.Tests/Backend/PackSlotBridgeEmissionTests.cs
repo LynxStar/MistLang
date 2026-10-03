@@ -25,11 +25,13 @@ public sealed class PackSlotBridgeEmissionTests
         public class Boxed<params TArgs> : IApplier<TArgs..., int> { public int Apply(params TArgs args) { return 0; } }
         public class Plain : ICounter<int, int> { }
         public class Own : ICounter<int, int> { public int Count(int a, int b) { return a + b; } }
+        public class Kept<Type[1]:TRest> : IApplier<int, TRest..., int> { public TRest[0]? Last; public int Apply(int first, params TRest rest) { return first; } }
         """;
 
     private const string Closings = """
         var pre = new Pre<string, bool>();
         var boxed = new Boxed<int, string>();
+        var kept = new Kept<string>();
         """;
 
     private static readonly Lazy<ProgramModel.Model.ProgramModel> Model = new(() =>
@@ -66,6 +68,28 @@ public sealed class PackSlotBridgeEmissionTests
     public void ADefaultIsRestatedOnlyWhereTheConformerDidNotWriteItsOwn(string typeName, int restated)
     {
         Assert.Equal(restated, Lines(Emit(typeName)).Count(line => line == "public int Count((int, int) args)"));
+    }
+
+    [Fact]
+    public void AConformerEmittedPerInstantiation_BridgesThroughThePackItsInstanceCloses()
+    {
+        var model = Model.Value;
+        var diagnostics = new DiagnosticBag();
+        var writer = new CSharpWriter();
+        using var specialization = UnionSpecialization.Enter(model, diagnostics);
+        var declared = model.TypesByFQN.Values.OfType<MemberType>()
+            .Single(type => type.NamespaceName == "Probe" && MistType.StripArity(type.Name) == "Kept");
+
+        using(TypeEmitter.Specializing(Assert.Single(UnionSpecialization.InstancesOf(declared))))
+        {
+            TypeEmitter.EmitTypeBody(
+                declared, ConstraintClosureMap.Build(model, diagnostics), model.VariadicUses, writer, diagnostics);
+        }
+
+        Assert.Empty(diagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
+        _ = Assert.Single(
+            Lines(writer.ToString()),
+            line => line == "int IApplier_2<int, string, int>.Apply((int, string) args) => this.Apply(args.Item1, System.ValueTuple.Create(args.Item2));");
     }
 
     private static string Emit(string typeName)

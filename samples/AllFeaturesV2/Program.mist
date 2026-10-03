@@ -112,5 +112,6 @@ public class Program
         Purity.Program.RunDemo();
         NestedBlockNamespaces.Program.RunDemo();
         ClrRefReadonly.Program.RunDemo();
+        VariadicSpecialization.Program.RunDemo();
     }
 }

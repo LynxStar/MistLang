@@ -1,0 +1,347 @@
+// VariadicSpecialization -- the two places a variadic declaration's C# is written per closing rather
+// than once for each arity it is used at.
+//
+// A WHOLE-PACK CONSTRAINT NAMING ITS PACK. `where Ts : IRank<Ts>` asks each element to rank against
+// itself (variadics 11.1), and C# has only per-parameter constraints, so each element's clause names that
+// element: `where T1 : IRank<T1>`, `where T2 : IRank<T2>`. Written naming the pack, no closing compiles.
+//
+// A UNION OVER A PACK ELEMENT. `Ts[1]?` is an `int?` at one closing and a bare `string` at another, and a
+// declaration emitted once per arity has one spelling for both, so a declaration writing such a union is
+// emitted once per instantiation, with its packs closed like any other parameter.
+//
+// V2-ONLY: written after classic was retired. Its lines were captured from v2 and read against the
+// program by hand.
+
+using Standard;
+
+namespace VariadicSpecialization;
+
+public abstract IRank<T>
+{
+    int Rank();
+}
+
+public abstract INamed
+{
+    string Name();
+}
+
+public abstract IKeyed<K>
+{
+    K Key();
+}
+
+public abstract ITeam<T>
+{
+    int Size();
+}
+
+public class Knight : IRank<Knight>, INamed, IKeyed<int>, ITeam<(Knight, Knight)>
+{
+    private int rank;
+
+    public Knight(int rank)
+    {
+        this.rank = rank;
+    }
+
+    public int Rank()
+    {
+        return this.rank;
+    }
+
+    public string Name()
+    {
+        return $"knight{this.rank}";
+    }
+
+    public int Key()
+    {
+        return this.rank * 10;
+    }
+
+    public int Size()
+    {
+        return 2;
+    }
+}
+
+public class Rook : IRank<Rook>, INamed
+{
+    public int Rank()
+    {
+        return 5;
+    }
+
+    public string Name()
+    {
+        return "rook";
+    }
+}
+
+// PROOF: a whole-pack constraint naming its own pack, beside a second clause, closed with two different
+// element types -- one clause naming the pack could fit at most one of them.
+public class Ladder<Type[2]:Ts> where Ts : IRank<Ts>, INamed
+{
+    public Ts... Rung;
+
+    public Ladder(params Ts rungs)
+    {
+        Rung... = rungs...;
+    }
+
+    public string Top()
+    {
+        if (Rung1.Rank() >= Rung2.Rank())
+        {
+            return Rung1.Name();
+        }
+
+        return Rung2.Name();
+    }
+}
+
+// PROOF: an ordinary sibling parameter in one clause and a spread of the pack inside another.
+public class Roster<K, params Ts> where Ts : IKeyed<K>, ITeam<(Ts...)>
+{
+    public int Count()
+    {
+        return Ts.Length;
+    }
+}
+
+public class Tally
+{
+    // PROOF: a whole-pack constraint naming its pack on a METHOD, specialized per call width.
+    public static int Width<params Ts>(params Ts players) where Ts : IRank<Ts>
+    {
+        return Ts.Length;
+    }
+}
+
+public class Box<T>
+{
+    public T? Value;
+
+    public Box() { }
+
+    public string Show()
+    {
+        if (this.Value is T present)
+        {
+            return $"box {present}";
+        }
+
+        return "box empty";
+    }
+}
+
+// PROOF: an optional over a pack element, beside the spread members, the pack's width and a zip, which
+// all keep working in the instance.
+public class Pick<Type[2]:Ts>
+{
+    public Ts... Item;
+    public Ts[1]? Second;
+
+    public Pick(params Ts values)
+    {
+        Item... = values...;
+    }
+
+    public int Width()
+    {
+        return Ts.Length;
+    }
+
+    public void Keep()
+    {
+        this.Second = Item2;
+    }
+
+    public void Drop()
+    {
+        this.Second = void;
+    }
+
+    public string Show()
+    {
+        if (this.Second is Ts[1] kept)
+        {
+            return $"{Item1}/{Item2} kept {kept}";
+        }
+
+        return $"{Item1}/{Item2} none";
+    }
+}
+
+// PROOF: a general union over a pack element, narrowed by a switch.
+public class Either<Type[2]:Ts>
+{
+    public Ts[0] | string Held;
+
+    public Either(Ts[0] first)
+    {
+        this.Held = first;
+    }
+
+    public void Rename(string name)
+    {
+        this.Held = name;
+    }
+
+    public string Which()
+    {
+        return this.Held switch
+        {
+            string text => $"text {text}",
+            _ => "first",
+        };
+    }
+}
+
+// PROOF: a construction over a pack element whose own storage needs the union, and the pack forwarded
+// whole into another declaration emitted per instantiation.
+public class Holder<Type[2]:Ts>
+{
+    public Box<Ts[1]> Inner;
+    public Pick<Ts...> Pair;
+
+    public Holder(params Ts values)
+    {
+        this.Inner = new Box<Ts[1]>();
+        this.Pair = new Pick<Ts...>(values...);
+    }
+}
+
+// PROOF: a closed base, chained to with a flat argument list, names the instance.
+public class Labeled : Pick<string, int>
+{
+    public Labeled() : base("label", 7) { }
+}
+
+// PROOF: a variadic abstract whose slot returns an optional element, filled by a closed conformer and by
+// one emitted per instantiation itself.
+public abstract ISource<Type[2]:Ts>
+{
+    Ts[1]? Next();
+}
+
+public class Fixed : ISource<int, string>
+{
+    public string? Next()
+    {
+        return "fixed";
+    }
+}
+
+public class Echo<Type[2]:Ts> : ISource<Ts...>
+{
+    public Ts[1]? Held;
+
+    public Echo(Ts[1] held)
+    {
+        this.Held = held;
+    }
+
+    public Ts[1]? Next()
+    {
+        return this.Held;
+    }
+}
+
+// PROOF: a pack-typed slot filled at its own width, bridged by a conformer emitted per instantiation.
+public abstract IApplier<params TArgs, TResult>
+{
+    TResult Apply(params TArgs args);
+}
+
+public class Offset<Type[1]:TRest> : IApplier<int, TRest..., int>
+{
+    public TRest[0]? Last;
+
+    public Offset() { }
+
+    public int Apply(int first, params TRest rest)
+    {
+        return first + 100;
+    }
+}
+
+public class Program
+{
+    // PROOF: a variadic method writing an optional over its own pack element, specialized per call,
+    // and a call forwarding a pack into it.
+    public static string Maybe<Type[2]:T>(T[0]? first)
+    {
+        if (first is T[0] present)
+        {
+            return $"maybe {present}";
+        }
+
+        return "maybe absent";
+    }
+
+    public static string Twice<Type[2]:T>(T[0] value)
+    {
+        return Maybe<[T...]>(value);
+    }
+
+    public static string Describe(Pick<string, int> pick)
+    {
+        return pick.Show();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Variadic Specialization ===");
+
+        var mixed = new Ladder<Knight, Rook>(new Knight(3), new Rook());
+        var knights = new Ladder<Knight, Knight>(new Knight(9), new Knight(4));
+        Console.WriteLine($"[constraint] top={mixed.Top()} top={knights.Top()}");
+
+        var roster = new Roster<int, Knight, Knight>();
+        var width = Tally.Width(new Knight(1), new Rook(), new Knight(2));
+        Console.WriteLine($"[constraint] roster={roster.Count()} width={width}");
+
+        var numbers = new Pick<string, int>("a", 1);
+        Console.WriteLine($"[union] {numbers.Show()}");
+        numbers.Keep();
+        Console.WriteLine($"[union] {numbers.Show()}");
+
+        var words = new Pick<int, string>(2, "b");
+        words.Keep();
+        Console.WriteLine($"[union] {words.Show()}");
+        words.Drop();
+        Console.WriteLine($"[union] {words.Show()} width={words.Width()}");
+
+        var either = new Either<int, bool>(4);
+        var first = either.Which();
+        either.Rename("named");
+        Console.WriteLine($"[union] {first} then {either.Which()}");
+
+        var holder = new Holder<bool, int>(true, 8);
+        var empty = holder.Inner.Show();
+        holder.Inner.Value = 6;
+        Console.WriteLine($"[nested] {empty} then {holder.Inner.Show()} | {holder.Pair.Show()}");
+
+        Console.WriteLine($"[closed] {Describe(new Labeled())}");
+
+        ISource<int, string> fixedSource = new Fixed();
+        ISource<bool, char> echo = new Echo<bool, char>('e');
+        var fixedNext = fixedSource.Next() ?? "none";
+        var echoNext = echo.Next() ?? 'x';
+        Console.WriteLine($"[abstract] {fixedNext} {echoNext}");
+
+        IApplier<int, string, int> offset = new Offset<string>();
+        Console.WriteLine($"[bridge] {offset.Apply(1, "r")}");
+
+        var given = Maybe<[int, string]>(5);
+        var absent = Maybe<[int, string]>(void);
+        Console.WriteLine($"[method] {given} | {absent} | {Twice<[long, bool]>(9)}");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

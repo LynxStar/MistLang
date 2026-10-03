@@ -22,21 +22,16 @@ internal static class SpreadProjectionEmitter
 {
     public static void Emit(MemberType type, CSharpWriter writer, ref bool anyEmitted)
     {
-        if(Monomorph.InScope() is not { } monomorph)
-        {
-            return;
-        }
-
         foreach(var field in (type as ConcreteType)?.FieldsList ?? [])
         {
-            EmitFamily(field.Name, field.Type, field.Modifiers, writable: true, monomorph, writer, ref anyEmitted);
+            EmitFamily(field.Name, field.Type, field.Modifiers, writable: true, writer, ref anyEmitted);
         }
 
         foreach(var property in type.PropertiesList)
         {
             EmitFamily(
                 property.Name, property.Type, property.Modifiers,
-                writable: property.Setter is not null, monomorph, writer, ref anyEmitted);
+                writable: property.Setter is not null, writer, ref anyEmitted);
         }
     }
 
@@ -45,19 +40,16 @@ internal static class SpreadProjectionEmitter
         IMistType declaredType,
         MemberModifiers modifiers,
         bool writable,
-        Monomorph monomorph,
         CSharpWriter writer,
         ref bool anyEmitted)
     {
         if(!SpreadMember.IsSpread(declaredType)
             || declaredType is not TupleType { ElementTypes: [SpreadType spread] }
             || spread.Operand is not TypeParameter pack
-            || !monomorph.Binds(pack))
+            || MonomorphReference.Elements(TypeNameEmitter.Closed(pack)) is not { } expansion)
         {
             return;
         }
-
-        var expansion = monomorph.Expansion(pack);
 
         var emitted = MemberModifierEmitter.Emit(modifiers, emitReadonly: false);
 

@@ -37,6 +37,8 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// names, so same-named types from two namespaces cannot share a specialization. A TYPE's
 /// parameters are specialized, and so are a generic METHOD's, from the type arguments each call was bound
 /// with; a method is emitted once per instance of its declaring type where that type is specialized too.
+/// An element of a pack is its pack's, so a variadic declaration writing such a union is emitted per
+/// instantiation rather than per arity, every pack closed along with every other parameter.
 /// </para>
 /// <para>
 /// OVERLOADS AN INSTANCE MAKES IDENTICAL are emitted under distinct names: `Take(K?)` beside `Take(int?)`
@@ -149,9 +151,14 @@ internal sealed class UnionSpecialization
 
     public static string Name(string declaredName, IReadOnlyList<IMistType> arguments)
     {
-        var parts = arguments.Select(argument => Identifier(argument.FullyQualifiedName));
+        return $"{declaredName}__{string.Join("__", arguments.Select(Part))}";
+    }
 
-        return $"{declaredName}__{string.Join("__", parts)}";
+    private static string Part(IMistType argument)
+    {
+        return argument is LiftedType { Value: TypePackValue pack }
+            ? string.Join("__", [$"P{pack.Elements.Length}", .. pack.Elements.Select(element => Identifier(element.FullyQualifiedName))])
+            : Identifier(argument.FullyQualifiedName);
     }
 
     public static string? CollidingName(Method method, IMistType receiver)
@@ -270,6 +277,7 @@ internal sealed class UnionSpecialization
         var calls = model.GenericCalls.All().ToList();
         var requiredTypes = new HashSet<MemberType>();
         var requiredMethods = new HashSet<Method>();
+        var erased = model.TypesByFQN.Values.OfType<TypeAlias>().SelectMany(alias => alias.TypeParametersList).ToHashSet();
 
         var overPackElements = new SortedDictionary<string, PackElementType>(StringComparer.Ordinal);
 
@@ -277,15 +285,15 @@ internal sealed class UnionSpecialization
         {
             foreach(var parameter in TypeParameterReach.Collect(type))
             {
-                if(typeOwners.TryGetValue(parameter, out var owner))
+                if(typeOwners.TryGetValue(Declared(parameter), out var owner))
                 {
                     _ = requiredTypes.Add(owner);
                 }
-                else if(methodOwners.TryGetValue(parameter, out var method))
+                else if(methodOwners.TryGetValue(Declared(parameter), out var method))
                 {
                     _ = requiredMethods.Add(method);
                 }
-                else if(parameter is PackElementType element)
+                else if(parameter is PackElementType element && !erased.Contains(element.Pack))
                 {
                     _ = overPackElements.TryAdd(TypeDisplay.Mist(type), element);
                 }
@@ -446,9 +454,15 @@ internal sealed class UnionSpecialization
             }
         }
 
+        var extensionNodes = SourceTypes.ExtensionsOf(model)
+            .SelectMany(block => block.MethodsList.SelectMany(method => method.TypeParametersList
+                .Select(parameter => (parameter, node: method.DeclarationNode ?? block.DeclarationNode))))
+            .Where(entry => entry.node is not null)
+            .ToDictionary(entry => entry.parameter, entry => entry.node!);
+
         foreach(var (written, element) in overPackElements)
         {
-            if(element.Pack.DeclaringType is MemberType { DeclarationNode: { } node })
+            if(((element.Pack.DeclaringType as MemberType)?.DeclarationNode ?? extensionNodes.GetValueOrDefault(element.Pack)) is { } node)
             {
                 diagnostics.ReportAtNode(BackendDiagnostics.UnionOverPackElement, node, null, written, element.Name, element.Pack.Name);
             }
@@ -490,7 +504,12 @@ internal sealed class UnionSpecialization
 
     private static bool Mentions(IMistType type, IReadOnlyList<TypeParameter> parameters)
     {
-        return TypeParameterReach.Collect(type).Any(parameters.Contains);
+        return TypeParameterReach.Collect(type).Any(parameter => parameters.Contains(Declared(parameter)));
+    }
+
+    private static TypeParameter Declared(TypeParameter parameter)
+    {
+        return parameter is PackElementType element ? element.Pack : parameter;
     }
 
     private static string Identifier(string name)

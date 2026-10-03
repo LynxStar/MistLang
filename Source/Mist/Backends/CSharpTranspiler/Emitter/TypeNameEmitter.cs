@@ -354,17 +354,18 @@ internal static class TypeNameEmitter
             return "dynamic";
         }
 
-        // A variadic construction names the SPECIALIZATION its arity asks for, with the pack
-        // spliced into the argument list: C# has no pack, so `Box<[int, string]>` is
-        // `Box_2<int, string>` and the declaration it names was emitted for that width alone.
-        if(MonomorphReference.Emit(constructed, Emit) is { } specialized)
-        {
-            return specialized;
-        }
-
         if(UnionSpecialization.NameOf(constructed) is { } specializedName)
         {
             return Qualify(constructed.Definition, specializedName);
+        }
+
+        // A variadic construction names the SPECIALIZATION its arity asks for, with the pack
+        // spliced into the argument list: C# has no pack, so `Box<[int, string]>` is
+        // `Box_2<int, string>` and the declaration it names was emitted for that width alone --
+        // unless the family is emitted per instantiation, asked first, which has no per-arity one.
+        if(MonomorphReference.Emit(constructed, Emit) is { } specialized)
+        {
+            return specialized;
         }
 
         // Generic types: Definition<Arg1, Arg2, ...>

@@ -225,13 +225,15 @@ internal sealed class CSharpEmitterV2
 
     /// <summary>
     /// A variadic family is not emitted where it was written: C# cannot express it once, so
-    /// EmitMonomorphs writes one declaration per arity instead and this skips the original.
+    /// EmitMonomorphs writes one declaration per arity instead and this skips the original -- unless
+    /// it is emitted once per instantiation, which closes its packs along with everything else and is
+    /// written in its namespace like any other instance.
     /// </summary>
     internal static List<DeclaredType> WrittenDeclarations(CompilationUnit unit)
     {
         return [.. unit.Types
             .Where(TypeEmitter.ProducesDeclaration)
-            .Where(type => Monomorph.PacksOf(type).Count == 0)];
+            .Where(type => Monomorph.PacksOf(type).Count == 0 || UnionSpecialization.Specializes(type))];
     }
 
     /// <summary>
@@ -460,6 +462,7 @@ internal sealed class CSharpEmitterV2
         foreach(var (definition, widths) in monomorphs)
         {
             if(definition is not MemberType member
+                || UnionSpecialization.Specializes(member)
                 || definition is not IHasTypeParameters generic
                 || Monomorph.For(generic.TypeParametersList, widths) is not { } monomorph)
             {
@@ -640,14 +643,7 @@ internal sealed class CSharpEmitterV2
 
     internal static bool IsOpen(IMistType type)
     {
-        return type switch
-        {
-            TypeParameter => true,
-            ConstructedType constructed => constructed.TypeArguments.Any(IsOpen),
-            FunctionType function => function.ParameterTypes.Any(IsOpen) || IsOpen(function.ReturnType),
-            UnionType union => union.Constituents.Any(IsOpen),
-            _ => false,
-        };
+        return TypeParameterReach.Collect(type).Count > 0;
     }
 
     private static bool IsNarrower(UnionType narrow, UnionType wide)

@@ -42,6 +42,8 @@ internal static class UnionCarrierNames
             ConstructedType constructed
                 => $"{MistType.StripArity(constructed.Definition.Name)}_{constructed.TypeArguments.Count}_"
                     + string.Join("_", constructed.TypeArguments.Select(ConstituentName)),
+            LiftedType { Value: TypePackValue pack }
+                => $"Pack_{pack.Elements.Length}_" + string.Join("_", pack.Elements.Select(ConstituentName)),
             LiftedType lifted => ConstituentName(lifted.Type),
             UnknownValueType unknownValue => ConstituentName(unknownValue.Domain),
             IFunctionType function

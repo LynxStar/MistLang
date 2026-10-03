@@ -1,0 +1,27 @@
+using Standard;
+
+public class Pick<Type[2]:Ts>
+{
+    public Ts[1]? Second;
+
+    public string Show()
+    {
+        if (this.Second is Ts[1] kept)
+        {
+            return $"kept {kept}";
+        }
+
+        return "none";
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] cmdArgs)
+    {
+        var numbers = new Pick<string, int>();
+        var words = new Pick<int, string>();
+        words.Second = "b";
+        Console.WriteLine($"{numbers.Show()} {words.Show()}");
+    }
+}

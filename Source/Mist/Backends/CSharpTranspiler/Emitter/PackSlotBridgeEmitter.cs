@@ -84,12 +84,12 @@ internal static class PackSlotBridgeEmitter
                     continue;
                 }
 
-                if(spread.Operand is not TypeParameter operand || Monomorph.InScope() is not { } monomorph || !monomorph.Binds(operand))
+                if(MonomorphReference.Elements(TypeNameEmitter.Closed(spread.Operand)) is not { } spliced)
                 {
                     return null;
                 }
 
-                var items = monomorph.Expansion(operand).Select(_ => $"{parameter.Name}.Item{++item}").ToList();
+                var items = spliced.Select(_ => $"{parameter.Name}.Item{++item}").ToList();
 
                 arguments.Add(items.Count switch
                 {

@@ -54,6 +54,16 @@ internal static class TypeParameterReach
 
             case LiftedType lifted:
                 Collect(lifted.Type, found, seen);
+
+                if(lifted.Value is TypePackValue pack)
+                {
+                    CollectAll(pack.Elements, found, seen);
+                }
+
+                break;
+
+            case SpreadType spread:
+                Collect(spread.Operand, found, seen);
                 break;
 
             case RefinedType refined:

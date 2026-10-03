@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -53,6 +54,16 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
         public class Generic<T>
         {
             public int length;
+        }
+
+        public class Unioned<Type[2]:TArgs>
+        {
+            public TArgs... Item;
+            public TArgs[1]? Maybe;
+
+            public Unioned(params TArgs values) { Item... = values...; }
+
+            public TArgs[0] First() { return Item1; }
         }
         """;
 
@@ -131,5 +142,26 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
     public void UnrefinedField_IsNotRefused()
     {
         Assert.Empty(GuardOn("Plain"));
+    }
+
+    /// <summary>
+    /// A pack the instance being emitted closes needs no width: an instantiation fixes its elements, so
+    /// its spread field, its element-typed members and its parameters all have a spelling there.
+    /// </summary>
+    [Fact]
+    [Trait("Tier", "3")]
+    public void APackClosedByTheInstanceBeingEmitted_IsNotRefused()
+    {
+        var model = BuildModel("var unioned = new Unioned<int, string>(1, \"a\");", "", "", out _);
+        var diagnostics = new DiagnosticBag();
+        using var specialization = UnionSpecialization.Enter(model, diagnostics);
+        var type = (MemberType)model.TypesByFQN.Single(entry => MistType.StripArity(entry.Key) == "Probe.Unioned").Value;
+
+        using(TypeEmitter.Specializing(Assert.Single(UnionSpecialization.InstancesOf(type))))
+        {
+            UnspellableTypeGuard.Report(type, diagnostics);
+        }
+
+        Assert.Empty(diagnostics.ToImmutableArray());
     }
 }

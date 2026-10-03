@@ -1,0 +1,30 @@
+using Standard;
+
+public abstract IRank<T>
+{
+    int Rank();
+}
+
+public class Knight : IRank<Knight>
+{
+    public int Rank() { return 3; }
+}
+
+public class Rook : IRank<Rook>
+{
+    public int Rank() { return 5; }
+}
+
+public class Ladder<params Ts> where Ts : IRank<Ts>
+{
+    public int Width() { return Ts.Length; }
+}
+
+public class Program
+{
+    public static void Main(string[] cmdArgs)
+    {
+        var ladder = new Ladder<Knight, Rook>();
+        Console.WriteLine($"width={ladder.Width()}");
+    }
+}

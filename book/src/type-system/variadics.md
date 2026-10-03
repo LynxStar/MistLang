@@ -263,6 +263,46 @@ A whole-pack constraint applies elementwise to every element:
 
 Every element type must satisfy the constraint. An empty pack vacuously satisfies it.
 
+### A Constraint That Names Its Pack
+
+A whole-pack constraint may name its own pack, and the name then stands for the element being checked:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/variadics/self-naming-constraint.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/variadics/self-naming-constraint.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`where Ts : IRank<Ts>` asks `Knight` for `IRank<Knight>` and `Rook` for `IRank<Rook>`, so `Ladder<Knight, Rook>` is admitted, while a `Grade` implementing only `IRank<Knight>` is refused against `IRank<Grade>`. Only the bare name is the element: a spread inside the constraint, `where Ts : ITeam<(Ts...)>`, still stands for the whole pack, so each element must implement `ITeam` of the entire tuple.
+
+C# writes a constraint per type parameter, so each element of the specialization gets its own clause naming itself -- `Ladder_2<T1, T2>` is declared with `where T1 : IRank<T1>` and `where T2 : IRank<T2>`. The specializations are written to a generated file the tab above does not show.
+
+## Pack Elements in Optionals and Unions
+
+An element of a fixed-size pack can be made optional, or joined into a union, like any type parameter:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/variadics/element-optional.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/variadics/element-optional.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`Ts[1]?` is an `int?` in `Pick<string, int>` and a plain `string` in `Pick<int, string>`, where `null` already stands for absence. One declaration per arity could spell only one of those, so a variadic declaration that writes an optional or a union over one of its elements is emitted once per instantiation instead, as an ordinary generic with such a union is (see [Type Unions](./type-unions.md)). Spread members, `Ts.Length`, zips and conformances work in each instance as they do in a per-arity one. Constraining the pack to `struct` or `class` gives an optional element one spelling at every closing, and the declaration is emitted per arity as before.
+
 ## Value-Level `params`
 
 The homogeneous sibling of a type pack is C#-style `params`:

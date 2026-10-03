@@ -203,6 +203,9 @@ Filed as a task, by decision (`variadic-monomorphization` in the emitter registe
 
 - **An optional or union over an element of an unconstrained pack** is refused by the backend
   (`MIST_BE_UNION_OVER_PACK_ELEMENT`) until variadic declarations are emitted per instantiation.
+  Closed 2026-10-03: a type or a type's method owning the pack is emitted once per instantiation
+  (`samples/VariadicSpecialization`); the refusal stands only for a pack declared by an extension
+  block's method.
 
 Standing, not raised:
 

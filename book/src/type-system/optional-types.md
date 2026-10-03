@@ -21,7 +21,7 @@ Appending `?` to any type creates an optional type — syntactic sugar for `T | 
 {{#endtab }}
 {{#endtabs }}
 
-The `?` suffix works on any type — primitives, classes, generics. `int?` is `int | void`, `MyClass?` is `MyClass | void`, `Result<int>?` is `Result<int> | void`.
+The `?` suffix works on any type — primitives, classes, generics, and an element of a variadic pack (`TArgs[1]?`, see [Variadics](./variadics.md#pack-elements-in-optionals-and-unions)). `int?` is `int | void`, `MyClass?` is `MyClass | void`, `Result<int>?` is `Result<int> | void`.
 
 **Precedence:** The `?` suffix binds tighter than `|` but looser than `[]`. This means:
 - `int[]?` is `(int[]) | void` — an optional array

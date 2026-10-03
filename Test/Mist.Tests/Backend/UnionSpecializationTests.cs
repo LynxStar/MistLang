@@ -76,6 +76,61 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
             public static int Pick<T, R>(T | R value) { return 1; }
 
             public static int UseSlot<T>(Slot<T> slot) { return 2; }
+
+            public static int Maybe<Type[2]:T>(T[0]? first) { return 3; }
+        }
+
+        public class Duo<Type[2]:Ts>
+        {
+            public Ts... Item;
+
+            public Ts[1]? Second;
+
+            public Duo(params Ts values) { Item... = values...; }
+
+            public int Width() { return Ts.Length; }
+        }
+
+        public class Either<Type[2]:Ts>
+        {
+            public Ts[0] | string Held;
+
+            public Either(Ts[0] first) { this.Held = first; }
+        }
+
+        public class Nest<Type[2]:Ts>
+        {
+            public Slot<Ts[1]> Held;
+
+            public Nest() { this.Held = new Slot<Ts[1]>(); }
+        }
+
+        public class Forward<Type[2]:Ts>
+        {
+            public Duo<Ts...> Inner;
+
+            public Forward(params Ts values) { this.Inner = new Duo<Ts...>(values...); }
+        }
+
+        public class ValueDuo<Type[2]:Ts> where Ts : struct
+        {
+            public Ts[1]? Second;
+
+            public ValueDuo() { }
+        }
+
+        public class Spread<params Ts>
+        {
+            public Ts... Item;
+
+            public Spread(params Ts values) { Item... = values...; }
+        }
+
+        public class ClosedDuo : Duo<int, string>
+        {
+            public ClosedDuo() : base(1, "c") { }
+
+            public Duo<int, string> Again() { return new Duo<int, string>(2, "a"); }
         }
 
         public class Caller<K>
@@ -148,6 +203,15 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
         var via = new Via<int>();
         var filler = new Filler<int>();
         var valued = new Valued<int>();
+        var duo = new Duo<int, string>(1, "a");
+        var again = new Duo<int, string>(2, "b");
+        var flipped = new Duo<string, int>("c", 3);
+        var either = new Either<int, bool>(4);
+        var nest = new Nest<string, int>();
+        var forward = new Forward<bool, char>(true, 'q');
+        var valueDuo = new ValueDuo<int, long>();
+        var spread = new Spread<int, int>(1, 2);
+        var maybe = Api.Maybe<[int, string]>(5);
         """;
 
     [Theory]
@@ -389,6 +453,89 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
         _ = Assert.Single(diagnostics.ToImmutableArray(), d => d.Id.Value == "MIST_BE_UNBOUNDED_SPECIALIZATION");
     }
 
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("Duo", true)]
+    [InlineData("Either", true)]
+    [InlineData("Nest", true)]
+    [InlineData("Forward", true)]
+    [InlineData("ValueDuo", false)]
+    [InlineData("Spread", false)]
+    public void APackDeclarationIsSpecializedExactlyWhenItWritesAUnionOverAnElement_OrNamesOneThatDoes(string type, bool expected)
+    {
+        var model = Model();
+        using var specialization = UnionSpecialization.Enter(model, new DiagnosticBag());
+
+        Assert.Equal(expected, UnionSpecialization.Specializes(Definition(model, type)));
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void EachClosedPackIsOneInstance_RepeatsMergedAndOnesReachedThroughSubstitutionIncluded()
+    {
+        var model = Model();
+        using var specialization = UnionSpecialization.Enter(model, new DiagnosticBag());
+
+        Assert.Equal(
+            ["Duo<[Boolean, Char]>", "Duo<[Int32, String]>", "Duo<[String, Int32]>"],
+            UnionSpecialization.InstancesOf(Definition(model, "Duo")).Select(TypeDisplay.Mist).Order());
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("Duo<[Int32, String]>", "public class Duo__P2__Standard_Int32__Standard_String")]
+    [InlineData("Duo<[Int32, String]>", "public string Second;")]
+    [InlineData("Duo<[String, Int32]>", "public int? Second;")]
+    [InlineData("Duo<[Int32, String]>", "public (int, string) Item;")]
+    [InlineData("Duo<[Int32, String]>", "public Duo__P2__Standard_Int32__Standard_String((int, string) values)")]
+    [InlineData("Duo<[Int32, String]>", "public int Item1 { get => Item.Item1; set => Item.Item1 = value; }")]
+    [InlineData("Duo<[String, Int32]>", "public int Item2 { get => Item.Item2; set => Item.Item2 = value; }")]
+    [InlineData("Duo<[Int32, String]>", "return 2;")]
+    [InlineData("Either<[Int32, Boolean]>", "public Union_Int32_String Held;")]
+    [InlineData("Nest<[String, Int32]>", "public Probe.Slot__Standard_Int32 Held;")]
+    [InlineData("Forward<[Boolean, Char]>", "public Probe.Duo__P2__Standard_Boolean__Standard_Char Inner;")]
+    public void AnInstanceOfAPackDeclaration_SpellsEachElementAsClosedCodeDoes(string instance, string expected)
+    {
+        Assert.Contains(expected, Lines(EmitInstance(instance)));
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("public class ClosedDuo : Probe.Duo__P2__Standard_Int32__Standard_String")]
+    [InlineData("public ClosedDuo() : base((1, \"c\"))")]
+    [InlineData("public Probe.Duo__P2__Standard_Int32__Standard_String Again()")]
+    public void AClosedReferenceToASpecializedPackDeclaration_NamesTheInstanceRatherThanAnArity(string expected)
+    {
+        Assert.Contains(expected, Lines(EmitType(Model(), "ClosedDuo")));
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void AVariadicMethodWritingAUnionOverItsElement_IsSpecializedPerCall()
+    {
+        var model = Model();
+        using var specialization = UnionSpecialization.Enter(model, new DiagnosticBag());
+
+        var declared = ((ClassType)model.TypesByFQN["Probe.Api"]).MethodsList.Single(m => m.Name == "Maybe");
+
+        Assert.Equal("[Int32, String]", TypeDisplay.Mist(Assert.Single(Assert.Single(UnionSpecialization.InstancesOf(declared)))));
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ASpecializedPackDeclarationIsWrittenWithItsFile_AndOnlyThatOne()
+    {
+        var model = Model();
+        using var specialization = UnionSpecialization.Enter(model, new DiagnosticBag());
+
+        var written = model.SelfAssembly!.CompilationUnits.SelectMany(CSharpEmitterV2.WrittenDeclarations)
+            .Select(type => MistType.StripArity(type.Name)).ToList();
+
+        Assert.Contains("Duo", written);
+        Assert.DoesNotContain("Spread", written);
+        Assert.DoesNotContain("ValueDuo", written);
+    }
+
     private ProgramModelClass Model()
     {
         var model = BuildModel(statement: "", extraTypes: "", extraPreamble: "", out var diagnostics);
@@ -432,5 +579,10 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
 
         Assert.Empty(diagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
         return writer.ToString();
+    }
+
+    private static List<string> Lines(string emitted)
+    {
+        return [.. emitted.Split('\n').Select(line => line.Trim())];
     }
 }

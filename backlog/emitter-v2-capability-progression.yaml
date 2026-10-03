@@ -9350,6 +9350,16 @@ capabilities:
       back empty. A field-kind spread's projections are writable and a property-kind spread's follow
       its own accessors.
 
+      AND IN A DECLARATION EMITTED PER INSTANTIATION, since 2026-10-03 (order 153). The projections
+      read the pack's elements off whatever closes it where the declaration is written --
+      MonomorphReference.Elements over TypeNameEmitter.Closed, a specialization's expansion or an
+      instance's closed pack -- rather than requiring a per-arity specialization in scope, which an
+      instance never has: `Pick<Type[2]:Ts> { Ts... Item; Ts[1]? Second; }` at `Pick<string, int>`
+      emits `public int Item2 { get => Item.Item2; set => Item.Item2 = value; }`. PackSlotBridgeEmitter
+      reads a spread in the base list the same way, so a conformer emitted per instance still bridges
+      a pack-typed slot. Pinned by UnionSpecializationTests and PackSlotBridgeEmissionTests (Tier 3);
+      samples/VariadicSpecialization runs both.
+
       NOT STARTED: MIST_VAR_0008, an empty stem, which the grammar may not admit at all.
     unlocks: []
 
@@ -9490,17 +9500,51 @@ capabilities:
       CallableChainAndHiddenBaseEmissionTests (Tier 2, three rows; a mutant keeping the per-argument
       loop fails two). A chain argument that does need hoisting keeps the per-argument path and is not
       packed: no program measured reaches it.
-    tasks:
-      - >
-        Emit a variadic declaration once per instantiation when it holds a union over a pack element.
-        `TArgs[1]?`, `TArgs[0] | string` and `Box<TArgs[1]>` over a `T?` are refused by the backend
-        (MIST_BE_UNION_OVER_PACK_ELEMENT, 2026-10-02) because a union over a type parameter is spelled
-        per instantiation and a variadic declaration per arity; under `where TArgs : struct` or `: class`
-        they work. Lifting it: UnionSpecialization owns pack elements, TypeNameEmitter prefers the
-        specialized name over the arity name, and SpreadProjectionEmitter, PackSlotBridgeEmitter and
-        UnspellableTypeGuard work without a specialization in scope. Valid Mist refused by the
-        target, so it is owed (Arthur, 2026-10-02: store, not immediate).
-    unlocks: [Variadics]
+
+      CLOSED 2026-10-03, A UNION OVER A PACK ELEMENT IS EMITTED PER INSTANTIATION. Filed 2026-10-02:
+      `TArgs[1]?`, `TArgs[0] | string` and `Box<TArgs[1]>` over a `T?` were refused by the backend
+      (MIST_BE_UNION_OVER_PACK_ELEMENT), a union over a type parameter being spelled per instantiation
+      and a variadic declaration per arity; `where TArgs : struct` or `: class` already worked and still
+      does, neither refused nor specialized. Measured on 34be2ddc: `Pair<Type[2]:Ts> { Ts[1]? Value; }`
+      as `new Pair<int, string>()` refused. UnionSpecialization.Discover now attributes an element to
+      its pack's owner -- a type, or a type's generic method -- and TypeParameterReach sees through a
+      spread and a closed pack's elements, so `Forward<Type[2]:Ts> { Pick<Ts...> Pair; }` is specialized
+      because it names one that is. The owner is emitted once per instantiation in its namespace,
+      under a name built from each pack's width and elements (`Pick__P2__Standard_String__Standard_Int32`),
+      and EmitMonomorphs skips it; TypeNameEmitter asks for the instance's name before the arity's, so a
+      closed base, a closed signature, a construction and a forwarded `Pick<Ts...>` inside another
+      instance all name the instance. Nothing is rebound or cloned: the instance is the declaration
+      emitted under TypeNameEmitter's substitution scope, with ordinary closed types interned as before.
+      What the specialization ambient used to supply now comes from that scope where an instance is
+      emitted: `Ts.Length` already read the closed pack, spread projections and a pack-slot bridge read
+      it too (see spread-generated-members), and UnspellableTypeGuard counts a pack the instance closes
+      as bound. Repeats merge (`new Pick<int, string>` twice is one instance), a variadic abstract
+      instance is implemented by a closed conformer and by a specialized one spreading its pack into its
+      base, and a variadic method writing `T[0]?` is one method per call
+      (`Maybe__P2__Standard_Int32__Standard_String`), including one reached by forwarding `[T...]`.
+      Three things it uncovered, closed with it: a union carrier over a variadic construction was named
+      by the pack's DOMAIN (`Union_Inner_1_TypeArray_String` for every width and element list), now by
+      what the pack holds (`Union_Inner_1_Pack_2_Int32_Boolean_String`); CSharpEmitterV2.IsOpen missed a
+      tuple, a pack and a spread and carried an open union as if closed, now TypeParameterReach's
+      answer; and a pack alias, `type Maybe<Type[1]:T> = T[0]?`, was refused although an alias is erased
+      and emits no union, now admitted. STILL REFUSED, truthfully and at the method: a pack declared by
+      an extension block's method, which UnionSpecialization does not emit per instantiation; the
+      message says so. A NESTED variadic type is refused as before, MIST_BE_DEPENDENT_TYPE_PARAMETER,
+      nested specialization being outside this task. NOT CLOSED, and not this order's: a declaration
+      emitted per instantiation that also needs a default witness -- a struct holding `Ts[0]`, or a
+      method `where Ts : default` -- declares `Func<Ts[0]>` and is called with witnesses its instance
+      does not declare, exactly as the non-variadic `struct Slot<K> { K First; K? Second; }` and
+      `Zero<K>() where K : default` do (measured 2026-10-03); that is ordinary default witness storage,
+      owned by the generic-default work. PROVED BY UnionSpecializationTests (Tier 3: which pack
+      declarations specialize, the instances with repeats and substitution, eleven spellings, the
+      closed references, the method axis and which declarations a file writes), PackElementUnionRefusalTests
+      (Tier 3: the four former refusals specialize, the kind-constrained three neither, the alias, and
+      the extension method refused at its node), PackSpecializationNameTests (Tier 1: instance and carrier
+      names, and reach through packs), UnspellableTypeGuardTests and PackSlotBridgeEmissionTests (one
+      Tier 3 case each), and samples/VariadicSpecialization in AllFeaturesV2. Nine mutations, nine caught:
+      attribution, name order, projection, bridge, guard, routing, carrier name, chain packing and the
+      alias exclusion, each reverted in turn.
+    unlocks: [Variadics, VariadicSpecialization]
 
   # ===================================================================
   # Layer AC -- ownership and drop.
@@ -12984,6 +13028,37 @@ samples:
         interface carried the call does not -- `Boxed<Widget, int>` prints the same through
         `__IConstruct_0<Widget, Box<int>>` as it would through a concrete one. ConstructorConstraintInterfaceEmissionTests
         holds the spellings.
+
+  - name: VariadicSpecialization
+    intro_order: 104
+    threshold: variadic-monomorphization
+    requires: [variadic-monomorphization, spread-generated-members, type-pack-declarations,
+               union-types-and-carriers, optional-union-representation, optional-operators,
+               pattern-matching-core, generic-constraints-nominal, abstract-type-declaration,
+               nominal-conformance-and-slot-checking, base-type-list, constructors,
+               string-interpolation, var-type-inference]
+    untested:
+      - >
+        V2-ONLY: written 2026-10-03, after classic was retired, so there is no classic run to capture
+        from. Referenced from AllFeaturesV2 alone, its lines captured from v2 and read against the
+        program by hand.
+      - >
+        Which elements a clause names is invisible here beyond compiling: a C# clause naming the pack
+        does not compile at all, but one naming the WRONG element would also run, every element being a
+        Knight or a Rook that ranks against itself. PackConstraintEmissionTests holds each spelling.
+      - >
+        An instance's NAME is invisible -- two instances under one name would not compile, but a name
+        built from the wrong argument order would run. UnionSpecializationTests and
+        PackSpecializationNameTests hold the names; the `[union]` lines only show that `int?` kept its
+        absence where a per-arity `T2` would have read 0.
+      - >
+        A refusal cannot appear in a sample: a pack declared by an extension block's method, still
+        refused, is held by PackElementUnionRefusalTests, and `Row<Score, Grade>` against a whole-pack
+        constraint by ConstraintRefusalTests.
+      - >
+        Neither a struct holding a pack element nor a `where Ts : default` method is emitted per
+        instantiation here: both need default witnesses, which an instance does not yet declare
+        (variadic-monomorphization's evidence, owned by the generic-default work).
 
 # =====================================================================
 

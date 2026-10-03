@@ -35,8 +35,9 @@ internal static class UnspellableTypeGuard
         {
             // A pack is spelled by SPECIALIZING rather than by carrying a value, so it is exempt
             // from the witness encoding a dependent parameter needs: emission writes one C#
-            // declaration per arity, and each of those has ordinary type parameters.
-            if(parameter.IsPack && Monomorph.InScope() is null)
+            // declaration per arity, each with ordinary type parameters, or one per instantiation,
+            // with none.
+            if(parameter.IsPack && Monomorph.InScope() is null && ReferenceEquals(TypeNameEmitter.Closed(parameter), parameter))
             {
                 diagnostics.ReportAtNode(
                     BackendDiagnostics.DependentTypeParameter, node, null,
@@ -169,6 +170,7 @@ internal static class UnspellableTypeGuard
         }
 
         var bound = Monomorph.InScope()?.Binds(pack) == true
+            || !ReferenceEquals(TypeNameEmitter.Closed(pack), pack)
             || ownParameters.Any(own => ReferenceEquals(own, pack));
 
         return bound ? null : pack;

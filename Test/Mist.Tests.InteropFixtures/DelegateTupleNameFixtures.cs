@@ -50,4 +50,10 @@ public static class DelegateTupleNameUses
     {
         throw new NotImplementedException();
     }
+
+    public static (Func<(int X, int Y), (int First, int Last)> Selector,
+        Action<(int Up, int Down)> Sink, (int Low, int High) Window) FuncAndActionWithSibling()
+    {
+        throw new NotImplementedException();
+    }
 }

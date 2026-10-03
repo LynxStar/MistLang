@@ -7,7 +7,13 @@
 
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
+using Mist.Generated;
+using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Binding.Expressions;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -234,5 +240,185 @@ public sealed class CallableArgumentInferenceTests : ProgramModelProbe
 
         return $"{call.Method?.Name}<{string.Join(", ", typeArguments)}>({string.Join("; ", arguments)}) "
             + $"over ({string.Join(", ", call.ParameterTypes!.Select(TypeDisplay.Mist))}) is {TypeDisplay.Mist(call.Type)}";
+    }
+}
+
+public sealed class ProjectedCallableArgumentInferenceTests
+{
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ProjectedSelectorsCloseTheirOwnResultAfterReceiverSpecialization(bool explicitResult, bool indexed)
+    {
+        var f = new BindingFragments();
+        var method = Selector(f, indexed);
+        var sibling = Selector(f, !indexed);
+        var lambda = new UnboundLambdaExpression(Lambda(indexed, BindingFragments.Expression(BindingFragments.Identifier("x"))));
+        var trials = new LambdaTrials(f.Binding, f.Builder);
+
+        var choice = OverloadResolution.Select(
+            new[] { sibling, method }, new Expression[] { lambda }, null,
+            explicitResult ? [f.Built.Type("Int32")] : null, f.Built.Interner, lambdas: trials);
+
+        Assert.Same(method, choice.Selected);
+        Assert.Same(f.Built.Type("Int32"), choice.Substitution.Apply(method.ReturnType, f.Built.Interner));
+        var target = choice.Substitution.Apply(Assert.Single(method.ParametersList).Type, f.Built.Interner);
+        var settled = Assert.IsType<LambdaExpression>(LambdaTrials.BindAgainst(lambda, target, f.Binding, f.Builder));
+        var signature = Assert.IsType<FunctionType>(settled.Type);
+        Assert.Same(f.Built.Type("Int32"), signature.ReturnType);
+        Assert.All(signature.ParameterTypes, input => Assert.Same(f.Built.Type("Int32"), input));
+        Assert.Equal(indexed ? 2 : 1, signature.ParameterTypes.Count);
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ProjectedPredicateOverloadsSelectTheLambdaArity(bool indexed)
+    {
+        var f = new BindingFragments();
+        var method = Predicate(f, indexed);
+        var sibling = Predicate(f, !indexed);
+        var lambda = new UnboundLambdaExpression(Lambda(indexed, BindingFragments.Expression(new TrueLiteralExpressionPrimaryNode())));
+
+        var choice = OverloadResolution.Select(
+            new[] { sibling, method }, new Expression[] { lambda }, null, null,
+            f.Built.Interner, lambdas: new LambdaTrials(f.Binding, f.Builder));
+
+        Assert.Same(method, choice.Selected);
+        var signature = Assert.IsType<FunctionType>(Assert.Single(method.ParametersList).Type);
+        Assert.Same(f.Built.Type("Boolean"), signature.ReturnType);
+        Assert.Equal(indexed ? 2 : 1, signature.ParameterTypes.Count);
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData("arity")]
+    [InlineData("result")]
+    [InlineData("parameter")]
+    public void IncompatibleProjectedPredicatesRemainUnresolvable(string refusal)
+    {
+        var f = new BindingFragments();
+        var methods = new[] { Predicate(f, false), Predicate(f, true) };
+        var result = BindingFragments.Expression(refusal == "result"
+            ? BindingFragments.Identifier("x")
+            : new TrueLiteralExpressionPrimaryNode());
+        var syntax = Lambda(false, result);
+        if(refusal == "arity")
+        {
+            syntax.Params = new ParenthesizedLambdaParamsLambdaParameterListNode();
+        }
+        else if(refusal == "parameter")
+        {
+            syntax = BindingFragments.Lambda(result, "String");
+        }
+
+        var lambda = new UnboundLambdaExpression(syntax);
+        var arguments = new Expression[] { lambda };
+        var choice = OverloadResolution.Select(methods, arguments, null, null,
+            f.Built.Interner, lambdas: new LambdaTrials(f.Binding, f.Builder));
+
+        Assert.Null(choice.Selected);
+        Assert.Equal(methods, choice.Unresolvable);
+        OverloadFailure.Report(choice, methods, arguments, "method 'Where'", HandBuiltModel.Node(), f.Diagnostics);
+        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void SiblingArgumentSuppliesTheProjectedSelectorsInputBeforeItsBodyTeachesTheResult()
+    {
+        var f = new BindingFragments();
+        var method = f.Function("Apply", f.Built.Type("Void"));
+        var input = new TypeParameter("T", 2, method.Scope!, null);
+        var result = new TypeParameter("R", 4, method.Scope!, null);
+        method.TypeParametersList.AddRange([input, result]);
+        method.ParametersList.AddRange([new Parameter("seed", input), new Parameter("selector", new FunctionType([input], result))]);
+        var lambda = new UnboundLambdaExpression(BindingFragments.Lambda(BindingFragments.Expression(new TrueLiteralExpressionPrimaryNode())));
+
+        var inferred = TypeArgumentInference.Infer(method,
+            [HandBuiltModel.Literal(f.Built.Type("Int32")), lambda], TypeSubstitution.Empty,
+            f.Built.Interner, new LambdaTrials(f.Binding, f.Builder), out var conflict);
+
+        Assert.Null(conflict);
+        Assert.Equal(new IMistType[] { f.Built.Type("Int32"), f.Built.Type("Boolean") }, inferred);
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
+    [Fact]
+    [Trait("Tier", "1")]
+    public void NominalDelegateArgumentsTeachStructuralParameterAndResultSlots()
+    {
+        var f = new HandBuiltModel();
+        var scope = new Scope(null);
+        var t = new TypeParameter("T", 2, scope, null);
+        var r = new TypeParameter("R", 4, scope, null);
+        var method = new Method("Apply", r, [new Parameter("callback", new FunctionType([t], r))], default) { Scope = scope };
+        method.TypeParametersList.AddRange([t, r]);
+        var multicast = new ClassType("MulticastDelegate", "System", new Scope(null), null, null);
+        var callback = HandBuiltModel.Class("Transform", multicast);
+        callback.MethodsList.Add(new Method("Invoke", f.Type("Boolean"), [new Parameter("value", f.Type("String"))], default));
+
+        var inferred = TypeArgumentInference.Infer(method, [HandBuiltModel.Literal(callback)], TypeSubstitution.Empty, f.Interner, null, out var conflict);
+
+        Assert.Null(conflict);
+        Assert.Equal(new IMistType[] { f.Type("String"), f.Type("Boolean") }, inferred);
+        var substitution = TypeSubstitution.ForMethod(method, inferred);
+        Assert.Same(f.Type("String"), substitution.Apply(t, f.Interner));
+        Assert.Same(f.Type("Boolean"), substitution.Apply(r, f.Interner));
+    }
+
+    [Fact]
+    [Trait("Tier", "1")]
+    public void SparseProjectedBlockParametersUnifyAndSubstituteInDeclarationOrder()
+    {
+        var f = new HandBuiltModel();
+        var t = new TypeParameter("T", 2, new Scope(null), null);
+        var declared = new FunctionType([t], t);
+        var actual = new FunctionType([f.Type("String")], f.Type("String"));
+
+        var inferred = Assert.IsAssignableFrom<IReadOnlyList<IMistType>>(TypeArgumentInference.Unify(declared, actual, [t]));
+        Assert.Same(f.Type("String"), Assert.Single(inferred));
+        Assert.Same(f.Type("String"), TypeSubstitution.ForParameters([t], inferred).Apply(t, f.Interner));
+    }
+
+    private static Method Selector(BindingFragments f, bool indexed)
+    {
+        var scope = new Scope(null);
+        var result = new TypeParameter("TResult", 1, scope, null);
+        var method = new Method("Select", result, [], default) { Scope = scope };
+        method.TypeParametersList.Add(result);
+        method.ParametersList.Add(new Parameter("selector", new FunctionType(
+            indexed ? [f.Built.Type("Int32"), f.Built.Type("Int32")] : [f.Built.Type("Int32")], result)));
+        return method;
+    }
+
+    private static Method Predicate(BindingFragments f, bool indexed)
+    {
+        return f.Function("Where", f.Built.Type("Void"), new FunctionType(
+            indexed ? [f.Built.Type("Int32"), f.Built.Type("Int32")] : [f.Built.Type("Int32")], f.Built.Type("Boolean")));
+    }
+
+    private static ExpressionLambdaLambdaExpressionNode Lambda(bool indexed, ExpressionNode body)
+    {
+        var lambda = BindingFragments.Lambda(body);
+        if(indexed)
+        {
+            lambda.Params = new ParenthesizedLambdaParamsLambdaParameterListNode
+            {
+                Params = new LambdaParamListNode
+                {
+                    LambdaParam = new UntypedLambdaParamLambdaParamNode { Name = BindingFragments.Token("x") },
+                    LambdaParams = [new UntypedLambdaParamLambdaParamNode { Name = BindingFragments.Token("index") }],
+                },
+            };
+        }
+
+        return lambda;
     }
 }

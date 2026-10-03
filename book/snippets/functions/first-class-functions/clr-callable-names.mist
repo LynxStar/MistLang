@@ -1,0 +1,16 @@
+using Standard;
+
+public class Program
+{
+    public static void Main()
+    {
+        System.Func<int, int> increment = x => x + 1;
+        System.Func<int> answer = () => 42;
+        System.Action<int> print = x => Console.WriteLine(x);
+        System.Action done = () => Console.WriteLine("done");
+
+        print(increment(1));
+        print(answer());
+        done();
+    }
+}

@@ -462,9 +462,8 @@ internal static class PostfixBinder
 
     /// <summary>
     /// Invoking a VALUE rather than a method group, which resolves no member and chooses no overload:
-    /// the receiver's own type states what the call takes and produces. A function type therefore
-    /// results in its RESULT, where anything else can only stand for itself -- the receiver's type
-    /// being all there is to go on.
+    /// the receiver's function shape states what the call takes and produces, including the closed
+    /// Invoke signature of a nominal CLR delegate. The receiver retains its declared type for emission.
     /// </summary>
     private static Expression BindFunctionInvocation(
         Storm.Runtime.SyntaxNode node,
@@ -473,7 +472,7 @@ internal static class PostfixBinder
         BindingContext ctx,
         BuilderContext context)
     {
-        if(receiver.Type is not IFunctionType function)
+        if(DelegateShape.Of(receiver.Type) is not { } function)
         {
             var untargeted = ArgumentBinder.Bind(arguments, ctx, context);
 
@@ -497,9 +496,16 @@ internal static class PostfixBinder
         // the call produces and where it sits, and a delegate returning a task is a task-returning
         // call however it was reached.
         var converted = ImplicitConversions.AtParameters(bound, method: null, function.ParameterTypes, context.ProgramModel.TypeInterner);
+        var invoke = DelegateShape.InvokeOf(receiver.Type);
+        var returnType = ClrInboundLifting.Close(
+            invoke?.Modifiers ?? default, function.ReturnType,
+            context.Resolver.LookupWellKnown(WellKnownTypes.Void), context.ProgramModel.TypeInterner);
 
         return AutoDrop(
-            new InvocationExpression(node, receiver, converted, function.ReturnType, null, function.ParameterTypes), ctx, context);
+            new InvocationExpression(node, receiver, converted, returnType, null, function.ParameterTypes)
+            {
+                InvokeMethod = invoke,
+            }, ctx, context);
     }
 
     /// <summary>

@@ -25,7 +25,7 @@ internal static class PositionDecision
         return expression switch
         {
             LocalReferenceExpression { Local: { IsRef: true } local } when local.IsReadonly || local.Parameter is { Modifier.IsReadonly: true } => local.Name,
-            InvocationExpression { Method: { Modifiers.ReturnsReadonlyRef: true } method } => method.Name,
+            InvocationExpression { Signature: { Modifiers.ReturnsReadonlyRef: true } method } => method.Name,
             IndexExpression { Indexer.Modifiers.ReturnsReadonlyRef: true } => "this[]",
             MemberAccessExpression { Member: PropertyResult { Property: { Modifiers.ReturnsReadonlyRef: true } property } } => property.Name,
             PropertyReferenceExpression { Property: { Modifiers.ReturnsReadonlyRef: true } property } => property.Name,

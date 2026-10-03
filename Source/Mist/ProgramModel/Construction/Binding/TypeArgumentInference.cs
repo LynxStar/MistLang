@@ -13,7 +13,7 @@ namespace Mist.ProgramModel.Construction.Binding;
 internal static class TypeArgumentInference
 {
     /// <summary>
-    /// One slot per type parameter the method declares, by ordinal -- not one per argument.
+    /// One slot per type parameter the method declares, in declaration order -- not one per argument.
     /// </summary>
     public static IMistType?[] Infer(
         IOverload method,
@@ -110,7 +110,7 @@ internal static class TypeArgumentInference
                 _ = pending.Remove(i);
                 progressed = true;
 
-                if(!parameters.Any(parameter => IsOpen(parameter, frozen) && Mentions(shape.ReturnType, parameter)))
+                if(!parameters.Any(parameter => IsOpen(parameter, parameters, frozen) && Mentions(shape.ReturnType, parameter)))
                 {
                     continue;
                 }
@@ -147,31 +147,44 @@ internal static class TypeArgumentInference
     {
         conflict = null;
         var needed = parameters
-            .Where(parameter => IsOpen(parameter, frozen) && inputs.Exists(input => Mentions(input, parameter)))
+            .Where(parameter => IsOpen(parameter, parameters, frozen) && inputs.Exists(input => Mentions(input, parameter)))
             .ToList();
 
-        if(needed.Exists(parameter => bounds[parameter.Ordinal].Count == 0))
+        if(needed.Exists(parameter => bounds[Slot(parameter, parameters)].Count == 0))
         {
             return null;
         }
 
         foreach(var parameter in needed)
         {
-            if(Dominant(bounds[parameter.Ordinal], interner) is not { } fixedType)
+            if(Dominant(bounds[Slot(parameter, parameters)], interner) is not { } fixedType)
             {
-                conflict = new TypeArgumentConflict(parameter, bounds[parameter.Ordinal]);
+                conflict = new TypeArgumentConflict(parameter, bounds[Slot(parameter, parameters)]);
                 return false;
             }
 
-            frozen[parameter.Ordinal] = fixedType;
+            frozen[Slot(parameter, parameters)] = fixedType;
         }
 
         return true;
     }
 
-    private static bool IsOpen(TypeParameter parameter, IMistType?[] frozen)
+    private static bool IsOpen(TypeParameter parameter, IReadOnlyList<TypeParameter> parameters, IMistType?[] frozen)
     {
-        return parameter.Ordinal < frozen.Length && frozen[parameter.Ordinal] is null;
+        return Slot(parameter, parameters) is var slot && slot >= 0 && frozen[slot] is null;
+    }
+
+    private static int Slot(TypeParameter parameter, IReadOnlyList<TypeParameter> parameters)
+    {
+        for(var i = 0; i < parameters.Count; i++)
+        {
+            if(ReferenceEquals(parameters[i], parameter))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private static void Learn(
@@ -396,7 +409,7 @@ internal static class TypeArgumentInference
         // nothing else in the signature mentions -- `Apply(Func<TArgs..., TResult> f, params TArgs)`
         // has no other way to learn TResult -- and its own parameters match position for position
         // once a spread among them is skipped, that part being the pack binding's to make.
-        if(declared is FunctionType declaredFunction && actual is FunctionType actualFunction)
+        if(DelegateShape.Of(declared) is { } declaredFunction && DelegateShape.Of(actual) is { } actualFunction)
         {
             Match(declaredFunction.ReturnType, actualFunction.ReturnType, parameters, bounds);
 
@@ -475,12 +488,13 @@ internal static class TypeArgumentInference
     private static void Record(
         TypeParameter parameter, IMistType actual, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds)
     {
-        if(!parameters.Contains(parameter) || parameter.Ordinal >= bounds.Length)
+        var slot = Slot(parameter, parameters);
+        if(slot < 0)
         {
             return;
         }
 
-        Add(bounds[parameter.Ordinal], actual);
+        Add(bounds[slot], actual);
     }
 
     private static void Add(List<IMistType> slot, IMistType actual)

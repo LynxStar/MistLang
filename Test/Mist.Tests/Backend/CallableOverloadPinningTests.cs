@@ -267,6 +267,24 @@ public sealed class CallableOverloadArgumentEmissionTests
     }
 
     [Fact]
+    public void ANominalValueCallKeepsItsCallableTargetWithoutBecomingAnOverloadedMethodCall()
+    {
+        var function = Function();
+        var nominal = Nominal();
+        var invoke = new Method("Invoke", model.Type("Boolean"), [new Parameter("f", nominal)],
+            new MemberModifiers { IsClrProjected = true });
+        var callback = new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("callback", nominal));
+        var value = new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("f", function));
+        var call = new InvocationExpression(HandBuiltModel.Node(), callback, [value], model.Type("Boolean"), null, [nominal])
+        {
+            InvokeMethod = invoke,
+        };
+
+        Assert.Null(call.Method);
+        Assert.Equal("callback(new Predicate((f).Invoke))", Emit(call));
+    }
+
+    [Fact]
     public void OrdinaryCallAndTypedValueStayBare()
     {
         var function = Function();

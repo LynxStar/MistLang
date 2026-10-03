@@ -358,7 +358,7 @@ internal static partial class PurityJudge
                     _ = JudgeWrite(origins.This, "'this'", target);
                     break;
 
-                case InvocationExpression { Method: { Modifiers.IsRef: true } method }:
+                case InvocationExpression { Signature: { Modifiers.IsRef: true } method }:
                     if(JudgeWrite(origins.OfReferent(target), $"through the reference '{method.Name}' returns", target))
                     {
                         JudgeStore(value, new Slot(origins.OfReferent(target), Owned: true, OfThis: false));

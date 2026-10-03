@@ -157,7 +157,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression call }:
-                    NeedArguments(state, call.Arguments, call.ParameterTypes, call.Method?.ParametersList, (call.Receiver as MemberAccessExpression)?.Receiver);
+                    NeedArguments(state, call.Arguments, call.ParameterTypes, call.Parameters, (call.Receiver as MemberAccessExpression)?.Receiver);
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: NewExpression construction }:

@@ -154,7 +154,7 @@ internal static partial class PurityJudge
 
     private static bool MovesThroughArguments(InvocationExpression invocation, Func<Expression, bool> isTarget)
     {
-        var parameters = invocation.Method?.ParametersList;
+        var parameters = invocation.Parameters;
 
         for(var i = 0; i < invocation.Arguments.Count; i++)
         {

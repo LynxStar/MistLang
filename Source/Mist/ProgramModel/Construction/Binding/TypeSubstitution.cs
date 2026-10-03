@@ -92,20 +92,35 @@ internal sealed class TypeSubstitution
     /// </param>
     public static TypeSubstitution ForMethod(IOverload method, IReadOnlyList<IMistType?> typeArguments)
     {
-        return ByOrdinal(method.TypeParametersList, typeArguments);
+        return ByPosition(method.TypeParametersList, typeArguments);
     }
 
     public static TypeSubstitution ForParameters(
         IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType?> typeArguments)
     {
-        return ByOrdinal(parameters, typeArguments);
+        return ByPosition(parameters, typeArguments);
     }
 
     /// <summary>
-    /// The ordinal indexes the arguments, not the parameter's position in
-    /// <paramref name="parameters"/>. They part for a projected extension block, whose parameters keep
-    /// the ordinals of the flat CLR list they were partitioned out of.
+    /// Arguments follow this declaration's parameter list. A projected extension preserves CLR ordinals
+    /// across its block and method, so an ordinal is not an index into either declaration's arguments.
     /// </summary>
+    private static TypeSubstitution ByPosition(
+        IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType?> arguments)
+    {
+        var bindings = new Dictionary<TypeParameter, IMistType>();
+
+        for(var i = 0; i < parameters.Count && i < arguments.Count; i++)
+        {
+            if(arguments[i] is { } argument)
+            {
+                bindings[parameters[i]] = argument;
+            }
+        }
+
+        return bindings.Count == 0 ? Empty : new TypeSubstitution(bindings);
+    }
+
     private static TypeSubstitution ByOrdinal(
         IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType?> arguments)
     {

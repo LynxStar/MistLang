@@ -58,8 +58,8 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
                     JudgeReference(context, returned, "returned by ref", writable: true);
                     break;
 
-                case InvocationExpression { Method: { } callee } call:
-                    JudgeArguments(context, call.Arguments, callee.ParametersList);
+                case InvocationExpression { Parameters: { } parameters } call:
+                    JudgeArguments(context, call.Arguments, parameters);
                     break;
 
                 case NewExpression { Constructor: { } constructor } creation:

@@ -12,12 +12,11 @@ public sealed class AmbientTypeProviderV2InteropFixture : IDisposable
 {
     private readonly MetadataLoadContext metadataContext;
     private readonly AmbientTypeProviderV2 provider;
-    private readonly ProgramModelClass programModel;
 
     public AmbientTypeProviderV2InteropFixture()
     {
-        programModel = new ProgramModelClass();
-        AmbientProviderTestHelper.RegisterStandardTypes(programModel);
+        Model = new ProgramModelClass();
+        AmbientProviderTestHelper.RegisterStandardTypes(Model);
 
         var runtimeDirectory = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
         var assemblyPaths = Directory.GetFiles(runtimeDirectory, "*.dll")
@@ -31,12 +30,19 @@ public sealed class AmbientTypeProviderV2InteropFixture : IDisposable
             new DiagnosticBag());
 
         provider = new AmbientTypeProviderV2(loadedAssemblies, null, new DiagnosticBag());
-        provider.BuildAndRegister(programModel);
+        provider.BuildAndRegister(Model);
     }
+
+    internal ProgramModelClass Model { get; }
 
     internal ClassType Type(string name)
     {
-        return (ClassType)programModel.TypesByFQN[$"Mist.Tests.InteropFixtures.{name}"];
+        return (ClassType)Model.TypesByFQN[$"Mist.Tests.InteropFixtures.{name}"];
+    }
+
+    internal ClassType AmbientType(string fullyQualifiedName)
+    {
+        return (ClassType)Model.TypesByFQN[fullyQualifiedName];
     }
 
     public void Dispose()

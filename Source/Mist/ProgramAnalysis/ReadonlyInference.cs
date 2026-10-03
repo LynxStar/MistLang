@@ -250,7 +250,7 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
             _ when Target(target) is { } written => !Privileged(member, target, written) && HolderOf(origins, target) is not Origin.Own,
             ThisExpression => member is not (Constructor or ConcreteType) && origins.This is not Origin.Own,
             LocalReferenceExpression { Local.IsRef: true } => origins.Of(target) is not Origin.Own,
-            InvocationExpression { Method.Modifiers.IsRef: true } => origins.OfReferent(target) is not Origin.Own,
+            InvocationExpression { Signature.Modifiers.IsRef: true } => origins.OfReferent(target) is not Origin.Own,
             IndexExpression { Indexer: { } indexer } => HolderOf(origins, target) is not Origin.Own || !LocalSetter(indexer.Setter, indexer.Modifiers),
             IndexExpression => HolderOf(origins, target) is not Origin.Own,
             BackingFieldReferenceExpression or PropertyReferenceExpression => true,
@@ -322,7 +322,7 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
             PropertyReferenceExpression property => property.Property.Modifiers is { IsOwned: true, IsStatic: false },
             MemberAccessExpression { Member: PropertyResult found } => found.Property.Modifiers is { IsOwned: true, IsStatic: false },
             LocalReferenceExpression { Local.IsRef: true } local => origins.ReferentOf(local.Local) is { } referent && origins.IsOwnedSlot(referent),
-            InvocationExpression { Method.Modifiers.IsRef: true } => true,
+            InvocationExpression { Signature.Modifiers.IsRef: true } => true,
             _ => false,
         };
 

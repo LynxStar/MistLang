@@ -506,6 +506,7 @@ internal sealed class ScopeResolver
 
     public IMistType? FindGenericDefinition(string stem, int arity, Scope scope)
     {
+        stem = ClrCallableNames.StandardFamily(stem, arity) ?? stem;
         var lookupName = arity > 0 ? BuildArityName(stem, arity) : stem;
 
         return TryLookupType(lookupName, scope) ?? FindByArity(lookupName, stem, arity, scope);
@@ -514,6 +515,7 @@ internal sealed class ScopeResolver
     public IMistType ResolveGenericDefinition(
         string stem, int arity, Scope scope, Storm.Runtime.SyntaxNode locationNode)
     {
+        stem = ClrCallableNames.StandardFamily(stem, arity) ?? stem;
         var lookupName = arity > 0 ? BuildArityName(stem, arity) : stem;
 
         if(FindByArity(lookupName, stem, arity, scope) is { } absorbing)

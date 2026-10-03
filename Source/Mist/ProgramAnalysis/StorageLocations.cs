@@ -24,7 +24,7 @@ internal static class StorageLocations
             MemberAccessExpression { Member: FieldResult found } access => found.Field.Modifiers.IsStatic || !ThisTiers.IsValue(Requirement.Unrefined(access.Receiver.Type))
                 ? null
                 : NotALocation(access.Receiver) is { } holder ? $"a field of {holder}" : null,
-            InvocationExpression { Method.Modifiers.IsRef: true } => null,
+            InvocationExpression { Signature.Modifiers.IsRef: true } => null,
             InvocationExpression { Method: { } method } => $"the result of '{method.Name}'",
             InvocationExpression => "the result of a call",
             PropertyReferenceExpression { Property: var property } => property.Modifiers.IsRef ? null : $"property '{property.Name}'",

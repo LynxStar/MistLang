@@ -320,7 +320,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     return anonymous.Values.Aggregate(state, (kept, value) => Keep(kept, value, "an anonymous object", partOnly: false));
 
                 case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression invocation }:
-                    state = MoveArguments(state, invocation.Arguments, invocation.Method?.ParametersList);
+                    state = MoveArguments(state, invocation.Arguments, invocation.Parameters);
 
                     if(Receiver(invocation) is { } receiver && Tracked(receiver.Local)
                         && (invocation.Method?.DeclaredThisTier == ThisTier.Owned || IsDrop(invocation)))
@@ -433,7 +433,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression invocation }:
-                    JudgeArguments(state, invocation.Arguments, invocation.Method?.ParametersList);
+                    JudgeArguments(state, invocation.Arguments, invocation.Parameters);
 
                     if(Receiver(invocation) is { } receiver)
                     {

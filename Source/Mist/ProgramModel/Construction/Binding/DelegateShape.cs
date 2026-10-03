@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -62,32 +63,22 @@ internal static class DelegateShape
 
     private static IFunctionType? InvokeShape(IMistType type)
     {
-        if(Definition(type) is not ConcreteType definition)
+        if(InvokeOf(type) is not { } method)
         {
             return null;
         }
 
-        foreach(var method in definition.MethodsList)
-        {
-            if(method.Name == "Invoke")
-            {
-                return new FunctionType(
-                    method.ParametersList.ConvertAll(parameter => Closed(parameter.Type, type)),
-                    Closed(method.ReturnType, type));
-            }
-        }
-
-        return null;
+        var substitution = TypeSubstitution.ForReceiver(type as ConstructedType);
+        return new FunctionType(
+            method.ParametersList.ConvertAll(parameter => substitution.Apply(parameter.Type, interner: null)),
+            substitution.Apply(method.ReturnType, interner: null));
     }
 
-    private static IMistType Closed(IMistType declared, IMistType receiver)
+    public static Method? InvokeOf(IMistType type)
     {
-        return declared is TypeParameter { Ordinal: var ordinal }
-            && receiver is ConstructedType constructed
-            && ordinal < constructed.TypeArguments.Count
-                ? constructed.TypeArguments[ordinal]
-                : declared
-                ;
+        return IsClrDelegate(type) && Definition(type) is ConcreteType definition
+            ? definition.MethodsList.Find(method => method.Name == "Invoke")
+            : null;
     }
 
     private static IMistType Definition(IMistType type)

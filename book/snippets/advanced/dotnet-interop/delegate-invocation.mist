@@ -1,0 +1,11 @@
+using Standard;
+
+public class Program
+{
+    public static void Main()
+    {
+        System.Predicate<int> isEven = x => x % 2 == 0;
+        bool result = isEven(4);
+        Console.WriteLine(result);
+    }
+}

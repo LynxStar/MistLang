@@ -1,0 +1,22 @@
+using Standard;
+using System.Linq;
+
+public class Program
+{
+    public static void Main()
+    {
+        int[] numbers = [1, 2, 3];
+        var mapped = numbers.Select(n => n * 2);
+        var kept = numbers.Where(n => n > 1);
+
+        foreach (int value in mapped)
+        {
+            Console.WriteLine(value);
+        }
+
+        foreach (int value in kept)
+        {
+            Console.WriteLine(value);
+        }
+    }
+}

@@ -127,15 +127,13 @@ internal sealed class AmbientTypeResolver
     }
 
     /// <summary>
-    /// The function type a CLR delegate stands for, or null where it is not one -- or where it is
-    /// one Mist already names. Func and Action map onto Standard's own declarations, which collapse
-    /// to a function type by their own route; taking them here instead would bypass the pack that
-    /// makes a single declaration cover seventeen CLR arities.
+    /// CLR callable arguments occupy ordinary metadata slots even when their Standard declaration
+    /// uses a pack, so the Invoke signature supplies the structural shape before generic construction.
     /// </summary>
     private MistType? FunctionShape(
         Type clrType, Scope scope, TupleElementNames? names, IReadOnlyDictionary<Type, MistType>? substitutions)
     {
-        if(clrType.IsGenericParameter || !IsDelegate(clrType) || IsWellKnown(clrType))
+        if(clrType.IsGenericParameter || !IsDelegate(clrType))
         {
             return null;
         }
@@ -217,15 +215,6 @@ internal sealed class AmbientTypeResolver
             && clrType.GetGenericTypeDefinition().FullName == "System.Nullable`1"
                 ? clrType.GetGenericArguments()[0]
                 : null;
-    }
-
-    private bool IsWellKnown(Type clrType)
-    {
-        var definition = clrType.IsGenericType && !clrType.IsGenericTypeDefinition
-            ? clrType.GetGenericTypeDefinition()
-            : clrType;
-
-        return wellKnownTypes.ContainsKey(BuildFQN(definition));
     }
 
     /// <summary>

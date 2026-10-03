@@ -506,6 +506,25 @@ CLR types that define operator methods (`op_Addition`, `op_Equality`, etc.) have
 
 Implicit and explicit conversion operators (`op_Implicit`, `op_Explicit`) are projected as Mist cast operators, enabling `as` casts between types that define conversions.
 
+## LINQ Callable Inference
+
+Imported LINQ methods use their projected callable signatures to target lambdas. `Select` infers its result type from the selector body; `Where` chooses the predicate overload matching the lambda's parameter count. The receiver supplies the input type, and a generic method's other arguments can also supply lambda input types. Explicit method type arguments take precedence over inference; types already fixed by the extension receiver belong to the receiver's binding.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/dotnet-interop/linq-callable-inference.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/dotnet-interop/linq-callable-inference.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+This prints `2`, `4`, `6` for the mapped sequence and `2`, `3` for the filtered sequence. An incompatible lambda remains a source diagnostic.
+
 ## Delegates and func Conversion
 
 Named CLR delegates — types like `Predicate<T>`, `Comparison<T>`, and `RequestDelegate` that inherit from `System.MulticastDelegate` — are projected as distinct types in Mist. Unlike the `System.Func<...>` and `System.Action<...>` families (which map directly to Mist's structural `func<...>` type), named delegates preserve their CLR identity through projection and emission.
@@ -587,12 +606,20 @@ A value typed as `System.Delegate` cannot be narrowed back to a specific delegat
 
 A value whose type is a named delegate is directly invocable using standard call syntax, just like `func<...>` values. The compiler validates the argument types against the delegate's signature:
 
+{{#tabs }}
+{{#tab name="Mist" }}
 ```mist
-System.Predicate<int> isEven = x => x % 2 == 0;
-var result = isEven(4);  // result is true — standard call syntax works
+{{#include ../../snippets/advanced/dotnet-interop/delegate-invocation.mist}}
 ```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/dotnet-interop/delegate-invocation.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
-The type checker ensures argument count and types match the delegate's `Invoke` signature, and the return type of the call expression is the delegate's return type.
+The compiler closes the delegate's `Invoke` parameters and result using its type arguments. It targets each argument with that closed parameter type and reports incorrect counts and incompatible types at the Mist source. The call above has type `bool`; the variable keeps the nominal type `System.Predicate<int>` in emitted C#.
 
 ## Inheritance and Interfaces
 

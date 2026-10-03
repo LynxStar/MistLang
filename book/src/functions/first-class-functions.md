@@ -28,7 +28,7 @@ The `func` keyword is a lowercase alias for the `Func` class family in the stand
 
 ## The `Func` Type Family
 
-The standard library declares `Func<T1, ..., TN, TResult>` as intrinsic classes with arities from 1 to 17 type parameters. These are structural types — two `Func` types with the same type arguments are always the same type, regardless of how they were declared.
+The standard library declares `Func<params TArgs, TResult>` as an intrinsic family: the parameter pack contains the inputs, and the final argument is the result. These are structural types — two `Func` types with the same type arguments are always the same type, regardless of how they were declared.
 
 The type arguments follow a consistent convention:
 - All type arguments except the last are parameter types
@@ -57,6 +57,23 @@ The type arguments follow a consistent convention:
 {{#endtabs }}
 
 `Action` is purely a convenience — it resolves to the same `Func` type with `void` as the last type argument. You can use `func<string, void>` and `Action<string>` interchangeably.
+
+## Qualified CLR Callable Names
+
+`System.Func<TResult>` and `System.Func<T1, ..., TResult>` resolve to the same structural types as `func<...>`. `System.Action` and `System.Action<T1, ...>` resolve to functions returning `void`. Qualified CLR names support zero through sixteen parameters, including when `using Standard;` is present.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/functions/first-class-functions/clr-callable-names.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/functions/first-class-functions/clr-callable-names.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
 
 ## Lambda Expressions
 
@@ -289,7 +306,7 @@ You can define type aliases for `func` types to give them meaningful names:
 {{#endtab }}
 {{#endtabs }}
 
-Type aliases are structurally transparent — `Predicate<int>`, `func<int, bool>`, and `Func<int, bool>` are all the same type. Lambda inference sees through aliases, so you can assign a lambda to a `Predicate<int>` variable and the parameter type is inferred as `int`.
+Mist type aliases are structurally transparent — the alias `Predicate<int>` above, `func<int, bool>`, and `Func<int, bool>` are all the same type. A qualified CLR delegate such as `System.Predicate<int>` retains its nominal identity, while lambda inference and invocation use its closed `Invoke` signature. Lambda inference sees through aliases, so you can assign a lambda to a `Predicate<int>` variable and the parameter type is inferred as `int`.
 
 ## Pure Function Types
 

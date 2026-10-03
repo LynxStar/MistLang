@@ -1032,7 +1032,7 @@ internal static class BodyEmitter
                 if(UnsafeReach.Call(invocation, receiver => RenderAt(receiver, PostfixPrecedence, diagnostics)) is { } reached)
                 {
                     writer.Append(reached.Open);
-                    EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, invocation.ParameterTypes, writer, diagnostics, invocation.Method);
+                    EmitArguments(invocation.Arguments, invocation.Parameters, invocation.ParameterTypes, writer, diagnostics, invocation.Method);
                     writer.Append(reached.Close);
                     break;
                 }
@@ -1062,7 +1062,7 @@ internal static class BodyEmitter
 
                 writer.Append("(");
                 EmitWitnesses(invocation, writer, diagnostics);
-                EmitArguments(invocation.Arguments, invocation.Method?.ParametersList, invocation.ParameterTypes, writer, diagnostics, invocation.Method);
+                EmitArguments(invocation.Arguments, invocation.Parameters, invocation.ParameterTypes, writer, diagnostics, invocation.Method);
                 writer.Append(")");
                 break;
 

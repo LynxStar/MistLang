@@ -37,6 +37,13 @@ internal sealed class InvocationExpression(
     /// </summary>
     public Method? Method { get; } = method;
 
+    // A value call keeps Method null; its projected Invoke supplies only parameter and result metadata.
+    public Method? InvokeMethod { get; init; }
+
+    public Method? Signature => Method ?? InvokeMethod;
+
+    public IReadOnlyList<Parameter>? Parameters => Signature?.ParametersList;
+
     /// <summary>
     /// The type each argument position was bound against, read through the call's own substitution:
     /// the selected overload's parameters with its type arguments applied, or a function value's

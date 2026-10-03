@@ -191,8 +191,58 @@ public sealed class AmbientDelegateTupleNameTests
         _ = Assert.IsType<UnionType>(optional.ReturnType);
         _ = Assert.IsType<ClassType>(required.ReturnType);
 
-        var standardFunc = Assert.IsType<ConstructedType>(resolver.Resolve(typeof(Func<(int, int), bool>), scope));
-        _ = Assert.IsType<TupleType>(standardFunc.TypeArguments[0]);
+        var standardFunc = Assert.IsType<FunctionType>(resolver.Resolve(typeof(Func<(int, int), bool>), scope));
+        _ = Assert.IsType<TupleType>(Assert.Single(standardFunc.ParameterTypes));
+        Assert.Equal("Standard.Boolean", standardFunc.ReturnType.FullyQualifiedName);
+    }
+
+    [Fact]
+    public void FrameworkFuncAndActionUseAllTheirMetadataArgumentSlots()
+    {
+        var function = Assert.IsType<FunctionType>(resolver.Resolve(typeof(Func<int, bool, int>), scope));
+        Assert.Equal(["Standard.Int32", "Standard.Boolean"], function.ParameterTypes.Select(type => type.FullyQualifiedName));
+        Assert.Equal("Standard.Int32", function.ReturnType.FullyQualifiedName);
+
+        var action = Assert.IsType<FunctionType>(resolver.Resolve(typeof(Action<int, bool>), scope));
+        Assert.Equal(function.ParameterTypes, action.ParameterTypes);
+        Assert.Equal("Standard.Void", action.ReturnType.FullyQualifiedName);
+
+        var noArguments = Assert.IsType<FunctionType>(resolver.Resolve(typeof(Action), scope));
+        Assert.Empty(noArguments.ParameterTypes);
+        Assert.Equal("Standard.Void", noArguments.ReturnType.FullyQualifiedName);
+        Assert.Empty(Assert.IsType<FunctionType>(resolver.Resolve(typeof(Func<int>), scope)).ParameterTypes);
+    }
+
+    [Fact]
+    public void FrameworkCallableTupleNamesConsumeTheirOwnSlotsAndLeaveSiblingAligned()
+    {
+        var tuple = Assert.IsType<NamedTupleType>(ResolveResult(
+            typeof(DelegateTupleNameUses).GetMethod(nameof(DelegateTupleNameUses.FuncAndActionWithSibling))!));
+        var function = Assert.IsType<FunctionType>(tuple.ElementTypes[0]);
+        _ = Named(Assert.Single(function.ParameterTypes), "X", "Y");
+        _ = Named(function.ReturnType, "First", "Last");
+        var action = Assert.IsType<FunctionType>(tuple.ElementTypes[1]);
+        _ = Named(Assert.Single(action.ParameterTypes), "Up", "Down");
+        _ = Named(tuple.ElementTypes[2], "Low", "High");
+    }
+
+    [Fact]
+    public void FrameworkCallableInboundNullabilityDoesNotChangeItsShape()
+    {
+        var optional = Assert.IsType<UnionType>(resolver.ResolveInbound(typeof(Func<int, bool>), scope));
+        var required = Assert.IsType<FunctionType>(resolver.ResolveInbound(typeof(Func<int, bool>), scope, declaredNonNull: true));
+
+        Assert.Same(required, Assert.Single(optional.Constituents.OfType<FunctionType>()));
+        Assert.Contains(optional.Constituents, type => type.FullyQualifiedName == "Standard.Void");
+    }
+
+    [Fact]
+    public void UnavailableFrameworkCallableArgumentsStillRefuseProjection()
+    {
+        resolver.MarkUnavailable(["System.Collections.Generic.List`1"]);
+
+        _ = Assert.IsType<ErrorType>(resolver.Resolve(typeof(Func<List<int>, bool>), scope));
+        _ = Assert.IsType<ErrorType>(resolver.Resolve(typeof(Action<List<int>>), scope));
     }
 
     private FunctionType Project(string methodName)

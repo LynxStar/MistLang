@@ -76,7 +76,7 @@ internal static class OwnedDestinations
                 break;
 
             case InvocationExpression invocation:
-                Arguments(context, invocation.Arguments, invocation.Method?.ParametersList, method, origins);
+                Arguments(context, invocation.Arguments, invocation.Parameters, method, origins);
                 break;
 
             case NewExpression allocation:
@@ -158,7 +158,7 @@ internal static class OwnedDestinations
             MemberAccessExpression { Member: var member } => Destination(member),
             PropertyReferenceExpression { Property: { Modifiers: { IsOwned: true, IsStatic: false } } property } => $"owned property '{property.Name}'",
             LocalReferenceExpression { Local: { IsRef: true } local } when origins.ReferentOf(local) is { } referent && origins.IsOwnedSlot(referent) => $"the owned slot '{local.Name}' refers to",
-            InvocationExpression { Method: { Modifiers.IsRef: true } called } => $"the slot '{called.Name}' returns a reference to",
+            InvocationExpression { Signature: { Modifiers.IsRef: true } called } => $"the slot '{called.Name}' returns a reference to",
             _ => null,
         };
     }

@@ -253,10 +253,25 @@ Found while closing the gaps, each measured, none established as something class
   CLR assembly or the Void stand-in sits in, or one enclosing it. A namespace nothing declares is still
   `MIST_UNDEFINED_NAMESPACE`. Unchanged: a conformance is active whether or not its namespace is
   imported (emitter order 73).
-- **CLR binding**: `System.Func<int, int>` written fully qualified does not resolve;
-  `numbers.Select(n => n * 2)` is `MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED` and `numbers.Where(n => n > 1)`
-  `MIST_PM_UNRESOLVABLE_OVERLOAD`; `List<int>.Capacity` is not found; a CLR delegate call is typed as
-  the delegate.
+- **CLR binding** — qualified callable naming, LINQ callable inference and nominal delegate
+  invocation closed 2026-10-03. Qualified `System.Func`/`System.Action` use the existing structural
+  callable family (zero through sixteen inputs); projected Invoke shapes feed lambda targeting and
+  inference. Sparse CLR extension ordinals remain metadata positions while inference/substitution use
+  each declaration's argument order, and emission restores CLR order for receiver plus method arguments.
+  Nominal delegate calls use their closed Invoke parameters/result and retain nominal receiver identity;
+  Invoke passing modes and ref-result metadata also reach emission and analysis. Tier 1–3 coverage is in
+  ClrCallableNameTests, CallableArgumentInferenceTests, ProjectedCallableOverloadSelectionTests,
+  AmbientCallableProjectionTests, AmbientDelegateTupleNameTests, DelegateInvocationBindingTests,
+  DelegateInvocationEmissionTests, DelegateInvocationSignatureTests and CallableOverloadPinningTests.
+  Focused ledger `20261003-185946` passed 536/536. The preceding `20261003-185729` passed
+  529/533: `ClrProjectedCallableArgumentKeepsClrContextualConversion` caught a global emitter target
+  regression (fixed by keeping callee identity separate from Invoke parameter metadata), and three
+  `LinqProjectedExtensionSelectsTheClosedUnarySignature` rows included unrelated LINQ receiver families
+  (fixture narrowed to IEnumerable). Private CLI probes print `2, 4, 6` then `2, 3` for Select/Where,
+  `2`, `42`, `done` for qualified
+  callables and `True` for a Predicate invocation. **Capacity history remains unclosed**: the old
+  `List<int>.Capacity` observation resolved Standard.List and is not evidence of a qualified CLR provider
+  defect. No replacement Capacity task or provider closeout is inferred from that probe.
 - **Variadics**: a spread-typed parameter `M(TArgs... x)` and a spread into a non-pack slot
   `List<TArgs...>` reach Roslyn; a variadic method inside a variadic type, or in an extension block,
   is not specialized; `if (TArgs is Type[2] narrowed)` (6.7); `where Ts : IRank<Ts>` on a pack;

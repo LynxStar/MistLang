@@ -103,7 +103,7 @@ internal static class UnitHoisting
     {
         return expression switch
         {
-            InvocationExpression invocation => [.. Callee(invocation.Receiver), .. Arguments(invocation.Arguments, invocation.Method?.ParametersList, invocation.Receiver is MemberAccessExpression { IsConditional: true })],
+            InvocationExpression invocation => [.. Callee(invocation.Receiver), .. Arguments(invocation.Arguments, invocation.Parameters, invocation.Receiver is MemberAccessExpression { IsConditional: true })],
             NewExpression creation => [.. Arguments(creation.Arguments, creation.Constructor?.ParametersList, conditional: false), .. creation.Initializer.Select(entry => new Operand(entry.Value))],
             MemberAccessExpression access => [Receiver(access.Receiver)],
             IndexExpression index => [Receiver(index.Receiver), new Operand(index.Index)],
@@ -197,7 +197,7 @@ internal static class UnitHoisting
 
     private static bool IsCopy(Expression expression)
     {
-        return expression is not (FieldReferenceExpression or InvocationExpression { Method.Modifiers.IsRef: true });
+        return expression is not (FieldReferenceExpression or InvocationExpression { Signature.Modifiers.IsRef: true });
     }
 
     private sealed class Planner(Expression? root, bool branchTaken)

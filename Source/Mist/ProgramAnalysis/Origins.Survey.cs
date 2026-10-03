@@ -54,8 +54,8 @@ internal sealed partial class Origins
                     break;
 
                 case InvocationExpression invocation:
-                    MarkByRef(invocation.Arguments, invocation.Method?.ParametersList);
-                    MarkHanded(invocation.Arguments, invocation.Method?.ParametersList);
+                    MarkByRef(invocation.Arguments, invocation.Parameters);
+                    MarkHanded(invocation.Arguments, invocation.Parameters);
                     if(invocation.Method is not { Modifiers: { IsReadonly: true } or { IsPure: true } })
                     {
                         MarkStructAssigned(ThisTiers.ReceiverOf(invocation));

@@ -114,7 +114,7 @@ internal sealed partial class Origins
             TypeReferenceExpression or NamespaceReferenceExpression or MethodGroupExpression
                 or MethodReferenceExpression or FunctionReferenceExpression => Origin.External,
             InvocationExpression call when ReturnsOwned(call) => OfOwnedReturn(call),
-            InvocationExpression { Method.Modifiers.IsRef: true } or IndexExpression { Indexer.Modifiers.IsRef: true }
+            InvocationExpression { Signature.Modifiers.IsRef: true } or IndexExpression { Indexer.Modifiers.IsRef: true }
                 or MemberAccessExpression { Member: PropertyResult { Property.Modifiers.IsRef: true } }
                 or PropertyReferenceExpression { Property.Modifiers.IsRef: true } => OfReferent(expression),
             ImplicitConversionExpression { Operator: null } conversion => Of(conversion.Operand),
@@ -400,7 +400,7 @@ internal sealed partial class Origins
             MemberAccessExpression { Member: FieldResult found } => ThisTiers.IsOwned(found.Field),
             MemberAccessExpression { Member: PropertyResult { Property.Modifiers: var modifiers } } => modifiers.IsRef || modifiers is { IsOwned: true, IsStatic: false },
             PropertyReferenceExpression { Property.Modifiers: var modifiers } => modifiers.IsRef || modifiers is { IsOwned: true, IsStatic: false },
-            InvocationExpression { Method.Modifiers.IsRef: true } or IndexExpression { Indexer.Modifiers.IsRef: true } => true,
+            InvocationExpression { Signature.Modifiers.IsRef: true } or IndexExpression { Indexer.Modifiers.IsRef: true } => true,
             LocalReferenceExpression { Local: { IsRef: true } local } => ReferentOf(local) is { } inner && IsOwnedSlot(inner),
             _ => false,
         };
@@ -476,7 +476,7 @@ internal sealed partial class Origins
     {
         var (byRef, isStatic, receiver) = Unwrapped(referent) switch
         {
-            InvocationExpression { Method: { } method } call => (method.Modifiers.IsRef, method.Modifiers.IsStatic, ThisTiers.ReceiverOf(call)),
+            InvocationExpression { Signature: { } method } call => (method.Modifiers.IsRef, method.Modifiers.IsStatic, call.Method is null ? call.Receiver : ThisTiers.ReceiverOf(call)),
             IndexExpression { Indexer: { } indexer } index => (indexer.Modifiers.IsRef, false, index.Receiver),
             MemberAccessExpression { Member: PropertyResult { Property: var property } } access => (property.Modifiers.IsRef, property.Modifiers.IsStatic, access.Receiver),
             PropertyReferenceExpression { Property: var property } => (property.Modifiers.IsRef, property.Modifiers.IsStatic, null),
@@ -500,7 +500,7 @@ internal sealed partial class Origins
     {
         var (arguments, parameters) = call switch
         {
-            InvocationExpression invocation => (invocation.Arguments, invocation.Method?.ParametersList),
+            InvocationExpression invocation => (invocation.Arguments, invocation.Parameters),
             IndexExpression index => ([index.Index], null),
             _ => ([], null),
         };

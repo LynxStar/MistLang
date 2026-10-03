@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
@@ -161,18 +162,25 @@ internal static class ExtensionBlockEmitter
     /// <summary>
     /// What a call writes after the member's name: C# takes all of a carrier's type arguments or none,
     /// so a call that writes the method's own writes the block's ahead of them, in the order
-    /// <see cref="CarrierTypeParameters"/> declares. Only a block declared in Mist, whose carrier this
-    /// emitter wrote; a projected block keeps the order of the CLR method it came from.
+    /// <see cref="CarrierTypeParameters"/> declares. A projected block merges both lists by their
+    /// original CLR ordinals, which need not put the receiver's parameters first.
     /// </summary>
     internal static (IReadOnlyList<IMistType> Arguments, IReadOnlyList<TypeParameter>? Parameters) CallTypeArguments(
         Method? method, IReadOnlyList<IMistType> written)
     {
-        if(written.Count == 0 || method is not { ClosedBlock: { DeclarationNode: not null } block })
+        if(written.Count == 0 || method is not { ClosedBlock: { } block })
         {
             return (written, method?.TypeParametersList);
         }
 
         var arguments = block.TypeParametersList.ConvertAll(parameter => method.BlockClosing.Apply(parameter, interner: null));
+
+        if(block.DeclarationNode is null)
+        {
+            var closing = method.BlockClosing.Extend(TypeSubstitution.ForMethod(method, written));
+            var parameters = CarrierTypeParameters(method, block).OrderBy(parameter => parameter.Ordinal).ToList();
+            return (parameters.ConvertAll(parameter => closing.Apply(parameter, interner: null)), parameters);
+        }
 
         return ([.. arguments, .. written], CarrierTypeParameters(method, block));
     }

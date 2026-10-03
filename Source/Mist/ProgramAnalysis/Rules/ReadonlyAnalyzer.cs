@@ -322,7 +322,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
     {
         var (arguments, parameters) = node switch
         {
-            InvocationExpression invocation => (invocation.Arguments, invocation.Method?.ParametersList),
+            InvocationExpression invocation => (invocation.Arguments, invocation.Parameters),
             NewExpression allocation => (allocation.Arguments, allocation.Constructor?.ParametersList),
             _ => (null, null),
         };
@@ -464,7 +464,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             return;
         }
 
-        if(target is InvocationExpression { Method: { Modifiers.IsRef: true } referencing })
+        if(target is InvocationExpression { Signature: { Modifiers.IsRef: true } referencing })
         {
             if(frame.IsReadonly && !own)
             {

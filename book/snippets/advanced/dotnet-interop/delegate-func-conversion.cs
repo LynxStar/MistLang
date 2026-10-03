@@ -29,8 +29,8 @@ public class Program
         System.Console.WriteLine(System.FormattableString.Invariant($"evens={evens.Count}"));
         System.Func<int, bool> backToFunc = new System.Func<int, bool>((predicate).Invoke);
         System.Console.WriteLine($"backToFunc(4)={backToFunc(4)}");
-        System.Console.WriteLine($"predicate(6)={MistInvariant.Text(predicate(6))}");
-        System.Console.WriteLine($"predicate(7)={MistInvariant.Text(predicate(7))}");
+        System.Console.WriteLine($"predicate(6)={predicate(6)}");
+        System.Console.WriteLine($"predicate(7)={predicate(7)}");
     }
 
     public Program()

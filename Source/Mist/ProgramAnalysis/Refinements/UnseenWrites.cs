@@ -39,7 +39,7 @@ internal static class UnseenWrites
                     break;
 
                 case InvocationExpression call:
-                    AddByRef(unseen, call.Arguments, call.Method?.ParametersList);
+                    AddByRef(unseen, call.Arguments, call.Parameters);
                     break;
 
                 case NewExpression creation:

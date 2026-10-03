@@ -2967,6 +2967,15 @@ capabilities:
       nested overloaded or generic calls taking lambdas, bounded per call by a cache;
       and a type a discarded trial interns stays in the interner, as a losing candidate's substituted
       signature already does.
+
+      PROJECTED CALLABLES, 2026-10-03. Bounds, frozen lambda inputs and supplied method arguments
+      follow each declaration's parameter list rather than CLR metadata ordinals, which can be sparse
+      after extension receiver partitioning. Callable matching reads DelegateShape for both structural
+      and nominal arguments. Twelve direct Tier 1–2 cases in CallableArgumentInferenceTests pin sparse
+      positions, sibling-provided lambda inputs, body result inference, explicit arguments, unary/indexed
+      selection and precise wrong-arity/result/input refusals. Three Tier 3
+      ProjectedCallableOverloadSelectionTests inspect real Enumerable callback and return signatures.
+      Other partial inference limits above remain; this closes the projected callable subset.
     tasks:
       - >
         DONE 2026-09-12. Inference matches a parameter's construction against the argument's own type
@@ -7336,6 +7345,19 @@ capabilities:
       samples/DelegateFuncConversion now matches classic byte for byte, standalone, and is banked on
       AllFeaturesV2 since order 129 carried a referenced manifest's framework references. Its own entry
       says why AllFeatures lacks it.
+
+      NOMINAL VALUE INVOCATION, 2026-10-03. A named delegate's closed Invoke shape now targets
+      arguments and supplies the call result instead of the receiver's nominal type. Method remains
+      null for a value call; InvokeMethod carries its existing Method/Parameter metadata, read through
+      Signature/Parameters where emission and analysis need passing modes or ref-result restrictions.
+      Nominal receiver identity and value-call purity handling are preserved. Generic reference results
+      use CLR inbound lifting after closure. Tier 2 DelegateInvocationBindingTests,
+      DelegateInvocationEmissionTests and DelegateInvocationSignatureTests pin closed targets, arity and
+      type refusal, ref/in/out spelling, location/readonly restrictions and writable-ref refinement
+      invalidation. CallableOverloadPinningTests retains CLR method contextual conversion and pins the
+      separate nominal value-call target. Predicate<int> source invocation prints True.
+      The earlier Func/Action exclusion described above is historical: metadata Func/Action now use
+      Invoke shapes too, while their source spellings still resolve through Standard's callable family.
     tasks:
       - >
         Correct this entry's requires to include clr-assembly-type-projection, or move the order after
@@ -8113,6 +8135,17 @@ capabilities:
       --filter 'FullyQualifiedName~Mist.Tests.Backend.Ambient'). Both changed-file and unrestricted
       solution formatting pass with no diagnostics. No new runtime sample or output baseline is
       used for this metadata contract.
+
+      QUALIFIED CLR CALLABLE NAMING AND CLOSED INVOCATION, 2026-10-03. System.Func and System.Action
+      source names resolve through Standard's existing pack/alias family for CLR-supported arities;
+      unknown names and unsupported arities remain MIST_PM_UNRESOLVED_TYPE. Ambient metadata uses
+      the Invoke shape before raw generic construction, preserving tuple-name cursors, open parameter
+      identity and callable nullability. Nominal delegates retain their shell and close Invoke through
+      the recursive TypeSubstitution, including nested constructions, functions and named tuples.
+      Proof: ClrCallableNameTests (Tier 1–2), AmbientDelegateTupleNameTests (Tier 2),
+      AmbientCallableProjectionTests (Tier 3) and DelegateInvocationBindingTests (Tier 2).
+      This closes the callable subset only; v2_status remains partial and other residue is retained.
+      The old unqualified List.Capacity probe names Standard.List and supplies no CLR defect evidence.
     unlocks: [ArityOverloads]
 
   - id: clr-byref-parameter-projection
@@ -8380,6 +8413,18 @@ capabilities:
       can use. What actually blocked it was order 130 wrapping that return in `| void`; see there.
       
       samples/ExtensionMethodBinding matches classic.
+
+      PROJECTED CALLABLE INFERENCE, 2026-10-03. Select and Where callback parameters now have the
+      same structural Invoke signatures the lambda binder and overload trials consume. Inference
+      learns selector TResult from its body and selects unary versus indexed predicate/selector shapes.
+      Extension type parameters preserve CLR ordinals across block/method lists, while bounds and own
+      type arguments use declaration-local positions. ExtensionBlockEmitter merges receiver and method
+      arguments in CLR ordinal order, so an inferred Select emits Select<int, int>, not Select<int>.
+      Proof: the direct ProjectedCallableArgumentInferenceTests in CallableArgumentInferenceTests,
+      ProjectedCallableOverloadSelectionTests over real Enumerable blocks, AmbientCallableProjectionTests
+      and ProjectedExtensionCallTypeArgumentTests. Wrong lambda arity/result/stated input types remain
+      MIST_PM_UNRESOLVABLE_OVERLOAD. A private CLI probe enumerates mapped as 2,4,6 and kept as 2,3;
+      the linq-callable-inference book snippet compiles and has a generated C# tab.
     unlocks: [DelegateFuncConversion, ExtensionMethodBinding]
 
   - id: ref-parameters-and-ref-locals

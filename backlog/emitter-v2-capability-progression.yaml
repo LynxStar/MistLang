@@ -10447,6 +10447,12 @@ capabilities:
       v2 emits all of this. Rather than inlining a base constructor's statements, it emits one
       private __{Base}_ctor initializer per ancestor constructor and calls it, which keeps the
       base body and its chain arguments emitting verbatim in terms of their own parameters.
+      CLOSED 2026-10-03: that call now also covers a derived constructor with no written chain,
+      using ImplicitChains.Of's accessible target before its body. A three-level chain, explicit
+      this/base delegation, the selected params-array overload and a constructed generic base are
+      pinned by StructImplicitBaseEmissionTests (Tier 2); the Meter/Dial probe prints `7 3`.
+      A missing callable target is refused by declaration-shape-checks as
+      MIST_STRUCT_BASE_CTOR_REQUIRED, recorded there and in backlog/general.md.
       Structs carry [StructLayout(Sequential)] and ancestor fields are laid out root-first, so
       an ancestor's fields sit at the same offsets in the derived struct. Verified against the
       classic pipeline: StructInheritance output is byte-identical apart from the residue below.

@@ -314,6 +314,12 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
     {
         foreach(var constructor in type.ConstructorsList)
         {
+            if(ImplicitChains.UnsatisfiedStructBase(constructor) is { } structBase)
+            {
+                Report(context, constructor.DeclarationNode, ProgramAnalysisDiagnostics.StructBaseConstructorRequired,
+                    TypeDisplay.Mist(structBase), TypeDisplay.Mist(type));
+            }
+
             if(ImplicitChains.UnsatisfiedBase(constructor) is { } baseType)
             {
                 Report(context, constructor.DeclarationNode, ProgramAnalysisDiagnostics.BaseConstructorUnsatisfied, TypeDisplay.Mist(baseType));

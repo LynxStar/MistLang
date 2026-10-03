@@ -377,8 +377,11 @@ internal static class OperatorBinder
 
                     if(!TaskResult.IsTask(operand.Type))
                     {
-                        context.Diagnostics.ReportAtNode(
-                            ProgramModelDiagnostics.AwaitOfNonTask, node, null, operand.Type.Name);
+                        if(!PriorFailure.Of(operand))
+                        {
+                            context.Diagnostics.ReportAtNode(
+                                ProgramModelDiagnostics.AwaitOfNonTask, node, null, operand.Type.Name);
+                        }
 
                         return new ErrorExpression(node);
                     }

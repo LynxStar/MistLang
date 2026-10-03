@@ -545,42 +545,60 @@ closing them, each reproduced on `4848cb01` with Mist's grammar unchanged:
 
 **Now.** A label on an optional or repeated group forwards the node of the capture inside it -- the
 reference's own label or a group struct's field -- and only that capture yields it, so `BaseClause`,
-`TypeAnnotation` and `ConstraintClause` hold their node without being children. A labelled reference a
-repetition overwrites keeps its list as the capture that holds every node, as before. A property an
-alternative may leave unset keeps its non-nullable type, and `Children()` guards it: its element lies
-under an optional or a `*` that may run no rounds, or a later alternative of a shared node does not
-certainly fill it. `NodeSlots` and that guard read a later alternative's fills from one place,
-`FilledProperties`, so the parser's assignments and `Children()` cannot disagree. `Children()` walks a
-group struct to every depth in the group's grammar order -- scalar, nullable and list node fields, and
-nested groups by their modifier -- from `AstEmitter.Children.cs`. No generated property changes name or
-type.
+`TypeAnnotation` and `ConstraintClause` hold their node without being children; an unlabelled optional's
+property around a labelled reference forwards it the same way. A labelled reference a repetition
+overwrites keeps its list as the capture that holds every node, as before. A property an alternative may
+leave unset keeps its non-nullable type, and `Children()` guards it: its element lies under an optional or
+a `*` that may run no rounds, or a later alternative of a shared node does not certainly fill it. A later
+alternative fills one of the first alternative's children unless its own owner of that node fills a child
+too, and a forwarding label only beside the same owner, so the node it builds yields each node once;
+`NodeSlots` and the guard read those fills from one place, `FilledProperties`. `Children()` walks a group
+struct to every depth in the group's grammar order -- scalar, nullable and list node fields, and nested
+groups by their modifier, a list only when it is not default -- from `AstEmitter.Children.cs`. No
+generated property changes name or type.
 
 For Mist only three `Children()` bodies change (`TypeBodyDeclarationNode`,
 `AssociatedTypeSlotDeclarationNode`, `EnumDeclarationNode`), and the parser only fills `BaseClause` and
 `TypeAnnotation`, putting them back with their optional; the lexer and runtime are byte-identical. Over
 the 592 files the walk reaches the same 325,492 nodes with no null and no duplicate, every node a node
 holds among its children once, in source order, with its parent and origin set. No tracked file writes a
-slot's `where` clause, so that count cannot see the fourth residue; the tests below do. `MistPrettyPrinter`
-prints `enum Sized : byte` with no change of its own.
+slot's `where` clause, so that count cannot see the fourth residue; the tests below do. Those clauses now
+carry an origin, so Stage 5 judges the type arguments written in them, which `IsInSource` skipped before.
+`MistPrettyPrinter` prints `enum Sized : byte` with no change of its own.
 
 The following hold it:
 
-- `NodeSlotTests` (Tier 1, 11 cases), including a later unnamed alternative filling only what the first
-  declares, which nothing held before;
-- `NodeChildrenTests` (Tier 2, 18 rows), the emitted `Children()` of each shape;
-- `GeneratedParserFidelityTests` (Tier 4), still 21 cases (27 parses): `Held` now carries an inner label
-  and `Nest`'s nested group a node, which its fact walks and parent-links;
+- `NodeSlotTests` (Tier 1, 19 cases), including eight rows on what a later unnamed alternative fills,
+  which nothing held before;
+- `NodeChildrenTests` (Tier 2, 19 rows), the emitted `Children()` of each shape;
+- `GeneratedParserFidelityTests` (Tier 4), still 21 cases (27 parses): `Held` now carries an inner label,
+  and `Nest`'s nested group a node beside its token, which its fact walks and parent-links;
 - Mist's `GeneratedAstFidelityTests` (Tier 3, 3 cases), over Mist's grammar: every node a node holds,
   read off its properties and group structs, is one of its children once and in source order, with its
   parent and origin set; the outer labels hold their inner label's node; an enum's underlying type
   survives printing.
 
-Each of seventeen mutations is caught. Storm `56945a87` and `116211dc`.
+Each of twenty-four mutations is caught. Storm `56945a87`, `116211dc` and `e818f145`, the last after a
+review found the shared-node roles, `(inner:X)?` and the default array; StormLang `main` at `fe7ddcd1`.
 
 **Residue:**
 
 - A forwarding label is not walked: a node built by hand with only `BaseClause`, `TypeAnnotation` or
-  `ConstraintClause` set yields nothing for it. Mist's hand-built test trees set both.
+  `ConstraintClause` set yields nothing for it. Mist's hand-built test trees set the inner label, alone
+  or with the outer one.
 - `Children()` follows the properties' declaration order -- labels, then groups, then unlabelled
-  elements -- so `R = A x:B` yields `B` first. A group's order is the grammar's, and every node in the
-  592 files is in source order.
+  elements -- so `R = A x:B` yields `B` first, and `x:X (a:Y b:Z)* y:W` yields `y` before the group's
+  nodes. A group's order is the grammar's, and every node in the 592 files is in source order.
+- A later unnamed alternative fills only what the first declares, and only where each node stays yielded
+  once: on `(,x`, `R = SEMI held:(COMMA inner:Elem)? | LP held:(COMMA Elem)?` parses `x` and drops it, as
+  it drops a capture the first alternative does not declare. Where two alternatives' anonymous groups
+  share a `Group{N}` name but not their fields, the parser does not compile (CS0117 on
+  `R = (a:Elem b:Elem)* SEMI | LP (c:Elem d:Elem)*`); that predates this change.
+- An inline block's arm builds its node from the prefix rule's elements, which the guard does not see. An
+  arm rule that names the prefix rule (`Arm1 = head:Prefix tail:C`) or labels its elements differently
+  (`T = b:Elem SEMI c:Elem` under `inline P:` with `P = a:Elem SEMI`) leaves that property unset, so
+  `Children()` yields null and the prefix's node is held by nothing. That predates this change; Mist's
+  two inline blocks repeat the prefix's labels.
+- A labelled optional of two references nested in another optional is not projected as a struct. Its
+  label now forwards the first reference, where it held the last unlabelled one, and the other gets a
+  property of its own.

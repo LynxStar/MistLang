@@ -1,5 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -115,17 +117,40 @@ internal static class StructInitEmitter
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
+        var implicitConstructor = constructor is { ChainKind: ConstructorChainKind.None, Modifiers.IsStatic: false }
+            ? ImplicitChains.Of(declaringStruct) as Constructor
+            : null;
+
         var target = constructor.ChainKind switch
         {
             // Delegating within one struct lands on that struct's own initializer: the same name,
             // resolved to a different overload by the argument list.
             ConstructorChainKind.This => declaringStruct,
             ConstructorChainKind.Base => UnwrapBaseStruct(declaringStruct.BaseType),
+            ConstructorChainKind.None when implicitConstructor?.Body is not null => UnwrapBaseStruct(declaringStruct.BaseType),
             _ => null,
         };
 
-        if(target is null || !names.TryGetValue(target, out var name))
+        if(target is null)
         {
+            return;
+        }
+
+        if(!names.TryGetValue(target, out var name))
+        {
+            if(constructor.ChainKind != ConstructorChainKind.This)
+            {
+                return;
+            }
+
+            name = $"this = new {TypeNameEmitter.Emit(declaringStruct)}";
+        }
+
+        if(implicitConstructor?.ParametersList is [{ IsFlattened: true } parameter])
+        {
+            var substitution = TypeSubstitution.ForReceiver(declaringStruct.BaseType as ConstructedType);
+            var parameterType = substitution.Apply(parameter.Type, interner: null);
+            writer.WriteLine($"{name}({parameter.Name}: new {TypeNameEmitter.Emit(parameterType)} {{ }});");
             return;
         }
 

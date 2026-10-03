@@ -1242,6 +1242,32 @@ rules:
       dropped (4), and the fixed parameters left unpaired (10) were caught on the first pass. A KEPT
       SPREAD JUDGED SURVIVED, no row holding one at a function value's slot, where it does pair with a
       target; the row was added and the rerun caught it.
+
+      THE ELEMENT IS THE COLLECTION'S, NOT THE ARRAY'S (2026-10-02). MIST_VAR_0013, added the same day,
+      refused `params` on anything but a pack or a `T[]`, and so refused `params List<int>` and
+      `params int[]?`, which built and ran before it through C# 13's params collections with their
+      arguments unjudged. The collection and its element are now one decision, ParamsCollection, read by
+      the binder's targets, ImplicitConversions, this pairing and the purity judge's whole-argument lend:
+      an array, a span, one of the five generic collection interfaces, a class or struct enumerable with a
+      parameterless constructor and an Add of its element, and an optional over any of these. A lone
+      argument that is itself a sequence is handed whole, as a lone array was. MEASURED at 007a68b6 and
+      after: `M(1, 2)` over `params List<int>` and `params int[]?` went from MIST_VAR_0013 to printing 2
+      and 1; `M(1, "x")` over each is MIST_PA_NO_IMPLICIT_CONVERSION 'string' to 'int'; the same over
+      HashSet<int>, IEnumerable<int>, IReadOnlyList<int>, IReadOnlyCollection<int>, ICollection<int>,
+      IList<int>, ReadOnlySpan<int>, Span<int> and a user enumerable with an Add; `params string s`,
+      `params Dictionary<int, string>`, `params Queue<int>`, `params ISet<int>` and a user enumerable
+      without an Add stay MIST_VAR_0013, each a declaration C# refuses too. PROVED BY ParamsCollectionTests
+      at Tier 1 (16 shapes yielding their element, a generic one closed at its argument, 12 yielding none,
+      7 for the whole-argument rule), ParamsModifiersTests (the refusals left and the collections admitted),
+      ArgumentTargetsTests (9 list and optional-array rows), FlattenedArgumentSiteTests at Tier 2 (5 list
+      rows), ParamsCollectionEmissionTests at Tier 3 (6 declarations) and ValuePackTests (admission,
+      position and lambda rows). Ten mutations on confirmed builds, each caught: the optional not peeled
+      (36), any Add accepted (3), Add not looked up (49), the constructor not required (1), an interface's
+      Add counted (1), only an array handed whole (5), the pairing reading the array element alone (9),
+      IReadOnlyList dropped from the interfaces (1), the emitter writing `params` for arrays alone (4),
+      and the binder's target reading the array element alone, which survived until a lambda row was
+      added (1). A MUTATION'S BINARY OUTLIVES ITS RESTORE: a file put back by `mv` carries an mtime older
+      than the mutated build, so the next incremental build keeps the mutant; touch the file after.
     tasks:
       - >
         A value that could enter a union through two constituents neither containing the other is emitted

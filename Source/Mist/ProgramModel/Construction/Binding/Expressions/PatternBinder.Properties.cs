@@ -92,7 +92,7 @@ internal static partial class PatternBinder
         SyntaxNode node,
         BuilderContext context)
     {
-        if(found is MethodGroupResult or TypeResult or EnumMemberResult)
+        if(found is MethodGroupResult or TypeResult)
         {
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.PatternSubpatternNotStorage, node, null, matched.Name, memberName);

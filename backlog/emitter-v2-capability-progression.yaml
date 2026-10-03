@@ -77,9 +77,10 @@
 #
 #   WHAT THIS EXERCISE DELIVERS, AND WHAT IT DOES NOT
 #
-#   Building a program model, and emitting from it. NOT verifying that the program is valid.
-#   v2 will need many analyzers and NONE of them are in scope here -- Stage 5 is an empty stub
-#   on purpose, and source-to-AST is the grammar's, which is untouched.
+#   This register measures what the frontend and backend can represent and emit; it does not
+#   measure whether every completed model satisfies its semantic rules. Stage 5 runs analyzers
+#   against that model, and its rule register is `backlog/analysis-v2-capability-progression.yaml`.
+#   Source-to-AST remains the grammar's and is outside this register's scope.
 #
 #   So a capability is measured by what it makes REPRESENTABLE and EMITTABLE. Ask of any
 #   proposed work: what new part of a program can now be held in memory, or emitted and run?
@@ -140,17 +141,15 @@
 #   capabilities[].unlocks      samples whose threshold this capability is
 #
 #   capabilities[].analysis_phase_tasks
-#                               rules this capability will need ENFORCED, deferred wholesale
-#                               to the analysis phase that follows the samples work. Kept
-#                               apart from `tasks` because they are NOT what `v2_status`
-#                               measures: done here means the model is right and the emission
-#                               is right, and v2 runs no analyzers at all -- Stage 5 is an
-#                               empty stub. A capability with entries here is not partial;
-#                               it is in the same state as every other banked capability.
-#                               Recording them per capability is so the analysis phase
-#                               inherits the reasoning rather than rediscovering it, and
-#                               several are already-written rules that were removed on
-#                               purpose rather than rules nobody has designed.
+#                               Stage 5 rules associated with this capability, tracked apart
+#                               from `tasks` because they judge a completed model rather than
+#                               make new programs representable or emittable. Stage 5 runs
+#                               analyzers now; their implementation order and invariants live
+#                               in `backlog/analysis-v2-capability-progression.yaml`. A
+#                               capability with entries here is not partial: `v2_status`
+#                               measures only the model and emission work above. Recording
+#                               rules per capability carries their reasoning into the Stage 5
+#                               register rather than requiring it to be rediscovered.
 #
 #                               THE TEST IS WHETHER SOMETHING IS PRODUCED, never which stage a
 #                               diagnostic happens to be declared at. A rule belongs in `tasks`

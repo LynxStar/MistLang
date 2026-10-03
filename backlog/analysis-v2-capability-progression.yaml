@@ -1879,7 +1879,16 @@ rules:
       rebinding the pack to the element under judgment (TypeSubstitution.With); read of the pack it asked
       'IRank<[Score, Score]>', which no element satisfies. A pack naming a sibling needs nothing more.
       Classic refuses both pack forms, valid closings included, as MIST_VAR_0009 against the declared
-      constraint.
+      constraint. ONLY THE BARE NAME IS THE ELEMENT, since 2026-10-03: With rebound every occurrence, so
+      a spread of the pack inside its own constraint read the element too -- MEASURED on 34be2ddc,
+      `Tab<params Ts> where Ts : IAll<(Ts...)>` closed as `Tab<Score, Score>`, Score being `IAll<(Score,
+      Score)>`, was refused against the type 'IAll<(Score...)>', a spread of a type that is no pack. With
+      now keeps a spread of the pack, and an index into it, on the binding the closing gave it, so that
+      closing is admitted and `Tab<Score, Grade>` is refused against 'IAll<(Score, Grade)>'. The backend's
+      per-element clauses read the same With (emitter order 153). PROVED BY ElementwiseRebindingTests
+      (Tier 1, twelve cases: bare, nested, spread, index, a spread in a pack slot and in a function type
+      against a closing, the first four without one, a parameter that is no pack, and a later whole-pack
+      binding restoring the spread) and two rows of ConstraintRefusalTests over Decide.
 
       A FIXED-SIZE PACK IS CLOSED WITH EXACTLY ITS DECLARED LENGTH, since 2026-10-02. Nothing held a
       `Type[N]:TArgs` pack to N at a closing. MEASURED on v2 at e12f1cd8: over `Pair<Type[2]:TArgs>`,
@@ -1909,8 +1918,9 @@ rules:
       signature naming a parameter (emitter order 57's task), a whole-pack constraint naming its pack
       (variadic-monomorphization's task), and a generic method of a generic extension block, whose call
       passed too few type arguments -- with every extension method's `where` dropped besides. The first
-      and third emit and run since 2026-09-26 (emitter orders 57 and 111). Before, analysis refused the
-      valid closings of the first two for the wrong reason and hid them.
+      and third emit and run since 2026-09-26 (emitter orders 57 and 111), and the second since
+      2026-10-03 (emitter order 153). Before, analysis refused the valid closings of the first two for
+      the wrong reason and hid them.
 
       PROVED BY twelve corpus cases, one refusal each at the use: f-bounded-constraint-closed-over-the-
       wrong-type and -in-a-base-clause, sibling-constraint-closed-by-a-supertype and -inside-a-constructed-

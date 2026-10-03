@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -18,9 +19,13 @@ internal sealed class TypeSubstitution
 
     private readonly Dictionary<TypeParameter, IMistType> bindings;
 
-    private TypeSubstitution(Dictionary<TypeParameter, IMistType> bindings)
+    private readonly Dictionary<TypeParameter, IMistType?> wholePacks;
+
+    private TypeSubstitution(
+        Dictionary<TypeParameter, IMistType> bindings, Dictionary<TypeParameter, IMistType?>? wholePacks = null)
     {
         this.bindings = bindings;
+        this.wholePacks = wholePacks ?? [];
     }
 
     public static TypeSubstitution ForReceiver(ConstructedType? receiver)
@@ -154,23 +159,54 @@ internal sealed class TypeSubstitution
         }
 
         var combined = new Dictionary<TypeParameter, IMistType>(bindings);
+        var packs = new Dictionary<TypeParameter, IMistType?>(wholePacks);
 
         foreach(var (parameter, argument) in other.bindings)
         {
             combined[parameter] = argument;
+            _ = packs.Remove(parameter);
         }
 
-        return new TypeSubstitution(combined);
+        foreach(var (parameter, whole) in other.wholePacks)
+        {
+            packs[parameter] = whole;
+        }
+
+        return new TypeSubstitution(combined, packs);
     }
 
     /// <summary>
     /// A whole-pack constraint holds of each element on its own (variadics Requirement 11.1), so a
     /// constraint that names its pack is judged with the pack rebound to the one element under judgment
-    /// rather than to the pack the closing bound it to.
+    /// rather than to the pack the closing bound it to. Only the BARE name is rebound to an element: a
+    /// spread of the pack, or an index into it, still reads the pack the closing bound -- an element has
+    /// nothing to spread -- and stays as written where nothing bound one. A pack bound to a whole pack is
+    /// bound outright.
     /// </summary>
     public TypeSubstitution With(TypeParameter parameter, IMistType argument)
     {
-        return new TypeSubstitution(new Dictionary<TypeParameter, IMistType>(bindings) { [parameter] = argument });
+        var packs = new Dictionary<TypeParameter, IMistType?>(wholePacks);
+
+        if(!parameter.IsPack || argument is LiftedType { Value: TypePackValue } or TypeParameter { IsPack: true })
+        {
+            _ = packs.Remove(parameter);
+        }
+        else if(!packs.ContainsKey(parameter))
+        {
+            packs[parameter] = bindings.GetValueOrDefault(parameter);
+        }
+
+        return new TypeSubstitution(new Dictionary<TypeParameter, IMistType>(bindings) { [parameter] = argument }, packs);
+    }
+
+    private bool TryGetPack(TypeParameter parameter, [NotNullWhen(true)] out IMistType? whole)
+    {
+        if(wholePacks.TryGetValue(parameter, out whole))
+        {
+            return whole is not null;
+        }
+
+        return bindings.TryGetValue(parameter, out whole);
     }
 
     /// <summary>
@@ -192,7 +228,7 @@ internal sealed class TypeSubstitution
 
         if(type is PackElementType element)
         {
-            return bindings.TryGetValue(element.Pack, out var bound) && bound is LiftedType { Value: TypePackValue closing }
+            return TryGetPack(element.Pack, out var bound) && bound is LiftedType { Value: TypePackValue closing }
                 ? ElementAt(closing, element.Index) ?? type
                 : type;
         }
@@ -213,7 +249,9 @@ internal sealed class TypeSubstitution
         {
             // A spread standing alone rather than inside a pack slot has nowhere to expand INTO, so
             // it substitutes its operand and stays a spread; the slot it lands in does the rest.
-            var operand = Apply(spread.Operand, interner);
+            var operand = spread.Operand is TypeParameter rebound && wholePacks.TryGetValue(rebound, out var whole)
+                ? whole ?? rebound
+                : Apply(spread.Operand, interner);
             return ReferenceEquals(operand, spread.Operand) ? spread : new SpreadType(operand);
         }
 
@@ -374,7 +412,7 @@ internal sealed class TypeSubstitution
         {
             if(element is SpreadType spread
                 && spread.Operand is TypeParameter parameter
-                && bindings.TryGetValue(parameter, out var bound)
+                && TryGetPack(parameter, out var bound)
                 && bound is LiftedType { Value: TypePackValue spliced })
             {
                 elements.AddRange(spliced.Elements);
@@ -409,7 +447,7 @@ internal sealed class TypeSubstitution
         {
             if(element is SpreadType spread
                 && spread.Operand is TypeParameter parameter
-                && bindings.TryGetValue(parameter, out var bound)
+                && TryGetPack(parameter, out var bound)
                 && bound is LiftedType { Value: TypePackValue spliced })
             {
                 elements.AddRange(spliced.Elements);
@@ -450,7 +488,7 @@ internal sealed class TypeSubstitution
         {
             if(parameter is SpreadType spread
                 && spread.Operand is TypeParameter packParameter
-                && bindings.TryGetValue(packParameter, out var bound)
+                && TryGetPack(packParameter, out var bound)
                 && bound is LiftedType { Value: TypePackValue spliced })
             {
                 parameters.AddRange(spliced.Elements);

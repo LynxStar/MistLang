@@ -82,6 +82,27 @@ public sealed class ConstraintRefusalTests
         Assert.Null(ConstraintAnalyzer.Decide(closing, constraint, built.Interner));
     }
 
+    [Theory]
+    [InlineData("Score", null)]
+    [InlineData("Grade", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
+    public void AWholePackConstraintSpreadingItsPack_IsJudgedPerElementAgainstTheWholeClosing(string element, string? expected)
+    {
+        var built = new HandBuiltModel();
+        var pack = new TypeParameter("Ts", 0, new Scope(null), null) { PackKind = TypePackKind.Unbracketed };
+        var all = new AbstractType("IAll", "Refusal", new Scope(null), null, null);
+        _ = DeclarationFragments.Parameter(all, all.Scope, "Item");
+        var score = HandBuiltModel.Class("Score");
+        var grade = HandBuiltModel.Class("Grade");
+        score.BaseAbstractTypes.Add(built.Interner.GetOrCreateConstructedType(all, [built.Interner.GetOrCreateTupleType([score, grade])]));
+        grade.BaseAbstractTypes.Add(built.Interner.GetOrCreateConstructedType(all, [built.Interner.GetOrCreateTupleType([score, score])]));
+        var argument = element == "Score" ? score : grade;
+        var closed = TypeSubstitution.ForParameters([pack], [built.Interner.LiftPack(built.Type("Type"), new TypePackValue([score, grade]))]);
+        var closing = new TypeArgumentClosing(pack, argument, HandBuiltModel.Node(25), closed.With(pack, argument));
+        var constraint = new TypeConstraint(built.Interner.GetOrCreateConstructedType(all, [new TupleType([new SpreadType(pack)])]));
+
+        Assert.Equal(expected, ConstraintAnalyzer.Decide(closing, constraint, built.Interner)?.Id.Value);
+    }
+
     private static (TypeArgumentClosing Closing, TypeParameterConstraint Constraint) Build(HandBuiltModel built, string name)
     {
         var parameter = new TypeParameter("T", 0, new Scope(null), null)

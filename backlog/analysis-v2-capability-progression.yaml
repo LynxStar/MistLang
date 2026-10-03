@@ -2279,7 +2279,7 @@ rules:
           type and records no optional or params parameter, so it cannot show that nothing is callable with
           nothing; Roslyn stays the judge. samples/Attributes' `ParamTagAttribute : Attribute`, whose
           constructor writes no chain, is silent.
-        - A derived struct, below.
+        - At that checkpoint, a derived struct; closed separately below on 2026-10-03.
         Tests: ImplicitChainsTests (Tier 1, 22 cases) and BaseConstructorRefusalTests (Tier 2, 9, over
         hand-built types). DeclarationShapeDecisionTests' silence list gained the id. Mutations, each built
         clean and run over those 31 cases:
@@ -2289,14 +2289,27 @@ rules:
         - Judging explicit chains failed the 3 chain rows.
         Ledger 20261001-203136 passed 11,437 of 11,437, both sample baselines included, with zero warnings
         and dotnet format clean. No banked sample is refused.
+        HISTORICAL OPEN FINDING (2026-10-01): A derived struct had the same hole, silently. `struct
+        Dial : Meter` with `public Dial(int face) { ... }` over a struct whose only constructor was
+        `Meter(int)`: classic reported MIST_STRUCT_BASE_CTOR_REQUIRED (struct-inheritance 7.4), while
+        v2 compiled it and printed `0 3`. Over a base with `Meter()`, v2 printed `0 3` where classic
+        printed `7 3`. ImplicitChains already answered the missing-call decision, but StructInitEmitter
+        lowered only a written chain. The emission finding is retained in backlog/general.md.
+        DONE 2026-10-03: A DERIVED STRUCT'S IMPLICIT BASE CHAIN. StructInitEmitter calls the accessible
+        initializer ImplicitChains.Of selects before the derived body, including through a three-level
+        flattened chain. A selected single-params array overload is pinned even when an inaccessible
+        parameterless overload is also emitted; a constructed generic base's parameter type is substituted
+        in that call. Explicit this/base delegation does not add a second ancestor call. When no accessible
+        zero-argument target exists, ImplicitChains.UnsatisfiedStructBase makes DeclarationShapeAnalyzer
+        report MIST_STRUCT_BASE_CTOR_REQUIRED at the unchained derived constructor; class refusal and
+        defaultability remain separate. The Meter()/Dial(3) probe prints `7 3`, and Meter(int) alone is
+        refused with that id instead of printing `0 3` (backlog/general.md). StructImplicitChainsTests
+        (Tier 1), StructBaseConstructorRefusalTests (Tier 2), and StructImplicitBaseEmissionTests (Tier 2)
+        hold the decision, diagnostic, emitted order and controls over hand-built model input. Removing
+        the call and reversing the refusal condition failed the three targeted mutation cases; the
+        restored focused ledger passed 31/31. Full ledger 20261002-225740 passed 8,781/8,781 with zero
+        build warnings; dotnet format Mist.slnx --verify-no-changes passed.
         Left open:
-        - A DERIVED STRUCT HAS THE SAME HOLE, and it is silent. `struct Dial : Meter` with
-          `public Dial(int face) { ... }` over a struct whose only constructor is `Meter(int)`: classic
-          reports MIST_STRUCT_BASE_CTOR_REQUIRED (struct-inheritance 7.4); v2 compiles it and prints `0 3`.
-          ImplicitChains already answers it; it needs its own descriptor at the same constructor, which was
-          outside this change. Over a base with `Meter()`, v2 prints `0 3` where classic prints `7 3`:
-          StructInitEmitter lowers only a written chain, so the base constructor never runs. That is
-          emission, filed in backlog/general.md.
         - An explicit `: base()` to a private base constructor is judged by nothing. AccessibilityAnalyzer
           reads `new` only, and both pipelines leak CS0122 as MIST_CS_ERROR, measured.
         - A single value-pack params parameter counts as callable with nothing, whatever its pack holds.

@@ -5200,12 +5200,12 @@ rules:
       is refused unless a context keyed T is HELD wherever the call can be run from. A key is held by a
       `with` declaration or block whose body the call sits in -- the value expression of a `with` is
       outside it -- or by a clause of the member the call is written in, whose own callers then answer.
-      A call holding no such key passes the question to every caller of the method, constructor or
-      local function it is in (9.3), through an abstract slot to the members answering it, and the
-      refusal is made where that walk reaches a site nobody can be asked from: the entry point (9.2), a
-      body that is not a method's or a constructor's (an accessor, an operator, a conversion, a static
-      initializer), or a member the language or the runtime runs with no call written (a Drop, a Clone,
-      an answer to a slot Standard or the CLR declares). The diagnostic sits on the call that is owed
+      A call holding no such key passes the question to every caller of the method, constructor,
+      local function, accessor, operator or conversion it is in (9.3), through an abstract slot to the
+      members answering it, and the refusal is made where that walk reaches a site nobody can be asked
+      from: the entry point (9.2), a body that is no callable's (a static initializer, an enum value),
+      or a member the runtime runs with no call written (a Clone, an answer to a slot Standard or the
+      CLR declares other than IDisposable's Dispose). The diagnostic sits on the call that is owed
       the context, as 9.2 and 14.1 ask, once per key, and its message ends with the position of the
       call that reaches it bare, which is the same position for a direct failure. A callable nothing
       calls is not refused, the walk never reaching Main (9.2). Callers are followed breadth first and
@@ -5239,9 +5239,12 @@ rules:
 
       DECISIONS WHERE THE SPEC IS SILENT, each with its alternative. (1) Every caller must hold the
       key, not some caller: the user story says "always called within a scope that provides one". (2)
-      Accessors, operators, conversions and static initializers are not transparent, 9.3 naming
-      methods; treating a property read or an operator use as a call is the alternative, and
-      `get { return Consumers.GetString(); }` read under a context ran before and is refused now. (3)
+      REVERSED 2026-10-02, by the user: a property or indexer accessor, an operator, a conversion and an
+      extension block's property are transparent like methods, judged through their use sites, and a
+      Drop or an IDisposable Dispose where the language runs it; the alternative, every such body a
+      root because 9.3 says "methods", refused `get { return Consumers.GetString(); }` read under a
+      context, which ran at 306b142f and runs again. Only a static initializer, an enum value and a
+      Clone stay roots, nothing calling them from a context. (3)
       A lambda's body is judged where the lambda is written and a method named as a value where it is
       named; a function value that outlives the `with` it was made under is not seen. (4) A key naming
       a type parameter does not pass through a transparent generic method, which must declare the
@@ -5280,6 +5283,45 @@ rules:
       and errors, dotnet format --verify-no-changes exit 0 with empty output, and full ledger
       20261002-024320 passing all 8,133 tests (7,170 compiler, 105 CLI, 812 source generator, 46 consumer),
       failures.txt empty.
+
+      REVISED 2026-10-02, decision 2 reversed. ContextCalls' graph node is now any callable -- a Method
+      or a PropertyAccessor -- and the use sites it records grew by: a property read or write
+      (MemberAccessExpression, PropertyReferenceExpression, ExtensionPropertyAccessExpression, with
+      the direction the enclosing assignment gives it, a `??=` being both), an indexer read or write
+      and a from-end index's Count, an object initializer's property, a property pattern's member, a
+      list pattern's Count and indexer, a binary or unary user operator, a cast and a recorded implicit
+      conversion, a loop's Current getter and its enumerator's IDisposable Dispose (ClrCallbacks), and
+      the drops the language inserts, read from PurityJudge.ExitDrops per scope (a local's at the end
+      of the block it is declared in, holding what was held AT the declaration since a later `with`
+      pops before the finally; a parameter's at its method's exit; a Drop body's droppable fields at
+      its own end) and, for a `with` block's value, after its pop. ExitDrop now carries the
+      LocalDeclarationStatement it came from. Property and indexer slots on abstracts are answered the
+      way method slots are (ConformanceAnswers.Property, ConformanceAnalyzer.AnsweringIndexer), so a
+      read through the abstract reaches the concrete accessor. A member answering System.IDisposable's
+      Dispose is no longer "unseen": its runs are explicit calls and the loop disposal above; a Mist
+      type's Dispose handed to a CLR API that disposes it is a run the program never shows, accepted
+      rather than refusing every Dispose for it. JudgeAvailability also builds the graph when any
+      Drop or Dispose in the program declares a clause (OwesADrop), since a drop site is no node Owes
+      sees. MEASURED on the built CLI, 83 + 30 programs: e03 (getter read under a context), e04
+      (operator applied under a context) and e13 (Dispose called under a context) print `ambient`, `4`
+      and `ambient` again as at 306b142f; e06 (a Drop reached by a `with` block holding only the Token)
+      stays refused, its message now naming the block; every other program in the author's corpus is
+      unchanged. The 30 new programs -- a setter, an indexer's getter and setter, `sum = sum + v` and
+      `==`, an implicit and an explicit conversion, a getter through an abstract property slot, an
+      extension property, a unary operator, a local's drop, a local's drop after a later `with`, a
+      parameter's drop, a `with` block's value drop under an outer context, an explicit Drop, a field
+      dropped by its holder's Drop, a foreach's Current, an unread getter, and a getter read through a
+      transparent method -- each run under a context and are refused bare, naming the use. samples/
+      StructuredContext runs clean and AllFeaturesV2 is byte-identical. COVERAGE now 116 Tier 2 cases
+      in StructuredContextRefusalTests (18 direct refusals, 29 reached refusals naming the use, 49
+      admitted, and the name, repeat, contract and anonymous-key findings), the new rows in
+      StructuredContextFragments.Members. MUTATIONS, 17 more, each failing exactly the rows it should:
+      accessor bodies roots again, operator and conversion bodies roots again, Drop a root again,
+      Dispose unseen again, each new site kind unrecorded (member access, extension property, index,
+      operator and conversion, object initializer, property pattern, list pattern, loop Current and
+      Dispose), direction ignored, `??=` not reading back, exit drops unrecorded, a local's drop filed
+      under a later `with`, a `with` block's value dropped under its own key, accessor slot answers
+      not followed, and the drop pre-check removed.
     tasks:
       - >
         A REFINED CLAUSE IS NOT PROVEN. `with 0;` satisfies `int Reciprocal() with PositiveInt n`, the two
@@ -5303,6 +5345,8 @@ rules:
         context it needs transparently is never asked for. Nothing in the model says which attributes
         mean "run from outside".
       - >
-        Lift an open key through a transparent generic method, and treat an accessor read and an operator
-        use as calls, if decisions 4 and 2 are reversed. Both need the call's substitution or the read's
-        member recorded on the model first.
+        Lift an open key through a transparent generic method if decision 4 is reversed; it needs each
+        call's substitution recorded on the model first.
+      - >
+        A Clone the language inserts has a locatable site too (CloneExpression, PurityJudge.CloneOf), so
+        it could be made transparent the way Drop was; it stays a root by decision 2's original reading.

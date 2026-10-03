@@ -10,7 +10,7 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramAnalysis;
 
-internal readonly record struct ExitDrop(string Name, Method Drop, SyntaxNode At, bool IsAwait);
+internal readonly record struct ExitDrop(string Name, Method Drop, SyntaxNode At, bool IsAwait, LocalDeclarationStatement? Declaration = null);
 
 /// <summary>
 /// What a scope calls on its way out without writing the call: the emitter releases every linear or
@@ -64,7 +64,7 @@ internal static partial class PurityJudge
             {
                 foreach(var (drop, isAwait) in Drops(local.Type, awaitable: true, []))
                 {
-                    yield return new ExitDrop(local.Name, drop, initializer.Node, isAwait);
+                    yield return new ExitDrop(local.Name, drop, initializer.Node, isAwait, declaration);
                 }
             }
         }
@@ -178,6 +178,11 @@ internal static partial class PurityJudge
     private static bool DropsAtScopeExit(IMistType type)
     {
         return DefinitionOf(type) is ConcreteType { Discipline: SubstructuralDiscipline.Linear or SubstructuralDiscipline.Relevant };
+    }
+
+    public static IEnumerable<(Method Drop, bool IsAwait)> Drops(IMistType type, bool awaitable)
+    {
+        return Drops(type, awaitable, []);
     }
 
     private static IEnumerable<(Method Drop, bool IsAwait)> Drops(IMistType type, bool awaitable, HashSet<ConcreteType> visited)

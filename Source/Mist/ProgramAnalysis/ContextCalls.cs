@@ -1,10 +1,6 @@
 using Mist.Common.Diagnostics;
-using Mist.ProgramAnalysis.Rules;
-using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
-using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
@@ -15,14 +11,21 @@ namespace Mist.ProgramAnalysis;
 
 /// <summary>
 /// The call graph structured-context Requirement 9 walks: every place a callable is run from, with the
-/// context keys ambient there. A key is HELD at a site by a <c>with</c> declaration or block whose body
-/// the site sits in, or by a <c>with</c> clause of the member the site is written in, which that
-/// member's own callers answer for. A site that holds no such key passes the question to whoever runs
-/// the callable it is in (9.3), and <see cref="Unmet"/> follows that to the first site where nobody
-/// can be asked: the entry point (9.2), a body that is not a method's or a constructor's and so has
-/// no call to be asked through, or a member the runtime or the language runs with no call written --
-/// one answering a slot Standard or the CLR declares, a Drop, a Clone. A callable nothing calls
-/// reaches no such site and is not refused. A lambda's body is judged where the
+/// context keys ambient there. A callable is a method, a constructor, a local function, an operator, a
+/// conversion or a property or indexer accessor, and it is run from a call, a <c>new</c>, a constructor
+/// chain, a method named as a value, an operator applied, a conversion taken, a property or element read
+/// or written, a pattern's property test, a loop's enumerator calls, a collection element's Add, and the
+/// drop the language makes at the end of the scope that owns a value: a local's or a parameter's at its
+/// body's exit, a <c>with</c> block's value after its pop, a Drop's droppable fields at its own end. A key
+/// is HELD at a site by a <c>with</c> declaration or block whose body the site sits in, or by a <c>with</c>
+/// clause of the member the site is written in, which that member's own callers answer for. A site that
+/// holds no such key passes the question to whoever runs the callable it is in (9.3), and <see cref="Unmet"/>
+/// follows that to the first site where nobody can be asked: the entry point (9.2), a body that is no
+/// callable's -- a static initializer, an enum value -- or a member the runtime runs with no call written,
+/// a Clone or an answer to a slot Standard or the CLR declares. IDisposable's Dispose is the exception
+/// among those slots: the language disposes a value only where this graph records it, so a Dispose is
+/// transparent, and a value handed to a CLR API that disposes it is a run the program never shows. A
+/// callable nothing calls reaches no such site and is not refused. A lambda's body is judged where the
 /// lambda is written, and a method named as a value where it is named, a function value carrying no
 /// clause for its eventual caller to answer. A key naming a type parameter stops where it is, since
 /// what it becomes is each caller's type arguments' to say. Callers are followed breadth first and
@@ -31,11 +34,11 @@ namespace Mist.ProgramAnalysis;
 /// inputs and refuses every ambient read reachable from one, so a finding here would be a second
 /// complaint about that mistake.
 /// </summary>
-internal sealed class ContextCalls
+internal sealed partial class ContextCalls
 {
-    private readonly Dictionary<Method, List<ContextSite>> callers = new(ReferenceEqualityComparer.Instance);
-    private readonly Dictionary<Method, List<Method>> answered = new(ReferenceEqualityComparer.Instance);
-    private readonly HashSet<Method> unseen = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<object, List<ContextSite>> callers = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<object, List<object>> answered = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<object> unseen = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<Method> local = new(ReferenceEqualityComparer.Instance);
     private readonly List<ContextSite> sites = [];
 
@@ -48,8 +51,8 @@ internal sealed class ContextCalls
                 continue;
             }
 
-            var within = root.Member is Method and not (Operator or CastOperator) ? (Method)root.Member : null;
-            Walk(root.Root, new Frame(within, HeldBy(within), root.Root));
+            var within = CallableOf(root);
+            Walk(root, new Frame(within, HeldBy(within as Method), root.Root));
         }
 
         foreach(var type in program.Types.OfType<ConcreteType>())
@@ -63,20 +66,12 @@ internal sealed class ContextCalls
 
             foreach(var (abstractType, slot, answer, _) in Answers(type, interner))
             {
-                var answering = Declared(answer.Member);
+                Answer(abstractType, slot, answer.Member);
+            }
 
-                if(!answered.TryGetValue(answering, out var slots))
-                {
-                    slots = [];
-                    answered[answering] = slots;
-                }
-
-                slots.Add(slot);
-
-                if(abstractType.Assembly.Kind is MistAssemblyKind.Standard or MistAssemblyKind.Ambient)
-                {
-                    _ = unseen.Add(answering);
-                }
+            foreach(var (abstractType, slot, answering) in AccessorAnswers(type, interner))
+            {
+                Answer(abstractType, slot, answering);
             }
         }
     }
@@ -90,33 +85,19 @@ internal sealed class ContextCalls
             InvocationExpression call => call.ContextTypes.Count > 0,
             NewExpression allocation => allocation.ContextTypes.Count > 0,
             FunctionReferenceExpression reference => reference.ContextTypes.Count > 0,
-            ForEachStatement loop => loop.GetEnumerator is { ContextBindingsList.Count: > 0 } || loop.MoveNext is { ContextBindingsList.Count: > 0 },
+            ForEachStatement loop => loop.GetEnumerator is { ContextBindingsList.Count: > 0 }
+                || loop.MoveNext is { ContextBindingsList.Count: > 0 }
+                || ClrCallbacks.DisposeOf(loop) is { ContextBindingsList.Count: > 0 },
             ObjectInitializerAssignment { Add.ContextBindingsList.Count: > 0 } => true,
             ConcreteType type => Chains(type).Any(chain => chain.Keys.Count > 0),
             _ => false,
         };
     }
 
-    public static IEnumerable<(AbstractType Abstract, Method Slot, ConformanceAnswers.MethodAnswer Answer, SyntaxNode? At)> Answers(
-        ConcreteType concrete, TypeInterner interner)
+    public static bool OwesADrop(AnalysisScope program)
     {
-        var fillers = ConformanceAnalyzer.Fillers(concrete).ToList();
-        var reaches = concrete.BaseAbstractTypes.Select(named => (Named: (IMistType)named, Mappings: (ConformanceDeclaration?)null))
-            .Concat(concrete.ConformancesList.Select(conformance => (Named: conformance.AbstractType, Mappings: (ConformanceDeclaration?)conformance)));
-
-        foreach(var (named, mappings) in reaches)
-        {
-            foreach(var (abstractType, substitution) in ConformanceAnalyzer.Reached([named], interner))
-            {
-                foreach(var slot in abstractType.MethodsList.Where(method => !method.Modifiers.IsStatic))
-                {
-                    if(ConformanceAnswers.Method(slot, substitution, fillers, mappings, interner) is { } answer)
-                    {
-                        yield return (abstractType, slot, answer, mappings?.DeclarationNode ?? concrete.DeclarationNode);
-                    }
-                }
-            }
-        }
+        return program.Types.OfType<ConcreteType>().SelectMany(type => type.MethodsList)
+            .Any(method => method is { Name: "Drop" or "Dispose", ParametersList.Count: 0, Modifiers.IsStatic: false, ContextBindingsList.Count: > 0 });
     }
 
     public ContextSite? Unmet(ContextSite site, IMistType key)
@@ -131,8 +112,8 @@ internal sealed class ContextCalls
             return site;
         }
 
-        var visited = new HashSet<Method>(ReferenceEqualityComparer.Instance) { within };
-        var pending = new Queue<Method>();
+        var visited = new HashSet<object>(ReferenceEqualityComparer.Instance) { within };
+        var pending = new Queue<object>();
         pending.Enqueue(within);
 
         while(pending.TryDequeue(out var callable))
@@ -170,7 +151,46 @@ internal sealed class ContextCalls
         };
     }
 
-    private IEnumerable<ContextSite> CallersOf(Method callable)
+    private static object? CallableOf(SourceRoot root)
+    {
+        return root.Member switch
+        {
+            Method method => method,
+            Property property => AccessorOf(root.Root, property.Getter, property.Setter),
+            Indexer indexer => AccessorOf(root.Root, indexer.Getter, indexer.Setter),
+            _ => null,
+        };
+    }
+
+    private static PropertyAccessor? AccessorOf(object root, PropertyAccessor? getter, PropertyAccessor? setter)
+    {
+        return Holds(getter, root) ? getter : Holds(setter, root) ? setter : null;
+    }
+
+    private static bool Holds(PropertyAccessor? accessor, object root)
+    {
+        return accessor is not null && (ReferenceEquals(accessor.Body, root) || ReferenceEquals(accessor.ExpressionBody, root));
+    }
+
+    private void Answer(AbstractType abstractType, object slot, object answering)
+    {
+        var declared = Declared(answering);
+
+        if(!answered.TryGetValue(declared, out var slots))
+        {
+            slots = [];
+            answered[declared] = slots;
+        }
+
+        slots.Add(slot);
+
+        if(abstractType.Assembly.Kind is MistAssemblyKind.Standard or MistAssemblyKind.Ambient && abstractType.FullyQualifiedName != "System.IDisposable")
+        {
+            _ = unseen.Add(declared);
+        }
+    }
+
+    private IEnumerable<ContextSite> CallersOf(object callable)
     {
         var direct = callers.GetValueOrDefault(callable) ?? [];
 
@@ -179,87 +199,17 @@ internal sealed class ContextCalls
             : direct;
     }
 
-    private bool Lifts(Method method)
+    private bool Lifts(object callable)
     {
-        return local.Contains(method)
+        return callable is not Method method
+            || local.Contains(method)
             || !(unseen.Contains(method)
                 || method is Constructor { Modifiers.IsStatic: true }
                 || method is { Modifiers.IsStatic: true, Name: "Main", ParametersList.Count: <= 1 }
-                || method is { Modifiers.IsStatic: false, Name: "Drop" or "Clone", ParametersList.Count: 0 });
+                || method is { Modifiers.IsStatic: false, Name: "Clone", ParametersList.Count: 0 });
     }
 
-    private void Walk(object root, Frame entered)
-    {
-        var pending = new Stack<(object Node, Frame Frame)>();
-        pending.Push((root, entered));
-
-        while(pending.TryPop(out var visit))
-        {
-            var (node, frame) = visit;
-
-            switch(node)
-            {
-                case WithBlockStatement scope:
-                    pending.Push((scope.Body, frame with { Held = new ContextHeld(scope.KeyType, frame.Held) }));
-                    pending.Push((scope.Value, frame));
-                    continue;
-
-                case LocalFunctionStatement function:
-                    _ = local.Add(function.Function);
-                    pending.Push((function.Body, frame with { Within = function.Function }));
-                    continue;
-
-                case InvocationExpression { Method: { } callee } call:
-                    Record(call.Node, call, callee, call.ContextTypes, frame);
-                    break;
-
-                case NewExpression { Constructor: { } constructor } allocation:
-                    Record(allocation.Node, allocation, constructor, allocation.ContextTypes, frame);
-                    break;
-
-                case FunctionReferenceExpression reference:
-                    Record(reference.Node, reference, reference.Method, reference.ContextTypes, frame);
-                    break;
-
-                case ForEachStatement loop:
-                    foreach(var called in new[] { loop.GetEnumerator, loop.MoveNext })
-                    {
-                        if(called is not null)
-                        {
-                            Record(loop.Collection.Node, loop.Collection, called, ContextBinding.TypesOf(called), frame);
-                        }
-                    }
-
-                    break;
-
-                case ObjectInitializerAssignment { Add: { } add } element:
-                    Record(element.Node, element.Value, add, ContextBinding.TypesOf(add), frame);
-                    break;
-            }
-
-            foreach(var child in BodyWalker.ChildrenOf(node).Reverse())
-            {
-                pending.Push((child, frame));
-            }
-        }
-    }
-
-    private static IEnumerable<(Constructor From, Constructor Chained, IReadOnlyList<IMistType> Keys)> Chains(ConcreteType type)
-    {
-        var throughBase = TypeSubstitution.ForReceiver(type.BaseType as ConstructedType);
-
-        foreach(var constructor in type.ConstructorsList)
-        {
-            if(!constructor.Modifiers.IsStatic && PurityJudge.ChainedOf(constructor) is Constructor chained)
-            {
-                var closing = constructor.ChainKind == ConstructorChainKind.This ? TypeSubstitution.Empty : throughBase;
-
-                yield return (constructor, chained, ContextBinding.TypesOf(chained, key => closing.Apply(key, interner: null)));
-            }
-        }
-    }
-
-    private void Record(SyntaxNode? node, Expression? about, Method callee, IReadOnlyList<IMistType> keys, Frame frame)
+    private void Record(SyntaxNode? node, Expression? about, object callee, IReadOnlyList<IMistType> keys, Frame frame)
     {
         var site = new ContextSite(node, about, Declared(callee), keys, frame.Within, frame.Held, frame.Home);
 
@@ -273,9 +223,9 @@ internal sealed class ContextCalls
         sites.Add(site);
     }
 
-    private static Method Declared(Method method)
+    private static object Declared(object callable)
     {
-        return method.SourceDeclaration ?? method;
+        return callable is Method { SourceDeclaration: { } declared } ? declared : callable;
     }
 
     private static ContextHeld? HeldBy(Method? member)
@@ -290,13 +240,13 @@ internal sealed class ContextCalls
         return held;
     }
 
-    private sealed record Frame(Method? Within, ContextHeld? Held, object Home);
+    private sealed record Frame(object? Within, ContextHeld? Held, object Home);
 }
 
 internal sealed record ContextHeld(IMistType Key, ContextHeld? Outer);
 
 internal sealed record ContextSite(
-    SyntaxNode? Node, Expression? About, Method Callee, IReadOnlyList<IMistType> Keys, Method? Within, ContextHeld? Held, object Home)
+    SyntaxNode? Node, Expression? About, object Callee, IReadOnlyList<IMistType> Keys, object? Within, ContextHeld? Held, object Home)
 {
     public bool Holds(IMistType key)
     {

@@ -35,7 +35,7 @@ internal sealed class ContextAnalyzer : IProgramAnalyzer
 
         JudgeDeclarations(context);
 
-        if(context.Nodes.Any(ContextCalls.Owes) || context.Types.Any(ContextCalls.Owes))
+        if(context.Nodes.Any(ContextCalls.Owes) || context.Types.Any(ContextCalls.Owes) || ContextCalls.OwesADrop(context.Program))
         {
             JudgeAvailability(context);
         }
@@ -156,7 +156,7 @@ internal sealed class ContextAnalyzer : IProgramAnalyzer
 
         foreach(var site in calls.Sites)
         {
-            if(site.Node is null || !judged.Contains(site.Home))
+            if(site.Node is null || site.Callee is not Method callee || !judged.Contains(site.Home))
             {
                 continue;
             }
@@ -172,7 +172,7 @@ internal sealed class ContextAnalyzer : IProgramAnalyzer
 
                 context.Report(
                     ProgramAnalysisDiagnostics.MissingContext, site.Node, site.About is null ? [] : [site.About],
-                    Kind(site.Callee), site.Callee.Name, TypeDisplay.Mist(key), (exposed.Node is null ? site : exposed).Location());
+                    Kind(callee), callee.Name, TypeDisplay.Mist(key), (exposed.Node is null ? site : exposed).Location());
             }
         }
     }

@@ -18,7 +18,7 @@ namespace Mist.Tests.Helpers;
 /// judges is who runs a body and what is ambient there. The node a refusal should land on sits at
 /// <see cref="Site"/>, and the call the entry point makes at <see cref="Outer"/>.
 /// </summary>
-internal sealed class StructuredContextFragments
+internal sealed partial class StructuredContextFragments
 {
     public const int Site = 37;
     public const int Outer = 53;
@@ -58,10 +58,13 @@ internal sealed class StructuredContextFragments
             _ when name.StartsWith("generic-", StringComparison.Ordinal) => Generics(name),
             _ when name.StartsWith("scope-", StringComparison.Ordinal) => Scopes(name),
             _ when name.StartsWith("implicit-", StringComparison.Ordinal) => Implicit(name),
+            _ when name.StartsWith("accessor-", StringComparison.Ordinal) => Accessors(name),
+            _ when name.StartsWith("indexer-", StringComparison.Ordinal) => Indexers(name),
+            _ when name.StartsWith("operator-", StringComparison.Ordinal) || name.StartsWith("conversion-", StringComparison.Ordinal) => Operators(name),
+            _ when name.StartsWith("drop-", StringComparison.Ordinal) => Drops(name),
+            _ when name.StartsWith("dispose-", StringComparison.Ordinal) || name.StartsWith("loop-", StringComparison.Ordinal) => Disposals(name),
             "initializer-of-an-instance-field" => Initializer(Public),
             "initializer-of-a-static-field" => Initializer(Static),
-            "accessor-body" => Unasked(operatorBody: false),
-            "operator-body" => Unasked(operatorBody: true),
             "anonymous-key" => AnonymousKey(),
             _ => throw new ArgumentOutOfRangeException(nameof(name)),
         };
@@ -353,16 +356,6 @@ internal sealed class StructuredContextFragments
             "implicit-add-under-a-context" => [Under(text, Run(filled))],
             _ => throw new ArgumentOutOfRangeException(nameof(name)),
         });
-
-        return Judge();
-    }
-
-    private IReadOnlyList<Diagnostic> Unasked(bool operatorBody)
-    {
-        var body = HandBuiltModel.Block(Run(Call(read, Site)));
-        var shown = new Property("Shown", text, Public) { DeclaringType = probe, Getter = new PropertyAccessor { Body = body } };
-        var plus = new Operator(OperatorKind.Plus, text, [], Static) { DeclaringType = probe, Body = body };
-        bodies.Add(new SourceRoot(body, probe, MistAssembly.Synthetic, operatorBody ? plus : shown));
 
         return Judge();
     }

@@ -20,13 +20,12 @@ public sealed class StructuredContextRefusalTests
     [InlineData("value-method-named-with-no-context")]
     [InlineData("generic-key-closed-by-the-call-with-no-context")]
     [InlineData("generic-key-in-a-transparent-method")]
-    [InlineData("accessor-body")]
-    [InlineData("operator-body")]
     [InlineData("initializer-of-a-static-field")]
     [InlineData("slot-of-the-runtime-answered-transparently")]
     [InlineData("implicit-enumerator-with-no-context")]
     [InlineData("implicit-move-next-with-no-context")]
     [InlineData("implicit-add-with-no-context")]
+    [InlineData("drop-owed-a-key-at-a-locals-exit")]
     public void ACallOwedAContextNothingHoldsIsRefusedWhereItIsWritten(string caseName)
     {
         var diagnostic = Assert.Single(new StructuredContextFragments().Analyze(caseName));
@@ -44,6 +43,28 @@ public sealed class StructuredContextRefusalTests
     [InlineData("value-local-function-called-bare")]
     [InlineData("constructor-chain-reached-bare")]
     [InlineData("scope-judged-alone-with-a-bare-caller-outside")]
+    [InlineData("accessor-read-bare")]
+    [InlineData("accessor-read-back-by-a-coalescing-assignment-bare")]
+    [InlineData("accessor-written-bare")]
+    [InlineData("accessor-written-by-an-object-initializer-bare")]
+    [InlineData("accessor-read-by-a-property-pattern-bare")]
+    [InlineData("accessor-through-a-slot-reached-bare")]
+    [InlineData("accessor-of-an-extension-block-reached-bare")]
+    [InlineData("indexer-read-bare")]
+    [InlineData("indexer-read-by-a-list-pattern-bare")]
+    [InlineData("indexer-written-bare")]
+    [InlineData("operator-applied-bare")]
+    [InlineData("operator-unary-applied-bare")]
+    [InlineData("conversion-cast-bare")]
+    [InlineData("conversion-implicit-bare")]
+    [InlineData("drop-of-a-local-reached-bare")]
+    [InlineData("drop-of-a-local-after-a-later-with")]
+    [InlineData("drop-of-a-with-blocks-value-is-after-its-pop")]
+    [InlineData("drop-of-a-parameter-reached-bare")]
+    [InlineData("drop-of-a-field-in-a-drop-body-reached-bare")]
+    [InlineData("dispose-called-bare")]
+    [InlineData("loop-current-read-bare")]
+    [InlineData("loop-enumerator-disposed-bare")]
     public void ACallReachedWithNoContextIsRefusedWhereItIsWrittenAndNamesTheCallThatReachesIt(string caseName)
     {
         var diagnostic = Assert.Single(new StructuredContextFragments().Analyze(caseName));
@@ -79,17 +100,39 @@ public sealed class StructuredContextRefusalTests
     [InlineData("runtime-called-ToString")]
     [InlineData("implicit-enumerator-under-a-context")]
     [InlineData("implicit-add-under-a-context")]
+    [InlineData("accessor-read-under-a-context")]
+    [InlineData("accessor-nothing-reads")]
+    [InlineData("accessor-only-written-leaves-the-getter-unread")]
+    [InlineData("accessor-written-under-a-context")]
+    [InlineData("accessor-written-by-an-object-initializer-under-a-context")]
+    [InlineData("accessor-read-by-a-property-pattern-under-a-context")]
+    [InlineData("accessor-through-a-slot-under-a-context")]
+    [InlineData("accessor-of-an-extension-block-under-a-context")]
+    [InlineData("indexer-read-under-a-context")]
+    [InlineData("indexer-read-by-a-list-pattern-under-a-context")]
+    [InlineData("indexer-written-under-a-context")]
+    [InlineData("operator-applied-under-a-context")]
+    [InlineData("operator-unary-applied-under-a-context")]
+    [InlineData("operator-nothing-applies")]
+    [InlineData("conversion-cast-under-a-context")]
+    [InlineData("conversion-implicit-under-a-context")]
+    [InlineData("drop-of-a-local-under-a-context")]
+    [InlineData("drop-of-a-with-blocks-value-under-an-outer-context")]
+    [InlineData("drop-of-a-parameter-under-a-context")]
+    [InlineData("drop-of-a-field-in-a-drop-body-under-a-context")]
+    [InlineData("drop-called-explicitly-under-a-context")]
+    [InlineData("dispose-called-under-a-context")]
+    [InlineData("loop-current-read-under-a-context")]
+    [InlineData("loop-enumerator-disposed-under-a-context")]
     public void ACallWhoseContextIsHeldWhereverItRunsIsAdmitted(string caseName)
     {
         Assert.Empty(new StructuredContextFragments().Analyze(caseName));
     }
 
-    [Theory]
-    [InlineData("Drop")]
-    [InlineData("Clone")]
-    public void AMemberTheLanguageRunsWithNoCallWrittenHasNoCallerToHoldAContextForIt(string member)
+    [Fact]
+    public void ACloneTheLanguageRunsWithNoCallWrittenHasNoCallerToHoldAContextForIt()
     {
-        var diagnostic = Assert.Single(new StructuredContextFragments().Analyze($"runtime-called-{member}"));
+        var diagnostic = Assert.Single(new StructuredContextFragments().Analyze("runtime-called-Clone"));
 
         Assert.Equal("MIST_CTX_0001", diagnostic.Id.Value);
         Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Location.Start.Column);

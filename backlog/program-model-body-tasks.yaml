@@ -381,7 +381,7 @@ expressions:
     - [x] hex literal / binary literal (same reader, same typing) -- 2026-09-27. Hex was hardcoded to Int32 and ignored its suffix; binary had no case in BindPrimary
     - [x] float literal -> type from suffix (double / float / decimal), separators ignored, parsed culture-invariantly -- a literal no type holds is MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE, as an integer past ulong is
     - [x] string literal -> string -- NOTE: only the outer quotes are stripped; escape sequences stay raw in the constant value
-    - [x] char literal -> char -- same escape caveat: `'\n'` yields the backslash
+    - [x] char literal -> char -- CharacterLiterals.Decode (2026-10-03) reads the grammar's seven escapes as values in both expressions and dependent type arguments; invalid direct lexemes throw FormatException. Pattern, enum and refinement paths share the expression value. Tier 1-2 cases pin the values and C# emitter spelling
     - [ ] regex literal -> regex -- no case in BindPrimary -> UnresolvedExpression. The regex TYPE keyword does resolve (ScopeResolver.ResolveReservedAlias); only the literal is missing
     - [x] true / false -> bool
     - [x] interpolated string -> string (bind each ExpressionPart; TextPart is literal)

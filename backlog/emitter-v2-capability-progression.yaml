@@ -9457,16 +9457,29 @@ capabilities:
 
       DELIVERED: samples/Variadics runs on v2 with output identical to classic, and is banked in
       AllFeaturesV2.
+
+      CLOSED 2026-10-03, A WHOLE-PACK CONSTRAINT THAT NAMES ITS PACK EMITS. Measured 2026-09-25 and again
+      on 34be2ddc: `class Row<params Ts> where Ts : IRank<Ts>` closed as `Row<Score, Score>`, Score being
+      `IRank<Score>`, failed Roslyn -- `Row_2<T1, T2>` declared `where T1 : IRank<Ts>` and `where T2 :
+      IRank<Ts>`, Ts in scope nowhere (CS0246, then CS0311 at the construction), because Monomorph.For
+      copied the pack's ConstraintsList onto every element unchanged. Each element's clause now names
+      that element where the clause names the pack, `where T1 : IRank<T1>`, read through the same
+      TypeSubstitution.With analysis order 6 judges a closing with (variadics Requirement 11.1), so the
+      two cannot disagree about which occurrence is the element: the bare name and every nested one
+      (`IRank<Box<T1>>`) are, while a spread of the pack is the whole expansion (`IAll<(T1, T2)>`) and an
+      index into it stays the pack's. A probe declaring `Row<params Ts> where Ts : IRank<Ts>, INamed` at
+      widths zero, one and two, `Keys<K, params Vs> where Vs : IKeyed<K>, IRank<Vs>`, `Nest<params Ts>
+      where Ts : IRank<Box<Ts>>`, `Tab<params Ts> where Ts : IAll<(Ts...)>` and the method axis,
+      `Count<params Ts>(params Ts args) where Ts : IRank<Ts>` emitted `Count_2<T1, T2>`, builds and
+      runs; an ordinary sibling alone, the control, emitted the same before and after; and `Row<Score,
+      Grade>` and `Tab<Score, Grade>` are still refused at the source. Constraint policy is untouched:
+      only what a specialization WRITES changed, and the pack's own clause in the model is left as
+      written. PROVED BY PackConstraintEmissionTests (Tier 1, eight cases over a hand-built pack: self,
+      nested, spread, sibling, several with a keyword, empty width, a second pack, and the model's clause
+      left as it was) and PackConstraintOwnerEmissionTests (Tier 3, a type at widths one and two, the
+      sibling control and a method owner). Mutation: copying the clauses unchanged again fails seven of
+      the twelve.
     tasks:
-      - >
-        A WHOLE-PACK CONSTRAINT THAT NAMES ITS PACK DOES NOT EMIT. Measured 2026-09-25: `class Row<params
-        Ts> where Ts : IRank<Ts>` closed as `Row<Score, Score>`, Score being `IRank<Score>`, fails Roslyn
-        -- the specialization is emitted `Row_2<T1, T2>` with `where T1 : IRank<Ts>` and `where T2 :
-        IRank<Ts>`, `Ts` in scope nowhere (CS0246, then CS0311 at the construction). Each element's clause
-        wants the pack replaced by that element, `where T1 : IRank<T1>`, which is how analysis order 6
-        reads it (variadics Requirement 11.1, each element on its own) since 2026-09-25: it admits that
-        closing and refuses `Row<Score, Grade>` against 'IRank<Grade>'. A constraint naming a sibling,
-        `Keys<K, params Vs> where Vs : IKeyed<K>`, already emits and runs.
       - >
         Emit a variadic declaration once per instantiation when it holds a union over a pack element.
         `TArgs[1]?`, `TArgs[0] | string` and `Box<TArgs[1]>` over a `T?` are refused by the backend

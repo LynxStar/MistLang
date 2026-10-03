@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -113,8 +114,10 @@ internal sealed class Monomorph
 
                 // A constraint on the pack is a constraint on every element -- what makes a
                 // constrained member callable on each of them -- and C# has only per-parameter
-                // constraints to say that with, so the one clause becomes N.
-                parameter.ConstraintsList.AddRange(packs[i].ConstraintsList);
+                // constraints to say that with, so the one clause becomes N, each naming its own
+                // element where the clause names the pack: `IRank<Ts>` is `IRank<T1>` for T1.
+                var self = TypeSubstitution.Empty.With(packs[i], parameter);
+                parameter.ConstraintsList.AddRange(packs[i].ConstraintsList.Select(constraint => ForElement(constraint, self)));
                 expansion.Add(parameter);
             }
 
@@ -122,6 +125,17 @@ internal sealed class Monomorph
         }
 
         return new Monomorph(packs, expansions);
+    }
+
+    private static TypeParameterConstraint ForElement(TypeParameterConstraint constraint, TypeSubstitution element)
+    {
+        return constraint switch
+        {
+            TypeConstraint typed => new TypeConstraint(element.Apply(typed.ConstraintType, interner: null)),
+            ConstructorConstraint constructor => new ConstructorConstraint(
+                [.. constructor.ParameterTypes.Select(type => element.Apply(type, interner: null))]),
+            _ => constraint,
+        };
     }
 
     public IDisposable Enter()

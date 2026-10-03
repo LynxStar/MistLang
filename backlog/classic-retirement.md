@@ -288,7 +288,8 @@ Found while closing the gaps, each measured, none established as something class
   defect. No replacement Capacity task or provider closeout is inferred from that probe.
 - **Variadics**: a spread-typed parameter `M(TArgs... x)` and a spread into a non-pack slot
   `List<TArgs...>` reach Roslyn; a variadic method inside a variadic type, or in an extension block,
-  is not specialized; `if (TArgs is Type[2] narrowed)` (6.7); `where Ts : IRank<Ts>` on a pack;
+  is not specialized; `if (TArgs is Type[2] narrowed)` (6.7); `where Ts : IRank<Ts>` on a pack --
+  closed 2026-10-03, each element's clause naming its element (emitter order 153);
   `Buffer<true>` over `Buffer<Size:int>`; a newtype over a tuple; `: this(args...)` and
   `: base(args...)`; a base-list spread `: TBases...` (9.3).
 - **Generics, the same with and without packs**: an unconstrained type parameter forwarded into a

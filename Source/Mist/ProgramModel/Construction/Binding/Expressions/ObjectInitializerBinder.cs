@@ -142,7 +142,7 @@ internal static class ObjectInitializerBinder
     private static void ReportNotStorage(
         LookupResult found, IMistType type, string memberName, SyntaxNode node, BuilderContext context)
     {
-        if(found is MethodGroupResult or TypeResult or EnumMemberResult)
+        if(found is MethodGroupResult or TypeResult)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.InitializerTargetNotAssignable, node, null, type.Name, memberName);
         }

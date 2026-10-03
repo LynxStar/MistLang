@@ -2021,6 +2021,50 @@ rules:
       corpus cases held after the rebase onto main, and the full suite -- 7473, 708 and 68 tests,
       AllFeaturesV2's baseline and RefusalCorpusTest among them -- passed with no failure and no rerun; the
       build and `dotnet format` were clean.
+
+      OPEN FORWARDING, 2026-10-02 to 2026-10-03, from main 75d8816d, closing the Generics entry in
+      backlog/classic-retirement.md that recorded an unconstrained type parameter forwarded into a
+      constrained one as not refused. ConstraintAnalyzer now consumes every recorded open closing, not
+      only the stampable ones, and judges an argument that is itself a type parameter through
+      ConstraintEntailment: what the forwarded parameter DECLARES must entail what the closed parameter
+      requires, after the closing's substitution, reported at the node that forwards it. A type
+      constraint is entailed by a declared bound that is the required type, a bound whose bases reach
+      it (a constructed bound substituted through its own arguments first), or a bound that is a
+      parameter whose bounds do, the walk cut at a parameter already entered and at depth 64. A keyword
+      is entailed only by the same declared keyword under the closed lattice (linear is affine and
+      relevant; stampable is struct); a keyword on a bounding parameter is not inherited, because a
+      type bound may be met through an implicit conversion and promises no shape. Stampable and
+      default keep the direct rule Decide already held (stampability 3: no entailment through
+      `where U : T`). Identity is canonical, not nominal: a parameter by reference, a construction by
+      definition and arguments, so two parameters both named `B` are told apart. A failed type on
+      either side -- the requirement, a sibling it names, or a bound the argument declares -- is
+      silent, as the closed judgment is.
+
+      CONSTRUCTOR CONSTRAINTS ARE CONJUNCTIVE, decided 2026-10-02: `where T : new(), new(int)` demands
+      both of every closing, since the body may call either (generic-constraints 6.5,
+      samples/GenericConstraints MultiFactory) and a disjunction would leave the body unable to know
+      which it has. The closed path had always judged them so; the open path requires each signature
+      to be declared on the forwarded parameter, or `struct` where it is parameterless, and `struct`
+      does not entail `new(int)`. The spec's introduction, glossary, 3.8 and 5.9, with the design and
+      tasks lines that echoed them, said "at least one" and were corrected to match 6.5.
+
+      NOT JUDGED, deliberately: a pack forwarded whole, a pack parameter closed by one, and a pack
+      element (`TArgs[0]`) keep the previous behaviour, stampable alone; the whole-pack
+      `where Ts : IRank<Ts>` entry in classic-retirement stands. Closed closings are unchanged.
+
+      MEASURED: Tier 1 ConstraintEntailmentTests, 51 rows over the keyword lattice, nominal, base and
+      constructed bounds, parameter chains, a mutual cycle, same-name siblings, conjunctive constructor
+      signatures, substituted signatures and failed inputs; Tier 2 ConstraintForwardingSiteTests, 5
+      rows: one refusal at the forwarding node (column 56 of hand-built.mist), a two-step chain admitted
+      at a type and a method site, stampable forwarding judged once (1 finding for struct, 0 for
+      stampable), a whole pack judged for stampable alone. Three mutants on confirmed builds: open
+      checking bypassed in the analyzer (ledger 20261002-224721) fails exactly the Tier 2 refusal,
+      320/321; the helper made always-entailed (ledger 20261002-224842) fails 21 negative rows with
+      every positive row green; struct made to imply every constructor signature (ledger
+      20261002-230919) fails exactly the two struct rows, 320/322. Full ledger 20261002-230944:
+      8815/8815 (7852 Mist, 812 Storm, 46 Storm consumer, 105 CLI), zero build warnings, dotnet format
+      verify clean. ConstraintRefusalTests and ConstraintClosingSiteTests unchanged and green; no
+      banked sample is refused.
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
@@ -2279,7 +2323,7 @@ rules:
           type and records no optional or params parameter, so it cannot show that nothing is callable with
           nothing; Roslyn stays the judge. samples/Attributes' `ParamTagAttribute : Attribute`, whose
           constructor writes no chain, is silent.
-        - A derived struct, below.
+        - At that checkpoint, a derived struct; closed separately below on 2026-10-03.
         Tests: ImplicitChainsTests (Tier 1, 22 cases) and BaseConstructorRefusalTests (Tier 2, 9, over
         hand-built types). DeclarationShapeDecisionTests' silence list gained the id. Mutations, each built
         clean and run over those 31 cases:
@@ -2289,14 +2333,28 @@ rules:
         - Judging explicit chains failed the 3 chain rows.
         Ledger 20261001-203136 passed 11,437 of 11,437, both sample baselines included, with zero warnings
         and dotnet format clean. No banked sample is refused.
+        HISTORICAL OPEN FINDING (2026-10-01): A derived struct had the same hole, silently. `struct
+        Dial : Meter` with `public Dial(int face) { ... }` over a struct whose only constructor was
+        `Meter(int)`: classic reported MIST_STRUCT_BASE_CTOR_REQUIRED (struct-inheritance 7.4), while
+        v2 compiled it and printed `0 3`. Over a base with `Meter()`, v2 printed `0 3` where classic
+        printed `7 3`. ImplicitChains already answered the missing-call decision, but StructInitEmitter
+        lowered only a written chain. The emission finding is retained in backlog/general.md.
+        DONE 2026-10-03: A DERIVED STRUCT'S IMPLICIT BASE CHAIN. StructInitEmitter calls the accessible
+        initializer ImplicitChains.Of selects before the derived body, including through a three-level
+        flattened chain. A selected single-params array overload is pinned even when an inaccessible
+        parameterless overload is also emitted; a constructed generic base's parameter type is substituted
+        in that call. Explicit this/base delegation does not add a second ancestor call. When no accessible
+        zero-argument target exists, ImplicitChains.UnsatisfiedStructBase makes DeclarationShapeAnalyzer
+        report MIST_STRUCT_BASE_CTOR_REQUIRED at the unchained derived constructor; class refusal and
+        defaultability remain separate. The Meter()/Dial(3) probe prints `7 3`, and Meter(int) alone is
+        refused with that id instead of printing `0 3` (backlog/general.md). StructImplicitChainsTests
+        (Tier 1), StructBaseConstructorRefusalTests (Tier 2), and StructImplicitBaseEmissionTests (Tier 2)
+        hold the decision, diagnostic, emitted order and controls over hand-built model input. Removing
+        the call and reversing the refusal condition failed the three targeted mutation cases; the
+        restored focused ledger passed 31/31. After merging main at 61facc87, full ledger
+        20261003-010746 passed 8,892/8,892 with zero build warnings; dotnet format Mist.slnx
+        --verify-no-changes passed.
         Left open:
-        - A DERIVED STRUCT HAS THE SAME HOLE, and it is silent. `struct Dial : Meter` with
-          `public Dial(int face) { ... }` over a struct whose only constructor is `Meter(int)`: classic
-          reports MIST_STRUCT_BASE_CTOR_REQUIRED (struct-inheritance 7.4); v2 compiles it and prints `0 3`.
-          ImplicitChains already answers it; it needs its own descriptor at the same constructor, which was
-          outside this change. Over a base with `Meter()`, v2 prints `0 3` where classic prints `7 3`:
-          StructInitEmitter lowers only a written chain, so the base constructor never runs. That is
-          emission, filed in backlog/general.md.
         - An explicit `: base()` to a private base constructor is judged by nothing. AccessibilityAnalyzer
           reads `new` only, and both pipelines leak CS0122 as MIST_CS_ERROR, measured.
         - A single value-pack params parameter counts as callable with nothing, whatever its pack holds.
@@ -2879,7 +2937,9 @@ rules:
         its return (OperatorAdmissibility.UnaryResultType) and any other is typed as its operand, so `-`
         on a class declaring none binds and reaches Roslyn. Refusing it needs the numeric promotions the
         stdlib does not declare -- Byte, UInt16, UInt32, UInt64 and Char have no unary `-` -- to be
-        admitted first.
+        admitted first. `!` is not judged either. Measured on v2 at 849b34b9: `var r = !b;` over a class
+        declaring no `!` binds as the class and reaches Roslyn as MIST_CS_ERROR ("Operator '!' cannot
+        be applied"), as `var r = -b;` does.
       - >
         A user operator is found on either operand's own type and its base chain, not through
         conformances or extensions.

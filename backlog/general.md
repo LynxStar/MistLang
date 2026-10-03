@@ -1060,6 +1060,22 @@ back between quotes unescaped.
 `LiftCharLiteral` share, and emit a `char` escaped (`\uXXXX`, as `DependentCarrierNames` already spells
 one). Pin the value at Tier 2 in each position and the emitted text at Tier 3.
 
+**Closed on v2 (2026-10-03):** `CharacterLiterals.Decode` gives expression and dependent-argument
+binding the same character for every grammar escape, rejecting malformed direct lexemes instead of
+substituting NUL. Pattern constants and enum values consume the expression binder's decoded value;
+refinement comparisons bind `\t` as 9. `BodyEmitter.EmitLiteral` keeps safe printable ASCII readable
+and reuses `DependentCarrierNames.Literal` for quotes, backslash, controls and non-ASCII characters.
+The carrier name remains based on the character value: newline is `Const_Char_0x000a`, distinct from
+backslash's `Const_Char_0x005c`. `CharacterLiteralValueTests` covers all seven escapes at Tier 1;
+`CharacterLiteralBindingTests` covers expressions, lifted arguments, patterns, refinement bounds and
+enum values at Tier 2; `LiteralEmissionTests` and `DependentCarrierNameTests` cover C# spelling and
+identity at Tier 1. Focused ledger: 91/91. Unfiltered ledger after rebasing onto main
+(`TestResults/ledger/20261003-012304`): 8,940/8,940, zero build warnings;
+`dotnet format Mist.slnx --verify-no-changes` passed. On this macOS host the full-system sample
+stalled during ASP.NET configuration reload with the default environment; the unfiltered ledger
+passed with `DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false`. No character grammar, string literal or
+regex behavior was changed.
+
 ## A binary literal in an expression is not bound
 
 **Closed on v2 (2026-09-27):** `ExpressionBinder` binds hex and binary literals through the decimal path,
@@ -1383,7 +1399,11 @@ dotnet format Mist.slnx --verify-no-changes --report TestResults/sdk-cache-forma
 
 ---
 
-## 🔴 v2 never runs a base struct's constructor for a derived struct constructor that writes no chain
+## 🟢 v2 never runs a base struct's constructor for a derived struct constructor that writes no chain
+
+**Closed (2026-10-03):** An unchained derived struct constructor now calls the accessible base initializer selected by `ImplicitChains.Of` before its own body; delegation through three levels and explicit `this`/`base` chains runs each ancestor initializer once. `DeclarationShapeAnalyzer` reports `MIST_STRUCT_BASE_CTOR_REQUIRED` at the derived constructor when no zero-argument chain is accessible. The original `Meter()` / `Dial(3)` probe now prints `7 3`; replacing `Meter()` with only `Meter(int reading)` reports that Mist diagnostic instead of compiling to `0 3`.
+
+`StructImplicitBaseEmissionTests` (Tier 2), `StructImplicitChainsTests` (Tier 1), and `StructBaseConstructorRefusalTests` (Tier 2) cover the emitted order, three-level and explicit chains, selected `params` overload, generic substitution, constructorless bases, accessibility, static constructors and class isolation. Removing the implicit call and reversing the refusal condition made the three targeted mutation cases fail; restoring them passed the focused ledger, 31/31. After merging main at `61facc87`, the full ledger `20261003-010746` passed 8,892/8,892 with zero build warnings, and `dotnet format Mist.slnx --verify-no-changes` passed. This closes the implicit-chain and missing-chain issue recorded below. Explicit `: base()` accessibility and value-pack `params` specialization remain separate, unmeasured gaps in the analysis register.
 
 **Severity: critical** -- a silent wrong result. The program compiles and prints a value that differs from classic's.
 
@@ -1518,7 +1538,7 @@ signatures; pin the two admitted forms and the refusal beside the conformance ru
 
 ## 🟡 Two refusals reach Roslyn instead of the frontend
 
-**Closed (2026-10-02):** an undefined `[global_usings]` namespace is the warning `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE`, once per project and name, and is withdrawn from the scope and the emitted usings so the build continues; an explicit `using` of one is the error `MIST_UNDEFINED_NAMESPACE` at the directive (`UsingValidation`). A call on a value whose type is not a function or delegate is `MIST_PM_NOT_CALLABLE` at the call, naming the namespace when an extension method of that name exists unimported; a union-typed callee is refused before narrowing, and an optional `func?` called un-narrowed is left as it was. Still open: a `using` of a namespace that holds only type aliases reaches Roslyn, because the emitter writes a using for a namespace it emits nothing into.
+**Closed (2026-10-02):** an undefined `[global_usings]` namespace is the warning `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE`, once per project and name, and is withdrawn from the scope and the emitted usings so the build continues; an explicit `using` of one is the error `MIST_UNDEFINED_NAMESPACE` at the directive (`UsingValidation`). A call on a value whose type is not a function or delegate is `MIST_PM_NOT_CALLABLE` at the call, naming the namespace when an extension method of that name exists unimported; a union-typed callee is refused before narrowing, and an optional `func?` called un-narrowed is left as it was. The last part closed 2026-10-03 (`7705ba3a`): a `using` of a namespace that holds only type aliases reached Roslyn, because the emitter wrote a using for a namespace it emits nothing into; the emitter now writes a using only for a namespace the C# compilation declares (`UsingSelection`; recorded under Usings in `backlog/classic-retirement.md`).
 
 **Severity: medium** -- the build fails, but with `MIST_CS_ERROR` over generated C#. Found 2026-10-01
 while retiring classic, which reported both itself.

@@ -59,7 +59,7 @@ This plan implements generic constraints (`where` clauses) for the Mist programm
   - [x] 4.1 Create `TypeParameterConstraints` class in `Source/Mist/Semantics/Model/Types/`
     - Create new file `TypeParameterConstraints.cs`
     - Implement `HasClassConstraint`, `HasStructConstraint`, `BaseClassConstraint`, `InterfaceConstraints`, `TraitConstraints`, `ConstructorConstraints` properties
-    - `ConstructorConstraints` stores `IReadOnlyList<IReadOnlyList<IType>>` with OR semantics
+    - `ConstructorConstraints` stores `IReadOnlyList<IReadOnlyList<IType>>`, every signature required
     - _Requirements: 3.1, 3.5, 3.6, 3.7, 3.8_
 
   - [x] 4.2 Extend `TypeParameterType` in `Source/Mist/Semantics/Model/Types/TypeParameterType.cs`
@@ -110,7 +110,7 @@ This plan implements generic constraints (`where` clauses) for the Mist programm
     - Check base class constraint: type argument derives from base class
     - Check interface constraints: type argument implements each interface
     - Check trait constraints: type argument satisfies each trait
-    - Check constructor constraints (OR semantics): type argument has at least one matching public constructor
+    - Check constructor constraints (conjunctive): type argument has a matching public constructor for every declared signature
     - Emit diagnostics `MIST_CONSTRAINT_0009` through `MIST_CONSTRAINT_0015` as appropriate
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7_
 
@@ -154,7 +154,7 @@ This plan implements generic constraints (`where` clauses) for the Mist programm
 
   - [x] 6.8 Write unit tests for type checker constraint diagnostics
     - Test each diagnostic message format (MIST_CONSTRAINT_0009 through MIST_CONSTRAINT_0017)
-    - Test OR semantics for multiple constructor constraints
+    - Test that multiple constructor constraints each require a matching constructor
     - Test constraint satisfaction for generic method invocations
     - Test constraint propagation error cases
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8_

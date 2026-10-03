@@ -15,14 +15,4 @@ internal class TopLevelService
     {
         return counter;
     }
-
-    private TopLevelService(Mist.Emission.CSharp.__DefaultInit marker)
-    {
-        this.counter = default(int);
-    }
-
-    public static TopLevelService __CreateDefault()
-    {
-        return new TopLevelService(default(Mist.Emission.CSharp.__DefaultInit));
-    }
 }

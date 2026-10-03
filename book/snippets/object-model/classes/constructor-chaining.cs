@@ -16,15 +16,4 @@ public class Point
     public Point() : this(0, 0)
     {
     }
-
-    private Point(Mist.Emission.CSharp.__DefaultInit marker)
-    {
-        this.x = default(int);
-        this.y = default(int);
-    }
-
-    public static Point __CreateDefault()
-    {
-        return new Point(default(Mist.Emission.CSharp.__DefaultInit));
-    }
 }

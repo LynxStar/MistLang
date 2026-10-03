@@ -242,9 +242,17 @@ Found while closing the gaps, each measured, none established as something class
   getter or constructor body is emitted where C# refuses it; the `async` functor's lift lambda is not
   async; a promoted method used as a method group has the wrong return type; promotion does not reach
   an abstract slot; `some?.M()` on a promoted `M`.
-- **Usings**: a `using` of a namespace holding only type aliases reaches Roslyn (the emitter writes a
-  using for a namespace it emits nothing into); a namespace holding only `with` declarations is never
-  registered, so a `using` of it is now `MIST_UNDEFINED_NAMESPACE`.
+- **Usings** -- closed 2026-10-03 (`7705ba3a`): a `using` of a namespace holding only type aliases
+  reached Roslyn (the emitter wrote a using for a namespace it emits nothing into); a namespace holding
+  only `with` declarations was never registered, so a `using` of it was `MIST_UNDEFINED_NAMESPACE`.
+  `TypeBuilder` now registers a `with` declaration's namespace where it stashes it, as it did an
+  extension block's, and `NamespaceBuilder` registers a block nested in a file-scoped namespace, which
+  it skipped (`namespace Outer; namespace Empty { }` made `using Outer.Empty;` undefined).
+  `UsingSelection` keeps an emitted using, explicit, global or synthesized for top-level statements,
+  only for a namespace the C# compilation declares: one an emitted declaration, an extension block, a
+  CLR assembly or the Void stand-in sits in, or one enclosing it. A namespace nothing declares is still
+  `MIST_UNDEFINED_NAMESPACE`. Unchanged: a conformance is active whether or not its namespace is
+  imported (emitter order 73).
 - **CLR binding**: `System.Func<int, int>` written fully qualified does not resolve;
   `numbers.Select(n => n * 2)` is `MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED` and `numbers.Where(n => n > 1)`
   `MIST_PM_UNRESOLVABLE_OVERLOAD`; `List<int>.Capacity` is not found; a CLR delegate call is typed as
@@ -255,12 +263,29 @@ Found while closing the gaps, each measured, none established as something class
   `Buffer<true>` over `Buffer<Size:int>`; a newtype over a tuple; `: this(args...)` and
   `: base(args...)`; a base-list spread `: TBases...` (9.3).
 - **Generics, the same with and without packs**: an unconstrained type parameter forwarded into a
-  constrained one is not refused; `where T : default` on a class's type parameter does not emit;
+  constrained one is refused at the forwarding site since 2026-10-03 (ConstraintEntailment, analysis
+  register order 6), except that a pack or pack element forwarded is still judged for stampable alone;
+  `where T : default` on a class's type parameter does not emit;
   an implicit `new Box<Widget>()` over a constructorless generic uses C#'s `default(T)` where
   `default(Box<Widget>)` uses Widget's own default; `default(T)` on an unconstrained parameter is
   refused by the backend and not by Stage 5.
 - **Modifiers**: `async`, `static`, `readonly`, `owned`, `affine` on an enum, alias, newtype or class
-  are dropped silently; `ref` on an operator reaches Roslyn.
+  were dropped silently, and `ref` on an operator reached Roslyn. Audited against the specs on
+  2026-10-03 and closed where a spec decides (`b199134c`): `async` on an enum, alias, newtype, class,
+  struct or abstract is `MIST_PM_ASYNC_NOT_ALLOWED` (structured-concurrency 2.3, read as the member
+  builders already read it), and `ref` on an operator, `readonly ref` included, is
+  `MIST_PM_REF_ON_OPERATOR` (standard-library 4.2; ref-parameters 4.1 gives ref returns to methods
+  only). Both come from `DeclarationModifierPlacement`, called by `ModifierBuilder.Build`, pinned by
+  `DeclarationModifierPlacementTests` (Tier 1) and `ModifierPlacementBuildTests` (Tier 2); full ledger
+  `20261003-005944`, 7,851 / 105 / 812 / 46, all passed. `readonly`, `owned` and `affine` on a class
+  or struct, and `readonly` on an enum, were valid and already held. Still dropped, and decided by
+  no spec: `static` on any type (nested-scoping 1.7 admits it on a nested type with no meaning),
+  `owned` and `affine` on an enum, alias or newtype, `affine` on an abstract, `readonly` on an alias,
+  and `ref` on a cast operator. Valid but not carried: `readonly` on a newtype over a mutable class
+  or struct (purity Deferred 2) never reaches the clone, since `ConcreteTypeBuilder.BuildDeclaration`
+  takes only the newtype's accessibility. A `ref` operator parameter (ref-parameters 1.2) reaches
+  Roslyn, and `sealed`, `readonly`, `owned` and `affine` on an operator compile, though
+  standard-library 4.2 refuses any operator modifier beyond `public static`.
 - **Packages**: csharp-interop-v2 3.5 (the error surfaced during Stage 1.5, before the next stage) is
   not implemented; the diagnostic prints after the summary.
 - **CLR conformances**: a CLR `List<int>` is not assignable to a CLR `IReadOnlyList<int>`,
@@ -271,13 +296,26 @@ Found while closing the gaps, each measured, none established as something class
   `Drop`; it stays a root. A Mist `IDisposable` handed to a CLR API that disposes it runs its `Dispose`
   with no site in the program.
 - **Refusals named by no test**: `MIST_PM_AWAIT_OF_NON_TASK`, `MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE`,
-  `MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH`.
+  `MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH`. CLOSED 2026-10-03. Each is held at Tier 2, at the binder
+  seam that reports it, by `AwaitOperandBindingTests`, `InitializerTargetBindingTests` and
+  `ExplicitTypeArgumentCountTests` (`724cab90`). They pin the id, the severity, the message arguments
+  and the span, with an accepted control beside each refusal and no second complaint. With all three
+  refusals removed, the full suite failed only those classes' five refusal rows. Two defects found on
+  the way are fixed. An `await` over a value that already failed added `MIST_PM_AWAIT_OF_NON_TASK`
+  naming `'<error>'` (`d7dcda16`; program-model-body-tasks, error-expression sentinel, item (6)). Both
+  storage refusals carried an `EnumMemberResult` arm that `ResolveStorage` cannot produce
+  (`c5d33302`). Still open: an enum variant, or a static field or method, named in an initializer or
+  a property pattern is `MIST_PM_UNRESOLVED_MEMBER`, "'Widget' has no member named 'Count'", though
+  the member is declared. An `await` over an ErrorType value nothing reported keeps its `'<error>'`
+  wording until that entry's item (5) lands.
 
 Specs that now disagree with the implementation, beyond the decisions above: project-references
 Requirement 6 (transitive visibility; `MistProject` documents the flat list as deliberate), the
 structured-context design's keying and message templates and its Requirement 8.4/8.5, the variadics
-diagnostic table (no `MIST_VAR_0012` or `0013`) and its two-pipeline Architecture section, and the
-Glossary and Introduction of `compiler-progress-output`.
+diagnostic table (no `MIST_VAR_0012` or `0013`) and its two-pipeline Architecture section, the
+Glossary and Introduction of `compiler-progress-output`, and inferred-namespaces Requirement 8.6 and
+global-usings Requirement 6.1, which emit a using for every one written where a using naming a
+namespace C# does not have is now left out.
 
 ## Verification
 
@@ -344,10 +382,15 @@ The sample fold-in, the deletions and the gap fixes above, as 26 commits on top 
 - After the four reversals (commits `03de12ed`, `bd4b7f37`, `520e3d45`, `a14ca057` and their docs):
   full ledger `20261002-202000`, 7,796 / 105 / 812 / 46, all passed; `dotnet format` exit 0; the
   snippet run over a scratch copy again 381 pairs, 0 failed, the same ten, byte-identical to the base.
+- The usings fix (`7705ba3a`, 2026-10-03): full ledger `20261002-230524`, 7,813 / 105 / 812 / 46, all
+  passed; `dotnet format` exit 0; the snippet run over a scratch copy 381 pairs, 0 failed, the same
+  ten, no `using` line changed. Its 17 tests are Tier 2 (`UsingSelectionTests` and five rows of
+  `NamespaceConstructionTests`) and one Tier 4 model-to-emitter seam
+  (`ErasedNamespaceImportEmissionTests`); each of seven parts of the fix, reverted alone, failed its
+  test.
 
 ## Left open
 
-- The ten stale book tabs, which one `dotnet run --project tools/SnippetEmitter` regenerates.
 - `backlog/storm.md` defers four residue items "until classic is sunset"; that condition is now met.
   No Storm change was made. Closed 2026-10-03 by Storm `56945a87`, recorded in `backlog/storm.md`
   under "Children() yields each node a node holds once".
@@ -355,6 +398,31 @@ The sample fold-in, the deletions and the gap fixes above, as 26 commits on top 
   cross-stage and sit there for that reason.
 - Plans written against classic types: `backlog/multi-project-emission.md`,
   `backlog/refactor-ast-on-compilation-unit.md` and `backlog/grammar.md`.
+
+## Closeout: book output and live guidance (2026-10-03)
+
+- **The ten stale book tabs are regenerated.** Built the current SnippetEmitter with
+  `dotnet build tools/SnippetEmitter/SnippetEmitter.csproj` (0 warnings, 0 errors). On a scratch copy
+  of the complete snippets tree, including sidecars, companions and `.support` folders, the first
+  `dotnet run --no-build --project tools/SnippetEmitter/SnippetEmitter.csproj -- /private/tmp/mist-snippets-refresh`
+  pass found 381 pairs: 10 updated, 371 unchanged, 0 failed. The second pass found 0 updated, 381
+  unchanged, 0 failed. The ten outputs are the inventory listed above; a final tree comparison found
+  no other snippet differences.
+  After integrating `origin/main` at `796bf3ad`, rebuilt SnippetEmitter (0 warnings, 0 errors) and
+  reran the full tree twice: each pass found 0 updated, 381 unchanged, 0 failed, and the emitted
+  scratch tree matched the checked-in tree.
+- **Live guidance is corrected.** The emitter register now distinguishes representability/emission
+  work from Stage 5 rules and points to `backlog/analysis-v2-capability-progression.yaml`. The
+  compiler-progress-output Introduction and Glossary now describe the active reporter contract,
+  `IProgramModel`, Stage 5 analyzers, the current results, and Stage 4 top-level construct count;
+  Requirements 6 and 7 are unchanged. The variadics Architecture introduction describes the sole
+  standard pipeline and labels the following dual-pipeline account as a pre-retirement snapshot.
+  Current references are `Source/Mist/Driver/CompilerDriver.cs`,
+  `Source/Mist/Driver/StandardPipeline.cs`, and `Source/Mist/Driver/TopLevelConstructs.cs`.
+- `git diff --check` passed, local Markdown links in the edited documentation resolve, and
+  `dotnet format Mist.slnx --verify-no-changes` exited 0 after integrating current `main`. This
+  follow-up added no compiler-source, test, sample-baseline, or language-acceptance changes; the full
+  compiler ledger was not rerun for this documentation and generated-output task.
 
 ## Progress accounting (v2)
 

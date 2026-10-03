@@ -60,7 +60,8 @@ internal static class DefaultWitnesses
 
     public static IReadOnlyList<TypeParameter> ConstructionOf(ConcreteType declaration)
     {
-        return DefaultSynthesis.NeedsSentinel(declaration) ? Stored(declaration) : Of(declaration);
+        return declaration.Assembly.Kind == MistAssemblyKind.Ambient ? []
+            : DefaultSynthesis.NeedsSentinel(declaration) ? Stored(declaration) : Of(declaration);
     }
 
     public static List<string> FactoryParameters(ConcreteType declaration)

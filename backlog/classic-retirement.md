@@ -303,7 +303,9 @@ Found while closing the gaps, each measured, none established as something class
   own default just as `default(Box<Widget>)` does; unconstrained `default(T)` is refused in Stage 5.
   Explicit constructors keep their own behavior, generic construction constraints forward separate
   constructor factories, and deferred initializers run once after witness storage. Emitter register
-  orders 49/50/168 and analysis order 6 record the focused and final evidence. CLR compatibility
+  orders 49/50/168 and analysis order 6 record the focused and final evidence (ledger
+  `20261003-194921`, 9,216/9,216 passed, including AllFeaturesV2; latest-main integration
+  `20261003-195824`, 1,277/1,277 affected cases passed). CLR compatibility
   constructor bridges retain native fallbacks for unchecked external calls; this compilation supplies
   concrete witnesses at Mist sites. The remaining pack-forwarding limitation above stays open.
 - **Modifiers**: `async`, `static`, `readonly`, `owned`, `affine` on an enum, alias, newtype or class

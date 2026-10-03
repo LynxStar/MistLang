@@ -45,8 +45,9 @@ internal static class ConstructorWitnesses
 
     public static IReadOnlyList<ConstructorFactoryWitness> Stored(ConcreteType declaration)
     {
-        return (declaration.DeclaringType is ConcreteType enclosing ? Stored(enclosing) : [])
-            .Concat(Of(declaration.TypeParametersList)).ToList();
+        return declaration.Assembly.Kind == MistAssemblyKind.Ambient ? []
+            : (declaration.DeclaringType is ConcreteType enclosing ? Stored(enclosing) : [])
+                .Concat(Of(declaration.TypeParametersList)).ToList();
     }
 
     public static string Name(ConstructorFactoryWitness witness)

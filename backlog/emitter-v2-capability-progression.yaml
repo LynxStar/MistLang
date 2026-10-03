@@ -2584,9 +2584,32 @@ capabilities:
       ConstructedDefaultEmissionTests, ConstructorWitnessTests, PackElementDefaultEmissionTests and
       the existing FieldInitializerRuntimeTests cover these decisions, lowering and observable values.
       The public CLR-compatible constructor bridges retain native default(T) fallbacks for callers
-      outside this compilation; every Mist construction site supplies semantic factories explicitly.
+      outside this compilation; closed Mist allocations and calls in witnessed bodies supply semantic
+      factories explicitly. Generic static initialization retains its native constructor contract.
       They retain new() and parameterized-constructor metadata without claiming semantic defaults
       can be recovered from an unchecked external CLR call.
+
+      Adjacent native-boundary fix, 2026-10-03: Ambient CLR generic declarations retain their native
+      constructor contracts and receive no source default or constructor factory arguments, even
+      when projected type parameters carry new() and their public fields depend on those parameters.
+      ConstructorWitnessTests has a direct metadata/storage control and two hand-built construction
+      controls with and without an explicit native constructor. Focused ledger 20261003-194457 passed
+      199/199 constructor/default emission, extension witness and ambient cases with zero build warnings.
+
+      Final native-boundary whole-bundle ledger 20261003-194921 passed 9216/9216: 8213 Mist, 105 CLI,
+      46 Storm consumer and 852 Storm generator, including AllFeaturesV2. No failures or reruns on an
+      unchanged implementation occurred. The solution build had zero warnings/errors, full formatter
+      verification and diff checks passed, mdbook built, and both final generations of all 26 affected
+      snippet pairs were unchanged. The polling watcher setting and writable NuGet cache are recorded
+      in env.txt. Test files added or migrated in this bundle have one effective Tier each.
+
+      Latest-main integration: rebased both task commits onto 44d0ca24 after the conformance/slot
+      packet landed. No generic-default implementation changed. Ledger 20261003-195824 passed all
+      1277 affected Default, Constructor, Purity, Conformance, SlotSignature, binding-to-analysis,
+      constraint-refusal, field-initializer runtime and existing sample-baseline cases, including
+      AllFeaturesV2. The integrated solution build, whole-solution formatter, diff check and book build
+      passed; both 26-pair generations on this revision were unchanged. The full ledger above remains
+      the whole-bundle checkpoint; this integration repeated the affected decisions and runtime seam.
     unlocks: [DefaultKeyword]
 
   # ===================================================================
@@ -10105,6 +10128,26 @@ capabilities:
       direct Tier 1 decisions and hand-built Tier 2 chains. Constraint checks remain Stage 5 decisions;
       no default constraint is added to CLR metadata, and pack-default regression coverage does not
       widen pack forwarding beyond its separately tracked stampability boundary.
+
+      ExtensionBlockEmitter also accepts a method's constructor factories after its default factories
+      and before user parameters. Carrier calls separate the receiver from factories even with no user
+      arguments, and constrained method-group adapters retain hoisted block type arguments. Six direct
+      Tier 2 ExtensionConstructorWitnessTests pin these consumers. Focused ledger 20261003-193547
+      passed 66/66; the preceding 20261003-193503 passed 63/66, with fixture-name corrections in
+      ExtensionDeclaration_ReceivesTheFactoryBeforeItsUserParameters (false and true) and
+      ExtensionDeclarationAndCall_PlaceDefaultBeforeConstructorBeforeUserArgument. Those hand-built
+      declarations spell Holder, while their closed call sites spell Probe.Holder.
+
+      Full ledger 20261003-192827 passed 9138/9139: the sole failure was
+      Mist.Tests.Integration.SamplesCompileAndMatchBaselineTest.AllFeaturesV2_CompilesRunsAndMatchesBaseline,
+      exposing the missing extension constructor parameters and receiver separator; both consumers
+      were fixed. After rebasing onto main b32143df with Storm b4e5853ccca45623e59fcdb9ee0afd6e90e836ce,
+      full ledger 20261003-193658 passed 9213/9213 (8210 Mist, 105 CLI, 46 Storm consumer, 852 Storm
+      generator), the single AllFeaturesV2 baseline included. The build had zero warnings/errors,
+      solution-wide formatting and diff checks passed, mdbook built, and all 26 affected snippet pairs
+      regenerated unchanged twice. The documented macOS recovery setting
+      DOTNET_USE_POLLING_FILE_WATCHER=1 and the writable NuGet HTTP cache are recorded in the ledger.
+      The later native-boundary controls and their final whole-bundle gate are recorded under order 50.
     unlocks: [OptionalDefaultability]
 
   # ===================================================================

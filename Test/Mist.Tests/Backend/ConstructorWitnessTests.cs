@@ -211,6 +211,43 @@ public sealed class ConstructorWitnessTests
         Assert.Empty(diagnostics.ToImmutableArray());
     }
 
+    [Fact]
+    [Trait("Tier", "1")]
+    public void AmbientDeclaration_RetainsItsNativeConstructorConstraintWithoutStoringASourceFactory()
+    {
+        var native = shapes.Type("Native");
+        native.Assembly = MistAssembly.Ambient;
+        var parameter = Parameter(native);
+        parameter.ConstraintsList.Add(new ConstructorConstraint([]));
+
+        _ = Assert.Single(ConstructorWitnesses.Of(native.TypeParametersList));
+        Assert.Empty(ConstructorWitnesses.Stored(native));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Tier", "2")]
+    public void AmbientConstruction_DoesNotSupplySourceDefaultOrConstructorFactories(bool explicitConstructor)
+    {
+        var native = shapes.Type("Native", isStruct: true);
+        native.Assembly = MistAssembly.Ambient;
+        var parameter = Parameter(native);
+        parameter.ConstraintsList.Add(new ConstructorConstraint([]));
+        _ = Slot(native, "Value", parameter);
+        var constructor = explicitConstructor ? Constructor(native) : null;
+        var product = Construct(native, shapes.Inner());
+        var allocation = new NewExpression(HandBuiltModel.Node(), product, [], constructor, [], []);
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+
+        BodyEmitter.EmitExpression(allocation, writer, diagnostics);
+
+        Assert.Equal("new Probe.Native<Inner>()", writer.ToString());
+        Assert.Equal(["() => new Probe.Native<Inner>()"], ConstructorWitnesses.Arguments([Constrained([])], [product]));
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
     private static string Emit(ConcreteType type)
     {
         var built = new HandBuiltModel();

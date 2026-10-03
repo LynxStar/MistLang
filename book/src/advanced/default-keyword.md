@@ -158,7 +158,7 @@ A type is classified as **defaultable** or **non-defaultable** based on its stru
 | Union type without `void` | Non-defaultable |
 | Abstract types | Always non-defaultable |
 
-Using `default(T)` on a non-defaultable type is a compile error. The compiler emits `MIST_PA_NOT_DEFAULTABLE` and the type must be constructed explicitly via `new`.
+Using `default(T)` on a non-defaultable class, struct or type parameter is refused during analysis with `MIST_PA_NOT_DEFAULTABLE`. A concrete type without a default must be constructed explicitly via `new`.
 
 ## Constructor-Less Types Are Implicitly Defaultable
 
@@ -313,7 +313,7 @@ Enum types in Mist do not have an implicit default. The compiler does not guess 
 
 The `default` modifier appears before the variant name in the enum member list. Only one variant may carry this modifier.
 
-An enum without any `default` variant is non-defaultable. Using `default(Priority)` on such an enum produces `MIST_PA_NOT_DEFAULTABLE`. Designate a variant with the `default VariantName` syntax to give the enum a default.
+An enum without any `default` variant is non-defaultable. Designate a variant with the `default VariantName` syntax to give the enum a default.
 
 ## Union Type Defaultability
 

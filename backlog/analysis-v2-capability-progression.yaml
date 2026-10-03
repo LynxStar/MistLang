@@ -2330,6 +2330,14 @@ rules:
             witness decisions and hand-built emission chains for int, string, a designated enum and
             a class default of 7; the existing FieldInitializerRuntimeTests covers observable values.
             Emitter orders 49/50/168 record the integrated verification and metadata limits.
+            Whole-bundle ledger 20261003-194921 passed 9216/9216 (8213 Mist, 105 CLI, 46 Storm
+            consumer, 852 Storm generator), the single AllFeaturesV2 baseline included. The zero-warning
+            build, full formatter, diff check, book build and two unchanged 26-pair snippet generations
+            passed; emitter order 50 also retains the earlier failure and focused correction evidence.
+            After incorporating main 44d0ca24's conformance/slot changes, ledger 20261003-195824
+            passed 1277/1277 affected default, constructor, purity, slot, conformance, boundary and
+            sample-baseline cases with zero build warnings. Full formatting and book verification
+            remained clean; the generic-default implementation was unchanged by the rebase.
       - >
         DONE 2026-10-01: A USER CONSTRUCTOR WHOSE IMPLICIT BASE CALL IS UNSATISFIED. Class-inheritance 8.3
         is now met on v2 for every constructor a derived class declares; its Amended banner gives a derived

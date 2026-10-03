@@ -2351,8 +2351,9 @@ rules:
         (Tier 1), StructBaseConstructorRefusalTests (Tier 2), and StructImplicitBaseEmissionTests (Tier 2)
         hold the decision, diagnostic, emitted order and controls over hand-built model input. Removing
         the call and reversing the refusal condition failed the three targeted mutation cases; the
-        restored focused ledger passed 31/31. Full ledger 20261002-225740 passed 8,781/8,781 with zero
-        build warnings; dotnet format Mist.slnx --verify-no-changes passed.
+        restored focused ledger passed 31/31. After merging main at 61facc87, full ledger
+        20261003-010746 passed 8,892/8,892 with zero build warnings; dotnet format Mist.slnx
+        --verify-no-changes passed.
         Left open:
         - An explicit `: base()` to a private base constructor is judged by nothing. AccessibilityAnalyzer
           reads `new` only, and both pipelines leak CS0122 as MIST_CS_ERROR, measured.

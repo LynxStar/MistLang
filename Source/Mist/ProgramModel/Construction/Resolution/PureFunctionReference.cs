@@ -12,7 +12,7 @@ namespace Mist.ProgramModel.Construction.Resolution;
 /// </summary>
 internal static class PureFunctionReference
 {
-    public static IMistType Apply(IMistType resolved, Storm.Runtime.SyntaxNode node, BuilderContext context)
+    public static IMistType Apply(IMistType resolved, Storm.Runtime.SyntaxNode node, BuilderContext context, Action? reportFailure = null)
     {
         var interner = context.ProgramModel.TypeInterner;
         var expanded = AliasTransparency.Expand(resolved, interner);
@@ -33,6 +33,7 @@ internal static class PureFunctionReference
         {
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.PureRequiresFunctionType, node, null, TypeDisplay.Mist(expanded));
+            reportFailure?.Invoke();
         }
 
         return resolved;

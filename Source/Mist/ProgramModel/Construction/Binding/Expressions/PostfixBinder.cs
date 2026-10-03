@@ -228,7 +228,7 @@ internal static class PostfixBinder
         var arms = new List<SwitchArm>(armNodes.Count);
         foreach(var armNode in armNodes)
         {
-            if(BindArm(armNode, scrutinee.Type, ctx, context) is not { } arm)
+            if(BindArm(armNode, scrutinee.Type, ctx, context, PriorFailure.Of(scrutinee)) is not { } arm)
             {
                 return new UnresolvedExpression(node);
             }
@@ -256,20 +256,20 @@ internal static class PostfixBinder
     /// pattern binds into it.
     /// </summary>
     private static SwitchArm? BindArm(
-        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context)
+        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
         var enclosing = ctx.Scope;
         ctx.Scope = new BodyScope(enclosing);
-        var arm = BindArmParts(node, scrutineeType, ctx, context);
+        var arm = BindArmParts(node, scrutineeType, ctx, context, scrutineeFailed);
         ctx.Scope = enclosing;
 
         return arm;
     }
 
     private static SwitchArm? BindArmParts(
-        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context)
+        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
-        if(PatternBinder.Bind(node.Pattern, scrutineeType, ctx, context) is not { } pattern)
+        if(PatternBinder.Bind(node.Pattern, scrutineeType, ctx, context, scrutineeFailed) is not { } pattern)
         {
             return null;
         }

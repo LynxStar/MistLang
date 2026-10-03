@@ -21,41 +21,44 @@ internal static partial class PatternBinder
         IMistType scrutineeType,
         bool bindingsPermitted,
         BindingContext ctx,
-        BuilderContext context)
+        BuilderContext context, bool scrutineeFailed)
     {
         var matched = OptionalLifting.NonVoidPortion(scrutineeType, context.ProgramModel.TypeInterner);
         TypeTestPattern? typeTest = null;
 
         if(node.TypeName is { } typeName)
         {
+            var resolution = context.Resolver.ResolveNamedTypeWithFailure(QualifiedNameHelper.Build(typeName), ctx.Scope, typeName);
             var tested = PackPosition.AsSingleType(
-                context.Resolver.ResolveNamedType(QualifiedNameHelper.Build(typeName), ctx.Scope, typeName), ctx.Scope, typeName, context.Diagnostics);
+                resolution.Type, ctx.Scope, typeName, context.Diagnostics, () => scrutineeFailed = true);
+            scrutineeFailed |= resolution.IsFailed;
 
             if(tested is TypeAlias alias)
             {
                 tested = context.Resolver.ExpandAlias(alias, typeArgs: null);
+                scrutineeFailed |= alias.IsFailed;
             }
 
             tested = CloneConversionBody.Tested(tested, scrutineeType, ctx.Scope);
             tested = OptionalLifting.NonVoidPortion(tested, context.ProgramModel.TypeInterner);
-            typeTest = BindTypeTest(node, tested, binding: null, scrutineeType, ctx, context);
+            typeTest = BindTypeTest(node, tested, binding: null, scrutineeType, ctx, context, scrutineeFailed);
             matched = typeTest.NarrowedType;
 
-            if(matched is ErrorType)
-            {
-                return new PropertyPattern(node, matched, [], typeTest: typeTest);
-            }
+            scrutineeFailed |= typeTest.IsFailed;
         }
 
         var subpatterns = new List<PropertySubpattern>();
         var narrowed = matched;
+        var reported = false;
 
         foreach(var subpattern in Subpatterns(node.Subpatterns))
         {
             var memberName = subpattern.Name.Lexeme;
-            var (resolved, found) = MemberResolution.ResolveStorage(matched, memberName, subpattern, context);
+            var lookup = MemberResolution.ResolveStorage(matched, memberName, subpattern, context);
+            var (resolved, found) = lookup;
+            var memberFailed = lookup.Reported;
 
-            var memberType = resolved ?? (matched is UnknownType ? UnknownType.Instance : null);
+            var memberType = resolved ?? (matched is UnknownType ? UnknownType.Instance : matched is ErrorType ? ErrorType.Instance : null);
 
             if(memberType is null)
             {
@@ -64,12 +67,13 @@ internal static partial class PatternBinder
                     return null;
                 }
 
-                ReportSubpatternNotStorage(found, matched, memberName, subpattern, context);
+                memberFailed |= ReportSubpatternNotStorage(found, matched, memberName, subpattern, context);
+                reported |= memberFailed;
                 narrowed = ErrorType.Instance;
-                continue;
+                memberType = ErrorType.Instance;
             }
 
-            if(Bind(subpattern.Pattern, memberType, bindingsPermitted, ctx, context) is not { } bound)
+            if(Bind(subpattern.Pattern, memberType, bindingsPermitted, ctx, context, scrutineeFailed || memberFailed) is not { } bound)
             {
                 return null;
             }
@@ -78,14 +82,14 @@ internal static partial class PatternBinder
         }
 
         var binding = node.Name is { } name
-            ? Declare(node, name, matched, bindingsPermitted, ctx, context)
+            ? Declare(node, name, matched, bindingsPermitted, ctx, context, scrutineeFailed)
             : null
             ;
 
-        return new PropertyPattern(node, narrowed, subpatterns, binding, typeTest);
+        return new PropertyPattern(node, narrowed, subpatterns, binding, typeTest) { IsFailed = scrutineeFailed || reported || typeTest?.IsFailed is true || subpatterns.Any(subpattern => subpattern.Pattern.IsFailed) };
     }
 
-    private static void ReportSubpatternNotStorage(
+    private static bool ReportSubpatternNotStorage(
         LookupResult found,
         IMistType matched,
         string memberName,
@@ -96,7 +100,10 @@ internal static partial class PatternBinder
         {
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.PatternSubpatternNotStorage, node, null, matched.Name, memberName);
+            return true;
         }
+
+        return false;
     }
 
     private static IReadOnlyList<PropertySubpatternNode> Subpatterns(PropertySubpatternListNode? list)

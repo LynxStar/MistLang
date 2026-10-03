@@ -326,6 +326,7 @@ internal static class BodyBinder
             Ownership = parameter.Modifier.Ownership,
             IsRef = parameter.Modifier.IsRef,
             Parameter = parameter,
+            IsFailed = parameter.IsFailed,
         };
     }
 }

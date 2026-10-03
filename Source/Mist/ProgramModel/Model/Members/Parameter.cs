@@ -18,6 +18,8 @@ internal sealed class Parameter(
 
     public ParameterModifier Modifier { get; } = modifier;
 
+    internal bool IsFailed { get; set; }
+
     /// <summary>
     /// Declared with <c>params</c>, so the call site supplies a flat comma-separated list where this
     /// one slot stands. True for both spellings: a value pack (<c>params TArgs args</c>), whose type

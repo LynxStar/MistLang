@@ -252,6 +252,7 @@ internal sealed class ConformanceBuilder
         var closed = new Parameter(parameter.Name, type, parameter.Modifier)
         {
             IsFlattened = parameter.IsFlattened,
+            IsFailed = parameter.IsFailed,
         };
 
         closed.AttributesList.AddRange(parameter.AttributesList);

@@ -14,7 +14,7 @@ namespace Mist.ProgramModel.Construction.Resolution;
 /// </summary>
 internal static class PackPosition
 {
-    public static IMistType AsSingleType(IMistType named, Scope scope, SyntaxNode node, DiagnosticBag diagnostics)
+    public static IMistType AsSingleType(IMistType named, Scope scope, SyntaxNode node, DiagnosticBag diagnostics, Action? reportFailure = null)
     {
         if(named is not TypeParameter { IsPack: true } pack || PackConstraintScope.Constrains(scope, pack))
         {
@@ -22,6 +22,7 @@ internal static class PackPosition
         }
 
         diagnostics.ReportAtNode(ProgramModelDiagnostics.PackInTypePosition, node, null, named.Name);
+        reportFailure?.Invoke();
 
         return ErrorType.Instance;
     }

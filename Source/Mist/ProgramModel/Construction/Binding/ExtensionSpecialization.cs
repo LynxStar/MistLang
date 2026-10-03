@@ -32,6 +32,7 @@ internal static class ExtensionSpecialization
             var closedParameter = new Parameter(parameter.Name, substitution.Apply(parameter.Type, interner), parameter.Modifier)
             {
                 IsFlattened = parameter.IsFlattened,
+                IsFailed = parameter.IsFailed,
             };
             closedParameter.AttributesList.AddRange(parameter.AttributesList);
             closedParameter.DeclaredAttributesList.AddRange(parameter.DeclaredAttributesList);

@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -341,10 +342,17 @@ internal static class LambdaBinder
 
         for(var i = 0; i < declared.Count; i++)
         {
-            var type = declared[i].Type is { } typeRef
-                ? context.Resolver.Resolve(typeRef, ctx.Scope)
-                : parameterTypes?[i]
-                ;
+            TypeResolution? resolution = null;
+            if(declared[i].Type is { } typeRef)
+            {
+                resolution = context.Resolver.ResolveWithFailure(typeRef, ctx.Scope);
+            }
+            else if(parameterTypes?[i] is { } inferred)
+            {
+                resolution = new TypeResolution(inferred);
+            }
+
+            var type = resolution?.Type;
 
             if(type is null)
             {
@@ -354,7 +362,7 @@ internal static class LambdaBinder
                 return null;
             }
 
-            var local = new LocalVariable(declared[i].Name, type);
+            var local = new LocalVariable(declared[i].Name, type) { IsFailed = resolution?.IsFailed == true };
             scope.DeclareLocal(local, context.Diagnostics);
             parameters.Add(local);
         }

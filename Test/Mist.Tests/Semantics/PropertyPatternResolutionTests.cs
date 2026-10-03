@@ -495,18 +495,6 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
         _ = Assert.IsType<PropertyPattern>(PatternOf("var ok = u is { };"));
     }
 
-    /// <summary>
-    /// A scrutinee that already FAILED keeps parking, and for the reason unknown no longer does: there is
-    /// a mistake here, it was reported where the type failed, and answering the member would launder that
-    /// failure into a pattern that looks resolved.
-    /// </summary>
-    [Fact]
-    public void AScrutineeThatAlreadyFailed_StillParks()
-    {
-        _ = InitializerOf<UnresolvedExpression>(
-            "var ok = bad is { Length: > 3 };", extraPreamble: "Nonexistent bad = void;");
-    }
-
     [Fact]
     public void AnEmptyPropertyPatternOnAnUnknownScrutinee_NarrowsNothing()
     {

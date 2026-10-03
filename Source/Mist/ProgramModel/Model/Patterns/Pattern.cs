@@ -19,6 +19,8 @@ internal abstract class Pattern(SyntaxNode node)
 {
     public SyntaxNode Node { get; } = node;
 
+    public bool IsFailed { get; init; }
+
     public abstract IMistType NarrowedType { get; }
 
     public abstract LocalVariable? Binding { get; }

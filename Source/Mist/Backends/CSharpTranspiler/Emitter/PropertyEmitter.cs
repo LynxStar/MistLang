@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Members;
 
@@ -17,6 +18,7 @@ internal static class PropertyEmitter
             return;
         }
 
+        using var constructionScope = property.Modifiers.IsStatic ? ConstructorWitnesses.NativeScope() : null;
         var modifiers = MemberModifierEmitter.Emit(property.Modifiers, emitReadonly);
         var declaration = $"{modifiers}{TypeNameEmitter.Emit(property.Type)} {property.Name}";
 
@@ -41,7 +43,7 @@ internal static class PropertyEmitter
 
         StatementHost.Hosted? hosted = null;
 
-        if(property.Initializer is { } initializer)
+        if(property.Initializer is { } initializer && (property.Modifiers.IsStatic || !DefaultWitnesses.Deferred(initializer)))
         {
             writer.Append(" = ");
             hosted = StatementHost.Emit(initializer, $"__Initialize{property.Name}", property.Type, [], writer, diagnostics);

@@ -12,7 +12,7 @@ class Name<T> where T : constraint {
 }
 ```
 
-The constraint can be a type name (abstract type, base class), a structural constraint (`class`, `struct`, `stampable`), or a constructor constraint (`new()`). Multiple constraints on the same type parameter are separated by commas.
+The constraint can be a type name (abstract type, base class), a structural constraint (`class`, `struct`, `stampable`), a default constraint (`default`), or a constructor constraint (`new()`). Multiple constraints on the same type parameter are separated by commas.
 
 ## Class Constraint (Reference Type)
 
@@ -98,11 +98,32 @@ Constraining to a base class guarantees that the type parameter extends that cla
 
 With `where T : Animal`, only `Animal` or its subclasses (`Dog`, `Cat`, etc.) can be used as `T`. The generic body can call `GetSpecies()` because it's guaranteed to exist on any `Animal` subtype.
 
+## Default Constraint
+
+`where T : default` requires a type argument with a Mist default value. A declaration-level constraint makes `default(T)` available throughout the class body, including instance methods.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/generic-constraints/default-constraint.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/generic-constraints/default-constraint.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Here `Get()` returns `0` for `int`, `""` for `string`, the designated `North` variant for `Direction`, and a fresh `Widget` whose `Value` is `7`. The generated class stores a `Func<T>` default factory supplied when the box is created, so its instance method can use the concrete argument's default.
+
+The constraint can also appear on a generic method. Without a `default` constraint on the type parameter, `default(T)` is an analysis error. Neither `class`, `struct` nor `new()` supplies the separate default capability. A type with constructors and no default block cannot satisfy `default`, even if it satisfies `new()`. See [The Default Keyword](../advanced/default-keyword.md#the-where-t--default-generic-constraint) for method constraints and the rules for defaultable types.
+
 ## Constructor Constraints
 
 ### Parameterless `new()`
 
-The `new()` constraint guarantees that the type parameter has a parameterless constructor, allowing you to create instances with `new T()` inside the generic body.
+The `new()` constraint guarantees that the type parameter has a parameterless constructor, allowing you to create instances with `new T()` inside the generic body. The constructor may be implicit: a constructor-less type is initialized from its semantic default.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -117,11 +138,13 @@ The `new()` constraint guarantees that the type parameter has a parameterless co
 {{#endtab }}
 {{#endtabs }}
 
+Here `Creator<Box<Widget>>.Create()` constructs a box containing a fresh widget whose `Value` is `7`. The emitted C# retains the native `new()` constraint and receives a construction factory that the Mist caller supplies. Invoking that factory preserves any concrete default factories needed by the constructed type. With a user-declared constructor, the factory calls that constructor and preserves its behavior.
+
 ### Parameterized `new(Type)`
 
 Mist extends C#'s constructor constraints with parameterized forms like `new(int)`. This guarantees the type has a constructor accepting the specified parameter types, allowing `new T(value)` in the generic body.
 
-The compiler emits parameterized constructor constraints as factory delegates (`Func<ParamType, T>`) that are passed at the call site.
+The compiler emits parameterized constructor constraints as factory delegates (`Func<ParamType, T>`) that are passed at the call site, alongside the generated constructor-contract metadata.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -136,7 +159,7 @@ The compiler emits parameterized constructor constraints as factory delegates (`
 {{#endtab }}
 {{#endtabs }}
 
-Notice that the emitted C# uses a `Func<int, T>` delegate rather than a native `new()` constraint — C# doesn't support parameterized constructor constraints natively, so Mist lowers them to factory functions. At the call site, the compiler automatically generates the lambda: `new IntFactory<Widget>((arg0) => new Widget(arg0))`.
+The emitted C# invokes a `Func<int, T>` delegate to construct the value because C# does not support parameterized constructor constraints natively. At the call site, Mist generates a lambda that calls the required concrete constructor and supplies any default factories its generic class needs.
 
 ### Multiple Constructor Constraints
 
@@ -156,6 +179,8 @@ You can require multiple constructors on the same type parameter. This guarantee
 {{#endtabs }}
 
 Here `T` must have a parameterless constructor, a constructor taking `int`, and a constructor taking `bool`. The generic body can use all three forms of `new T(...)`.
+
+Each constructor signature has its own construction factory. These factories are separate from `where T : default`: a constructor factory runs the chosen constructor, while a default factory produces the type's declared default.
 
 ## Multiple Constraints on a Single Type Parameter
 
@@ -240,6 +265,7 @@ The same `where` clause syntax works uniformly across classes, structs, and abst
 | `class` | Must be a reference type |
 | `struct` | Must be a value type |
 | `stampable` | Must have recursively stampable instance storage |
+| `default` | Must have a Mist default value; enables `default(T)` |
 | `AbstractTypeName` | Must implement the abstract type |
 | `BaseClassName` | Must extend the base class |
 | `new()` | Must have a parameterless constructor |

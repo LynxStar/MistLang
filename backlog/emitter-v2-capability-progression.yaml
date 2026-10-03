@@ -2251,6 +2251,14 @@ capabilities:
       A type parameter with a default constraint lands in the same arm; see default-generic-constraint.
       CLOSED BY ORDER 50, which supplied the factory the class and struct arm needed. That arm now emits
       the factory call, and DefaultKeyword's remaining five errors went with it.
+
+      CLOSED 2026-10-03 for ordinary generic parameters. DefaultabilityAnalyzer refuses an
+      unconstrained named or bare default(T) in Stage 5 as MIST_PA_NOT_DEFAULTABLE, accepts a default
+      constraint, and suppresses a complaint only when its input already failed or a declaration has
+      a reportable refusal. An unfinished model node without a source location is not evidence of a
+      prior diagnosis. Direct defaultability decisions and hand-built analysis chains pin these
+      boundaries in ConstructedDefaultabilityTests, DefaultabilityRefusalTests and
+      ConstructedDefaultRefusalTests; emitter order 168 supplies the accepted expression's witness.
     unlocks: []
 
   - id: default-value-synthesis
@@ -2564,6 +2572,21 @@ capabilities:
         non-defaultable (defaultability Requirement 3.6), where v2 had admitted `default(Counter)` and
         printed `start=1 step=0` and classic refuses it as MIST_DEFAULT_NOT_SUPPORTED. Such a type now gets
         no factory. The evidence is in that register's entry.
+
+      CLOSED 2026-10-03 for constructorless generic new. BodyEmitter supplies the same concrete
+      semantic factories used by default construction: Box<Widget>'s Widget slot starts from its
+      default block rather than CLR null, including inherited/dependent storage and flattened structs.
+      Explicit user constructors receive only declaration constraints and keep their own assignments;
+      they do not inherit the synthesized default block. Witness-dependent initializers run after
+      witness storage, once per construction, with this/base forwarding and params still last.
+      Constructor constraints carry separate factories so a generic new T() or new T(args) preserves
+      those same rules, including object initializers and signatures wider than Func's input ceiling.
+      ConstructedDefaultEmissionTests, ConstructorWitnessTests, PackElementDefaultEmissionTests and
+      the existing FieldInitializerRuntimeTests cover these decisions, lowering and observable values.
+      The public CLR-compatible constructor bridges retain native default(T) fallbacks for callers
+      outside this compilation; every Mist construction site supplies semantic factories explicitly.
+      They retain new() and parameterized-constructor metadata without claiming semantic defaults
+      can be recovered from an unchecked external CLR call.
     unlocks: [DefaultKeyword]
 
   # ===================================================================
@@ -10069,6 +10092,19 @@ capabilities:
       another constrained generic passes no witness at all, so constraint forwarding does not
       compile. Of six shapes probed -- int, string, an enum, a class, a call with a declared
       argument, and a forwarding call -- classic compiles one and v2 runs all six.
+
+      CLOSED 2026-10-03 for declaration-level constraints. DefaultWitnesses stores a readonly
+      Func<T> for each constrained class/struct parameter (including enclosing parameters), and
+      constructors and synthesized defaults install it before dependent initialization. Class bodies,
+      nested constructions, this/base chains and inherited static calls forward closed witnesses.
+      Static methods take class witnesses explicitly; method-group adapters capture an instance
+      receiver once and forward method witnesses before declared arguments. ConstructorWitnesses
+      keeps construction factories separate from default factories, preserving explicit constructor
+      behavior when new T is closed over a constrained generic class. DefaultConstraintWitnessTests
+      exercises int, empty string, the designated enum variant and a fresh class default of 7 with
+      direct Tier 1 decisions and hand-built Tier 2 chains. Constraint checks remain Stage 5 decisions;
+      no default constraint is added to CLR metadata, and pack-default regression coverage does not
+      widen pack forwarding beyond its separately tracked stampability boundary.
     unlocks: [OptionalDefaultability]
 
   # ===================================================================

@@ -19,7 +19,7 @@ internal static class DefaultEmitter
         var self = TypeEmitter.EmitTypeName(type);
         var name = TypeEmitter.CleanName(type);
         var sentinel = DefaultSynthesis.UsesSentinel(type);
-        var witnesses = DefaultWitnesses.Of(type).Select(DefaultConstraintWitness.Name).ToList();
+        var witnesses = DefaultWitnesses.FactoryNames(type);
         // The marker argument is TYPED rather than a bare `default`, which converts to every
         // one-parameter constructor and so leaves the call ambiguous on any type declaring one.
         var marker = $"default({DefaultSynthesis.MarkerType})";
@@ -30,7 +30,13 @@ internal static class DefaultEmitter
         if(sentinel && !DefaultSynthesis.NeedsSentinel(type))
         {
             SeparateMember(writer, ref anyEmitted);
-            writer.WriteLine($"public {name}() : this({string.Join(", ", DefaultWitnesses.Defaults(type).Prepend(marker))})");
+            writer.WriteLine($"public {name}() : this({string.Join(", ", DefaultWitnesses.CompatibilityArguments(type, factory: true).Prepend(marker))})");
+            using(writer.Block())
+            {
+            }
+
+            SeparateMember(writer, ref anyEmitted);
+            writer.WriteLine($"public {name}({string.Join(", ", DefaultWitnesses.FactoryParameters(type))}) : this({string.Join(", ", witnesses.Prepend(marker))})");
             using(writer.Block())
             {
             }
@@ -40,7 +46,7 @@ internal static class DefaultEmitter
 
         if(sentinel)
         {
-            var parameters = DefaultWitnesses.Parameters(type).Prepend($"{DefaultSynthesis.MarkerType} marker");
+            var parameters = DefaultWitnesses.FactoryParameters(type).Prepend($"{DefaultSynthesis.MarkerType} marker");
             writer.WriteLine($"{DefaultSynthesis.SentinelAccessibility(type)} {name}({string.Join(", ", parameters)}){chain}");
         }
         else
@@ -50,15 +56,36 @@ internal static class DefaultEmitter
 
         using(writer.Block())
         {
+            DefaultWitnesses.EmitAssignments(type, writer);
             EmitAssignments(DefaultSynthesis.FlattenedAssignments(type), writer, diagnostics);
         }
 
         SeparateMember(writer, ref anyEmitted);
-        writer.WriteLine($"public static {self} {DefaultSynthesis.FactoryName}({string.Join(", ", DefaultWitnesses.Parameters(type))})");
+        writer.WriteLine($"public static {self} {DefaultSynthesis.FactoryName}({string.Join(", ", DefaultWitnesses.FactoryParameters(type))})");
         using(writer.Block())
         {
             var arguments = sentinel ? string.Join(", ", witnesses.Prepend(marker)) : "";
             writer.WriteLine($"return new {self}({arguments});");
+        }
+    }
+
+    public static void EmitImplicitConstruction(ConcreteType type, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted)
+    {
+        var name = TypeEmitter.CleanName(type);
+        var parameters = DefaultWitnesses.FactoryParameters(type);
+        SeparateMember(writer, ref anyEmitted);
+        writer.WriteLine($"public {name}() : this({string.Join(", ", DefaultWitnesses.CompatibilityArguments(type, factory: true))})");
+        using(writer.Block())
+        {
+        }
+
+        SeparateMember(writer, ref anyEmitted);
+        writer.WriteLine($"public {name}({string.Join(", ", parameters)})");
+        using(writer.Block())
+        {
+            DefaultWitnesses.EmitAssignments(type, writer);
+            using var witnessing = DefaultWitnesses.Witnessing(type);
+            EmitAssignments(DefaultSynthesis.FlattenedAssignments(type), writer, diagnostics);
         }
     }
 
@@ -78,7 +105,7 @@ internal static class DefaultEmitter
             // FieldEmitter and PropertyEmitter write the initializer onto the declaration, and C# runs
             // initializers in every constructor that does not chain to another -- this one included -- so
             // the slot already holds it here, and assigning it again would run the initializer twice.
-            if(value is not null && ReferenceEquals(value, slot.Initializer))
+            if(value is not null && ReferenceEquals(value, slot.Initializer) && !DefaultWitnesses.Deferred(value))
             {
                 continue;
             }

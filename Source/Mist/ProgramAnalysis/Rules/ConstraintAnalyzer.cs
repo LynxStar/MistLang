@@ -248,7 +248,7 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 
         if(signature.Count == 0 && !Defaultability.NeedsSentinel(concrete))
         {
-            return true;
+            return Defaultability.HasImplicitConstructor(argument);
         }
 
         return concrete.ConstructorsList.Exists(constructor =>

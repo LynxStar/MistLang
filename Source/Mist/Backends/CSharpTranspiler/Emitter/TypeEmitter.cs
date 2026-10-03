@@ -173,6 +173,12 @@ internal static class TypeEmitter
             var inReadonlyType = type.IsReadonly;
             var readonlyMembers = ReadonlyEmission.For(type);
 
+            if(concrete is not null)
+            {
+                DefaultWitnesses.EmitStorage(concrete, writer);
+                anyEmitted = DefaultWitnesses.Stored(concrete).Count > 0 || ConstructorWitnesses.Stored(concrete).Count > 0;
+            }
+
             // Fields first so they read as the type's state before the members that use
             // it, and because C# requires nothing of the order. Each is a single line, so
             // they run together as one block -- a blank line between every one of them
@@ -304,6 +310,10 @@ internal static class TypeEmitter
             if(concrete is not null && DefaultSynthesis.IsDefaultable(type))
             {
                 DefaultEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
+            }
+            else if(concrete is not null && !DefaultSynthesis.NeedsSentinel(concrete) && DefaultWitnesses.FactoryParameters(concrete).Count > 0)
+            {
+                DefaultEmitter.EmitImplicitConstruction(concrete, writer, diagnostics, ref anyEmitted);
             }
 
             if(concrete is not null && DropInsertion.SynthesizesDrop(concrete))

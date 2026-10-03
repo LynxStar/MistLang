@@ -50,6 +50,43 @@ public sealed class FieldInitializerRuntimeTests : IDisposable
             public string Plain;
         }
 
+        public class Box<T> { public T Value; }
+
+        public class Widget
+        {
+            public int Value;
+            default { Value = 7 }
+        }
+
+        public class Creator<T> where T : new()
+        {
+            public T Create() { return new T(); }
+        }
+
+        public class Builder<T> where T : new(int)
+        {
+            public T Create(int value) { return new T(value); }
+        }
+
+        public class Initializing<T> where T : Widget, new()
+        {
+            public T Create(int value) { return new T() { Value = value }; }
+        }
+
+        public class Defaults<T> where T : default
+        {
+            public T Get() { return default(T); }
+        }
+
+        public class Chosen<T> where T : default
+        {
+            public int Value;
+            public T Child;
+            public Chosen(int value) { Value = value; Child = default(T); }
+            public T Get() { return default(T); }
+            default { Value = 4 }
+        }
+
         public class Declared
         {
             public string Field = Log.Show("a");
@@ -96,6 +133,24 @@ public sealed class FieldInitializerRuntimeTests : IDisposable
                 Console.WriteLine(Line("new-bare", $"{bare.Field} {bare.Count} [{bare.Plain}]"));
                 var quiet = new Quiet();
                 Console.WriteLine(Line("new-quiet", $"{quiet.Field} {quiet.Count} [{quiet.Plain}]"));
+                var fresh = new Box<Widget>();
+                var other = default(Box<Widget>);
+                fresh.Value.Value = 9;
+                Console.WriteLine(Line("generic-new", $"{fresh.Value.Value} {other.Value.Value}"));
+                var creator = new Creator<Box<Widget>>();
+                Console.WriteLine(Line("generic-constructor", $"{creator.Create().Value.Value}"));
+                var builder = new Builder<Chosen<Widget>>();
+                var built = builder.Create(11);
+                Console.WriteLine(Line("parameterized-constructor", $"{built.Value} {built.Child.Value}"));
+                var initializing = new Initializing<Widget>();
+                Console.WriteLine(Line("constructed-initializer", $"{initializing.Create(13).Value}"));
+                var defaults = new Defaults<Widget>();
+                var first = defaults.Get();
+                first.Value = 12;
+                Console.WriteLine(Line("class-default", $"{first.Value} {defaults.Get().Value}"));
+                var chosen = new Chosen<string>(8);
+                var zero = default(Chosen<string>);
+                Console.WriteLine(Line("explicit-default", $"{chosen.Value} {zero.Value} [{chosen.Get()}]"));
                 var declared = new Declared(0);
                 Console.WriteLine(Line("new-declared", declared.Field));
                 var derived = new Derived(0);
@@ -132,6 +187,12 @@ public sealed class FieldInitializerRuntimeTests : IDisposable
             [
                 "new-bare a 7 [] ab",
                 "new-quiet q 7 [] ",
+                "generic-new 9 7 ",
+                "generic-constructor 7 ",
+                "parameterized-constructor 11 7 ",
+                "constructed-initializer 13 ",
+                "class-default 12 7 ",
+                "explicit-default 8 4 [] ",
                 "new-declared a aC",
                 "new-derived a x xab",
                 "new-point 3 0 pS",

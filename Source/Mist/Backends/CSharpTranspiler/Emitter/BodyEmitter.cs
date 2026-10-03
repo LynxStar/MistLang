@@ -407,7 +407,7 @@ internal static class BodyEmitter
         writer.Append($"{carrier}.{CalleeName(call.Method!.Name, arguments, parameters)}{EmitTypeArguments(arguments, parameters)}(");
         EmitExpression(callee.Receiver, writer, diagnostics);
 
-        if(call.Arguments.Count > 0 || (callee.TypeArguments.Count > 0 && DefaultConstraintWitness.Arguments(call.Method.TypeParametersList, callee.TypeArguments).Count > 0))
+        if(call.Arguments.Count > 0 || DefaultWitnesses.MethodArguments(call.Method, callee.TypeArguments, callee.Receiver.Type).Count > 0)
         {
             writer.Append(", ");
         }
@@ -427,12 +427,13 @@ internal static class BodyEmitter
             _ => [],
         };
 
-        if(invocation.Method is not { } method || typeArguments.Count == 0)
+        if(invocation.Method is not { } method)
         {
             return;
         }
 
-        var witnesses = DefaultConstraintWitness.Arguments(method.TypeParametersList, typeArguments);
+        var receiverType = invocation.Receiver is MemberAccessExpression reached ? reached.Receiver.Type : method.DeclaringType;
+        var witnesses = DefaultWitnesses.MethodArguments(method, typeArguments, receiverType);
 
         if(witnesses.Count == 0)
         {
@@ -2478,9 +2479,8 @@ internal static class BodyEmitter
 
     private static void EmitNew(NewExpression newExpression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        // A parameterized construction on a type parameter calls the factory the constraint grants.
-        // C# picks between its overloads by argument type, which is what lets one parameter carry
-        // new(int) and new(bool) at once without this emitter choosing between them.
+        // A type-parameter construction uses its supplied factory; native static initialization
+        // retains the CLR constructor contract when no instance or method witness is available.
         if(ArrayLowering.Generated(newExpression.Type, newExpression.Arguments.Count) is { } generated)
         {
             writer.Append(
@@ -2502,7 +2502,12 @@ internal static class BodyEmitter
             return;
         }
 
-        var target = newExpression.Type is TypeParameter && newExpression.Arguments.Count > 0
+        var constructionFactory = TypeNameEmitter.Closed(newExpression.Type) is TypeParameter parameter
+            ? ConstructorWitnesses.For(parameter, newExpression.ParameterTypes ?? newExpression.Arguments.Select(argument => argument.Type).ToList())
+            : null;
+        var target = constructionFactory is not null
+            ? $"{ConstructorWitnesses.Name(constructionFactory)}("
+            : newExpression.Type is TypeParameter && newExpression.Arguments.Count > 0
             ? $"{TypeNameEmitter.Emit(newExpression.Type)}.{ConstructorConstraintInterfaces.MemberName}("
             : UnsafeReach.Construction(newExpression) is { } reachedConstructor
                 ? $"{reachedConstructor}("
@@ -2511,15 +2516,47 @@ internal static class BodyEmitter
 
         var initialized = UnsafeReach.Initializer(newExpression);
 
+        if(constructionFactory is not null && newExpression.Initializer.Count > 0 && initialized is null)
+        {
+            writer.Append(ConstructorInitializers.Apply(newExpression, expression => Render(expression, diagnostics)));
+            return;
+        }
+
         if(initialized is { } helper)
         {
             writer.Append($"{helper.Helper}(");
         }
 
         writer.Append(target);
+        var declaration = ProgramModel.Construction.Defaultability.DeclarationOf(newExpression.Type);
+        var witnesses = declaration is null ? [] : DefaultWitnesses.ConstructionArguments(declaration, newExpression.Type);
+
+        if(witnesses is { Count: > 0 })
+        {
+            writer.Append(string.Join(", ", witnesses));
+
+            if(newExpression.Arguments.Count > 0)
+            {
+                writer.Append(", ");
+            }
+        }
+
+        var tupleFactory = constructionFactory is not null && ConstructorWitnesses.UsesTuple(constructionFactory);
+
+        if(tupleFactory)
+        {
+            writer.Append("(");
+        }
+
         EmitArguments(
             newExpression.Arguments, newExpression.Constructor?.ParametersList, newExpression.ParameterTypes,
             writer, diagnostics, newExpression.Constructor);
+
+        if(tupleFactory)
+        {
+            writer.Append(")");
+        }
+
         writer.Append(")");
 
         if(initialized is { } entries)

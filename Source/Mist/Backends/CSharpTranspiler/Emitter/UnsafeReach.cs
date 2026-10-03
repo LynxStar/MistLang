@@ -372,7 +372,7 @@ internal sealed class UnsafeReach : IDisposable
         return false;
     }
 
-    private static IMistType ClosedOwner(MemberType declaring, params IMistType[] starts)
+    internal static IMistType ClosedOwner(MemberType declaring, params IMistType[] starts)
     {
         if(declaring.TypeParametersList.Count == 0)
         {

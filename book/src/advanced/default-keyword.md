@@ -158,7 +158,7 @@ A type is classified as **defaultable** or **non-defaultable** based on its stru
 | Union type without `void` | Non-defaultable |
 | Abstract types | Always non-defaultable |
 
-Using `default(T)` on a non-defaultable type is a compile error. The compiler emits `MIST_DEFAULT_NOT_SUPPORTED` and the type must be constructed explicitly via `new`.
+Using `default(T)` on a non-defaultable type is a compile error. The compiler emits `MIST_PA_NOT_DEFAULTABLE` and the type must be constructed explicitly via `new`.
 
 ## Constructor-Less Types Are Implicitly Defaultable
 
@@ -180,6 +180,25 @@ A type with no user-defined constructor *must* be defaultable. Since there is no
 The compiler generates an implicit parameterless constructor that returns the default value. Both `new Point()` and `default(Point)` produce the same zero-initialized instance.
 
 If a constructor-less type has a field whose type is non-defaultable, the compiler emits an error — the type cannot be initialized without a constructor to assign that field.
+
+### Constructor-Less Generic Types
+
+For a constructor-less generic type, `new` also initializes fields with the semantic defaults of the closed type arguments. A class field receives a fresh instance of its declared default, and a string field receives `""`.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/default-keyword/constructorless-generic.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/default-keyword/constructorless-generic.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Both `new Box<Widget>()` and `default(Box<Widget>)` start with `Value.Value == 7`. Changing the widget inside one box leaves the other at `7`. The compiler passes the concrete default factory into the generic initialization path. `Box<T>` does not need a declaration constraint merely to hold `T`; its closed type arguments must make its fields defaultable. Calling `default(T)` inside a generic body requires the explicit constraint described below.
 
 ## Types with Constructors Opt Out of Defaultability
 
@@ -228,7 +247,7 @@ When a type has constructors, the compiler verifies that every field is assigned
 The rules are:
 
 1. **Fields with initializers** (e.g., `public int X = 5;`) are considered assigned at constructor entry.
-2. **Fields with defaultable types** and no initializer are considered assigned at constructor entry — the runtime injects the default value as if the field were declared `type x = default;`.
+2. **Fields with defaultable types** and no initializer are considered assigned at constructor entry by the analysis. Explicit user constructors currently retain CLR storage initialization for these slots; assign a semantic class or enum default explicitly when the constructor needs it. Constructorless construction and synthesized defaults supply semantic defaults.
 3. **Fields with non-defaultable types** and no initializer must be explicitly assigned in every constructor body, on every control-flow path.
 
 {{#tabs }}
@@ -250,7 +269,7 @@ The analysis is control-flow sensitive. A field assigned inside an `if` block is
 
 ## The `where T : default` Generic Constraint
 
-Generic code that needs to call `default(T)` must declare the requirement using the `default` constraint. Without this constraint, `default(T)` on a type parameter is a compile error — the compiler cannot know at the generic definition site whether the type argument will be defaultable.
+Generic code that needs to call `default(T)` must declare the requirement using the `default` constraint. Without this constraint, `default(T)` on a type parameter is refused during analysis — the compiler cannot know at the generic definition site whether the type argument will be defaultable. A `new()` constraint alone does not supply this requirement: constructors and defaults are separate capabilities.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -265,9 +284,9 @@ Generic code that needs to call `default(T)` must declare the requirement using 
 {{#endtab }}
 {{#endtabs }}
 
-The constraint is enforced at instantiation: if you try to call `Factory.Create<DatabaseConnection>()` where `DatabaseConnection` is non-defaultable, the compiler emits `MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED`.
+The constraint is enforced at instantiation: if you try to call `Factory.Create<DatabaseConnection>()` where `DatabaseConnection` is non-defaultable, the compiler emits `MIST_PA_CONSTRAINT_NOT_SATISFIED`.
 
-The `default` constraint is a Mist-only concept — it has no direct equivalent in C#. The emitter outputs a comment documenting the constraint, but the actual enforcement happens entirely at compile time in the Mist type checker.
+The `default` constraint has no direct equivalent in C#. Mist checks it at compile time and passes a generated `Func<T>` default factory to the emitted generic method. The method invokes that factory to obtain the type argument's semantic default. For a class-level constraint, the emitted class retains the factory so instance methods can use it; see the [class-level example](../type-system/generic-constraints.md#default-constraint). Each factory call produces a fresh class default.
 
 ### Arrays Require `where TValue : default`
 
@@ -292,9 +311,9 @@ Enum types in Mist do not have an implicit default. The compiler does not guess 
 {{#endtab }}
 {{#endtabs }}
 
-The `default` modifier appears before the variant name in the enum member list. Only one variant may carry this modifier — multiple `default` variants is a compile error (`MIST_ENUM_MULTIPLE_DEFAULTS`).
+The `default` modifier appears before the variant name in the enum member list. Only one variant may carry this modifier.
 
-An enum without any `default` variant is non-defaultable. Using `default(Priority)` on such an enum produces `MIST_DEFAULT_NOT_SUPPORTED`. The compiler's error message suggests the `default VariantName` syntax.
+An enum without any `default` variant is non-defaultable. Using `default(Priority)` on such an enum produces `MIST_PA_NOT_DEFAULTABLE`. Designate a variant with the `default VariantName` syntax to give the enum a default.
 
 ## Union Type Defaultability
 
@@ -319,7 +338,7 @@ A union that does not include `void` (e.g., `int | string`) is non-defaultable. 
 
 ## Abstract Types
 
-Abstract types are always non-defaultable. They represent abstract contracts, not concrete values. You cannot call `default(ISerializable)` — the compiler emits `MIST_DEFAULT_ON_ABSTRACT`.
+Abstract types are always non-defaultable. They represent abstract contracts, not concrete values. They cannot supply a concrete default instance.
 
 A `where T : default` constraint will also reject abstract types as type arguments, since they cannot satisfy the defaultability requirement.
 

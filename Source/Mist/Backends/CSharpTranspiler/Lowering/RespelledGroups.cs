@@ -16,7 +16,12 @@ internal static class RespelledGroups
 
     public static bool Applies(FunctionReferenceExpression reference)
     {
-        return IntrinsicCalls.Respells(reference.Method)
+        return DefaultWitnesses.StaticParameters(reference.Method).Count > 0
+            || reference.Method.TypeParametersList.Any(DefaultConstraintWitness.Constrains)
+            || ConstructorWitnesses.Of(reference.Method.TypeParametersList).Count > 0
+            || (reference.Method is { Modifiers.IsStatic: true, DeclaringType: ProgramModel.Model.Types.ConcreteType owner }
+                && ConstructorWitnesses.Stored(owner).Count > 0)
+            || IntrinsicCalls.Respells(reference.Method)
             || (InvariantCulture.FormatsItself(reference.Method) && reference.Receiver is { } receiver && !InvariantCulture.Fixes(receiver.Type));
     }
 
@@ -27,9 +32,20 @@ internal static class RespelledGroups
         var arguments = method.ParametersList.Select((_, i) => $"__arg{i}").ToList();
         var captured = receiver is null ? null : Bound;
         var receiverType = reference.Receiver?.Type;
+        var callArguments = DefaultWitnesses.MethodArguments(method, reference.TypeArguments, receiverType ?? method.DeclaringType)
+            .Select(argument => argument ?? "/* unsupported: default constraint */").Concat(arguments);
+        var (closedArguments, _) = ExtensionBlockEmitter.CallTypeArguments(method, reference.TypeArguments);
+        var typeArguments = closedArguments.Count > 0 ? $"<{string.Join(", ", closedArguments.Select(TypeNameEmitter.Emit))}>" : "";
+        var target = captured ?? (method.Modifiers.IsStatic
+            ? method.DeclaringType is { } declaring
+                ? TypeNameEmitter.Emit(receiverType is null ? declaring : UnsafeReach.ClosedOwner(declaring, receiverType))
+                : null
+            : ReceiverSpelling.This);
         var call = IntrinsicCalls.Respells(method)
             ? IntrinsicCalls.Rewrite(method, captured, receiverType, arguments)
-            : InvariantCulture.ObjectText(Bound, receiverType!);
+            : InvariantCulture.FormatsItself(method) && receiverType is not null && !InvariantCulture.Fixes(receiverType)
+                ? InvariantCulture.ObjectText(Bound, receiverType)
+                : $"{(target is null ? "" : target + ".")}{method.Name}{typeArguments}({string.Join(", ", callArguments)})";
         var lambda = $"({string.Join(", ", arguments)}) => {call}";
 
         return receiver is null || receiverType is null

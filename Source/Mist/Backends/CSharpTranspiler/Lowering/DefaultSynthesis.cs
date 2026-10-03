@@ -51,7 +51,7 @@ internal static class DefaultSynthesis
 
         if(Defaultability.DeclarationOf(type) is { } declaration && IsDefaultable(declaration))
         {
-            return DefaultWitnesses.Arguments(declaration, type) is { } witnesses ? Factory(type, witnesses) : null;
+            return DefaultWitnesses.FactoryArguments(declaration, type) is { } witnesses ? Factory(type, witnesses) : null;
         }
 
         // An enum is defaultable exactly when it designates a variant, there being no other way to
@@ -84,7 +84,7 @@ internal static class DefaultSynthesis
 
     public static bool UsesSentinel(ConcreteType type)
     {
-        return NeedsSentinel(type) || DefaultWitnesses.Of(type).Count > 0;
+        return NeedsSentinel(type) || DefaultWitnesses.Of(type).Count > 0 || ConstructorWitnesses.Stored(type).Count > 0;
     }
 
     /// <summary>
@@ -100,7 +100,7 @@ internal static class DefaultSynthesis
 
     public static List<string> BaseWitnesses(ConcreteType type)
     {
-        return BaseDeclaration(type) is { } baseType ? DefaultWitnesses.Arguments(baseType, type.BaseType!) ?? [] : [];
+        return BaseDeclaration(type) is { } baseType ? DefaultWitnesses.FactoryArguments(baseType, type.BaseType!) ?? [] : [];
     }
 
     private static ConcreteType? BaseDeclaration(ConcreteType type)

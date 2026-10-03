@@ -2208,6 +2208,30 @@ rules:
             definition refuses something of its own is left to that refusal.
           - ConstraintAnalyzer needed no change. Its `where T : default` check reads
             Defaultability.HasDefault, which now judges a constructed argument (8.2).
+          - DONE 2026-10-03: DefaultabilityAnalyzer also judges a type-parameter default expression,
+            including a targeted bare default, through Defaultability.HasDefault (3.10, 7.2, 8.1).
+            A class or method parameter without `where T : default` is refused at each use with
+            MIST_PA_NOT_DEFAULTABLE; a constructor constraint alone does not supply a default.
+            Constrained parameters remain admitted, and already-failed expression types remain silent.
+            An unlocated declaration failure does not count as an existing diagnostic that can silence
+            a located default use. Tier 1 direct parameter decisions and Tier 2 hand-built analysis
+            chains cover both controls. Focused ledger 20261003-185135 passed all 92 cases in
+            ConstructedDefaultabilityTests, ConstructedDefaultRefusalTests and DefaultabilityRefusalTests.
+            An adjacent constructor-constraint decision shares Defaultability.HasImplicitConstructor
+            with implicit constructed-new analysis: `Box<Connection>` does not satisfy `new()` when its
+            storage has no default. A direct CLR/intrinsic base can make default(...) unavailable while
+            implicit construction remains available; the source-owned storage still needs answers under
+            its actual arguments. Initializer-backed and native-base fieldless types retain implicit
+            construction, and explicit user constructors keep their availability. Tier 1
+            ConstructedDefaultabilityTests and ConstraintRefusalTests plus Tier 2
+            ConstructedDefaultRefusalTests cover the decisions and their written use/closing sites; integrated
+            ledger 20261003-190842 passed all 1070 Default, Constructor, Purity, FieldInitializerRuntimeTests
+            and ConstraintRefusalTests cases, including those controls.
+            Focused ledger 20261003-192736 passed all 148 affected decision/analysis/constructor-witness
+            cases after the shared implicit-constructor decision, native-owned-storage controls and
+            located/unlocated declaration no-cascade controls. ConstructorWitnessTests also verifies
+            wide constructor signatures and factory invocations keep all arguments through one tuple
+            beyond Func's sixteen-input ceiling, with the normal sixteen-input form unchanged.
           - PurityJudge.ChainedOf follows a defaultable type over a constructed base to that base's
             default, never its constructor (9.7).
           - A generic declaration with a type-parameter slot is defaultable for some arguments, so purity
@@ -2300,6 +2324,12 @@ rules:
             method or the default synthesis declares. Measured 2026-10-01 on v2, and unchanged by this
             work: `class Holder<T> where T : default` with `return default(T);` in a method leaks CS0103
             ('__default_T' does not exist) as MIST_CS_ERROR. No sample declares one.
+            DONE 2026-10-03: class/struct constrained parameters now store factories supplied by
+            construction and synthesized defaults; nested and inherited bodies forward them, and
+            static constrained methods take them explicitly. DefaultConstraintWitnessTests has direct
+            witness decisions and hand-built emission chains for int, string, a designated enum and
+            a class default of 7; the existing FieldInitializerRuntimeTests covers observable values.
+            Emitter orders 49/50/168 record the integrated verification and metadata limits.
       - >
         DONE 2026-10-01: A USER CONSTRUCTOR WHOSE IMPLICIT BASE CALL IS UNSATISFIED. Class-inheritance 8.3
         is now met on v2 for every constructor a derived class declares; its Amended banner gives a derived

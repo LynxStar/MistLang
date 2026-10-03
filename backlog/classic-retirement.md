@@ -297,11 +297,15 @@ Found while closing the gaps, each measured, none established as something class
   `: base(args...)`; a base-list spread `: TBases...` (9.3).
 - **Generics, the same with and without packs**: an unconstrained type parameter forwarded into a
   constrained one is refused at the forwarding site since 2026-10-03 (ConstraintEntailment, analysis
-  register order 6), except that a pack or pack element forwarded is still judged for stampable alone;
-  `where T : default` on a class's type parameter does not emit;
-  an implicit `new Box<Widget>()` over a constructorless generic uses C#'s `default(T)` where
-  `default(Box<Widget>)` uses Widget's own default; `default(T)` on an unconstrained parameter is
-  refused by the backend and not by Stage 5.
+  register order 6), except that a pack or pack element forwarded is still judged for stampable alone.
+  Closed 2026-10-03: class/struct `where T : default` constraints store and forward semantic factories
+  through construction and constrained bodies; constructorless `new Box<Widget>()` supplies Widget's
+  own default just as `default(Box<Widget>)` does; unconstrained `default(T)` is refused in Stage 5.
+  Explicit constructors keep their own behavior, generic construction constraints forward separate
+  constructor factories, and deferred initializers run once after witness storage. Emitter register
+  orders 49/50/168 and analysis order 6 record the focused and final evidence. CLR compatibility
+  constructor bridges retain native fallbacks for unchecked external calls; this compilation supplies
+  concrete witnesses at Mist sites. The remaining pack-forwarding limitation above stays open.
 - **Modifiers**: `async`, `static`, `readonly`, `owned`, `affine` on an enum, alias, newtype or class
   were dropped silently, and `ref` on an operator reached Roslyn. Audited against the specs on
   2026-10-03 and closed where a spec decides (`b199134c`): `async` on an enum, alias, newtype, class,

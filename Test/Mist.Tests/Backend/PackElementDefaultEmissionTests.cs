@@ -87,7 +87,7 @@ public sealed class PackElementDefaultEmissionTests
     });
 
     [Theory]
-    [InlineData("Pair", $"public Pair_2() : this(default({Marker}), () => default(T1), () => default(T2))")]
+    [InlineData("Pair", $"public Pair_2(System.Func<T1> __default_T1, System.Func<T2> __default_T2) : this(default({Marker}), __default_T1, __default_T2)")]
     [InlineData("Pair", $"private Pair_2({Marker} marker, System.Func<T1> __default_T1, System.Func<T2> __default_T2)")]
     [InlineData("Pair", "this.First = __default_T1();")]
     [InlineData("Pair", "this.Second = __default_T2();")]

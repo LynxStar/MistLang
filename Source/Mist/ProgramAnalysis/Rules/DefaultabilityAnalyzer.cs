@@ -8,7 +8,7 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A type that needs a default and has none, and a <c>default</c> of a class or struct with none. A type
+/// A type that needs a default and has none, and a <c>default</c> of a class, struct or type parameter with none. A type
 /// needs one when it declares a default block or no constructor, its only value then being its default:
 /// it is refused at its declaration, naming each slot of storage and the base without one, and a
 /// <c>default</c> of it is not refused a second time. A generic declaration is refused only for what
@@ -51,7 +51,7 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
 
         foreach(var node in context.Nodes)
         {
-            if(node is DefaultExpression { Type: ConcreteType { IsIntrinsic: false } or ConstructedType } defaulted
+            if(node is DefaultExpression { Type: ConcreteType { IsIntrinsic: false } or ConstructedType or TypeParameter } defaulted
                 && !Explained(Defaultability.DeclarationOf(defaulted.Type), judged)
                 && !Defaultability.HasDefault(defaulted.Type))
             {
@@ -60,8 +60,8 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
             else if(node is NewExpression { Constructor: null, Type: ConstructedType constructed } allocation
                 && Defaultability.DeclarationOf(constructed) is { } declaration
                 && !Defaultability.NeedsSentinel(declaration)
-                && Defaultability.IsDefaultable(declaration)
-                && !Defaultability.HasDefault(constructed))
+                && !Explained(declaration, judged)
+                && !Defaultability.HasImplicitConstructor(constructed))
             {
                 context.Report(ProgramAnalysisDiagnostics.NotDefaultable, allocation.Node, [allocation], TypeDisplay.Mist(constructed));
             }
@@ -101,7 +101,8 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
 
     private static bool Explained(ConcreteType? type, Dictionary<ConcreteType, List<Failure>> judged)
     {
-        return type is not null && judged.TryGetValue(type, out var failures) && failures.Exists(failure => !failure.ZeroRefused);
+        return type is not null && judged.TryGetValue(type, out var failures)
+            && failures.Exists(failure => !failure.ZeroRefused && (failure.Slot?.DeclarationNode ?? type.DeclarationNode) is not null);
     }
 
     private static bool Reaches(

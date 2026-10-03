@@ -1,9 +1,33 @@
 using Standard;
 
+public class Widget
+{
+    public int Value;
+
+    default {
+        Value = 7
+    }
+}
+
+public class Box<T>
+{
+    public T Value;
+}
+
 class Creator<T> where T : new()
 {
     public T Create()
     {
         return new T();
+    }
+}
+
+class Program
+{
+    public static void Main(string[] args)
+    {
+        var creator = new Creator<Box<Widget>>();
+        var box = creator.Create();
+        Console.WriteLine($"value={box.Value.Value}");
     }
 }

@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -11,6 +12,16 @@ namespace Mist.Tests.Construction;
 public sealed class ConstructedDefaultabilityTests
 {
     private readonly GenericDefaultShapes shapes = new();
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TypeParameter_HasADefaultExactlyUnderItsDefaultConstraint(bool constrained)
+    {
+        var parameter = Parameter(shapes.Type("Maker"), defaultConstrained: constrained);
+
+        Assert.Equal(constrained, Defaultability.HasDefault(parameter));
+    }
 
     [Theory]
     [InlineData("intrinsic", true)]
@@ -25,6 +36,44 @@ public sealed class ConstructedDefaultabilityTests
         var box = shapes.Box();
 
         Assert.Equal(expected, Defaultability.HasDefault(Construct(box, Argument(argument))));
+    }
+
+    [Theory]
+    [InlineData("native-base", true, true)]
+    [InlineData("native-base", false, false)]
+    [InlineData("native-base-with-no-storage", false, true)]
+    [InlineData("ordinary", true, true)]
+    [InlineData("ordinary", false, false)]
+    [InlineData("explicit-constructor", true, false)]
+    public void ImplicitConstructor_RequiresTheClosedStorageDefaultsEvenOverANativeBase(string shape, bool defaultableArgument, bool available)
+    {
+        var holder = shape == "native-base-with-no-storage" ? shapes.Type("Holder") : shapes.Box(name: "Holder");
+
+        if(shape == "native-base-with-no-storage")
+        {
+            _ = Parameter(holder);
+        }
+
+        if(shape.StartsWith("native-base", StringComparison.Ordinal))
+        {
+            var native = shapes.Type("Native");
+            native.Assembly = MistAssembly.Ambient;
+            _ = Constructor(native);
+            holder.BaseType = native;
+        }
+        else if(shape == "explicit-constructor")
+        {
+            _ = Constructor(holder, shapes.Integer);
+        }
+
+        var closed = Construct(holder, defaultableArgument ? shapes.Inner() : shapes.Connection());
+
+        Assert.Equal(available, Defaultability.HasImplicitConstructor(closed));
+
+        if(shape.StartsWith("native-base", StringComparison.Ordinal))
+        {
+            Assert.False(Defaultability.HasDefault(closed));
+        }
     }
 
     [Fact]

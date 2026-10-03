@@ -24,6 +24,42 @@ public sealed class ConstructedDefaultRefusalTests
     }
 
     [Theory]
+    [InlineData("class", false)]
+    [InlineData("class", true)]
+    [InlineData("method", false)]
+    [InlineData("method", true)]
+    [InlineData("constructor-constrained-method", false)]
+    public void DefaultOfATypeParameter_RequiresItsDefaultConstraint(string owner, bool constrained)
+    {
+        var maker = shapes.Type("Maker");
+        var parameter = owner == "class"
+            ? Parameter(maker, defaultConstrained: constrained)
+            : DeclarationFragments.Parameter(DeclarationFragments.Method(maker, "Make", shapes.Integer), maker.Scope, "T");
+
+        if(constrained && owner != "class")
+        {
+            parameter.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Default));
+        }
+        else if(owner == "constructor-constrained-method")
+        {
+            parameter.ConstraintsList.Add(new ConstructorConstraint([]));
+        }
+
+        fragment.Root = HandBuiltModel.Block(
+            new ReturnStatement(new DefaultExpression(DeclarationFragments.At<DefaultExpressionPrimaryNode>(30), parameter), parameter),
+            new ReturnStatement(new DefaultExpression(DeclarationFragments.At<DefaultLiteralExpressionPrimaryNode>(50), parameter), parameter));
+
+        var findings = fragment.Run(new DefaultabilityAnalyzer());
+
+        Assert.Equal(constrained ? [] : [31, 51], findings.Select(finding => finding.Location.Start.Column));
+        Assert.All(findings, finding =>
+        {
+            Assert.Equal("MIST_PA_NOT_DEFAULTABLE", finding.Id.Value);
+            Assert.Contains("'T'", finding.Message, StringComparison.Ordinal);
+        });
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void DefaultOfAConstruction_IsRefusedAtTheUseOnlyWhereItsArgumentLeavesItNone(bool refused)
@@ -91,15 +127,20 @@ public sealed class ConstructedDefaultRefusalTests
         Assert.All(findings, finding => Assert.Contains($"its base '{named}' has none", finding.Message, StringComparison.Ordinal));
     }
 
-    [Fact]
-    public void ConstructionOfADefinitionRefusedForEveryArgument_IsLeftToThatRefusal()
+    [Theory]
+    [InlineData("default")]
+    [InlineData("new")]
+    public void ConstructionOfADefinitionRefusedForEveryArgument_IsLeftToThatRefusal(string use)
     {
         var box = shapes.Box();
         _ = Slot(box, "Link", shapes.Connection());
         var holder = shapes.Type("Holder");
         _ = Slot(holder, "Held", Construct(box, shapes.Integer));
         var sub = shapes.Type("Sub", baseType: Construct(box, shapes.Integer));
-        fragment.Root = Local(sub, new DefaultExpression(DeclarationFragments.At<DefaultExpressionPrimaryNode>(30), Construct(box, shapes.Integer)));
+        var closed = Construct(box, shapes.Integer);
+        fragment.Root = Local(sub, use == "default"
+            ? new DefaultExpression(DeclarationFragments.At<DefaultExpressionPrimaryNode>(30), closed)
+            : new NewExpression(HandBuiltModel.Node(30), closed, [], null, [], []));
 
         var finding = Assert.Single(fragment.Run(new DefaultabilityAnalyzer()));
 
@@ -123,6 +164,53 @@ public sealed class ConstructedDefaultRefusalTests
 
         Assert.Equal(expected, findings.Count);
         Assert.All(findings, finding => Assert.Contains("'default' constraint", finding.Message, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ConstructorConstraintClosedOverAConstructorlessConstruction_RequiresItsSemanticDefault(bool refused)
+    {
+        var box = Construct(shapes.Box(), refused ? shapes.Connection() : shapes.Inner());
+        var maker = fragment.Class("Maker");
+        var make = DeclarationFragments.Method(maker, "Make", shapes.Integer);
+        var parameter = DeclarationFragments.Parameter(make, maker.Scope, "T");
+        parameter.ConstraintsList.Add(new ConstructorConstraint([]));
+        fragment.Built.Model.ConstructorConstraintClosures.RecordMethod(
+            make, [box], TypeSubstitution.Empty.With(parameter, box), HandBuiltModel.Node(55));
+
+        var findings = fragment.Run(new ConstraintAnalyzer());
+
+        Assert.Equal(refused ? ["MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED"] : [], findings.Select(finding => finding.Id.Value));
+        Assert.All(findings, finding => Assert.Equal(56, finding.Location.Start.Column));
+    }
+
+    [Theory]
+    [InlineData("defaultable-storage", false)]
+    [InlineData("nondefaultable-storage", true)]
+    [InlineData("no-storage", false)]
+    [InlineData("explicit-constructor", false)]
+    public void ConstructedNewOverANativeBase_StillRequiresItsOwnImplicitStorageDefaults(string shape, bool refused)
+    {
+        var native = shapes.Type("Native");
+        native.Assembly = MistAssembly.Ambient;
+        _ = Constructor(native);
+        var holder = shape == "no-storage" ? shapes.Type("Holder") : shapes.Box(name: "Holder");
+
+        if(shape == "no-storage")
+        {
+            _ = Parameter(holder);
+        }
+
+        holder.BaseType = native;
+        var constructor = shape == "explicit-constructor" ? Constructor(holder) : null;
+        var closed = Construct(holder, shape == "defaultable-storage" ? shapes.Inner() : shapes.Connection());
+        fragment.Root = Local(closed, new NewExpression(HandBuiltModel.Node(30), closed, [], constructor, [], []));
+
+        var findings = fragment.Run(new DefaultabilityAnalyzer());
+
+        Assert.Equal(refused ? ["MIST_PA_NOT_DEFAULTABLE"] : [], findings.Select(finding => finding.Id.Value));
+        Assert.All(findings, finding => Assert.Equal(31, finding.Location.Start.Column));
     }
 
     [Theory]

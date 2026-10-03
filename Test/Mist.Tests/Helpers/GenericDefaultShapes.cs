@@ -25,6 +25,11 @@ internal sealed class GenericDefaultShapes(List<MistType>? registry = null)
         Modifiers = Public with { IsIntrinsic = true },
     };
 
+    public ClassType String { get; } = new("String", "Standard", new Scope(null), null, null)
+    {
+        Modifiers = Public with { IsIntrinsic = true },
+    };
+
     public ConcreteType Type(string name, bool isStruct = false, MistType? baseType = null, bool isIntrinsic = false)
     {
         ConcreteType type = isStruct

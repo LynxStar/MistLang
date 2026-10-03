@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -35,14 +36,36 @@ internal static class ConstructorEmitter
             return;
         }
 
+        using var constructionScope = constructor.Modifiers.IsStatic ? ConstructorWitnesses.NativeScope() : null;
         var modifiers = ResolveModifiers(constructor, declaringType);
         var parameters = ParameterEmitter.Emit(constructor.ParametersList, diagnostics);
+        var concrete = declaringType as ConcreteType;
+        var witnesses = constructor.Modifiers.IsStatic || concrete is null ? [] : DefaultWitnesses.Stored(concrete);
+        var constructionWitnesses = constructor.Modifiers.IsStatic || concrete is null ? [] : ConstructorWitnesses.Stored(concrete);
+        var parts = witnesses.Select(DefaultConstraintWitness.Parameter).Concat(ConstructorWitnesses.Parameters(constructionWitnesses)).ToList();
+
+        if(parameters.Length > 0)
+        {
+            parts.Add(parameters);
+        }
+
+        if((witnesses.Count > 0 || constructionWitnesses.Count > 0) && concrete is not null)
+        {
+            var supplied = DefaultWitnesses.CompatibilityArguments(concrete, factory: false);
+            supplied.AddRange(constructor.ParametersList.Select(parameter => ArgumentKeywords.For(parameter) + parameter.Name));
+            writer.WriteLine($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({parameters}) : this({string.Join(", ", supplied)})");
+            using(writer.Block())
+            {
+            }
+
+            writer.WriteBlankLine();
+        }
 
         // The name comes from the declaring type rather than the constructor, so it matches
         // whatever the type was emitted as -- bare, because a C# constructor carries no type
         // parameters even when its type declares them. See TypeEmitter.CleanName.
         AttributeEmitter.EmitLines(constructor.DeclaredAttributesList, writer, diagnostics);
-        writer.Write($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({parameters})");
+        writer.Write($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({string.Join(", ", parts)})");
 
         var loweredToCall = declaringType is StructType && structInitNames is not null;
         var hosted = new List<StatementHost.Hosted>();
@@ -51,6 +74,19 @@ internal static class ConstructorEmitter
         {
             var target = constructor.ChainKind == ConstructorChainKind.This ? "this" : "base";
             writer.Append($" : {target}(");
+            var targetType = constructor.ChainKind == ConstructorChainKind.This ? concrete : concrete?.BaseType;
+            var targetDeclaration = targetType is null ? null : ProgramModel.Construction.Defaultability.DeclarationOf(targetType);
+            var forwarded = targetDeclaration is null ? [] : DefaultWitnesses.ConstructionArguments(targetDeclaration, targetType!);
+
+            if(forwarded is { Count: > 0 })
+            {
+                writer.Append(string.Join(", ", forwarded));
+
+                if(constructor.ChainArgumentsList.Count > 0)
+                {
+                    writer.Append(", ");
+                }
+            }
 
             // Through the call path whenever nothing has to be hoisted, so a flat argument list into
             // a value pack is packed exactly as a `new` of the same constructor packs it.
@@ -99,10 +135,24 @@ internal static class ConstructorEmitter
             writer.Append(")");
         }
 
+        if(!loweredToCall && constructor.ChainKind == ConstructorChainKind.None && !constructor.Modifiers.IsStatic
+            && concrete?.BaseType is { } baseType
+            && ProgramModel.Construction.Defaultability.DeclarationOf(baseType) is { } baseDeclaration
+            && DefaultWitnesses.ConstructionArguments(baseDeclaration, baseType) is { Count: > 0 } baseWitnesses)
+        {
+            writer.Append($" : base({string.Join(", ", baseWitnesses)})");
+        }
+
         writer.AppendLine();
 
         using(writer.Block())
         {
+            if(concrete is not null && !constructor.Modifiers.IsStatic && constructor.ChainKind != ConstructorChainKind.This)
+            {
+                DefaultWitnesses.EmitAssignments(concrete, writer);
+                DefaultWitnesses.EmitInitializers(concrete, writer, diagnostics);
+            }
+
             if(loweredToCall)
             {
                 StructInitEmitter.EmitChainCall(

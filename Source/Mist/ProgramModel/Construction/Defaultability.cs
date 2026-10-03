@@ -34,6 +34,26 @@ internal static class Defaultability
         return type is not RefinedType && HasZero(type, assumed: false);
     }
 
+    public static bool HasImplicitConstructor(IMistType type)
+    {
+        var definition = (type as ConstructedType)?.Definition ?? type;
+
+        if(definition is not ConcreteType concrete || NeedsSentinel(concrete))
+        {
+            return false;
+        }
+
+        if(concrete.IsIntrinsic || concrete.Assembly.Kind == MistAssemblyKind.Ambient || HasDefault(type))
+        {
+            return true;
+        }
+
+        var baseDefinition = (concrete.BaseType as ConstructedType)?.Definition ?? concrete.BaseType;
+        var substitution = TypeSubstitution.ForReceiver(type as ConstructedType);
+        return baseDefinition is ConcreteType { IsIntrinsic: true } or ConcreteType { Assembly.Kind: MistAssemblyKind.Ambient }
+            && InstanceStorage.Of(concrete).All(slot => CanDefault(concrete, slot, substitution, assumed: false));
+    }
+
     public static bool IsDefaultable(MemberType type)
     {
         return type is ConcreteType concrete && IsDefaultable(concrete, TypeSubstitution.Empty, assumed: true);

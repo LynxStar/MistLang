@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
@@ -16,10 +17,10 @@ internal static class FieldEmitter
 
     /// <summary>
     /// Emits a field flattened from a struct's ancestor, whose emitted type and accessibility can
-    /// both differ from the declaration -- see <see cref="Lowering.FlattenedField"/>.
+    /// both differ from the declaration -- see <see cref="FlattenedField"/>.
     /// </summary>
     public static void Emit(
-        Lowering.FlattenedField field, bool inReadonlyType, CSharpWriter writer, DiagnosticBag diagnostics)
+        FlattenedField field, bool inReadonlyType, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var modifiers = field.Field.Modifiers with { Accessibility = field.Accessibility };
         Emit(field.Field, field.Type, modifiers, inReadonlyType, writer, diagnostics);
@@ -37,13 +38,14 @@ internal static class FieldEmitter
         // declaration, and for two unrelated reasons. C# REFUSES a writable instance field on a
         // readonly struct (CS8340). And it has no `readonly class` at all, so on a class the field is
         // the only place the type's readonly-ness survives emission.
+        using var constructionScope = modifiers.IsStatic ? ConstructorWitnesses.NativeScope() : null;
         AttributeEmitter.EmitLines(field.DeclaredAttributesList, writer, diagnostics);
 
         var emittedModifiers = MemberModifierEmitter.Emit(
             modifiers, emitReadonly: modifiers.IsReadonly || inReadonlyType);
         var typeName = TypeNameEmitter.Emit(type);
 
-        if(field.Initializer is null)
+        if(field.Initializer is null || (!modifiers.IsStatic && DefaultWitnesses.Deferred(field.Initializer)))
         {
             writer.WriteLine($"{emittedModifiers}{typeName} {field.Name};");
             return;

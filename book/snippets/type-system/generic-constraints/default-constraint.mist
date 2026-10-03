@@ -1,0 +1,39 @@
+using Standard;
+
+public enum Direction : string
+{
+    default North = "N",
+    South = "S"
+}
+
+public class Widget
+{
+    public int Value;
+
+    default {
+        Value = 7
+    }
+}
+
+public class Box<T> where T : default
+{
+    public T Get()
+    {
+        return default(T);
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var numbers = new Box<int>();
+        var text = new Box<string>();
+        var directions = new Box<Direction>();
+        var widgets = new Box<Widget>();
+        Console.WriteLine($"number={numbers.Get()} text='{text.Get()}' direction={directions.Get()}");
+        var first = widgets.Get();
+        first.Value = 9;
+        Console.WriteLine($"fresh={widgets.Get().Value}");
+    }
+}

@@ -17,6 +17,41 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class DefaultabilityRefusalTests
 {
+    [Fact]
+    public void DefaultWhoseTypeAlreadyFailed_DoesNotCascade()
+    {
+        var fragment = new DeclarationFragments
+        {
+            Root = HandBuiltModel.Block(
+                new ReturnStatement(new DefaultExpression(DeclarationFragments.At<DefaultExpressionPrimaryNode>(30), ErrorType.Instance), ErrorType.Instance),
+                new ReturnStatement(new DefaultExpression(DeclarationFragments.At<DefaultLiteralExpressionPrimaryNode>(50), ErrorType.Instance), ErrorType.Instance)),
+        };
+
+        Assert.Empty(fragment.Run(new DefaultabilityAnalyzer()));
+    }
+
+    [Theory]
+    [InlineData("default")]
+    [InlineData("constructed-new")]
+    public void UnlocatedDeclarationFailure_DoesNotSilenceARefusalAtTheLocatedUse(string use)
+    {
+        var fragment = new DeclarationFragments();
+        var holder = new ClassType("Holder", "Refusal", new Scope(null), null, null);
+        holder.FieldsList.Add(new Field("Link", Counter(fragment, "argument-taking-constructor", name: "Connection"),
+            OwnershipKind.Unrestricted, DeclarationFragments.Public));
+        fragment.Types.Add(holder);
+        _ = GenericDefaultShapes.Parameter(holder);
+        var closed = GenericDefaultShapes.Construct(holder, fragment.Built.Type("Int32"));
+        fragment.Root = use == "default" ? Defaults(holder) : DeclarationFragments.Returning(
+            new NewExpression(HandBuiltModel.Node(30), closed, [], null, [], []));
+
+        var findings = fragment.Run(new DefaultabilityAnalyzer());
+        int[] expected = use == "default" ? [31, 51] : [31];
+
+        Assert.Equal(expected, findings.Select(finding => finding.Location.Start.Column));
+        Assert.All(findings, finding => Assert.Equal("MIST_PA_NOT_DEFAULTABLE", finding.Id.Value));
+    }
+
     [Theory]
     [InlineData("parameterless-constructor", false)]
     [InlineData("parameterless-constructor", true)]

@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 using static Mist.Tests.Helpers.GenericDefaultShapes;
@@ -19,7 +20,7 @@ public sealed class ConstructedDefaultEmissionTests
     {
         var emitted = Emit(shapes.Box());
 
-        Assert.Contains($"public Box() : this(default({Marker}), () => default(T))\n", emitted, StringComparison.Ordinal);
+        Assert.Contains($"public Box(System.Func<T> __default_T) : this(default({Marker}), __default_T)\n", emitted, StringComparison.Ordinal);
         Assert.Contains($"protected Box({Marker} marker, System.Func<T> __default_T)\n", emitted, StringComparison.Ordinal);
         Assert.Contains("this.Value = __default_T();", emitted, StringComparison.Ordinal);
         Assert.Contains("public static Box<T> __CreateDefault(System.Func<T> __default_T)\n", emitted, StringComparison.Ordinal);
@@ -102,6 +103,37 @@ public sealed class ConstructedDefaultEmissionTests
         Assert.Equal(
             [admitted ? "() => Probe.Box<Inner>.__CreateDefault(() => Inner.__CreateDefault())" : null],
             DefaultConstraintWitness.Arguments([parameter], [box]));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ConstructorlessNew_PassesTheSameSemanticWitnessAsDefault(bool isStruct)
+    {
+        var box = Construct(shapes.Box(isStruct: isStruct), shapes.Inner());
+        var allocation = new NewExpression(HandBuiltModel.Node(), box, [], null, [], null);
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+
+        BodyEmitter.EmitExpression(allocation, writer, diagnostics);
+
+        Assert.Equal("new Probe.Box<Inner>(() => Inner.__CreateDefault())", writer.ToString());
+        Assert.Equal("Probe.Box<Inner>.__CreateDefault(() => Inner.__CreateDefault())", DefaultSynthesis.Expression(box));
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    [Fact]
+    public void ExplicitConstructor_DoesNotPassTheStorageDefaultWitness()
+    {
+        var declaration = shapes.Box("constructor-and-a-block");
+        var box = Construct(declaration, shapes.Inner());
+        var allocation = new NewExpression(HandBuiltModel.Node(), box, [], declaration.ConstructorsList[0], [], null);
+        var writer = new CSharpWriter();
+
+        BodyEmitter.EmitExpression(allocation, writer, new DiagnosticBag());
+
+        Assert.Equal("new Probe.Box<Inner>()", writer.ToString());
+        Assert.Contains("() => Inner.__CreateDefault()", DefaultSynthesis.Expression(box), StringComparison.Ordinal);
     }
 
     private static string Emit(ConcreteType type)

@@ -44,6 +44,45 @@ public sealed class ConstraintRefusalTests
         Assert.Equal(expected, decision.Value.Id.Value);
     }
 
+    [Theory]
+    [InlineData("defaultable", null)]
+    [InlineData("nondefaultable-storage", "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED")]
+    [InlineData("initialized-storage", null)]
+    [InlineData("native-base", null)]
+    [InlineData("native-base-nondefaultable-storage", "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED")]
+    [InlineData("intrinsic-base", null)]
+    public void ConstructorlessGenericArgument_HasItsImplicitConstructorOnlyWhenItsDefaultCanBeBuilt(string argument, string? expected)
+    {
+        var built = new HandBuiltModel();
+        var shapes = new GenericDefaultShapes();
+        var holder = shapes.Box();
+        IMistType filled = argument.Contains("nondefaultable-storage", StringComparison.Ordinal) ? shapes.Connection() : shapes.Inner();
+
+        if(argument == "initialized-storage")
+        {
+            holder.FieldsList[0].Initializer = HandBuiltModel.Literal(holder.TypeParametersList[0]);
+            filled = shapes.Connection();
+        }
+        else if(argument.StartsWith("native-base", StringComparison.Ordinal) || argument == "intrinsic-base")
+        {
+            var native = shapes.Type("Native", isIntrinsic: argument == "intrinsic-base");
+            if(argument.StartsWith("native-base", StringComparison.Ordinal))
+            {
+                native.Assembly = MistAssembly.Ambient;
+                _ = GenericDefaultShapes.Constructor(native);
+            }
+
+            holder.BaseType = native;
+        }
+
+        var product = GenericDefaultShapes.Construct(holder, filled);
+        var parameter = new TypeParameter("T", 0, new Scope(null), null);
+        var constraint = new ConstructorConstraint([]);
+        var closing = new TypeArgumentClosing(parameter, product, HandBuiltModel.Node(), TypeSubstitution.Empty.With(parameter, product));
+
+        Assert.Equal(expected, ConstraintAnalyzer.Decide(closing, constraint, built.Interner)?.Id.Value);
+    }
+
     [Fact]
     public void FailedSiblingConstraintIsSilent()
     {

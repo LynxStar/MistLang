@@ -105,7 +105,11 @@ internal static class MethodEmitter
             .Concat(SlotLift.Synthesized(declared).Select(slot => slot.Name))
             .ToList();
         var typeParams = spelled.Count > 0 ? $"<{string.Join(", ", spelled)}>" : "";
-        var parts = DefaultConstraintWitness.Parameters(declared);
+        var parts = DefaultWitnesses.StaticParameters(method).Select(DefaultConstraintWitness.Parameter).ToList();
+        parts.AddRange(DefaultConstraintWitness.Parameters(declared));
+        parts.AddRange(method is { Modifiers.IsStatic: true, DeclaringType: ConcreteType owner }
+            ? ConstructorWitnesses.Parameters(ConstructorWitnesses.Stored(owner)) : []);
+        parts.AddRange(ConstructorWitnesses.Parameters(ConstructorWitnesses.Of(declared)));
         var parameters = ParameterEmitter.Emit(method.ParametersList, diagnostics);
 
         if(parameters.Length > 0)

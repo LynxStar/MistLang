@@ -1070,7 +1070,7 @@ backslash's `Const_Char_0x005c`. `CharacterLiteralValueTests` covers all seven e
 `CharacterLiteralBindingTests` covers expressions, lifted arguments, patterns, refinement bounds and
 enum values at Tier 2; `LiteralEmissionTests` and `DependentCarrierNameTests` cover C# spelling and
 identity at Tier 1. Focused ledger: 91/91. Unfiltered ledger after rebasing onto main
-(`TestResults/ledger/20261003-011510`): 8,922/8,922, zero build warnings;
+(`TestResults/ledger/20261003-012304`): 8,940/8,940, zero build warnings;
 `dotnet format Mist.slnx --verify-no-changes` passed. On this macOS host the full-system sample
 stalled during ASP.NET configuration reload with the default environment; the unfiltered ledger
 passed with `DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false`. No character grammar, string literal or

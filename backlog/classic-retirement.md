@@ -263,7 +263,9 @@ Found while closing the gaps, each measured, none established as something class
   `Buffer<true>` over `Buffer<Size:int>`; a newtype over a tuple; `: this(args...)` and
   `: base(args...)`; a base-list spread `: TBases...` (9.3).
 - **Generics, the same with and without packs**: an unconstrained type parameter forwarded into a
-  constrained one is not refused; `where T : default` on a class's type parameter does not emit;
+  constrained one is refused at the forwarding site since 2026-10-03 (ConstraintEntailment, analysis
+  register order 6), except that a pack or pack element forwarded is still judged for stampable alone;
+  `where T : default` on a class's type parameter does not emit;
   an implicit `new Box<Widget>()` over a constructorless generic uses C#'s `default(T)` where
   `default(Box<Widget>)` uses Widget's own default; `default(T)` on an unconstrained parameter is
   refused by the backend and not by Stage 5.

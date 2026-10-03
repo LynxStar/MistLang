@@ -2937,7 +2937,9 @@ rules:
         its return (OperatorAdmissibility.UnaryResultType) and any other is typed as its operand, so `-`
         on a class declaring none binds and reaches Roslyn. Refusing it needs the numeric promotions the
         stdlib does not declare -- Byte, UInt16, UInt32, UInt64 and Char have no unary `-` -- to be
-        admitted first.
+        admitted first. `!` is not judged either. Measured on v2 at 849b34b9: `var r = !b;` over a class
+        declaring no `!` binds as the class and reaches Roslyn as MIST_CS_ERROR ("Operator '!' cannot
+        be applied"), as `var r = -b;` does.
       - >
         A user operator is found on either operand's own type and its base chain, not through
         conformances or extensions.

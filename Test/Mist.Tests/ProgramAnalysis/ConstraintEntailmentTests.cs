@@ -206,39 +206,41 @@ public sealed class ConstraintEntailmentTests
     }
 
     [Theory]
-    [InlineData("new(int)", null)]
     [InlineData("new(), new(int)", null)]
-    [InlineData("struct", null)]
+    [InlineData("new(), new(int), new(bool)", null)]
+    [InlineData("struct, new(int)", null)]
+    [InlineData("new(int)", RefusedConstructor)]
+    [InlineData("struct", RefusedConstructor)]
     [InlineData("new(string)", RefusedConstructor)]
-    [InlineData("new(), new(bool)", RefusedConstructor)]
     [InlineData("none", RefusedConstructor)]
-    public void ConstructorAlternativesAreADisjunctionOnBothSides(string offered, string? expected)
+    public void EveryRequiredConstructorMustBeDeclaredOrImpliedByStruct(string offered, string? expected)
     {
         var parameter = Parameter("T");
         parameter.ConstraintsList.Add(new ConstructorConstraint([]));
         parameter.ConstraintsList.Add(new ConstructorConstraint([built.Type("Int32")]));
         var forwarded = Parameter("U");
 
-        switch(offered)
+        foreach(var guarantee in offered.Split(", "))
         {
-            case "struct":
-                forwarded.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Struct));
-                break;
+            switch(guarantee)
+            {
+                case "struct":
+                    forwarded.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Struct));
+                    break;
 
-            case "none":
-                break;
+                case "none":
+                    break;
 
-            default:
-                foreach(var alternative in offered.Split(", "))
-                {
+                default:
                     forwarded.ConstraintsList.Add(new ConstructorConstraint(
-                        alternative == "new()" ? [] : [built.Type(alternative[4..^1] switch { "int" => "Int32", "bool" => "Boolean", _ => "String" })]));
-                }
-
-                break;
+                        guarantee == "new()" ? [] : [built.Type(guarantee[4..^1] switch { "int" => "Int32", "bool" => "Boolean", _ => "String" })]));
+                    break;
+            }
         }
 
-        Assert.Equal(expected, Judge(Closing(parameter, forwarded), parameter.ConstraintsList[0]));
+        var closing = Closing(parameter, forwarded);
+
+        Assert.Equal(expected, Judge(closing, parameter.ConstraintsList[0]) ?? Judge(closing, parameter.ConstraintsList[1]));
     }
 
     [Fact]

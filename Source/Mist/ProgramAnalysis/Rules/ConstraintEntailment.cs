@@ -16,9 +16,9 @@ namespace Mist.ProgramAnalysis.Rules;
 /// one that is itself a parameter whose bounds do, the walk cut at a parameter already entered and at
 /// a depth no declared inheritance reaches. A keyword is entailed only by the same keyword, under the
 /// lattice the closed judgment uses -- linear is affine and relevant, stampable is struct -- because a
-/// type bound may be met through an implicit conversion and so promises no shape. Constructor
-/// alternatives stay a disjunction on both sides: the required set is met when a struct's parameterless
-/// constructor is among it, or when every alternative the argument may be closed under is. Stampable
+/// type bound may be met through an implicit conversion and so promises no shape. Every constructor
+/// constraint must hold of every closing, since the body may call each one, so each required signature
+/// is met only by the same declared signature, or by struct where it is parameterless. Stampable
 /// and default keep the direct rule <see cref="ConstraintAnalyzer.Decide"/> holds for an open
 /// argument, since stampability through a bound is what its spec forbids. Types are compared by
 /// identity after the closing's substitution, a parameter by reference and a construction by its
@@ -50,12 +50,12 @@ internal static class ConstraintEntailment
         {
             TypeConstraint typed => Guarantees(
                 offered, ConversionClassifier.Normalized(typed.ConstraintType, interner), interner, new HashSet<TypeParameter>(ReferenceEqualityComparer.Instance), Depth),
-            ConstructorConstraint => GuaranteesConstructor(offered, closing, interner),
+            ConstructorConstraint constructor => GuaranteesConstructor(offered, constructor.ParameterTypes, interner),
             KeywordConstraint keyword => GuaranteesKeyword(offered, keyword.Kind),
             _ => true,
         };
 
-        if(entailed is null or true)
+        if(entailed)
         {
             return null;
         }
@@ -103,24 +103,10 @@ internal static class ConstraintEntailment
         };
     }
 
-    private static bool? GuaranteesConstructor(TypeParameter offered, TypeArgumentClosing closing, TypeInterner interner)
+    private static bool GuaranteesConstructor(TypeParameter offered, IReadOnlyList<IMistType> required, TypeInterner interner)
     {
-        var required = new List<IReadOnlyList<IMistType>>();
-
-        foreach(var alternative in closing.Parameter.ConstraintsList.OfType<ConstructorConstraint>())
-        {
-            if(ConstraintAnalyzer.Closed(alternative, closing.Closing, interner) is not ConstructorConstraint closed)
-            {
-                return null;
-            }
-
-            required.Add(closed.ParameterTypes);
-        }
-
-        var offers = offered.ConstraintsList.OfType<ConstructorConstraint>().Select(constraint => constraint.ParameterTypes).ToList();
-
-        return (Declares(offered, TypeParameterConstraintKind.Struct) && required.Exists(signature => signature.Count == 0))
-            || (offers.Count > 0 && offers.TrueForAll(offer => required.Exists(signature => SameSignature(offer, signature, interner))));
+        return (required.Count == 0 && Declares(offered, TypeParameterConstraintKind.Struct))
+            || offered.ConstraintsList.OfType<ConstructorConstraint>().Any(offer => SameSignature(offer.ParameterTypes, required, interner));
     }
 
     private static bool GuaranteesKeyword(TypeParameter offered, TypeParameterConstraintKind required)

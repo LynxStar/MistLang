@@ -58,14 +58,9 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
             return closing.Parameter.ConstraintsList;
         }
 
-        if(closing.Parameter.IsPack || forwarded.IsPack || forwarded is PackElementType)
-        {
-            return closing.Parameter.ConstraintsList.Where(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable);
-        }
-
-        var alternatives = closing.Parameter.ConstraintsList.OfType<ConstructorConstraint>().Take(1);
-
-        return closing.Parameter.ConstraintsList.Where(constraint => constraint is not ConstructorConstraint).Concat(alternatives);
+        return closing.Parameter.IsPack || forwarded.IsPack || forwarded is PackElementType
+            ? closing.Parameter.ConstraintsList.Where(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable)
+            : closing.Parameter.ConstraintsList;
     }
 
     /// <summary>

@@ -391,7 +391,7 @@ The sample fold-in, the deletions and the gap fixes above, as 26 commits on top 
   pass found 381 pairs: 10 updated, 371 unchanged, 0 failed. The second pass found 0 updated, 381
   unchanged, 0 failed. The ten outputs are the inventory listed above; a final tree comparison found
   no other snippet differences.
-  After integrating `origin/main` at `d7952b52`, rebuilt SnippetEmitter (0 warnings, 0 errors) and
+  After integrating `origin/main` at `796bf3ad`, rebuilt SnippetEmitter (0 warnings, 0 errors) and
   reran the full tree twice: each pass found 0 updated, 381 unchanged, 0 failed, and the emitted
   scratch tree matched the checked-in tree.
 - **Live guidance is corrected.** The emitter register now distinguishes representability/emission
@@ -402,8 +402,8 @@ The sample fold-in, the deletions and the gap fixes above, as 26 commits on top 
   standard pipeline and labels the following dual-pipeline account as a pre-retirement snapshot.
   Current references are `Source/Mist/Driver/CompilerDriver.cs`,
   `Source/Mist/Driver/StandardPipeline.cs`, and `Source/Mist/Driver/TopLevelConstructs.cs`.
-- `git diff --check` passed and local Markdown links in the edited documentation resolve.
-  `dotnet format Mist.slnx --verify-no-changes` passed after integrating current `main`. This
+- `git diff --check` passed, local Markdown links in the edited documentation resolve, and
+  `dotnet format Mist.slnx --verify-no-changes` exited 0 after integrating current `main`. This
   follow-up added no compiler-source, test, sample-baseline, or language-acceptance changes; the full
   compiler ledger was not rerun for this documentation and generated-output task.
 

@@ -58,6 +58,39 @@ public sealed class AwaitOperandBindingTests
         Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Location);
     }
 
+    [Theory]
+    [InlineData("unresolved-name", "MIST_PM_UNRESOLVED_IDENTIFIER")]
+    [InlineData("failed-local", null)]
+    public void AwaitOfAValueThatAlreadyFailedAddsNoSecondComplaint(string operand, string? firstComplaint)
+    {
+        var f = new BindingFragments();
+        if(operand == "failed-local")
+        {
+            _ = f.Local("value", ErrorType.Instance, failed: true);
+        }
+
+        var syntax = Await("value");
+        var error = Assert.IsType<ErrorExpression>(Bind(f, syntax));
+
+        Assert.Same(syntax, error.Node);
+        string[] expected = firstComplaint is null ? [] : [firstComplaint];
+        Assert.Equal(expected, f.Diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Id.Value));
+    }
+
+    [Fact]
+    public void AnErrorTypedValueNothingReportedIsStillRefusedAtTheAwait()
+    {
+        var f = new BindingFragments();
+        _ = f.Local("value", UnknownType.Instance);
+        var length = BindingFragments.At<MemberAccessSuffixPostfixSuffixNode>();
+        length.Name = BindingFragments.Token("Length");
+
+        var syntax = Await("value", length);
+        _ = Assert.IsType<ErrorExpression>(Bind(f, syntax));
+
+        Assert.Equal("MIST_PM_AWAIT_OF_NON_TASK", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+    }
+
     private static (ClassType Definition, Method Drop) TaskDefinition(BindingFragments f, string namespaceName, string name)
     {
         var task = namespaceName == "Standard" ? f.Built.Type(name) : new ClassType(name, namespaceName, new Scope(null), null, null);
@@ -72,11 +105,11 @@ public sealed class AwaitOperandBindingTests
         return (task, drop);
     }
 
-    private static AwaitExpressionUnaryNode Await(string operand)
+    private static AwaitExpressionUnaryNode Await(string operand, params PostfixSuffixNode[] suffixes)
     {
         var location = HandBuiltModel.Node(12, AwaitPath);
         var operandNode = BindingFragments.At<PostfixExpressionUnaryNode>();
-        operandNode.Primary = new PostfixNode { Target = BindingFragments.Identifier(operand), Suffix = [] };
+        operandNode.Primary = new PostfixNode { Target = BindingFragments.Identifier(operand), Suffix = [.. suffixes] };
         return new AwaitExpressionUnaryNode { Span = location.Span, Origin = location.Origin, Operand = operandNode };
     }
 

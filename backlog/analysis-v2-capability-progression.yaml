@@ -2021,6 +2021,50 @@ rules:
       corpus cases held after the rebase onto main, and the full suite -- 7473, 708 and 68 tests,
       AllFeaturesV2's baseline and RefusalCorpusTest among them -- passed with no failure and no rerun; the
       build and `dotnet format` were clean.
+
+      OPEN FORWARDING, 2026-10-02 to 2026-10-03, from main 75d8816d, closing the Generics entry in
+      backlog/classic-retirement.md that recorded an unconstrained type parameter forwarded into a
+      constrained one as not refused. ConstraintAnalyzer now consumes every recorded open closing, not
+      only the stampable ones, and judges an argument that is itself a type parameter through
+      ConstraintEntailment: what the forwarded parameter DECLARES must entail what the closed parameter
+      requires, after the closing's substitution, reported at the node that forwards it. A type
+      constraint is entailed by a declared bound that is the required type, a bound whose bases reach
+      it (a constructed bound substituted through its own arguments first), or a bound that is a
+      parameter whose bounds do, the walk cut at a parameter already entered and at depth 64. A keyword
+      is entailed only by the same declared keyword under the closed lattice (linear is affine and
+      relevant; stampable is struct); a keyword on a bounding parameter is not inherited, because a
+      type bound may be met through an implicit conversion and promises no shape. Stampable and
+      default keep the direct rule Decide already held (stampability 3: no entailment through
+      `where U : T`). Identity is canonical, not nominal: a parameter by reference, a construction by
+      definition and arguments, so two parameters both named `B` are told apart. A failed type on
+      either side -- the requirement, a sibling it names, or a bound the argument declares -- is
+      silent, as the closed judgment is.
+
+      CONSTRUCTOR CONSTRAINTS ARE CONJUNCTIVE, decided 2026-10-02: `where T : new(), new(int)` demands
+      both of every closing, since the body may call either (generic-constraints 6.5,
+      samples/GenericConstraints MultiFactory) and a disjunction would leave the body unable to know
+      which it has. The closed path had always judged them so; the open path requires each signature
+      to be declared on the forwarded parameter, or `struct` where it is parameterless, and `struct`
+      does not entail `new(int)`. The spec's introduction, glossary, 3.8 and 5.9, with the design and
+      tasks lines that echoed them, said "at least one" and were corrected to match 6.5.
+
+      NOT JUDGED, deliberately: a pack forwarded whole, a pack parameter closed by one, and a pack
+      element (`TArgs[0]`) keep the previous behaviour, stampable alone; the whole-pack
+      `where Ts : IRank<Ts>` entry in classic-retirement stands. Closed closings are unchanged.
+
+      MEASURED: Tier 1 ConstraintEntailmentTests, 51 rows over the keyword lattice, nominal, base and
+      constructed bounds, parameter chains, a mutual cycle, same-name siblings, conjunctive constructor
+      signatures, substituted signatures and failed inputs; Tier 2 ConstraintForwardingSiteTests, 5
+      rows: one refusal at the forwarding node (column 56 of hand-built.mist), a two-step chain admitted
+      at a type and a method site, stampable forwarding judged once (1 finding for struct, 0 for
+      stampable), a whole pack judged for stampable alone. Three mutants on confirmed builds: open
+      checking bypassed in the analyzer (ledger 20261002-224721) fails exactly the Tier 2 refusal,
+      320/321; the helper made always-entailed (ledger 20261002-224842) fails 21 negative rows with
+      every positive row green; struct made to imply every constructor signature (ledger
+      20261002-230919) fails exactly the two struct rows, 320/322. Full ledger 20261002-230944:
+      8815/8815 (7852 Mist, 812 Storm, 46 Storm consumer, 105 CLI), zero build warnings, dotnet format
+      verify clean. ConstraintRefusalTests and ConstraintClosingSiteTests unchanged and green; no
+      banked sample is refused.
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains

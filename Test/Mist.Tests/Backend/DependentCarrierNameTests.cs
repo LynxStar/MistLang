@@ -53,6 +53,14 @@ public sealed class DependentCarrierNameTests
     }
 
     [Fact]
+    [Trait("Tier", "1")]
+    public void NewlineAndBackslash_HaveDistinctCarriers()
+    {
+        Assert.Equal("Const_Char_0x000a", Carrier("Char", '\n'));
+        Assert.Equal("Const_Char_0x005c", Carrier("Char", '\\'));
+    }
+
+    [Fact]
     public void DomainThatCannotCarryIdentity_HasNoCarrier()
     {
         Assert.Null(Carrier("String", 1L));

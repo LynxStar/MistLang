@@ -815,8 +815,7 @@ internal sealed class ScopeResolver
 
     private IMistType LiftCharLiteral(string lexeme)
     {
-        // Strip surrounding quotes to get the char value.
-        var charValue = lexeme.Length >= 3 ? lexeme[1] : '\0';
+        var charValue = CharacterLiterals.Decode(lexeme);
         return context.ProgramModel.TypeInterner.LiftLiteral(LookupWellKnown(WellKnownTypes.Char), charValue);
     }
 

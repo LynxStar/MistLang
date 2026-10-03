@@ -174,3 +174,7 @@ This plan replaces the span-containment heuristic for resolving AST node source 
   ]
 }
 ```
+
+## Capture traversal evidence -- 2026-10-03
+
+Storm `b4e5853` preserves supported captures across property kinds, unnamed alternatives and direct or structurally relabelled inline prefixes. Mist's three existing Tier 3 `GeneratedAstFidelityTests` cases now include expression groups, typed tuple deconstruction and both inline type-declaration blocks; every held capture is reachable once, parent-linked and stamped with the exact root `ParsedOrigin`. The focused published-pin ledger passes 10/10, and the final integrated ledger `20261003-191357` passes all 9,076 tests with zero build warnings. Origin types and assignment policy are unchanged. Exact supported shapes, generated API implications and remaining limits are recorded in `backlog/storm.md`.

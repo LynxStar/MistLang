@@ -543,7 +543,7 @@ closing them, each reproduced on `4848cb01` with Mist's grammar unchanged:
   it left unset was yielded anyway: `R = a:Elem COMMA | SEMI | LP (COMMA a:Elem)*` gave a null child
   on `;` and on `(`. Mist's grammar has no such rule.
 
-**Now.** A label on an optional or repeated group forwards the node of the capture inside it -- the
+**Earlier closeout (before the capture/order amendment below).** A label on an optional or repeated group forwards the node of the capture inside it -- the
 reference's own label or a group struct's field -- and only that capture yields it, so `BaseClause`,
 `TypeAnnotation` and `ConstraintClause` hold their node without being children; an unlabelled optional's
 property around a labelled reference forwards it the same way. A labelled reference a repetition
@@ -586,19 +586,81 @@ review found the shared-node roles, `(inner:X)?` and the default array; StormLan
 - A forwarding label is not walked: a node built by hand with only `BaseClause`, `TypeAnnotation` or
   `ConstraintClause` set yields nothing for it. Mist's hand-built test trees set the inner label, alone
   or with the outer one.
-- `Children()` follows the properties' declaration order -- labels, then groups, then unlabelled
-  elements -- so `R = A x:B` yields `B` first, and `x:X (a:Y b:Z)* y:W` yields `y` before the group's
-  nodes. A group's order is the grammar's, and every node in the 592 files is in source order.
-- A later unnamed alternative fills only what the first declares, and only where each node stays yielded
-  once: on `(,x`, `R = SEMI held:(COMMA inner:Elem)? | LP held:(COMMA Elem)?` parses `x` and drops it, as
-  it drops a capture the first alternative does not declare. Where two alternatives' anonymous groups
-  share a `Group{N}` name but not their fields, the parser does not compile (CS0117 on
-  `R = (a:Elem b:Elem)* SEMI | LP (c:Elem d:Elem)*`); that predates this change.
-- An inline block's arm builds its node from the prefix rule's elements, which the guard does not see. An
-  arm rule that names the prefix rule (`Arm1 = head:Prefix tail:C`) or labels its elements differently
-  (`T = b:Elem SEMI c:Elem` under `inline P:` with `P = a:Elem SEMI`) leaves that property unset, so
-  `Children()` yields null and the prefix's node is held by nothing. That predates this change; Mist's
-  two inline blocks repeat the prefix's labels.
 - A labelled optional of two references nested in another optional is not projected as a struct. Its
   label now forwards the first reference, where it held the last unlabelled one, and the other gets a
   property of its own.
+
+**Capture/order amendment -- 2026-10-03.** The three related capture residues are closed for the
+supported forms below, with Mist's grammar unchanged:
+
+- `Children()` follows each parsed alternative's grammar capture order across labelled and unlabelled
+  references and interleaved anonymous groups. `Ordered = Elem second:Elem` yields the first `Elem`
+  before `Second`; `x:X (a:Y b:Z)* y:W` yields `X`, each group's `Y` and `Z`, then `W`. Optional,
+  repeated and nested guards remain, and no absent capture yields a null child.
+- A shared node for unnamed alternatives declares the union of captures rather than intersecting them
+  with the first alternative. `first:Elem | second:Elem` preserves both public slots, filling the
+  selected one; `R = SEMI held:(COMMA inner:Elem)? | LP held:(COMMA Elem)?` retains `x` on `(,x` once.
+  Common names and types remain shared. Conflicting ordinary property types get distinct numeric
+  suffixes; differing anonymous-group shapes retain the first `Group0` and add
+  `Group0Alternative2` with struct `{RuleName}NodeGroup0Alternative2`, so
+  `(a:Elem b:Elem)* SEMI | LP (c:Elem d:Elem)*` compiles and retains either group's fields. An internal
+  alternative marker selects the capture order and canonical ownership used by `Children()`;
+  publicly readable forwarding aliases remain available. A real union capture property takes
+  precedence over an obsolete group shim with the same name, avoiding duplicate generated members;
+  Mist disables obsolete shims and has no affected reader.
+- Inline-prefix values project to the selected arm's original captures. A structural arm that changes
+  `a:Elem` to `b:Elem` keeps `B`, and a direct `head:Prefix tail:Elem` arm keeps its `Head` prefix node
+  and `Tail`; the prefix node owns its descendants. A labelled target-rule arm retains that target
+  node, with its captures inside it. Both forms are reachable once in prefix-before-tail order, with
+  parent links and origin stamping covering every supported descendant. The existing acceptance
+  policy still admits a direct prefix reference or supported structural leading sequence independent
+  of labels; `.kiro/specs/inline-rule-prefix/{requirements,design,tasks}.md` now describes that policy
+  and capture ownership consistently.
+
+The anonymous-group requirements/design record the shared-node capture union, truthful shape
+extension and per-alternative child order. Mist's existing three Tier 3 `GeneratedAstFidelityTests`
+cases now walk expressions, three-element typed tuple deconstruction and both inline type-declaration blocks as well as the earlier declaration
+cases; every held node must share the root's exact `ParsedOrigin`.
+
+Storm is landed and remotely reachable at `b4e5853ccca45623e59fcdb9ee0afd6e90e836ce`.
+`dotnet build Storm.slnx` reports zero warnings/errors; the requested
+`NodeSlot|NodeChildren|GeneratedParserFidelity` filter passes 65 tests (20 Tier 1 slot cases,
+25 Tier 2 child cases, 20 Tier 4 fidelity cases / 27 parses). Four additional Tier 2
+`InlineCaptureProjectionTests` cases cover admitted optional/repeated structural captures and
+nominal prefix group projection. Storm's full suite passes all 852 tests; format verification
+and `git diff --check` pass. The seam compound grammar replays the memoized `Captures` rule after
+an abandoned follower, and covers source order, both unnamed alternatives, absent/negative controls,
+canonical reachability, parent links and origin stamping with plain and memoized parsers.
+
+Mist is pinned to that published Storm commit. The published-pin build and clean rebuild report
+zero warnings/errors, and the focused `GeneratedAstFidelity|ParserAst|NodeOrigin` ledger passes
+10/10 tests. A baseline clone at `34be2ddc` and the final generator emit identical Mist lexer and
+runtime files and the same public AST class/property names and types. Declaration/local ordering
+now follows source order; one Mist `Children()` body changes:
+`TypedTupleDeconstructionVariableDeclarationStatementNode` yields additional deconstruction elements
+before its initializer. Inline parser locals project original arm capture names. A second clean
+regeneration is byte-identical for all four generated files. Mist’s grammar is unchanged; no build/obj artifact is staged.
+
+The final integrated Mist ledger `20261003-191357`, based on `0ed8caef` and the published
+Storm pin, exits 0 after 305 seconds: `Mist.Tests` 8,073/8,073, `Mist.CLI.Tests` 105/105,
+`Storm.ConsumerIntegration.Tests` 46/46, and `Storm.SourceGenerator.Tests` 852/852
+(9,076 total; zero failures or skips). Its build reports zero warnings/errors. Final Mist
+format verification and `git diff --check` pass. The integrated focused ledger
+`20261003-191149` also passes 10/10, including the three-element deconstruction fixture.
+
+Environment evidence: restores use writable `NUGET_HTTP_CACHE_PATH=/private/tmp/mist-ast-nuget-http`.
+The first full ledger `20261003-190456` was deliberately interrupted after main advanced;
+it records SIGTERM after 362 seconds, no completed Mist.Tests trx and no observed failure,
+and is not a pass. Its sample runtime stalled at ASP.NET `WebApplication.CreateBuilder` in
+the macOS sandbox. The same compiled `AllFeaturesV2` artifact with
+`DOTNET_USE_POLLING_FILE_WATCHER=1` exits 0 and matches the stored 62,566-byte baseline exactly,
+with empty stderr. The final full ledger uses that setting; no sample, baseline, warning
+suppression or test expectation is changed to accommodate the environment.
+
+This amendment does not expand namespace rule identity/output, add delimited-list syntax, change token
+priority, or establish ownership for forwarding-only hand-built aliases. The mixed token/node
+alternation limitation in the anonymous-group design remains outside this closeout.
+
+Nested inline-block emission is also outside the verified non-nested capture forms: its existing
+recursive emission lacks matching AST subtypes and outer-prefix ownership, requiring a separate
+AST/emitter redesign rather than extending this projection fix. Prefix acceptance is unchanged.

@@ -14,7 +14,15 @@ namespace Mist.Tests.Parsing;
 public sealed class GeneratedAstFidelityTests
 {
     private const string Declarations = """
-        class Plain { }
+        class Plain {
+            int Evaluate(int a, int b) {
+                var values = [a + b * 2, a - b];
+                (int first, int second, int third) = (a, b, 2);
+                return values[0];
+            }
+            type NestedAlias = int;
+            type NestedClone = new int;
+        }
         class Derived : Plain, IOther { }
         enum Bare { A }
         enum Sized : byte { A, B }
@@ -22,6 +30,8 @@ public sealed class GeneratedAstFidelityTests
             type Loose;
             type Bound<TA, TB> : IStringable, IOther where TA : struct where TB : class;
         }
+        type Alias = int;
+        type Clone = new int;
         """;
 
     [Fact]
@@ -29,6 +39,7 @@ public sealed class GeneratedAstFidelityTests
     {
         var root = Parse(Declarations);
         root.SetParentLinks();
+        var origin = Assert.IsType<ParsedOrigin>(root.Origin);
 
         var pending = new Stack<SyntaxNode>([root]);
         while(pending.TryPop(out var node))
@@ -39,7 +50,7 @@ public sealed class GeneratedAstFidelityTests
             Assert.DoesNotContain(null, children);
             Assert.Equal(held.OrderBy(child => child.Span.Start), children);
             Assert.All(held, child => Assert.Same(node, child.Parent));
-            Assert.All(held, child => Assert.NotNull(child.Origin));
+            Assert.All(held, child => Assert.Same(origin, child.Origin));
 
             foreach(var child in held)
             {

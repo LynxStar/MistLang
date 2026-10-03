@@ -50,12 +50,12 @@ This plan implements the `inline` keyword feature for the Storm parser generator
 - [x] 4. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [x] 5. Nominal prefix verification — new validation pass
+- [x] 5. Prefix verification — new validation pass
   - [x] 5.1 Create `InlinePrefixVerification.cs` validation pass
     - Create `Source/Storm.SourceGenerator/Validate/InlinePrefixVerification.cs`
     - Implement `public static List<StormDiagnostic> Verify(StormGrammar grammar)` that walks all rule bodies finding `StormInlineBlockExpr` nodes
     - For each inline block: resolve prefix rule (must exist, must have single-sequence body — not alternation), resolve each arm's rule (must exist, must have single-sequence body)
-    - Check that each arm's rule body begins with a `StormReferenceExpr` matching the prefix rule name (unwrap `StormLabeledExpr` if present)
+    - Accept a direct prefix reference or supported structurally matching leading elements; ignore capture labels in verification
     - Emit STORM0017 on mismatch; emit error if prefix rule is unresolved or has alternation body; emit error if arm rule has alternation body
     - Recursively verify nested inline blocks
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 9.1, 9.2, 9.3, 9.4, 9.5_
@@ -65,21 +65,21 @@ This plan implements the `inline` keyword feature for the Storm parser generator
     - Wire `InlinePrefixVerification.Verify()` into the source generator pipeline after grammar construction but before IR lowering — if errors are emitted, suppress all code generation
     - _Requirements: 9.4_
 
-  - [x] 5.3 Write unit tests for nominal prefix verification
+  - [x] 5.3 Write unit tests for prefix verification
     - Test passing case: arm's rule starts with prefix rule reference
-    - Test failing case: arm's rule starts with different reference → STORM0017
+    - Test failing case: arm matches neither a direct reference nor prefix-body structure → STORM0017
     - Test labeled prefix reference (unwrap label before checking)
     - Test unresolved prefix rule → error
     - Test prefix rule with alternation body → error
     - Test arm rule with alternation body → error
     - Test multiple failing arms → one diagnostic per arm
-    - **Property 6: Nominal Prefix Verification Correctness**
+    - **Property 6: Prefix Verification Correctness**
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 9.1, 9.2, 9.3, 9.5**
 
 - [x] 6. Reachability pass integration
   - [x] 6.1 Extend `ReachabilityPass` to handle `StormInlineBlockExpr`
     - In `Source/Storm.SourceGenerator/Validate/ReachabilityPass.cs`, add a `case StormInlineBlockExpr` branch in `ComputePrefixes()` and `ComputeFirst()` that returns the FIRST-k set of the prefix rule (opaque treatment for sibling analysis)
-    - Add a new method to perform intra-block analysis: for each arm, compute FIRST-k of the tail (arm's rule body minus the first element), check subset relationship against union of earlier arms' tail FIRST-k sets, emit STORM0006 if unreachable
+    - Add a new method to perform intra-block analysis: for each arm, compute FIRST-k of the tail (arm's rule body minus the matched direct reference or structural leading sequence), check subset relationship against union of earlier arms' tail FIRST-k sets, emit STORM0006 if unreachable
     - Call intra-block analysis from `CheckRule()` when an inline block is encountered in the top-level alternatives
     - Handle nested inline blocks recursively
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
@@ -106,7 +106,7 @@ This plan implements the `inline` keyword feature for the Storm parser generator
   - [x] 8.2 Extend `GrammarIRLowering` to lower `StormInlineBlockExpr`
     - In `Source/Storm.SourceGenerator/IR/GrammarIRLowering.cs`, add a `case StormInlineBlockExpr` in `LowerRuleExpression()` and `LowerSingleAlternative()`
     - Resolve the prefix rule → get its body sequence elements and labels, lower them
-    - For each arm: resolve target rule, get its body sequence, strip first element (prefix ref, unwrap label), lower tail elements with labels
+    - For each arm: resolve target rule, strip its matched direct reference or expanded leading sequence, lower the tail, and preserve original arm captures for projection
     - Produce `InlineBlockIR` node wrapped in a `RuleAlternativeIR` with null alt name
     - Handle nested inline blocks recursively
     - Also add `case StormInlineBlockExpr` in `CollectAnonymousStringLiterals()` to walk into inline block prefix and arm rule bodies
@@ -117,7 +117,7 @@ This plan implements the `inline` keyword feature for the Storm parser generator
     - Test that arm tail expressions have the prefix stripped
     - Test empty tail case (arm is pure prefix)
     - Test label preservation on prefix and tail
-    - **Property 10: IR Lowering — Prefix Stripping by First-Element Removal**
+    - **Property 10: IR Lowering — Matched Prefix Stripping**
     - **Validates: Requirements 6.1, 6.2, 6.3, 6.5**
 
 - [x] 9. Parser emitter — emit parse-once-then-predict code
@@ -137,22 +137,22 @@ This plan implements the `inline` keyword feature for the Storm parser generator
     - Test flat node construction with prefix + tail fields
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5, 7.10**
 
-- [x] 10. AST emitter — emit flat node classes with hoisted prefix fields
+- [x] 10. AST emitter — emit arm nodes preserving prefix capture ownership
   - [x] 10.1 Extend `AstEmitter` to handle `InlineBlockIR`
     - In `Source/Storm.SourceGenerator/Emit/AstEmitter.cs`, add handling for `InlineBlockIR` within a rule's alternatives
     - For each arm: emit a sealed node class named `{ArmAltName}{ParentRuleName}Node` extending the parent rule's base node
-    - Include properties for prefix fields (hoisted, in sequence order) followed by tail fields
+    - Preserve arm capture names/types for expanded prefix elements and direct prefix-node captures, then tail captures; enumerate canonical children in grammar order
     - Do NOT generate a wrapper node type for the inline block itself
-    - Respect arm labels for property naming on tail expressions
+    - Retain labelled target-rule arms as target-rule properties on their parent arm nodes
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
   - [x] 10.2 Write unit tests for AST emitter inline block handling
     - Test correct class naming per arm
-    - Test property ordering: prefix fields then tail fields
+    - Test expanded-prefix relabel projection, direct-prefix ownership and prefix-before-tail child order
     - Test no wrapper class generated
     - Test label-based property naming
     - **Property 11: AST Emission — Correct Node Class Per Arm**
-    - **Property 12: AST Emission — Property Ordering Matches Prefix+Tail**
+    - **Property 12: AST Emission — Prefix and Tail Capture Fidelity**
     - **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
 
 - [x] 11. Checkpoint — Ensure all tests pass
@@ -161,8 +161,8 @@ This plan implements the `inline` keyword feature for the Storm parser generator
 - [x] 12. Grammar migration — refactor `MemberDeclaration` to use inline block
   - [x] 12.1 Add `ModifiedTypeHead` rule and refactor arm rules in `Mist.storm`
     - In `Source/Mist/Grammar/Mist.storm`, add a new rule: `rule ModifiedTypeHead = modifiers:Modifier+ TYPE name:IDENTIFIER typeParams:TypeParameterList?;`
-    - Refactor `MemberTypeAliasDeclaration` to begin with `head:ModifiedTypeHead` instead of repeating `modifiers:Modifier+ TYPE name:IDENTIFIER typeParams:TypeParameterList?`
-    - Refactor `ModifiedAssociatedTypeSlotDeclaration` to begin with `head:ModifiedTypeHead` instead of repeating the same prefix
+    - Retain the expanded prefix and existing capture labels in `MemberTypeAliasDeclaration`; structural matching preserves its public capture API
+    - Retain the expanded prefix and existing capture labels in `ModifiedAssociatedTypeSlotDeclaration`; structural matching permits the shared inline parse without adding a `Head` property
     - In the `MemberDeclaration` rule, replace the `memberTypeAlias` and `modifiedAssociatedType` alternatives with an inline block: `inline ModifiedTypeHead: { memberTypeAlias:MemberTypeAliasDeclaration as MemberTypeAliasMember, modifiedAssociatedType:ModifiedAssociatedTypeSlotDeclaration as ModifiedAssociatedTypeMember, }`
     - _Requirements: 13.1, 13.2, 13.3, 13.5_
 
@@ -222,3 +222,10 @@ This plan implements the `inline` keyword feature for the Storm parser generator
   ]
 }
 ```
+
+## Capture projection evidence -- 2026-10-03
+
+- [x] Project structural prefix values into the target arm’s own labels and materialize directly captured prefix nodes without re-parsing.
+- [x] Keep the existing nominal-or-structural acceptance policy and verify optional/repeated capture guards with direct IR emission coverage.
+
+Storm `b4e5853`: 65 requested focused tests and 852 full-suite tests pass; four additional Tier 2 inline projection cases pass. Build, format verification and whitespace checks pass. The fidelity seam remains 20 cases / 27 parses. Consumer verification and exact remaining limits are recorded in `backlog/storm.md`.

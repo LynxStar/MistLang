@@ -13,7 +13,10 @@ namespace Mist.ProgramAnalysis.Rules;
 /// A type argument against the constraints of the parameter it closes, at every closing written or
 /// inferred in the project's source. The nominal kinds Roslyn would refuse against the generated file;
 /// the Mist-only kinds -- readonly, mutable, owned, the substructural three, default -- erase, so
-/// nothing else checks them at all. Order 6 of the analysis register.
+/// nothing else checks them at all. An argument that is itself a type parameter is judged by
+/// <see cref="ConstraintEntailment"/> against what it declares, at the site that forwards it; a pack
+/// forwarded whole, or one of its elements, is judged for stampable alone, a pack's constraints being
+/// elementwise and the element's rebinding not this rule's to invent. Order 6 of the analysis register.
 /// </summary>
 internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 {
@@ -23,7 +26,7 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
     {
         var closures = context.Model.ConstructorConstraintClosures;
 
-        foreach(var closing in closures.Closings.Concat(closures.StampableOpenClosings))
+        foreach(var closing in closures.Closings.Concat(closures.OpenClosings))
         {
             if(closing.Argument is ErrorType || !context.IsInSource(closing.Node))
             {
@@ -37,13 +40,8 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
                     TypeDisplay.Mist(closing.Argument), $"Type[{closing.Parameter.PackLength}]", closing.Parameter.Name);
             }
 
-            foreach(var constraint in closing.Parameter.ConstraintsList)
+            foreach(var constraint in Judged(closing))
             {
-                if(closing.Argument is TypeParameter && constraint.Kind != TypeParameterConstraintKind.Stampable)
-                {
-                    continue;
-                }
-
                 foreach(var argument in Arguments(closing, constraint))
                 {
                     var judged = closing with { Argument = argument, Closing = closing.Closing.With(closing.Parameter, argument) };
@@ -51,6 +49,18 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
                 }
             }
         }
+    }
+
+    private static IEnumerable<TypeParameterConstraint> Judged(TypeArgumentClosing closing)
+    {
+        if(closing.Argument is not TypeParameter forwarded)
+        {
+            return closing.Parameter.ConstraintsList;
+        }
+
+        return closing.Parameter.IsPack || forwarded.IsPack || forwarded is PackElementType
+            ? closing.Parameter.ConstraintsList.Where(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable)
+            : closing.Parameter.ConstraintsList;
     }
 
     /// <summary>
@@ -108,7 +118,11 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 
     private static void Judge(AnalysisContext context, TypeArgumentClosing closing, TypeParameterConstraint declared)
     {
-        if(Decide(closing, declared, context.Model.TypeInterner) is not { } descriptor
+        var decision = closing.Argument is TypeParameter
+            ? ConstraintEntailment.Decide(closing, declared, context.Model.TypeInterner)
+            : Decide(closing, declared, context.Model.TypeInterner);
+
+        if(decision is not { } descriptor
             || Closed(declared, closing.Closing, context.Model.TypeInterner) is not { } constraint)
         {
             return;
@@ -163,7 +177,7 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
     /// Null when the closing put a type that already failed into the constraint, as a sibling argument
     /// that did not resolve does: that type was reported where it was written.
     /// </summary>
-    private static TypeParameterConstraint? Closed(
+    internal static TypeParameterConstraint? Closed(
         TypeParameterConstraint declared, TypeSubstitution closing, TypeInterner interner)
     {
         switch(declared)

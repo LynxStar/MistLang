@@ -85,6 +85,7 @@ internal static class StructAncestorFactory
         {
             if(HoldsState(property))
             {
+                using var inherited = TypeEmitter.Substituting(flattened.PropertyPaths.GetValueOrDefault(property));
                 members.Add(new FactoryMember(property.Name, TypeNameEmitter.Emit(property.Type)));
             }
         }

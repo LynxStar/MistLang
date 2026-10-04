@@ -67,6 +67,33 @@ public sealed partial class InheritedGenericEmissionTests : ProgramModelProbe
             {
             }
         }
+
+        public struct Held<T>
+        {
+            public T Value { get; }
+
+            public Held(T value)
+            {
+                this.Value = value;
+            }
+        }
+
+        public struct IntHeld : Held<int>
+        {
+            public int Extra;
+
+            public IntHeld(int value) : base(value)
+            {
+                Extra = value;
+            }
+        }
+
+        public struct RenamedHeld<U> : Held<U>
+        {
+            public RenamedHeld(U value) : base(value)
+            {
+            }
+        }
         """;
 
     protected override string Preamble { get; } = "";
@@ -120,5 +147,17 @@ public sealed partial class InheritedGenericEmissionTests : ProgramModelProbe
         Assert.Contains("__Renamed_ctor(string value, int tag)", text);
         Assert.DoesNotMatch(BaseParameter(), text);
         Assert.DoesNotMatch(new Regex(@"\bU\b"), text);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("Probe.IntHeld", "private IntHeld(int p0, int p1, Mist.Emission.CSharp.__StructInit marker)")]
+    [InlineData("Probe.RenamedHeld<>", "private RenamedHeld(U p0, Mist.Emission.CSharp.__StructInit marker)")]
+    public void AnInheritedAutoPropertyIsCarriedByTheAncestorFactoryAsTheBaseClauseClosesIt(string type, string factory)
+    {
+        var text = EmitStruct(type);
+
+        Assert.Contains(factory, text.Split('\n').Select(line => line.Trim()));
+        Assert.DoesNotMatch(BaseParameter(), text);
     }
 }

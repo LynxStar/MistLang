@@ -10796,6 +10796,16 @@ capabilities:
         shape in `public int Current => current;`, but reachable from a plain struct alone -- so the
         gap was never about inheritance, only surfaced through it.
       - >
+        DONE 2026-10-03. An inherited AUTO-PROPERTY of a generic base is carried by the factory as the
+        base clause closes it. StructAncestorFactory.Members spelled each property's type bare, so
+        `struct IntHeld : Held<int>` over `Held<T> { T Value { get; } }` declared `private IntHeld(int
+        p0, T p1, ...)` and failed Roslyn on the unbound T (measured 2026-10-03); a FIELD was already
+        substituted on the way down. The property's type is now spelled inside its PropertyPaths scope,
+        as PropertyEmitter spells the property itself: `IntHeld(int p0, int p1, ...)`, and
+        `RenamedHeld<U> : Held<U>` takes `U p0`. Pinned by InheritedGenericEmissionTests (Tier 3, two
+        rows; dropping the scope fails both). Found through a struct spreading a pack into a property
+        over a variadic base, which reached the same factory with `System.ValueTuple<Ts...>`.
+      - >
         REINTERPRETATION IS NOT AVAILABLE AS A SHORTCUT HERE, and FlattenedStruct's doc comment
         claimed otherwise until this was measured. The CLR honours LayoutKind.Sequential only for a
         struct holding no managed reference, transitively; with one anywhere inside, references are

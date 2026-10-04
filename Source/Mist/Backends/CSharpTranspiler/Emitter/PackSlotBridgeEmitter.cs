@@ -32,8 +32,8 @@ internal static class PackSlotBridgeEmitter
             {
                 if(slot.Modifiers.IsStatic
                     || Arguments(slot, substitution) is not { } arguments
-                    || !fillers.Exists(filler => filler.Method is { } method && method.Name == slot.Name
-                        && SlotSignatures.Answers(slot, method, substitution, filler.Substitution, interner: null)))
+                    || fillers.FirstOrDefault(filler => filler.Method is { } method && method.Name == slot.Name
+                        && SlotSignatures.Answers(slot, method, substitution, filler.Substitution, interner: null))?.Method is not { } source)
                 {
                     continue;
                 }
@@ -52,13 +52,14 @@ internal static class PackSlotBridgeEmitter
                 if(bridged.Add(head))
                 {
                     TypeEmitter.SeparateMember(writer, ref anyEmitted);
-                    writer.WriteLine($"{head} => this.{slot.Name}{typeParameters}({arguments});");
+                    var completion = AsyncPromotion.IsPromoted(source) ? ".GetAwaiter().GetResult()" : "";
+                    writer.WriteLine($"{head} => this.{source.Name}{typeParameters}({arguments}){completion};");
                 }
             }
         }
     }
 
-    private static string? Arguments(Method slot, TypeSubstitution substitution)
+    internal static string? Arguments(Method slot, TypeSubstitution substitution)
     {
         var arguments = new List<string>();
         var unpacks = false;

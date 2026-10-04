@@ -81,6 +81,22 @@ internal static class BodyEmitter
         }
     }
 
+    public static void EmitSynchronousMethodBody(
+        Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var enclosing = blockingAwaits;
+        blockingAwaits = true;
+
+        try
+        {
+            EmitMethodBody(method, body, writer, diagnostics);
+        }
+        finally
+        {
+            blockingAwaits = enclosing;
+        }
+    }
+
     /// <summary>
     /// A local function's body, emitted where the function is declared. An await inside it is a real
     /// one whatever encloses it -- a sync lambda included -- because the function can be made async on
@@ -264,6 +280,11 @@ internal static class BodyEmitter
     {
         switch(statement)
         {
+            case ExpressionStatement { Expression: InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } conditional }
+                when CompletesPromoted(conditional):
+                ConditionalAsyncCalls.Emit(conditional, blockingAwaits, statement: true, writer, diagnostics, EmitDirect);
+                break;
+
             case ExpressionStatement { Expression: InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } drop }
                 when TaskResult.Dropped(drop) is { } task:
                 {
@@ -618,16 +639,24 @@ internal static class BodyEmitter
                 continue;
             }
 
-            var text = Render(step.Expression, diagnostics);
-
             if(step.Kind is UnitHoisting.StepKind.Hoist)
             {
-                writer.WriteLine($"{text};");
+                if(step.Expression is InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } conditional
+                    && CompletesPromoted(conditional))
+                {
+                    ConditionalAsyncCalls.Emit(conditional, blockingAwaits, statement: true, writer, diagnostics, EmitDirect);
+                }
+                else
+                {
+                    writer.WriteLine($"{Render(step.Expression, diagnostics)};");
+                }
+
                 hoisting.Bind(step, "Standard.Void.Instance");
                 continue;
             }
 
             var temporary = TemporaryName();
+            var text = Render(step.Expression, diagnostics);
             writer.WriteLine($"{TypeNameEmitter.EmitInferable(step.Expression.Type)} {temporary} = {text};");
             hoisting.Bind(step, temporary);
         }
@@ -927,6 +956,10 @@ internal static class BodyEmitter
         {
             EmitDirect(expression, writer, diagnostics);
         }
+        else if(expression is InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } conditional)
+        {
+            ConditionalAsyncCalls.Emit(conditional, blockingAwaits, statement: false, writer, diagnostics, EmitDirect);
+        }
         else if(blockingAwaits)
         {
             EmitDirect(expression, writer, diagnostics);
@@ -963,8 +996,21 @@ internal static class BodyEmitter
                 break;
 
             case AsyncExpression lift:
-                writer.Append("System.Threading.Tasks.Task.Run(() => ");
-                EmitExpression(lift.Operand, writer, diagnostics);
+                var needsAwait = AsyncLifts.NeedsAwait(lift.Operand);
+                writer.Append(needsAwait
+                    ? "System.Threading.Tasks.Task.Run(async () => "
+                    : "System.Threading.Tasks.Task.Run(() => ");
+                var enclosingBlocking = blockingAwaits;
+                blockingAwaits = false;
+                try
+                {
+                    EmitExpression(lift.Operand, writer, diagnostics);
+                }
+                finally
+                {
+                    blockingAwaits = enclosingBlocking;
+                }
+
                 writer.Append(")");
                 break;
 
@@ -1344,15 +1390,7 @@ internal static class BodyEmitter
                     writer.Append(ReceiverSpelling.Qualifier(functionRef.Method.DeclaringType, functionRef.Method.Modifiers.IsStatic));
                 }
 
-                var (functionArguments, functionParameters) =
-                    ExtensionBlockEmitter.CallTypeArguments(functionRef.Method, functionRef.TypeArguments);
-
-                writer.Append(
-                    CalleeName(
-                        CollidingName(functionRef.Method, functionRef.Receiver?.Type) ?? LocalNames.Of(functionRef.Method),
-                        functionArguments,
-                        functionParameters)
-                    + EmitTypeArguments(functionArguments, functionParameters));
+                writer.Append(FunctionName(functionRef));
                 break;
 
             case MethodGroupExpression methodGroup:
@@ -2861,6 +2899,13 @@ internal static class BodyEmitter
             && memberAccess.Receiver is TypeReferenceExpression { ReferencedType: TypeParameter { IsPack: true } pack }
                 ? MonomorphReference.Width(TypeNameEmitter.Closed(pack))
                 : null;
+    }
+
+    internal static string FunctionName(FunctionReferenceExpression reference)
+    {
+        var (arguments, parameters) = ExtensionBlockEmitter.CallTypeArguments(reference.Method, reference.TypeArguments);
+        return CalleeName(CollidingName(reference.Method, reference.Receiver?.Type) ?? LocalNames.Of(reference.Method), arguments, parameters)
+            + EmitTypeArguments(arguments, parameters);
     }
 
     /// <param name="parameters">

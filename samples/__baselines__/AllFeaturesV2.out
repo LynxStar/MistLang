@@ -1607,6 +1607,8 @@ sizeCalls=2
   tasks scheduled concurrently
 [entry-point-async]
   entry point called async method, result=fetched
+[promotion-dispatch]
+  direct=7 abstract=7 extension=7 optional=-1 lifted=7
 === Structured Concurrency Done ===
 === FirstClassFunctions Sample ===
 --- Expression Lambda ---
@@ -1631,6 +1633,7 @@ multiplier(7)=21
 multiplier(0)=0
 --- Method Group ---
 fn(42)=-42
+promoted()=item-6
 --- Type Alias ---
 isEven(4)=True
 isEven(7)=False

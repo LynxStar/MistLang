@@ -1,0 +1,29 @@
+using Standard;
+
+public abstract IReader { int Read(); }
+
+public class Reader : IReader
+{
+    public int Read() { return Program.Fetch(); }
+}
+
+extension (int self)
+{
+    public int ReadExtension() { return Program.Fetch(); }
+}
+
+public class Program
+{
+    public static async int Fetch() { return 7; }
+
+    public static void Main()
+    {
+        var reader = new Reader();
+        IReader view = reader;
+        Reader? absent = void;
+        Console.WriteLine(reader.Read());
+        Console.WriteLine(view.Read());
+        Console.WriteLine(2.ReadExtension());
+        Console.WriteLine(absent?.Read() ?? -1);
+    }
+}

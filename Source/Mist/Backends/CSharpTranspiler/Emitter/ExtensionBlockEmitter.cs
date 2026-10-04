@@ -1,6 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
-using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -64,9 +63,8 @@ internal static class ExtensionBlockEmitter
     {
         Separate(writer, ref first);
 
-        var returnType = OptionalUnion.IsVoid(method.ReturnType)
-            ? "void"
-            : TypeNameEmitter.Emit(method.ReturnType);
+        var returnType = MethodEmitter.EmitReturnType(method);
+        var asyncModifier = AsyncPromotion.EmitsAsync(method) ? "async " : "";
 
         var typeParameters = CarrierTypeParameters(method, block);
         var parameters = DefaultConstraintWitness.Parameters(method.TypeParametersList);
@@ -74,7 +72,7 @@ internal static class ExtensionBlockEmitter
         parameters.Add(ParameterEmitter.Emit(method.ParametersList, diagnostics));
 
         writer.WriteLine(
-            $"public static {returnType} {method.Name}{TypeParameters(typeParameters)}"
+            $"public static {asyncModifier}{returnType} {method.Name}{TypeParameters(typeParameters)}"
             + $"({Parameters(parameters, method.Modifiers.IsStatic, block, receiver)})");
         ConstraintEmitter.Emit(typeParameters, writer);
 
@@ -82,7 +80,7 @@ internal static class ExtensionBlockEmitter
         {
             if(method.Body is not null)
             {
-                BodyEmitter.EmitBlock(method.Body, method.ParametersList.Select(parameter => parameter.Name), writer, diagnostics);
+                BodyEmitter.EmitMethodBody(method, method.Body, writer, diagnostics);
             }
         }
     }

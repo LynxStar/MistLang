@@ -59,7 +59,7 @@ The `async` keyword can also be used as a prefix functor on any method invocatio
 
 The `async` functor requires a method invocation as its operand. Applying it to a variable, literal, or property access is a compile-time error.
 
-In a sync context, the `async` functor is the *only* way to obtain a `Task<T>` value — it cancels the auto-unwrap that would normally occur. In an async context, applying `async` to an already-async method produces `Task<Task<T>>` (double-wrapping), which is almost certainly unintended and produces a compiler warning.
+On an explicitly async target, the functor preserves the task and suppresses automatic completion. On a synchronous target it schedules the call and produces `Task<T>`, including when that target calls async methods internally. The C# backend awaits that promoted target inside the scheduled lambda, so the resulting task completes with `T` and the invocation runs once. A task-typed target also permits capturing a task directly in a sync context.
 
 ## The `await` Functor
 
@@ -99,7 +99,30 @@ In a sync context (a method without the `async` modifier), calling an async meth
 
 Notice that `result` has type `int`, not `Task<int>`. The auto-unwrap is implicit — you don't need to write `await`. Execution within the sync method is guaranteed sequential: each statement completes before the next begins, even when calling async methods.
 
-The only way to obtain a `Task<T>` in a sync context is via the `async` functor. This gives you an escape hatch when you need to capture a task for later coordination.
+Use the `async` functor to schedule a synchronous call or preserve an async call for later coordination. A declaration or return position explicitly typed as `Task<T>` also preserves that task.
+
+## Promotion, Callables and Dispatch
+
+A synchronous Mist method retains its result type when its body completes async work. The C# backend may emit a task-returning implementation and await its callers; this also applies to extension methods and their local functions.
+
+A synchronous function value and a synchronous abstract slot retain their declared signatures. At these boundaries the C# backend uses a completion adapter: invoking the function or slot returns only after the promoted implementation finishes. Synchronous abstract default bodies complete their task calls within the slot as well. These adapters block a thread; they do not introduce another scheduler.
+
+For an optional call, the receiver is evaluated once. An absent receiver skips the invocation and its arguments and yields void; a present receiver completes the promoted call before yielding its result.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/structured-concurrency/promotion-dispatch.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/structured-concurrency/promotion-dispatch.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Automatic completion in getters and constructors remains an open lowering policy: these bodies cannot become C# async methods. This promotion support applies to method bodies and does not settle those two cases.
 
 ## Discarded Tasks and Scope-Exit Await
 
@@ -118,7 +141,7 @@ In an async context, calling an async method returns `Task<T>` — it does not a
 {{#endtab }}
 {{#endtabs }}
 
-Both `FetchData()` and `SendNotification()` run concurrently. At the end of `ProcessAll`, the compiler inserts an implicit `await Task.WhenAll(...)` to ensure both tasks complete before the method returns.
+Both `FetchData()` and `SendNotification()` run concurrently. At the end of `ProcessAll`, the compiler awaits outstanding tasks through scope-exit cleanup, ensuring both complete before the method returns.
 
 This also applies to `Task<T>` variables that are assigned but never explicitly awaited within the same scope — they are treated as discarded and awaited at scope exit.
 

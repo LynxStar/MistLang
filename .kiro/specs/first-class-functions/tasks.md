@@ -369,3 +369,13 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
   ]
 }
 ```
+
+## Standard pipeline callable completion evidence (2026-10-03)
+
+Method groups targeting synchronous func signatures adapt promoted C# implementations by completing
+their tasks before delegate return. Static, instance, closed generic/specialized and implicit struct
+targets preserve selected callee identity and capture receivers once at formation. AsyncMethodGroupTests
+uses hand-built Tier 2 inputs with ordinary sync and declared async controls. The Tier 4
+AsyncPromotionRuntimeBoundaryTests gates delayed completion and invokes one captured delegate twice.
+The existing FirstClassFunctions sample and method-groups book snippet demonstrate a promoted target;
+AllFeaturesV2 remains the sole full-system baseline.

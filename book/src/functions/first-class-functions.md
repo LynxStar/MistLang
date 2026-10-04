@@ -211,6 +211,8 @@ A generic method works the same way. Its type arguments come from the target: ea
 
 Stated type arguments are read as such only where the expression ends there -- before `;`, `,`, `)`, `]` or `}` -- which is what keeps `Use(a < b, c > d)` two comparisons. A generic method converts by exact signature like any other, and an inferred or stated type argument is held to the method's `where` clauses.
 
+A synchronous method group keeps its Mist `func` signature even when the method completes async work internally. The compiler adapts the task-returning C# implementation so the delegate returns the completed value. Instance receivers are captured once when the function value is formed, including receivers produced by a call. Generic targets retain their selected type arguments. An explicitly async method instead fills a task-returning function type.
+
 ## Static Lambdas
 
 The `static` modifier on a lambda prevents it from capturing any enclosing variables. This guarantees no heap allocation for a closure object:
@@ -254,7 +256,7 @@ The `async` modifier creates a lambda that returns `Task<T>` and can use `await`
 
 Async lambdas follow the same structured concurrency rules as async methods. You can also combine `static` and `async`: `static async (x) => await Compute(x)`.
 
-A non-async lambda that calls an async method will auto-await the result (consistent with Mist's sync context behavior). The compiler emits `async` on the C# lambda automatically when needed.
+A non-async lambda that calls an async or internally promoted method completes the call before returning its result. Its synchronous delegate signature stays unchanged; the C# backend uses a blocking completion adapter.
 
 ## Capture Semantics
 

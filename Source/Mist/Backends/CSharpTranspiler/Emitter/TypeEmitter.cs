@@ -331,6 +331,7 @@ internal static class TypeEmitter
             if(concrete is not null)
             {
                 ConformanceEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
+                AsyncSlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 SlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 PackSlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 IteratorBoilerplateEmitter.Emit(concrete, writer, ref anyEmitted);
@@ -423,12 +424,12 @@ internal static class TypeEmitter
         }
     }
 
-    private static void EmitRestatedDefault(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
+    internal static void EmitRestatedDefault(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        writer.WriteLine($"public {MethodEmitter.EmitSignature(method, diagnostics)}");
+        writer.WriteLine($"public {(method.Modifiers.IsAsync ? "async " : "")}{MethodEmitter.EmitSignature(method, diagnostics)}");
         using(writer.Block())
         {
-            BodyEmitter.EmitBlock(method.Body!, writer, diagnostics);
+            EmitDefaultBody(method, writer, diagnostics);
         }
     }
 
@@ -506,7 +507,7 @@ internal static class TypeEmitter
         }
     }
 
-    private static void EmitInterfaceMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
+    internal static void EmitInterfaceMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var signature = MethodEmitter.EmitSignature(method, diagnostics);
 
@@ -516,10 +517,22 @@ internal static class TypeEmitter
             return;
         }
 
-        writer.WriteLine(signature);
+        writer.WriteLine($"{(method.Modifiers.IsAsync ? "async " : "")}{signature}");
         using(writer.Block())
         {
-            BodyEmitter.EmitBlock(method.Body, writer, diagnostics);
+            EmitDefaultBody(method, writer, diagnostics);
+        }
+    }
+
+    private static void EmitDefaultBody(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(method.Modifiers.IsAsync)
+        {
+            BodyEmitter.EmitMethodBody(method, method.Body!, writer, diagnostics);
+        }
+        else
+        {
+            BodyEmitter.EmitSynchronousMethodBody(method, method.Body!, writer, diagnostics);
         }
     }
 

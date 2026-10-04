@@ -381,6 +381,8 @@ public class Program
         Console.WriteLine("--- Method Group ---");
         func<int, int> fn = Negate;
         Console.WriteLine($"fn(42)={fn(42)}");
+        func<string> promoted = ReadPromoted;
+        Console.WriteLine($"promoted()={promoted()}");
 
         // PROOF: Type alias for func type works as target type
         Console.WriteLine("--- Type Alias ---");
@@ -497,6 +499,11 @@ public class Program
     }
 
     // PROOF: Named method used as method group
+    public static string ReadPromoted()
+    {
+        return AsyncLookup(6);
+    }
+
     public static int Negate(int x)
     {
         return -x;
@@ -551,6 +558,7 @@ multiplier(7)=21
 multiplier(0)=0
 --- Method Group ---
 fn(42)=-42
+promoted()=item-6
 --- Type Alias ---
 isEven(4)=True
 isEven(7)=False

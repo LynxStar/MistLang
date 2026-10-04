@@ -10312,6 +10312,11 @@ capabilities:
       `Task<Standard.Void>`, neither a type C# has. TaskProjection spells both as the CLR's, and the
       void case collapses to the non-generic task, which is where Mist's one declaration and C#'s two
       types are reconciled.
+
+      Explicit async extension declarations now share method task projection, async body modifiers,
+      entry context binding and parameter completion with ordinary methods. Promoted declarations
+      keep their original model return types; ExtensionAsyncPromotionTests pins both contracts and
+      generic/static receiver signatures using hand-built Tier 2 inputs.
     unlocks: []
 
   - id: sync-async-context-classification
@@ -10337,6 +10342,19 @@ capabilities:
       A BACKEND WITH BLOCKING PRIMITIVES WOULD EMIT NONE OF THE SECOND HALF and read the same
       registry, which is the test that put it there rather than in the model. Mist's method is sync
       and its callers see a sync method; promotion is only how C# is made to honour that.
+
+      PROMOTION ACROSS CALLABLES AND DISPATCH (2026-10-03). AsyncPromotion discovers extension
+      methods and their local functions, and follows canonical SourceDeclaration identities for
+      closed generic calls and caller closure. Abstract slot declarations remain synchronous:
+      promoted concrete implementations expose completion adapters through exact inherited/generic
+      and retroactive slot mappings; synchronous defaults/restatements complete within their bodies.
+      Direct concrete calls retain awaited task lowering. AbstractAsyncPromotionDecisionTests proves
+      registry decisions at Tier 1; AsyncSlotBridgeEmissionTests and ExtensionAsyncPromotionTests
+      exercise signatures, default bodies, inherited slots and closed targets at Tier 2.
+
+      Getter and constructor bodies that call task-returning methods remain open policy questions.
+      Neither can become a C# async body. This delivery does not choose blocking adapters, body
+      transformation or source refusal for those sites.
     unlocks: []
 
   - id: auto-await-and-explicit-await
@@ -10365,14 +10383,29 @@ capabilities:
       FirstClassFunctions printed four Tasks where classic printed values: a func value returning a
       task is a task-returning call however it was reached.
 
-      THE BLOCKING GETTER SURVIVES IN EXACTLY ONE PLACE. A lambda's delegate type is fixed by the
+      A SYNCHRONOUS LAMBDA NEEDS A COMPLETION ADAPTER. A lambda's delegate type is fixed by the
       position it fills, so it cannot be promoted the way a method can, and an await inside a SYNC
-      one blocks. It is the one place this backend cannot honour a sync context with a real await.
+      one blocks. Promoted method groups and synchronous abstract slots use the same boundary strategy.
 
       V2 IS CONSISTENT WHERE CLASSIC IS NOT. Inside a string interpolation hole classic does not
       auto-await and prints the Task; v2 does, because the rule is about the call's type and its
       context and not about the position it sits in. No baseline covers it -- StructuredConcurrency
       only uses the position classic gets right.
+
+      Completion adapters also preserve synchronous promoted method groups, including static,
+      instance, closed generic and specialized targets. Receivers are captured once at formation;
+      implicit struct receivers are captured before the lambda is created. RespelledGroups retains
+      the selected callee spelling. AsyncMethodGroupTests holds these Tier 2 decisions alongside
+      ordinary synchronous and explicitly async controls. Synchronous abstract slots/default bodies
+      are additional boundaries that complete with a blocking get, retaining their Mist signature.
+
+      Optional promoted calls narrow their receiver before invoking or awaiting it. An absent
+      receiver skips arguments and yields absence; presence awaits the result. Void statements and
+      hoisted unit values use a guarded completion. OptionalAsyncPromotionTests covers result,
+      generic-call, lambda and chaining shapes at Tier 2. AsyncPromotionRuntimeBoundaryTests uses
+      hand-built emitter input and a gated delayed task at Tier 4: direct calls, scheduled lifts,
+      delegates, abstract slots, extensions, optional receivers and scope drops complete; work and
+      receiver captures execute once, and absence invokes no task.
     unlocks: []
 
   - id: async-expression-functor
@@ -10399,6 +10432,14 @@ capabilities:
 
       DOUBLE-LIFTING WORKS: FirstClassFunctions' `async id => async ComputeSync(id)` at
       func<int, Task<Task<int>>> matches classic, as does the whole sample.
+
+      A functor over a promoted synchronous invocation schedules an async lambda that awaits its
+      result, including promoted subexpressions evaluated by that invocation. The resulting Task<T>
+      has the Mist result contract, completes once, and adds no extra nested task. Deferred lambda,
+      block and nested functor bodies do not make the outer scheduled lambda async. AsyncLiftDecisionTests
+      proves the decision at Tier 1; ExtensionAsyncPromotionTests covers lowering and ordinary lifts,
+      explicit async suppression and synchronous lambda controls at Tier 2; the delayed runtime seam
+      checks scheduling/completion at Tier 4. Private source probes reproduce and then print 7.
     unlocks: [SubstructuralFieldDiscipline]
 
   - id: discarded-task-obligation
@@ -10470,6 +10511,12 @@ capabilities:
       is order 161's move analysis answering a question it was already built to answer.
 
       AsyncDropChaining matches classic.
+
+      The scope-exit promotion walk includes extension bodies and local functions. Declared async
+      targets are excluded from rewrapping; explicit Drop/await and suppression retain the existing
+      completion accounting. ExtensionAsyncPromotionTests pins discovery and the shared method-body
+      emitter; AsyncPromotionRuntimeBoundaryTests gates a held task and proves the promoted body
+      cannot return before cleanup completes. Getter/constructor policy remains open under order 170.
     unlocks: [AsyncDropChaining]
 
   - id: structured-context

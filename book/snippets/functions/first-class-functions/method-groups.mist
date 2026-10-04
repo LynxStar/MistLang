@@ -7,10 +7,22 @@ public class Program
         return -x;
     }
 
+    public static async int Fetch()
+    {
+        return 7;
+    }
+
+    public static int Read()
+    {
+        return Fetch();
+    }
+
     public static void Main(string[] args)
     {
         // Method group: use a named method where a func is expected
         func<int, int> fn = Negate;
         Console.WriteLine($"fn(42)={fn(42)}");
+        func<int> read = Read;
+        Console.WriteLine($"read()={read()}");
     }
 }

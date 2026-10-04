@@ -10,6 +10,11 @@ async int ComputeAsync()
     return 3 + 3;
 }
 
+int ComputePromoted()
+{
+    return ComputeAsync();
+}
+
 void Main()
 {
     // Lift a sync method into a task
@@ -20,4 +25,6 @@ void Main()
 
     // Without async functor, sync context auto-unwraps
     var value = ComputeAsync();         // value: int (auto-awaited)
+    var promotedTask = async ComputePromoted();
+    Console.WriteLine(await promotedTask);
 }

@@ -78,7 +78,7 @@ internal static class MethodEmitter
     /// interface member path in <see cref="TypeEmitter"/> so the two cannot disagree about
     /// what a method's signature contains.
     /// </summary>
-    internal static string EmitSignature(Method method, DiagnosticBag diagnostics)
+    internal static string EmitSignature(Method method, DiagnosticBag diagnostics, string? qualifiedName = null)
     {
         var returnType = EmitReturnType(method);
         // A specialization declares the pack's expansion in the pack's place and carries the width
@@ -117,7 +117,7 @@ internal static class MethodEmitter
             parts.Add(parameters);
         }
 
-        return $"{returnType} {name}{typeParams}({string.Join(", ", parts)})";
+        return $"{returnType} {qualifiedName ?? name}{typeParams}({string.Join(", ", parts)})";
     }
 
     private static List<TypeParameter> Declared(Method method)
@@ -125,6 +125,25 @@ internal static class MethodEmitter
         return Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList)
             ? [.. monomorph.Parameters(method.TypeParametersList)]
             : method.TypeParametersList;
+    }
+
+    internal static string ForwardingTypeArguments(Method method)
+    {
+        var declared = Declared(method);
+        var parameters = declared.Select(DependentCarrierNames.Parameter)
+            .Concat(SlotLift.Synthesized(declared).Select(slot => slot.Name)).ToList();
+
+        return parameters.Count > 0 ? $"<{string.Join(", ", parameters)}>" : "";
+    }
+
+    internal static string ForwardingArguments(Method method)
+    {
+        var declared = Declared(method);
+        var arguments = declared.Where(DefaultConstraintWitness.Constrains).Select(DefaultConstraintWitness.Name)
+            .Concat(ConstructorWitnesses.Names(ConstructorWitnesses.Of(declared)))
+            .Concat(method.ParametersList.Select(parameter => $"{ArgumentKeywords.For(parameter)}{parameter.Name}"));
+
+        return string.Join(", ", arguments);
     }
 
     /// <summary>

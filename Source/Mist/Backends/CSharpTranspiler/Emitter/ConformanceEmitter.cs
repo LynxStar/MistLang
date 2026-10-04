@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -46,17 +47,14 @@ internal static class ConformanceEmitter
         MethodMapping mapping, string interfaceName, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var slot = mapping.Target;
-        var returnType = MethodEmitter.EmitReturnType(slot);
-        var typeParams = slot.TypeParametersList.Count > 0
-            ? $"<{string.Join(", ", slot.TypeParametersList.Select(tp => tp.Name))}>"
-            : "";
-        var parameters = ParameterEmitter.Emit(slot.ParametersList, diagnostics);
-        var arguments = string.Join(", ", slot.ParametersList.Select(parameter => $"{ArgumentKeywords.For(parameter)}{parameter.Name}"));
+        var typeParams = MethodEmitter.ForwardingTypeArguments(slot);
+        var arguments = MethodEmitter.ForwardingArguments(slot);
         var aliased = slot.Modifiers.IsRef ? "ref " : "";
+        var completion = AsyncPromotion.IsPromoted(mapping.Source) ? ".GetAwaiter().GetResult()" : "";
 
         writer.WriteLine(
-            $"{returnType} {interfaceName}.{slot.Name}{typeParams}({parameters})"
-            + $" => {aliased}this.{mapping.Source.Name}({arguments});");
+            MethodEmitter.EmitSignature(slot, diagnostics, $"{interfaceName}.{slot.Name}")
+            + $" => {aliased}this.{mapping.Source.Name}{typeParams}({arguments}){completion};");
     }
 
     private static void EmitProperty(PropertyMapping mapping, string interfaceName, CSharpWriter writer)

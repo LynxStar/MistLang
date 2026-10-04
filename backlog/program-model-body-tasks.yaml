@@ -362,7 +362,7 @@ statements:
     - [ ] ReadonlyBlockStatement (`readonly { }`) -> bound block flagged readonly-context -- no case in BindStatement -> UnsupportedStatement
   expression_statement:
     - [x] ExpressionStatement -> bound expression in statement position
-    - [ ] discarded-async-invocation tracking (bare async call whose result is dropped -> scope-exit await obligation; see mist_specific.async)
+    - [x] discarded-async-invocation completion -- async-context bare tasks are bound by BodyEmitter and awaited through DropInsertion cleanup; sync-context inserted task drops seed TaskDropRegistry/AsyncPromotion (orders 170-175, AsyncCompletionTests and delayed AsyncPromotionRuntimeBoundaryTests). This is emitter-owned cleanup rather than a new binder task list.
   context_statements:
     # The `with` family (structured-context). See mist_specific.context.
     # NONE of the six has a case in BindStatement; all reach UnsupportedStatement.
@@ -470,8 +470,8 @@ expressions:
     - [x] target-type-driven parameter inference -- 2026-10-03: structural FunctionType and nominal DelegateShape use the same Invoke parameter targets. Qualified System.Func/Action source names bind Standard's pack/alias family, and projected metadata signatures use FunctionShape directly. ClrCallableNameTests covers zero/one/sixteen inputs, func identity and unknown/unsupported-arity refusals; AmbientDelegateTupleNameTests preserves callable nullability and tuple cursors. A parameter is typed by its annotation or target, never inferred circularly from the body.
     - [x] explicit-typed-parameter lambdas without target type -> construct the function type from the annotations plus the inferred result
     - [x] body binding in a child scope; return-type inference (expression body, or collect block returns -> common type) -- the block is bound BEFORE the type is known, which is what lets the result be read off its returns. The walk does not descend a NESTED lambda, whose returns answer to it instead. A body returning nothing is void; returns that disagree are refused
-    - [~] `static` and `async` lambda modifiers -- static is carried and emitted, and C# enforces the capture ban (CS8820) against the generated file; reporting it against Mist source is analysis-phase work, see order 107. ASYNC is PARKED rather than ignored: the modifier changes what the body's type means, so binding it synchronously would answer confidently with the wrong result
-    - [ ] async lambda return-type wrapping (-> Task<T>) -- the async layer's, orders 169-175
+    - [x] `static` and `async` lambda modifiers -- LambdaBinder sets the async binding context and wraps the inferred result in Task<T>; BodyEmitter retains synchronous delegate contracts with completion adapters and emits explicitly async lambdas with task results. Static capture validation remains analysis order 107, independent of async lowering.
+    - [x] async lambda return-type wrapping (-> Task<T>) -- LambdaBinder/AsyncTypes; binding and completion anchors AsyncBindingTests/AsyncCompletionTests, orders 169-175.
     - [x] method-group -> delegate / Func conversion (single-overload selection against target) -- order 108, at the point PostfixBinder already had for reporting an unconsumed group. Selection is by IDENTITY per position, the CLR's rule for binding a delegate rather than for passing an argument, so a method taking an int does not convert to a `func<long, ...>`. A generic method is declined, its type arguments being inferable only from the target
     - [ ] closure-capture analysis (record captured symbols for the future emitter) -- not needed for capture to WORK: a lambda body binds in a scope chained to the enclosing one, so a captured name resolves to the very same LocalVariable and nothing copies (order 106). A recorded capture set is what an analyzer would need, which is the same thing order 107's rejection wants
     - [ ] a target that is a UNION over a function type, which `func<int, int>?` is: `func<int, int>? f = x => x + 1;` is MIST_PM_LAMBDA_PARAMETER_NO_TYPE on v2 (measured 2026-09-20, order 104's suffixes), the target-type walk reading a UnionType and stopping. Classic runs it. The rule to specify is which constituent a lambda is targeted by when several are function types of its arity -- one is the obvious answer and two is a refusal, neither of which is written anywhere yet. Going through a typed local (`func<int, int> plus = x => x + 1;` then assigning) works today
@@ -646,13 +646,12 @@ mist_specific_semantics:
   newtypes:
     - [x] newtype wrap / unwrap in expressions (member access unwraps to source; assignment stays nominal) -- member access forwards through TypeMemberLookup.EnqueueBases (SourceType walks as a pseudo-base, private members hidden by depth), the synthesized Value field covers intrinsic sources, construction forwards via ExpressionBinder.ConstructionTarget, and the expression's type stays the Newtype throughout (order 86). SUPERSEDED for a non-generic, non-intrinsic class or struct source on 2026-09-13: that newtype is a ClassType or StructType bound from its source's declaration (NewtypeCloner, CloneScope), so nothing forwards; forwarding remains for intrinsic, generic and alias sources until the revised newtypes spec's task 14. A newtype over a newtype (2026-10-03) is still bound from the root declaration, but its CloneSourceType is the newtype it names -- the source it converts with and is never -- rather than the root (order 86, A NEWTYPE'S SOURCE IS THE ONE IT NAMES)
   async_await:
-    # All four async/await AST nodes (Await, Async, AsyncBlock, AsyncHintBlock) hit
-    # BindUnary's `default:` -> UnresolvedExpression.
-    - [ ] `await` unwraps Task<T> / ValueTask<T> -> T
-    - [ ] auto-await: direct invocation of async method in sync context auto-unwraps Task<T>
-    - [ ] async block (`async { }`) -> Task<T>; async hint block (`async valuetask { }`) -> ValueTask<T>
-    - [ ] async functor (`async expr`) -> wraps in Task<T>
-    - [ ] discarded-task tracking per block scope (scope-exit await); async promotion signal for the emitter
+    - [x] `await` unwraps Task<T> / ValueTask<T> -> T -- bound as the task's intrinsic Drop, shared with explicit task drops
+    - [x] auto-await: direct method and delegate invocations in sync contexts unwrap Task<T>; an async operand, explicit await or task-typed target preserves the task
+    - [x] async block (`async { }`) -> Task<T>; async hint block (`async valuetask { }`) -> ValueTask<T> -- LambdaBinder inference and AsyncBlockExpression
+    - [x] async functor (`async expr`) -- AsyncExpression distinguishes lifting a synchronous result from suppressing task auto-completion. Promoted targets and immediate promoted arguments use an awaited scheduled lambda, retaining Task<T>; AsyncLiftDecisionTests/ExtensionAsyncPromotionTests (Tier 1/2)
+    - [x] scope completion and async promotion -- TaskDropRegistry records drops/calls, DropInsertion identifies held-task releases, and AsyncPromotion closes method obligations including extension/local and canonical generic identities. Delayed emitter/runtime seam AsyncPromotionRuntimeBoundaryTests verifies completion
+    - [ ] getter/constructor task-call lowering policy -- choose blocking adapters, body transformation or source refusal; neither body can be C# async (emitter order 170)
   stackalloc_ref:
     - [x] stackalloc -> span type (readonly from target; qualified/generic/alias element resolution shared with ordinary references). Integer literal sizes carry a known length, and computed sizes carry an unknown Int32 value length
     - [ ] ref-expression / ref-argument value categories -- ref on arguments is erased by GetAllExpressions()
@@ -669,7 +668,7 @@ emitter_lowering_annotations:
   - [ ] as-conversion kind: provable vs runtime-checked -- `as` does not bind
   - [~] resolved member / method / constructor symbol on access + call nodes -- PRESENT on MethodReferenceExpression.Method, FieldReferenceExpression.Field, TypeReferenceExpression.ReferencedType. ABSENT on MemberAccessExpression (string name only), InvocationExpression, ObjectCreationExpression, IndexExpression
   - [ ] implicit .Clone() insertion sites (ownership bridging via IClonable)
-  - [ ] discarded async tasks per block scope (scope-exit await)
+  - [x] discarded async tasks per block scope (scope-exit await) -- emitter binds bare tasks and DropInsertion cleanup awaits them; AsyncCompletionTests and gated AsyncPromotionRuntimeBoundaryTests, orders 173-175
   # Inference passes that run as pipeline stages (NOT analyzers) and feed the emitter.
   # Decide whether these run during Phase 3 binding or as separate post-binding passes.
   # ALL FOUR ARE STILL UNDECIDED -- no comment anywhere records the Phase-3-vs-later

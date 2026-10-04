@@ -199,3 +199,14 @@ Fix three interrelated defects in the structured concurrency pipeline: (1) Func 
 - Zero warnings policy: no build warnings allowed in any new code
 - Test process spawning: use in-process compilation via shared CompilerDriver, never spawn 100+ processes
 - Sample app integrity: AsyncDropChaining must genuinely exercise all three fixes and would fail if any fix is broken
+
+## Standard pipeline completion closeout (2026-10-03)
+
+Async functors over promoted synchronous methods use scheduled async lambdas that await completion,
+including immediate promoted argument expressions. Deferred bodies do not add async modifiers.
+AsyncLiftDecisionTests (Tier 1) and ExtensionAsyncPromotionTests (Tier 2) hold these lowering decisions;
+AsyncPromotionRuntimeBoundaryTests holds delayed completion/drop behavior at the Tier 4 runtime seam.
+Extension/local scope obligations and canonical generic callee identities participate in promotion.
+Synchronous callable and abstract boundaries retain their contracts through completion adapters;
+absent optional receivers skip invocation before awaiting. Getter/constructor policy remains open
+under emitter register order 170.

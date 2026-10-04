@@ -62,7 +62,13 @@ internal sealed class AsyncPromotion
     /// </summary>
     public static bool IsPromoted(Method? method)
     {
-        return method is not null && inScope is { } scope && scope.promoted.Contains(method);
+        return method is not null && method.DeclaringType is not AbstractType
+            && inScope is { } scope && scope.promoted.Contains(Declaration(method));
+    }
+
+    private static Method Declaration(Method method)
+    {
+        return method.SourceDeclaration is { } source ? Declaration(source) : method;
     }
 
     /// <summary>
@@ -88,14 +94,15 @@ internal sealed class AsyncPromotion
     /// </summary>
     private static IReadOnlySet<Method> Compute(TaskDropRegistry drops, ProgramModelClass programModel)
     {
-        var promoted = new HashSet<Method>(drops.Dropping.Where(method => !method.Modifiers.IsAsync));
+        var promoted = new HashSet<Method>(drops.Dropping.Select(Declaration)
+            .Where(method => !method.Modifiers.IsAsync && method.DeclaringType is not AbstractType));
 
         // RETROACTIVE, and the binder could not have known: a scope holding a task owes its completion,
         // and completing it is an await this pass inserts. So the obligation makes the method async
         // after the fact, exactly as a written await would have.
         foreach(var method in Methods(programModel))
         {
-            if(!method.Modifiers.IsAsync
+            if(!method.Modifiers.IsAsync && method.DeclaringType is not AbstractType
                 && method.Body is { } body
                 && DropInsertion.ReleasedBindings(body).Any(
                     declaration => DropInsertion.IsAwaitable(declaration.Local.Type)))
@@ -112,14 +119,15 @@ internal sealed class AsyncPromotion
 
             foreach(var caller in drops.Callers)
             {
-                if(caller.Modifiers.IsAsync || promoted.Contains(caller))
+                var declaration = Declaration(caller);
+                if(declaration.Modifiers.IsAsync || declaration.DeclaringType is AbstractType || promoted.Contains(declaration))
                 {
                     continue;
                 }
 
-                if(drops.CalleesOf(caller).Any(promoted.Contains))
+                if(drops.CalleesOf(caller).Any(callee => promoted.Contains(Declaration(callee))))
                 {
-                    _ = promoted.Add(caller);
+                    _ = promoted.Add(declaration);
                     changed = true;
                 }
             }
@@ -129,7 +137,7 @@ internal sealed class AsyncPromotion
     }
 
     /// <summary>
-    /// Every body that can owe an await: a type's methods, the top-level statements, and every local
+    /// Every body that can owe an await: type and extension methods, the top-level statements, and every local
     /// function declared inside any of them, since a local function is emitted as a C# function of its
     /// own and can be made async on its own.
     /// </summary>
@@ -157,6 +165,16 @@ internal sealed class AsyncPromotion
                         {
                             yield return function;
                         }
+                    }
+                }
+
+                foreach(var method in unit.Extensions.SelectMany(block => block.MethodsList))
+                {
+                    yield return method;
+
+                    foreach(var function in LocalFunctionsOf(method))
+                    {
+                        yield return function;
                     }
                 }
             }

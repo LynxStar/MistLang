@@ -1,5 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis;
+using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -22,6 +24,8 @@ internal static class SlotBridgeEmitter
     public static void Emit(
         ConcreteType type, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted)
     {
+        var fillers = ConformanceAnalyzer.Fillers(type).ToList();
+
         foreach(var reached in SlotLift.Reached(type))
         {
             if(SlotLift.Definition(reached) is not AbstractType definition)
@@ -48,12 +52,15 @@ internal static class SlotBridgeEmitter
                 }
 
                 var interfaceName = TypeNameEmitter.Emit(SlotLift.Base(reached, type) ?? reached);
+                var source = fillers.FirstOrDefault(filler => filler.Method is { } own && own.Name == method.Name
+                    && SlotSignatures.Answers(method, own, substitution, filler.Substitution, interner: null))?.Method;
+                var completion = AsyncPromotion.IsPromoted(source) ? ".GetAwaiter().GetResult()" : "";
 
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
                 writer.WriteLine(
                     $"{TypeNameEmitter.Emit(substitution.Apply(erased, interner: null))}"
                     + $" {interfaceName}.{method.Name}({Parameters(method, substitution)})"
-                    + $" => this.{method.Name}({Arguments(method)});");
+                    + $" => this.{method.Name}({Arguments(method)}){completion};");
             }
         }
     }

@@ -283,3 +283,19 @@ This plan implements structured concurrency for the Mist language, progressing t
   ]
 }
 ```
+
+## Standard pipeline promotion evidence (2026-10-03)
+
+Method promotion preserves Mist signatures across extension methods, scheduled functors, synchronous
+method groups, abstract dispatch and optional calls (Requirements 2, 3.1-3.5, 4, 5, 7, 10.5).
+AsyncLiftDecisionTests and AbstractAsyncPromotionDecisionTests hold direct Tier 1 decisions.
+ExtensionAsyncPromotionTests, AsyncMethodGroupTests, AsyncSlotBridgeEmissionTests and
+OptionalAsyncPromotionTests hold hand-built Tier 2 lowering chains. AsyncPromotionRuntimeBoundaryTests
+uses hand-built emission and a gated delayed task at the Tier 4 emitter/runtime seam to prove
+completion, exactly-once capture/execution, absence and scope cleanup.
+
+Synchronous abstract slots/default bodies and delegate contracts use completion adapters; their
+public Mist types stay synchronous. Existing generic conformance and slot identities are preserved.
+The StructuredConcurrency and FirstClassFunctions demonstrations run through the existing
+AllFeaturesV2 baseline. Getter and constructor task-call policy remains open: blocking adaptation,
+body transformation and source refusal are undecided for bodies that cannot become C# async.

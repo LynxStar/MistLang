@@ -66,6 +66,18 @@ public class Helpers
     }
 }
 
+public abstract IReader { int Read(); }
+
+public class Reader : IReader
+{
+    public int Read() { return Helpers.ComputeAsync(); }
+}
+
+extension (int self)
+{
+    public int ReadPromoted() { return Helpers.ComputeAsync(); }
+}
+
 // ─── Async context demonstrations ────────────────────────────────────────────
 
 public class AsyncDemos
@@ -190,6 +202,13 @@ public class Program
         // The compiler emits async Task Main in C# to support this.
         var entryResult = Helpers.FetchAsync();
         Console.WriteLine($"  entry point called async method, result={entryResult}");
+
+        Console.WriteLine("[promotion-dispatch]");
+        var reader = new Reader();
+        IReader view = reader;
+        Reader? absent = void;
+        var lifted = async reader.Read();
+        Console.WriteLine($"  direct={reader.Read()} abstract={view.Read()} extension={2.ReadPromoted()} optional={absent?.Read() ?? -1} lifted={await lifted}");
 
         Console.WriteLine("=== Structured Concurrency Done ===");
     }

@@ -451,6 +451,7 @@ Phase D adds the assignability helper for covariant unknown widening, the class-
   - [x] 25.2 In binary/unary operator resolution, when any operand's static type is `UnknownType`, emit `MIST_TC_0066` (reallocated from the design-document-proposed `MIST_TC_0054`, which was already in use by the pattern-matching feature's `PatternListRequiresArray` diagnostic — see the "Note on numbering" in `design.md`)
     - Applies to `==`, `!=`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `/`, `%`, `&&`, `||`, `!`, and user-defined operators
     - _Requirements: 13.2, 16.4_
+    - Standard-pipeline unary correction (2026-10-03): negation and logical not on a bare `unknown` now bind error-typed unary nodes and receive `MIST_PA_UNKNOWN_HAS_NO_OPERATORS` at source when those nodes survive to analysis. A positive earlier refusal suppresses consequences; an unreported `ErrorType` does not count as an earlier diagnostic. Failed-overload subtree retention/cascade completeness remains the error-tree workstream; generic/closed-with-unknown policy is unchanged. See analysis order 9 for verification evidence. _Requirement: 13.2._
 
   - [x] 25.3 Leave `is`-expression handling untouched on bare `unknown` — narrowing is the designated mechanism (Req 13.3)
     - Confirmed by Task 24's tests

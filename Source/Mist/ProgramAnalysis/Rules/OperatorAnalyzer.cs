@@ -1,4 +1,5 @@
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
@@ -27,9 +28,10 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
                     break;
 
                 case UnaryExpression unary when unary.Type is ErrorType
+                    && !PriorFailure.Of(unary.Operand)
                     && OperatorDecision.Unary(unary.OperatorKind, unary.Operand.Type) is { } refused:
                     context.Report(
-                        refused, unary.Node, [unary.Operand],
+                        refused, unary.Node, [],
                         Spelling(unary.OperatorKind), TypeDisplay.Mist(unary.Operand.Type), TypeDisplay.Mist(unary.Operand.Type));
                     break;
 

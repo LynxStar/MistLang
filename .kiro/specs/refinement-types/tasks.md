@@ -83,6 +83,7 @@ This plan implements refinement types for the Mist language across the full comp
     - When a `RefinementType` value participates in arithmetic (+, -, *, /, %), produce the `BaseType` as the result type
     - When a `RefinementType` value participates in comparison, use `BaseType` semantics
     - _Requirements: 8.1, 8.2_
+    - Standard-pipeline unary correction (2026-10-03): `OperatorAdmissibility.UnaryResultType` follows the selected unary return contract or the supported built-in base result. Negating an integral refinement or applying `!` to a Boolean refinement drops the input predicate, including lifted/ad-hoc forms on the same path. Refined returns, initialized locals and arguments require proof of the transformed value; explicitly declared refined operator returns and supported constant proofs remain valid. The existing real/string literal evaluator controls remain supported. Dynamic transformed values without a supported proof remain unproven; no solver expansion is claimed. See `backlog/analysis-v2-capability-progression.yaml`, `refinement-proving`, for verification evidence and remaining limits. _Requirements: 8.1, 8.4._
   - [x] 7.4 Write property test for compile-time enforcement
     - **Property 3: Compile-time enforcement correctness**
     - Create `Test/Mist.Tests/Analysis/RefinementEnforcementPropertyTests.cs`

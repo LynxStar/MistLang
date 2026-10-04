@@ -1,6 +1,7 @@
 using Standard;
 
 type AdultAge = int >= 18;
+type Yes = bool true;
 
 public class Program
 {
@@ -8,9 +9,14 @@ public class Program
     {
         AdultAge a = 20;
 
-        // Arithmetic produces int, not AdultAge
+        // Computation can change a value enough to invalidate its input predicate.
         int sum = a + 5;
         int diff = a - 2;
+        int negated = -a;
+        Yes yes = true;
+        bool opposite = !yes;
+        Console.WriteLine(negated);
+        Console.WriteLine(opposite);
 
         // To get back to AdultAge, use pattern matching
         int computed = a + 10;

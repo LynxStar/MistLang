@@ -69,23 +69,36 @@ internal static class OperatorAdmissibility
     }
 
     /// <summary>
-    /// A unary operator declared on the operand's type answers for itself; one answering the operand's
-    /// own type -- every numeric negation and Boolean's <c>!</c> -- keeps the operand as written, so a
-    /// lift or a refinement on it survives exactly as it did before any declaration was consulted.
-    /// The unsigned types and char have no negation at all, where C# would promote them: Standard declares
-    /// none for them, and classic refuses <c>-x</c> over each. Named rather than inferred from a missing
-    /// declaration, which a model built from Standard's shells alone would show for every numeric type.
+    /// A transformation promises only its selected return contract, never its operand's predicate.
+    /// Standard shells also admit signed numeric negation and Boolean not without loaded declarations;
+    /// unsigned and char negation remain refused rather than acquiring target-language promotions.
     /// </summary>
     public static IMistType? UnaryResultType(UnaryOperatorKind op, IMistType operand)
     {
-        if(SelectedUnary(op, operand) is { } candidate)
+        var underlying = Underlying(operand);
+
+        if(underlying is ErrorType or UnknownType or UnionType)
         {
-            return candidate.ReturnType.FullyQualifiedName == Underlying(operand).FullyQualifiedName
-                ? operand
-                : candidate.ReturnType;
+            return null;
         }
 
-        return op == UnaryOperatorKind.Negate && Array.Exists(Unnegatable, type => Is(Underlying(operand), type)) ? null : operand;
+        if(IsIndeterminate(underlying))
+        {
+            return underlying;
+        }
+
+        if(SelectedUnary(op, operand) is { } candidate)
+        {
+            return candidate.ReturnType;
+        }
+
+        return op switch
+        {
+            UnaryOperatorKind.Negate => IsNumeric(underlying) && !Array.Exists(Unnegatable, type => Is(underlying, type))
+                ? underlying : null,
+            UnaryOperatorKind.LogicalNot => Is(underlying, WellKnownTypes.Boolean) ? underlying : null,
+            _ => operand,
+        };
     }
 
     /// <summary>

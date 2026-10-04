@@ -141,9 +141,9 @@ Refinement types can appear anywhere a regular type can — as variable types, m
 
 Parameters, variables, fields, and return types all rely on the same static analysis: a literal is evaluated against the predicate, a refined value is checked by implication, and any other value must first be narrowed by an `is` check or by a condition that proves the predicate. Nothing is deferred to runtime, so a call that cannot be proven is a compile error at the call site rather than an exception in the callee.
 
-## Arithmetic Produces the Base Type
+## Arithmetic and Unary Results
 
-When you perform arithmetic on a refined value, the result has the base type rather than the refinement type. This is because arithmetic can produce values outside the refinement's valid range — the compiler can't prove the result still satisfies the predicate.
+Built-in arithmetic on a refined value produces its base type. Unary negation follows the same rule: `-a` does not inherit the predicate attached to `a`. Logical not also produces the base `bool` when its operand has a Boolean refinement, because `!` can change a value that satisfies `true` into `false`.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -158,7 +158,9 @@ When you perform arithmetic on a refined value, the result has the base type rat
 {{#endtab }}
 {{#endtabs }}
 
-The expressions `a + 5` and `a - 2` both produce `int` even though `a` is `AdultAge`. To re-establish the refinement after computation, validate the result with `is AdultAge`. This design prevents unsound assumptions — subtracting from an `AdultAge` could produce a value below 18, so the type system conservatively widens to the base type.
+The expressions `a + 5`, `a - 2`, and `-a` produce `int` even though `a` is `AdultAge`; `!yes` produces `bool` even though `yes` is `Yes`. Assigning, returning, or passing these results to a refined destination requires proof of the result's predicate. The operand's predicate alone is insufficient. To re-establish a refinement after computation, validate the result with `is AdultAge`. Supported constant expressions can still be proven directly, such as `Positive p = -(-2)`. Boolean-not constant expressions currently require a pattern check before use as a refined value; Boolean literal proofs such as `Yes y = true` remain supported.
+
+A user-declared unary operator supplies its own return contract. If it explicitly returns a refinement type, callers retain that refinement, and the operator's return value must itself satisfy the declared predicate.
 
 ## Ad-Hoc Refinement Constraints
 

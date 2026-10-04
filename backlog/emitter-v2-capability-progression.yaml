@@ -404,6 +404,13 @@ capabilities:
       BodyEmitter.MapBinaryOperator, MapUnaryOperator (negate and logical-not only), and
       EmitSubExpression which parenthesizes a lower-precedence child.
 
+      UNARY CONTRACT CORRECTION (2026-10-03). Analysis order 9 now refuses unsupported negation/not
+      before emission. Signed numeric negation and Boolean not keep their existing spelling;
+      NarrowArithmetic still wraps sbyte/short negation in the selected result type. Refinement operands
+      no longer lend their predicates to transformed base results. A selected unary operator's declared
+      return type, including an explicit refinement, is the result contract. Literal boundaries and the
+      Byte/UInt16/UInt32/UInt64/Char negation refusals remain unchanged.
+
       A COMPARISON OVER OPERANDS WITH NO DECLARED OPERATOR IS TYPED WRONG, found while probing enum
       equality for order 89. `a == b` over two user CLASS instances, or two enum values, binds to an
       expression typed as the OPERAND rather than as bool, so `var eq = a == b;` gives the local the
@@ -10910,8 +10917,8 @@ capabilities:
       invocation and an index wrote their receiver bare, and a unary expression ranked as a primary --
       invisible until an operator could yield a type with members. (2) A unary operator was typed as its
       operand: `!v` on Vec2 was a Vec2 though the declared `!` answers bool. OperatorAdmissibility gained
-      UnaryResultType beside the binary rule; a declaration answering its operand's own type -- every
-      stdlib negation and Boolean's `!` -- keeps the operand as written, so no existing type moves. (3)
+      UnaryResultType beside the binary rule; the initial implementation kept an operand when the
+      declaration answered the same nominal base. That historical shortcut is corrected below. (3)
       CS0660 and CS0661: C# warns on a type declaring == or != without overriding Equals and
       GetHashCode. The in-process compile reports errors only, so AllFeaturesV2 could not see it; MSBuild
       reported four on the sample. Mist has no object base and no `override`, so no Mist type can declare
@@ -10931,6 +10938,24 @@ capabilities:
       || anywhere but Boolean, the spec's Req 4.5; and an operator taking no parameter of its declaring
       type, which is C#'s CS0562/CS0563 and in Mist a declaration its operands' lookup can never select.
       Nothing of an operator's declaration is left to Roslyn.
+
+      UNARY RESULT CONTRACTS CORRECTED (2026-10-03). UnaryResultType now returns the selected unary
+      declaration's actual return type. Built-in signed negation and Boolean not produce the operand's
+      base type rather than borrowing an input refinement; a declaration explicitly returning a
+      refinement preserves it. Unsupported operations answer null, letting binding retain an error-typed
+      UnaryExpression and analysis refuse it at source. This closes class negation/not, !int and unknown
+      unary operands reaching Roslyn while preserving signed-small wrapping and literal boundaries.
+      The integral/Boolean transformed-promise refusals and real-return contract implication/base-local
+      forwarding are recorded under analysis refinement-proving.
+      Generic/unknown resolution questions beyond these unary decisions remain as recorded elsewhere.
+      UnaryNegationRuleTests and NumericLiteralBindingTests hold the applicability/result and boundary
+      decisions; UnaryRefinementTests and RefinementValueRefusalTests hold refined destinations and
+      explicit return promises. Combined build had zero warnings/errors; focused ledger 20261003-210915
+      passed all 1,068 selected unary/operator/numeric-literal/refinement/literal-predicate checks.
+      Final integrated ledger 20261003-210528 passed 9,630/9,630 with no failures or skips
+      (Mist 8,627; CLI 105; Storm 852; Storm consumer 46), using DOTNET_USE_POLLING_FILE_WATCHER=1.
+      Final solution build had zero warnings/errors; full formatter verification and diff check passed.
+      The single AllFeaturesV2 baseline and existing sample bookkeeping remain covered by that ledger.
 
       PROOF: the sample; Test/Mist.Tests/Backend/OperatorEmissionTests.cs on the emitted text (public
       static by symbol and never by op_ name, the receiver parentheses, the pragma present only where

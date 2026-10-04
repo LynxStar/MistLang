@@ -40,7 +40,7 @@ The bootstrap module defines the intrinsic types that form the foundation of the
 | `Double` (`double`) | Struct | 64-bit IEEE 754 floating-point with arithmetic, comparison, and unary negation operators. |
 | `Decimal` (`decimal`) | Struct | 128-bit high-precision decimal with arithmetic, comparison, and unary negation operators. |
 
-All numeric types support the standard arithmetic operators (`+`, `-`, `*`, `/`, `%`) and comparison operators (`<`, `>`, `<=`, `>=`, `==`, `!=`). Signed types additionally support unary negation (`-`).
+All numeric types support the standard arithmetic operators (`+`, `-`, `*`, `/`, `%`) and comparison operators (`<`, `>`, `<=`, `>=`, `==`, `!=`). Signed types additionally support unary negation (`-`); `byte`, `ushort`, `uint`, `ulong`, and `char` do not. Logical not (`!`) applies to `bool`. A class or struct can support these unary operations by declaring the corresponding operator; otherwise the compiler reports `MIST_PA_OPERATOR_NOT_APPLICABLE` at the expression. An `unknown` operand must first be narrowed to a type that supports the operation.
 
 ### Text and Character Types
 

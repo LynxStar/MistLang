@@ -23,7 +23,13 @@ internal static class OperatorDecision
 
     public static DiagnosticDescriptor? Unary(UnaryOperatorKind kind, IMistType operand)
     {
-        return OperatorAdmissibility.UnaryResultType(kind, operand) is null ? ProgramAnalysisDiagnostics.OperatorNotApplicable : null;
+        if(OperatorAdmissibility.UnaryResultType(kind, operand) is not null)
+        {
+            return null;
+        }
+
+        return operand is UnknownType
+            ? ProgramAnalysisDiagnostics.UnknownHasNoOperators : ProgramAnalysisDiagnostics.OperatorNotApplicable;
     }
 
     public static DiagnosticDescriptor? Conditional(IMistType receiver)

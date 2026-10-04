@@ -3,7 +3,10 @@
 
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding.Expressions;
+using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -93,6 +96,132 @@ public sealed class NumericLiteralBindingTests
 
         _ = Assert.IsType<ErrorType>(Assert.Single(f.Builder.Resolver.ResolveTypeArguments(Arguments(form, lexeme), f.Scope)));
         Assert.Equal(OutOfRange, Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+    }
+
+    [Theory]
+    [InlineData("2147483648")]
+    [InlineData("2_147_483_648")]
+    public void TheMagnitudeOfIntsMinimumUnderAMinus_BindsAsThatConstant(string lexeme)
+    {
+        var f = new BindingFragments();
+        var bound = ExpressionBinder.BindExpression(BindingFragments.Expression(Negated(Literal(lexeme))), f.Binding, f.Builder);
+
+        var literal = Assert.IsType<LiteralExpression>(bound);
+        Assert.Equal(int.MinValue, literal.Value);
+        Assert.Equal("Int32", literal.Type.Name);
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
+    [InlineData("2147483649")]
+    [InlineData("4294967295")]
+    public void AnUnsuffixedMagnitudeBetweenIntAndUIntMax_NegatesToLong(string lexeme)
+    {
+        var f = new BindingFragments();
+        var bound = ExpressionBinder.BindExpression(BindingFragments.Expression(Negated(Literal(lexeme))), f.Binding, f.Builder);
+
+        var negation = Assert.IsType<UnaryExpression>(bound);
+        _ = Assert.IsType<uint>(Assert.IsType<LiteralExpression>(negation.Operand).Value);
+        Assert.Equal("Int64", negation.Type.Name);
+        Assert.Null(negation.Operator);
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
+    [InlineData(true, "class")]
+    [InlineData(false, "class")]
+    [InlineData(false, "Int32")]
+    [InlineData(true, "unknown")]
+    [InlineData(false, "unknown")]
+    [InlineData(true, "Byte")]
+    [InlineData(true, "UInt16")]
+    [InlineData(true, "UInt32")]
+    [InlineData(true, "UInt64")]
+    [InlineData(true, "Char")]
+    public void AnUnsupportedUnaryLocal_BindsAnErrorResultForAnalysis(bool negate, string type)
+    {
+        var f = new BindingFragments();
+        IMistType operandType = type switch
+        {
+            "class" => HandBuiltModel.Class("Thing"),
+            "unknown" => UnknownType.Instance,
+            _ => f.Built.Type(type),
+        };
+        _ = f.Local("value", operandType);
+        var bound = ExpressionBinder.BindExpression(
+            BindingFragments.Expression(Unary(negate, Postfix(BindingFragments.Identifier("value")))), f.Binding, f.Builder);
+
+        var unary = Assert.IsType<UnaryExpression>(bound);
+        Assert.Same(operandType, unary.Operand.Type);
+        Assert.Same(ErrorType.Instance, unary.Type);
+        Assert.Null(unary.Operator);
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
+    [InlineData(true, "named")]
+    [InlineData(true, "anonymous")]
+    [InlineData(true, "alias")]
+    [InlineData(true, "lifted")]
+    [InlineData(false, "named")]
+    [InlineData(false, "anonymous")]
+    [InlineData(false, "alias")]
+    [InlineData(false, "lifted")]
+    public void AUnaryLocal_BindsTheBaseResultWithoutItsInputPromise(bool negate, string wrapper)
+    {
+        var f = new BindingFragments();
+        var baseType = f.Built.Type(negate ? "Int32" : "Boolean");
+        IMistType operandType = wrapper switch
+        {
+            "named" => HandBuiltModel.Refined(baseType, "Promise"),
+            "anonymous" => HandBuiltModel.Refined(baseType),
+            "alias" => new DeclarationFragments().Alias("Promise", HandBuiltModel.Refined(baseType, "Refinement")),
+            _ => new LiftedType(baseType, negate ? 2L : true),
+        };
+        _ = f.Local("value", operandType);
+        var bound = ExpressionBinder.BindExpression(
+            BindingFragments.Expression(Unary(negate, Postfix(BindingFragments.Identifier("value")))), f.Binding, f.Builder);
+
+        var unary = Assert.IsType<UnaryExpression>(bound);
+        Assert.Same(operandType, unary.Operand.Type);
+        Assert.Same(baseType, unary.Type);
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public void ADeclaredUnaryOperator_BindsExactlyItsReturnContract(bool negate, bool refinedReturn)
+    {
+        var f = new BindingFragments();
+        var operandType = HandBuiltModel.Class("Thing");
+        var baseReturn = f.Built.Type(negate ? "Int32" : "Boolean");
+        IMistType returnType = refinedReturn ? HandBuiltModel.Refined(baseReturn, "ResultPromise") : baseReturn;
+        var declared = new Operator(negate ? OperatorKind.Minus : OperatorKind.Exclamation, returnType,
+            [new Parameter("value", operandType)], new MemberModifiers { IsStatic = true });
+        operandType.OperatorsList.Add(declared);
+        _ = f.Local("value", operandType);
+        var bound = ExpressionBinder.BindExpression(
+            BindingFragments.Expression(Unary(negate, Postfix(BindingFragments.Identifier("value")))), f.Binding, f.Builder);
+
+        var unary = Assert.IsType<UnaryExpression>(bound);
+        Assert.Same(declared, unary.Operator);
+        Assert.Same(returnType, unary.Type);
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
+    private static UnaryNode Unary(bool negate, UnaryNode operand)
+    {
+        if(negate)
+        {
+            return Negated(operand);
+        }
+
+        var logicalNot = BindingFragments.At<LogicalNotUnaryNode>();
+        logicalNot.Operand = operand;
+        return logicalNot;
     }
 
     private static PostfixExpressionUnaryNode Literal(string lexeme)

@@ -35,6 +35,7 @@ internal static class LiteralPredicates
     {
         return expression switch
         {
+            UnaryExpression { Operator.Modifiers.IsIntrinsic: false } => true,
             UnaryExpression or BinaryExpression => false,
             CloneExpression clone => TrustsType(clone.Source),
             _ => true,

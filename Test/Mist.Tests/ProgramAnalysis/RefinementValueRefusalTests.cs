@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -13,6 +14,28 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class RefinementValueRefusalTests
 {
     [Theory]
+    [InlineData("real", "declared", true)]
+    [InlineData("real", "intrinsic", false)]
+    [InlineData("real", "absent", false)]
+    [InlineData("string", "declared", true)]
+    [InlineData("string", "intrinsic", false)]
+    [InlineData("string", "absent", false)]
+    public void LiteralPredicateTrustRequiresADeclaredUnaryReturnContract(string domain, string selection, bool expected)
+    {
+        var h = new HandBuiltRefinements();
+        var target = domain == "real" ? h.Refine(h.Double, ComparisonKind.GreaterThan, 0.0, "PositiveReal")
+            : h.Refine(h.String, ComparisonKind.Equal, "x", "Named");
+        var operand = HandBuiltRefinements.Local(target);
+        var value = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, operand, target)
+        {
+            Operator = selection == "absent" ? null : new Operator(OperatorKind.Minus, target,
+                [new Parameter("value", target)], new MemberModifiers { IsStatic = true, IsIntrinsic = selection == "intrinsic" }),
+        };
+
+        Assert.Equal(expected, LiteralPredicates.Satisfied(target, value.Type, null, value));
+    }
+
+    [Theory]
     [InlineData("argument-literal-violates-constraint", "less100-literal200", "MIST_PA_CONSTRAINT_VIOLATED")]
     [InlineData("argument-literal-violates-refined-parameter", "adult-literal3", "MIST_PA_REFINEMENT_VIOLATED")]
     [InlineData("argument-refinement-not-implied-by-parameter", "adult-to-drinking", "MIST_PA_REFINEMENT_NOT_IMPLIED")]
@@ -22,6 +45,7 @@ public sealed class RefinementValueRefusalTests
     [InlineData("argument-violates-a-substituted-refinement", "not18-literal18", "MIST_PA_CONSTRAINT_VIOLATED")]
     [InlineData("argument-violates-an-inferred-refinement", "not18-literal18", "MIST_PA_CONSTRAINT_VIOLATED")]
     [InlineData("bool-literal-violates-refinement", "true-literalfalse", "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData("bool-transformation-has-no-input-promise", "true-negated-parameter", "MIST_PA_REFINEMENT_UNPROVEN")]
     [InlineData("byte-literal-violates-refinement", "small-literal200", "MIST_PA_REFINEMENT_VIOLATED")]
     [InlineData("cast-literal-violates-refined-operator-parameter", "adult-literal7", "MIST_PA_REFINEMENT_VIOLATED")]
     [InlineData("cast-literal-violates-refinement", "adult-literal7", "MIST_PA_REFINEMENT_VIOLATED")]
@@ -51,6 +75,7 @@ public sealed class RefinementValueRefusalTests
     [InlineData("literal-violates-every-union-constituent", "union-literal500", "MIST_PA_REFINEMENT_VIOLATED")]
     [InlineData("literal-violates-negation", "not0-literal0", "MIST_PA_REFINEMENT_VIOLATED")]
     [InlineData("literal-violates-refinement", "adult-literal7", "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData("integral-transformation-has-no-input-promise", "positive-negated-parameter", "MIST_PA_REFINEMENT_UNPROVEN")]
     [InlineData("literal-violates-the-only-constituent-that-holds-it", "split-literal300", "MIST_PA_REFINEMENT_VIOLATED")]
     [InlineData("local-function-where-violated", "ten-literal50", "MIST_PA_CONSTRAINT_VIOLATED")]
     [InlineData("narrowed-binding-not-implied", "adult-to-drinking", "MIST_PA_REFINEMENT_NOT_IMPLIED")]
@@ -112,6 +137,12 @@ public sealed class RefinementValueRefusalTests
                 break;
             case "true-literalfalse":
                 target = h.Refine(h.Bool, ComparisonKind.Equal, true); value = h.Literal(false); break;
+            case "true-negated-parameter":
+                target = h.Refine(h.Bool, ComparisonKind.Equal, true, "Yes");
+                value = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.LogicalNot, HandBuiltRefinements.Local(target), h.Bool); break;
+            case "positive-negated-parameter":
+                target = h.Refine(h.Int, ComparisonKind.GreaterThan, 0L, "Positive");
+                value = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, HandBuiltRefinements.Local(target), h.Int); break;
             case "small-literal200":
                 target = h.Refine(h.Built.Type("Byte"), ComparisonKind.LessThanOrEqual, 10L); value = h.Literal(200L); break;
             case "smalladult-literal5":

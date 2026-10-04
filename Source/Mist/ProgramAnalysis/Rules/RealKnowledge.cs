@@ -68,9 +68,9 @@ internal static class RealKnowledge
 
     private static bool Trusts(Expression value)
     {
-        // Primitive arithmetic may retain an operand's refined type without retaining its predicate.
         return value switch
         {
+            UnaryExpression { Operator.Modifiers.IsIntrinsic: false } => true,
             UnaryExpression or BinaryExpression => false,
             CloneExpression clone => Trusts(clone.Source),
             _ => true,

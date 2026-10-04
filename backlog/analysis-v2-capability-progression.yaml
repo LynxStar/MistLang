@@ -3154,18 +3154,35 @@ rules:
       ReadonlyContextGapTests holds the permitted constructor writes. Rechecked on fdd5fc1c:
       focused ledgers 20261003-202902 and 20261003-203112 passed 16/16 and 85/85 respectively.
       This is a stale-task correction, not a new implementation or a claim about unary operators.
+
+      HISTORICAL UNARY GAP: at 849b34b9, `var r = !b;` and `var r = -b;` over a class with no
+      corresponding declaration were typed as the class and reached MIST_CS_ERROR. The old open task
+      proposed unsigned/char promotions as a prerequisite; the existing 2026-09-27 source refusals and
+      the standard-library declarations instead require those five types to stay unnegatable.
+      UNARY APPLICABILITY AND RESULT CONTRACTS (2026-10-03). UnaryResultType now answers null when
+      neither a selected unary declaration nor the supported built-in operation admits the operand.
+      Negation on a class without an operator, logical not on a class or int, and negation/not on unknown
+      are refused at source as MIST_PA_OPERATOR_NOT_APPLICABLE or MIST_PA_UNKNOWN_HAS_NO_OPERATORS, before
+      C# emission. Signed numeric negation and Boolean not remain admitted even in direct models with
+      Standard shells; Byte, UInt16, UInt32, UInt64 and Char negation stay refused, with no unsigned
+      promotion invented. Selected declarations supply their actual return type rather than retaining
+      an operand refinement when the nominal bases match. Positive prior-failure evidence suppresses
+      consequential complaints; an unfinished ErrorType alone does not. Unsuffixed literal boundary
+      typing and signed-small wrapping remain their existing contracts. Refusal applies to unary nodes
+      that survive to analysis; failed-overload inline subtree retention and downstream cascade recovery
+      remain the separate error-tree workstream. UnaryNegationRuleTests holds direct applicability/result
+      and analysis contrasts, including supported declarations and positive versus unfinished failures;
+      NumericLiteralBindingTests holds bound unary decisions and literal-boundary controls. Combined
+      build completed with zero warnings/errors; focused ledger 20261003-210915 passed 1,068/1,068
+      unary/operator/numeric-literal/refinement/literal-predicate checks. Final full ledger
+      20261003-210528 passed 9,630/9,630 with no failures or skips (Mist 8,627; CLI 105; Storm 852;
+      Storm consumer 46), using DOTNET_USE_POLLING_FILE_WATCHER=1. Final dotnet build Mist.slnx had
+      zero warnings/errors; dotnet format Mist.slnx --verify-no-changes, git diff --check and both
+      capability-register YAML parses passed.
     tasks:
       - >
         Member callability on an unknown-typed readonly receiver (order 83) is not decided; nothing
         distinguishes closed-with-unknown from an open generic construction yet.
-      - >
-        Unary operators are not judged. Since emitter order 185 a declared one types the expression by
-        its return (OperatorAdmissibility.UnaryResultType) and any other is typed as its operand, so `-`
-        on a class declaring none binds and reaches Roslyn. Refusing it needs the numeric promotions the
-        stdlib does not declare -- Byte, UInt16, UInt32, UInt64 and Char have no unary `-` -- to be
-        admitted first. `!` is not judged either. Measured on v2 at 849b34b9: `var r = !b;` over a class
-        declaring no `!` binds as the class and reaches Roslyn as MIST_CS_ERROR ("Operator '!' cannot
-        be applied"), as `var r = -b;` does.
       - >
         A user operator is found on either operand's own type and its base chain, not through
         conformances or extensions.
@@ -4338,8 +4355,9 @@ rules:
       The existing flow also carries optional exact finite numeric and decoded string facts. Supported
       real comparisons, string equality and negation, and literal regex full matching can decide a
       constant, copied local or equal join; invalidation forgets the fact. An exact literal verdict
-      takes precedence over a retained refinement type, and unary transformations cannot reuse their
-      operand's refinement promise, so negating a Positive value does not prove another Positive.
+      takes precedence over a retained refinement type. That evaluator already rejected unary promises
+      for real/string proofs; this did not cover integral/Boolean transformed return contracts. The
+      broader unary result correction is recorded below rather than credited to this earlier checkpoint.
       Integral-to-real conversion follows the emitted representation, including float-to-double precision and unsigned literal
       truncation. Regex evaluation uses the emitter's \A(?:pattern)\z wrapping, so a final newline the
       pattern does not consume is refused as it is at run time (exact since 2026-09-28; see the
@@ -4351,6 +4369,36 @@ rules:
       reals and string equality were refused, while negated string equality admitted both values. The
       literal evaluator must therefore follow the specs and the observable v2 runtime `is` for those
       shapes. It supplies a static proof, with no runtime guard inserted at a refined assignment.
+
+      UNARY RESULT SOUNDNESS (2026-10-03). The integral `return -p` for Positive = int > 0 and
+      Boolean `return !p` for Yes = bool true previously reused the input predicate through the unary
+      result type and were accepted despite returning -2 and False. Unary result typing now follows
+      the selected return contract, or the supported built-in base result, so neither transformation
+      promises its operand's refinement. Direct returns, local initialization and arguments therefore
+      require proof of the resulting value, including lifted/ad-hoc refinements using the same path.
+      A declared unary operator explicitly returning a refinement retains that return contract.
+      The real/string knowledge consumers trust a selected nonintrinsic unary return contract; real
+      predicate implication and forwarding through a base real local preserve that declared knowledge,
+      while intrinsic transformations cannot borrow the input predicate.
+      Supported integral constant proofs, Boolean literal proofs and the earlier real/string literal
+      evaluator controls remain supported. Boolean-not constant solving remains unsupported: `Yes y =
+      !false` is still UNPROVEN, as before this correction. No solver expansion is claimed: dynamic
+      transformed values without a declared refined return or
+      actual supported proof remain UNPROVEN. Generic operator resolution and unknown/dependent-domain
+      questions elsewhere in this register remain open. UnaryRefinementTests holds the Tier 2 hand-built
+      refinement chain across returns, initialized locals and arguments for named, anonymous and lifted
+      integral/Boolean inputs, explicit refined operator returns and supported constants.
+      RefinementValueRefusalTests retains real unary refusal controls. Focused ledger 20261003-210915
+      passed all 1,068 selected checks. The source control Strong = double > 5 into Positive =
+      double > 0 prints 7 both directly and through a double local. Final full ledger
+      20261003-210528 passed 9,630/9,630 (Mist 8,627; CLI 105; Storm 852; Storm consumer 46),
+      with no failures or skips. Final build had zero warnings/errors; full formatter verification
+      and diff check passed. The single AllFeaturesV2 baseline remains covered by that full ledger.
+      BOOK VERIFICATION: the arithmetic snippet now demonstrates signed negation and Boolean not
+      producing base values; its CLI run exits 0 and prints -20, False and Still adult: 30. Full
+      SnippetEmitter regeneration reports 1 updated, 389 unchanged, 0 failed; a second generation
+      of the affected refinement-types folder with the final compiler reports 0 updated, 11 unchanged,
+      0 failed. mdbook build book passes without warnings. Existing sample source/output is unchanged.
 
       COVERAGE: 62 new RangeCaptureDecisionTests rows and nine RangeLengthFactsTests rows, the latter
       enumerating successful concrete slices against all four from-end marker combinations and pinning

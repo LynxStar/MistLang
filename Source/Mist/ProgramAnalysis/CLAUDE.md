@@ -1,7 +1,8 @@
 # Program Analysis (Stage 5)
 
-The rules that judge a finished program model. What they are and in what order:
-`backlog/analysis-v2-capability-progression.yaml`.
+The rules that judge a finished program model. Rule structure, contracts and historical
+evidence are in `backlog/analysis-v2-capability-progression.yaml`. Current outstanding
+work and closure evidence are tracked only in `backlog/issues.yaml`.
 
 ## Isolation
 

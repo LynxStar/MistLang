@@ -50,24 +50,40 @@ spot — a stdout diff cannot see things like a dropped `sealed` modifier.
 
 ## Backlog registers
 
+`backlog/issues.yaml` is the **single source of truth for outstanding work**, reconciled
+from 15 former work-bearing sources on 2026-10-03. Each obligation has a stable ID,
+status, source selectors and evidence at an identified revision. Distinguish confirmed
+gaps, unverified leads, policy decisions and optional work. A historical unchecked task
+or a capability's old partial status does not add another issue.
+
 | File | Role |
 |---|---|
-| `backlog/emitter-v2-capability-progression.yaml` | **Source of truth** for what v2 still needs and in what order. Ordered capabilities, the samples each unlocks, and stated invariants. Valid YAML. Large — grep it, don't read it whole. |
-| `backlog/analysis-v2-capability-progression.yaml` | **Source of truth for Stage 5**, the analysis phase. The `analysis_phase_tasks` from the emitter register, reordered into the order a checker can be built in, with the invariants that gate them. Each rule cites the emitter order it came from. |
-| `backlog/program-model-body-tasks.yaml` | The other axis: what the binder does not yet understand, by language construct. **Not valid YAML** despite the extension. |
-| `backlog/flaky-tests.yaml` | Flake register. Recording a flake is mandatory (see `Test/CLAUDE.md`). |
-| `backlog/refusal-corpus-migration.md` | Refusal test migration: measurements, tier choices and verification procedure. |
-| `backlog/classic-retirement.md` | The completed retirement of classic: what was removed, what classic did that the standard pipeline does not, how it was verified, and how Stages 4-6 progress is accounted. |
-| `backlog/general.md` | Issues outside any active spec. |
-| `backlog/inventory-<date>.md` | Dated snapshots of what v2 still needs, counted from the registers above. |
+| `backlog/issues.yaml` | Canonical open-work queue and archive of reconciled completed/stale leads. Preserve IDs; update implementation and verification evidence when closing work. |
+| `backlog/README.md` | How to use and maintain the canonical ledger. |
+| `backlog/emitter-v2-capability-progression.yaml` | Capability structure, sample edges, contracts and historical emission evidence. Valid YAML; not an additional work queue. |
+| `backlog/analysis-v2-capability-progression.yaml` | Stage 5 rule structure, contracts and historical evidence; not an additional work queue. |
+| `backlog/program-model-body-tasks.yaml` | Historical binder checklist and evidence, organized by construct. **Not valid YAML** despite the extension. |
+| `backlog/flaky-tests.yaml` | Mandatory flake observation/provenance register (see `Test/CLAUDE.md`). Link unresolved follow-up work to one issue in the canonical queue. |
+| Other topic backlogs and `general.md` | Contract/context and historical evidence imported into the canonical ledger. |
+| `backlog/classic-retirement.md`, `backlog/refusal-corpus-migration.md` | Retirement and completed migration records; surviving obligations are in the canonical ledger. |
+| `backlog/inventory-<date>.md` | Dated snapshots; never override current issue status. |
+
+The owner confirms the spec task documents are implemented; they are excluded from this
+reconciliation and must not be harvested as another backlog. Requirements, design and
+grammar remain contract references. Workstream packets assign work, and test-run ledgers
+record verification; neither is an additional work queue. Keep capability evidence up to
+date when its represented/emitted contract changes, while recording the work's current
+status and closeout in `backlog/issues.yaml`.
 
 A capability in the emitter register is measured by what it makes **representable and
 emittable** — what new part of a program can be held in memory, or emitted and run. Rules
-that walk a finished model and judge it belong to Stage 5 and are recorded as
-`analysis_phase_tasks`, whichever stage a diagnostic is declared at. Getting this wrong
+that walk a finished model and judge it belong to Stage 5, whichever stage a diagnostic
+is declared at. Historical `analysis_phase_tasks` preserve their provenance; current
+obligations belong in `backlog/issues.yaml`. Getting this wrong
 once cost an implementation that was written and reverted.
 
-**Stage 5 is now open** and has its own register. `samples/AllFeaturesV2` is a stdout baseline
+Stage 5 rule contracts and evidence remain in the analysis register; its outstanding
+work is tracked in `backlog/issues.yaml`. `samples/AllFeaturesV2` is a stdout baseline
 over valid programs, so it is structurally blind to a refusal: an analyzer that reports nothing
 passes it. That gap is closed beside each rule, at the tiers the testing philosophy
 (`.claude/skills/testing-philosophy/SKILL.md`, `/testing-philosophy`) assigns: Tier 1 against the

@@ -1,3 +1,8 @@
+# Reconciliation authority (2026-10-03): backlog/issues.yaml owns outstanding work.
+# This file retains contracts, capability structure and historical evidence. Its older
+# tasks/statuses are not another current queue; see backlog/inventory-2026-10-03.md.
+# Reconciled baseline: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c.
+
 # Program Model - Body Binding Tasks (Frontend 2, Option 1: principled)
 #
 # What needs to be RESOLVED to turn raw AST method/accessor/constructor/operator

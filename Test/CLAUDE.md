@@ -314,6 +314,10 @@ When a test fails and then passes without any code change between the runs, you 
 
 Fixing it is optional. Recording it is not.
 
+The observation stays in the flake register. Track unresolved follow-up work under one
+matching ID in `backlog/issues.yaml`, linking the flake entry and its captured evidence.
+Current issue status lives there; do not create another independent work queue.
+
 ### Why
 
 A flake found mid-change is a distraction from that change, so leaving it unfixed is usually the right call. But leaving it *unrecorded* is not: the next person to hit it re-diagnoses it from scratch, and every unexplained red run erodes the signal the suite exists to carry. The register turns a recurring mystery into a known, closed question.

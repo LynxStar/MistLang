@@ -1,3 +1,8 @@
+> **Reconciliation authority (2026-10-03):** [issues.yaml](issues.yaml) owns
+> outstanding work. This document retains contracts and historical evidence; its old
+> tasks/statuses are not another current queue. See the [dated reconciliation](inventory-2026-10-03.md).
+> Reconciled baseline: `da1aaa8fd416bd3bdf93e496281e7b2cbf52594c`.
+
 # Grammar Backlog
 
 ## Unify DependentTypeParameter alternatives into a single rule with TypeReference

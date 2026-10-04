@@ -17,7 +17,7 @@ Code under `Source/Mist/ProgramModel/` MUST NOT reintroduce those types or be de
 
 2. **Contracts first**: All public API is defined through interfaces in `ProgramModel/Contracts/`. Implementations are internal details.
 
-3. **Own types and source anchors**: The program model defines its own type contracts (`IMistType` and related interfaces) and enums (`OwnershipKind`, `ParameterPassingKind`, etc.). Source anchors are the retained declaration or bound-node syntax nodes; there is no `SourceOrigin` type.
+3. **Own types and source anchors**: The program model defines its own type contracts (`IMistType` and related interfaces) and enums (`ByRefDirection`, `MistAssemblyKind`, etc.). Source anchors are the retained declaration or bound-node syntax nodes; there is no `SourceOrigin` type.
 
 4. **Immutable after construction**: Once built, the program model is read-only. No `Record*` or `Set*` mutation methods on the model itself. Analysis results from later passes live in separate annotation stores.
 

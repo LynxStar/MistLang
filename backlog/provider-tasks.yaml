@@ -1,3 +1,8 @@
+# Reconciliation authority (2026-10-03): backlog/issues.yaml owns outstanding work.
+# This file retains contracts, capability structure and historical evidence. Its older
+# tasks/statuses are not another current queue; see backlog/inventory-2026-10-03.md.
+# Reconciled baseline: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c.
+
 # Ambient Type Provider V2 - Projection Tasks
 # What needs to be projected from CLR assemblies into the ProgramModel.
 

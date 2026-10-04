@@ -299,3 +299,9 @@ public Mist types stay synchronous. Existing generic conformance and slot identi
 The StructuredConcurrency and FirstClassFunctions demonstrations run through the existing
 AllFeaturesV2 baseline. Getter and constructor task-call policy remains open: blocking adaptation,
 body transformation and source refusal are undecided for bodies that cannot become C# async.
+
+Final integrated verification: full ledger `20261003-211839` passed 9696/9696, the sole
+AllFeaturesV2 baseline included; focused ledger `20261003-212111` passed 227/227. Solution builds
+had zero warnings/errors, formatter/diff checks passed, 21 affected snippet pairs regenerated
+unchanged twice and on the integrated compiler, and the book built. Environment and remaining
+getter/constructor decisions are recorded under emitter register order 170.

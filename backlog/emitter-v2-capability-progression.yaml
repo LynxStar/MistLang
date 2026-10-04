@@ -7716,7 +7716,8 @@ capabilities:
       methods use the same target; only promoted calls await the emitted task. StaticExtensionCarrierCallTests
       holds those four Tier 2 hand-built combinations, including closed block and member arguments.
       Primitive type-literal lookup and the already recorded generic static binding limitation remain
-      outside this emission decision.
+      outside this emission decision. The resolved class static source probe prints 7; the combined
+      final ledger and environment evidence are recorded under order 170.
     unlocks: []
 
   - id: universal-unknown-receiver-extensions
@@ -10367,6 +10368,17 @@ capabilities:
       Getter and constructor bodies that call task-returning methods remain open policy questions.
       Neither can become a C# async body. This delivery does not choose blocking adapters, body
       transformation or source refusal for those sites.
+
+      Final combined verification on main 213720ac with Storm b4e5853ccca45623e59fcdb9ee0afd6e90e836ce:
+      full ledger 20261003-211839 passed 9696/9696 (8693 Mist, 105 CLI, 46 Storm consumer, 852 Storm
+      generator), including the sole AllFeaturesV2 baseline and its new promotion/group output.
+      The preceding full ledger 20261003-211448 passed 9566/9566 before main's operator/refinement
+      changes arrived; integration required the second run. Focused ledger 20261003-212111 passed
+      227/227, including the static-carrier and private-accessor incidental controls. Fresh solution
+      builds had zero warnings/errors, dotnet format --verify-no-changes and git diff --check passed,
+      the capability YAML parsed, all 21 affected snippet pairs regenerated unchanged on a second
+      pass and after integration, and mdbook built. The writable NuGet HTTP cache, fresh compiler
+      process and DOTNET_USE_POLLING_FILE_WATCHER=1 settings are recorded in the full ledger.
     unlocks: []
 
   - id: auto-await-and-explicit-await

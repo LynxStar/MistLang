@@ -69,7 +69,7 @@ internal static class MemberResolution
                 type, memberName, visibility, callSite, allowExtensionProperties, context.ProgramModel);
         }
 
-        var reported = Report(found, declaring, memberName, node, context);
+        var reported = Report(found, declaring, TypeDisplay.Mist(receiver), memberName, node, context);
 
         return new MemberLookup(found, constructed, reported);
     }
@@ -155,6 +155,7 @@ internal static class MemberResolution
     private static bool Report(
         LookupResult found,
         MistType declaring,
+        string written,
         string memberName,
         SyntaxNode node,
         BuilderContext context)
@@ -168,13 +169,13 @@ internal static class MemberResolution
         {
             case NotFoundResult:
                 context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.UnresolvedMember, node, null, declaring.Name, memberName);
+                    ProgramModelDiagnostics.UnresolvedMember, node, null, written, memberName);
                 return true;
 
             case AmbiguousResult ambiguous:
                 context.Diagnostics.ReportAtNode(
                     ProgramModelDiagnostics.AmbiguousMember, node, null,
-                    declaring.Name, memberName, ambiguous.Candidates.Count);
+                    written, memberName, ambiguous.Candidates.Count);
                 return true;
 
             default:

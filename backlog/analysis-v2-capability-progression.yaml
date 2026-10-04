@@ -2105,8 +2105,12 @@ rules:
         the method not to mutate `this` and wants enforcing, or it is invalid and wants a diagnostic.
         A decision, not a rule.
       - >
-        Override and interface-implementation accessibility (Requirement 7 of the spec) is not judged:
-        the model records no override relation, and Roslyn refuses the C# forms.
+        Interface-implementation accessibility remains an unverified historical task; revalidate its
+        current abstract-slot contract before implementation. OVERRIDE PREMISE CORRECTED (2026-10-03):
+        source class inheritance is additive-only with static dispatch (class-inheritance introduction
+        and Requirements 6.1-6.3), and Grammar/Mist.storm's Modifier rule has no virtual or override arm.
+        The absent override relation is therefore not an implementation gap. This correction does not
+        settle abstract-filler accessibility policy or close its remaining task.
       - >
         A protected instance member reached through a base-typed receiver from a derived type is
         admitted, where C# demands the receiver be of the accessing type. Permissive on purpose until a

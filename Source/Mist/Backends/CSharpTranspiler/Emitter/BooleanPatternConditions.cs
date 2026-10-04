@@ -55,25 +55,25 @@ internal static class BooleanPatternConditions
     }
 
     // Boolean composition keeps a hoisted predicate inside its own not/or branch and preserves short circuiting.
-    public static string Render(Pattern pattern, string value, Func<Pattern, string, string> structural, Func<Expression, string> expression)
+    public static string Render(Pattern pattern, string value, Func<Pattern, string, string> structural, Func<Expression, string> expression, Func<TypeTestPattern, string> tested)
     {
         return pattern switch
         {
             RegexPattern regex => RegexLowering.IsFullMatch(value, RegexLowering.Quote(regex.Pattern)),
             ComparisonPattern comparison when PromotesSingle(comparison) => $"({value} {Symbol(comparison.Kind)} {expression(comparison.Bound)})",
-            NegatedPattern negated => $"!({Render(negated.Operand, value, structural, expression)})",
-            ConjunctionPattern conjunction => $"({string.Join(" && ", conjunction.Operands.Select(operand => Render(operand, value, structural, expression)))})",
-            DisjunctionPattern disjunction => $"({string.Join(" || ", disjunction.Operands.Select(operand => Render(operand, value, structural, expression)))})",
-            TypeTestPattern { Refinement: { } refinement } tested => Refined(tested, refinement, value, structural, expression),
+            NegatedPattern negated => $"!({Render(negated.Operand, value, structural, expression, tested)})",
+            ConjunctionPattern conjunction => $"({string.Join(" && ", conjunction.Operands.Select(operand => Render(operand, value, structural, expression, tested)))})",
+            DisjunctionPattern disjunction => $"({string.Join(" || ", disjunction.Operands.Select(operand => Render(operand, value, structural, expression, tested)))})",
+            TypeTestPattern { Refinement: { } refinement } typeTest => Refined(typeTest, refinement, value, structural, expression, tested),
             _ => structural(pattern, value),
         };
     }
 
-    private static string Refined(TypeTestPattern tested, Pattern refinement, string value, Func<Pattern, string, string> structural, Func<Expression, string> expression)
+    private static string Refined(TypeTestPattern typeTest, Pattern refinement, string value, Func<Pattern, string, string> structural, Func<Expression, string> expression, Func<TypeTestPattern, string> tested)
     {
         var narrowed = BodyEmitter.TemporaryName();
-        var binding = tested.Binding is { } local ? $" && {narrowed} is var {LocalNames.Of(local)}" : "";
-        return $"({value} is {TypeNameEmitter.EmitAsPatternType(tested.NarrowedType)} {narrowed} && {Render(refinement, narrowed, structural, expression)}{binding})";
+        var binding = typeTest.Binding is { } local ? $" && {narrowed} is var {LocalNames.Of(local)}" : "";
+        return $"({value} is {tested(typeTest)} {narrowed} && {Render(refinement, narrowed, structural, expression, tested)}{binding})";
     }
 
     private static string Symbol(ComparisonKind kind)

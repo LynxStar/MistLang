@@ -174,6 +174,17 @@ public static class BackendDiagnostics
         "A property pattern on an 'unknown' value cannot be combined with 'or' or 'not' yet, because its members are read through a binding of the value that neither establishes.");
 
     /// <summary>
+    /// A runtime test of a sequence whose elements carry a length of their own. Refused rather than emitted
+    /// for the reason <see cref="Backends.CSharpTranspiler.Emitter.ErasedShape"/> gives: the test
+    /// would check the outer length and promise the inner one.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedSizedElementTest = new(
+        new DiagnosticId("MIST_BE_UNSUPPORTED_SIZED_ELEMENT_TEST"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "A value cannot be tested against '{0}' at run time yet, because its elements carry a length that only a check of every element could establish.");
+
+    /// <summary>
     /// A struct and one of its ancestors declare a field of the same name. Legal Mist, because two
     /// levels declaring a private field cannot see each other, but the C# backend flattens
     /// inherited fields into one struct where the name can only resolve to one of them.

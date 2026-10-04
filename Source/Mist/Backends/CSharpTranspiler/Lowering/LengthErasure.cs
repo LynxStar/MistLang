@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
@@ -53,6 +54,19 @@ internal static class LengthErasure
         return type is ConstructedType constructed
             && LengthIndexed.Contains(constructed.Definition.FullyQualifiedName)
             && constructed.Definition.FullyQualifiedName != WellKnownTypes.Array.FullyQualifiedName
+            ;
+    }
+
+    public static bool IsLengthIndexed(ConstructedType constructed)
+    {
+        return LengthIndexed.Contains(constructed.Definition.FullyQualifiedName) && constructed.TypeArguments.Count == 2;
+    }
+
+    public static long? ErasedLength(ConstructedType constructed)
+    {
+        return IsLengthIndexed(constructed) && constructed.TypeArguments[1] is LiftedType { Value: var value }
+            ? Convert.ToInt64(value, CultureInfo.InvariantCulture)
+            : null
             ;
     }
 }

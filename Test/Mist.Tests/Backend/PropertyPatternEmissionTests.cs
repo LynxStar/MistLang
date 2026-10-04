@@ -83,6 +83,38 @@ public sealed class PropertyPatternEmissionTests
     }
 
     [Fact]
+    [Trait("Tier", "2")]
+    public void ASizedTypePrefix_MergesItsLengthIntoTheOneClause()
+    {
+        var three = SizedSequenceTypes.ArrayOf(Integer, 3);
+        var alias = SizedSequenceTypes.AliasOf("Three", three);
+        var empty = new PropertyPattern(null!, alias, [], new LocalVariable("three", alias), new TypeTestPattern(null!, alias, null));
+        var pair = SizedSequenceTypes.AliasOf("Pair", SizedSequenceTypes.TupleOf(three, String));
+        var labelled = new PropertyPattern(null!, pair,
+            [new PropertySubpattern(null!, "Item2", new ComparisonPattern(null!, String, ComparisonKind.Equal, Text("y")), String, new NotFoundResult())],
+            new LocalVariable("whole", pair), new TypeTestPattern(null!, pair, null));
+
+        Assert.Equal("five is int[] { Length: 3 } three",
+            Emit(new IsPatternExpression(null!, Reference("five", UnknownType.Instance), empty, Boolean)));
+        Assert.Equal("pair is System.ValueTuple<int[], string> { Item1: { Length: 3 }, Item2: \"y\" } whole",
+            Emit(new IsPatternExpression(null!, Reference("pair", UnknownType.Instance), labelled, Boolean)));
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void ASizedMemberTest_ChecksTheLengthOfTheContainedValue()
+    {
+        var holder = Type("Holder");
+        var data = new LocalVariable("d", SizedSequenceTypes.ArrayOf(Integer, 3));
+        var pattern = new PropertyPattern(null!, holder,
+            [new PropertySubpattern(null!, "Data", new TypeTestPattern(null!, data.Type, data), SizedSequenceTypes.ArrayOf(Integer, null), new NotFoundResult())],
+            null, new TypeTestPattern(null!, holder, null));
+
+        Assert.Equal("h is Holder { Data: int[] { Length: 3 } d }",
+            Emit(new IsPatternExpression(null!, Reference("h", UnknownType.Instance), pattern, Boolean)));
+    }
+
+    [Fact]
     public void ConditionBindings_AreRenamedApartFromLaterLocalsAndTheElseBranch()
     {
         var block = ScopedBody();

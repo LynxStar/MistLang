@@ -95,3 +95,4 @@ Purity = { path = "../Purity" }
 NestedBlockNamespaces = { path = "../NestedBlockNamespaces" }
 ClrRefReadonly = { path = "../ClrRefReadonly" }
 VariadicSpecialization = { path = "../VariadicSpecialization" }
+SizedSequencePatterns = { path = "../SizedSequencePatterns" }

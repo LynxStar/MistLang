@@ -1,0 +1,151 @@
+// SizedSequencePatterns -- a runtime test establishes the length a sized array or span promises.
+//
+// C# spells int[3] as int[] and Span<int, 3> as System.Span<int>, so a test spelled only as the C# type
+// would accept a five-element array and bind it as int[3]. Every line below pairs a matching length with
+// a mismatching one: the mismatch must fail the test, take the next arm, or make `as` answer void.
+//
+// V2-ONLY: written after classic was retired. Its lines were captured from v2 and read against the
+// program by hand.
+
+using Standard;
+
+namespace SizedSequencePatterns;
+
+type Three = int[3];
+type Pair = (int[3], string);
+
+public class Holder
+{
+    public int[] Data { get; set; }
+
+    public Holder(int[] data)
+    {
+        Data = data;
+    }
+}
+
+public class Program
+{
+    private static int produced = 0;
+
+    private static unknown Produce(int length)
+    {
+        produced = produced + 1;
+        return (new int[length], "x");
+    }
+
+    private static int Sum(int[3] values)
+    {
+        return values[0] + values[1] + values[2];
+    }
+
+    private static string Describe(unknown value)
+    {
+        return value switch
+        {
+            int[3] three => $"three summing to {Sum(three)}",
+            int[5] five => $"five of {five.Length}",
+            int[] other => "another length",
+            _ => "not an int array"
+        };
+    }
+
+    private static string DescribeSpan(int length)
+    {
+        Span<int> span = stackalloc int[length];
+        return span switch
+        {
+            Span<int, 3> three => $"span of {three.Length}",
+            Span<int, 5> five => "span of five",
+            _ => "span of another length"
+        };
+    }
+
+    private static string DescribeReadOnly(int length)
+    {
+        ReadOnlySpan<int> span = stackalloc int[length];
+        if(span is ReadOnlySpan<int, 3> three)
+        {
+            return $"read-only span of {three.Length}";
+        }
+
+        return "read-only span of another length";
+    }
+
+    private static string Whole(unknown value)
+    {
+        if(value is (int[3], string) whole)
+        {
+            return $"pair holding {whole.Item1.Length}";
+        }
+
+        return "no pair of three";
+    }
+
+    private static string Positional(unknown value)
+    {
+        if(value is (int[3] numbers, string label))
+        {
+            return $"{label} with {Sum(numbers)}";
+        }
+
+        return "no positional match";
+    }
+
+    private static string Nested(unknown value)
+    {
+        if(value is ((int[3], string), int) whole)
+        {
+            return $"nested pair, count {whole.Item2}";
+        }
+
+        return "no nested match";
+    }
+
+    private static string Aliased(unknown value)
+    {
+        if(value is Three {} three)
+        {
+            return $"Three of {three.Length}";
+        }
+
+        return "not a Three";
+    }
+
+    private static string Contained(unknown value)
+    {
+        if(value is Holder { Data: int[3] data })
+        {
+            return $"holder of {data.Length}";
+        }
+
+        return "holder of another length";
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Sized Sequence Patterns Sample ===");
+        unknown three = new int[3];
+        unknown five = new int[5];
+        unknown empty = new int[0];
+        var threeIsThree = three is int[3];
+        var fiveIsThree = five is int[3];
+        var emptyIsEmpty = empty is int[0];
+        var emptyIsThree = empty is int[3];
+        Console.WriteLine($"[is] {threeIsThree} {fiveIsThree} {emptyIsEmpty} {emptyIsThree}");
+        Console.WriteLine($"[switch] {Describe(three)} | {Describe(five)} | {Describe(new int[7])} | {Describe("text")}");
+        Console.WriteLine($"[span] {DescribeSpan(3)} | {DescribeSpan(5)} | {DescribeSpan(4)}");
+        Console.WriteLine($"[span] {DescribeReadOnly(3)} | {DescribeReadOnly(5)}");
+        Console.WriteLine($"[tuple] {Whole((new int[3], "a"))} | {Whole((new int[5], "a"))}");
+        Console.WriteLine($"[tuple] {Positional((new int[3], "b"))} | {Positional((new int[5], "b"))}");
+        Console.WriteLine($"[tuple] {Nested(((new int[3], "c"), 2))} | {Nested(((new int[5], "c"), 2))}");
+        Console.WriteLine($"[alias] {Aliased(three)} | {Aliased(five)}");
+        Console.WriteLine($"[member] {Contained(new Holder(new int[3]))} | {Contained(new Holder(new int[5]))}");
+        var narrowed = five as int[3];
+        var kept = three as int[3];
+        Console.WriteLine($"[as] five: {narrowed is void}, three: {kept is void}");
+        var pairHit = Produce(3) as Pair;
+        var pairMiss = Produce(5) as (int[3], string);
+        Console.WriteLine($"[as] pair of three: {pairHit is void}, pair of five: {pairMiss is void}, produced {produced}");
+    }
+}

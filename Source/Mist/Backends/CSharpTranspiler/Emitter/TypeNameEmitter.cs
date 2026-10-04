@@ -156,6 +156,18 @@ internal static class TypeNameEmitter
     /// </summary>
     internal static string EmitAsPatternType(IMistType type)
     {
+        type = Closed(type);
+
+        if(type is TypeAlias { AliasedType: { } aliased })
+        {
+            return EmitAsPatternType(aliased);
+        }
+
+        if(type is RefinedType refined)
+        {
+            return EmitAsPatternType(refined.BaseType);
+        }
+
         var elementTypes = type switch
         {
             NamedTupleType named => named.Underlying.ElementTypes,
@@ -218,6 +230,7 @@ internal static class TypeNameEmitter
             TupleType => true,
             NamedTupleType => true,
             RefinedType refined => IsValueKind(refined.BaseType),
+            TypeAlias { AliasedType: { } aliased } => IsValueKind(aliased),
             ConstructedType constructed => IsValueKind(constructed.Definition),
             TypeParameter parameter => HasStructConstraint(parameter),
             _ => false,
@@ -303,7 +316,7 @@ internal static class TypeNameEmitter
     /// The element list with a spread replaced by what the specialization bound it to, or the list
     /// unchanged when it holds none.
     /// </summary>
-    private static IReadOnlyList<IMistType> Expand(IReadOnlyList<IMistType> elementTypes)
+    internal static IReadOnlyList<IMistType> Expand(IReadOnlyList<IMistType> elementTypes)
     {
         if(Monomorph.InScope() is not { } monomorph || !elementTypes.Any(e => e is SpreadType))
         {

@@ -1931,7 +1931,9 @@ internal static class BodyEmitter
     /// <para>
     /// Two spellings rather than one because C#'s <c>as</c> demands a reference or nullable target, so a
     /// value target goes through a pattern instead. <see cref="TypeNameEmitter.IsValueKind"/> decides,
-    /// being the same authority that spells the optional this produces.
+    /// being the same authority that spells the optional this produces. A target whose spelling drops a
+    /// length takes the pattern too, <c>as</c> being able to test only the spelling; see
+    /// <see cref="ErasedShape"/>.
     /// </para>
     /// </summary>
     private static void EmitAs(
@@ -1984,14 +1986,17 @@ internal static class BodyEmitter
             return;
         }
 
-        if(!TypeNameEmitter.IsValueKind(TypeNameEmitter.Closed(asExpression.TargetType)))
+        var tested = TestedType(asExpression.TargetType, asExpression.Node, diagnostics);
+
+        if(!TypeNameEmitter.IsValueKind(TypeNameEmitter.Closed(asExpression.TargetType))
+            && ErasedShape.Members(asExpression.TargetType).Count == 0)
         {
             writer.Append($" as {target})");
             return;
         }
 
         var bound = $"__as{asExpression.Node.Span.Start}";
-        writer.Append($" is {target} {bound} ? {bound} : default({target}?))");
+        writer.Append($" is {tested} {bound} ? {bound} : default({TypeNameEmitter.EmitOptional(asExpression.TargetType)}))");
     }
 
     private static void EmitCoerced(
@@ -2164,7 +2169,8 @@ internal static class BodyEmitter
             var bound = TemporaryName();
             writer.Append($"var {bound}");
             hoisted.Add(new HoistedTest(BooleanPatternConditions.Render(pattern, bound,
-                (nested, value) => RenderPatternCondition(nested, value, diagnostics), expression => Render(expression, diagnostics))));
+                (nested, value) => RenderPatternCondition(nested, value, diagnostics), expression => Render(expression, diagnostics),
+                typeTest => TestedType(typeTest.NarrowedType, typeTest.Node, diagnostics))));
             return;
         }
 
@@ -2261,7 +2267,7 @@ internal static class BodyEmitter
             return;
         }
 
-        writer.Append(TypeNameEmitter.EmitAsPatternType(typeTest.NarrowedType));
+        writer.Append(TestedType(typeTest.NarrowedType, typeTest.Node, diagnostics));
 
         if(typeTest.Refinement is { } predicate)
         {
@@ -2283,6 +2289,21 @@ internal static class BodyEmitter
         if(typeTest.Binding is { } tested)
         {
             writer.Append($" {LocalNames.Of(tested)}");
+        }
+    }
+
+    private static string TestedType(IMistType type, Storm.Runtime.SyntaxNode node, DiagnosticBag diagnostics)
+    {
+        ReportUnstatedElements(type, node, diagnostics);
+        return ErasedShape.Tested(type);
+    }
+
+    private static void ReportUnstatedElements(IMistType type, Storm.Runtime.SyntaxNode node, DiagnosticBag diagnostics)
+    {
+        if(ErasedShape.UnstatedElements(type) is { } sequence)
+        {
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.UnsupportedSizedElementTest, node, null, TypeDisplay.Mist(sequence));
         }
     }
 
@@ -2433,22 +2454,34 @@ internal static class BodyEmitter
             return;
         }
 
-        if(property.TypeTest is { } typeTest)
+        IReadOnlyList<string> shape = [];
+
+        if(property.TypeTest is { Refinement: null, TestsAbsence: false, Binding: null, NarrowedType: not RefinedType } merged
+            && ErasedShape.Members(merged.NarrowedType) is { Count: > 0 } members)
+        {
+            ReportUnstatedElements(merged.NarrowedType, merged.Node, diagnostics);
+            writer.Append($"{TypeNameEmitter.EmitAsPatternType(merged.NarrowedType)} ");
+            shape = members;
+        }
+        else if(property.TypeTest is { } typeTest)
         {
             EmitTypeTest(typeTest, hoisted, writer, diagnostics);
             writer.Append(typeTest.Refinement is null && !typeTest.TestsAbsence ? " " : " and ");
         }
 
-        writer.Append(property.Subpatterns.Count == 0 ? "{ }" : "{ ");
-
-        EmitList.Separated(property.Subpatterns, ", ", writer, subpattern =>
+        if(shape.Count == 0 && property.Subpatterns.Count == 0)
         {
-            writer.Append($"{subpattern.MemberName}: ");
-            EmitPattern(subpattern.Pattern, 0, hoisted, writer, diagnostics);
-        });
-
-        if(property.Subpatterns.Count > 0)
+            writer.Append("{ }");
+        }
+        else
         {
+            writer.Append($"{{ {string.Join(", ", shape)}");
+            writer.Append(shape.Count > 0 && property.Subpatterns.Count > 0 ? ", " : "");
+            EmitList.Separated(property.Subpatterns, ", ", writer, subpattern =>
+            {
+                writer.Append($"{subpattern.MemberName}: ");
+                EmitPattern(subpattern.Pattern, 0, hoisted, writer, diagnostics);
+            });
             writer.Append(" }");
         }
 

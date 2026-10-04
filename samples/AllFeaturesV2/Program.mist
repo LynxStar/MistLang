@@ -113,5 +113,6 @@ public class Program
         NestedBlockNamespaces.Program.RunDemo();
         ClrRefReadonly.Program.RunDemo();
         VariadicSpecialization.Program.RunDemo();
+        SizedSequencePatterns.Program.RunDemo();
     }
 }

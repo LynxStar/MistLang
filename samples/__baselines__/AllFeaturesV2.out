@@ -2184,3 +2184,15 @@ eight levels: 8
 [abstract] fixed e
 [bridge] 101
 [method] maybe 5 | maybe absent | maybe 9
+=== Sized Sequence Patterns Sample ===
+[is] True False True False
+[switch] three summing to 0 | five of 5 | another length | not an int array
+[span] span of 3 | span of five | span of another length
+[span] read-only span of 3 | read-only span of another length
+[tuple] pair holding 3 | no pair of three
+[tuple] b with 0 | no positional match
+[tuple] nested pair, count 2 | no nested match
+[alias] Three of 3 | not a Three
+[member] holder of 3 | holder of another length
+[as] five: True, three: False
+[as] pair of three: False, pair of five: True, produced 2

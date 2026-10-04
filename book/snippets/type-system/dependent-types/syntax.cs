@@ -3,16 +3,18 @@ using Standard;
 namespace Snippet;
 
 public class FixedBuffer<TSize>
-    where TSize : IConstInt
+    where TSize : IConstIntegral
 {
+    public static int Size => ((int)TSize.Value);
+
     public int GetSize()
     {
-        return TSize.Value;
+        return ((int)TSize.Value);
     }
 
     public string Describe()
     {
-        return $"FixedBuffer<{MistInvariant.Text(TSize.Value)}>";
+        return System.FormattableString.Invariant($"FixedBuffer<{((int)TSize.Value)}>");
     }
 
     public FixedBuffer()

@@ -328,81 +328,56 @@ internal sealed class CSharpEmitterV2
     }
 
     /// <summary>
-    /// One witness interface per dependent DOMAIN and one struct per distinct VALUE, top-level in a
-    /// single generated file so a construction in any namespace can name them. C# has no dependent
-    /// type parameter, so a value that must participate in type identity has to become a TYPE, and
-    /// a struct implementing a static-abstract-member interface is the smallest thing that is one.
-    /// <para>
-    /// The interner is read rather than the emitted surface walked, for the reason the unions above
-    /// are: it is already keyed on the domain and value together, so it holds each pair exactly
-    /// once however many times the program writes it.
-    /// </para>
+    /// Every interned value of a declared kind gets a carrier, more than are reachable: a spare one
+    /// is an unreferenced struct while a missing one fails the build of generated code, and the uses
+    /// are split between constructed types and method call sites.
     /// </summary>
     private void EmitDependentCarriers(string outputDir, List<string> emittedFiles)
     {
         var interner = ((ProgramModel.Model.ProgramModel)programModel).TypeInterner;
-        var carriers = new SortedDictionary<string, (string Keyword, string Witness, object Value)>(
-            StringComparer.Ordinal);
-        var witnesses = new SortedDictionary<string, string>(StringComparer.Ordinal);
-        var witnessDomains = new Dictionary<string, IMistType>(StringComparer.Ordinal);
+        var kinds = new SortedSet<DependentKind>();
 
-        // Every DECLARED domain, so a constraint never names an interface the file does not carry.
-        // A family declared but never constructed still emits its `where`, so collecting only from
-        // constructions would leave that clause dangling.
         foreach(var parameter in DependentParameters())
         {
-            if(parameter.Domain is { } declared
-                && DependentCarrierNames.Domain(declared) is { } domain
-                && DependentCarrierNames.Witness(declared) is { } witness)
+            if(parameter is { IsDependent: true, IsPack: false, Domain: { } declared }
+                && DependentDomains.Primitive(declared) is { } primitive
+                && DependentDomains.KindOf(primitive) is { } kind)
             {
-                witnesses[witness] = domain.Keyword;
-                witnessDomains[witness] = declared;
+                _ = kinds.Add(kind);
             }
         }
 
-        // Every declared domain crossed with every value the program mentions. Deliberately more
-        // than is reachable, because the two are cheap in opposite directions: a spare carrier is
-        // an unreferenced struct in a generated file nobody reads, while a missing one is a build
-        // failure against code the user never wrote.
-        //
-        // The alternative is to collect the pairs actually used, and the uses are not in one place
-        // -- a constructed type holds its arguments, but a method call site holds its own, so
-        // covering both means walking every expression in the program to save a few structs.
-        //
-        // THE DOMAIN COMES FROM THE SLOT, never from the value: every integral literal lifts as
-        // int, so a 999 filling a `long` parameter would otherwise be carried by an IConstInt and
-        // refused by the very constraint it was emitted for.
-        foreach(var (witness, keyword) in witnesses.ToList())
-        {
-            foreach(var lifted in interner.LiftedTypes)
-            {
-                if(DependentCarrierNames.Fits(witnessDomains[witness], lifted.Value)
-                    && DependentCarrierNames.Carrier(witnessDomains[witness], lifted) is { } name)
-                {
-                    carriers[name] = (keyword, witness, lifted.Value);
-                }
-            }
-        }
-
-        if(witnesses.Count == 0)
+        if(kinds.Count == 0)
         {
             return;
         }
 
+        var carriers = new SortedDictionary<string, (DependentKind Kind, object Value)>(StringComparer.Ordinal);
+
+        foreach(var lifted in interner.LiftedTypes)
+        {
+            if(DependentDomains.KindOfValue(lifted.Value) is { } kind
+                && kinds.Contains(kind)
+                && DependentCarrierNames.Carrier(lifted.Value) is { } name)
+            {
+                carriers[name] = (kind, lifted.Value);
+            }
+        }
+
         var writer = new CSharpWriter();
 
-        foreach(var (witness, keyword) in witnesses)
+        foreach(var kind in kinds)
         {
             writer.WriteLine(
-                $"public interface {witness} {{ static abstract {keyword} Value {{ get; }} }}");
+                $"public interface {DependentCarrierNames.Witness(kind)} {{ static abstract {DependentCarrierNames.WitnessType(kind)} Value {{ get; }} }}");
         }
 
         foreach(var (name, carrier) in carriers)
         {
             writer.WriteBlankLine();
             writer.WriteLine(
-                $"public readonly struct {name} : {carrier.Witness} "
-                + $"{{ public static {carrier.Keyword} Value => {DependentCarrierNames.Literal(carrier.Value)}; }}");
+                $"public readonly struct {name} : {DependentCarrierNames.Witness(carrier.Kind)} "
+                + $"{{ public static {DependentCarrierNames.WitnessType(carrier.Kind)} Value => {DependentCarrierNames.Literal(carrier.Value)}; }}");
         }
 
         var path = Path.Combine(outputDir, "__DependentValues.g.cs");

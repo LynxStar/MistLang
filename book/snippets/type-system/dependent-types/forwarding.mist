@@ -1,0 +1,17 @@
+using Standard;
+
+public class WideCounter<Limit:long>
+{
+    public long Remaining(long used) { return Limit - used; }
+}
+
+public class NarrowCounter<Cap:int> : WideCounter<Cap> { }
+
+public class Program
+{
+    public static void Main()
+    {
+        WideCounter<7> counter = new NarrowCounter<7>();
+        Console.WriteLine(counter.Remaining(2));
+    }
+}

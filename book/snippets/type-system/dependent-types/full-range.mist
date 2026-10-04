@@ -1,0 +1,11 @@
+using Standard;
+
+public class Mask<Bits:ulong> { }
+
+public class Program
+{
+    public static void Main()
+    {
+        Console.WriteLine(Mask<0xFFFF_FFFF_FFFF_FFFF>.Bits);
+    }
+}

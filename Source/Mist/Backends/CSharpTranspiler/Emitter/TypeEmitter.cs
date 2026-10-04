@@ -200,6 +200,15 @@ internal static class TypeEmitter
                 }
             }
 
+            foreach(var parameter in Parameters(type))
+            {
+                if(DependentCarrierNames.ValueProperty(parameter) is { } projection)
+                {
+                    writer.WriteLine(projection);
+                    anyEmitted = true;
+                }
+            }
+
             // Named before any constructor is emitted, because a constructor's chain call has to
             // name an initializer that is only emitted further down.
             var initNames = flattened is not null

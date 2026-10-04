@@ -30,8 +30,8 @@ internal sealed class LiftedType : MistType
     public IMistType Type { get; }
 
     /// <summary>
-    /// The compile-time constant value. Integral values are normalized to
-    /// <see cref="long"/>; <see cref="Type"/> carries which Mist type they belong to.
+    /// The compile-time constant value. Integral values are normalized to <see cref="long"/>, or to
+    /// <see cref="ulong"/> above <see cref="long.MaxValue"/>, so every integral value has exactly one box.
     /// </summary>
     public object Value { get; }
 }

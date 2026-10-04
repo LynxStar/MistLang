@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
@@ -48,9 +49,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             }
         }
 
-        foreach(var closing in context.Model.ConstructorConstraintClosures.Closings)
+        var closings = context.Model.ConstructorConstraintClosures;
+
+        foreach(var closing in closings.Closings.Concat(closings.OpenClosings))
         {
-            if(closing.Parameter.IsDependent && context.IsInSource(closing.Node))
+            if(closing.Parameter is { IsDependent: true, IsPack: false } && context.IsInSource(closing.Node))
             {
                 JudgeClosing(context, closing.Parameter, closing.Argument, closing.Node);
             }
@@ -73,27 +76,48 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
     private static void JudgeClosing(AnalysisContext context, TypeParameter parameter, IMistType argument, Storm.Runtime.SyntaxNode at)
     {
-        if(DependentFinding(parameter, argument) is null || Demanded(parameter) is not { } required)
+        if(DependentFinding(parameter, argument) is not { } finding)
         {
             return;
         }
 
-        switch(argument)
+        if(finding == ProgramAnalysisDiagnostics.DependentArgumentNotAssignable)
         {
-            case LiftedType { Value: long value } when !required.Values.Contains(value):
-                context.Report(ProgramAnalysisDiagnostics.DependentArgumentViolated, at, [], value, required.Values, parameter.Name);
-                break;
+            context.Report(
+                finding, at, [],
+                argument is LiftedType lifted ? DependentDomains.Spell(lifted.Value) : TypeDisplay.Mist(argument),
+                argument is LiftedType value ? DependentDomains.TypeOfValue(value.Value) : WellKnownTypes.Type.Name,
+                parameter.Name, TypeDisplay.Mist(parameter.Domain!));
+        }
+        else if(finding == ProgramAnalysisDiagnostics.DependentForwardNotConvertible && argument is TypeParameter { Domain: { } from } source)
+        {
+            context.Report(
+                finding, at, [], source.Name, TypeDisplay.Mist(from), Owner(source), parameter.Name, TypeDisplay.Mist(parameter.Domain!), Owner(parameter));
+        }
+        else if(Demanded(parameter) is { } required)
+        {
+            switch(argument)
+            {
+                case LiftedType lifted:
+                    context.Report(finding, at, [], DependentDomains.Spell(lifted.Value), required.Values, parameter.Name);
+                    break;
 
-            case TypeParameter forwarded when !(Demanded(forwarded)?.Values ?? Admitted.Everything).IsSubsetOf(required.Values):
-                context.Report(
-                    ProgramAnalysisDiagnostics.DependentForwardUnproven, at, [],
-                    forwarded.Name, parameter.Name, Demanded(forwarded) is { } own ? $"'{own.Values}'" : "an unconstrained parameter", required.Values);
-                break;
+                case TypeParameter forwarded:
+                    context.Report(
+                        finding, at, [],
+                        forwarded.Name, parameter.Name, Demanded(forwarded) is { } own ? $"'{own.Values}'" : "an unconstrained parameter", required.Values);
+                    break;
+            }
         }
     }
 
     public static DiagnosticDescriptor? DependentFinding(TypeParameter parameter, IMistType argument)
     {
+        if(DomainFinding(parameter, argument) is { } mismatch)
+        {
+            return mismatch;
+        }
+
         if(Demanded(parameter) is not { } required || required.Values.IsEverything)
         {
             return null;
@@ -101,11 +125,41 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         return argument switch
         {
-            LiftedType { Value: long value } when !required.Values.Contains(value) => ProgramAnalysisDiagnostics.DependentArgumentViolated,
+            LiftedType lifted when Known(lifted) is { } values && !values.IsSubsetOf(required.Values)
+                => ProgramAnalysisDiagnostics.DependentArgumentViolated,
             TypeParameter forwarded when !(Demanded(forwarded)?.Values ?? Admitted.Everything).IsSubsetOf(required.Values)
                 => ProgramAnalysisDiagnostics.DependentForwardUnproven,
             _ => null,
         };
+    }
+
+    public static DiagnosticDescriptor? DomainFinding(TypeParameter parameter, IMistType argument)
+    {
+        if(parameter is not { IsDependent: true, IsPack: false, Domain: { } domain } || DependentDomains.Primitive(domain) is null)
+        {
+            return null;
+        }
+
+        return argument switch
+        {
+            ErrorType or UnknownType or UnknownValueType => null,
+            LiftedType lifted => DependentDomains.Holds(domain, lifted.Value) ? null : ProgramAnalysisDiagnostics.DependentArgumentNotAssignable,
+            TypeParameter { IsDependent: true, IsPack: false, Domain: null } => null,
+            TypeParameter { IsDependent: true, IsPack: false, Domain: { } from }
+                => DependentDomains.Forwards(from, domain) ? null : ProgramAnalysisDiagnostics.DependentForwardNotConvertible,
+            _ => ProgramAnalysisDiagnostics.DependentArgumentNotAssignable,
+        };
+    }
+
+    // Only ulong's upper half is boxed as a ulong, and long.MaxValue is the top every interval saturates at.
+    private static Admitted? Known(LiftedType lifted)
+    {
+        return lifted.Value is ulong ? Admitted.Exactly(long.MaxValue) : Requirement.ValuesOf(lifted);
+    }
+
+    private static string Owner(TypeParameter parameter)
+    {
+        return parameter.DeclaringType is { } owner ? TypeDisplay.Mist(owner) : parameter.Name;
     }
 
     private static Requirement? Demanded(TypeParameter parameter)

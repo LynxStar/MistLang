@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 
@@ -114,6 +115,8 @@ internal class TypeParameter : MistType, ITypeParameter
     public Storm.Runtime.SyntaxNode? RefinementNode { get; internal set; }
 
     public Pattern? Refinement { get; internal set; }
+
+    public Property? ValueProperty { get; internal set; }
 
     IMistType? ITypeParameter.Domain => Domain;
 

@@ -1069,6 +1069,20 @@ sumEmpty=0
   SbyteParam<-50>.Describe() = SbyteParam<-50>
   BoolParam<true>.Describe() = BoolParam<True>
   CharParam<'X'>.Describe() = CharParam<X>
+--- 16. Dependent property access from outside the type ---
+  FixedBuffer<5>.Size = 5
+  FiveBuffer.Size (alias) = 5
+  SmallBuffer.Size (fixed base) = 10
+  ResizableBuffer<25>.Size (forwarded base) = 25, .N = 25
+  TinyCollection.Size (abstract base) = 8
+  Matrix<3, 4>.Rows * Matrix<3, 4>.Cols = 12
+--- 17. Forwarding an int parameter into a long one ---
+  NarrowCounter<7> : WideCounter<7>, Remaining(2) = 5
+  NarrowCounter<7>.Limit = 7
+  as WideCounter<7>: 0 left; is WideCounter<7> = True, is WideCounter<8> = False
+--- 18. Every value a domain holds ---
+  byte 255, sbyte -128, ulong 18446744073709551615 (half 9223372036854775807), long -9223372036854775808
+  UlongParam<0xFFFF_FFFF_FFFF_FFFF> is UlongParam<18446744073709551615>: UlongParam<18446744073709551615>
 === Dependent Types Done ===
 === Dependent Type Refinement Constraints ===
   coll.Describe() = SizedCollection<5>

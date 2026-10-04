@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
@@ -70,6 +71,34 @@ internal sealed class TypeParameterDomainResolver
             {
                 context.Diagnostics.ReportAtNode(
                     ProgramModelDiagnostics.DisallowedDependentDomain, location, null, domain.Name);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The public static get-only property each dependent parameter of a type projects its value
+    /// through, read by qualification. Kept on the parameter rather than in the type's property list,
+    /// which every rule and emitter walks as members the program wrote; an intrinsic type is skipped
+    /// because its target already answers the parameter's name, as an array's Length does.
+    /// </summary>
+    public static void ProjectValues(MemberType type)
+    {
+        if(type.Modifiers.IsIntrinsic)
+        {
+            return;
+        }
+
+        foreach(var parameter in type.TypeParametersList)
+        {
+            if(parameter is { IsDependent: true, IsPack: false, Domain: { } domain })
+            {
+                parameter.ValueProperty = new Property(
+                    parameter.Name, domain, new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true, IsReadonly = true, IsPure = true })
+                {
+                    DeclaringType = type,
+                    Getter = new PropertyAccessor(),
+                    ProjectedParameter = parameter,
+                };
             }
         }
     }

@@ -633,8 +633,8 @@ mist_specific_semantics:
     - [ ] context-binding scoping (push / block / var-block) -- Model/ContextBinding.cs and Method.ContextBindingsList exist from Phase 2; binding never reads them
     - [ ] NOTE: cooperation-contract + context DISCIPLINE is a check (out_of_scope)
   dependent_types:
-    - [ ] dependent value arguments in expressions (e.g. `N:int` type params carrying values) -- TypeInterner.LiftLiteral and ScopeResolver's literal-lifting exist, but only for type-reference positions
-    - [ ] dependent-parameter references / forwarding in bodies
+    - [~] dependent value arguments in expressions (e.g. `N:int` type params carrying values) -- a literal type argument binds wherever one is written, a construction, a method closing, a type named for a static (`Box<7>.N`) or as a value, and every integral domain's full range lifts, ulong's upper half as a ulong box (2026-10-03, emitter order 145). MISSING: const references, which need a const declaration the grammar lacks
+    - [x] dependent-parameter references / forwarding in bodies -- a dependent parameter read as a value is typed by its domain (TypeReferenceExpression), so a local, an array literal or an inferred type argument built from it is the domain, and it answers the domain's instance members; a parameter forwarded into another slot is judged against that slot's domain at every closing, widening admitted (2026-10-03, emitter order 145, analysis order 12)
   refinement_and_union_narrowing:
     # UNION narrowing is done (orders 90 and 98); REFINEMENT narrowing is not started, and neither is
     # narrowing anything other than a pattern's own binding.

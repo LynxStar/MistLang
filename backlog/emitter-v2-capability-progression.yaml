@@ -9235,6 +9235,37 @@ capabilities:
     v2_status: done
     verified_by: v2-semantics
     evidence: >
+      THE SCALAR CONTRACT COMPLETED (2026-10-03, scalar dependent values packet). FULL DOMAINS AND ONE
+      IDENTITY PER VALUE: a lifted integral is boxed as a long, or as a ulong only above long.MaxValue
+      (TypeInterner.LiftLiteral's ulong overload normalizes, ScopeResolver.LiftIntegerLiteral lifts the
+      upper half), so `U<18446744073709551615UL>` over `U<N:ulong>` prints 18446744073709551615 where it
+      was MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE naming long, and decimal, hex, binary and suffixed spellings
+      of one value are one interned type argument. Lengths are untouched: `int[3]`, `Array<int, 3>` and a
+      span's length still lift as Int32-typed longs. Which values a slot admits is analysis order 12's
+      (MIST_DT_0003, MIST_DT_0004); a repeated parameter name is MIST_PM_DUPLICATE_TYPE_PARAMETER and a
+      parameter sharing its type's member's name MIST_DT_0005 (analysis order 6). THE VALUE PROPERTY: each
+      dependent parameter of a non-intrinsic type projects a public static get-only property of its
+      declared domain, `TypeParameter.ValueProperty` (TypeParameterDomainResolver.ProjectValues), held off
+      the type's property list that rules and emitters walk as written members. TypeMemberLookup finds it
+      by qualification at any depth (`Box<7>.N`, an alias `Seven.N`, a fixed base `Child.N`, a forwarded
+      base, an abstract base) and unqualified only from a deriving type; a qualified name never reaches a
+      non-intrinsic type's parameters any more (LookupRequest.IsQualified), so `G<int>.T` and the instance
+      `x.N` are MIST_PM_UNRESOLVED_MEMBER, and a write is MIST_PA_NO_SET_ACCESSOR. An intrinsic keeps
+      answering its parameter's name, as `arr.Length` needs. A VALUE READ HAS ITS DOMAIN'S TYPE:
+      TypeReferenceExpression types a dependent parameter as its domain, so `var x = N;`, `[N, N]`,
+      `H.Id(N)` and `$"{N}"` -- each emitting the C# type parameter as a type before, CS0029 or CS1503 --
+      are int, and `N.ToString()` resolves on the domain. MEASURED on v2 through the standard CLI before:
+      `Box<7>.N` and `Seven.N` bound and emitted a missing member, `Child.N` was MIST_PM_UNRESOLVED_MEMBER,
+      `x.N` and `Box<7>.N = 9` reached Roslyn. After, the packet's three programs print 18446744073709551615,
+      7 7 7 and 5. PROVED BY DependentValueLookupTests (Tier 1, 10), DependentValueReadTests (Tier 1 3 rows,
+      Tier 2 1), LiftedValueInterningTests (Tier 1, 5), NumericLiteralBindingTests (Tier 2: the ulong lift
+      replacing the long-limit refusal, the refusal past ulong, 7 equivalent-spelling rows and a distinct
+      upper half), ConstructedGenericMemberAccessTests (Tier 3: 4 projection rows and the instance refusal),
+      and samples/DependentTypes sections 16-18 banked on AllFeaturesV2. Mutants on confirmed builds, each
+      caught: qualified lookup seeing parameters again (4 lookup rows), the ulong overload not normalizing
+      (3 interning rows), a read typed as the parameter (1). STILL OPEN: a property for an alias-declared
+      dependent parameter (7.5); const references (no const declaration in the grammar).
+
       DELIVERED WITH ORDER 146, which had to ship in the same change: 145's model half alone
       changes nothing observable, because the refusal is at emission and only the witness encoding
       lifts it. Domain is now populated -- the field this entry recorded as never filled -- and
@@ -9284,6 +9315,29 @@ capabilities:
     v2_status: done
     verified_by: v2-semantics
     evidence: >
+      ONE CARRIER PER VALUE, ONE WITNESS PER KIND (2026-10-03, scalar dependent values packet). The
+      per-domain encoding below could not forward: `Derived<M:int> : Base<M>` over `Base<N:long>` reached
+      Roslyn because TM was constrained to IConstInt and Base wanted IConstLong, and the reverse long to int
+      did too. An adapter struct would have closed the constraint and broken identity, since Base<5> written
+      directly and the base of Derived<5> are one Mist type and would have been two C# types. Now an
+      integral witness, IConstIntegral, holds every integral value as an Int128, bool and char keep
+      IConstBool and IConstChar, a carrier is named for its value alone (Const_5, Const_Neg1,
+      Const_18446744073709551615, Const_True, Const_Char_0x0078), and a read converts the witness to the
+      reading parameter's own domain, `((long)TN.Value)`. So an int parameter forwards into a long slot with
+      no adapter, `Base<5> b = new Derived<5>()` compiles, and an `is Base<5>` test on a boxed Derived<5> is
+      True at runtime and `is Base<6>` False (samples/DependentTypes section 17). Narrowing never reaches
+      emission: analysis order 12 refuses it. THE PROPERTY IS EMITTED: every projecting class, struct and
+      abstract declares `public static int N => ((int)TN.Value);`, and a read is spelled on the construction
+      declaring the property (ProjectedValueAccess), `Box<Const_7>.N` for `Child.N`, because C# inherits no
+      interface static. PROVED BY DependentCarrierNameTests (Tier 1: one carrier per value in every integral
+      slot, kinds apart, witness by kind, read conversion by domain, the property line) and
+      DependentValueEmissionTests (Tier 1 declaring-construction rows; Tier 2 a projected read on the
+      carrier, an unqualified read from an implementing type spelled on the abstract, the declaration's
+      witness and property). Mutant: a projected read spelled on its receiver fails 4 rows. Ten existing
+      book snippet pairs regenerated, each a carrier or witness rename, the property line, or the value
+      read's conversion and invariant formatting, and three were added. The SLOT-DOMAIN and NOT COVERED paragraphs below are superseded except for the
+      [DependentType] reflection attribute, which remains NOT COVERED.
+
       DELIVERED. A dependent parameter becomes a C# type parameter constrained to a per-domain
       witness interface, each distinct value becomes a readonly struct implementing it, and a read
       of the parameter as a VALUE becomes a static member access on that parameter. One generated
@@ -12878,10 +12932,15 @@ samples:
                abstract-type-declaration, nominal-conformance-and-slot-checking,
                struct-declaration, string-interpolation]
     untested:
-      - Nothing constructs with a wrong-domain literal or the wrong arity.
-      - The dependent type test is applied to a statically known instantiation, so dependent
-        identity is never actually discriminated.
+      - V2-ONLY for sections 16-18, added 2026-10-03. Classic implemented no projected property, no
+        ulong upper half and no widening forward, so those fourteen baseline lines were captured from v2
+        and read against the program by hand; nothing independent of the emitter produced them.
+      - Nothing constructs with a wrong-domain literal or the wrong arity; a sample is a valid program,
+        and those refusals are held by DependentDomainDecisionTests and DependentClosingSiteTests.
+      - Sections 1-15 apply the dependent type test to a statically known instantiation; only section
+        17's boxed test discriminates identity at runtime, and only between 7 and 8.
       - One declared dependent type is only ever described in a string.
+      - No property is read off an alias-declared dependent parameter, which projects none.
 
   - name: DependentTypeRefinementConstraints
     intro_order: 75

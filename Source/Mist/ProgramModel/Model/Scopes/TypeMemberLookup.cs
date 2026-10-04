@@ -150,7 +150,7 @@ internal static class TypeMemberLookup
 
         // A clone's body is its source's syntax, naming the source's parameters, which CloneScope answers;
         // the clone's own are named only by its newtype declaration.
-        if(type is IHasTypeParameters generic and not ConcreteType { CloneSource: not null })
+        if(type is IHasTypeParameters generic and not ConcreteType { CloneSource: not null } && !ProjectsInstead(type, request))
         {
             foreach(var typeParameter in generic.TypeParametersList)
             {
@@ -204,6 +204,7 @@ internal static class TypeMemberLookup
         }
 
         AddFixedArityProjections(type, request, candidates, depth, path);
+        AddValueProperties(type, request, candidates, depth, path);
 
         // An enum variant is named through the enum type, never through an instance, so it answers
         // to the same request a static member does.
@@ -261,6 +262,35 @@ internal static class TypeMemberLookup
                     depth);
             }
         }
+    }
+
+    /// <summary>
+    /// The value a dependent parameter projects, met by a qualified name on the type or any type
+    /// deriving from it, and unqualified only from a deriving type, the declaring type's own body
+    /// reading the parameter itself.
+    /// </summary>
+    private static void AddValueProperties(
+        MistType type, LookupRequest request, CandidateSet candidates, int depth, IReadOnlyList<ConstructedType> path)
+    {
+        if(type is not IHasTypeParameters generic || !request.Permits(isStatic: true) || (depth == 0 && !request.IsQualified))
+        {
+            return;
+        }
+
+        foreach(var parameter in generic.TypeParametersList)
+        {
+            if(parameter.ValueProperty is { } property && property.Name == request.Name)
+            {
+                candidates.Add(new PropertyResult(property, type, path), depth);
+            }
+        }
+    }
+
+    private static bool ProjectsInstead(MistType type, LookupRequest request)
+    {
+        return request.IsQualified
+            && request.Visibility != MemberVisibility.None
+            && type is MemberType { Modifiers.IsIntrinsic: false };
     }
 
     private static PackElementType? ProjectedElement(IMistType declared, string stem, string requested)

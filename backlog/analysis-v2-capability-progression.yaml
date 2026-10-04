@@ -1919,8 +1919,9 @@ rules:
       FillsDeclaredLength with hand-built parameters and packs, and one Tier 2 fact that a registered
       closing is reported at its own node. Three mutations, three caught: any length admitted (four rows
       and the site fact), an unsized spread admitted (its row), and the analyzer not asking (the site
-      fact). A dependent parameter over a VALUE domain is still not judged: `Buffer<true>` and
-      `Buffer<string>` over `Buffer<Size:int>` both reach Roslyn.
+      fact). A dependent parameter over a VALUE domain was not judged then: `Buffer<true>` and
+      `Buffer<string>` over `Buffer<Size:int>` both reached Roslyn -- closed 2026-10-03, see A DEPENDENT
+      SLOT IS JUDGED BY ITS DOMAIN below.
 
       THREE OF THE NEW ADMITS REACH A BACKEND THAT CANNOT EXPRESS THEM, each measured failing Roslyn and
       each failing the same way with nothing closing it, so none is this order's to refuse: a constructor
@@ -2099,6 +2100,22 @@ rules:
       ConstraintRefusalTests rows and a Tier 1 fact admitting Dog for Animal and a Cash and its Money for an
       abstract both declare; mutating the rule back to any Implicit fails the three rows, and dropping only the
       copy test fails the copy row.
+
+      A DEPENDENT SLOT IS JUDGED BY ITS DOMAIN (2026-10-03, scalar dependent values packet). What fills a
+      scalar dependent slot is judged where it is written, against the slot's domain read through any
+      refinement or alias -- the decision is RefinementAnalyzer.DomainFinding, order 12's, so it is recorded
+      there; this order owns the two declaration halves. MEASURED before on v2 through the standard CLI:
+      `class D<N:int, N:int>` reached Roslyn as duplicate TN and duplicate constraint clauses; `class
+      D<N, N:int>` built silently, the two spelled N and TN; and `class Box<N:int> { public int N; }`
+      built and ran, and would collide with the value property the same change projects. AFTER: a name repeated in one
+      type parameter list, of any parameter kind, is MIST_PM_DUPLICATE_TYPE_PARAMETER at the repeat
+      (TypeParameterPopulator, Stage 4, dependent-types 6.6); a dependent parameter sharing a name with its
+      type's field, property, method or nested type is MIST_DT_0005 at the type's declaration
+      (DeclarationShapeAnalyzer.DependentNameConflicts, 6.5), a pack exempt since it projects nothing.
+      PROVED BY TypeParameterNameTests (Tier 1, 6 rows over Populate with hand-built nodes, including the
+      column of the repeat) and DependentNameConflictTests (Tier 1, 7 rows over the decision; Tier 2, one
+      finding at the declaration through the analyzer). Mutant: the duplicate check never reporting fails 5
+      of 6 name rows.
     tasks:
       - >
         `readonly` on a class method is admitted and means nothing, as in classic. Either it constrains
@@ -4716,6 +4733,39 @@ rules:
       refusals at the argument's column, four admits, and the constraint named by its parameter. Two
       mutations on confirmed builds, both caught: the loop stopped at a `params` callee again (6 rows),
       and the parameter read by argument position (1).
+
+      A DEPENDENT SLOT IS JUDGED BY ITS DOMAIN AT EVERY CLOSING (2026-10-03, scalar dependent values
+      packet). JudgeClosing read only a refined domain's predicate, so a primitive domain judged nothing,
+      and it was handed only closed closings: the registry keeps a forwarded parameter among the OPEN ones,
+      so DependentForwardUnproven, written for them, had no caller. MEASURED before on v2 through the
+      standard CLI, each reaching Roslyn: `new Box<256>()` over `Box<N:byte>` (missing Const_Byte_256),
+      `new Box<true>()` over `Box<N:int>` (Const_Int_True), the same through `M.Foo<true>()`, `type X =
+      Box<true>` and `class C : Box<300>` over a byte slot, `Buffer<string>` over `Buffer<Size:int>`, and
+      `Derived<M:long> : Base<M>` over `Base<N:int>`; `class D<M:int> : R<M>` over `R<P:Pos>`, `Pos = int >=
+      0`, built silently against adhoc-refinement Req 5.4 and 6.3-6.4. AFTER: RefinementAnalyzer.DomainFinding
+      judges what fills a scalar dependent slot against the slot's domain read through refinements and
+      aliases (DependentDomains, shared with the backend): a value of another kind -- bool, char and the
+      integral types never mix, a char's numeric widening deliberately excluded since `'A'` and `65` would
+      intern as two type arguments of one value -- or outside the primitive's range, and a type in a value
+      slot, are MIST_DT_0003 ("Dependent type argument '256' of type 'int' is not assignable to dependent
+      parameter 'N' of type 'byte'"); a forwarded parameter whose primitive does not widen to the slot's,
+      narrowing or across kinds, is MIST_DT_0004 at the forwarding site (dependent-types 12.3-12.4). The
+      domain is judged first and alone; only a domain-correct argument meets the refinement, now including
+      a bool or char value against a refined bool or char domain, which the long-only pattern skipped. Open
+      closings are iterated beside closed ones, so a forward is judged for domain and for the refinement
+      implication. Dependent slots are recorded at alias and type-named-for-a-static sites too
+      (ConstraintClosureRegistry, which recorded only stampable slots there). Every listed probe is one
+      finding at its own site; AllFeaturesV2 is identical with the rule live. LIMIT, the interval prover's
+      own: a ulong above long.MaxValue meets a predicate as long.MaxValue, the top every interval saturates
+      at, so it passes the predicates admitting long.MaxValue: every one unbounded above, but also `<=
+      9223372036854775807` and `== 9223372036854775807`, which a larger ulong violates and is admitted by. PROVED BY DependentDomainDecisionTests (Tier 1, 82 rows: every integral
+      domain's boundaries and one beyond, kind mismatches, refined domains, erased and unresolved arguments
+      unjudged, widening and narrowing forwards, the domain judged before the refinement, the ulong
+      saturation both ways, the forwarded implication, the message's value spelling and type), and
+      DependentClosingSiteTests (Tier 2, 3 rows: a construction, a widening and a narrowing forward, an alias
+      and a type-named-for-a-static closing, each reported at its own column through the analyzer). Mutants
+      on confirmed builds: range ignored fails 17 decision rows; every forward admitted fails 12; the alias
+      and static-access recording dropped fails the site row.
     tasks:
       - >
         A method group over a `where` parameter converted to a func over the base -- `func<int, string>

@@ -23,6 +23,8 @@ internal sealed class Property(
 
     public Storm.Runtime.SyntaxNode? DeclarationNode { get; init; }
 
+    public TypeParameter? ProjectedParameter { get; init; }
+
     /// <summary>
     /// The attributes applied to this property.
     /// </summary>

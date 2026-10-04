@@ -810,13 +810,19 @@ internal sealed partial class ScopeResolver
         var magnitude = IntegralConstant.Of(IntegerLiterals.Read(lexeme)?.Value);
         var value = negated ? -magnitude : magnitude;
 
-        if(value is { } lifted && lifted >= long.MinValue && lifted <= long.MaxValue)
+        if(value is { } signed && signed >= long.MinValue && signed <= long.MaxValue)
         {
-            return LiftInt((long)lifted);
+            return LiftInt((long)signed);
         }
 
+        if(value is { } unsigned && unsigned > long.MaxValue && unsigned <= ulong.MaxValue)
+        {
+            return context.ProgramModel.TypeInterner.LiftLiteral(LookupWellKnown(WellKnownTypes.Int32), (ulong)unsigned);
+        }
+
+        var widest = negated ? WellKnownTypes.Int64 : WellKnownTypes.UInt64;
         ReportResolutionFailure(
-            ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, negated ? $"-{lexeme}" : lexeme, WellKnownTypes.Int64.Keyword ?? WellKnownTypes.Int64.Name);
+            ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, negated ? $"-{lexeme}" : lexeme, widest.Keyword ?? widest.Name);
         return ErrorType.Instance;
     }
 

@@ -4,7 +4,7 @@ namespace Snippet;
 
 public class TypeIdentity
 {
-    public static string AcceptFive(Snippet.FixedBuffer<Const_Int_5> buf)
+    public static string AcceptFive(Snippet.FixedBuffer<Const_5> buf)
     {
         return System.FormattableString.Invariant($"Accepted FixedBuffer<{buf.GetSize()}>");
     }

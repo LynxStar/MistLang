@@ -670,6 +670,24 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Dependent parameter '{0}' cannot be forwarded to '{1}': {2} is not proven to imply '{3}'.");
 
+    public static readonly DiagnosticDescriptor DependentArgumentNotAssignable = new(
+        new DiagnosticId("MIST_DT_0003"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Dependent type argument '{0}' of type '{1}' is not assignable to dependent parameter '{2}' of type '{3}'.");
+
+    public static readonly DiagnosticDescriptor DependentForwardNotConvertible = new(
+        new DiagnosticId("MIST_DT_0004"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Dependent type parameter '{0}' of type '{1}' on '{2}' cannot be forwarded to parameter '{3}' of type '{4}' on '{5}' because '{1}' is not implicitly convertible to '{4}'.");
+
+    public static readonly DiagnosticDescriptor DependentParameterConflictsWithMember = new(
+        new DiagnosticId("MIST_DT_0005"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Dependent type parameter '{0}' conflicts with member '{0}' declared in type '{1}'. Rename either the parameter or the member.");
+
     public static readonly DiagnosticDescriptor ConstraintStrengthened = new(
         new DiagnosticId("MIST_PA_CONSTRAINT_STRENGTHENED"),
         DiagnosticSeverity.Error,

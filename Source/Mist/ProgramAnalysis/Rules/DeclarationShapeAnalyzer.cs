@@ -22,7 +22,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// gives no order or reads a member <see cref="StableMembers"/> does not vouch for, a method,
 /// constructor or indexer repeating an earlier one's signature on its type, a member hiding one its
 /// type inherits, which Mist admits only as an overload, and a constructor writing no chain to a base
-/// <see cref="ImplicitChains"/> finds nothing to run in. Order 6 of the analysis register; each shape is classic's verdict, measured, or
+/// <see cref="ImplicitChains"/> finds nothing to run in, and a dependent parameter named like a member its
+/// <see cref="TypeParameter.ValueProperty"/> would collide with. Order 6 of the analysis register; each shape is classic's verdict, measured, or
 /// the spec's where classic dropped the declaration unread, and the enum and sealed rules are the
 /// full-accessibility-model and enum-readonly-restriction specs' own.
 /// </summary>
@@ -34,6 +35,14 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
     {
         foreach(var type in context.Types)
         {
+            if(type is MemberType member and not ConcreteType { CloneSource: not null })
+            {
+                foreach(var parameter in DependentNameConflicts(member))
+                {
+                    Report(context, member.DeclarationNode, ProgramAnalysisDiagnostics.DependentParameterConflictsWithMember, parameter.Name, TypeDisplay.Mist(member));
+                }
+            }
+
             switch(type)
             {
                 case ConcreteType { CloneSource: { } source, NewtypeDeclaration: { } newtypeDeclaration }:
@@ -101,6 +110,24 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         foreach(var declared in DeclaredPredicates.Of(context))
         {
             CheckPredicate(context, declared.Predicate, declared.Constrained, purity);
+        }
+    }
+
+    public static IEnumerable<TypeParameter> DependentNameConflicts(MemberType type)
+    {
+        var members = (type as ConcreteType)?.FieldsList.Select(field => field.Name) ?? [];
+        members = members
+            .Concat(type.PropertiesList.Select(property => property.Name))
+            .Concat(type.MethodsList.Select(method => method.Name))
+            .Concat(type.NestedTypes.Select(nested => MistType.StripArity(nested.Name)));
+        var named = members.ToHashSet(StringComparer.Ordinal);
+
+        foreach(var parameter in type.TypeParametersList)
+        {
+            if(parameter is { IsDependent: true, IsPack: false } && named.Contains(parameter.Name))
+            {
+                yield return parameter;
+            }
         }
     }
 

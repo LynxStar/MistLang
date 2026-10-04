@@ -205,7 +205,7 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
     {
         return bound switch
         {
-            TypeReferenceExpression { Type: TypeParameter parameter } => (parameter.Name, null),
+            TypeReferenceExpression { ReferencedType: TypeParameter parameter } => (parameter.Name, null),
             MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name, Member: PropertyResult { Property: var property } } => (name, property),
             MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name, Member: FieldResult { Field: var field } } => (name, field),
             MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name } => (name, null),

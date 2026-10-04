@@ -85,17 +85,65 @@ public sealed class NumericLiteralBindingTests
     }
 
     [Theory]
-    [InlineData("integer", "9223372036854775808")]
-    [InlineData("integer", "18446744073709551615UL")]
-    [InlineData("negated", "9223372036854775809")]
-    [InlineData("hex", "0x1_0000_0000_0000_0000")]
-    [InlineData("binary", "0b10000000000000000000000000000000000000000000000000000000000000000")]
-    public void ADependentValueTypeArgumentNoLongHolds_IsRefused(string form, string lexeme)
+    [InlineData("integer", "9223372036854775808", 9223372036854775808UL)]
+    [InlineData("integer", "18446744073709551615UL", ulong.MaxValue)]
+    [InlineData("hex", "0xFFFF_FFFF_FFFF_FFFF", ulong.MaxValue)]
+    [InlineData("binary", "0b1000000000000000000000000000000000000000000000000000000000000000", 9223372036854775808UL)]
+    public void ADependentValueTypeArgumentOnlyAULongHolds_LiftsAsThatULong(string form, string lexeme, ulong expected)
+    {
+        var f = new BindingFragments();
+        var lifted = Assert.IsType<LiftedType>(Assert.Single(f.Builder.Resolver.ResolveTypeArguments(Arguments(form, lexeme), f.Scope)));
+
+        Assert.Equal(expected, Assert.IsType<ulong>(lifted.Value));
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
+    [InlineData("integer", "18446744073709551616", "ulong")]
+    [InlineData("negated", "9223372036854775809", "long")]
+    [InlineData("hex", "0x1_0000_0000_0000_0000", "ulong")]
+    [InlineData("binary", "0b10000000000000000000000000000000000000000000000000000000000000000", "ulong")]
+    public void ADependentValueTypeArgumentNoIntegralTypeHolds_IsRefusedNamingTheWidestOnItsSide(string form, string lexeme, string widest)
     {
         var f = new BindingFragments();
 
         _ = Assert.IsType<ErrorType>(Assert.Single(f.Builder.Resolver.ResolveTypeArguments(Arguments(form, lexeme), f.Scope)));
-        Assert.Equal(OutOfRange, Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
+        Assert.Equal(OutOfRange, diagnostic.Id.Value);
+        Assert.EndsWith($"'{widest}'.", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A type argument's identity is its value, so every spelling of one value is the one interned type
+    /// -- the suffix and the radix say how it was written, never which construction it closes.
+    /// </summary>
+    [Theory]
+    [InlineData("integer", "5", "integer", "5UL")]
+    [InlineData("integer", "5", "hex", "0x5")]
+    [InlineData("integer", "5", "binary", "0b101")]
+    [InlineData("integer", "5L", "integer", "5u")]
+    [InlineData("integer", "9223372036854775807", "hex", "0x7FFF_FFFF_FFFF_FFFF")]
+    [InlineData("integer", "18446744073709551615", "hex", "0xFFFF_FFFF_FFFF_FFFFUL")]
+    [InlineData("negated", "1", "negated", "1L")]
+    public void EquivalentSpellingsOfOneValue_InternAsOneTypeArgument(string form, string lexeme, string otherForm, string otherLexeme)
+    {
+        var f = new BindingFragments();
+
+        var first = Assert.Single(f.Builder.Resolver.ResolveTypeArguments(Arguments(form, lexeme), f.Scope));
+        var second = Assert.Single(f.Builder.Resolver.ResolveTypeArguments(Arguments(otherForm, otherLexeme), f.Scope));
+
+        Assert.Same(first, second);
+    }
+
+    [Fact]
+    public void ULongsUpperHalfAndItsWrappedLong_AreDistinctTypeArguments()
+    {
+        var f = new BindingFragments();
+
+        var top = Assert.Single(f.Builder.Resolver.ResolveTypeArguments(Arguments("integer", "18446744073709551615"), f.Scope));
+        var minusOne = Assert.Single(f.Builder.Resolver.ResolveTypeArguments(Arguments("negated", "1"), f.Scope));
+
+        Assert.NotSame(top, minusOne);
     }
 
     [Theory]

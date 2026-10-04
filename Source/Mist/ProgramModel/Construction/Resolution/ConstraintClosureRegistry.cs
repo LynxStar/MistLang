@@ -102,7 +102,11 @@ internal sealed class ConstraintClosureRegistry
     {
         for(var i = 0; i < parameters.Count && i < typeArguments.Count; i++)
         {
-            if(stampableOnly && !parameters[i].ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable))
+            // A dependent slot is recorded at every site, because what fills it is a value its domain
+            // judges wherever the closing is written -- an alias or a type named for a static included.
+            if(stampableOnly
+                && parameters[i] is not { IsDependent: true, IsPack: false }
+                && !parameters[i].ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable))
             {
                 continue;
             }

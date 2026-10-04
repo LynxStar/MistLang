@@ -52,6 +52,7 @@ This plan implements dependent type parameters across the full Mist compiler pip
     - For method-level dependent parameters, register in the method's lexical scope
     - Emit `MIST_DT_0005` for name collisions with members, `MIST_DT_0006` for duplicate parameter names
     - _Requirements: 6.2, 6.3, 6.5, 6.6, 7.1, 7.5_
+    - Standard-pipeline status (2026-10-03): each dependent parameter of a non-intrinsic type projects a public static get-only property of its declared domain (`TypeParameter.ValueProperty`, made by `TypeParameterDomainResolver.ProjectValues`, kept off the type's property list). A name repeated in one type parameter list is `MIST_PM_DUPLICATE_TYPE_PARAMETER` at the repeat (6.6, every parameter kind), and a dependent parameter sharing its type's field, property, method or nested type name is `MIST_DT_0005` at the declaration (6.5, `DeclarationShapeAnalyzer`). Alias-declared dependent parameters project no property (7.5 remains open). See `backlog/emitter-v2-capability-progression.yaml` orders 145-146.
   - [x] 4.5 Extend `ConstructedType` to support `DependentArguments` parallel list
     - Add `IReadOnlyList<DependentValueArgument?>? DependentArguments` property
     - Update type equality to compare dependent value arguments using `object.Equals`
@@ -59,6 +60,7 @@ This plan implements dependent type parameters across the full Mist compiler pip
   - [x] 4.6 Implement disambiguation of `ConstReferenceTypeArgument` during type argument resolution
     - Look up identifier in scope: if const → dependent value argument; if type → regular type argument; if unresolved → emit diagnostic
     - _Requirements: 2.4, 5.2_
+    - Standard-pipeline status (2026-10-03): not available. The grammar has no general const declaration, so a dependent argument is a literal; const references remain open.
   - [x] 4.7 Write property test for disallowed dependent type annotations (Property 2)
     - **Property 2: Disallowed Dependent Type Annotations Produce Diagnostics**
     - Create `Test/Mist.Tests/Semantics/DependentTypeAnnotationValidationPropertyTests.cs`
@@ -79,6 +81,7 @@ This plan implements dependent type parameters across the full Mist compiler pip
     - Reject: variables, method calls, property accesses, expressions → emit `MIST_DT_0002`
     - Validate type match between argument and parameter annotation → emit `MIST_DT_0003` on mismatch
     - _Requirements: 5.1, 5.2, 5.3, 15.1, 15.2, 15.6_
+    - Standard-pipeline status (2026-10-03): `MIST_DT_0003` refuses a value of the wrong kind (bool, char and integral never mix) or outside its domain's range, and a type filling a value slot, at constructions, explicit method closings, aliases, base clauses and types named for a static (`RefinementAnalyzer.DomainFinding`, analysis register order 12). Every integral domain admits its full range, `ulong` included; a literal past `ulong` or below `long` is `MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE`. `MIST_DT_0002` is unnecessary since the grammar admits only literals.
   - [x] 6.2 Implement dependent type equality checking
     - Two `ConstructedType` instances are equal iff same base type AND all dependent values are identical
     - `FixedBuffer<5>` ≠ `FixedBuffer<6>`, assignment between them produces type mismatch error
@@ -87,6 +90,7 @@ This plan implements dependent type parameters across the full Mist compiler pip
     - Resolve `TypeName<Value>.ParamName` to the generated dependent property
     - Treat as read-only; reject assignment attempts
     - _Requirements: 7.2, 7.3, 7.4_
+    - Standard-pipeline status (2026-10-03): `Box<7>.N`, an alias of a closed type and a type deriving from one (fixed or forwarded base, class or abstract) resolve to the projected property, typed by the declared domain. An instance read is `MIST_PM_UNRESOLVED_MEMBER`, an assignment `MIST_PA_NO_SET_ACCESSOR`, and an ordinary parameter projects nothing.
   - [x] 6.4 Implement scoping rules for dependent type parameters
     - Type-level: allow usage in field types, property types, method signatures, constructor parameters
     - Method-level: allow usage in parameter types, local variable types, return type; disallow in enclosing type fields/properties
@@ -99,6 +103,7 @@ This plan implements dependent type parameters across the full Mist compiler pip
     - Validate widening: `int` → `long` OK, `long` → `int` rejected → emit `MIST_DT_0004`
     - Propagate dependent parameters from derived to base types correctly
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
+    - Standard-pipeline status (2026-10-03): a forwarded dependent parameter is judged at every open closing against the slot's domain: integral widening is admitted, narrowing and any bool/char/integral mixing are `MIST_DT_0004` at the forwarding site. The refinement implication the adhoc-refinement spec asks of a forward (`MIST_PA_DEPENDENT_FORWARD_UNPROVEN`) is judged at the same sites.
   - [x] 6.7 Implement interface and trait dependent parameter validation
     - Require concrete dependent value when implementing an interface with dependent parameters
     - Allow forwarding from class dependent parameter to interface dependent parameter
@@ -135,6 +140,7 @@ This plan implements dependent type parameters across the full Mist compiler pip
     - Naming convention: `Const_{Type}_{Value}` with special handling for negatives, booleans, chars
     - Maintain a registry to deduplicate carrier structs across the program
     - _Requirements: 13.3, 13.6_
+    - Standard-pipeline status (2026-10-03): one witness per KIND (`IConstIntegral` holding an Int128, `IConstBool`, `IConstChar`) and one carrier per VALUE (`Const_5`, `Const_Neg1`, `Const_True`, `Const_Char_0x0078`), so a value names one C# type whatever slot it fills; a read converts the witness to the reader's domain, `((long)TN.Value)`, which is what lets an int parameter forward into a long slot unadapted.
   - [x] 8.3 Implement dependent type parameter emission as constrained generic parameters
     - Prefix dependent parameter names with `T` in C# output (e.g., `Size` → `TSize`)
     - Add `where TSize : IConstInt` constraint
@@ -143,6 +149,7 @@ This plan implements dependent type parameters across the full Mist compiler pip
   - [x] 8.4 Implement dependent property emission
     - Emit `public static int Size => TSize.Value;` for each dependent parameter
     - _Requirements: 13.5_
+    - Standard-pipeline status (2026-10-03): `public static int Size => ((int)TSize.Value);` on every projecting class, struct and abstract; a read is spelled on the construction declaring it, `FixedBuffer<Const_5>.Size`, since C# inherits no interface static.
   - [x] 8.5 Implement object construction and type reference emission with carrier structs
     - `new FixedBuffer<5>()` → `new FixedBuffer<Const_Int_5>()`
     - `FixedBuffer<5>.Size` → `FixedBuffer<Const_Int_5>.Size`
@@ -151,6 +158,7 @@ This plan implements dependent type parameters across the full Mist compiler pip
     - Emit `[DependentType("Size", typeof(int))]` on types with dependent parameters
     - Emit `[DependentTypeValue("Size", 5)]` on generated properties for constructed types
     - _Requirements: 14.1, 14.2, 14.3, 14.4_
+    - Standard-pipeline status (2026-10-03): not emitted; the reflection attributes remain open (emitter register order 146).
   - [x] 8.7 Implement pattern matching emission for closed dependent types
     - `if (x is FixedBuffer<5>)` → `if (x is FixedBuffer<Const_Int_5>)`
     - _Requirements: 9.1, 9.2, 13.9_
@@ -196,6 +204,7 @@ This plan implements dependent type parameters across the full Mist compiler pip
     - Include `public static void RunDemo()` entry point
     - Do NOT use `Array` as a type name
     - _Requirements: 17.1–17.20_
+    - Standard-pipeline status (2026-10-03): sections 16-18 read projected properties from outside the type, forward an int parameter into a long one with runtime identity checked, and cover every boundary of byte, sbyte, ulong and long; banked on AllFeaturesV2.
   - [x] 11.2 Update `samples/AllFeatures/Program.mist` to call `DependentTypes.Program.RunDemo()`
     - _Requirements: 17.18_
 

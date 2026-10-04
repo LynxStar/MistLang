@@ -4,8 +4,10 @@ namespace Snippet;
 
 [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public struct FixedSpan<TLength>
-    where TLength : IConstInt
+    where TLength : IConstIntegral
 {
+    public static int Length => ((int)TLength.Value);
+
     private FixedSpan(Mist.Emission.CSharp.__StructInit marker)
     {
     }
@@ -17,12 +19,12 @@ public struct FixedSpan<TLength>
 
     public readonly int GetLength()
     {
-        return TLength.Value;
+        return ((int)TLength.Value);
     }
 
     public readonly string Describe()
     {
-        return $"FixedSpan<{MistInvariant.Text(TLength.Value)}>";
+        return System.FormattableString.Invariant($"FixedSpan<{((int)TLength.Value)}>");
     }
 
     public FixedSpan()

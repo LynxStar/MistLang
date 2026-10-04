@@ -3,14 +3,16 @@ using Standard;
 namespace Snippet;
 
 public interface IFixedCollection<TSize>
-    where TSize : IConstInt
+    where TSize : IConstIntegral
 {
+    public static int Size => ((int)TSize.Value);
+
     int GetSize();
 
     string GetInfo();
 }
 
-public class TinyCollection : Snippet.IFixedCollection<Const_Int_8>
+public class TinyCollection : Snippet.IFixedCollection<Const_8>
 {
     public int GetSize()
     {

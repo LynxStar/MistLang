@@ -67,7 +67,7 @@ public sealed class ExtensionCarrierEmissionTests
     [InlineData("public static int Count<U>(this Probe.Holder self, U shape)", "where U : Probe.IShape")]
     [InlineData("public static U Fresh<U>(this Probe.Holder self, System.Func<U> __construct_U_0)", "where U : new()")]
     [InlineData("public static U Make<U>(this Probe.Holder self, System.Func<string, U> __construct_U_0, string text)", "where U : Mist.Emission.CSharp.__IConstruct_string<U>")]
-    [InlineData("public static int Plus<TN>(this Probe.Holder self, int value)", "where TN : IConstInt")]
+    [InlineData("public static int Plus<TN>(this Probe.Holder self, int value)", "where TN : IConstIntegral")]
     [InlineData("public static U Blank<U>(this Probe.Holder self, System.Func<U> __default_U)", "{")]
     public void AnExtensionMethodsConstraints_AreDeclaredOnItsCarrier(string signature, string next)
     {

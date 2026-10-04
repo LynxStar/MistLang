@@ -8,6 +8,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -227,6 +228,42 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
         var diagnostics = BuildRun("Box<int>.Missing m = Box<int>.Wrapper.Make();");
 
         _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
+    }
+
+    private const string Projections = """
+        public class Sized<N:int> { }
+
+        type Seven = Sized<7>;
+
+        public class Fixed : Sized<7> { }
+
+        public class Forwarding<M:short> : Sized<M> { }
+        """;
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("var n = Sized<7>.N;", 0)]
+    [InlineData("var n = Seven.N;", 0)]
+    [InlineData("var n = Fixed.N;", 1)]
+    [InlineData("var n = Forwarding<3>.N;", 1)]
+    public void ADependentValueIsReadThroughTheProjectionOfTheTypeDeclaringIt(string statement, int throughBases)
+    {
+        var access = InitializerOf<MemberAccessExpression>(statement, Projections);
+        var property = Assert.IsType<PropertyResult>(access.Member);
+
+        Assert.Equal("N", property.Property.ProjectedParameter?.Name);
+        Assert.Equal("Sized", TypeDisplay.Mist(property.Property.DeclaringType!));
+        Assert.Equal(throughBases, property.BaseConstructions.Count);
+        Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, access.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ADependentValueIsNotAnInstanceMember()
+    {
+        var diagnostics = BuildRun("var s = new Sized<7>(); var n = s.N;", Projections);
+
+        Assert.Contains("'Sized<7>' has no member named 'N'", Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_MEMBER")).Message, StringComparison.Ordinal);
     }
 
     private static ConstructedType ReceiverTypeOf(InvocationExpression call)

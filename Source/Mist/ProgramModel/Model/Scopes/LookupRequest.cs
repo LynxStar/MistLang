@@ -64,8 +64,10 @@ internal readonly record struct LookupRequest(
     /// </summary>
     public static LookupRequest Member(string name, MemberVisibility visibility, SyntaxNode? locationNode)
     {
-        return new LookupRequest(name, visibility, locationNode);
+        return new LookupRequest(name, visibility, locationNode) { IsQualified = true };
     }
+
+    public bool IsQualified { get; init; }
 
     public bool Permits(bool isStatic)
     {

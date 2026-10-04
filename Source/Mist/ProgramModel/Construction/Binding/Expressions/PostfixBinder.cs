@@ -642,11 +642,9 @@ internal static class PostfixBinder
     private static MemberResolution.MemberLookup ResolveMember(
         Expression receiver, string memberName, Storm.Runtime.SyntaxNode node, BindingContext ctx, BuilderContext context)
     {
-        // A pack named in expression position is not a type being asked for a static member: it IS
-        // the comptime Type[] it ranges over, so it answers as a VALUE of its own domain. Which is
-        // what makes `TArgs.Length` the ordinary array length rather than something a pack needs
-        // its own rule for, and iteration and indexing come along on the same footing.
-        if(receiver is TypeReferenceExpression { ReferencedType: TypeParameter { IsPack: true, Domain: { } domain } })
+        // A dependent parameter named here is a value of its domain, a pack's being Type[], which makes
+        // `TArgs.Length` the ordinary array length and `N.ToString()` its domain's member.
+        if(receiver is TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true, Domain: { } domain } })
         {
             return MemberResolution.Resolve(
                 domain, memberName, MemberVisibility.InstanceOnly, node, context, ctx.Scope,

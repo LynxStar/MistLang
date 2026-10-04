@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
@@ -16,6 +17,8 @@ namespace Mist.ProgramModel.Model.Expressions;
 internal sealed class PropertyReferenceExpression(SyntaxNode node, Property property, IMistType? type = null) : Expression(node)
 {
     public Property Property { get; } = property;
+
+    public IReadOnlyList<ConstructedType> BaseConstructions { get; init; } = [];
 
     public override IMistType Type => type ?? Property.Type;
 }

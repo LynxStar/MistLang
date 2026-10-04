@@ -1066,6 +1066,12 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "Type '{0}' cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.");
 
+    public static readonly DiagnosticDescriptor DuplicateTypeParameter = new(
+        new DiagnosticId("MIST_PM_DUPLICATE_TYPE_PARAMETER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Type parameter '{0}' is declared more than once in the same type parameter list.");
+
     /// <summary>
     /// A pack indexed in a type position where its length is not fixed. A declaration is judged for
     /// every instantiation, and one of them is the empty pack, so no index is provably inside a

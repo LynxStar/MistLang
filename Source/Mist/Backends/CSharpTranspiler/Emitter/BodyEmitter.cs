@@ -1453,6 +1453,10 @@ internal static class BodyEmitter
                     UnsafeReach.Implicit(fieldRef.Field)
                     ?? ReceiverSpelling.Qualifier(fieldRef.Field.DeclaringType, fieldRef.Field.Modifiers.IsStatic) + fieldRef.Field.Name);
                 break;
+            case PropertyReferenceExpression projected when ProjectedValueAccess.Declaring(projected) is { } declaring:
+                writer.Append($"{TypeNameEmitter.Emit(declaring)}.{projected.Property.Name}");
+                break;
+
             case PropertyReferenceExpression propertyRef:
                 writer.Append(
                     UnsafeReach.Implicit(propertyRef.Property)
@@ -2735,6 +2739,12 @@ internal static class BodyEmitter
         if(PackArity(memberAccess) is { } arity)
         {
             writer.Append(arity.ToString(CultureInfo.InvariantCulture));
+            return;
+        }
+
+        if(ProjectedValueAccess.Declaring(memberAccess) is { } declaring)
+        {
+            writer.Append($"{TypeNameEmitter.Emit(declaring)}.{memberAccess.MemberName}");
             return;
         }
 

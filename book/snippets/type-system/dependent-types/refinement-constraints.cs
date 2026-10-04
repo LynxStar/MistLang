@@ -3,16 +3,18 @@ using Standard;
 namespace Snippet;
 
 public class SizedCollection<TCount>
-    where TCount : IConstInt
+    where TCount : IConstIntegral
 {
+    public static int Count => ((int)TCount.Value);
+
     public int GetCount()
     {
-        return TCount.Value;
+        return ((int)TCount.Value);
     }
 
     public string Describe()
     {
-        return $"SizedCollection<{MistInvariant.Text(TCount.Value)}>";
+        return System.FormattableString.Invariant($"SizedCollection<{((int)TCount.Value)}>");
     }
 
     public SizedCollection()
@@ -27,8 +29,10 @@ public class SizedCollection<TCount>
 
 [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
 public struct FixedSlot<TCapacity>
-    where TCapacity : IConstInt
+    where TCapacity : IConstIntegral
 {
+    public static int Capacity => ((int)TCapacity.Value);
+
     private FixedSlot(Mist.Emission.CSharp.__StructInit marker)
     {
     }
@@ -40,7 +44,7 @@ public struct FixedSlot<TCapacity>
 
     public readonly int GetCapacity()
     {
-        return TCapacity.Value;
+        return ((int)TCapacity.Value);
     }
 
     public FixedSlot()

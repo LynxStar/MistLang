@@ -5,13 +5,13 @@ namespace Snippet;
 public class DependentMethods
 {
     public static void Repeat<TN>(string text)
-        where TN : IConstInt
+        where TN : IConstIntegral
     {
-        System.Console.WriteLine($"  Repeat<{MistInvariant.Text(TN.Value)}>: {text}");
+        System.Console.WriteLine(System.FormattableString.Invariant($"  Repeat<{((int)TN.Value)}>: {text}"));
     }
 
     public static string Process<TN>(Snippet.FixedBuffer<TN> buf)
-        where TN : IConstInt
+        where TN : IConstIntegral
     {
         return System.FormattableString.Invariant($"Processed buffer of size {buf.GetSize()}");
     }

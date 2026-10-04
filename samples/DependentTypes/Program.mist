@@ -93,6 +93,29 @@ public class SbyteParam<V:sbyte> { public string Describe() { return $"SbytePara
 public class BoolParam<V:bool> { public string Describe() { return $"BoolParam<{V}>"; } }
 public class CharParam<V:char> { public string Describe() { return $"CharParam<{V}>"; } }
 
+// ─── 16-18. Reading a value from outside, forwarding it wider, every domain ─
+
+type FiveBuffer = FixedBuffer<5>;
+
+public class WideCounter<Limit:long>
+{
+    public long Remaining(long used) { return Limit - used; }
+}
+
+public class NarrowCounter<Cap:int> : WideCounter<Cap>
+{
+    public string Describe() { return $"NarrowCounter<{Cap}> : WideCounter<{Limit}>"; }
+}
+
+public class DomainEdges
+{
+    public static string Describe<B:byte, S:sbyte, U:ulong, L:long>()
+    {
+        var halfway = U / 2;
+        return $"byte {B}, sbyte {S}, ulong {U} (half {halfway}), long {L}";
+    }
+}
+
 // ─── 7. Type identity / type safety ──────────────────────────────────────────
 
 public class TypeIdentity
@@ -225,6 +248,27 @@ public class Program
         Console.WriteLine($"  BoolParam<true>.Describe() = {boolBuf.Describe()}");
         var charBuf = new CharParam<'X'>();
         Console.WriteLine($"  CharParam<'X'>.Describe() = {charBuf.Describe()}");
+
+        Console.WriteLine("--- 16. Dependent property access from outside the type ---");
+        Console.WriteLine($"  FixedBuffer<5>.Size = {FixedBuffer<5>.Size}");
+        Console.WriteLine($"  FiveBuffer.Size (alias) = {FiveBuffer.Size}");
+        Console.WriteLine($"  SmallBuffer.Size (fixed base) = {SmallBuffer.Size}");
+        Console.WriteLine($"  ResizableBuffer<25>.Size (forwarded base) = {ResizableBuffer<25>.Size}, .N = {ResizableBuffer<25>.N}");
+        Console.WriteLine($"  TinyCollection.Size (abstract base) = {TinyCollection.Size}");
+        Console.WriteLine($"  Matrix<3, 4>.Rows * Matrix<3, 4>.Cols = {Matrix<3, 4>.Rows * Matrix<3, 4>.Cols}");
+
+        Console.WriteLine("--- 17. Forwarding an int parameter into a long one ---");
+        var narrow = new NarrowCounter<7>();
+        Console.WriteLine($"  {narrow.Describe()}, Remaining(2) = {narrow.Remaining(2)}");
+        Console.WriteLine($"  NarrowCounter<7>.Limit = {NarrowCounter<7>.Limit}");
+        WideCounter<7> asWide = narrow;
+        unknown boxed = narrow;
+        Console.WriteLine($"  as WideCounter<7>: {asWide.Remaining(7)} left; is WideCounter<7> = {boxed is WideCounter<7>}, is WideCounter<8> = {boxed is WideCounter<8>}");
+
+        Console.WriteLine("--- 18. Every value a domain holds ---");
+        Console.WriteLine($"  {DomainEdges.Describe<255, -128, 18446744073709551615, -9223372036854775808>()}");
+        UlongParam<18446744073709551615> top = new UlongParam<0xFFFF_FFFF_FFFF_FFFF>();
+        Console.WriteLine($"  UlongParam<0xFFFF_FFFF_FFFF_FFFF> is UlongParam<18446744073709551615>: {top.Describe()}");
 
         Console.WriteLine("=== Dependent Types Done ===");
     }

@@ -33,7 +33,10 @@ internal static class IdentifierBinder
             VariableResult variable => new LocalReferenceExpression(node, variable.Variable, BodyScope.NarrowedIn(ctx.Scope, variable.Variable)),
             FieldResult field => new FieldReferenceExpression(node, field.Field, Reached(field.Field.Type, field.BaseConstructions, context)),
             PropertyResult property => new PropertyReferenceExpression(
-                node, property.Property, Reached(property.Property.Type, property.BaseConstructions, context)),
+                node, property.Property, Reached(property.Property.Type, property.BaseConstructions, context))
+            {
+                BaseConstructions = property.BaseConstructions,
+            },
             TypeResult type => new TypeReferenceExpression(node, type.Type),
             MethodGroupResult { Methods.Count: > 0 } group => new MethodGroupExpression(node, null, name, group.Methods, null) { Paths = group.Paths },
             NamespaceResult ns => new NamespaceReferenceExpression(node, ns.NamespaceName),

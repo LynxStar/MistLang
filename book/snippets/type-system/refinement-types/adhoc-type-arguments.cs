@@ -3,16 +3,18 @@ using Standard;
 namespace Snippet;
 
 public class FixedArray<TValue, TSize>
-    where TSize : IConstInt
+    where TSize : IConstIntegral
 {
+    public static int Size => ((int)TSize.Value);
+
     public int GetSize()
     {
-        return TSize.Value;
+        return ((int)TSize.Value);
     }
 
     public string Describe()
     {
-        return $"FixedArray<Size={MistInvariant.Text(TSize.Value)}>";
+        return System.FormattableString.Invariant($"FixedArray<Size={((int)TSize.Value)}>");
     }
 
     public FixedArray()
@@ -26,17 +28,20 @@ public class FixedArray<TValue, TSize>
 }
 
 public class Matrix<TRows, TCols>
-    where TRows : IConstInt
-    where TCols : IConstInt
+    where TRows : IConstIntegral
+    where TCols : IConstIntegral
 {
+    public static int Rows => ((int)TRows.Value);
+    public static int Cols => ((int)TCols.Value);
+
     public int GetRows()
     {
-        return TRows.Value;
+        return ((int)TRows.Value);
     }
 
     public int GetCols()
     {
-        return TCols.Value;
+        return ((int)TCols.Value);
     }
 
     public Matrix()
@@ -53,9 +58,9 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        Snippet.FixedArray<int, Const_Int_5> arr = new Snippet.FixedArray<int, Const_Int_5>();
+        Snippet.FixedArray<int, Const_5> arr = new Snippet.FixedArray<int, Const_5>();
         System.Console.WriteLine(arr.Describe());
-        Snippet.Matrix<Const_Int_3, Const_Int_4> mat = new Snippet.Matrix<Const_Int_3, Const_Int_4>();
+        Snippet.Matrix<Const_3, Const_4> mat = new Snippet.Matrix<Const_3, Const_4>();
         System.Console.WriteLine(System.FormattableString.Invariant($"Matrix<{mat.GetRows()}x{mat.GetCols()}>"));
     }
 

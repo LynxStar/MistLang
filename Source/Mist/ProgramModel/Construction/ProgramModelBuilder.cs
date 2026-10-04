@@ -140,6 +140,11 @@ public sealed class ProgramModelBuilder
         foreach(var typeDef in sourceTypes.OfType<IHasTypeParameters>())
         {
             context.Domains.Resolve(typeDef.TypeParametersList, DeclarationOf(typeDef));
+
+            if(typeDef is MemberType memberType)
+            {
+                TypeParameterDomainResolver.ProjectValues(memberType);
+            }
         }
 
         var clones = sourceTypes.OfType<ConcreteType>().Where(concrete => concrete.CloneSource is not null).ToList();

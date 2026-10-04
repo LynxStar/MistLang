@@ -37,6 +37,16 @@ internal sealed class TypeInterner
         return GetOrCreateLifted(type, value);
     }
 
+    /// <summary>
+    /// The one overload whose box depends on the value: a <see cref="ulong"/> that a long holds
+    /// is boxed as that long, so <c>5UL</c> and <c>5</c> stay one key, and only ulong's upper half,
+    /// which no long holds, keeps its own box.
+    /// </summary>
+    public LiftedType LiftLiteral(IMistType type, ulong value)
+    {
+        return value <= long.MaxValue ? GetOrCreateLifted(type, (long)value) : GetOrCreateLifted(type, value);
+    }
+
     /// <inheritdoc cref="LiftLiteral(IMistType, long)"/>
     public LiftedType LiftLiteral(IMistType type, bool value)
     {

@@ -1,0 +1,17 @@
+using Standard;
+
+public class FixedBuffer<Size:int> { }
+
+type FiveBuffer = FixedBuffer<5>;
+
+public class SmallBuffer : FixedBuffer<10> { }
+
+public class Program
+{
+    public static void Main()
+    {
+        Console.WriteLine(FixedBuffer<5>.Size);
+        Console.WriteLine(FiveBuffer.Size);
+        Console.WriteLine(SmallBuffer.Size);
+    }
+}

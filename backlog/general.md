@@ -1170,6 +1170,15 @@ at Tier 4.
 
 ## A `ulong` dependent parameter takes values only up to `long.MaxValue`
 
+**Closed on v2 (2026-10-03):** the program below prints `18446744073709551615`. A lifted integral value is
+boxed as a `long`, or as a `ulong` only above `long.MaxValue`, so every value keeps one interned type
+whatever its spelling or suffix (`TypeInterner.LiftLiteral`, `ScopeResolver.LiftIntegerLiteral`); a literal
+past `ulong` is refused naming `ulong`, one below `long` naming `long`. Each domain's own range is judged at
+the closing (`MIST_DT_0003`, analysis register order 12), and a carrier holds its value as an Int128
+(emitter register orders 145-146). `NumericLiteralBindingTests` now pins the ulong lift and the refusal past
+it; `samples/DependentTypes` section 18 reads `ulong.MaxValue` and `long.MinValue` at runtime. Everything
+below this paragraph is the entry as filed.
+
 Found 2026-09-27 by the literal review of purity's culture work (v2). The limit predates it: the merge
 base 13b67c0e lifts a literal past `long` as 0 with no diagnostic, and this branch refuses it instead.
 

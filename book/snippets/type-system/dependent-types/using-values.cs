@@ -3,12 +3,15 @@ using Standard;
 namespace Snippet;
 
 public class Matrix<TRows, TCols>
-    where TRows : IConstInt
-    where TCols : IConstInt
+    where TRows : IConstIntegral
+    where TCols : IConstIntegral
 {
+    public static int Rows => ((int)TRows.Value);
+    public static int Cols => ((int)TCols.Value);
+
     public string Describe()
     {
-        return $"Matrix<{MistInvariant.Text(TRows.Value)},{MistInvariant.Text(TCols.Value)}>";
+        return System.FormattableString.Invariant($"Matrix<{((int)TRows.Value)},{((int)TCols.Value)}>");
     }
 
     public Matrix()

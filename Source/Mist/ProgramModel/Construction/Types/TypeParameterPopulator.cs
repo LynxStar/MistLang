@@ -49,11 +49,17 @@ internal static class TypeParameterPopulator
         var lonePack = nodes.Count(IsPack) == 1;
 
         TypeParameter? unbracketed = null;
+        var names = new HashSet<string>(StringComparer.Ordinal);
 
         for(var ordinal = 0; ordinal < nodes.Count; ordinal++)
         {
             var typeParam = AddTypeParameter(
                 declaration, declaringScope, declaringType, nodes[ordinal], ordinal, lonePack);
+
+            if(!names.Add(typeParam.Name))
+            {
+                diagnostics.ReportAtNode(ProgramModelDiagnostics.DuplicateTypeParameter, nodes[ordinal], null, typeParam.Name);
+            }
 
             if(typeParam.PackKind != TypePackKind.Unbracketed)
             {

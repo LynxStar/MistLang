@@ -3,11 +3,13 @@ using Standard;
 namespace Snippet;
 
 public class IntParam<TV>
-    where TV : IConstInt
+    where TV : IConstIntegral
 {
+    public static int V => ((int)TV.Value);
+
     public int GetValue()
     {
-        return TV.Value;
+        return ((int)TV.Value);
     }
 
     public IntParam()
@@ -23,9 +25,11 @@ public class IntParam<TV>
 public class BoolParam<TV>
     where TV : IConstBool
 {
+    public static bool V => TV.Value;
+
     public string Describe()
     {
-        return $"BoolParam<{MistInvariant.Text(TV.Value)}>";
+        return $"BoolParam<{TV.Value}>";
     }
 
     public BoolParam()
@@ -41,9 +45,11 @@ public class BoolParam<TV>
 public class CharParam<TV>
     where TV : IConstChar
 {
+    public static char V => TV.Value;
+
     public string Describe()
     {
-        return $"CharParam<{MistInvariant.Text(TV.Value)}>";
+        return $"CharParam<{TV.Value}>";
     }
 
     public CharParam()

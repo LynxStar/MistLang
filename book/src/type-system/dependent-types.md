@@ -23,7 +23,7 @@ A dependent type parameter uses the `Name:ValueType` syntax inside the type para
 {{#endtab }}
 {{#endtabs }}
 
-In the emitted C#, the dependent parameter `Size:int` becomes a generic type parameter `TSize` constrained to an `IConstInt` abstract type. The compiler generates a static property `Size` that retrieves the constant value through the carrier type. This encoding preserves type safety at the .NET level while giving Mist the ability to treat the value as a compile-time constant.
+In the emitted C#, the dependent parameter `Size:int` becomes a generic type parameter `TSize` constrained to the `IConstIntegral` witness interface. The compiler generates a public static property `Size` that reads the value through the carrier type and converts it to the declared `int`. This encoding preserves type identity at the .NET level while giving Mist the ability to treat the value as a compile-time constant.
 
 ## Allowed Value Types
 
@@ -47,7 +47,32 @@ Dependent parameters support all integral types, `bool`, and `char`. These are t
 {{#endtab }}
 {{#endtabs }}
 
-Each value type gets its own const-carrier abstract type (`IConstInt`, `IConstBool`, `IConstChar`, etc.). The compiler only emits abstract types for the value types actually used in the program.
+The eight integral types share one witness, `IConstIntegral`, which holds the value as an `Int128`; `bool` and `char` each have their own (`IConstBool`, `IConstChar`). A carrier struct is named for the value itself (`Const_42`, `Const_Neg1`, `Const_True`, `Const_Char_0x0058`), so one value is one C# type whichever slot it fills, and each read converts it back to the reading parameter's declared type. The compiler only emits the witnesses for the kinds a parameter declares.
+
+Every integral type admits its whole range, `ulong` included. Spellings of one value are one type argument: `Mask<0xFFFF_FFFF_FFFF_FFFF>` and `Mask<18446744073709551615>` are the same type, as `Size<5>`, `Size<5L>` and `Size<0b101>` are.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/dependent-types/full-range.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/dependent-types/full-range.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The three kinds never mix, and a value must fit its slot's type. Each mismatch is refused where the type argument is written, whether in a construction, a method call, an alias, or a base clause:
+
+```text
+error MIST_DT_0003: Dependent type argument '256' of type 'int' is not assignable to dependent parameter 'N' of type 'byte'.
+error MIST_DT_0003: Dependent type argument 'true' of type 'bool' is not assignable to dependent parameter 'N' of type 'int'.
+error MIST_DT_0003: Dependent type argument 'A' of type 'char' is not assignable to dependent parameter 'N' of type 'int'.
+```
+
+A `char` never fills an integral slot, even though a `char` expression widens to `int`: `'A'` and `65` would then be two spellings of one type argument interned as two types.
 
 ## Using Dependent Parameters as Values
 
@@ -68,6 +93,34 @@ Inside the type body, a dependent parameter name acts as a static value. You can
 
 Multiple dependent parameters each get their own carrier type parameter and static property. The values are available as static members, so they don't occupy instance storage.
 
+A dependent parameter read as a value has its declared type, so `var doubled = Size * 2;` infers an `int`, and it answers that type's members: `Size.ToString()`.
+
+## Reading a Dependent Value from Outside the Type
+
+Each dependent parameter of a class, struct or abstract type is also a public static get-only property of that type, named after the parameter and typed by its annotation. Read it through a constructed type, through an alias of one, or through any type deriving from one:
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/dependent-types/properties.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/dependent-types/properties.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The read is spelled on the construction that declares the property, so `SmallBuffer.Size` becomes `FixedBuffer<Const_10>.Size`. An abstract type's property is read the same way through a type implementing it. The property belongs to the type rather than to its instances, and it cannot be assigned:
+
+```text
+error MIST_PM_UNRESOLVED_MEMBER: 'FixedBuffer<5>' has no member named 'Size'.
+error MIST_PA_NO_SET_ACCESSOR: Cannot assign to 'FixedBuffer.Size': it has no 'set' or 'init' accessor.
+```
+
+The first is `buffer.Size` on an instance, the second `FixedBuffer<5>.Size = 6;`. An ordinary type parameter has no such property, a dependent parameter may not share its name with a member of its own type (`MIST_DT_0005`), and two parameters of one list may not share a name (`MIST_PM_DUPLICATE_TYPE_PARAMETER`). A dependent parameter on a type alias projects no property yet.
+
 ## Dependent Types on Classes
 
 Classes are the most common host for dependent type parameters. You can mix regular type parameters with dependent parameters in the same parameter list.
@@ -85,7 +138,7 @@ Classes are the most common host for dependent type parameters. You can mix regu
 {{#endtab }}
 {{#endtabs }}
 
-Regular type parameters (`T`) pass through unchanged. Dependent parameters (`Size:int`) are transformed into constrained carrier parameters (`TSize : IConstInt`). At the call site, `new TypedBuffer<string, 16>("hello")` supplies `string` for `T` and a carrier struct `Const_Int_16` for `TSize`.
+Regular type parameters (`T`) pass through unchanged. Dependent parameters (`Size:int`) are transformed into constrained carrier parameters (`TSize : IConstIntegral`). At the call site, `new TypedBuffer<string, 16>("hello")` supplies `string` for `T` and a carrier struct `Const_16` for `TSize`.
 
 ## Dependent Types on Structs
 
@@ -123,7 +176,7 @@ Abstract types can declare dependent type parameters to define contracts that de
 {{#endtab }}
 {{#endtabs }}
 
-When a class implements an abstract type with a dependent parameter, it supplies a concrete value (here `8`). The compiler emits the corresponding carrier struct (`Const_Int_8`) as the type argument.
+When a class implements an abstract type with a dependent parameter, it supplies a concrete value (here `8`). The compiler emits the corresponding carrier struct (`Const_8`) as the type argument, and `TinyCollection.Size` reads `8`.
 
 ## Dependent Types on Methods
 
@@ -142,7 +195,32 @@ Methods can declare their own dependent type parameters, independent of the encl
 {{#endtab }}
 {{#endtabs }}
 
-At the call site, you supply the constant value as a type argument: `DependentMethods.Repeat<3>("hello")`. The compiler resolves `3` to the carrier struct `Const_Int_3`. The `Process` method demonstrates forwarding a dependent parameter — it accepts any `FixedBuffer<N>` and the `N` flows through as a type parameter.
+At the call site, you supply the constant value as a type argument: `DependentMethods.Repeat<3>("hello")`. The compiler resolves `3` to the carrier struct `Const_3`. The `Process` method demonstrates forwarding a dependent parameter — it accepts any `FixedBuffer<N>` and the `N` flows through as a type parameter.
+
+## Forwarding and Widening
+
+A dependent parameter can fill another type's dependent slot, as `N` fills `FixedBuffer<N>` above or a derived class forwards its own parameter to its base. The forwarded parameter's type must widen to the slot's: an `int` parameter may fill a `long` slot.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/dependent-types/forwarding.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/dependent-types/forwarding.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Because a carrier names the value rather than the slot, `NarrowCounter<7>` derives from exactly the `WideCounter<7>` written directly: the assignment compiles, and an `is WideCounter<7>` test on a `NarrowCounter<7>` is true at runtime. Narrowing is refused at the forwarding site, as is any forward between `bool`, `char` and the integral types:
+
+```text
+error MIST_DT_0004: Dependent type parameter 'M' of type 'long' on 'Derived' cannot be forwarded to parameter 'N' of type 'int' on 'Base' because 'long' is not implicitly convertible to 'int'.
+```
+
+A slot whose type is a refinement also asks the forwarded parameter's own refinement to imply it (`MIST_PA_DEPENDENT_FORWARD_UNPROVEN`).
 
 ## Relationship to Refinement Types
 
@@ -173,7 +251,7 @@ When you write `Count:int`, you're saying "Count is a compile-time int." But you
 {{#endtab }}
 {{#endtabs }}
 
-The refinement type's base type must be in the set of allowed dependent value types (integral types, `bool`, and `char`). In the emitted C#, the constraint resolves to the same carrier-interface pattern as a plain primitive constraint — `PositiveInt` has base type `int`, so the emitted code uses `IConstInt`.
+The refinement type's base type must be in the set of allowed dependent value types (integral types, `bool`, and `char`). In the emitted C#, the constraint resolves to the same carrier-interface pattern as a plain primitive constraint — `PositiveInt` has base type `int`, so the emitted code uses `IConstIntegral` and reads the value as an `int`.
 
 ## Type Identity Semantics
 
@@ -192,7 +270,7 @@ Different dependent values produce distinct types. `FixedBuffer<5>` and `FixedBu
 {{#endtab }}
 {{#endtabs }}
 
-The function `AcceptFive` only accepts `FixedBuffer<5>`. Passing a `FixedBuffer<10>` would be a compile-time error because `Const_Int_5` and `Const_Int_10` are different types — the .NET type system enforces the distinction. This gives you compile-time guarantees about dimensions and capacities that would otherwise require runtime checks.
+The function `AcceptFive` only accepts `FixedBuffer<5>`. Passing a `FixedBuffer<10>` would be a compile-time error because `Const_5` and `Const_10` are different types — the .NET type system enforces the distinction. This gives you compile-time guarantees about dimensions and capacities that would otherwise require runtime checks.
 
 You can also use pattern matching to check dependent type identity at runtime:
 

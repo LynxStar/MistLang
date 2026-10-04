@@ -7,15 +7,16 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// a call written on an instance to any applicable instance member of the receiver's type before an
 /// extension, and an intrinsic or projected receiver has CLR members its Mist declaration does not show,
 /// so the instance spelling can run a member the program never bound and the analysis never judged.
-/// The object's own ToString, GetHashCode and Equals keep that spelling: every object has them, and
+/// The object's instance ToString, GetHashCode and Equals keep that spelling: every object has them, and
 /// the analysis already reads an extension of that shape as the object's member.
 /// </summary>
 internal static class ExtensionCalls
 {
     public static string? Carrier(Method? method)
     {
-        if(method is not { Modifiers.IsStatic: false, DeclaringBlock: { DeclarationNode: not null } block }
-            || (method.Name, method.ParametersList.Count) is ("ToString", 0) or ("GetHashCode", 0) or ("Equals", 1))
+        if(method is not { DeclaringBlock: { DeclarationNode: not null } block }
+            || (!method.Modifiers.IsStatic
+                && (method.Name, method.ParametersList.Count) is ("ToString", 0) or ("GetHashCode", 0) or ("Equals", 1)))
         {
             return null;
         }

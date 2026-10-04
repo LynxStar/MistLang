@@ -7710,6 +7710,13 @@ capabilities:
       none of those names. Ranking is pairwise rather than a concrete-versus-universal split, since a
       base and a derived receiver both survive an untiered merge and the binder then records one
       overload while C# resolves the other.
+
+      STATIC CARRIER DISPATCH, 2026-10-03: a resolved class static extension invocation calls its
+      assigned carrier without passing the type receiver as a value argument. Ordinary and promoted
+      methods use the same target; only promoted calls await the emitted task. StaticExtensionCarrierCallTests
+      holds those four Tier 2 hand-built combinations, including closed block and member arguments.
+      Primitive type-literal lookup and the already recorded generic static binding limitation remain
+      outside this emission decision.
     unlocks: []
 
   - id: universal-unknown-receiver-extensions

@@ -426,11 +426,14 @@ internal static class BodyEmitter
     {
         var (arguments, parameters) = ExtensionBlockEmitter.CallTypeArguments(call.Method, callee.TypeArguments);
         writer.Append($"{carrier}.{CalleeName(call.Method!.Name, arguments, parameters)}{EmitTypeArguments(arguments, parameters)}(");
-        EmitExpression(callee.Receiver, writer, diagnostics);
-
-        if(HasArguments(call.Arguments, call.Method.ParametersList) || DefaultWitnesses.MethodArguments(call.Method, callee.TypeArguments, callee.Receiver.Type).Count > 0)
+        if(!call.Method.Modifiers.IsStatic)
         {
-            writer.Append(", ");
+            EmitExpression(callee.Receiver, writer, diagnostics);
+
+            if(HasArguments(call.Arguments, call.Method.ParametersList) || DefaultWitnesses.MethodArguments(call.Method, callee.TypeArguments, callee.Receiver.Type).Count > 0)
+            {
+                writer.Append(", ");
+            }
         }
 
         EmitWitnesses(call, writer, diagnostics);

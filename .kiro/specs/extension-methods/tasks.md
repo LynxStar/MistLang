@@ -250,6 +250,7 @@ This plan implements extension blocks for the Mist programming language, followi
     - _Requirements: 17.1, 17.2_
 
   - [x] 9.3 Implement call-site rewriting for extension methods and properties
+    - Standard pipeline evidence (2026-10-03): `StaticExtensionCarrierCallTests` exercises resolved static extension calls at Tier 2, ordinary and promoted, with closed generic carrier arguments. Static calls name the assigned carrier and pass only declared arguments; primitive type-literal lookup and the recorded generic static binding gap remain separate limitations.
     - Rewrite `instance.Method(args)` to use C# extension method syntax (dot-notation)
     - Rewrite `instance.Property` to `ClassName.get_PropertyName(instance)` static call
     - Rewrite `TypeName.StaticMethod(args)` to `ClassName.StaticMethod(args)` static call

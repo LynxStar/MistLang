@@ -238,9 +238,17 @@ the expanded slot, and `ConformanceEmitter` to unpack the tuple.
 
 Found while closing the gaps, each measured, none established as something classic did:
 
-- **Context**: a refined clause is not proven (`with 0;` satisfies `with PositiveInt n`); `string?` and
-  `string` share a runtime key; a lambda that outlives its context's scope fails at run time; the
-  emitter drops the clause on extension methods and abstract default bodies (`MIST_CS_ERROR`).
+- **Context**: a refined clause is not proven (`with 0;` satisfies `with PositiveInt n`); a lambda
+  that outlives its context's scope fails at run time. Refined-clause proof selection and lambda
+  capture/refusal/callable requirements need language decisions. Closed 2026-10-03 (packet 10):
+  optional-reference keys are independent of their required key, including nested tuple/callable
+  structures, using a key-only optional marker; extension methods, abstract default bodies and
+  concrete restated defaults bind their clauses at entry. Alias/refinement key normalization remains
+  settled. Still open: a generic consumer `static T Get<T>() with T value` called as `Get<string?>()`
+  loses optional-reference identity when CLR erases its argument to string. Fully known optional/nested
+  keys work; this broader generic call/receiver key propagation needs metadata or specialization while
+  preserving public APIs/value representation. Optional-value keys retain CLR Nullable<T> identity.
+  Flow-local context storage remains outside this closeout.
 - **Async**: an extension-block method ignores `async` and is never promoted; an `await` in a property
   getter or constructor body is emitted where C# refuses it; the `async` functor's lift lambda is not
   async; a promoted method used as a method group has the wrong return type; promotion does not reach

@@ -1,0 +1,27 @@
+using Standard;
+
+extension (string self)
+{
+    public string Describe() with int n { return $"{self}:{n}"; }
+}
+
+public abstract IReader
+{
+    string Read() with string s { return s; }
+}
+
+public class Reader : IReader { }
+
+public class Program
+{
+    public static void Main()
+    {
+        with 7;
+        with "context";
+        Console.WriteLine("x".Describe());
+        var reader = new Reader();
+        IReader view = reader;
+        Console.WriteLine(view.Read());
+        Console.WriteLine(reader.Read());
+    }
+}

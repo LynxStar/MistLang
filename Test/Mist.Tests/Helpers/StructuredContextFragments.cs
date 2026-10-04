@@ -32,6 +32,7 @@ internal sealed partial class StructuredContextFragments
     private readonly ClassType probe = HandBuiltModel.Class("Probe");
     private readonly List<SourceRoot> bodies = [];
     private readonly List<MistType> types = [];
+    private readonly List<ExtensionBlock> extensions = [];
     private readonly Method read;
 
     public StructuredContextFragments()
@@ -47,6 +48,7 @@ internal sealed partial class StructuredContextFragments
         return name switch
         {
             _ when name.StartsWith("call-", StringComparison.Ordinal) => Calls(name),
+            _ when name.StartsWith("entry-", StringComparison.Ordinal) => MethodEntries(name),
             _ when name.StartsWith("transparent-", StringComparison.Ordinal) || name.StartsWith("cycle-", StringComparison.Ordinal) => Transparent(name),
             _ when name.StartsWith("runtime-called-", StringComparison.Ordinal) => RuntimeCalled(name["runtime-called-".Length..]),
             _ when name.StartsWith("slot-", StringComparison.Ordinal) => Slots(name),
@@ -78,6 +80,8 @@ internal sealed partial class StructuredContextFragments
         var refined = HandBuiltModel.Refined(text, "Short");
         var readConfig = Declare(probe, "ReadConfig", Static, HandBuiltModel.Block(), config);
         var readShort = Declare(probe, "ReadShort", Static, HandBuiltModel.Block(), refined);
+        var optional = model.Interner.GetOrCreateUnionType([text, model.Type("Void")]);
+        var readOptional = Declare(probe, "ReadOptional", Static, HandBuiltModel.Block(), optional);
         var both = Declare(probe, "Both", Static, HandBuiltModel.Block(), text, integer);
         var forward = Declare(probe, "Forward", Static, HandBuiltModel.Block(Run(Call(read, Site))), text);
 
@@ -90,6 +94,9 @@ internal sealed partial class StructuredContextFragments
             "call-under-a-context-of-another-type" => [Under(integer, Run(Call(read, Site)))],
             "call-under-a-context-of-a-derived-type" => [Under(detailed, Run(Call(readConfig, Site)))],
             "call-under-a-union-holding-the-key" => [Under(model.Interner.GetOrCreateUnionType([text, integer]), Run(Call(read, Site)))],
+            "call-string-under-an-optional-string-context" => [Under(optional, Run(Call(read, Site)))],
+            "call-optional-string-under-a-string-context" => [Under(text, Run(Call(readOptional, Site)))],
+            "call-optional-string-under-its-context" => [Under(optional, Run(Call(readOptional, Site)))],
             "call-under-an-alias-of-the-key" => [Under(alias, Run(Call(read, Site)))],
             "call-under-a-refinement-of-the-key" => [Under(refined, Run(Call(read, Site)))],
             "call-of-a-refined-clause-under-its-base" => [Under(text, Run(Call(readShort, Site)))],
@@ -99,6 +106,43 @@ internal sealed partial class StructuredContextFragments
             _ => throw new ArgumentOutOfRangeException(nameof(name)),
         });
 
+        return Judge();
+    }
+
+    private IReadOnlyList<Diagnostic> MethodEntries(string name)
+    {
+        var body = HandBuiltModel.Block();
+        Method consumer;
+
+        if(name.Contains("extension", StringComparison.Ordinal))
+        {
+            var receiver = HandBuiltModel.Class("Receiver");
+            var block = new ExtensionBlock("self", "Probe", new Scope(null), null)
+            {
+                ResolvedReceiverType = receiver,
+            };
+            consumer = new Method("Extended", text, [], name.Contains("static", StringComparison.Ordinal) ? Static : Public)
+            {
+                Body = body,
+                DeclaringBlock = block,
+                DeclarationNode = HandBuiltModel.Node(Site),
+            };
+            Bind(consumer, [text]);
+            block.MethodsList.Add(consumer);
+            extensions.Add(block);
+            bodies.Add(new SourceRoot(body, receiver, MistAssembly.Synthetic, consumer));
+        }
+        else
+        {
+            var source = new AbstractType("Source", "Probe", new Scope(null), null, null);
+            var conformer = HandBuiltModel.Class("Conformer");
+            conformer.BaseAbstractTypes.Add(source);
+            types.AddRange([source, conformer]);
+            consumer = Declare(source, "Defaulted", Public, body, text);
+        }
+
+        var call = Run(Call(consumer, Site));
+        Entry(name.EndsWith("with-no-context", StringComparison.Ordinal) ? call : Under(text, call));
         return Judge();
     }
 
@@ -465,7 +509,7 @@ internal sealed partial class StructuredContextFragments
 
     private IReadOnlyList<Diagnostic> Judge(IReadOnlyList<SourceRoot>? alone = null)
     {
-        var scope = new AnalysisScope(alone is null ? types : [], alone ?? bodies, [], []);
+        var scope = new AnalysisScope(alone is null ? types : [], alone ?? bodies, extensions, []);
         var nodes = new List<object>();
         var roots = new Dictionary<object, SourceRoot>(ReferenceEqualityComparer.Instance);
         var assignments = new Dictionary<object, AssignmentExpression>(ReferenceEqualityComparer.Instance);
@@ -489,7 +533,7 @@ internal sealed partial class StructuredContextFragments
 
         analyzer.Analyze(new AnalysisContext(
             model.Model, scope, nodes, roots, assignments, new HashSet<string>(StringComparer.Ordinal) { "hand-built.mist" },
-            diagnostics, analyzer.Id, CloneConversionRefusals.None, program: new AnalysisScope(types, bodies, [], [])));
+            diagnostics, analyzer.Id, CloneConversionRefusals.None, program: new AnalysisScope(types, bodies, extensions, [])));
 
         return diagnostics.ToImmutableArray();
     }

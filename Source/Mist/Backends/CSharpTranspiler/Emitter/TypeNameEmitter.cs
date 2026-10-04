@@ -91,7 +91,7 @@ internal static class TypeNameEmitter
             LiftedType lifted => Emit(lifted.Type),
             UnknownValueType unknownValue => Emit(unknownValue.Domain),
             UnionType union => EmitUnion(union),
-            NamedTupleType named => EmitTuple(named.ElementTypes, named.ElementNames),
+            NamedTupleType named => EmitTuple(named.ElementTypes, keying ? null : named.ElementNames),
             TupleType tuple => EmitTuple(tuple.ElementTypes, elementNames: null),
             FunctionType function => EmitFunction(function),
             MemberType memberType => MapMemberType(memberType),
@@ -112,6 +112,8 @@ internal static class TypeNameEmitter
     /// The runtime key an ambient value is filed under. A context is found by EXACT type, and erasing
     /// a pure function type's promise would file a plain function under the key a <c>with</c> clause
     /// requiring a pure one reads -- so a pure function type, at any depth, keys as its own marker.
+    /// Optional reference keys also carry a marker because the CLR spelling of an optional reference
+    /// is identical to its required form.
     /// </summary>
     public static string EmitContextKey(IMistType type)
     {
@@ -175,8 +177,14 @@ internal static class TypeNameEmitter
     internal static string EmitOptional(IMistType type)
     {
         var name = Emit(type);
+        var valueKind = keying ? IsContextValueKind(type) : IsValueKind(type);
 
-        return IsValueKind(type) ? $"{name}?" : name;
+        if(keying && !valueKind)
+        {
+            return $"MistContext.Optional<{name}>";
+        }
+
+        return valueKind ? $"{name}?" : name;
     }
 
     /// <summary>
@@ -189,6 +197,16 @@ internal static class TypeNameEmitter
             ? EmitOptional(inner)
             : UnionCarrierNames.CarrierName(union)
             ;
+    }
+
+    private static bool IsContextValueKind(IMistType type)
+    {
+        return type switch
+        {
+            TypeAlias { AliasedType: { } aliased } => IsContextValueKind(aliased),
+            RefinedType refined => IsContextValueKind(refined.BaseType),
+            _ => IsValueKind(type),
+        };
     }
 
     internal static bool IsValueKind(IMistType type)

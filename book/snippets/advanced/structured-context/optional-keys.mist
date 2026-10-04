@@ -1,0 +1,22 @@
+using Standard;
+
+public class Program
+{
+    public static string Required() with string s { return s; }
+    public static string? Optional() with string? s { return s; }
+
+    public static void Main()
+    {
+        with "outer";
+        string? absent = void;
+        with(absent)
+        {
+            Console.WriteLine(Required());
+            Console.WriteLine(Optional() ?? "absent");
+            string? present = "inner";
+            with(present) { Console.WriteLine(Optional()); }
+            Console.WriteLine(Optional() ?? "absent");
+        }
+        Console.WriteLine(Required());
+    }
+}

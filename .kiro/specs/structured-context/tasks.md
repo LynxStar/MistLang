@@ -50,6 +50,7 @@ This plan implements Racket-style `parameterize` semantics for the Mist language
     - Generate programs using type aliases, generic types with varying type arguments, union types, and refinement types as context keys
     - Compile in-process using shared `CompilerDriver` instance
     - Assert the checker correctly identifies matches and mismatches based on resolved types
+    - Standard-pipeline evidence (2026-10-03): `StructuredContextDecisionTests` exercises optional-reference identity through nested tuple/callable types and normalized aliases/refinements; context-key spelling tests use hand-built types. `StructuredContextKeyEmissionTests` covers direct key spelling and lowering. Runtime evidence is in `StructuredContextRuntimeBoundaryTests` and the existing StructuredContext sample, rather than regenerating source programs for each decision.
     - **Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.6, 5.7, 5.8**
 
 - [x] 4. Checkpoint - Ensure semantic model builds correctly
@@ -122,7 +123,8 @@ This plan implements Racket-style `parameterize` semantics for the Mist language
 
   - [x] 7.3 Implement context block and method with-clause emission
     - `with(expr) { ... }` → `MistContext.Push<T>(expr); try { ... } finally { MistContext.Pop<T>(); }`
-    - Method `with TypeReference identifier` → `var identifier = (TypeReference)MistContext.Peek<TypeReference>();` at method entry
+    - Method `with TypeReference identifier` binds the value from `MistContext.Peek<Key>()` at method entry, casting to the ordinary emitted value type. `Key` normalizes aliases/refinements and preserves fully known optional-reference identity with `MistContext.Optional<T>`, recursively through supported nested tuple/callable constructions; optional-value keys retain CLR `Nullable<T>` identity, and pure function keys retain their marker.
+    - Standard-pipeline entry evidence (2026-10-03): extension methods, abstract default bodies and concrete restated defaults all use the same context-aware entry contract as ordinary methods, including unused clauses. `ExtensionCarrierEmissionTests`, `RestatedDefaultEntryEmissionTests` and `StructuredContextRefusalTests` cover the supported entry routes and missing-context controls; the existing sample runs both default views.
     - _Requirements: 12.7, 12.8_
 
   - [x] 7.4 Write property test for runtime context propagation and scoping
@@ -130,6 +132,7 @@ This plan implements Racket-style `parameterize` semantics for the Mist language
     - Generate programs with context declarations at various call-graph depths, shadowing, and restoration
     - Use batched approach: generate N scenarios, build single program printing N labeled results, compile once, run once, compare output line-by-line
     - Assert consumers receive expected values, shadowing works, restoration works, different types don't interfere
+    - Standard-pipeline evidence (2026-10-03): key-only optional-reference markers leave ordinary value emission unchanged and optional-value keys retain CLR `Nullable<T>` identity; runtime coverage checks independent required/optional stacks, closed generics, normalized aliases/refinements, nested keys, and restoration/removal after exceptions. The existing sample's sections 11, 17 and 18 expose generic/optional/nested identity and extension/default entry in the sole AllFeaturesV2 baseline.
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 4.8, 5.5, 6.1, 6.2, 6.3, 6.4, 6.5, 7.1, 7.4, 10.1, 10.2, 10.3, 10.4, 10.5, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8**
 
 - [x] 8. Checkpoint - Ensure emitter produces correct C# output
@@ -176,14 +179,16 @@ This plan implements Racket-style `parameterize` semantics for the Mist language
     - Demonstrate interface method dispatch with with-clause
     - Demonstrate trait structural dispatch with with-clause
     - Each permutation prints labeled output to stdout
+    - Standard-pipeline extension (2026-10-03): section 11 reads actual `Holder<int>` and `Holder<string>` contexts; section 17 reads required and optional-reference/value contexts plus nested tuple/callable keys, showing independent shadowing and restoration; section 18 calls a context-bearing extension and a default body through abstract and concrete views.
     - Include `public static void RunDemo()` entry point
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.7, 16.8, 16.9, 16.10, 16.11, 16.12, 16.13, 16.14, 16.15, 16.16, 16.17, 16.18, 16.19, 16.20, 16.21_
 
   - [x] 11.2 Integrate into AllFeatures sample
-    - Add `StructuredContext.Program.RunDemo()` call to `samples/AllFeatures/Program.mist`
+    - `samples/AllFeaturesV2/Program.mist` calls `StructuredContext.Program.RunDemo()` and `samples/__baselines__/AllFeaturesV2.out` holds its labeled output; classic AllFeatures is retired.
     - _Requirements: 16.20_
 
 - [x] 12. Final checkpoint - Ensure all tests pass and sample compiles
+  - Standard-pipeline verification (2026-10-03): 185 focused tests, 325 integrated context/default/extension/async tests (ledger `20261003-213346`) and all 9,766 full-solution tests (ledger `20261003-213511`) pass, including the sole AllFeaturesV2 baseline. Default entry retains the published async completion behavior and forwards the concrete owner. Build and formatter checks report zero warnings/errors, diff checks pass, second scoped snippet generation is unchanged, and the book builds. The broader erased generic argument limit remains explicitly open below.
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
@@ -199,6 +204,12 @@ This plan implements Racket-style `parameterize` semantics for the Mist language
 - Property-based tests use FsCheck with shared `CompilerDriver` instance (no per-iteration process spawns)
 - Runtime propagation tests (Property 4) use the batched approach: 1 compile, 1 `dotnet exec`, N output lines compared
 - The `WithBlockRegistry` for trait-with blocks remains unchanged; structured context uses a separate code path
+
+### Remaining language decisions
+
+Aliases and refinements retain their settled underlying-key normalization. Proving a refined clause from the nearest supplied value remains unspecified. Lambdas remain judged where written; capture, escape refusal and callable requirement policies remain unspecified. Concurrent-flow storage and async signatures/adaptation are outside this closeout.
+
+A separate substantial runtime limit remains: `static T Get<T>() with T value`, called as `Get<string?>()` under optional-string context, peeks the erased CLR string key. Fully known optional/nested key syntax encodes correctly, and optional-value keys retain CLR `Nullable<T>` identity. Preserving optional-reference arguments erased behind generic keys needs key metadata through calls/receivers or broader specialization while preserving public APIs and ordinary value representation; this is outside packet 10's three established runtime sites and is tracked in analysis order 16 and emitter order 176.
 
 ## Task Dependency Graph
 

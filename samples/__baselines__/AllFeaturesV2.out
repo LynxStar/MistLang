@@ -1729,6 +1729,8 @@ item=30
 --- 11. Independent type keys ---
   GetHolderInt()=10
   GetHolderString()=generic
+  Holder<int>=11
+  Holder<string>=closed-generic
 --- 12. Constructor with-clause ---
   Greeter.Greeting=Hello, world
 --- 13. Various types as context values ---
@@ -1746,6 +1748,23 @@ item=30
   IContextConsumer.Consume()=ConsumerImpl.Consume: cfg=detailed
 --- 16. Abstract type dispatch with with-clause ---
   ContextReader.ReadContext()=CountReader.ReadContext: count=7
+--- 17. Optional and nested type keys ---
+  string under absent string?=world
+  string?=absent
+  shadowed string?=optional-inner
+  string stays=world
+  restored string?=absent
+  string after optional pop=world
+  int under absent int?=7
+  int? fallback=-1
+  nested tuple=tuple-outer
+  optional nested tuple=absent
+  function=function-outer
+  optional-result function=absent
+--- 18. Extension and default body entry ---
+  extension=x:7
+  abstract default=world
+  concrete default=world
 === Structured Context Done ===
 --- Ownership ---
 [non-owned-binding] readonly method=10

@@ -80,7 +80,8 @@ internal static class ExtensionBlockEmitter
         {
             if(method.Body is not null)
             {
-                BodyEmitter.EmitMethodBody(method, method.Body, writer, diagnostics);
+                BodyEmitter.EmitMethodBody(method, method.Body, writer, diagnostics,
+                    additionalParameterNames: method.Modifiers.IsStatic ? [] : [block.ReceiverParameterName]);
             }
         }
     }

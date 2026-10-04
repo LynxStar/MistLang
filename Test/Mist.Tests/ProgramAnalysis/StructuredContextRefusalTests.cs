@@ -9,6 +9,11 @@ public sealed class StructuredContextRefusalTests
 {
     [Theory]
     [InlineData("call-with-no-context")]
+    [InlineData("call-string-under-an-optional-string-context")]
+    [InlineData("call-optional-string-under-a-string-context")]
+    [InlineData("entry-instance-extension-with-no-context")]
+    [InlineData("entry-static-extension-with-no-context")]
+    [InlineData("entry-default-with-no-context")]
     [InlineData("call-after-the-with-block-ends")]
     [InlineData("call-inside-the-value-a-with-pushes")]
     [InlineData("call-under-a-context-of-another-type")]
@@ -76,6 +81,10 @@ public sealed class StructuredContextRefusalTests
 
     [Theory]
     [InlineData("call-under-a-with-block")]
+    [InlineData("call-optional-string-under-its-context")]
+    [InlineData("entry-instance-extension-under-a-context")]
+    [InlineData("entry-static-extension-under-a-context")]
+    [InlineData("entry-default-under-a-context")]
     [InlineData("call-under-an-alias-of-the-key")]
     [InlineData("call-under-a-refinement-of-the-key")]
     [InlineData("call-of-a-refined-clause-under-its-base")]

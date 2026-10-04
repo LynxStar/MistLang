@@ -325,7 +325,7 @@ internal static class TypeEmitter
             {
                 using var through = Substituting(inherited.Path);
                 SeparateMember(writer, ref anyEmitted);
-                EmitRestatedDefault(inherited.Method, writer, diagnostics);
+                EmitRestatedDefault(inherited.Method, writer, diagnostics, owner: type);
             }
 
             if(concrete is not null)
@@ -424,12 +424,12 @@ internal static class TypeEmitter
         }
     }
 
-    internal static void EmitRestatedDefault(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
+    internal static void EmitRestatedDefault(Method method, CSharpWriter writer, DiagnosticBag diagnostics, MemberType? owner = null)
     {
         writer.WriteLine($"public {(method.Modifiers.IsAsync ? "async " : "")}{MethodEmitter.EmitSignature(method, diagnostics)}");
         using(writer.Block())
         {
-            EmitDefaultBody(method, writer, diagnostics);
+            EmitDefaultBody(method, writer, diagnostics, owner);
         }
     }
 
@@ -524,15 +524,15 @@ internal static class TypeEmitter
         }
     }
 
-    private static void EmitDefaultBody(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
+    private static void EmitDefaultBody(Method method, CSharpWriter writer, DiagnosticBag diagnostics, MemberType? owner = null)
     {
         if(method.Modifiers.IsAsync)
         {
-            BodyEmitter.EmitMethodBody(method, method.Body!, writer, diagnostics);
+            BodyEmitter.EmitMethodBody(method, method.Body!, writer, diagnostics, owner: owner);
         }
         else
         {
-            BodyEmitter.EmitSynchronousMethodBody(method, method.Body!, writer, diagnostics);
+            BodyEmitter.EmitSynchronousMethodBody(method, method.Body!, writer, diagnostics, owner: owner);
         }
     }
 

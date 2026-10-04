@@ -38,6 +38,24 @@ public sealed class StructuredContextDecisionTests
     }
 
     [Fact]
+    public void OptionalKeysRetainTheirConstituentsAfterNormalization()
+    {
+        var absent = model.Type("Void");
+        var alias = new TypeAlias("Name", "Probe", new Scope(null), null, new TypeAliasDeclarationNode()) { AliasedType = text };
+        var optional = new UnionType([text, absent]);
+        var refined = HandBuiltModel.Refined(text, "Short");
+
+        Assert.False(ContextKeys.Same(text, optional));
+        Assert.False(ContextKeys.Same(optional, text));
+        Assert.True(ContextKeys.Same(optional, new UnionType([absent, alias])));
+        Assert.True(ContextKeys.Same(optional, new UnionType([refined, absent])));
+        Assert.False(ContextKeys.Same(new TupleType([optional, integer]), new TupleType([text, integer])));
+        Assert.False(ContextKeys.Same(new FunctionType([optional], text), new FunctionType([text], text)));
+        Assert.False(ContextKeys.Same(new FunctionType([], optional), new FunctionType([], text)));
+        Assert.False(ContextKeys.Same(new ConstructedType(holder, [optional]), new ConstructedType(holder, [text])));
+    }
+
+    [Fact]
     public void NothingIsFoundThroughABaseType()
     {
         var config = HandBuiltModel.Class("Config");

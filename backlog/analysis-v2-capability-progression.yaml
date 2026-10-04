@@ -5700,24 +5700,50 @@ rules:
       Dispose), direction ignored, `??=` not reading back, exit drops unrecorded, a local's drop filed
       under a later `with`, a `with` block's value dropped under its own key, accessor slot answers
       not followed, and the drop pre-check removed.
+
+      CLOSED 2026-10-03, runtime key identity and method entry (packet 10). EmitContextKey now uses
+      MistContext.Optional<T> for fully known optional-reference keys, recursively through nested
+      tuple/callable constructions; optional-value keys retain CLR Nullable<T> identity, and ordinary
+      emitted value types do not change. The distinction between a required and optional reference
+      now survives CLR erasure where the key is fully known at emission. Alias/refinement normalization,
+      tuple-name erasure and pure-function markers keep their settled rules; generic arguments erased
+      behind a type parameter remain the separate limit recorded below.
+      Extension methods, abstract default bodies and concrete restated defaults bind their clauses
+      through EmitMethodBody, including unused clauses, while retaining receiver/generic closure and
+      parameter cleanup. StructuredContextDecisionTests proves key decisions directly;
+      StructuredContextKeyEmissionTests covers hand-built key spelling/lowering and
+      StructuredContextRuntimeBoundaryTests checks runtime stack behavior, including exception cleanup.
+      ExtensionCarrierEmissionTests and RestatedDefaultEntryEmissionTests cover the body routes, with
+      missing-context controls in StructuredContextRefusalTests. The existing StructuredContext sample
+      reads required/optional reference and value stacks, nested tuple/callable keys, real closed
+      generic keys and both default call views; its new output is banked in AllFeaturesV2. The refined
+      predicate proof and escaped-lambda choices below remain undecided. Final verification: the focused
+      context/default/extension ledger passed 185 tests. After integration with the published async
+      and diagnostic-retention changes, ledger 20261003-213346 passed all 325 context/default/extension/async
+      tests, and full ledger 20261003-213511 passed all 9,766 tests across four assemblies, including the
+      sole AllFeaturesV2 baseline. Default entry forwards the concrete owner while retaining published
+      async completion behavior. Build and formatter verification
+      report zero warnings/errors, diff checks pass, the second scoped snippet generation is unchanged,
+      and the book builds. The full ledger uses DOTNET_USE_POLLING_FILE_WATCHER=1; a writable temporary
+      NuGet HTTP cache resolves the initial sandbox cache permission failure without suppressing warnings.
     tasks:
+      - >
+        OPTIONAL-REFERENCE ARGUMENTS ERASED BEHIND A GENERIC KEY REMAIN OPEN. `static T Get<T>() with T
+        value` called as `Get<string?>()` under an optional-string context still emits T as CLR string,
+        so its Peek<T> cannot recover the optional-reference marker. Fully known optional keys and their
+        nested tuple/callable structures encode correctly, and optional-value arguments retain their
+        CLR Nullable<T> identity. Solving erased arguments needs context-key metadata propagated through
+        generic calls/receivers or broader specialization, without changing public APIs or ordinary
+        value representation; that substantial propagation is outside packet 10's three established
+        runtime sites.
       - >
         A REFINED CLAUSE IS NOT PROVEN. `with 0;` satisfies `int Reciprocal() with PositiveInt n`, the two
         sharing a key, and `100 / n` divides by zero at run time. A clause binds like a parameter, so the
         value that reaches it owes the predicate where the two meet: the nearest context of the key, on
         every path, must be declared at a type that implies the clause's. Unspecified; a decision first.
       - >
-        `string?` AND `string` SHARE A RUN-TIME KEY, EmitContextKey spelling an optional of a reference
-        type as the bare type, while ContextKeys keeps them apart. An absent `string?` pushed inside a
-        `string` context is what a `with string s` callee then reads: NullReferenceException, measured.
-      - >
         A function value that leaves the `with` it was written under -- a lambda returned from the method
         that declared the context -- runs with the stack popped ("Stack empty", measured). Decision 3.
-      - >
-        A `with` clause on an extension method, on an abstract's default body or on a restated default is
-        not emitted: ExtensionBlockEmitter and TypeEmitter write those bodies through EmitBlock, not
-        EmitMethodBody, so the clause's name does not exist in the generated C# (MIST_CS_ERROR, measured
-        for the first two). The constructor path had the same defect before order 176 fixed it.
       - >
         A method only a test framework or reflection runs (`[Fact]`) has no caller in the program, so a
         context it needs transparently is never asked for. Nothing in the model says which attributes

@@ -66,6 +66,16 @@ internal static class ContextLowering
             writer.WriteBlankLine();
             writer.WriteLine("public static object Peek<T>() => stacks[typeof(T)].Peek();");
             writer.WriteBlankLine();
+            writer.WriteLine("public sealed class Optional<T>");
+            using(writer.Block())
+            {
+                writer.WriteLine("private Optional()");
+                using(writer.Block())
+                {
+                }
+            }
+
+            writer.WriteBlankLine();
             writer.WriteLine("public sealed class Pure<T>");
             using(writer.Block())
             {

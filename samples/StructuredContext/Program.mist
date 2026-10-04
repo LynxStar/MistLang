@@ -17,6 +17,8 @@
 //  14. Type alias, union type, refinement type, and dependent type as context keys
 //  15. Abstract type method dispatch with with-clause
 //  16. Abstract type structural dispatch with with-clause
+//  17. Optional-reference/value and nested tuple/callable key independence
+//  18. Extension method and abstract/concrete default body entry
 
 using Standard;
 
@@ -77,6 +79,24 @@ public class StringHolder
     {
         this.Item = item;
     }
+}
+
+public class Holder<T>
+{
+    public T Item;
+    public Holder(T item) { this.Item = item; }
+}
+
+public abstract DefaultReader
+{
+    string Read() with string text { return text; }
+}
+
+public class DefaultReaderImpl : DefaultReader { }
+
+extension (string self)
+{
+    public string WithCount() with int count { return $"{self}:{count}"; }
 }
 
 // Abstract type with with-clause on method
@@ -144,6 +164,14 @@ public class Consumers
     {
         return s;
     }
+
+    public static string? GetOptionalString() with string? s { return s; }
+    public static int? GetOptionalInt() with int? n { return n; }
+    public static T GetGeneric<T>() with Holder<T> h { return h.Item; }
+    public static string GetNestedTuple() with ((string, int), bool) t { return t.Item1.Item1; }
+    public static string? GetOptionalNestedTuple() with ((string?, int), bool) t { return t.Item1.Item1; }
+    public static string GetFunction() with func<string> f { return f(); }
+    public static string? GetOptionalFunction() with func<string?> f { return f(); }
 
     // Consumes int context
     public static int GetInt() with int n
@@ -312,11 +340,6 @@ public class Program
         }
 
         // ─── 11. Generic types as independent context keys ───────────────
-        // NOTE: Generic constructed types (e.g., Holder<int> vs Holder<string>) are
-        // independent context keys per the design. Due to a context checker limitation
-        // with generic type matching, we demonstrate independent keys using distinct
-        // non-generic wrapper types (IntHolder vs StringHolder) which proves the same
-        // concept: different types are independent context keys.
         Console.WriteLine("--- 11. Independent type keys ---");
         with var intHolder = new IntHolder(10);
         with var strHolder = new StringHolder("generic");
@@ -324,6 +347,10 @@ public class Program
         var gs = Consumers.GetHolderString();
         Console.WriteLine($"  GetHolderInt()={gi}");
         Console.WriteLine($"  GetHolderString()={gs}");
+        with new Holder<int>(11);
+        with new Holder<string>("closed-generic");
+        Console.WriteLine($"  Holder<int>={Consumers.GetGeneric<int>()}");
+        Console.WriteLine($"  Holder<string>={Consumers.GetGeneric<string>()}");
 
         // ─── 12. Constructor with-clause ─────────────────────────────────
         Console.WriteLine("--- 12. Constructor with-clause ---");
@@ -396,6 +423,55 @@ public class Program
         ContextReader ctxReaderVar = new CountReader();
         var ctxReaderResult = ctxReaderVar.ReadContext();
         Console.WriteLine($"  ContextReader.ReadContext()={ctxReaderResult}");
+
+        Console.WriteLine("--- 17. Optional and nested type keys ---");
+        string? absent = void;
+        with(absent)
+        {
+            Console.WriteLine($"  string under absent string?={Consumers.GetString()}");
+            Console.WriteLine($"  string?={Consumers.GetOptionalString() ?? "absent"}");
+            string? present = "optional-inner";
+            with(present)
+            {
+                Console.WriteLine($"  shadowed string?={Consumers.GetOptionalString()}");
+                Console.WriteLine($"  string stays={Consumers.GetString()}");
+            }
+            Console.WriteLine($"  restored string?={Consumers.GetOptionalString() ?? "absent"}");
+        }
+        Console.WriteLine($"  string after optional pop={Consumers.GetString()}");
+        int? missingNumber = void;
+        with(missingNumber)
+        {
+            Console.WriteLine($"  int under absent int?={Consumers.GetInt()}");
+            Console.WriteLine($"  int? fallback={Consumers.GetOptionalInt() ?? -1}");
+        }
+        ((string, int), bool) tuple = (("tuple-outer", 1), true);
+        with(tuple)
+        {
+            ((string?, int), bool) optionalTuple = ((absent, 2), false);
+            with(optionalTuple)
+            {
+                Console.WriteLine($"  nested tuple={Consumers.GetNestedTuple()}");
+                Console.WriteLine($"  optional nested tuple={Consumers.GetOptionalNestedTuple() ?? "absent"}");
+            }
+        }
+        func<string> textFunction = () => "function-outer";
+        with(textFunction)
+        {
+            func<string?> optionalFunction = () => void;
+            with(optionalFunction)
+            {
+                Console.WriteLine($"  function={Consumers.GetFunction()}");
+                Console.WriteLine($"  optional-result function={Consumers.GetOptionalFunction() ?? "absent"}");
+            }
+        }
+
+        Console.WriteLine("--- 18. Extension and default body entry ---");
+        Console.WriteLine($"  extension={"x".WithCount()}");
+        var concreteDefault = new DefaultReaderImpl();
+        DefaultReader abstractDefault = concreteDefault;
+        Console.WriteLine($"  abstract default={abstractDefault.Read()}");
+        Console.WriteLine($"  concrete default={concreteDefault.Read()}");
 
         Console.WriteLine("=== Structured Context Done ===");
     }

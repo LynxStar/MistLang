@@ -64,13 +64,15 @@ internal static class BodyEmitter
     /// </summary>
     public static void EmitMethodBody(
         Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics, Func<Parameter, string>? spell = null,
-        MemberType? owner = null)
+        MemberType? owner = null, IEnumerable<string>? additionalParameterNames = null)
     {
         var previous = enclosingType;
         enclosingType = owner ?? method.DeclaringType ?? previous;
         try
         {
-            using var names = LocalNames.Enter(body, method.ParametersList.Select(parameter => parameter.Name));
+            using var names = LocalNames.Enter(body, method.ParametersList.Select(parameter => parameter.Name)
+                .Concat(method.ContextBindingsList.Select(binding => binding.Identifier))
+                .Concat(additionalParameterNames ?? []));
             using var reach = UnitHoisting.Enter(body);
             EmitContextBindings(method, writer);
             EmitParameterDrops(DropInsertion.DroppedParameters(method, body), 0, body, spell, writer, diagnostics);
@@ -82,14 +84,14 @@ internal static class BodyEmitter
     }
 
     public static void EmitSynchronousMethodBody(
-        Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics)
+        Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics, MemberType? owner = null)
     {
         var enclosing = blockingAwaits;
         blockingAwaits = true;
 
         try
         {
-            EmitMethodBody(method, body, writer, diagnostics);
+            EmitMethodBody(method, body, writer, diagnostics, owner: owner);
         }
         finally
         {

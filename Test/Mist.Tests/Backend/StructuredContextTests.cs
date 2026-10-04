@@ -188,6 +188,19 @@ public sealed class StructuredContextTests : ProgramModelProbe
         Assert.True(scope.Binding!.IsContextBound);
     }
 
+    [Fact]
+    [Trait("Tier", "3")]
+    public void AnInferredOptionalReferencePushRetainsItsUnionKey()
+    {
+        var body = BodyIn("string? absent = void; with absent;");
+        var scope = Assert.IsType<WithBlockStatement>(body.Statements.Last());
+        var key = Assert.IsType<UnionType>(scope.KeyType);
+
+        Assert.Contains(key.Constituents, type => type.FullyQualifiedName == "Standard.String");
+        Assert.Contains(key.Constituents, type => type.FullyQualifiedName == "Standard.Void");
+        Assert.Same(scope.Value.Type, scope.KeyType);
+    }
+
     private System.Collections.Immutable.ImmutableArray<Diagnostic> Diagnostics(string statements)
     {
         _ = BuildModel(statements, extraTypes: "", extraPreamble: "", out var diagnostics);

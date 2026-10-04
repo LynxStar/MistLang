@@ -126,11 +126,45 @@ Context values are keyed by their exact nominal type. Different types maintain i
 {{#include ../../snippets/advanced/structured-context/type-keyed.mist}}
 ```
 
-Type aliases resolve to their underlying type for context keying. A `type Name = string` alias shares the same context key as `string` — pushing a `Name` value satisfies methods that require `string` context.
+Type aliases and refinements resolve to their underlying type for context keying. A `type Name = string` alias shares the same context key as `string` — pushing a `Name` value satisfies methods that require `string` context. A refined clause shares that key too; whether the supplied value proves the refinement predicate remains an open language decision.
+
+Closed generic arguments, tuple elements and callable parameter/return types contribute to the key. Tuple element names do not. Optional types have their own key: `string?` and `string` maintain independent stacks, as do `int?` and `int`. This distinction also holds for fully known optional types inside a tuple or callable type. Pure callable types remain separate from plain callable types.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/structured-context/optional-keys.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/structured-context/optional-keys.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+This program prints `outer`, `absent`, `inner`, `absent`, `outer`. An absent optional value occupies the optional stack, leaving the required string available. The inner optional value shadows only the optional stack and restores its absent value on exit. The generated `MistContext.Optional<T>` type encodes optional-reference keys; it does not change how ordinary optional values are represented. Optional-value keys retain their distinct CLR `Nullable<T>` type.
+
+Extension methods and abstract default methods bind their clauses at entry too. A default body can run through the abstract view or through the method restated on the concrete type; both read the same ambient value.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/structured-context/method-entry.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/structured-context/method-entry.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+This program prints `x:7`, `context`, `context`. Every declared clause is bound at entry even if the body does not use its name. The usual missing-context checks also apply to these calls.
 
 ## Context Propagation
 
-Context propagates transparently through intermediate methods. A method that doesn't declare a `with` clause for a given type still passes that context through to any methods it calls. The context stack is thread-local, so values pushed in one scope are visible to all methods called within that scope.
+Context propagates transparently through intermediate methods. A method that doesn't declare a `with` clause for a given type still passes that context through to any methods it calls. Values pushed in one scope are visible to all methods called within that scope. The current runtime store is process-global; isolation across concurrent flows remains open.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -156,3 +190,7 @@ The compiler statically verifies that every method call site has the required co
 ```
 
 The compiler also verifies context through transitive calls — if `MethodA()` calls `MethodB()` which requires `int` context, then any caller of `MethodA()` must also have `int` context available, even though `MethodA()` itself doesn't declare a `with int` clause.
+
+A lambda is checked where it is written. The language has not yet settled how a callable that escapes its context scope should capture or declare its context requirements.
+
+Optional-reference identity is still lost when a generic consumer receives the key only through a type parameter. A method declared as `static T Get<T>() with T value`, called as `Get<string?>()` under an optional-string context, sees the erased CLR type `string` in its body. Fully known optional and nested keys work; preserving this erased argument requires key metadata through generic calls/receivers or broader specialization. Optional-value arguments keep their CLR `Nullable<T>` identity.

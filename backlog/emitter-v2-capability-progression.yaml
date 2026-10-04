@@ -10600,7 +10600,37 @@ capabilities:
       every later name resolved nowhere. The two loops are now one method, shared with the tail it
       produces. And a CONSTRUCTOR's body was emitted through EmitBlock directly rather than the entry
       a method's body takes, so its clauses -- and its owned-parameter drops -- were silently undone.
+
+      EXTENDED 2026-10-03 (packet 10). Fully known optional-reference keys have a key-only
+      MistContext.Optional<T> marker, preserving their distinction from required references after CLR
+      erasure, including optional-reference elements nested in tuples or callable parameter/return
+      types. Optional-value keys retain CLR Nullable<T> identity, so generic value-optional arguments
+      remain compatible. Ordinary value types and union/pack representation are unchanged. The marker
+      composes with pure-function markers, aliases/refinements still normalize to their underlying key,
+      and fully known generic constructions keep their key arguments; erased generic arguments remain
+      the separate task below.
+      Extension methods, abstract default bodies and concrete restated defaults now use the existing
+      method-entry contract: all clauses bind even if unused, receiver names and closed types remain
+      intact, and owned-parameter drops stay in their existing scope. Direct key spelling/decision
+      checks, hand-built emission chains and runtime stack cleanup coverage accompany the body-route
+      tests in StructuredContextKeyEmissionTests, StructuredContextRuntimeBoundaryTests,
+      ExtensionCarrierEmissionTests and RestatedDefaultEntryEmissionTests.
+      StructuredContext's sections 11, 17 and 18 read closed generics, optional-reference/value and nested
+      tuple/callable keys, and call extension/default bodies through both supported views; their output
+      is held by the single AllFeaturesV2 baseline. Refined-clause predicate proof and escaped-lambda
+      capture/refusal/callable requirements remain open under analysis order 16. Final verification is
+      recorded there: 185 focused, 325 integrated context/default/extension/async, and 9,766 full-solution
+      tests passed, including the extended baseline;
+      build/formatter/diff checks, stable second snippet generation and book build all pass.
     tasks:
+      - >
+        Preserve optional-reference context identity through generic calls/receivers when an argument
+        is erased behind a type parameter. `static T Get<T>() with T value` called as `Get<string?>()`
+        still peeks the CLR string key rather than the optional-reference marker, despite analysis
+        distinguishing it. Fully known optional/nested key syntax encodes correctly, and value-optional
+        keys retain CLR Nullable<T> identity. This needs propagated key metadata or broader
+        specialization without changing public APIs/value representation, beyond packet 10's three
+        established runtime sites; analysis order 16 records the same limit.
       - Make the context store flow-local. The classic pipeline emits a process-global
         static dictionary, which is correct only for a single-threaded synchronous program.
     unlocks: [StructuredContext]
@@ -12913,14 +12943,19 @@ samples:
     threshold: structured-context
     requires: [structured-context, abstract-type-declaration,
                nominal-conformance-and-slot-checking, union-types-and-carriers,
-               instance-fields, constructors, string-interpolation]
+               instance-fields, constructors, string-interpolation, type-parameters-and-constructed-types, generic-methods,
+               optional-union-representation, tuple-types-and-literals, func-structural-function-types,
+               extension-block-declaration, abstract-type-default-members, default-member-forwarding-stubs]
+    note: >
+      The original sixteen sections retain their banked output. V2-ONLY extension 2026-10-03 adds real
+      closed generic contexts to section 11 and sections 17/18 for optional-reference/value and nested
+      tuple/callable key independence plus extension and abstract/concrete default entry; their output
+      is captured from the standard pipeline and read against the source. This sample cannot prove
+      missing-context refusals, which StructuredContextRefusalTests owns at Tier 2.
     untested:
       - The context store is a process-global static dictionary, not thread-static or
         flow-local, so this is correct only because the sample is single-threaded and
         synchronous.
-      - Generic constructed types as independent keys is explicitly WAIVED in a source
-        comment and demonstrated with hand-written wrapper types instead.
-      - The missing-context diagnostic is never triggered.
 
   - name: Attributes
     intro_order: 83

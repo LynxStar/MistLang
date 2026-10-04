@@ -44,8 +44,8 @@ graph TD
 1. **CLI** creates a `ConsoleProgressReporter` and a `Stopwatch`.
 2. **CLI** reports Stage 0 (cleaning) directly — this happens before the driver is called.
 3. **CLI** passes the reporter to `CompilerDriver`.
-4. **CompilerDriver.Compile** calls `reporter.ReportStageStart(...)` and `reporter.ReportStageComplete(...)` at each pipeline boundary.
-5. After `Compile` returns, the **CLI** calls `reporter.ReportBuildSummary(...)` with the overall result.
+4. **CompilerDriver.Compile** calls `reporter.ReportStageStart(...)` and `reporter.ReportStageComplete(...)` at each pipeline boundary. When Stage 1.5 reports diagnostics, it hands each to the `IResolutionDiagnosticListener` before Stage 2 starts (see Dependency Diagnostic Delivery).
+5. After `Compile` returns, the **CLI** calls `reporter.ReportBuildSummary(...)` with the overall result, then writes the diagnostics it has not already written to stderr.
 
 ---
 
@@ -142,6 +142,25 @@ public sealed class ConsoleProgressReporter : ICompilationProgressReporter
 ```
 
 **Design decision**: The `ConsoleProgressReporter` accepts a `TextWriter` rather than writing directly to `Console.Out`. This makes it unit-testable — tests pass a `StringWriter` and assert on the captured output.
+
+### Dependency Diagnostic Delivery
+
+Requirement 12. Progress and diagnostics travel separately, because the CLI picks the progress reporter by verbosity (`NullProgressReporter` for `--quiet`, and for `run` and `test` without `--verbose`) and no verbosity may hide a diagnostic.
+
+```csharp
+namespace Mist.Driver.Contracts;
+
+public interface IResolutionDiagnosticListener
+{
+    void Receive(Diagnostic diagnostic);
+}
+```
+
+- **Driver.** `CompilerDriver(lexer, parser, progressReporter = null, resolutionListener = null)`. Stage 1.5 collects both resolvers' diagnostics in `ResolutionDiagnostics`, a bag apart from the one the entry gate reads (csharp-interop-v2 Requirements 2.3 and 2.6). Once both resolvers return, `ResolutionDiagnostics.Deliver` hands the listener each diagnostic in report order, before the verbose Stage 1.5 completion and before Stage 2 starts. `JoinInto` puts the same instances back into the result after Stage 1's diagnostics. With no listener nothing is delivered and the result is the same. The driver does no console I/O.
+- **CLI.** `build`, `run` and `test` share `CompileFeedback(progressReporter, Console.Error)`, which is the listener the CLI gives the driver. It writes a delivered diagnostic to stderr when it arrives and records the instance. After compilation it reports the summary over every diagnostic, writes the result's diagnostics except the recorded instances, and only on success calls the command's continuation (nothing for `build`, the artifact for `run`, `dotnet test` for `test`). Matching is by reference, never by id or message: the instance received is the instance the result holds, so a failure sharing another's id is still written, and so is a diagnostic equal to one already written that the listener never received.
+- **Restore.** `mist restore` runs the resolvers without the driver (`DependencyRestore`), so nothing follows them and its diagnostics come after its summary.
+
+Resulting order for a failing dependency in a default `mist build`: Stage 0 and Stage 1 progress, the dependency diagnostic, Stages 2–5, the summary counting it, then any later diagnostics.
 
 ### CompilerDriver Changes
 

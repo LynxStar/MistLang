@@ -19,10 +19,15 @@ public sealed class CompilerDriver : ICompilerDriver
     private readonly IParser parser;
     private readonly StdlibParseCache stdlibParseCache;
     private readonly ICompilationProgressReporter progressReporter;
+    private readonly IResolutionDiagnosticListener? resolutionListener;
     private readonly ICompilationPipeline standardPipeline;
 
-    public CompilerDriver(ILexer lexer, IParser parser, ICompilationProgressReporter? progressReporter = null)
-        : this(lexer, parser, StdlibParseCache.Shared, progressReporter)
+    public CompilerDriver(
+        ILexer lexer,
+        IParser parser,
+        ICompilationProgressReporter? progressReporter = null,
+        IResolutionDiagnosticListener? resolutionListener = null)
+        : this(lexer, parser, StdlibParseCache.Shared, progressReporter, resolutionListener)
     {
     }
 
@@ -30,12 +35,14 @@ public sealed class CompilerDriver : ICompilerDriver
         ILexer lexer,
         IParser parser,
         StdlibParseCache stdlibParseCache,
-        ICompilationProgressReporter? progressReporter = null)
+        ICompilationProgressReporter? progressReporter = null,
+        IResolutionDiagnosticListener? resolutionListener = null)
     {
         this.lexer = lexer;
         this.parser = parser;
         this.stdlibParseCache = stdlibParseCache;
         this.progressReporter = progressReporter ?? NullProgressReporter.Instance;
+        this.resolutionListener = resolutionListener;
         standardPipeline = new StandardPipeline(this.progressReporter);
     }
 
@@ -67,10 +74,8 @@ public sealed class CompilerDriver : ICompilerDriver
         options = ProjectDependencyUnion.Apply(options, loadResult.ReferencedConfigurations);
 
         // Stage 1.5: Package Resolution (runs only when deps are declared)
-        var resolutionBag = new DiagnosticBag();
-        var reportedBeforeResolution = allDiagnostics.ToImmutableArray().Length;
-        var resolvedAssemblyPaths = ResolvePackages(options, resolutionBag).AddRange(options.AssemblyPaths);
-        var resolutionDiagnostics = new ResolutionDiagnostics(resolutionBag.ToImmutableArray(), reportedBeforeResolution);
+        var resolutionDiagnostics = new ResolutionDiagnostics(allDiagnostics.ToImmutableArray().Length, resolutionListener);
+        var resolvedAssemblyPaths = ResolvePackages(options, resolutionDiagnostics).AddRange(options.AssemblyPaths);
 
         // Stage 2: Lexing
         var lexResult = Lex(compilation, allDiagnostics);
@@ -86,7 +91,7 @@ public sealed class CompilerDriver : ICompilerDriver
         // Dispatch to the compilation pipeline (Stages 4-6).
         var pipelineInput = new PipelineInput(
             compilation, asts, resolvedAssemblyPaths,
-            options, allDiagnostics, resolutionBag);
+            options, allDiagnostics, resolutionDiagnostics.Reported);
 
         return resolutionDiagnostics.JoinInto(pipeline.Execute(pipelineInput));
     }
@@ -452,7 +457,7 @@ public sealed class CompilerDriver : ICompilerDriver
     /// array when no packages or framework references are declared.
     /// On resolution failure: continues with whatever resolved successfully.
     /// </summary>
-    private ImmutableArray<string> ResolvePackages(CompilerOptions options, DiagnosticBag resolutionDiagnostics)
+    private ImmutableArray<string> ResolvePackages(CompilerOptions options, ResolutionDiagnostics resolutionDiagnostics)
     {
         var hasPackages = !options.Packages.IsDefaultOrEmpty;
         var hasFrameworkRefs = !options.FrameworkReferences.IsDefaultOrEmpty;
@@ -472,11 +477,12 @@ public sealed class CompilerDriver : ICompilerDriver
         // Resolve NuGet packages (passes framework references for deduplication
         // against framework-provided assemblies to prevent duplicate loading)
         var packageResult = PackageResolver.ResolvePackages(
-            options.Packages, options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics);
+            options.Packages, options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics.Reported);
 
         // Resolve framework references
         var frameworkResult = FrameworkReferenceResolver.Resolve(
-            options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics);
+            options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics.Reported);
+        resolutionDiagnostics.Deliver();
 
         // Merge assembly paths (union, dedupe by path)
         var mergedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

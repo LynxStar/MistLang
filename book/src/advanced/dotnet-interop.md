@@ -73,17 +73,39 @@ When a framework reference is enabled, its types are available without any `[pac
 
 ## Quiet-by-Default Builds
 
-When your project declares packages or framework references, the compiler runs a **Package Resolution Stage** (Stage 1.5) between the Loading stage and the Lexing stage. By default, this stage is completely silent — no headers, detail lines, or timing information are printed when everything resolves successfully. Only error diagnostics are surfaced.
+When your project declares packages or framework references, the compiler runs a **Package Resolution Stage** (Stage 1.5) between the Loading stage and the Lexing stage. By default, this stage is completely silent when everything resolves: no header, detail lines, or timing information.
 
-This keeps normal build output clean:
+This keeps normal build output clean (stage detail lines are elided below):
 
 ```
 $ mist build
 Stage 0 - Cleaning
+...
 Stage 1 - Loading
+...
 Stage 2 - Lexing
 ...
 ```
+
+### When a Dependency Fails
+
+A package or framework reference that fails to resolve is reported as soon as Stage 1.5 ends, before Stage 2 begins, with one diagnostic per failing dependency, even when two failures share a diagnostic identifier. Diagnostics go to stderr, so they appear whatever the verbosity: in a default build, with `--quiet`, and in `mist run` and `mist test`, which show no progress unless you pass `--verbose`.
+
+```
+$ mist build
+Stage 0 - Cleaning
+...
+Stage 1 - Loading
+...
+error MIST_PKG_002: Package 'Newtonsoft.Jsn' version '13.0.3' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.
+Stage 2 - Lexing
+...
+Stage 5 - Analysis
+...
+Build failed  1 error(s), 0 warning(s)  Total: 2.31s
+```
+
+The build does not stop at the failure. Lexing, parsing, binding and analysis still run against everything that did resolve, so errors in your source are reported in the same run, after the summary as usual; if your code uses a type from the package that failed, expect an unresolved-type error for it too. The summary counts the dependency error, which is not printed a second time, and the build fails before Stage 6 emits anything, so `mist run` and `mist test` launch nothing.
 
 ### The `--verbose` Flag
 
@@ -91,12 +113,14 @@ When you need to see what the resolver is doing, pass `--verbose`:
 
 ```
 $ mist build --verbose
-Stage 0 - Cleaning
-Stage 1 - Loading
+...
 Stage 1.5 - Package Resolution
-  Restored Newtonsoft.Json 13.0.3 (net10.0)
-  Resolved Microsoft.AspNetCore.App 10.0.0
-  Elapsed: 342ms | 2 succeeded, 0 failed
+    Restored Newtonsoft.Json 13.0.3 (net10.0)
+    Resolved Microsoft.AspNetCore.App 10.0.0
+    342 ms
+    2 succeeded, 0 failed
+    Took 0.34s
+
 Stage 2 - Lexing
 ...
 ```
@@ -105,9 +129,9 @@ The verbose output includes:
 - One line per successfully restored package (name, version, selected TFM)
 - One line per successfully resolved framework reference (name, version)
 - A note for any package that contributed zero assemblies
-- An elapsed-time and success/failure summary
+- The stage's elapsed whole milliseconds and a success/failure summary
 
-The `--verbose` and `--quiet` flags are mutually exclusive — supplying both produces a parse error.
+A failure under `--verbose` is printed inside the stage, after its header and before its counts. The `--verbose` and `--quiet` flags are mutually exclusive — supplying both produces a parse error.
 
 ### The `mist restore` Command
 
@@ -120,11 +144,11 @@ Resolved Microsoft.AspNetCore.App 10.0.0
 2 succeeded, 0 failed
 ```
 
-`mist restore` always prints the full resolver detail (you don't need `--verbose`). It resolves packages and framework references but does not lex, type-check, or emit code. It exits with code 0 on success and non-zero if any dependency fails.
+`mist restore` always prints the full resolver detail (you don't need `--verbose`). It resolves packages and framework references but does not lex, type-check, or emit code. With no later stage to run, its diagnostics follow the summary on stderr. It exits with code 0 on success and non-zero if any dependency fails.
 
 ## Package Resolution Diagnostics
 
-When a package cannot be resolved, the compiler emits a stable diagnostic identifier so you can quickly identify the category of failure. These diagnostics are always surfaced regardless of whether `--verbose` is supplied.
+When a package cannot be resolved, the compiler emits a stable diagnostic identifier so you can quickly identify the category of failure. These diagnostics are always surfaced, during Stage 1.5, regardless of whether `--verbose` is supplied (see [When a Dependency Fails](#when-a-dependency-fails)).
 
 ### `MIST_PKG_001` — Incompatible Target Framework
 

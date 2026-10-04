@@ -5,8 +5,9 @@
 //   - Verbose build emits header + detail + summary
 //   - Resolution error surfaces in both modes
 //   - Resolution error runs the build through analysis and fails it before emission
+//   - Each resolution failure reaches the listener during Stage 1.5, before lexing
 //
-// Validates: Requirements 1.3, 1.6, 1.9, 2.3, 2.6
+// Validates: Requirements 1.3, 1.6, 1.9, 2.3, 2.6, 3.5, 3.6, 5.7
 
 using System.Collections.Immutable;
 using Mist.Backends.Contracts;
@@ -323,5 +324,105 @@ public sealed class PackageResolutionStageTests : IDisposable
         Assert.Equal(
             ["MIST_FILE_ERROR", "MIST_PKG_002", "MIST_PARSE_INCOMPLETE"],
             result.Diagnostics.Select(d => d.Id.Value));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 5. Each failure reaches the listener during Stage 1.5, before Stage 2
+    //    begins, and stays in the result (Requirements 1.9, 3.5, 3.6, 5.7)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void ResolutionFailures_ReachTheListenerOneByOneBeforeLexing_AndStayInTheResult()
+    {
+        var timeline = new Timeline();
+        var driver = CreateDriver(timeline);
+        var options = CreateOptions(
+            MinimalProgram,
+            packages: [new NuGetPackageReference("BadA", "not-valid"), new NuGetPackageReference("BadB", "also-not-valid")],
+            frameworkReferences: [new FrameworkReference("Not.A.Framework")]);
+
+        var result = driver.Compile(options);
+
+        Assert.Equal(
+            ["start 1", "complete 1", "receive MIST_PKG_002", "receive MIST_PKG_002", "receive MIST_FWREF_002", "start 2"],
+            timeline.Events.Take(6));
+        Assert.Contains("BadA", timeline.Received[0].Message);
+        Assert.Contains("BadB", timeline.Received[1].Message);
+        Assert.Contains("Not.A.Framework", timeline.Received[2].Message);
+        Assert.Contains("complete 5", timeline.Events);
+        Assert.False(result.Succeeded);
+        Assert.Equal(3, result.Diagnostics.Length);
+        for(var i = 0; i < 3; i++)
+        {
+            Assert.Same(timeline.Received[i], result.Diagnostics[i]);
+        }
+    }
+
+    [Fact]
+    public void VerboseResolution_DeliversTheFailureInsideTheStage()
+    {
+        var timeline = new Timeline();
+        var driver = CreateDriver(timeline);
+        var options = CreateOptions(
+            MinimalProgram,
+            packages: [new NuGetPackageReference("BadPkg", "not-valid")],
+            verboseResolution: true);
+
+        _ = driver.Compile(options);
+
+        Assert.Equal(
+            ["start 1", "complete 1", "start 1.5", "receive MIST_PKG_002", "complete 1.5", "start 2"],
+            timeline.Events.Take(6));
+    }
+
+    [Fact]
+    public void RepeatedCompiles_EachDeliverTheirOwnFailureOnce()
+    {
+        var timeline = new Timeline();
+        var driver = CreateDriver(timeline);
+        var options = CreateOptions(
+            MinimalProgram,
+            packages: [new NuGetPackageReference("BadPkg", "not-valid")]);
+
+        var first = driver.Compile(options);
+        var second = driver.Compile(options);
+
+        Assert.Equal(2, timeline.Received.Count);
+        Assert.Same(timeline.Received[0], Assert.Single(first.Diagnostics));
+        Assert.Same(timeline.Received[1], Assert.Single(second.Diagnostics));
+        Assert.Equal(2, timeline.Events.Count(e => e == "receive MIST_PKG_002"));
+    }
+
+    private static CompilerDriver CreateDriver(Timeline timeline)
+    {
+        return new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser(), timeline, timeline);
+    }
+
+    private sealed class Timeline : ICompilationProgressReporter, IResolutionDiagnosticListener
+    {
+        public List<string> Events { get; } = [];
+
+        public List<Diagnostic> Received { get; } = [];
+
+        public void ReportStageStart(string stageId, string title)
+        {
+            Events.Add($"start {stageId}");
+        }
+
+        public void ReportStageComplete(string stageId, TimeSpan elapsed, IReadOnlyList<string> details)
+        {
+            Events.Add($"complete {stageId}");
+        }
+
+        public void ReportBuildSummary(bool succeeded, int errorCount, int warningCount, TimeSpan totalElapsed)
+        {
+            Events.Add("summary");
+        }
+
+        public void Receive(Diagnostic diagnostic)
+        {
+            Events.Add($"receive {diagnostic.Id.Value}");
+            Received.Add(diagnostic);
+        }
     }
 }

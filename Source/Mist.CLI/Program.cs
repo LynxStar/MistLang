@@ -133,7 +133,7 @@ internal class Program
         return cliArgs.Mode switch
         {
             CompilerMode.Lex => RunLexMode(sourceFiles, layout),
-            _ => RunCompileMode(sourceFiles, cliArgs, reporter, totalStopwatch),
+            _ => CompileThen(sourceFiles, cliArgs, reporter, totalStopwatch, _ => 0),
         };
     }
 
@@ -281,28 +281,24 @@ internal class Program
         return hasErrors ? 1 : 0;
     }
 
-    private static int RunCompileMode(IReadOnlyList<string> sourceFiles, CliArguments cliArgs, ICompilationProgressReporter reporter, Stopwatch totalStopwatch)
+    private static int CompileThen(
+        IReadOnlyList<string> sourceFiles,
+        CliArguments cliArgs,
+        ICompilationProgressReporter reporter,
+        Stopwatch totalStopwatch,
+        Func<CompilerResult, int> afterSuccess)
     {
-        var result = CompileProject(sourceFiles, cliArgs, reporter);
-
-        // Compute error/warning counts from diagnostics
-        var errorCount = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
-        var warningCount = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
-
-        totalStopwatch.Stop();
-        reporter.ReportBuildSummary(result.Succeeded, errorCount, warningCount, totalStopwatch.Elapsed);
-
-        // Format diagnostics to stderr
-        foreach(var diagnostic in result.Diagnostics)
-        {
-            Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-        }
-
-        // Exit code
-        return result.Succeeded ? 0 : 1;
+        return new CompileFeedback(reporter, Console.Error).Run(
+            listener => CompileProject(sourceFiles, cliArgs, reporter, listener),
+            totalStopwatch,
+            afterSuccess);
     }
 
-    private static CompilerResult CompileProject(IReadOnlyList<string> sourceFiles, CliArguments cliArgs, ICompilationProgressReporter? progressReporter = null)
+    private static CompilerResult CompileProject(
+        IReadOnlyList<string> sourceFiles,
+        CliArguments cliArgs,
+        ICompilationProgressReporter progressReporter,
+        IResolutionDiagnosticListener resolutionListener)
     {
         // Parse the project file to get the project name
         var parseDiagnostics = new DiagnosticBag();
@@ -336,7 +332,7 @@ internal class Program
             },
             Platform: cliArgs.Platform);
 
-        var driver = new CompilerDriver(new MistLexer(), new MistParser(), progressReporter);
+        var driver = new CompilerDriver(new MistLexer(), new MistParser(), progressReporter, resolutionListener);
 
         // Run compilation
         return driver.Compile(options);
@@ -377,34 +373,11 @@ internal class Program
             return 1;
         }
 
-        // Compile the project
-        var result = CompileProject(sourceFiles, cliArgs, reporter);
+        return CompileThen(sourceFiles, cliArgs, reporter, totalStopwatch, RunBuiltArtifact);
+    }
 
-        // Compute error/warning counts from diagnostics
-        var errorCount = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
-        var warningCount = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
-
-        totalStopwatch.Stop();
-        reporter.ReportBuildSummary(result.Succeeded, errorCount, warningCount, totalStopwatch.Elapsed);
-
-        // On build failure, print diagnostics and return non-zero
-        if(!result.Succeeded)
-        {
-            foreach(var diagnostic in result.Diagnostics)
-            {
-                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-            }
-
-            return 1;
-        }
-
-        // Print any non-error diagnostics (warnings, etc.)
-        foreach(var diagnostic in result.Diagnostics)
-        {
-            Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-        }
-
-        // Check for artifact path
+    private static int RunBuiltArtifact(CompilerResult result)
+    {
         if(result.PrimaryOutputArtifactPath is null)
         {
             Console.Error.WriteLine("error: Build succeeded but no executable artifact was produced.");
@@ -547,33 +520,11 @@ internal class Program
             return 1;
         }
 
-        // Compile the project
-        var result = CompileProject(sourceFiles, cliArgs, reporter);
+        return CompileThen(sourceFiles, cliArgs, reporter, totalStopwatch, _ => RunBuiltTests(sourceFiles, cliArgs));
+    }
 
-        // Compute error/warning counts from diagnostics
-        var errorCount = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
-        var warningCount = result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
-
-        totalStopwatch.Stop();
-        reporter.ReportBuildSummary(result.Succeeded, errorCount, warningCount, totalStopwatch.Elapsed);
-
-        // On build failure, print diagnostics and return non-zero
-        if(!result.Succeeded)
-        {
-            foreach(var diagnostic in result.Diagnostics)
-            {
-                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-            }
-
-            return 1;
-        }
-
-        // Print any non-error diagnostics (warnings, etc.)
-        foreach(var diagnostic in result.Diagnostics)
-        {
-            Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-        }
-
+    private static int RunBuiltTests(IReadOnlyList<string> sourceFiles, CliArguments cliArgs)
+    {
         // Determine the .csproj path in the output directory
         var parseDiagnostics = new DiagnosticBag();
         var config = ProjectFileParser.Parse(Path.GetFullPath(cliArgs.ProjectFolder), parseDiagnostics);

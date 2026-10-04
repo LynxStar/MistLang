@@ -338,8 +338,21 @@ Found while closing the gaps, each measured, none established as something class
   takes only the newtype's accessibility. A `ref` operator parameter (ref-parameters 1.2) reaches
   Roslyn, and `sealed`, `readonly`, `owned` and `affine` on an operator compile, though
   standard-library 4.2 refuses any operator modifier beyond `public static`.
-- **Packages**: csharp-interop-v2 3.5 (the error surfaced during Stage 1.5, before the next stage) is
-  not implemented; the diagnostic prints after the summary.
+- **Packages**: csharp-interop-v2 3.5 (the error surfaced during Stage 1.5, before the next stage)
+  CLOSED 2026-10-03. `CompilerDriver` takes an optional `IResolutionDiagnosticListener`;
+  `ResolutionDiagnostics.Deliver` hands it each Stage 1.5 diagnostic once both resolvers return and
+  before Stage 2 starts, and `JoinInto` keeps the same instances in the result in stage order.
+  `build`, `run` and `test` share `Mist.CLI.Output.CompileFeedback`, which writes a delivered
+  diagnostic to stderr on arrival whatever the progress reporter, and after the summary writes only
+  the instances it has not written, so a shared id or an equal later diagnostic is never dropped;
+  `run` and `test` launch only on success. The `BadPkg = "not-valid"` probe now prints `MIST_PKG_002`
+  between `Stage 1 - Loading` and `Stage 2 - Lexing` in every compile mode, once, exit code 1 as
+  before. Pinned by `ResolutionDiagnosticsTests` (Tier 1), `CompileFeedbackTests` (Tier 2),
+  `PackageResolutionStageTests` and `CompilerDriverProgressReportingTests` (Tier 4); spec evidence in
+  csharp-interop-v2 tasks 7.3, 7.5, 7.6 and 8.4 and compiler-progress-output Requirement 12 and task
+  13. Still open: `mist inspect` resolves dependencies but prints none of their diagnostics, and
+  delivery waits for both resolvers, so an invalid version string is reported only after any
+  `dotnet restore` the other packages need has finished.
 - **CLR conformances**: a CLR `List<int>` is not assignable to a CLR `IReadOnlyList<int>`,
   `IReadOnlyCollection<int>`, `ICollection<int>` or `IList<int>` anywhere (the projection records the
   bases; assignability over projected conformances does not read them), which keeps a whole list from

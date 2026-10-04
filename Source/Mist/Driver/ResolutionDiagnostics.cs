@@ -1,24 +1,29 @@
-using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 
 namespace Mist.Driver;
 
 /// <summary>
-/// What Stage 1.5 reported, held out of the bag whose errors stop the build at its entry. A
-/// dependency that failed to resolve leaves the ASTs describing the program and every other
-/// assembly in place, so lexing, parsing, binding and analysis still run and every diagnostic they
-/// find is reported beside it (csharp-interop-v2 Requirements 2.3 and 2.6); the pipeline reads the
-/// bag again at its emission gate, where an error fails the build. <paramref name="Preceding"/> is
-/// how many diagnostics the stages before 1.5 reported, which is where these go back for the result
-/// to read in stage order.
+/// Kept out of <see cref="PipelineInput.Diagnostics"/>, whose errors stop the pipeline at its
+/// entry: a failed dependency leaves the ASTs describing the program, so binding and analysis must
+/// still run (csharp-interop-v2 Requirements 2.3 and 2.6).
 /// </summary>
-internal sealed record ResolutionDiagnostics(ImmutableArray<Diagnostic> Reported, int Preceding)
+internal sealed class ResolutionDiagnostics(int preceding, IResolutionDiagnosticListener? listener)
 {
+    public DiagnosticBag Reported { get; } = new();
+
+    public void Deliver()
+    {
+        foreach(var diagnostic in Reported.ToImmutableArray())
+        {
+            listener?.Receive(diagnostic);
+        }
+    }
+
     public CompilerResult JoinInto(CompilerResult result)
     {
-        var position = Math.Min(Preceding, result.Diagnostics.Length);
+        var position = Math.Min(preceding, result.Diagnostics.Length);
 
-        return result with { Diagnostics = result.Diagnostics.InsertRange(position, Reported) };
+        return result with { Diagnostics = result.Diagnostics.InsertRange(position, Reported.ToImmutableArray()) };
     }
 }

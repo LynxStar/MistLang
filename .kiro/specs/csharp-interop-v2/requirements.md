@@ -16,7 +16,8 @@ The scope is the C# transpiler backend's interop pipeline (`PackageResolver`, `A
 ## Glossary
 
 - **Compiler_Driver**: The component in `CompilerDriver.cs` that orchestrates the compilation pipeline and reports build stages through the Progress_Reporter.
-- **Progress_Reporter**: The `ICompilationProgressReporter` implementation that prints build stage headers and detail lines to the console.
+- **Progress_Reporter**: The `ICompilationProgressReporter` implementation that prints build stage headers and detail lines to the console. The CLI chooses it by verbosity, so it never carries a diagnostic.
+- **Resolution_Listener**: The `IResolutionDiagnosticListener` a caller gives the Compiler_Driver. It receives each diagnostic of the Package_Resolution_Stage during that stage. The CLI's listener writes them to stderr whatever the verbosity, and the build result keeps them.
 - **Project_File_Parser**: The component in `ProjectFileParser.cs` that reads and validates `mist.toml` into a `ProjectConfiguration`.
 - **Package_Resolver**: The component in `PackageResolver.cs` that resolves NuGet package references to assembly file paths, downloading and resolving transitive dependencies.
 - **Framework_Reference_Resolver**: The component that resolves a shared-framework name (e.g., `Microsoft.AspNetCore.App`) to its reference assembly directory.
@@ -49,7 +50,7 @@ The scope is the C# transpiler backend's interop pipeline (`PackageResolver`, `A
 6. WHEN the Verbose_Flag is supplied and a Framework_Reference is resolved successfully, THE Progress_Reporter SHALL emit exactly one detail line identifying the framework name and the resolved framework version (e.g., `Resolved Microsoft.AspNetCore.App 10.0.0`).
 7. WHEN the Verbose_Flag is supplied and a `[packages]` entry resolves to zero compatible assemblies and produces no error diagnostic, THE Progress_Reporter SHALL emit a detail line stating that the package contributed no assemblies for the Target_Framework.
 8. WHEN the Verbose_Flag is supplied and the Package_Resolution_Stage completes, THE Progress_Reporter SHALL emit a non-negative integer count of whole milliseconds elapsed for the stage and a stage summary line reporting the count of successful resolutions and the count of failed resolutions.
-9. WHEN the Package_Resolution_Stage produces any error diagnostic (the `MIST_PKG_*` and `MIST_FWREF_*` diagnostics owned by Requirements 3 and 5), THE Progress_Reporter SHALL surface that diagnostic regardless of whether the Verbose_Flag is supplied.
+9. WHEN the Package_Resolution_Stage produces any error diagnostic (the `MIST_PKG_*` and `MIST_FWREF_*` diagnostics owned by Requirements 3 and 5), THE Compiler_Driver SHALL deliver that diagnostic to the Resolution_Listener, and the CLI SHALL surface it, regardless of whether the Verbose_Flag or `--quiet` is supplied.
 
 ### Requirement 2: Wiring Resolved Package Assemblies into the Type Provider
 
@@ -74,7 +75,7 @@ The scope is the C# transpiler backend's interop pipeline (`PackageResolver`, `A
 2. IF a declared package name or version cannot be found on any configured NuGet feed, THEN THE Package_Resolver SHALL emit exactly one diagnostic with severity Error, stable identifier `MIST_PKG_002`, identifying the package name, requested version, and every configured NuGet feed that was searched.
 3. IF a connection or network failure occurs while restoring a package, THEN THE Package_Resolver SHALL emit exactly one diagnostic with severity Error, stable identifier `MIST_PKG_003`, identifying the package name, requested version, and indicating that the failure category is a connection or network failure.
 4. IF restoring a package does not complete within 100 seconds, THEN THE Package_Resolver SHALL emit exactly one diagnostic with severity Error, stable identifier `MIST_PKG_003`, identifying the package name, requested version, and indicating that the failure category is a restore timeout.
-5. WHEN the Package_Resolver emits any error diagnostic, THE Progress_Reporter SHALL surface that error during the Package_Resolution_Stage before any subsequent stage begins.
+5. WHEN the Package_Resolver emits any error diagnostic, THE Compiler_Driver SHALL deliver that error to the Resolution_Listener during the Package_Resolution_Stage before any subsequent stage begins, and the CLI SHALL surface it then and not again when it prints the build's remaining diagnostics.
 6. IF more than one declared package fails to resolve, THEN THE Package_Resolver SHALL continue attempting to resolve the remaining declared packages and SHALL emit one independent diagnostic per failing package.
 
 ### Requirement 4: Framework References in mist.toml

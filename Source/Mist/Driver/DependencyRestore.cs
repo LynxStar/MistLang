@@ -5,9 +5,8 @@ using Mist.Driver.Contracts;
 namespace Mist.Driver;
 
 /// <summary>
-/// <c>mist restore</c>: Stage 1.5's two resolvers run alone, with no driver and no lexing, and their
-/// detail is printed whatever the verbosity (csharp-interop-v2 Requirement 13). With no later stage to
-/// wait for, every diagnostic follows the summary.
+/// Diagnostics follow the summary, unlike a build's, because no later stage runs
+/// (compiler-progress-output Requirement 12.12).
 /// </summary>
 public static class DependencyRestore
 {

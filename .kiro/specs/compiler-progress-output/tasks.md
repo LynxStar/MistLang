@@ -155,6 +155,15 @@ This plan implements structured per-stage progress output for the Mist compiler 
 - [x] 12. Final checkpoint
   - Ensure all tests pass, ask the user if questions arise.
 
+- [x] 13. Deliver dependency diagnostics at Stage 1.5, once, apart from progress
+  - [x] 13.1 Add `IResolutionDiagnosticListener` to `Mist.Driver.Contracts` and an optional listener argument to `CompilerDriver`; make `ResolutionDiagnostics` deliver Stage 1.5's diagnostics after both resolvers return and before Stage 2, and keep joining the same instances into the result.
+    - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6_
+  - [x] 13.2 Add `Mist.CLI/Output/CompileFeedback.cs` and route `build`, `run` and `test` through it, replacing their three loops over the result; write delivered diagnostics on arrival and skip those instances after the summary; launch only on success.
+    - _Requirements: 10.2, 12.7, 12.8, 12.9, 12.10, 12.11_
+  - [x] 13.3 Tests at the owning tiers: `ResolutionDiagnosticsTests` (Tier 1), `CompileFeedbackTests` (Mist.CLI.Tests, Tier 2, supplied outcomes), and the driver seams whose invariant is order against stage starts, `PackageResolutionStageTests` and `CompilerDriverProgressReportingTests` (Tier 4).
+    - _Requirements: 12.2, 12.3, 12.4, 12.6, 12.8, 12.9, 12.10, 12.11_
+  - Evidence (2026-10-03): the probe `[packages] BadPkg = "not-valid"` printed `MIST_PKG_002` after `Build failed` in `build`, `build --verbose`, `run --verbose` and `test --verbose` before this task; it now prints between `Stage 1 - Loading` and `Stage 2 - Lexing` in all of them (inside the Stage 1.5 block under `--verbose`), and once, as it already did, with `--quiet` and in default `run` and `test`, with the same exit code 1. Two invalid packages, an unknown framework and an unresolved source type print the three dependency errors before Stage 2 and the source error after `Build failed  4 error(s)`. Mutants matching written diagnostics by value, and delivering nothing, each fail the new tests. `ConsoleProgressReporter` and `NullProgressReporter` are unchanged; the quiet case is proven where the CLI combines `NullProgressReporter` with `CompileFeedback`.
+
 ## Notes
 
 - Tasks marked with `*` are optional and can be skipped for faster MVP

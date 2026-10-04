@@ -11,7 +11,8 @@ namespace Mist.Tests.Driver;
 /// <summary>
 /// Integration tests verifying that <see cref="CompilerDriver"/> calls the
 /// <see cref="ICompilationProgressReporter"/> with correct stage data for the
-/// stages it runs itself: loading, lexing and parsing.
+/// stages it runs itself: loading, lexing and parsing, and that a project with no
+/// dependencies skips Stage 1.5 without delivering anything.
 /// </summary>
 [Trait("Tier", "4")]
 public sealed class CompilerDriverProgressReportingTests : IDisposable
@@ -126,5 +127,30 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
         Assert.Matches(@"^\d+ AST nodes$", details[0]);
         var nodeCount = int.Parse(details[0].Split(' ')[0]);
         Assert.True(nodeCount > 0, "Expected AST node count > 0");
+    }
+
+    [Fact]
+    public void NoDependencies_SkipStage1_5_AndDeliverNothing()
+    {
+        var reporter = new RecordingProgressReporter();
+        var listener = new CountingListener();
+        var driver = new CompilerDriver(new MistLexer(), new MistParser(), reporter, listener);
+        var options = CreateOptionsForSource(ValidProgram);
+
+        var result = driver.Compile(options);
+
+        Assert.True(result.Succeeded, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.Equal(0, listener.Received);
+        Assert.Equal(["1", "2", "3", "4", "5", "6"], reporter.Events.Where(e => e.Kind == "start").Select(e => e.StageId));
+    }
+
+    private sealed class CountingListener : IResolutionDiagnosticListener
+    {
+        public int Received { get; private set; }
+
+        public void Receive(Mist.Common.Diagnostics.Diagnostic diagnostic)
+        {
+            Received++;
+        }
     }
 }

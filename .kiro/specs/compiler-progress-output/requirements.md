@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Mist CLI reports progress through the standard compilation pipeline. It reports cleaning (Stage 0); `CompilerDriver` reports loading, optional package resolution, lexing, and parsing (Stages 1, 1.5, 2, and 3); and `StandardPipeline` reports program-model construction, analysis, and emission (Stages 4–6). The current `ICompilationProgressReporter` contract carries stage events and the final build summary. The CLI uses `ConsoleProgressReporter` when progress is enabled and `NullProgressReporter` when it is disabled. Stage details below describe the current driver and pipeline behavior.
+The Mist CLI reports progress through the standard compilation pipeline. It reports cleaning (Stage 0); `CompilerDriver` reports loading, optional package resolution, lexing, and parsing (Stages 1, 1.5, 2, and 3); and `StandardPipeline` reports program-model construction, analysis, and emission (Stages 4–6). The current `ICompilationProgressReporter` contract carries stage events and the final build summary. The CLI uses `ConsoleProgressReporter` when progress is enabled and `NullProgressReporter` when it is disabled. Diagnostics are not progress and no reporter carries one: the driver delivers Stage 1.5's diagnostics through a separate `IResolutionDiagnosticListener`, and the CLI writes every diagnostic to stderr whatever the verbosity (Requirement 12). Stage details below describe the current driver and pipeline behavior.
 
 ## Glossary
 
@@ -12,6 +12,8 @@ The Mist CLI reports progress through the standard compilation pipeline. It repo
 - **ICompilationProgressReporter**: The current driver contract for stage start and completion events and the final build summary.
 - **ConsoleProgressReporter**: The CLI implementation of `ICompilationProgressReporter` that writes formatted progress to its `TextWriter`.
 - **NullProgressReporter**: A no-op singleton implementation used when progress output is disabled or unwanted.
+- **IResolutionDiagnosticListener**: The driver contract, in `Mist.Driver.Contracts`, that receives each diagnostic Stage 1.5 reports, during that stage. It is optional and separate from `ICompilationProgressReporter`.
+- **CompileFeedback**: The CLI's listener for `build`, `run` and `test` (`Mist.CLI/Output/CompileFeedback.cs`). It writes diagnostics to stderr, reports the build summary through the progress reporter, and decides whether a command goes on to launch anything.
 - **Stage**: A numbered, named unit of reported work: cleaning (0), loading (1), optional package resolution (1.5), lexing (2), parsing (3), program-model construction (4), analysis (5), and emission (6).
 - **CompilationUnit**: A single Mist source file passed through the pipeline, carrying standard-library, project, namespace, and parsed-AST metadata.
 - **TokenStream**: The lexer output for one compilation unit; exposes `DefaultChannelTokens` (parser-visible) and `AllTokens`.
@@ -162,7 +164,7 @@ The Mist CLI reports progress through the standard compilation pipeline. It repo
 #### Acceptance Criteria
 
 1. THE `ConsoleProgressReporter` SHALL write all progress output to stdout.
-2. THE `ConsoleProgressReporter` SHALL write all diagnostic error and warning messages to stderr (no change from current behaviour).
+2. THE CLI SHALL write every diagnostic error and warning message to stderr, through `CompileFeedback` for `build`, `run` and `test` (Requirement 12). THE `ConsoleProgressReporter` SHALL write no diagnostic, so that the progress reporter the verbosity selects never decides whether a diagnostic appears.
 3. WHEN a stage header is emitted, THE `ConsoleProgressReporter` SHALL format it as `Stage {N} - {Title}` on its own line.
 4. WHEN stage detail lines are emitted, THE `ConsoleProgressReporter` SHALL indent each detail line with exactly four spaces.
 5. WHEN a stage elapsed-time line is emitted, THE `ConsoleProgressReporter` SHALL format it as `Took {X.XX}s` where the time is formatted to two decimal places.
@@ -179,3 +181,24 @@ The Mist CLI reports progress through the standard compilation pipeline. It repo
 1. WHEN `CompilerDriver.Compile` is called with `NullProgressReporter.Instance`, THE `CompilerDriver` SHALL produce identical `CompilerResult` output as it did before this feature was introduced.
 2. THE `NullProgressReporter` SHALL NOT throw, allocate, or perform I/O for any method call.
 3. THE `ICompilationProgressReporter` interface SHALL be defined in the `Mist.Driver.Contracts` namespace so that test projects can reference it without depending on the CLI project.
+
+---
+
+### Requirement 12: Dependency Diagnostic Delivery
+
+**User Story:** As a developer, I want a package or framework reference that fails to resolve reported while the build is still at Stage 1.5, once, whatever the verbosity, so that I see the cause before the rest of the build runs and do not read it twice.
+
+#### Acceptance Criteria
+
+1. THE `IResolutionDiagnosticListener` SHALL be defined in `Mist.Driver.Contracts` with one method that receives one `Diagnostic`. THE `CompilerDriver` SHALL accept one as an optional constructor argument, beside its progress reporter.
+2. WHEN Stage 1.5 runs and the driver has a listener, THE `CompilerDriver` SHALL deliver every diagnostic the package and framework-reference resolvers reported, each once and in report order, after both resolvers return and before Stage 2 starts. WHEN `VerboseResolution` is set, delivery SHALL come after the Stage 1.5 start and before its completion.
+3. Delivery SHALL be per diagnostic: two dependencies that fail with the same id SHALL be two deliveries, never merged (csharp-interop-v2 Requirements 3.6 and 5.7).
+4. Every delivered diagnostic SHALL remain in `CompilerResult.Diagnostics` as the same instance, after the diagnostics Stage 1 reported and before those of Stage 2. Delivery SHALL NOT change which stages run, the error gate of Requirement 7.9, or the result's verdict and artifact.
+5. WHEN the driver has no listener, THE `CompilerDriver` SHALL deliver nothing and return the same result. The driver SHALL perform no console I/O either way.
+6. WHEN no package or framework reference is declared, or the build stops before Stage 1.5 (an unknown backend, a failed load), nothing SHALL be delivered.
+7. THE CLI's `build`, `run` and `test` SHALL give the driver a `CompileFeedback` over stderr, independent of whichever progress reporter the verbosity selected, so that `--quiet` and the progress-free default of `run` and `test` hide no diagnostic.
+8. `CompileFeedback` SHALL write each delivered diagnostic when it arrives; after compilation it SHALL report the summary, with error and warning counts taken from every diagnostic in the result, and then write the result's diagnostics in order, except the instances it has already written. It SHALL match by instance, never by id, message or value equality, so an equal diagnostic it did not receive is still written.
+9. A result built with no delivery, such as a project-file failure before the driver runs or a failed load, SHALL be written in full after the summary.
+10. `run` and `test` SHALL launch the artifact or the test runner only when the build succeeded; a failed build SHALL exit with code 1 and launch nothing.
+11. Each compilation SHALL start with nothing recorded as written, so repeated runs each write their own diagnostics once.
+12. `mist restore` runs no compilation and SHALL keep printing its diagnostics after its summary (csharp-interop-v2 Requirement 13).

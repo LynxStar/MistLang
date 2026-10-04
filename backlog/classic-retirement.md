@@ -305,9 +305,14 @@ Found while closing the gaps, each measured, none established as something class
   constructor factories, and deferred initializers run once after witness storage. Emitter register
   orders 49/50/168 and analysis order 6 record the focused and final evidence (ledger
   `20261003-194921`, 9,216/9,216 passed, including AllFeaturesV2; latest-main integration
-  `20261003-195824`, 1,277/1,277 affected cases passed). CLR compatibility
-  constructor bridges retain native fallbacks for unchecked external calls; this compilation supplies
-  concrete witnesses at Mist sites. The remaining pack-forwarding limitation above stays open.
+  `20261003-195824`, 1,277/1,277 affected cases passed). The final integration with main ec9168d7
+  preserves packed constructor arguments after hidden factories, including an empty value pack;
+  eight Tier 2 controls pin the interaction. Ledger `20261003-201457` passed 2,228/2,228 affected
+  cases, and final unfiltered ledger `20261003-201751` passed 9,440/9,440, including AllFeaturesV2.
+  Build, formatting, diff, book and two unchanged 26-pair snippet generations passed. CLR compatibility
+  constructor bridges retain native fallbacks for unchecked external calls; closed Mist allocations
+  and calls in witnessed bodies supply concrete factories. Generic static initialization retains its
+  native constructor contract. The remaining pack-forwarding limitation above stays open.
 - **Modifiers**: `async`, `static`, `readonly`, `owned`, `affine` on an enum, alias, newtype or class
   were dropped silently, and `ref` on an operator reached Roslyn. Audited against the specs on
   2026-10-03 and closed where a spec decides (`b199134c`): `async` on an enum, alias, newtype, class,

@@ -2338,6 +2338,11 @@ rules:
             passed 1277/1277 affected default, constructor, purity, slot, conformance, boundary and
             sample-baseline cases with zero build warnings. Full formatting and book verification
             remained clean; the generic-default implementation was unchanged by the rebase.
+            Integration with main ec9168d7 preserved constructor pack emission after hidden
+            factories. Ledger 20261003-201457 passed 2228/2228 affected cases; the final unfiltered
+            ledger 20261003-201751 passed 9440/9440 (8437 Mist, 105 CLI, 46 Storm consumer,
+            852 Storm generator), including AllFeaturesV2. Emitter order 50 records the eight Tier 2
+            pack/witness controls and clean build, formatter, diff, book and snippet gates.
       - >
         DONE 2026-10-01: A USER CONSTRUCTOR WHOSE IMPLICIT BASE CALL IS UNSATISFIED. Class-inheritance 8.3
         is now met on v2 for every constructor a derived class declares; its Amended banner gives a derived

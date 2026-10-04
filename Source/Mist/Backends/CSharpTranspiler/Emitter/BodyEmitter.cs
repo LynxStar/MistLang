@@ -407,7 +407,7 @@ internal static class BodyEmitter
         writer.Append($"{carrier}.{CalleeName(call.Method!.Name, arguments, parameters)}{EmitTypeArguments(arguments, parameters)}(");
         EmitExpression(callee.Receiver, writer, diagnostics);
 
-        if(call.Arguments.Count > 0 || DefaultWitnesses.MethodArguments(call.Method, callee.TypeArguments, callee.Receiver.Type).Count > 0)
+        if(HasArguments(call.Arguments, call.Method.ParametersList) || DefaultWitnesses.MethodArguments(call.Method, callee.TypeArguments, callee.Receiver.Type).Count > 0)
         {
             writer.Append(", ");
         }
@@ -448,10 +448,16 @@ internal static class BodyEmitter
         writer.Append(string.Join(", ", witnesses.Select(
             witness => witness ?? "/* unsupported: default constraint */")));
 
-        if(invocation.Arguments.Count > 0)
+        if(HasArguments(invocation.Arguments, invocation.Parameters))
         {
             writer.Append(", ");
         }
+    }
+
+    internal static bool HasArguments(IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
+    {
+        return (parameters is not null && FlattenedTupleSlot(parameters) is not null)
+            || arguments.Any(argument => argument is not SpreadExpression spread || TupleWidth(spread.Operand.Type) is not 0);
     }
 
     internal static void EmitArguments(
@@ -2535,7 +2541,7 @@ internal static class BodyEmitter
         {
             writer.Append(string.Join(", ", witnesses));
 
-            if(newExpression.Arguments.Count > 0)
+            if(HasArguments(newExpression.Arguments, newExpression.Constructor?.ParametersList))
             {
                 writer.Append(", ");
             }

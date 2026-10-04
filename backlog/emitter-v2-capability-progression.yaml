@@ -2610,6 +2610,25 @@ capabilities:
       AllFeaturesV2. The integrated solution build, whole-solution formatter, diff check and book build
       passed; both 26-pair generations on this revision were unchanged. The full ledger above remains
       the whole-bundle checkpoint; this integration repeated the affected decisions and runtime seam.
+
+      Packed-argument integration, 2026-10-03: incorporated main ec9168d7's variadic and pattern
+      changes, retaining both the hidden factory prefix and the constructor-chain argument packing
+      landed in e644c52d. BodyEmitter.HasArguments bases separators on the emitted arguments: an
+      empty flattened value pack emits System.ValueTuple, while a zero-width spread emits nothing.
+      Constructor, method and extension calls use the same decision. Eight Tier 2 rows in
+      DefaultConstraintWitnessTests cover this/base chains at widths zero, one and two, and empty
+      value-pack construction/method calls after a default witness. Ledger 20261003-201230 passed
+      33/33; integrated ledger 20261003-201457 passed 2228/2228 default, constructor, purity,
+      conformance, slot, variadic, pack, clause, pattern, boundary, refusal, callable and runtime/sample
+      cases, including AllFeaturesV2, with zero build warnings. The full formatter initially found
+      FINALNEWLINE on the added test file; formatting corrected it and whole-solution verification passed.
+
+      Final integrated whole-bundle ledger 20261003-201751 passed 9440/9440: 8437 Mist, 105 CLI,
+      46 Storm consumer and 852 Storm generator, including the single AllFeaturesV2 baseline, after
+      326 seconds. The explicit solution build had zero warnings/errors, whole-solution formatter
+      verification and git diff --check passed, mdbook built, and both generations of all 26 targeted
+      snippet pairs were unchanged and matched the checked-in tabs. The polling watcher and writable
+      NuGet cache are recorded in env.txt. No test failures occurred in either packed-argument run.
     unlocks: [DefaultKeyword]
 
   # ===================================================================
@@ -10148,6 +10167,9 @@ capabilities:
       regenerated unchanged twice. The documented macOS recovery setting
       DOTNET_USE_POLLING_FILE_WATCHER=1 and the writable NuGet HTTP cache are recorded in the ledger.
       The later native-boundary controls and their final whole-bundle gate are recorded under order 50.
+      The later packed-argument integration keeps hidden factories before System.ValueTuple even
+      for a zero-element flattened pack; its eight Tier 2 controls and integrated 2228/2228 ledger
+      20261003-201457 are also recorded under order 50.
     unlocks: [OptionalDefaultability]
 
   # ===================================================================

@@ -82,7 +82,7 @@ internal static class ConstructorEmitter
             {
                 writer.Append(string.Join(", ", forwarded));
 
-                if(constructor.ChainArgumentsList.Count > 0)
+                if(BodyEmitter.HasArguments(constructor.ChainArgumentsList, constructor.ChainedConstructor?.ParametersList))
                 {
                     writer.Append(", ");
                 }

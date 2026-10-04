@@ -214,6 +214,63 @@ public sealed class DefaultConstraintWitnessTests
         Assert.Contains($" : {chain}", EmitConstructor(constructor, owner), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData(false, 0, "default(System.ValueTuple)")]
+    [InlineData(false, 1, "System.ValueTuple.Create(1)")]
+    [InlineData(false, 2, "(1, 2)")]
+    [InlineData(true, 0, "default(System.ValueTuple)")]
+    [InlineData(true, 1, "System.ValueTuple.Create(1)")]
+    [InlineData(true, 2, "(1, 2)")]
+    public void ConstructorChain_PacksFlatArgumentsAfterTheDefaultWitness(bool toBase, int width, string packed)
+    {
+        var box = ConstrainedBox();
+        var tuple = new TupleType(Enumerable.Repeat<IMistType>(shapes.Integer, width).ToArray());
+        var target = Constructor(box, tuple);
+        target.ParametersList[0].IsFlattened = true;
+        var owner = toBase ? shapes.Type("Derived") : box;
+
+        if(toBase)
+        {
+            owner.BaseType = Construct(box, Parameter(owner, "U", defaultConstrained: true));
+        }
+
+        var constructor = new Constructor(owner.Name, owner, [], Public)
+        {
+            DeclaringType = owner,
+            ChainKind = toBase ? ConstructorChainKind.Base : ConstructorChainKind.This,
+            ChainedConstructor = target,
+            ChainParameterTypes = [tuple],
+        };
+        constructor.ChainArgumentsList.AddRange(Enumerable.Range(1, width)
+            .Select(value => HandBuiltModel.Literal(shapes.Integer, (long)value)));
+        var chain = toBase ? "base" : "this";
+        var witness = toBase ? "__default_U" : "__default_T";
+
+        Assert.Contains($" : {chain}({witness}, {packed})", EmitConstructor(constructor, owner), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void ConstructorCall_SeparatesTheDefaultWitnessFromAnEmptyValuePack()
+    {
+        var box = ConstrainedBox();
+        var constructor = Constructor(box, new TupleType([]));
+        constructor.ParametersList[0].IsFlattened = true;
+
+        Assert.Equal("new Probe.Box<int>(() => default(int), default(System.ValueTuple))",
+            Emit(New(Construct(box, shapes.Integer), constructor)));
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void MethodCall_SeparatesTheDefaultWitnessFromAnEmptyValuePack()
+    {
+        var method = GenericMethod("Create", [new Parameter("args", new TupleType([])) { IsFlattened = true }]);
+
+        Assert.Equal("Create<int>(() => default(int), default(System.ValueTuple))", Emit(Call(method, shapes.Integer)));
+    }
+
     [Fact]
     [Trait("Tier", "2")]
     public void NestedType_PersistsTheEnclosingConstraintWitness()

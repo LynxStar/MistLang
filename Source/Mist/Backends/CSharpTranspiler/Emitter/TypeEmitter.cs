@@ -245,7 +245,7 @@ internal static class TypeEmitter
                     writer, diagnostics);
             }
 
-            SpreadProjectionEmitter.Emit(type, writer, ref anyEmitted);
+            SpreadProjectionEmitter.Emit(type, flattened, writer, ref anyEmitted);
 
             foreach(var indexer in type.IndexersList)
             {

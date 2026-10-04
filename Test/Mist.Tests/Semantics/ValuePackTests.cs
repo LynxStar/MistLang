@@ -248,6 +248,36 @@ public sealed class ValuePackTests : ProgramModelProbe
                 "MIST_PM_UNRESOLVED_MEMBER"));
     }
 
+    private const string Inheriting = """
+        public class Bundle<params TArgs> { public TArgs... Item; }
+        public class Sub : Bundle<int, string> { }
+        public class Gen<T> : Bundle<T, string> { }
+        public class Open<params Us> : Bundle<Us...> { }
+        public struct Pair<params Ts> { public Ts... Item; public Ts... Slot { get; } }
+        public struct Flat : Pair<int, string> { public int Extra; }
+        """;
+
+    /// <summary>
+    /// A projection is inherited like the aggregate it reads, closed by each base clause on the way down
+    /// -- a struct's flattened base included -- and still bounded by that base's pack.
+    /// </summary>
+    [Theory]
+    [InlineData("var sub = new Sub();", "sub.Item2", "string")]
+    [InlineData("var gen = new Gen<long>();", "gen.Item1", "long")]
+    [InlineData("var open = new Open<bool, char>();", "open.Item2", "char")]
+    [InlineData("var flat = new Flat();", "flat.Item2", "string")]
+    [InlineData("var flat = new Flat();", "flat.Slot1", "int")]
+    public void AProjectionIsInheritedThroughEachBaseClause(string preamble, string access, string expected)
+    {
+        Assert.Equal(expected, TypeDisplay.Mist(SingleLocal($"var x = {access};", Inheriting, preamble).Type));
+    }
+
+    [Fact]
+    public void AnInheritedProjectionPastTheEndOfTheBasesPack_IsRefused()
+    {
+        _ = Assert.Single(Errors(BuildRun("var sub = new Sub(); var x = sub.Item3;", Inheriting), "MIST_PM_UNRESOLVED_MEMBER"));
+    }
+
     [Fact]
     public void SpreadOfSomethingWithNoKnownLength_IsRefused()
     {

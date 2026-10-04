@@ -9508,6 +9508,31 @@ capabilities:
       a pack-typed slot. Pinned by UnionSpecializationTests and PackSlotBridgeEmissionTests (Tier 3);
       samples/VariadicSpecialization runs both.
 
+      A PROJECTION IS INHERITED, since 2026-10-03. For a pack of no fixed size SpreadProjection.Find
+      looked only at the receiver's own declaration, so `Item1` on a `Sub : Bundle<int, string>` over
+      `Bundle<params TArgs>` was MIST_PM_UNRESOLVED_MEMBER though Sub inherits the aggregate it reads
+      (measured 2026-10-03); a FIXED-size pack's projections were already found through
+      TypeMemberLookup's base walk. Find now walks the base chain, each base closed by the clause below
+      it: `Gen<long> : Bundle<T, string>` answers `long` for Item1 and `Open<bool, char> :
+      Bundle<Us...>` answers `char` for Item2. A base answers only up to the first spread of a pack
+      still open there, whose width it cannot count, and one past the end of the base's pack names
+      nothing as before. A class inherits the projections from its C# base. A STRUCT has no C# base, so
+      even where binding found the projection -- a fixed-size pack -- `flat.Item1` failed Roslyn;
+      SpreadProjectionEmitter now reads the flattened fields and properties too, each as its base clause
+      closed it, so `struct Flat : Pair<int, string>` declares `Item1` and `Item2` itself.
+      A PROPERTY-KIND PROJECTION WRITES BACK WHOLE: `public Ts... Slot { get; set; }` emitted `set =>
+      Slot.Item1 = value`, which assigns into the copy a property returns and fails Roslyn (CS1612) at
+      every width; the setter now reads the aggregate, sets the element and stores it, at the setter's
+      own accessibility, so the private setter flattening gives an inherited get-only property stays
+      private on its projections. Pinned by ValuePackTests (Tier 3, five rows and the past-the-end
+      refusal, all over unsized packs) and SpreadProjectionEmissionTests (Tier 3, seven rows). Mutations
+      caught: stopping the walk at the receiver (five binder rows), dropping inherited flattened fields
+      (the struct's Item1), and assigning through the property again (three rows). A probe reading the
+      inherited elements of a class, a generic class, a variadic class and a flattened struct -- the
+      struct's property kind included -- and writing a settable property-kind projection builds and
+      prints them; no banked sample reads a projection through a derived type, so nothing banked runs
+      this.
+
       NOT STARTED: MIST_VAR_0008, an empty stem, which the grammar may not admit at all.
     unlocks: []
 

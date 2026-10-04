@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -20,33 +21,53 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class SpreadProjectionEmitter
 {
-    public static void Emit(MemberType type, CSharpWriter writer, ref bool anyEmitted)
+    public static void Emit(MemberType type, FlattenedStruct? flattened, CSharpWriter writer, ref bool anyEmitted)
     {
-        foreach(var field in (type as ConcreteType)?.FieldsList ?? [])
+        var fields = flattened is not null
+            ? flattened.Fields.Select(field => (field.Field, field.Type, field.Field.Modifiers with { Accessibility = field.Accessibility }))
+            : ((type as ConcreteType)?.FieldsList ?? []).Select(field => (field, field.Type, field.Modifiers));
+
+        foreach(var (field, held, modifiers) in fields)
         {
-            EmitFamily(field.Name, field.Type, field.Modifiers, writable: true, writer, ref anyEmitted);
+            EmitFamily(field.Name, field.Type, held, modifiers, item => $"set => {field.Name}.{item} = value;", writer, ref anyEmitted);
         }
 
-        foreach(var property in type.PropertiesList)
+        foreach(var property in flattened?.Properties ?? (IReadOnlyList<Property>)type.PropertiesList)
         {
+            using var inherited = TypeEmitter.Substituting(flattened?.PropertyPaths.GetValueOrDefault(property));
             EmitFamily(
-                property.Name, property.Type, property.Modifiers,
-                writable: property.Setter is not null, writer, ref anyEmitted);
+                property.Name, property.Type, property.Type, property.Modifiers, WriteBack(property), writer, ref anyEmitted);
         }
+    }
+
+    /// <summary>
+    /// A property hands back a COPY of the tuple, so an element cannot be assigned through it the way a
+    /// field's can: the setter reads the aggregate, changes the one element and stores it back, at the
+    /// setter's own accessibility -- private for the setter a flattened struct gives an inherited
+    /// get-only property.
+    /// </summary>
+    private static Func<string, string>? WriteBack(Property property)
+    {
+        if(property.Setter is not { } setter)
+        {
+            return null;
+        }
+
+        var accessibility = setter.Accessibility == Accessibility.Private ? "private " : "";
+
+        return item => $"{accessibility}set {{ var aggregate = {property.Name}; aggregate.{item} = value; {property.Name} = aggregate; }}";
     }
 
     private static void EmitFamily(
         string stem,
         IMistType declaredType,
+        IMistType held,
         MemberModifiers modifiers,
-        bool writable,
+        Func<string, string>? write,
         CSharpWriter writer,
         ref bool anyEmitted)
     {
-        if(!SpreadMember.IsSpread(declaredType)
-            || declaredType is not TupleType { ElementTypes: [SpreadType spread] }
-            || spread.Operand is not TypeParameter pack
-            || MonomorphReference.Elements(TypeNameEmitter.Closed(pack)) is not { } expansion)
+        if(!SpreadMember.IsSpread(declaredType) || Elements(held) is not { } expansion)
         {
             return;
         }
@@ -56,11 +77,39 @@ internal static class SpreadProjectionEmitter
         for(var i = 0; i < expansion.Count; i++)
         {
             var element = TypeNameEmitter.Emit(expansion[i]);
-            var slot = $"{stem}.Item{i + 1}";
-            var accessors = writable ? $"get => {slot}; set => {slot} = value;" : $"get => {slot};";
+            var item = $"Item{i + 1}";
+            var accessors = write is null ? $"get => {stem}.{item};" : $"get => {stem}.{item}; {write(item)}";
 
             TypeEmitter.SeparateMember(writer, ref anyEmitted);
             writer.WriteLine($"{emitted}{element} {stem}{i + 1} {{ {accessors} }}");
         }
+    }
+
+    private static List<IMistType>? Elements(IMistType held)
+    {
+        if(TypeNameEmitter.Closed(held) is not TupleType tuple)
+        {
+            return null;
+        }
+
+        var elements = new List<IMistType>();
+
+        foreach(var element in tuple.ElementTypes)
+        {
+            if(element is not SpreadType spread)
+            {
+                elements.Add(element);
+                continue;
+            }
+
+            if(MonomorphReference.Elements(TypeNameEmitter.Closed(spread.Operand)) is not { } spliced)
+            {
+                return null;
+            }
+
+            elements.AddRange(spliced);
+        }
+
+        return elements;
     }
 }

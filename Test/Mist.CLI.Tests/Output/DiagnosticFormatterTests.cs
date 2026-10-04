@@ -3,6 +3,7 @@ using Mist.Common.Source;
 
 namespace Mist.CLI.Tests.Output;
 
+[Trait("Tier", "1")]
 public class DiagnosticFormatterTests
 {
     [Fact]
@@ -54,6 +55,23 @@ public class DiagnosticFormatterTests
         var result = DiagnosticFormatter.Format(diagnostic);
 
         Assert.Equal("error MIST003: Unknown backend", result);
+    }
+
+    [Fact]
+    public void Format_WithEmptyPath_OmitsPathEntirely()
+    {
+        var diagnostic = new Diagnostic(
+            new DiagnosticId("MIST_PKG_002"),
+            DiagnosticSeverity.Error,
+            PipelineStage.Driver,
+            "Package 'BadPkg' version 'not-valid' could not be found",
+            Location: default,
+            CompilationUnitPath: "",
+            AnalyzerName: null);
+
+        var result = DiagnosticFormatter.Format(diagnostic);
+
+        Assert.Equal("error MIST_PKG_002: Package 'BadPkg' version 'not-valid' could not be found", result);
     }
 
     [Fact]

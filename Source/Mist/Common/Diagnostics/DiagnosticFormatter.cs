@@ -17,7 +17,7 @@ public static class DiagnosticFormatter
         };
 
         var hasLocation = diagnostic.Location != default;
-        var hasPath = diagnostic.CompilationUnitPath is not "<unknown>";
+        var hasPath = diagnostic.CompilationUnitPath is not ("" or "<unknown>");
 
         return hasLocation && hasPath
             ? $"{diagnostic.CompilationUnitPath}({diagnostic.Location.Start.Line},{diagnostic.Location.Start.Column}): {severity} {diagnostic.Id.Value}: {diagnostic.Message}"

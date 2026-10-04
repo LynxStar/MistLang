@@ -2572,63 +2572,63 @@ capabilities:
         non-defaultable (defaultability Requirement 3.6), where v2 had admitted `default(Counter)` and
         printed `start=1 step=0` and classic refuses it as MIST_DEFAULT_NOT_SUPPORTED. Such a type now gets
         no factory. The evidence is in that register's entry.
+      - >
+        CLOSED 2026-10-03 for constructorless generic new. BodyEmitter supplies the same concrete
+        semantic factories used by default construction: Box<Widget>'s Widget slot starts from its
+        default block rather than CLR null, including inherited/dependent storage and flattened structs.
+        Explicit user constructors receive only declaration constraints and keep their own assignments;
+        they do not inherit the synthesized default block. Witness-dependent initializers run after
+        witness storage, once per construction, with this/base forwarding and params still last.
+        Constructor constraints carry separate factories so a generic new T() or new T(args) preserves
+        those same rules, including object initializers and signatures wider than Func's input ceiling.
+        ConstructedDefaultEmissionTests, ConstructorWitnessTests, PackElementDefaultEmissionTests and
+        the existing FieldInitializerRuntimeTests cover these decisions, lowering and observable values.
+        The public CLR-compatible constructor bridges retain native default(T) fallbacks for callers
+        outside this compilation; closed Mist allocations and calls in witnessed bodies supply semantic
+        factories explicitly. Generic static initialization retains its native constructor contract.
+        They retain new() and parameterized-constructor metadata without claiming semantic defaults
+        can be recovered from an unchecked external CLR call.
 
-      CLOSED 2026-10-03 for constructorless generic new. BodyEmitter supplies the same concrete
-      semantic factories used by default construction: Box<Widget>'s Widget slot starts from its
-      default block rather than CLR null, including inherited/dependent storage and flattened structs.
-      Explicit user constructors receive only declaration constraints and keep their own assignments;
-      they do not inherit the synthesized default block. Witness-dependent initializers run after
-      witness storage, once per construction, with this/base forwarding and params still last.
-      Constructor constraints carry separate factories so a generic new T() or new T(args) preserves
-      those same rules, including object initializers and signatures wider than Func's input ceiling.
-      ConstructedDefaultEmissionTests, ConstructorWitnessTests, PackElementDefaultEmissionTests and
-      the existing FieldInitializerRuntimeTests cover these decisions, lowering and observable values.
-      The public CLR-compatible constructor bridges retain native default(T) fallbacks for callers
-      outside this compilation; closed Mist allocations and calls in witnessed bodies supply semantic
-      factories explicitly. Generic static initialization retains its native constructor contract.
-      They retain new() and parameterized-constructor metadata without claiming semantic defaults
-      can be recovered from an unchecked external CLR call.
+        Adjacent native-boundary fix, 2026-10-03: Ambient CLR generic declarations retain their native
+        constructor contracts and receive no source default or constructor factory arguments, even
+        when projected type parameters carry new() and their public fields depend on those parameters.
+        ConstructorWitnessTests has a direct metadata/storage control and two hand-built construction
+        controls with and without an explicit native constructor. Focused ledger 20261003-194457 passed
+        199/199 constructor/default emission, extension witness and ambient cases with zero build warnings.
 
-      Adjacent native-boundary fix, 2026-10-03: Ambient CLR generic declarations retain their native
-      constructor contracts and receive no source default or constructor factory arguments, even
-      when projected type parameters carry new() and their public fields depend on those parameters.
-      ConstructorWitnessTests has a direct metadata/storage control and two hand-built construction
-      controls with and without an explicit native constructor. Focused ledger 20261003-194457 passed
-      199/199 constructor/default emission, extension witness and ambient cases with zero build warnings.
+        Final native-boundary whole-bundle ledger 20261003-194921 passed 9216/9216: 8213 Mist, 105 CLI,
+        46 Storm consumer and 852 Storm generator, including AllFeaturesV2. No failures or reruns on an
+        unchanged implementation occurred. The solution build had zero warnings/errors, full formatter
+        verification and diff checks passed, mdbook built, and both final generations of all 26 affected
+        snippet pairs were unchanged. The polling watcher setting and writable NuGet cache are recorded
+        in env.txt. Test files added or migrated in this bundle have one effective Tier each.
 
-      Final native-boundary whole-bundle ledger 20261003-194921 passed 9216/9216: 8213 Mist, 105 CLI,
-      46 Storm consumer and 852 Storm generator, including AllFeaturesV2. No failures or reruns on an
-      unchanged implementation occurred. The solution build had zero warnings/errors, full formatter
-      verification and diff checks passed, mdbook built, and both final generations of all 26 affected
-      snippet pairs were unchanged. The polling watcher setting and writable NuGet cache are recorded
-      in env.txt. Test files added or migrated in this bundle have one effective Tier each.
+        Latest-main integration: rebased both task commits onto 44d0ca24 after the conformance/slot
+        packet landed. No generic-default implementation changed. Ledger 20261003-195824 passed all
+        1277 affected Default, Constructor, Purity, Conformance, SlotSignature, binding-to-analysis,
+        constraint-refusal, field-initializer runtime and existing sample-baseline cases, including
+        AllFeaturesV2. The integrated solution build, whole-solution formatter, diff check and book build
+        passed; both 26-pair generations on this revision were unchanged. The full ledger above remains
+        the whole-bundle checkpoint; this integration repeated the affected decisions and runtime seam.
 
-      Latest-main integration: rebased both task commits onto 44d0ca24 after the conformance/slot
-      packet landed. No generic-default implementation changed. Ledger 20261003-195824 passed all
-      1277 affected Default, Constructor, Purity, Conformance, SlotSignature, binding-to-analysis,
-      constraint-refusal, field-initializer runtime and existing sample-baseline cases, including
-      AllFeaturesV2. The integrated solution build, whole-solution formatter, diff check and book build
-      passed; both 26-pair generations on this revision were unchanged. The full ledger above remains
-      the whole-bundle checkpoint; this integration repeated the affected decisions and runtime seam.
+        Packed-argument integration, 2026-10-03: incorporated main ec9168d7's variadic and pattern
+        changes, retaining both the hidden factory prefix and the constructor-chain argument packing
+        landed in e644c52d. BodyEmitter.HasArguments bases separators on the emitted arguments: an
+        empty flattened value pack emits System.ValueTuple, while a zero-width spread emits nothing.
+        Constructor, method and extension calls use the same decision. Eight Tier 2 rows in
+        DefaultConstraintWitnessTests cover this/base chains at widths zero, one and two, and empty
+        value-pack construction/method calls after a default witness. Ledger 20261003-201230 passed
+        33/33; integrated ledger 20261003-201457 passed 2228/2228 default, constructor, purity,
+        conformance, slot, variadic, pack, clause, pattern, boundary, refusal, callable and runtime/sample
+        cases, including AllFeaturesV2, with zero build warnings. The full formatter initially found
+        FINALNEWLINE on the added test file; formatting corrected it and whole-solution verification passed.
 
-      Packed-argument integration, 2026-10-03: incorporated main ec9168d7's variadic and pattern
-      changes, retaining both the hidden factory prefix and the constructor-chain argument packing
-      landed in e644c52d. BodyEmitter.HasArguments bases separators on the emitted arguments: an
-      empty flattened value pack emits System.ValueTuple, while a zero-width spread emits nothing.
-      Constructor, method and extension calls use the same decision. Eight Tier 2 rows in
-      DefaultConstraintWitnessTests cover this/base chains at widths zero, one and two, and empty
-      value-pack construction/method calls after a default witness. Ledger 20261003-201230 passed
-      33/33; integrated ledger 20261003-201457 passed 2228/2228 default, constructor, purity,
-      conformance, slot, variadic, pack, clause, pattern, boundary, refusal, callable and runtime/sample
-      cases, including AllFeaturesV2, with zero build warnings. The full formatter initially found
-      FINALNEWLINE on the added test file; formatting corrected it and whole-solution verification passed.
-
-      Final integrated whole-bundle ledger 20261003-201751 passed 9440/9440: 8437 Mist, 105 CLI,
-      46 Storm consumer and 852 Storm generator, including the single AllFeaturesV2 baseline, after
-      326 seconds. The explicit solution build had zero warnings/errors, whole-solution formatter
-      verification and git diff --check passed, mdbook built, and both generations of all 26 targeted
-      snippet pairs were unchanged and matched the checked-in tabs. The polling watcher and writable
-      NuGet cache are recorded in env.txt. No test failures occurred in either packed-argument run.
+        Final integrated whole-bundle ledger 20261003-201751 passed 9440/9440: 8437 Mist, 105 CLI,
+        46 Storm consumer and 852 Storm generator, including the single AllFeaturesV2 baseline, after
+        326 seconds. The explicit solution build had zero warnings/errors, whole-solution formatter
+        verification and git diff --check passed, mdbook built, and both generations of all 26 targeted
+        snippet pairs were unchanged and matched the checked-in tabs. The polling watcher and writable
+        NuGet cache are recorded in env.txt. No test failures occurred in either packed-argument run.
     unlocks: [DefaultKeyword]
 
   # ===================================================================

@@ -5828,13 +5828,14 @@ capabilities:
       order 8: a test between a clone and its copyable source was admitted where a mutable source's was already
       refused, because the copy reads as containment. A union pattern against the source was already refused by
       the binder, the clause claiming otherwise having gone stale; `as` was not, and silently ran the copy.
-      STILL OPEN beside the operator gap above, each measured: a newtype over a newtype converts with its ROOT
-      source only (`Kept<string> k = again;` is CAST_REQUIRED); `long | string wide = age;` is
-      MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION between the copy and int's cloned widening, a C# error before; a
-      source's extension still applies to a newtype's OPTIONAL or TUPLE, IsWithinAsItself judging the outer
-      type only; a copy out into an abstract only the source conforms to (`with Money : IPriced`) is
-      containment C# refuses; an `owned` local initialised from a clone conversion clones a second time; and a
-      parameterless constructor of a class over a constructed generic base emits no base call.
+      STILL OPEN beside the operator gap above, each measured: `long | string wide = age;` is
+      MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION between the copy and int's cloned widening, a C# error before; and a
+      parameterless constructor of a class over a constructed generic base emits no base call, a historical
+      lead left to be revalidated under the generic-default work's inherited-default scope. Four more residues
+      this sentence held -- a newtype over a newtype converting with its ROOT source only (`Kept<string> k =
+      again;` CAST_REQUIRED), a source's extension applying to a newtype's OPTIONAL or TUPLE, a copy out into an
+      abstract only the source conforms to reaching C# as containment, and an `owned` local initialised from a
+      clone conversion cloning a second time -- are closed under A NEWTYPE'S SOURCE IS THE ONE IT NAMES below.
       PROVED BY NewtypeConversionDecisionTests and ClonableNewtypeConversionDecisionTests (both directions at
       two instantiations, a permuted struct, the leave before a declared operator and in a tuple, each refusal
       by id, the operator recorded at the instance, the union leave recorded and cast to its carrier, the
@@ -5860,6 +5861,88 @@ capabilities:
       three unsynthesized shapes converting anyway each fail between one and five. The un-nameable source's gate
       SURVIVED the first pass, nothing pinning it; ACloneInsideAGenericOverASourceTheNamespaceCannotName_ConvertsNothing
       was added and catches it.
+
+      A NEWTYPE'S SOURCE IS THE ONE IT NAMES (2026-10-03), closing four of the STILL OPEN residues above.
+      MEASURED FIRST on main 34be2ddc through the standard CLI, one project per probe: `type Again<T> = new
+      Kept<T>` over `type Kept<T> = new Box<T>`, a readonly class, made `Kept<string> kept = again;`
+      MIST_PA_CAST_REQUIRED, NewtypeCloner having flattened the chain to its root; `extension (int? v)` answered
+      7 for an `Age? age` over `type Age = new int`; `IPriced priced = cash;` with `with Money : IPriced` and
+      `type Cash = new Money` reached Roslyn as MIST_CS_ERROR, C# admitting no user-defined conversion into an
+      interface; and `owned Copy copy = (Copy)source;` over a clonable Node printed 3 and 2 -- its Clone run
+      twice -- where newtypes Requirement 10.1 and ownership-v2 6.9 owe 2 and 1.
+      THE IMMEDIATE SOURCE. NewtypeCloner.BindSource still binds a clone from the root declaration
+      (CloneSource, the CloneScope's arguments composed through every link), but records the type the
+      declaration names as CloneSourceType -- an alias expanded, a construction or permutation substituted at
+      the instance -- and NewtypeConversions synthesizes the copy or Clone-through pair with that source, an
+      intrinsic chain keeping `Value` on the root's backing type. So Coins over Cash over Money leaves for
+      Cash implicitly and enters only from it: `(Coins)money` is MIST_PA_CAST_ARGUMENT_MISMATCH and
+      `(Coins)(Cash)money` holds. It reaches Money through the one copy C# cannot chain, which selection records
+      (Coins to Cash) before C# applies Cash to Money, and a sibling over the same root converts by a cast
+      through it (`(Other<string>)again`). NewtypeLiterals enters a literal through each link, `Years y = 30;`
+      over `type Years = new Age`. A clonable chain runs each side's own Clone: `(Lynx)jaguar` Lynx's,
+      `(Jaguar)lynx` Jaguar's. No transitive entry is granted, and no implicit leave a cast must state.
+      THREE READINGS OF THE COPY. ConversionRelation reads it as None (as itself: extension lookup and `as`),
+      Unaided (containment C# carries by itself: one copy followed only by standard conversions, never into a
+      union's carrier, a second copy or an abstract) and Chained (wherever copies reach, which CopiesAClone and
+      so every type test refuses). The reading now passes through an optional or tuple and its nesting, so
+      IsWithinAsItself(`Age?`, `int?`) is false and a source's aggregate extension is MIST_PM_UNRESOLVED_MEMBER
+      for `Age?`, `(Age, string)`, `(Age?, string)`, `IntKept?` and `Kept<int>?`, while the source's own
+      aggregates still resolve and `int? copied = age;` still copies. `age as int?` is now
+      MIST_PM_AS_NO_RELATIONSHIP rather than an `as` that ran the copy.
+      A CONFORMANCE ONLY THE SOURCE HAS. A copy into an abstract is not Unaided containment, so
+      CastOperatorSelection records the copy to the source and the source's conformance carries the rest:
+      `IPriced priced = cash;` emits `((Probe.Money)(cash))` and prints 7 through a distinct Money (`held is
+      Money` True, `held is Cash` False), an optional abstract, an argument and a return going the same way, a
+      struct source boxing after its copy. Cash still has no Price member, no IPriced extension applies,
+      `cash is IPriced` is PATTERN_NEVER_MATCHES, `cash as IPriced` AS_NO_RELATIONSHIP, and `(IPriced)cash` is
+      the copy, typed Money as cast-operators 8.5 types every cast by the function it calls. An abstract the
+      clone's own declaration names stays plain containment, nothing copied.
+      OWNED PROVENANCE. OwnedProvenance reads a cast or implicit conversion whose operator hands over an owned
+      value -- one running a Clone body, or one declared owned -- as owned, as it already read a written
+      Clone() call, and Origins in Stage 5 answers the same through the Clone's own declaration, so
+      OwnedDestinations refuses nothing the binder no longer clones. A newtype's field-by-field copy is not
+      owned provenance and is still cloned once. MEASURED on v2 after: the probe prints 2 and 1; `owned var`,
+      an owned parameter and `owned Node back = (Node)copy` each run one Clone; `owned Kelvin k =
+      (Kelvin)celsius` through `static owned explicit operator Kelvin(Celsius)` runs no Clone; a readonly
+      clonable source's copy into an owned Cash runs its Clone once.
+      FOUND ON THE WAY and fixed in its own commit: a type constraint was satisfied by any implicit
+      conversion, so `Shop.Y<Cash>` under `where T : Money`, `where T : IPriced` satisfied only by Cash's copy,
+      and `Shop.M<Reading>` under `where T : Meters` through a declared implicit operator all reached Roslyn
+      as MIST_CS_ERROR, there being no implicit reference conversion. Recorded under analysis order 6.
+      STILL OPEN from this work, each a clean refusal at the Mist source, measured: an implicit leave reaches
+      at most two sources up -- `Money direct = purse;` three levels down is MIST_PA_NO_IMPLICIT_CONVERSION,
+      `Money m = (Coins)purse;` holding -- and two copies into an abstract (`IPriced p = coins;`) likewise; an
+      optional or tuple of a newtype over a newtype leaves only for its immediate source's (`Money? money =
+      maybeCoins;` and `(Box<string>, int) tb = pair;` are NO_IMPLICIT_CONVERSION, `Cash? cash = maybeCoins;`
+      holds), selection recording no conversion lifted over an aggregate; and a `with` block cannot name a
+      constructed type, so source-only conformance of a generic source has no spelling to exercise.
+      PROVED BY NewtypeCloneAssignabilityTests (Tier 1: the chain's relation in all three readings, the leave
+      to the root recorded as the copy to the immediate source, assignability and cast classification along
+      the chain and between siblings, the aggregates as themselves and their extension lookup, the abstract
+      copy recorded with its optional, an own abstract contained, a literal through the chain and one the root
+      cannot hold); NewtypeCloneTests (Tier 3: immediate source and root declaration at a closed, generic and
+      permuted chain, renamed members through every argument, the copy pair typed with the immediate source;
+      the BoxAgain row now reads IntBox); NewtypeConversionDecisionTests (Tier 3: the root leave recorded at
+      the instance, the cast in at the instance, the abstract and optional-abstract leaves recorded);
+      ClonableNewtypeConversionDecisionTests (Tier 3: Lynx over Jaguar); NewtypeLiteralDecisionTests (Tier 3:
+      Years over Age wraps Int32 and enters by a cast through Age); OwnedProvenanceTests (Tier 1 binder
+      decisions at an owned binding and parameter, Tier 2 OwnershipAnalyzer agreeing over hand-built bodies);
+      and the existing Tier 4 CloneConversionRuntimeTests facts, whose programs now also copy a clone-of-clone's
+      private state both ways and on to its root (`2,two 2,two 2,two`), run an owned clonable cast once
+      (`3 fresh#2 made=2`), run a clonable chain each way (`3 fresh#1#1 made=1 | 3 fresh#1#1#3 made=3`), and
+      dispatch IShow through a conformance only the source declares (`copied True False`); no test was added at
+      Tier 4 or above. Fifteen mutations on confirmed builds, each caught by name: the root recorded as the
+      source (seven names, the runtime fact among them), an optional's or a tuple's copy read unaided (the
+      aggregate and extension facts), a copy into an abstract read as containment (both recording facts and the
+      runtime fact), unaided copies chained (the relation, recording and runtime facts), type tests reading
+      only unaided copies, the clone-through cast cloned again (the binder fact and the runtime fact), a
+      declared owned operator not owned, Stage 5 reading the cast as external (the Tier 2 row and the runtime
+      fact) or every conversion as owned, a constraint met by any implicit conversion or by a copy, the literal
+      not entering through the chain, conversions synthesized against the root (six names), and an intrinsic
+      chain backed by its immediate source; the last SURVIVED the first pass, nothing pinning it, and the
+      NewtypeLiteralDecisionTests fact was added and catches it. Full suite green on the branch integrated
+      with main fdd5fc1c, 9485 of 9485 (8482 Mist, 852 Storm, 105 CLI, 46 Storm consumer; ledger
+      20261003-203050), zero build warnings, AllFeaturesV2 matching its baseline with no line moved.
     analysis_phase_tasks:
       - >
         Report assigning a newtype to its source, the source to the newtype, or across

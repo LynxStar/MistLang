@@ -41,6 +41,11 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
             }
         }
 
+        public abstract IPriced
+        {
+            int Price();
+        }
+
         public readonly class Money
         {
             public int Amount { get; }
@@ -49,6 +54,13 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
             {
                 this.Amount = amount;
             }
+
+            public int ReadPrice() { return Amount; }
+        }
+
+        with Money : IPriced
+        {
+            ReadPrice as Price;
         }
 
         public class Entity
@@ -158,6 +170,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
         type IntChain = new Node<int>;
         type Packed<T, params TRest> = new Tagged<T, TRest...>;
         type Kept<K> = new Held<K>;
+        type Again<A> = new Kept<A>;
         type Swapped<X, Y> = new Pair<Y, X>;
         type Crated<C> = new Crate<C>;
         type IntPair = new Pair<int, string>;
@@ -176,6 +189,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
         var pair = new Pair<int, string>(1, "a");
         var intPair = new IntPair(2, "b");
         var kept = new Kept<int>(9);
+        var again = new Again<int>(10);
         var swapped = new Swapped<int, string>("c", 3);
         var keptInATuple = (kept, 1);
         Kept<int> | Entity keptOrEntity = kept;
@@ -294,6 +308,41 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
 
         Assert.True(conversion.Operator?.CopiesClone);
         Assert.Equal(result, conversion.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ACloneOfACloneLeaves_AsItsImmediateSourceFreelyAndForTheRootThroughOneRecordedCopy()
+    {
+        Assert.IsNotType<ImplicitConversionExpression>(DeclarationIn("Kept<int> toTheSource = again;", "", "").Initializer);
+
+        var conversion = InitializerOf<ImplicitConversionExpression>("Held<int> toTheRoot = again;");
+
+        Assert.True(conversion.Operator?.CopiesClone);
+        Assert.Equal("Probe.Kept<Int32>", conversion.Type.FullyQualifiedName);
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ACastIntoACloneOfAClone_CallsItsConversionFromItsImmediateSourceAtThatInstance()
+    {
+        var cast = InitializerOf<CastExpression>("var entered = (Again<int>)kept;");
+
+        Assert.True(cast.Operator?.CopiesClone);
+        Assert.Equal("Probe.Kept<Int32>", cast.ParameterType?.FullyQualifiedName);
+        Assert.Equal("Probe.Again<Int32>", cast.Type.FullyQualifiedName);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("IPriced intoAnAbstractOnlyTheSourceConformsTo = cash;")]
+    [InlineData("IPriced? intoAnOptionalAbstract = cash;")]
+    public void ALeaveIntoAnAbstractOnlyTheSourceConformsTo_IsRecordedAsTheCopyItCalls(string statement)
+    {
+        var conversion = InitializerOf<ImplicitConversionExpression>(statement);
+
+        Assert.True(conversion.Operator?.CopiesClone);
+        Assert.Equal("Probe.Money", conversion.Type.FullyQualifiedName);
     }
 
     [Theory]

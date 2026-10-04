@@ -32,9 +32,11 @@ public class Program
         var first = (Jaguar)tiger;
         var second = (Jaguar)tiger;
         var back = (Tiger)second;
+        owned Jaguar kept = (Jaguar)tiger;
 
         Console.WriteLine($"first {first.Describe()}");
         Console.WriteLine($"second {second.Describe()}");
         Console.WriteLine($"back {back.Describe()}");
+        Console.WriteLine($"kept {kept.Describe()}");
     }
 }

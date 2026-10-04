@@ -1,0 +1,46 @@
+using Standard;
+
+public abstract IPriced
+{
+    int Price();
+}
+
+public readonly class Money
+{
+    public int Amount { get; }
+
+    public Money(int amount)
+    {
+        this.Amount = amount;
+    }
+
+    public int ReadAmount()
+    {
+        return Amount;
+    }
+}
+
+with Money : IPriced
+{
+    ReadAmount as Price;
+}
+
+type Cash = new Money;
+
+public class Program
+{
+    public static int Total(IPriced first, IPriced second)
+    {
+        return first.Price() + second.Price();
+    }
+
+    public static void Main(string[] args)
+    {
+        var cash = new Cash(7);
+        IPriced priced = cash;
+        unknown held = priced;
+
+        Console.WriteLine($"price={priced.Price()} total={Total(cash, new Money(3))}");
+        Console.WriteLine($"held is Money: {held is Money}, held is Cash: {held is Cash}");
+    }
+}

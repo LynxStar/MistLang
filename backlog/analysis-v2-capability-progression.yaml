@@ -704,6 +704,15 @@ rules:
       Mutating the record away to null fails the three decision rows and the three message rows; mutating
       UnheldSlot to find nothing fails those six and the readonly-clonable rows besides; mutating the report
       out of AssignabilityAnalyzer fails the two leave rows and nothing else.
+
+      A NEWTYPE CONVERTS WITH THE SOURCE IT NAMES (2026-10-03, recorded in full under emitter order 86). Over
+      `type Coins = new Cash` and `type Cash = new Money`, the classifier answers through Coins' immediate
+      source: Cash to Coins Explicit, Money to Coins None (`(Coins)money` is MIST_PA_CAST_ARGUMENT_MISMATCH
+      and `(Coins)(Cash)money` holds), Coins to Money Implicit through the one copy selection records, and a
+      sibling over the same root Explicit through it. A copy out into an abstract only the source conforms to
+      is no longer containment, C# admitting no user-defined conversion into an interface, so selection records
+      the copy and the source's conformance carries the rest: `IPriced priced = cash;` is admitted and
+      emitted as the conversion to Money. NewtypeCloneAssignabilityTests holds both at Tier 1.
     tasks:
       - >
         Order 5 is where the classification gets its other customers: assignment, argument, return, arm
@@ -2820,6 +2829,13 @@ rules:
       rows failed on the old relation; three mutations each caught by their own rows (the inheritance
       walk, the unknown target, the unrefining). Probing it found that a sized array's type test never
       tests the length (`five is int[3]` matches five elements), recorded in backlog/general.md.
+
+      THE COPY IS FOLLOWED AS FAR AS IT REACHES (2026-10-03, emitter order 86). ConversionRelation now reads a
+      copy three ways, as itself, unaided, and chained, and CopiesAClone asks the chained reading, so a test
+      stays refused when its source is two newtypes up (`again is Box<string>`) or is an abstract only the
+      source conforms to (`cash is IPriced`), neither of which is unaided containment any longer. The reading
+      passes through an optional or a tuple and its nesting, so `age as int?` is MIST_PM_AS_NO_RELATIONSHIP
+      where `as` ran the copy, and `(Age, string) at; at is (int, string)` is PATTERN_NEVER_MATCHES.
     tasks:
       - >
         The always-true test is not reported, in any severity: classic is silent, samples/DependentTypes
@@ -3621,6 +3637,15 @@ rules:
       mutations, all caught by name: the coalescing write left unjudged (the corpus case), and each of the
       three read guards -- indexer, property by name, property through a receiver -- judging a write as a
       read (AWriteIsJudgedAsASetterOnlyEvenWhereTheGetterMutates).
+
+      A CONVERSION THAT HANDS OVER AN OWNED VALUE IS OWNED PROVENANCE (2026-10-03, emitter order 86). The
+      binder no longer clones the result of a cast running a Clone body, or of an operator declared owned,
+      at an owned destination, since the conversion already is that clone; `owned Copy copy =
+      (Copy)source;` ran Clone twice. Origins answers the same for such a cast or implicit conversion --
+      through the Clone's own declaration, as for a written Clone() call -- so OwnedDestinations refuses
+      nothing the binder left unwrapped, and a Clone that is not declared owned is still
+      MIST_PA_OWNED_SOURCE_NOT_OWNED. A newtype's field-by-field copy is not owned provenance. Tier 2
+      OwnedProvenanceTests rows hold both readings over hand-built bodies.
     tasks:
       - >
         The ownership-v2 spec is stricter than classic in five places v2 follows classic on: mutable

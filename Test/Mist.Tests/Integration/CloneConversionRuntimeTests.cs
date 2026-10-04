@@ -101,6 +101,8 @@ public sealed class CloneConversionRuntimeTests : IDisposable
         public type IntPair = new Pair<int, string>;
         public type IntMoney = new Money<int>;
         public type IntCell = new Cell<int>;
+        public type PairAgain = new IntPair;
+        public type CellAgain = new IntCell;
 
         public class Program
         {
@@ -117,6 +119,18 @@ public sealed class CloneConversionRuntimeTests : IDisposable
                 Console.WriteLine($"{left.First()},{left.Second} {back.First()},{back.Second}");
                 Console.WriteLine($"{spent.Currency()},{spent.Serial()} {earned.Currency()},{earned.Serial()}");
                 Console.WriteLine($"{entered.Describe()} | {returned.Describe()}");
+
+                var again = (PairAgain)back;
+                IntPair down = again;
+                Pair<int, string> root = again;
+                owned IntCell kept = (IntCell)cell;
+
+                Console.WriteLine($"{again.First()},{again.Second} {down.First()},{down.Second} {root.First()},{root.Second}");
+                Console.WriteLine(kept.Describe());
+
+                var nested = (CellAgain)entered;
+                var unnested = (IntCell)nested;
+                Console.WriteLine($"{nested.Describe()} | {unnested.Describe()}");
             }
         }
         """;
@@ -226,7 +240,28 @@ public sealed class CloneConversionRuntimeTests : IDisposable
             }
         }
 
+        public readonly class Label
+        {
+            private string text;
+
+            public Label(string text)
+            {
+                this.text = text;
+            }
+
+            public string Text()
+            {
+                return text;
+            }
+        }
+
+        with Label : IShow
+        {
+            Text as Show;
+        }
+
         public type Jaguar = new Tiger;
+        public type Caption = new Label;
 
         public class Program
         {
@@ -237,6 +272,10 @@ public sealed class CloneConversionRuntimeTests : IDisposable
                 var back = (Tiger)jaguar;
 
                 Console.WriteLine($"{tiger.Describe()} | {jaguar.Describe()} | {back.Describe()}");
+
+                IShow shown = new Caption("copied");
+                unknown held = shown;
+                Console.WriteLine($"{shown.Show()} {held is Label} {held is Caption}");
             }
         }
         """;
@@ -694,7 +733,7 @@ public sealed class CloneConversionRuntimeTests : IDisposable
     public void EveryConversionOfAConstructedSource_CopiesItsPrivateStateAtRuntime()
     {
         Assert.Equal(
-            "1,one 2,two\nEUR,7 USD,8\n3 fresh#1 made=1 | 3 fresh#1#1 made=1",
+            "1,one 2,two\nEUR,7 USD,8\n3 fresh#1 made=1 | 3 fresh#1#1 made=1\n2,two 2,two 2,two\n3 fresh#2 made=2\n3 fresh#1#1 made=1 | 3 fresh#1#1#3 made=3",
             CompileAndRun(ConvertsEachKindOfConstructedSource).ReplaceLineEndings("\n"));
     }
 
@@ -714,8 +753,8 @@ public sealed class CloneConversionRuntimeTests : IDisposable
     public void EveryKindOfPrivateMemberAConversionReaches_RunsThroughItsAccessor()
     {
         Assert.Equal(
-            "stripes=105 note=self | stripes=237 note=noted | stripes=400 note=noted",
-            CompileAndRun(ReachesEveryKindOfPrivateMember));
+            "stripes=105 note=self | stripes=237 note=noted | stripes=400 note=noted\ncopied True False",
+            CompileAndRun(ReachesEveryKindOfPrivateMember).ReplaceLineEndings("\n"));
     }
 
     [Fact]

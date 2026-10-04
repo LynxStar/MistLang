@@ -57,25 +57,24 @@ internal static class ConversionRelation
     /// </summary>
     public static bool IsWithin(IMistType from, IMistType to)
     {
-        return IsWithin(from, to, copying: true);
+        return IsWithin(from, to, Copying.Unaided);
     }
 
     public static bool IsWithinAsItself(IMistType from, IMistType to)
     {
-        return IsWithin(from, to, copying: false);
+        return IsWithin(from, to, Copying.None);
     }
 
     /// <summary>
-    /// Whether the only containment between the two is <see cref="LeavesClone"/>. A test asks what a value
-    /// IS, and the copy that reaches the source is a second value of another type, so a newtype is never
-    /// its source however freely it converts to one (newtypes spec Requirement 2.1).
+    /// No type test accepts this containment (newtypes spec Requirement 2.1), even where it takes copies C#
+    /// would not make unaided: on to the source's own source, or into an abstract.
     /// </summary>
     public static bool CopiesAClone(IMistType from, IMistType to)
     {
-        return IsWithin(from, to) && !IsWithinAsItself(from, to);
+        return IsWithin(from, to, Copying.Chained) && !IsWithinAsItself(from, to);
     }
 
-    private static bool IsWithin(IMistType from, IMistType to, bool copying)
+    private static bool IsWithin(IMistType from, IMistType to, Copying copying)
     {
         from = Structural(from);
         to = Structural(to);
@@ -93,12 +92,12 @@ internal static class ConversionRelation
         return IsIdentity(from, to)
             || WidensNumerically(from.FullyQualifiedName, to.FullyQualifiedName)
             || Inherits(from, to)
-            || WidensIntoUnion(from, to)
-            || WidensElementwise(from, to)
+            || WidensIntoUnion(from, to, copying)
+            || WidensElementwise(from, to, copying)
             || WidensToUnknownArguments(from, to)
             || WidensToBaseDelegate(from, to)
             || DropsPurity(from, to)
-            || (copying && LeavesClone(from, to))
+            || (copying != Copying.None && LeavesClone(from, to, copying))
             ;
     }
 
@@ -114,18 +113,24 @@ internal static class ConversionRelation
     }
 
     /// <summary>
-    /// A copyable newtype's copy out, read as containment (newtypes spec Requirement 2.4) only as far as C#
-    /// carries its implicit operator unaided: on to a standard conversion -- a widening, a base, a nullable --
-    /// and never into a union's carrier, a second user-defined conversion C# refuses to chain. There the
-    /// copy is left for selection to record as the conversion it is.
+    /// Containment per newtypes spec Requirement 2.4. <see cref="Copying.Unaided"/> stops where C# would not
+    /// apply the emitted operator: into a union's carrier or the source's own source, a second user-defined
+    /// conversion C# will not chain, or into an abstract, which takes no user-defined conversion.
     /// </summary>
-    private static bool LeavesClone(IMistType from, IMistType to)
+    private static bool LeavesClone(IMistType from, IMistType to, Copying copying)
     {
         return (from is ConstructedType instance ? instance.Definition : from) is ConcreteType clone
             && clone.CastOperatorsList.Exists(castOperator => castOperator is { CopiesClone: true, IsImplicit: true })
             && CloneSourceOf(from) is { } source
             && (to is not UnionType || OptionalUnion.IsOptional(to))
-            && IsWithin(source, to);
+            && (copying == Copying.Chained
+                ? IsWithin(source, to, Copying.Chained)
+                : !IsAbstract(OptionalUnion.InnerType(to) ?? to) && IsWithin(source, to, Copying.None));
+    }
+
+    private static bool IsAbstract(IMistType type)
+    {
+        return (type is ConstructedType constructed ? constructed.Definition : type) is AbstractType;
     }
 
     public static IMistType? CloneSourceOf(IMistType type)
@@ -246,7 +251,7 @@ internal static class ConversionRelation
         return true;
     }
 
-    private static bool WidensElementwise(IMistType from, IMistType to)
+    private static bool WidensElementwise(IMistType from, IMistType to, Copying copying)
     {
         if(from is not ITupleType fromTuple || to is not ITupleType toTuple
             || fromTuple.ElementTypes.Count != toTuple.ElementTypes.Count)
@@ -256,7 +261,7 @@ internal static class ConversionRelation
 
         for(var i = 0; i < fromTuple.ElementTypes.Count; i++)
         {
-            if(!IsWithin(fromTuple.ElementTypes[i], toTuple.ElementTypes[i]))
+            if(!IsWithin(fromTuple.ElementTypes[i], toTuple.ElementTypes[i], copying))
             {
                 return false;
             }
@@ -325,7 +330,7 @@ internal static class ConversionRelation
     /// <see cref="IsWithin"/> so numeric widening and inheritance reach INTO the constituent
     /// test -- a byte is within <c>int | string</c>.
     /// </summary>
-    private static bool WidensIntoUnion(IMistType from, IMistType to)
+    private static bool WidensIntoUnion(IMistType from, IMistType to, Copying copying)
     {
         if(to is not UnionType toUnion)
         {
@@ -334,13 +339,13 @@ internal static class ConversionRelation
 
         if(from is UnionType fromUnion)
         {
-            var copying = OptionalUnion.IsOptional(toUnion);
+            var constituentCopying = OptionalUnion.IsOptional(toUnion) ? copying : Copying.None;
 
             return fromUnion.Constituents.All(
-                constituent => toUnion.Constituents.Any(target => IsWithin(constituent, target, copying)));
+                constituent => toUnion.Constituents.Any(target => IsWithin(constituent, target, constituentCopying)));
         }
 
-        return toUnion.Constituents.Any(constituent => IsWithin(from, constituent, copying: false));
+        return toUnion.Constituents.Any(constituent => IsWithin(from, constituent, Copying.None));
     }
 
     /// <summary>
@@ -425,5 +430,12 @@ internal static class ConversionRelation
             [charT] = [ushortT, intT, uintT, longT, ulongT, floatT, doubleT, decimalT],
             [floatT] = [doubleT],
         };
+    }
+
+    private enum Copying
+    {
+        None,
+        Unaided,
+        Chained,
     }
 }

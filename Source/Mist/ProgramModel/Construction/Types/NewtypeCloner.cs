@@ -31,40 +31,44 @@ internal static class NewtypeCloner
 
     public static void BindSources(IEnumerable<ConcreteType> clones, BuilderContext context)
     {
-        var bound = new HashSet<ConcreteType>();
+        var roots = new Dictionary<ConcreteType, IMistType>();
 
         foreach(var clone in clones)
         {
-            _ = BindSource(clone, context, bound);
+            _ = BindSource(clone, context, roots);
         }
     }
 
-    private static IMistType BindSource(ConcreteType clone, BuilderContext context, HashSet<ConcreteType> bound)
+    private static IMistType BindSource(ConcreteType clone, BuilderContext context, Dictionary<ConcreteType, IMistType> roots)
     {
-        if(!bound.Add(clone))
+        if(roots.TryGetValue(clone, out var known))
         {
-            return clone.CloneSourceType ?? ErrorType.Instance;
+            return known;
         }
+
+        roots[clone] = ErrorType.Instance;
 
         var scope = (CloneScope)clone.Scope.Parent!;
         var interner = context.ProgramModel.TypeInterner;
         scope.Itself = clone.TypeParametersList.Count == 0 ? clone : interner.GetOrCreateConstructedType(clone, clone.TypeParametersList);
 
-        var source = context.Resolver.Resolve(clone.NewtypeDeclaration!.SourceType, scope.Declaration) switch
+        var source = context.Resolver.Resolve(clone.NewtypeDeclaration!.SourceType, scope.Declaration);
+        var root = source switch
         {
-            ConcreteType { CloneSource: not null } other when !ReferenceEquals(other, clone) => BindSource(other, context, bound),
+            ConcreteType { CloneSource: not null } other when !ReferenceEquals(other, clone) => BindSource(other, context, roots),
             ConstructedType { Definition: ConcreteType { CloneSource: not null } other } constructed
-                => TypeSubstitution.ForReceiver(constructed).Apply(BindSource(other, context, bound), interner),
-            var resolved => resolved,
+                => TypeSubstitution.ForReceiver(constructed).Apply(BindSource(other, context, roots), interner),
+            _ => source,
         };
 
         clone.CloneSourceType = source;
-        scope.Arguments = source is ConstructedType constructedSource && ReferenceEquals(constructedSource.Definition, clone.CloneSource)
-            ? constructedSource.TypeArguments
+        scope.Arguments = root is ConstructedType constructedRoot && ReferenceEquals(constructedRoot.Definition, clone.CloneSource)
+            ? constructedRoot.TypeArguments
             : [.. clone.CloneSource!.TypeParametersList.Select(_ => ErrorType.Instance)];
-        scope.Enclosing = (source as ConstructedType)?.Enclosing;
+        scope.Enclosing = (root as ConstructedType)?.Enclosing;
+        roots[clone] = root;
 
-        return source;
+        return root;
     }
 
     private static ConcreteType? CloneOf(

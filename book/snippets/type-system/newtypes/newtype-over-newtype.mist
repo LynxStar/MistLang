@@ -1,0 +1,35 @@
+using Standard;
+
+public readonly class Money
+{
+    public int Amount { get; }
+
+    public Money(int amount)
+    {
+        this.Amount = amount;
+    }
+}
+
+type Cash = new Money;
+type Coins = new Cash;
+type Age = new int;
+type Years = new Age;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var coins = new Coins(5);
+        Cash cash = coins;
+        Money money = coins;
+        var fromCash = (Coins)cash;
+        var fromMoney = (Coins)(Cash)money;
+
+        Years years = 30;
+        Age age = years;
+        int raw = years;
+
+        Console.WriteLine($"cash={cash.Amount} money={money.Amount} fromCash={fromCash.Amount} fromMoney={fromMoney.Amount}");
+        Console.WriteLine($"years={years} age={age} raw={raw}");
+    }
+}

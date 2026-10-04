@@ -149,6 +149,9 @@ public sealed class NewtypeCloneTests : ProgramModelProbe
         type Ranked<V> = new Sorted<V>;
         type Spot = new Coord;
         type BoxAgain = new IntBox;
+        type BoxesAgain<W> = new Boxes<W>;
+        type SwapBack<X, Y> = new Swap<Y, X>;
+        type SpotAgain = new Spot;
         type Two = new Bundle<int, string>;
         type Holding = new Outer<string>.Inner;
         type Parenthesized = new (Point);
@@ -294,13 +297,50 @@ public sealed class NewtypeCloneTests : ProgramModelProbe
 
     [Theory]
     [InlineData("Probe.Spot", "Probe.Pair<Int32, String>")]
-    [InlineData("Probe.BoxAgain", "Probe.Box<Int32>")]
+    [InlineData("Probe.BoxAgain", "Probe.IntBox")]
     [InlineData("Probe.Two", "Probe.Bundle<[Int32, String]>")]
     [InlineData("Probe.Holding", "Probe.Outer<String>.Inner")]
     [InlineData("Probe.Parenthesized", "Probe.Point")]
     public void ASourceReachedThroughAnAliasANewtypeAPackAnEnclosingInstanceOrParentheses_IsCloned(string newtype, string source)
     {
         Assert.Equal(source, Assert.IsAssignableFrom<ConcreteType>(GenericNamed(newtype)).CloneSourceType?.FullyQualifiedName);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("Probe.BoxAgain", "Probe.IntBox", "Probe.Box<>")]
+    [InlineData("Probe.BoxesAgain<>", "Probe.Boxes<W>", "Probe.Box<>")]
+    [InlineData("Probe.SwapBack<,>", "Probe.Swap<Y, X>", "Probe.Pair<,>")]
+    public void ACloneOfAClone_NamesItsImmediateSourceAndIsBoundFromTheRootDeclaration(string newtype, string source, string root)
+    {
+        var clone = Assert.IsAssignableFrom<ConcreteType>(GenericNamed(newtype));
+
+        Assert.Equal(source, clone.CloneSourceType?.FullyQualifiedName);
+        Assert.Equal(root, clone.CloneSource?.FullyQualifiedName);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("var named = new BoxesAgain<string>(\"s\").Named();", "Probe.BoxesAgain<String>")]
+    [InlineData("var flipped = new SwapBack<int, string>(1, \"s\").Flipped();", "Probe.SwapBack<String, Int32>")]
+    [InlineData("var again = new BoxAgain(1).Again();", "Probe.BoxAgain")]
+    public void ACloneOfACloneRenamesTheRootDeclarationForItselfThroughEveryArgument(string statement, string expected)
+    {
+        Assert.Equal(expected, SingleLocal(statement, Generics).Type.FullyQualifiedName);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("Probe.SpotAgain", "Probe.Spot")]
+    [InlineData("Probe.SwapBack<,>", "Probe.Swap<Y, X>")]
+    public void ACloneOfACopyableClone_ConvertsWithItsImmediateSourceOnly(string newtype, string source)
+    {
+        var clone = Assert.IsAssignableFrom<ConcreteType>(GenericNamed(newtype));
+
+        Assert.Equal(2, clone.CastOperatorsList.Count(castOperator => castOperator.CopiesClone));
+        Assert.All(
+            clone.CastOperatorsList.Where(castOperator => castOperator.CopiesClone),
+            castOperator => Assert.Contains(source, new[] { castOperator.TargetType.FullyQualifiedName, castOperator.SourceParameter.Type.FullyQualifiedName }));
     }
 
     [Theory]

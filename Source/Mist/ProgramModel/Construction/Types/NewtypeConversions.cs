@@ -14,8 +14,9 @@ internal static class NewtypeConversions
 {
     public static void Synthesize(ConcreteType clone, TypeInterner interner)
     {
-        if(clone is not { CloneSource: { } source, CloneSourceType: { } sourceType }
+        if(clone is not { CloneSource: { } root, CloneSourceType: { } sourceType }
             || sourceType is ConstructedType { Enclosing: not null }
+            || ((sourceType as ConstructedType)?.Definition ?? sourceType) is not ConcreteType source
             || (!source.IsIntrinsic && !IsWithinTheEmittersReach(clone, source)))
         {
             return;
@@ -43,7 +44,7 @@ internal static class NewtypeConversions
         {
             clone.FieldsList.Insert(0, new Field(
                 "Value",
-                source,
+                root,
                 OwnershipKind.Unrestricted,
                 new MemberModifiers { Accessibility = Accessibility.Public, IsReadonly = true })
             {

@@ -72,9 +72,11 @@ public class Program
         Snippet.Jaguar first = ((Snippet.Jaguar)(tiger));
         Snippet.Jaguar second = ((Snippet.Jaguar)(tiger));
         Snippet.Tiger back = ((Snippet.Tiger)(second));
+        Snippet.Jaguar kept = ((Snippet.Jaguar)(tiger));
         System.Console.WriteLine($"first {first.Describe()}");
         System.Console.WriteLine($"second {second.Describe()}");
         System.Console.WriteLine($"back {back.Describe()}");
+        System.Console.WriteLine($"kept {kept.Describe()}");
     }
 
     public Program()

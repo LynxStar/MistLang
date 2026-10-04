@@ -150,6 +150,7 @@ public sealed class ClonableNewtypeConversionDecisionTests
         public type IntCell = new Cell<int>;
         public type Celled<C> = new Cell<C>;
         public type Jaguar = new Tiger;
+        public type Lynx = new Jaguar;
         public type Puma = new Lion;
         public type Margay = new Ocelot;
         public type Actor = new Entity;
@@ -268,6 +269,26 @@ public sealed class ClonableNewtypeConversionDecisionTests
         Assert.Equal("Probe.Cell<C>", conversion.SourceParameter.Type.FullyQualifiedName);
         Assert.Equal("Probe.Celled<Int32>", cast.Type.FullyQualifiedName);
         Assert.True(conversion.IsCalled);
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ACloneOfAClone_ConvertsWithItsImmediateSourceByEachSidesOwnClone()
+    {
+        var model = Build("", out var diagnostics);
+        Assert.Empty(Errors(diagnostics));
+
+        var lynx = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Lynx"]);
+        var into = lynx.CastOperatorsList.Single(conversion => conversion.TargetType.FullyQualifiedName == "Probe.Lynx");
+        var outOf = lynx.CastOperatorsList.Single(conversion => conversion.TargetType.FullyQualifiedName == "Probe.Jaguar");
+
+        Assert.Equal("Probe.Jaguar", lynx.CloneSourceType?.FullyQualifiedName);
+        Assert.Equal("Probe.Tiger", lynx.CloneSource?.FullyQualifiedName);
+        Assert.Equal(2, lynx.CastOperatorsList.Count);
+        Assert.Equal("Probe.Jaguar", into.SourceParameter.Type.FullyQualifiedName);
+        Assert.Equal("Probe.Lynx", into.ClonesThrough?.DeclaringType?.FullyQualifiedName);
+        Assert.Equal("Probe.Jaguar", outOf.ClonesThrough?.DeclaringType?.FullyQualifiedName);
+        Assert.Equal("Probe.Jaguar", Assert.IsType<ReturnStatement>(outOf.Body!.Statements[^1]).Value!.Type.FullyQualifiedName);
     }
 
     [Fact]

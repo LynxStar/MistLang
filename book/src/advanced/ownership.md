@@ -412,6 +412,8 @@ You rarely call `Clone()` by hand. Wherever a value must move into an owned dest
 
 Implicit cloning is the single, uniform mechanism by which a non-owned value becomes owned. It applies identically at every move boundary, so you never have to remember different rules for bindings, fields, and parameters.
 
+A source that already owns its value is not cloned again: a construction, a call returning `owned` (an explicit `Clone()` among them), an owned binding, and a cast whose conversion hands over an owned value -- a newtype's conversion that runs a `Clone` body (see [Clonable Class Sources](../type-system/newtypes.md#clonable-class-sources)), or a conversion operator declared `owned`. So `owned Jaguar kept = (Jaguar)tiger;` runs one `Clone`, not two. A newtype's field-by-field copy is not such a source: the copy's fields are still the operand's, so an owned destination clones it once.
+
 ### Cloning from a Lent Value
 
 When the source is a value held in a lent tier (`borrowed`, `frozen`, or `readonly ref`) whose type implements `IClonable<T>`, the compiler still inserts the implicit clone. Cloning reads *through* the reference to build a fresh value — it does not consume or move the underlying value, so the lender keeps its value after the lend returns. This lets you populate an owned destination from data you were only lent.

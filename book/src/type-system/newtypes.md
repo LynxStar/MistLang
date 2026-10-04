@@ -21,7 +21,7 @@ A newtype is declared with the `type` keyword, a name, and `= new` followed by t
 {{#endtab }}
 {{#endtabs }}
 
-The source may also be named through a type alias, or be a constructed generic type (see [Generic Sources](#generic-sources)). An array, an enum, a union, a function type, a refinement, a type parameter or a CLR type cannot be the source of a newtype, and neither can a sealed class. A tuple source is covered by [Variadics](./variadics.md).
+The source may also be named through a type alias, be a constructed generic type (see [Generic Sources](#generic-sources)), or be another newtype (see [A Newtype over a Newtype](#a-newtype-over-a-newtype)). An array, an enum, a union, a function type, a refinement, a type parameter or a CLR type cannot be the source of a newtype, and neither can a sealed class. A tuple source is covered by [Variadics](./variadics.md).
 
 ## A Renamed Clone
 
@@ -42,7 +42,7 @@ Because the newtype is its source's declaration bound again under a new name, a 
 
 The type tests show the other half. A `Jaguar` passes `is Jaguar` and `is Cat`, and fails `is Tiger`, because nothing in the program makes a `Jaguar` a `Tiger`. The emitted C# keeps that true at runtime: the newtype is a class of its own, deriving from `Cat`, not from `Tiger`.
 
-Only what the source's own declaration contains is cloned. A retroactive conformance such as `with Tiger : INamed { ... }`, or an extension block for `Tiger`, does not apply to `Jaguar`. A type nested inside `Tiger` is not cloned either; the clone refers to the same nested type. If a member of the source does not hold once renamed -- a `Tiger` method passing `this` to a parameter of type `Tiger` passes a `Jaguar` in the clone -- the compiler reports it at the newtype declaration, naming the member.
+Only what the source's own declaration contains is cloned. A retroactive conformance such as `with Tiger : INamed { ... }`, or an extension block for `Tiger`, does not apply to `Jaguar`, and an extension for `Tiger?` or `(Tiger, int)` does not apply to `Jaguar?` or `(Jaguar, int)` either. (A newtype over a copyable source can still reach such a conformance through a copy of itself, as [Conformances Only the Source Has](#conformances-only-the-source-has) shows.) A type nested inside `Tiger` is not cloned either; the clone refers to the same nested type. If a member of the source does not hold once renamed -- a `Tiger` method passing `this` to a parameter of type `Tiger` passes a `Jaguar` in the clone -- the compiler reports it at the newtype declaration, naming the member.
 
 ## Newtypes vs Type Aliases
 
@@ -122,6 +122,25 @@ error MIST_PA_CAST_REQUIRED: Cannot implicitly convert type 'int' to 'UserId'. A
 error MIST_PA_CAST_REQUIRED: Cannot implicitly convert type 'Feet' to 'Meters'. An explicit cast exists (are you missing a cast?)
 ```
 
+### Conformances Only the Source Has
+
+A conformance declared outside the source, `with Money : IPriced { ... }`, is not cloned: `Cash` does not conform to `IPriced`, has no `Price` member, and an extension for `IPriced` does not apply to it. But a `Cash` leaves for a `Money` wherever a `Money` would do, and a `Money` is an `IPriced`, so `IPriced priced = cash;` holds: it copies `cash` out to a `Money`, and the `IPriced` is that copy. A `Cash` passed to an `IPriced` parameter is copied the same way.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/newtypes/source-conformance.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/newtypes/source-conformance.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`held is Money` holds and `held is Cash` does not: what reached `priced` is a `Money`. The test the other way round is refused, since `cash is IPriced` can never match, and `Cash` does not satisfy `where T : IPriced` either: a constraint asks what the type argument is, and a `Cash` only converts to one. In the emitted C#, the copy is written as the conversion to `Money` it is, because C# applies no user-defined conversion into an interface. An abstract the source names in its own base list is different: it is cloned with the declaration, so the newtype conforms to it itself and nothing is copied.
+
 ## Literals in Sight
 
 A literal enters a newtype without a cast when the type of the slot it is written into is in sight. `UserId id = 7;` names `UserId` right there, so the intent is stated. The positions that qualify are:
@@ -179,7 +198,7 @@ Only the receiver changes. A static member the body names belongs to the type wh
 {{#endtab }}
 {{#endtabs }}
 
-The two casts into `Jaguar` count `made` to 2 in `Jaguar`'s statics, while the cast back counts 1 in `Tiger`'s. In the emitted C#, each conversion is an operator on the newtype whose parameter stands for `this`, and a member C# would refuse from the newtype -- a private field of `Tiger` -- is reached through an `UnsafeAccessor` declared beside it.
+The three casts into `Jaguar` count `made` to 3 in `Jaguar`'s statics, while the cast back counts 1 in `Tiger`'s. The last of them initializes an owned binding, and a cast that runs a `Clone` body already hands over a value nothing else holds -- what that `Clone` returns -- so the binding takes it as it is rather than cloning it a second time (see [Implicit Cloning](../advanced/ownership.md#implicit-cloning)). In the emitted C#, each conversion is an operator on the newtype whose parameter stands for `this`, and a member C# would refuse from the newtype -- a private field of `Tiger` -- is reached through an `UnsafeAccessor` declared beside it.
 
 A class with no `IClonable` of itself, including one that only inherits `IClonable` of a base, defines no copy, and a cast either way is refused:
 
@@ -209,6 +228,31 @@ A body that **clones** the field holds, and that is how a source with a field na
 {{#endtabs }}
 
 `chain 1 2` holds both elements, and mutating `nodes`' second element afterwards does not reach it: the whole chain was copied. In the emitted C#, the operator's body casts where the Mist wrote `Clone()`, calling itself once per element, and an absent `Next` answers null rather than reaching the operator.
+
+## A Newtype over a Newtype
+
+The source of a newtype can itself be a newtype. `type Coins = new Cash;` is built from the same declaration `Cash` was -- `Money`'s, renamed to `Coins` -- but its source is `Cash`, the type it names, and `Cash` is what it converts with:
+
+- **It leaves for `Cash` implicitly, and on to `Money` through that copy.** Neither step loses anything, so `Cash cash = coins;` and `Money money = coins;` both hold.
+- **It enters only from `Cash`.** A `Money` becomes a `Coins` by becoming a `Cash` first, `(Coins)(Cash)money`; `(Coins)money` is refused, since entering a newtype is where the intent is stated, once for each newtype the value enters.
+- **A literal enters it wherever one could enter its source.** `Years years = 30;` holds over `type Years = new Age;` because `Age age = 30;` does.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/newtypes/newtype-over-newtype.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/newtypes/newtype-over-newtype.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+A newtype over a clonable newtype converts the same way, each cast running the `Clone` of the type it produces: with `type Lynx = new Jaguar;`, `(Lynx)jaguar` runs `Lynx`'s renamed `Clone`, `(Jaguar)lynx` runs `Jaguar`'s, and a `Tiger` reaches a `Lynx` only by becoming a `Jaguar` first. Whatever the chain, `Coins` is never a `Cash` or a `Money`, and a type test against either is refused exactly as one against a direct source is.
+
+> **Not yet implemented:** an implicit leave reaches at most two sources up, since C# carries one conversion of its own after the one Mist records. A newtype three levels above a type -- `type Purse = new Coins;` -- leaves for `Money` only through a cast on the way, `Money money = (Coins)purse;`, and an optional or a tuple of a newtype over a newtype leaves only for its own source's optional or tuple: `Cash? cash = maybeCoins;` holds, while `Money? money = maybeCoins;` is refused.
 
 ## Generic Sources
 

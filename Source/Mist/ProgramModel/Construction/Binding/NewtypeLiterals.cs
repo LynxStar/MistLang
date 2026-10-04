@@ -24,14 +24,20 @@ internal static class NewtypeLiterals
         if(value is null
             || target is null
             || ConversionRelation.CloneSourceOf(target) is not { } source
-            || !IsLiteral(value)
-            || !Fits(value, source, interner)
+            || !IsLiteral(value))
+        {
+            return value;
+        }
+
+        var entering = ConversionRelation.CloneSourceOf(source) is null ? value : Admit(value, source, interner)!;
+
+        if(!Fits(entering, source, interner)
             || ConversionRelation.DeclaredOn(target).FirstOrDefault(function => function.Operator is { CopiesClone: true, IsImplicit: false }) is not { } conversion)
         {
             return value;
         }
 
-        return new CastExpression(value.Node, value, target, [conversion], target);
+        return new CastExpression(value.Node, entering, target, [conversion], target);
     }
 
     private static bool IsLiteral(Expression value)

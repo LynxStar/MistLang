@@ -1,4 +1,5 @@
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -118,7 +119,9 @@ internal sealed partial class Origins
                 or MemberAccessExpression { Member: PropertyResult { Property.Modifiers.IsRef: true } }
                 or PropertyReferenceExpression { Property.Modifiers.IsRef: true } => OfReferent(expression),
             ImplicitConversionExpression { Operator: null } conversion => Of(conversion.Operand),
+            ImplicitConversionExpression { Operator: { } called } conversion when OwnedProvenance.Yields(called) => OfOwnedConversion(called, conversion.Operand),
             CastExpression { Operator: null } cast => Narrows(cast.Operand.Type, cast.Type) ? Origin.External : Of(cast.Operand),
+            CastExpression { Operator: { } called } cast when OwnedProvenance.Yields(called) => OfOwnedConversion(called, cast.Operand),
             AsExpression converted => Narrows(converted.Operand.Type, converted.Type) ? Origin.External : Of(converted.Operand),
             SpreadExpression spread => Of(spread.Operand),
             AssignmentExpression assignment => Of(assignment.Value),
@@ -365,6 +368,17 @@ internal sealed partial class Origins
         }
 
         return ThisTiers.ReceiverOf(call) is { } receiver ? Of(receiver) : This;
+    }
+
+    private Origin OfOwnedConversion(CastOperator called, Expression operand)
+    {
+        return called.ClonesThrough switch
+        {
+            null => Origin.Own,
+            { DeclaredThisTier: ThisTier.Owned } method when ReturnsOwned(method) => Of(operand),
+            { } method when ReturnsOwned(method) => Origin.Own,
+            _ => Origin.External,
+        };
     }
 
     private Origin OfClone(CloneExpression clone)

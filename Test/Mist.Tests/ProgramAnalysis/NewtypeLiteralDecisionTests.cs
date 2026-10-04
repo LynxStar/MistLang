@@ -18,6 +18,7 @@ public sealed class NewtypeLiteralDecisionTests
 {
     private const string Types = """
         public type Age = new int;
+        public type Years = new Age;
         public type Meters = new double;
         public type Label = new string;
         public type Small = new byte;
@@ -86,6 +87,26 @@ public sealed class NewtypeLiteralDecisionTests
 
         Assert.True(cast.Operator?.CopiesClone);
         Assert.Equal("Probe.Id<String>", cast.Type.FullyQualifiedName);
+    }
+
+    // A newtype over an intrinsic newtype is the intrinsic's contract renamed twice: it wraps the one backing
+    // value, while its conversions answer to the newtype it names (newtypes spec Requirements 2.4 and 3.8).
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ANewtypeOverAnIntrinsicNewtype_WrapsTheBackingValueAndConvertsWithItsImmediateSource()
+    {
+        var model = Build("Years years = 30;", out var diagnostics);
+        Assert.Empty(Errors(diagnostics));
+
+        var years = Assert.IsAssignableFrom<ConcreteType>(model.TypesByFQN["Probe.Years"]);
+        var admitted = Assert.IsType<CastExpression>(LastLocal(model).Initializer);
+
+        Assert.Equal("Standard.Int32", years.FieldsList.Single(field => field.Name == "Value").Type.FullyQualifiedName);
+        Assert.All(
+            years.CastOperatorsList.Where(castOperator => castOperator.CopiesClone),
+            castOperator => Assert.Contains("Probe.Age", new[] { castOperator.TargetType.FullyQualifiedName, castOperator.SourceParameter.Type.FullyQualifiedName }));
+        Assert.Equal("Probe.Years", admitted.Type.FullyQualifiedName);
+        Assert.Equal("Probe.Age", Assert.IsType<CastExpression>(admitted.Operand).Type.FullyQualifiedName);
     }
 
     [Fact]

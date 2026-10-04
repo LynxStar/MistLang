@@ -73,9 +73,22 @@ internal static class OwnedProvenance
             // modifier and lands on IsOwned; ReturnOwnership is where it arrives when it is not.
             InvocationExpression { Method.Modifiers.IsOwned: true } => true,
             InvocationExpression { Method.ReturnOwnership: OwnershipKind.Owned } => true,
+            CastExpression { Operator: { } called } => Yields(called),
+            ImplicitConversionExpression { Operator: { } called } => Yields(called),
             LocalReferenceExpression { Local.Ownership: OwnershipKind.Owned } => true,
             _ => false,
         };
+    }
+
+    /// <summary>
+    /// A <see cref="CastOperator.CopiesClone"/> conversion is not owned: its field-by-field copy shares the
+    /// operand's fields.
+    /// </summary>
+    public static bool Yields(CastOperator conversion)
+    {
+        return conversion.ClonesThrough is not null
+            || conversion.Modifiers.IsOwned
+            || conversion.ReturnOwnership == OwnershipKind.Owned;
     }
 
     /// <summary>

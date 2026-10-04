@@ -1,9 +1,6 @@
-// What a tuple's IDENTITY is, and what it is assignable to. Asserted on the model because output cannot
-// tell any of it apart: two declarations of the same shape print the same whether or not they are the
-// same interned instance, and v2 runs no analyzers, so a conversion the relation refuses is not a
-// program that fails -- it is an overload resolved differently, or a pattern narrowed differently, which
-// only the model shows. Orders 100 and 101 of backlog/emitter-v2-capability-progression.yaml rest on
-// this file.
+// Tuple identity and assignability, asserted on the model: two declarations of the same shape print
+// the same whether or not they share an interned instance. Model assertions pin the conversion and
+// narrowing decisions independently of C# resolving emitted code.
 
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;

@@ -76,7 +76,20 @@ What the rule does not reach, each by design:
 - A CLR member the program names directly is the CLR call it names (Requirement 9.2): a qualified `System.Console.WriteLine(3.5)` binds the CLR `Console`, not Standard's, and prints with the current culture. It states no promise, so no pure scope can call it.
 - A tuple held at run time as `T` or `unknown` orders through `Comparer<T>.Default`, which is `ValueTuple`'s own comparison and orders its text by the current culture; a list of optional tuples keeps the plain `Sort()`. A pure scope refuses both sorts, since the ordering runs code the program cannot see (`ElementComparisons`).
 
-The compiler reads no culture itself (Requirement 13.3). `LiteralBinder` reads a numeric literal with the invariant culture -- `NumberStyles.Float` for a real, digits only for an integer or hex literal, with `_` separators and the `u` and `l` suffixes dropped. It refuses with `MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE`, rather than binding as zero, an integer or hex literal whose digits do not fit a `long` (a `ulong`, with a `UL` suffix), a `float` or `double` literal that is not finite, and a `decimal` one beyond `decimal`'s range. `9223372036854775808`, bare or with an `L`, directly after a unary minus is admitted, as C# admits it, and is `long.MinValue`. An unsuffixed decimal or hex literal is typed `int` whatever its value, so one beyond `int`'s range but within `long`'s passes this check and reaches Roslyn, which refuses it (`MIST_CS_ERROR`): C#'s rule, which types such a literal `uint`, `long` or `ulong`, is not built (`backlog/general.md`). A literal written as a dependent value in a type argument (`Wide<5L>`, `Narrow<1_000>`, `Narrow<0x1_0>`) is read the same way, with two differences. It must fit a `long`, since `LiftedType` holds a `long`, so a `ulong` dependent parameter takes values up to `long.MaxValue`: `U<18446744073709551615UL>` is refused although `ulong x = 18446744073709551615UL;` compiles. And a binary literal (`Narrow<0b1_01>`) is read in a type argument but not yet in an expression, which does not bind one. Several literal misreads predate this spec and are recorded in `backlog/general.md`: a `u` literal past `uint` is truncated where it is emitted, a hex literal is typed `int` whatever its suffix and sixteen hex digits with the top bit set read as a negative `long`, and a `char` escape such as `'\n'` reads as its backslash. `BodyEmitter.EmitLiteral` writes each literal back with the invariant culture, `R` for `double` and `float` and `decimal`'s own invariant form with its `m`. A diagnostic formats its arguments invariantly, a Roslyn message is taken in the invariant culture, and the CLI formats its timing summary invariantly, so a value quoted in the build's output reads the same on every machine.
+The compiler reads no culture itself (Requirement 13.3). `LiteralBinder` reads real literals
+with `NumberStyles.Float` and the invariant culture, refusing non-finite `float`/`double` values
+and decimals outside their range with `MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE`. `IntegerLiterals`
+reads decimal, hex and binary forms with separators and suffixes, preserving the exact value
+and choosing an integral type that can represent it. Unary binding admits the signed minimum
+boundaries. Dependent integer arguments use that same reader through `LiftIntegerLiteral`,
+including positive values through `ulong.MaxValue`; `CharacterLiterals` decodes character escapes
+for expressions and dependent arguments. Current unresolved obligations and historical closure
+evidence are recorded in `backlog/issues.yaml`.
+
+`BodyEmitter.EmitLiteral` writes literals with the invariant culture, using `R` for `double`
+and `float` and decimal's invariant form with its `m`. Diagnostics format arguments invariantly,
+Roslyn messages are taken in the invariant culture, and the CLI formats timing summaries
+invariantly, so a value quoted in build output reads the same on every machine.
 
 ## Analysis phase
 

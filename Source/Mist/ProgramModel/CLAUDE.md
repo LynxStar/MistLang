@@ -23,6 +23,11 @@ Code under `Source/Mist/ProgramModel/` MUST NOT reintroduce those types or be de
 
 5. **No syntax nodes as keys**: The program model is indexed by its own semantic entities, never by `SyntaxNode` as the primary lookup key.
 
+Binding owns name/member lookup, overload selection, generic argument inference, operator
+resolution and conversion classification. Later analyzers validate the resolved graph; the
+bound model must carry the selections and targets those checks need rather than require them
+to resolve again.
+
 ## Structure
 
 ```

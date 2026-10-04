@@ -1,7 +1,6 @@
-// Tier 3 (Component): what a scope owes a task it holds. Asserted on the emitted TEXT because none of
-// it is observable in output -- every helper these samples call completes synchronously, so an omitted
-// scope-exit await reads exactly like a present one. Orders 173 to 175 of
-// backlog/emitter-v2-capability-progression.yaml rest on this file.
+// Tier 3 (Component): what a scope owes a task it holds. Asserted on the emitted TEXT because none
+// of it is observable in output -- every helper these samples call completes synchronously, so an
+// omitted scope-exit await reads exactly like a present one.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

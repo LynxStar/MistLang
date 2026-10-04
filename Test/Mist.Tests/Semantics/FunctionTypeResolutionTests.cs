@@ -1,9 +1,8 @@
-// Function types and lambdas: what the result slot is, what a lambda's parameters and result are typed
-// by, and which overload a method group converts to. Asserted on the model because emission maps a
-// function type onto a CLR family that C# would often accept whatever Mist decided -- an inferred
-// parameter type, an inferred result, and an overload picked by target are each invisible in output that
-// merely runs. Orders 104, 105, 108 and 110 of backlog/emitter-v2-capability-progression.yaml rest on
-// this file.
+// Function types and lambdas: what the result slot is, what a lambda's parameters and result are
+// typed by, and which overload a method group converts to. Asserted on the model because emission
+// maps a function type onto a CLR family that C# would often accept whatever Mist decided -- an
+// inferred parameter type, an inferred result, and an overload picked by target are each invisible
+// in output that merely runs.
 
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
@@ -337,8 +336,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
 
     /// <summary>
     /// The parameters are the SAME locals the body's references resolve to, which is what makes capture
-    /// by reference rather than by copy -- order 106 rests on this being true of the model and not only
-    /// of the C# it emits.
+    /// by reference rather than by copy.
     /// </summary>
     [Fact]
     public void ALambdaBodyReadsTheVeryParameterTheLambdaDeclared()

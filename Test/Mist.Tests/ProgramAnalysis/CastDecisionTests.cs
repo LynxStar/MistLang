@@ -2,8 +2,7 @@
 // function, so a cast admits exactly what could be passed to the function it calls -- an enum's lookup
 // (enums spec, Requirement 15.3) or a declared cast operator (cast-operators spec, Requirement 8) -- or,
 // for a value already of the target type, calls nothing (Requirement 8.8); each row is one kind of argument
-// conversion. The corpus holds what the rule refuses; a silence has no line
-// to put a marker on.
+// conversion.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

@@ -12,8 +12,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// reassigned, a reference taken where one is taken -- a ref local, a by-ref argument, a ref return -- to
 /// something that is not a storage location or, writably, through a readonly reference, a readonly
 /// reference assigned to, a static lambda or local function reaching outside itself, and <c>?</c> applied
-/// to a type that already holds void. Order 9 of the analysis register, the half whose subject is where something was
-/// written rather than what it is. A static lambda's own names are its parameters and whatever its
+/// to a type that already holds void. A static lambda's own names are its parameters and whatever its
 /// body declares -- a local, a loop or deconstruction variable, a pattern binding, a nested lambda's
 /// parameters -- and any other local, or any instance member, is a capture.
 /// </summary>

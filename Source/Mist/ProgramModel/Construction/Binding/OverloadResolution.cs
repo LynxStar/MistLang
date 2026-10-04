@@ -156,7 +156,7 @@ internal static class OverloadResolution
     /// One declaration per closed signature, and WHICH one is the language's rule rather than C#'s: a
     /// conformer's `Transform(Widget)` answers the slot it implements, `Transform(T)` at T = Widget, so
     /// a declaration beats an ABSTRACT's; but nothing may hide a class's member, so between two classes
-    /// the INHERITED declaration stands and the deriving one -- which analysis order 6 refuses where it
+    /// the INHERITED declaration stands and the deriving one -- which DeclarationShapeAnalyzer refuses where it
     /// is written -- answers nothing. Judged on the closed signatures, since two coincide only once the
     /// base's parameters are substituted. A later declaration repeating an earlier one's signature on
     /// the same type is likewise answered by the first.

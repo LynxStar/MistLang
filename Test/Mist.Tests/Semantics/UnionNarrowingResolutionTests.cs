@@ -1,11 +1,8 @@
-// Narrowing a union to one constituent, asserted on the MODEL. The TypeUnions sample cannot carry the
-// load: its own untested list records that every type test takes the true branch, so a discriminator
-// that always answered true would pass every line of it, and that nothing reads a narrowed binding in
-// the condition that introduced it. Order 98 of backlog/emitter-v2-capability-progression.yaml rests
-// on this file.
-//
-// Kept apart from PatternResolutionTests because a union in the preamble would reach the interner, and
-// one of that class's tests asserts the interner holds none.
+// Narrowing a union to one constituent, asserted on the MODEL. The TypeUnions sample cannot carry
+// the load: every sample type test takes the true branch, so a discriminator that always answered
+// true would pass every line, and no sample reads a narrowed binding in its introducing condition. Kept apart from PatternResolutionTests
+// because a union in the preamble would reach the interner, and one of that class's tests asserts
+// the interner holds none.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;

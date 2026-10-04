@@ -14,7 +14,6 @@ namespace Mist.ProgramAnalysis.Rules;
 /// <c>default</c> of it is not refused a second time. A generic declaration is refused only for what
 /// fails under every argument; an instantiation whose arguments leave it no default is refused where
 /// that default is needed, which for a constructorless declaration includes an implicit <c>new</c>.
-/// Order 6 of the analysis register;
 /// <see cref="Defaultability"/> is the decision.
 /// <para>
 /// One mistake, one complaint: a slot or base whose default would come from another type that needs a

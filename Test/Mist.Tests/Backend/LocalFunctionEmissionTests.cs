@@ -1,8 +1,7 @@
 // Tier 3 (Component): what a local function becomes in C#, asserted on the emitted TEXT because none
-// of it is observable from output: `public` dropped and `static` kept print the same, a sync function
-// the backend promoted to async (see AsyncPromotion) runs the same as a declared async one, and a
-// renamed parameter computes the same value. Order 187 of
-// backlog/emitter-v2-capability-progression.yaml rests on this file.
+// of it is observable from output: `public` dropped and `static` kept print the same, a sync
+// function the backend promoted to async (see AsyncPromotion) runs the same as a declared async one,
+// and a renamed parameter computes the same value.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

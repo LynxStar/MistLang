@@ -1,7 +1,6 @@
-// Tier 3 (Component): the shape of the flow graph FlowGraphBuilder builds over a real body, and what
-// the forward solver reads off it -- the facts every flow-sensitive rule stands on, stated once here
-// rather than re-proven through each rule's corpus. The reasoning behind the shape is recorded on
-// order 10 of backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): the graph FlowGraphBuilder builds over a real body and the facts its forward
+// solver computes. These assertions pin the common flow framework independently of each customer's
+// findings; FlowGraphBuilder and FlowSolution state the graph and solver contracts.
 
 using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Flow;

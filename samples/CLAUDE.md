@@ -1,6 +1,45 @@
 
 # Sample App Integrity Policy
 
+## Baseline provenance
+
+`samples/__baselines__/AllFeaturesV2.out` retains output captured from the retired classic
+compiler where that compiler could run the sample. The following exceptions were captured
+from v2 (the current standard pipeline) and reviewed against the program by hand. They are
+recorded as V2-ONLY provenance, not as output independently produced by another compiler.
+This records baseline origins, not current feature status; orchestrator membership remains
+the record of which samples run.
+
+| Sample or section | Reason for v2 provenance |
+|---|---|
+| `NestedBlockNamespaces` | Classic could not resolve the nested namespace paths. |
+| `NamedAllocationElements` | Classic refused the relative qualified element types and aliases. |
+| `StampableTypes` | The stampable modifier and constraint were implemented only in v2. |
+| `Purity` | Classic lacked Standard's `List<T>` and local-function binding. |
+| `DependentTypes`, sections 16–18 | Added 2026-10-03; classic lacked projected value properties, the upper `ulong` range and widening forwarding. |
+| `ClrRefReadonly` | Classic hid CLR members returning `ref readonly`. |
+| `LocalFunctions` | Classic could not compile local functions. |
+| `OperatorOverloads` | Classic parsed operator declarations but did not emit them. |
+| `StandardSurface` | Classic refused awaiting a resultless task. |
+| `InheritedGenericMembers` | Classic left an inherited generic method's result unsubstituted. |
+| `NestedGenericTypes` | Classic could not emit nested types under an enclosing instantiation. |
+| `GenericAbstractMembers` | Classic emitted generic abstract defaults with an out-of-scope type parameter. |
+| `NewtypeClones` | The sample uses a later newtypes contract than classic implemented. |
+| `OverloadedIndexers` | Classic selected the first declared indexer rather than resolving the overload. |
+| `GenericOptionals` | Classic refused optional field assignment and misrepresented generic optional storage. |
+| `OpenUnions` | Classic refused the combined open-union, optional, inherited-generic and newtype shapes. |
+| `CallableInference` | Classic refused method-group arguments and candidate-targeted lambdas. |
+| `GenericExtensionMethods` | Classic could not resolve generic extension-block parameters. |
+| `ConstructorConstraintSignatures` | Classic could not resolve a type parameter in a constructor constraint. |
+| `VariadicSpecialization` | Written 2026-10-03, after classic was retired. |
+| `SizedSequencePatterns` | Written 2026-10-03, after classic was retired. |
+
+`OptionalTypeParameters` is not V2-ONLY: its existing sample lines were cross-checked against
+classic even though it is composed only into `AllFeaturesV2`. Nor is the old
+`EnumReadonlyRestriction` divergence an accepted exception: printing `TopLeft` for every
+value-equal `Corner` variant was a defect and was corrected. The baseline prints each
+variant's own name.
+
 ## Rule 1: Never Delete or Modify Working Code in Other Samples
 
 When implementing a new feature causes a pre-existing sample or test to fail, you MUST fix the root cause in the NEW code — never delete or modify the previously-working code in the other sample.

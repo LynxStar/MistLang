@@ -36,8 +36,7 @@ public sealed class UnknownApplicabilityTests
     }
 
     /// <summary>
-    /// Void has one inhabitant and no representation to widen, so it is the exclusion order 81's
-    /// wording already names.
+    /// Void has one inhabitant and no representation to widen, so it is excluded from unknown widening.
     /// </summary>
     [Fact]
     public void Void_IsNotWithinUnknown()

@@ -91,10 +91,10 @@ is batched per phase as `Source/Mist/ProgramModel/CLAUDE.md` asks.
     - _Requirements: 10.1_
 
 - [x] 8. Records
-  - [x] 8.1 `backlog/emitter-v2-capability-progression.yaml`: capability `local-functions` (order 187)
+  - [x] 8.1 [`backlog/emitter-v2-capability-progression.yaml` at da1aaa8f](https://github.com/LynxStar/MistLang/blob/da1aaa8fd416bd3bdf93e496281e7b2cbf52594c/backlog/emitter-v2-capability-progression.yaml): capability `local-functions` (order 187)
         and sample `LocalFunctions`; YAML parses
-  - [x] 8.2 `backlog/analysis-v2-capability-progression.yaml`: evidence on orders 9, 10 and 11
-  - [x] 8.3 `backlog/program-model-body-tasks.yaml`, `backlog/general.md`, `CLAUDE.md` and the
+  - [x] 8.2 [`backlog/analysis-v2-capability-progression.yaml` at da1aaa8f](https://github.com/LynxStar/MistLang/blob/da1aaa8fd416bd3bdf93e496281e7b2cbf52594c/backlog/analysis-v2-capability-progression.yaml): evidence on orders 9, 10 and 11
+  - [x] 8.3 [`backlog/program-model-body-tasks.yaml` at da1aaa8f](https://github.com/LynxStar/MistLang/blob/da1aaa8fd416bd3bdf93e496281e7b2cbf52594c/backlog/program-model-body-tasks.yaml), [`backlog/general.md` at da1aaa8f](https://github.com/LynxStar/MistLang/blob/da1aaa8fd416bd3bdf93e496281e7b2cbf52594c/backlog/general.md), `CLAUDE.md` and the
         orchestrator test's comment: the v2-only sample and the restored snippets
     - _Requirements: 9.2, 9.6_
   - [x] 8.4 `dotnet format Mist.slnx --verify-no-changes`; zero warnings; full suite green

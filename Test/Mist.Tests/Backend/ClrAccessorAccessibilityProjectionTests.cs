@@ -1,6 +1,5 @@
-// Tier 2 (Functional): a projected CLR accessor carries its own accessibility, so a public property's protected
-// setter is judged as protected at a use rather than read as the property's. Recorded on order 9 of
-// backlog/analysis-v2-capability-progression.yaml.
+// Tier 2 (Functional): a projected CLR accessor carries its own accessibility, so a public
+// property's protected setter is judged as protected at a use rather than read as the property's.
 
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;

@@ -1,45 +1,36 @@
 # Backlog
 
-[issues.yaml](issues.yaml) is the single queue for outstanding repository work.
-[The 2026-10-03 reconciliation](inventory-2026-10-03.md) is a readable dated snapshot,
-including the method, counts and verification limits.
+[issues.yaml](issues.yaml) is the only work ledger. Add, prioritize, assign and close work there.
+The former ledgers, dated inventory tables, completed migration checklist and empty placeholders
+have been deleted. Git retains the original documents at the revisions recorded in the ledger.
 
 ## Using the ledger
 
-Each record has a stable ID, expected obligation, source selectors and evidence at an
-identified revision. `confirmed` means current source or a probe supports a missing or
-violated contract; read the evidence to see which. `unverified` requires confirmation or
-attribution before choosing a fix. `decision` requires a language/product choice.
-`optional` covers deferred features, refactors and performance explorations.
+Each record has a stable ID, expected obligation and evidence at an identified revision.
+`confirmed` means current source or an executed probe supports a missing or violated contract;
+read the evidence to see which. `unverified` needs confirmation or attribution. `decision`
+requires a language/product choice. `optional` covers deferred features, refactors and performance
+explorations. The archive retains completed, stale and superseded leads with their disposition.
 
-The archive retains completed, stale and superseded leads and explains their disposition.
-Archived groups are not counts of the individual checklist bullets they replaced. Counts
-under `reconciliation` describe the audited baseline, not later current status. Count
-current open rows by status when planning another batch.
+Counts under `reconciliation` describe the 2026-10-03 audit, not later current status.
+Count the open `issues` by status when planning work. Preserve IDs when moving closed records
+to `archive`, and add implementation, revision and verification evidence.
 
-## Updating work
+## Evidence and observations
 
-1. Search for the same expected behavior before adding an issue. Merge another source or
-   reproduction into its existing ID; keep distinct obligations and unattributed incidents
-   separate.
-2. Record the revision, expected contract, owning code and precise evidence. Distinguish
-   executed checks from source inspection, and old verification from current results.
-3. The worker completes implementation and suitable verification, then moves the record to
-   the archive with `status: implemented`, preserving its ID and adding closure evidence.
-   Keep capability evidence current where representation or emission changes.
-4. Record flaky-test sightings in [flaky-tests.yaml](flaky-tests.yaml), as repository rules
-   require. Link unresolved follow-up work to one issue here; a green rerun alone does not
-   explain or retire an unknown intermittent failure.
+Record intermittent test sightings in `observations` on the matching issue, as `Test/CLAUDE.md`
+requires. Keep failing and passing run evidence, test names, discovery dates, symptoms and
+causes; use `unknown` when attribution is unknown. A green rerun does not close an unexplained
+failure. The 15 imported flake reports retain their complete evidence on the existing issue or
+archive record; `status_at_import` is their old observation label, not current work status.
 
-## Source documents
+`source_refs`, `sources` and the coverage maps are historical provenance. An explicit `revision`
+means the path is read from Git at that revision, even when the file no longer exists in the
+checkout. These entries do not point to another list to update. The clean-room restriction on
+classic implementation still applies.
 
-The 15 reconciled documents retain their detailed contracts, measurements and history.
-Their old tasks and checkboxes are not independent queues; the ledger's source index and
-each record's selectors show what was imported, merged or archived. No historical evidence
-has been deleted to make the count smaller.
-
-The older inventory and completed refusal migration are historical records. Empty
-placeholders and the regions/lifetimes pre-design note were excluded. The owner confirms
-the spec task documents are implemented; they are excluded from the work inventory.
-Requirements/design and the grammar remain contracts. Workstream packets record assignments,
-test-run ledgers record verification, and AllFeaturesV2 remains the sole sample stdout bank.
+Requirements, designs and the grammar remain contracts. The owner confirms spec task documents
+are implemented; do not harvest them as another backlog. Workstream packets are assignments,
+test-run ledgers are verification, and AllFeaturesV2 remains the sole sample stdout bank.
+The regions/lifetimes discussion in `design-notes/` is an excluded pre-design note, not requirements
+or an additional work queue.

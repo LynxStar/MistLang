@@ -1,10 +1,7 @@
-// Tier 3 (Component): what a local function binds to, and the shapes the local-functions spec
-// deliberately admits -- a call before the declaration, recursion, captures, the definite-assignment
-// admits. A write inside the function does not count as
-// assigning the local at the call, as a write inside a lambda does not (spec Req 5.4), so the read
-// after such a call is the one finding pinned here. WHY each is admitted is recorded on
-// .kiro/specs/local-functions/design.md and on orders 9, 10 and 11 of
-// backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): binding and admission rules from .kiro/specs/local-functions/design.md,
+// including calls before declaration, recursion, captures and definite assignment. A write inside a
+// function does not assign the caller's local, as a lambda write does not (Requirement 5.4); the
+// read after that call is the finding pinned here.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

@@ -140,7 +140,7 @@ internal static class TypeEmitter
 
         // Mist has no object base and no `override`, so a type declaring == has no Equals or
         // GetHashCode it could keep in step, and C#'s demand for them is the target's rather than the
-        // program's. Suppressed instead of synthesized, by the decision recorded on order 185.
+        // program's. Suppressed instead of synthesized.
         var declaresEquality = type is ConcreteType { OperatorsList: var declared }
             && declared.Exists(op => op.Kind is OperatorKind.EqualEqual or OperatorKind.NotEqual);
 

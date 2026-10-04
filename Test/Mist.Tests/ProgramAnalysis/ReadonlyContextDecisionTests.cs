@@ -1,8 +1,7 @@
-// Tier 3 (Component): what the readonly-context rules deliberately do NOT report. The fixture types are
-// under analysis in every row, so a constructor assigning its own fields, a readonly setter writing its
-// backing field, a readonly method calling an inferred-readonly one, a readonly block reading into a
-// local, and an allocation through a readonly constructor are silences proven by every row. WHY each is
-// admitted is recorded on order 11 of backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): readonly-context admissions stated by ReadonlyAnalyzer. Every fixture is
+// analyzed: a constructor assigning its own fields, a readonly setter writing its backing field, an
+// inferred-readonly call, a readonly block reading into a local, and allocation through a readonly
+// constructor.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

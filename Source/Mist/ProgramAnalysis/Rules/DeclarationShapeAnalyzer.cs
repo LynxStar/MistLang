@@ -23,7 +23,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// constructor or indexer repeating an earlier one's signature on its type, a member hiding one its
 /// type inherits, which Mist admits only as an overload, and a constructor writing no chain to a base
 /// <see cref="ImplicitChains"/> finds nothing to run in, and a dependent parameter named like a member its
-/// <see cref="TypeParameter.ValueProperty"/> would collide with. Order 6 of the analysis register; each shape is classic's verdict, measured, or
+/// <see cref="TypeParameter.ValueProperty"/> would collide with. Each shape is classic's verdict, measured, or
 /// the spec's where classic dropped the declaration unread, and the enum and sealed rules are the
 /// full-accessibility-model and enum-readonly-restriction specs' own.
 /// </summary>

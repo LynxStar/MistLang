@@ -1,9 +1,8 @@
-// Property patterns: what a subpattern name resolves to, and how far the binders it introduces reach.
-// Asserted on the MODEL, because output cannot tell these apart. A program that prints the right answer
-// says only that SOME member answered; whether the subpattern was typed by that member -- which is what
-// makes the nested pattern's own narrowing correct -- is visible only here. The negatives are compile
-// failures and so exist nowhere else. Order 93 of backlog/emitter-v2-capability-progression.yaml rests
-// on this file.
+// Property patterns: what a subpattern name resolves to, and how far the binders it introduces
+// reach. Asserted on the MODEL, because output cannot tell these apart. A program that prints the
+// right answer says only that SOME member answered; whether the subpattern was typed by that member
+// -- which is what makes the nested pattern's own narrowing correct -- is visible only here. The
+// negatives are compile failures and so exist nowhere else.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Expressions;

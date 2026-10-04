@@ -104,10 +104,8 @@ public sealed class ImplicitCloneTests : ProgramModelProbe
             ArgumentsIn("Sink.TakesPlain(shared);"), argument => argument is CloneExpression);
     }
 
-    // The intrinsic exclusion has no test here: `owned var s = borrowed;` over a string-valued local
-    // does not parse, which is recorded in backlog/general.md and is not about cloning. It is covered
-    // by samples/Ownership, whose `string moved = MakeLabel(2).Clone();` failed to compile until the
-    // exclusion landed.
+    // Intrinsic immutable values are deliberately excluded from implicit cloning. samples/Ownership
+    // exercises the Standard string clone contract; this class checks clone insertion for mutable types.
 
     private Expression? InitializerOf(string statements)
     {

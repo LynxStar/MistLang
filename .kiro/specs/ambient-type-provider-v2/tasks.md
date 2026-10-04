@@ -323,7 +323,7 @@ The plan progresses through: interface definition → TypeReferenceResolver ambi
 - Tests MUST NOT spawn processes per iteration — use batching or in-process compilation per project policy
 - FsCheck is already in the project for property-based tests
 - ProgramModel has no existing tests — integration tests for V2 double as ProgramModel validation
-- When integration tests surface ProgramModel bugs, fix forward and document in `backlog/program-model.md`
+- When integration tests surface ProgramModel bugs, fix forward and document in `backlog/issues.yaml`
 - The experimental pipeline (`--pipeline experimental`) runs stages 0-4 and no-ops 5-6
 - V2 MUST NOT reference `Mist.Semantics.*` — only `Mist.ProgramModel.*` types
 

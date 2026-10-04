@@ -1,7 +1,7 @@
 // Tier 1 (Unit): an attribute whose type the loader cannot resolve counts as absent for nullability
-// rather than taking the projection down. The shape is real -- backlog/general.md records the TestHost
-// package whose assemblies reference an attribute type none of them defines -- and is reproduced here
-// with a CustomAttributeData whose type throws on first touch, as a metadata-only load does.
+// rather than taking the projection down. A TestHost package exposed this shape through an undefined
+// attribute type; it is reproduced with CustomAttributeData whose type throws on first touch, as a
+// metadata-only load does.
 
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;

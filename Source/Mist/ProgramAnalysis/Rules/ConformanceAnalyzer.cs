@@ -13,7 +13,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// Whether a concrete type fills every slot of every abstract it reaches, from Requirements 14 and 28
-/// of the abstract-type-unification spec, and order 7 of the analysis register. Slots are the bodiless
+/// of the abstract-type-unification spec. Slots are the bodiless
 /// members of the type's own base list, transitively through the abstract hierarchy; fillers are the
 /// public members the type declares or inherits along its concrete base chain. A default fills its own
 /// slot and NOTHING ELSE: one restated on a derived abstract hides the base's slot rather than filling

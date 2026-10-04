@@ -1,7 +1,6 @@
-// Alias transparency, chain completion, cycle detection and constructible aliases, asserted on
-// the MODEL -- an alias that leaked nominal identity would still print the right answers, so only
-// the model can prove erasure. Keeps orders 84-85 of
-// backlog/emitter-v2-capability-progression.yaml honest.
+// Alias transparency, chain completion, cycle detection and constructible aliases, asserted on the
+// MODEL -- an alias that leaked nominal identity would still print the right answers, so only the
+// model can prove erasure.
 
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;

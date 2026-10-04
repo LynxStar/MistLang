@@ -231,7 +231,7 @@ tools/test-ledger/run.sh
 
 Its stdout is only the ledger's path and, at the end, `summary.txt`, so run it as it is. Do not
 redirect it to a file of your own, and do not pipe it or a bare `dotnet test` through `grep`, `head`
-or `tail`: that is how five entries in `backlog/flaky-tests.yaml` lost the name of the test that
+or `tail`: that is how historical observations in `backlog/issues.yaml` lost the name of the test that
 failed.
 
 When it ends, read `summary.txt`. Its first line says how the run ended, and a `no trx:` line names
@@ -310,17 +310,18 @@ Note: `dotnet test` without `--no-build` will rebuild automatically, which is co
 
 ## Rule 2: Record every flaky test you find
 
-When a test fails and then passes without any code change between the runs, you MUST append an entry to `backlog/flaky-tests.yaml` before moving on. This is required even when you are not fixing it, and even when the flake is obviously unrelated to what you are working on.
+When a test fails and then passes without any code change between the runs, you MUST record an observation on the matching issue in `backlog/issues.yaml` before moving on. This is required even when you are not fixing it, and even when the flake is obviously unrelated to what you are working on.
 
 Fixing it is optional. Recording it is not.
 
-The observation stays in the flake register. Track unresolved follow-up work under one
-matching ID in `backlog/issues.yaml`, linking the flake entry and its captured evidence.
-Current issue status lives there; do not create another independent work queue.
+Append the observation to the matching record's `observations` list. If there is no matching
+issue, create one with `status: unverified`, an expected obligation and captured failure evidence.
+A recurrence of a fixed symptom needs fresh attribution; keep it separate when the recorded cause
+does not explain it. The parent issue's status is the current work status.
 
 ### Why
 
-A flake found mid-change is a distraction from that change, so leaving it unfixed is usually the right call. But leaving it *unrecorded* is not: the next person to hit it re-diagnoses it from scratch, and every unexplained red run erodes the signal the suite exists to carry. The register turns a recurring mystery into a known, closed question.
+A flake found mid-change is a distraction from that change, so leaving it unfixed is usually the right call. But leaving it *unrecorded* is not: the next person to hit it re-diagnoses it from scratch, and every unexplained red run erodes the signal the suite exists to carry. The canonical record keeps earlier diagnosis and evidence available for the next sighting.
 
 ### What counts
 
@@ -333,7 +334,11 @@ A test that fails consistently is not flaky. It is either a real defect or a sta
 
 ### What to write
 
-Append to the `flakes:` list in `backlog/flaky-tests.yaml`, following the field documentation at the top of that file. Two of those fields carry most of the value:
+Write `kind: intermittent_test_failure`, the fully qualified `test` name (or explicitly unknown),
+`file`, `discovered` date, `symptom`, `cause`, and `evidence` on the observation. Include the failing
+and passing run paths, outcomes and relevant revision; add recurrence details to the same record
+when attribution is established. Record a proposed fix only when the cause is known. Two fields
+carry most of the value:
 
 - **cause** — `unknown` is an acceptable answer. A guess dressed up as a cause is not, because it stops the next person from looking.
 - **evidence** — how you concluded it was flaky and not yours. Enough that the diagnosis can be re-checked rather than re-derived. Name the files your change touched, note that the test file was unmodified, and record that the rerun was green.

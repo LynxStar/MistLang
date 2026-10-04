@@ -12,7 +12,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// it may when the conversion is identity or implicit. Two things the classification alone would refuse
 /// are admitted here: an integer constant that fits (<see cref="ConstantConversion"/>), and a target that
 /// is a refinement over a type the value already belongs to, since whether the predicate holds is the
-/// refinement prover's to discharge -- order 12 of the analysis register -- and a rule that judged it here
+/// refinement prover's to discharge, and a rule that judged it here
 /// would refuse <c>AdultAge age = 20</c>, which classic admits. And a refinement refused at its own
 /// declaration, one ordering a type with no order, admits any value: judging a value against it would be
 /// a second complaint about that one mistake.

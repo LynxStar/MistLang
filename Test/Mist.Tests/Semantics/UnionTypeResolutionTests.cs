@@ -1,6 +1,5 @@
-// Union canonicalization, widening and the optional representation, asserted on the MODEL --
-// emitted output cannot distinguish a chosen conversion from Roslyn re-deriving one, so these
-// are what keeps orders 76-78 of backlog/emitter-v2-capability-progression.yaml honest.
+// Union canonicalization, widening and optional representation, asserted on the model: emitted
+// output cannot distinguish Mist's chosen conversion from one Roslyn re-derives.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel.Contracts.Types;

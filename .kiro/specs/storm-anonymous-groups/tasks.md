@@ -249,4 +249,4 @@ This plan implements anonymous group projection in the Storm source generator, r
 - [x] Preserve the union of unnamed alternative captures and allocate distinct property/struct names for differing group shapes.
 - [x] Yield canonical captures in source order across direct properties and interleaved groups, using the parsed alternative’s ownership plan.
 
-Storm `b4e5853`: 65 requested focused tests and 852 full-suite tests pass; four additional Tier 2 inline projection cases pass. Build, format verification and whitespace checks pass. The fidelity seam remains 20 cases / 27 parses. Consumer verification and exact remaining limits are recorded in `backlog/storm.md`.
+Storm `b4e5853`: 65 requested focused tests and 852 full-suite tests pass; four additional Tier 2 inline projection cases pass. Build, format verification and whitespace checks pass. The fidelity seam remains 20 cases / 27 parses. Consumer verification and exact remaining limits are recorded in [`backlog/storm.md` at da1aaa8f](https://github.com/LynxStar/MistLang/blob/da1aaa8fd416bd3bdf93e496281e7b2cbf52594c/backlog/storm.md).

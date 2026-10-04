@@ -14,7 +14,7 @@ namespace Mist.ProgramAnalysis;
 /// what its body does -- assigning an owned field needs borrowed, and a call through an explicit
 /// `this.` needs whatever the callee needs. An implicit call is NOT followed and a bare field's
 /// call is judged as unrestricted where `this.field` is not, because that is exactly the line
-/// classic draws, measured: the decisions are recorded on order 11 of the register.
+/// classic draws, measured; receiver/lending inference precision remains MIST-153 in backlog/issues.yaml.
 /// </summary>
 internal sealed class ThisTiers
 {

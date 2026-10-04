@@ -10,8 +10,7 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A value at a position that expects a type it cannot implicitly become. Order 5 of the analysis
-/// register: one question, <see cref="Assignability"/>, asked at every position the binder gave a
+/// A value at a position that expects a type it cannot implicitly become: one question, <see cref="Assignability"/>, asked at every position the binder gave a
 /// target type to, and reported at the value, since the value is what has to change. An argument is
 /// judged against what <see cref="ArgumentTargets"/> pairs it with, and not on a CLR-projected member,
 /// whose optional parameters the model does not represent yet, so the overload it names can be one

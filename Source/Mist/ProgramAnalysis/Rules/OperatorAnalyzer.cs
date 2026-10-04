@@ -8,7 +8,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// An operator no operator admits, a member of <c>unknown</c>, and conditional access on a receiver
-/// that cannot be absent. Order 9 of the analysis register, the half whose subject is an expression.
+/// that cannot be absent.
 /// The binder already typed each of these as an error so that nothing downstream complains twice;
 /// this is where the complaint itself is made, against the operands, whose types are sound.
 /// </summary>

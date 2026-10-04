@@ -10,7 +10,7 @@ namespace Mist.ProgramModel.Model.Patterns;
 /// case rather than a kind of its own, because the two differ only in the operator.
 /// <para>
 /// Narrows to the scrutinee's own type: a value test says nothing about which type holds it, and the
-/// one case where it could -- picking a constituent out of a union -- is order 98's.
+/// type-selection case -- picking a constituent out of a union -- belongs to type-test narrowing.
 /// </para>
 /// </summary>
 internal sealed class ComparisonPattern(

@@ -27,7 +27,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// path's move, which is classic's verdict measured; a use once complained of settles the binding, so
 /// one mistake is one complaint per path; and a struct is never tracked, since a copy of it is a value
 /// of its own. The rest of what classic admits here -- a call as no move for a linear
-/// value, a frozen lender lent borrowed by call -- is recorded on order 11 of the register.
+/// value, a frozen lender lent borrowed by call -- remains under MIST-122 and MIST-061 in backlog/issues.yaml.
 /// <para>
 /// An owned return hands the caller a value nothing else holds (ownership-v2 Requirements 1.5 and
 /// 6.7), so a `return` in a method returning owned is judged by <see cref="Origins"/>, without flow: a

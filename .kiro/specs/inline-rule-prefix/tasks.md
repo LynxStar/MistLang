@@ -228,4 +228,4 @@ This plan implements the `inline` keyword feature for the Storm parser generator
 - [x] Project structural prefix values into the target arm’s own labels and materialize directly captured prefix nodes without re-parsing.
 - [x] Keep the existing nominal-or-structural acceptance policy and verify optional/repeated capture guards with direct IR emission coverage.
 
-Storm `b4e5853`: 65 requested focused tests and 852 full-suite tests pass; four additional Tier 2 inline projection cases pass. Build, format verification and whitespace checks pass. The fidelity seam remains 20 cases / 27 parses. Consumer verification and exact remaining limits are recorded in `backlog/storm.md`.
+Storm `b4e5853`: 65 requested focused tests and 852 full-suite tests pass; four additional Tier 2 inline projection cases pass. Build, format verification and whitespace checks pass. The fidelity seam remains 20 cases / 27 parses. Consumer verification and exact remaining limits are recorded in [`backlog/storm.md` at da1aaa8f](https://github.com/LynxStar/MistLang/blob/da1aaa8fd416bd3bdf93e496281e7b2cbf52594c/backlog/storm.md).

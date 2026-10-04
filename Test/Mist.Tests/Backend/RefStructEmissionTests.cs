@@ -1,8 +1,7 @@
 // Where `ref` on a struct survives emission. Asserted on the emitted TEXT because nothing downstream
-// can see it: a ref struct and a plain one holding the same values compile, run and print identically,
-// so AllFeaturesV2 cannot guard the modifier at all -- only its absence from a stack-only guarantee
-// would ever show, and not as output. Order 138 of
-// backlog/emitter-v2-capability-progression.yaml rests on this file.
+// can see it: a ref struct and a plain one holding the same values compile, run and print
+// identically, so AllFeaturesV2 cannot guard the modifier at all -- only its absence from a stack-
+// only guarantee would ever show, and not as output.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

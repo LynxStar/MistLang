@@ -18,8 +18,8 @@ AST node classes into `Source/Mist/Generated/`.
 other value is the parser's unknown-pipeline error.
 
 "v2" names this pipeline wherever it appears: in type names (`CSharpEmitterV2`), in
-`samples/AllFeaturesV2`, and in the registers and specs. "Classic" and "v1" there name the
-compiler it replaced, which is no longer in the tree.
+`samples/AllFeaturesV2`, and in historical documentation and the specs. "Classic" and "v1" there
+name the compiler it replaced, which is no longer in the tree.
 
 ## The clean-room rule (non-negotiable)
 
@@ -44,50 +44,30 @@ which `Testing_RunsUnderTheTestCommand` holds under `mist test` instead.
 The baseline's provenance: most samples' lines were captured from classic while it existed. The
 exceptions are the samples classic could not run -- `samples/LocalFunctions`, which it could not
 parse, and `samples/NewtypeClones`, written for a revision of the newtypes spec it did not
-implement, among them. Each is marked V2-ONLY, with the reason, in the register's `untested`
-list, and has its lines captured from v2 and read against the program by hand. Note the blind
-spot — a stdout diff cannot see things like a dropped `sealed` modifier.
+implement, among them. Their V2-only provenance is recorded in `samples/CLAUDE.md`; their lines
+were captured from v2 and checked against the programs by hand. Note the blind spot — a stdout diff cannot see things like a dropped `sealed` modifier.
 
-## Backlog registers
+## Backlog
 
-`backlog/issues.yaml` is the **single source of truth for outstanding work**, reconciled
-from 15 former work-bearing sources on 2026-10-03. Each obligation has a stable ID,
-status, source selectors and evidence at an identified revision. Distinguish confirmed
-gaps, unverified leads, policy decisions and optional work. A historical unchecked task
-or a capability's old partial status does not add another issue.
+`backlog/issues.yaml` is the **single source of truth for outstanding work**. Each obligation
+has a stable ID, status and evidence at an identified revision. Distinguish confirmed gaps,
+unverified leads, language/product decisions and optional work. Preserve IDs and add closure
+evidence when moving implemented work to the archive. `backlog/README.md` explains maintenance.
 
-| File | Role |
-|---|---|
-| `backlog/issues.yaml` | Canonical open-work queue and archive of reconciled completed/stale leads. Preserve IDs; update implementation and verification evidence when closing work. |
-| `backlog/README.md` | How to use and maintain the canonical ledger. |
-| `backlog/emitter-v2-capability-progression.yaml` | Capability structure, sample edges, contracts and historical emission evidence. Valid YAML; not an additional work queue. |
-| `backlog/analysis-v2-capability-progression.yaml` | Stage 5 rule structure, contracts and historical evidence; not an additional work queue. |
-| `backlog/program-model-body-tasks.yaml` | Historical binder checklist and evidence, organized by construct. **Not valid YAML** despite the extension. |
-| `backlog/flaky-tests.yaml` | Mandatory flake observation/provenance register (see `Test/CLAUDE.md`). Link unresolved follow-up work to one issue in the canonical queue. |
-| Other topic backlogs and `general.md` | Contract/context and historical evidence imported into the canonical ledger. |
-| `backlog/classic-retirement.md`, `backlog/refusal-corpus-migration.md` | Retirement and completed migration records; surviving obligations are in the canonical ledger. |
-| `backlog/inventory-<date>.md` | Dated snapshots; never override current issue status. |
+The 15 former ledgers have been deleted after reconciliation. Their historical source selectors
+and coverage maps remain in the canonical ledger with explicit Git revisions. They are provenance,
+not documents to recreate or update. Complete flaky-test observations also live on the matching
+canonical records; `Test/CLAUDE.md` requires recording every sighting there.
 
-The owner confirms the spec task documents are implemented; they are excluded from this
-reconciliation and must not be harvested as another backlog. Requirements, design and
-grammar remain contract references. Workstream packets assign work, and test-run ledgers
-record verification; neither is an additional work queue. Keep capability evidence up to
-date when its represented/emitted contract changes, while recording the work's current
-status and closeout in `backlog/issues.yaml`.
+The owner confirms the spec task documents are implemented; do not harvest them as another
+backlog. Requirements, design and grammar remain contract references. Workstream packets assign
+work, and test-run ledgers record verification; neither is an additional work queue.
 
-A capability in the emitter register is measured by what it makes **representable and
-emittable** — what new part of a program can be held in memory, or emitted and run. Rules
-that walk a finished model and judge it belong to Stage 5, whichever stage a diagnostic
-is declared at. Historical `analysis_phase_tasks` preserve their provenance; current
-obligations belong in `backlog/issues.yaml`. Getting this wrong
-once cost an implementation that was written and reverted.
-
-Stage 5 rule contracts and evidence remain in the analysis register; its outstanding
-work is tracked in `backlog/issues.yaml`. `samples/AllFeaturesV2` is a stdout baseline
-over valid programs, so it is structurally blind to a refusal: an analyzer that reports nothing
-passes it. That gap is closed beside each rule, at the tiers the testing philosophy
-(`.claude/skills/testing-philosophy/SKILL.md`, `/testing-philosophy`) assigns: Tier 1 against the
-rule's decision, Tier 2 when the rule walks a body (flow, ownership), Tier 3 rarely. See
+Representation and emission belong to the frontend/backend. Rules that judge a finished model
+belong to Stage 5, whichever stage a diagnostic is declared at. `samples/AllFeaturesV2` is a stdout
+baseline over valid programs, so it cannot prove that an analyzer refuses invalid ones. Each rule's
+findings and deliberate admissions need tests at the tiers the testing philosophy assigns: Tier 1
+against the decision, Tier 2 for rules that walk bodies, and Tier 3 rarely. See
 `Source/Mist/ProgramAnalysis/CLAUDE.md`.
 
 ## Commands

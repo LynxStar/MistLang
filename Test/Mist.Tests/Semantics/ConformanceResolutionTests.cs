@@ -1,5 +1,5 @@
-// samples/AbstractTypes is a false green for conformance assignability, measured -- see its
-// `untested` entry in backlog/emitter-v2-capability-progression.yaml.
+// Conformance assignability is asserted on the resolved model: a sample that uses only the concrete
+// type can run without exercising its abstract conformance.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model;

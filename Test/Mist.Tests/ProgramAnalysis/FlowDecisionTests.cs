@@ -1,7 +1,6 @@
-// Tier 3 (Component): what order 10's rules deliberately do NOT report -- the reads that are assigned
-// on every path, the fields classic leaves alone, the element types that stamp -- and the reach facts
-// the corpus cannot phrase. WHY each is silent, and which of them classic refuses, is recorded once,
-// on order 10 of backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): admitted assigned reads, constructor-field access, stampable element types and
+// model reach facts. DefiniteAssignmentAnalyzer and Stampability state these decisions; the stricter
+// constructor this/field policy remains MIST-120 in backlog/issues.yaml.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

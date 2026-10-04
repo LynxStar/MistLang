@@ -68,7 +68,7 @@ public sealed class FunctionTypeBridgeTests : IDisposable
     /// <summary>
     /// Forwarding a pack into a Func whose parameter list IS that pack, with the pack and the
     /// result both inferred from the call. Asserted only as far as the MODEL, because emitting a
-    /// symbolic spread needs the arity, which is order 153's to supply.
+    /// a symbolic spread must be specialized to a concrete arity before emission.
     /// </summary>
     private const string ForwardsAPackIntoFunc = """
         using Standard;

@@ -1,7 +1,6 @@
 // Tier 3 (Component): where an inferred readonly lands in the emitted text. Only a plain struct's
-// instance members can carry C#'s `readonly`, and there Roslyn checks it and it spares a defensive copy --
-// none of which program output shows, so AllFeaturesV2 cannot guard it. Order 135 of
-// backlog/emitter-v2-capability-progression.yaml rests on this file.
+// instance members can carry C#'s `readonly`, and there Roslyn checks it and it spares a defensive
+// copy -- none of which program output shows, so AllFeaturesV2 cannot guard it.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

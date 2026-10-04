@@ -42,7 +42,7 @@ internal sealed class LocalVariable(string name, IMistType type)
     /// The binding took its type from a value that already failed and was reported, so a complaint about
     /// a use of it would be the same mistake again. Recorded by the binder, where the value is in hand,
     /// and POSITIVE rather than marking the unfinished case instead: a binding site that never sets it
-    /// leaves a second complaint the refusal corpus can see, where one that forgot to mark an unfinished
+    /// leaves a second complaint, where one that forgot to mark an unfinished
     /// value would silence a construct nothing has reported.
     /// </summary>
     public bool IsFailed { get; init; }

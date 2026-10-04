@@ -1,8 +1,7 @@
 // Pattern binding and the SCOPE of what a pattern introduces, asserted on the MODEL. No sample can
-// carry the load-bearing half of order 90: a sample that compiles proves a binding IS reachable
-// somewhere, and the claim being made is where it stops being reachable. Those cases are compile
-// failures, so they exist only here. Order 90 and 94 of
-// backlog/emitter-v2-capability-progression.yaml rest on this file.
+// carry the binding-scope boundary: a sample that compiles proves a binding IS reachable somewhere,
+// and the claim being made is where it stops being reachable. Those cases are compile failures, so
+// they exist only here.
 
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -232,8 +231,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// A value test says nothing about which type holds the value, so it must not narrow. The one case
-    /// where it could -- picking a constituent out of a union -- is order 98's.
+    /// A value test says nothing about which type holds the value, so it must not narrow.
     /// </summary>
     [Fact]
     public void AComparisonPattern_NarrowsNothing()

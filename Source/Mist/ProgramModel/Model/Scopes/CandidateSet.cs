@@ -142,7 +142,7 @@ internal sealed class CandidateSet
     /// Every method candidate as one overload set, and one declaration per signature. WHICH one it
     /// keeps is the language's: a conformer's implementation answers an abstract's slot, so a nearer
     /// declaration wins there; between two CLASSES nothing may hide, so the inherited declaration is
-    /// the one that stands and the nearer one, which analysis order 6 refuses where it is written,
+    /// the one that stands and the nearer one, which DeclarationShapeAnalyzer refuses where it is written,
     /// answers nothing. Same name and a different signature is another overload and both are kept, as is
     /// a signature naming a type that did not resolve, which has no identity to coincide with -- dropping
     /// one would answer a call with "no such member" on top of the unresolved type already reported.

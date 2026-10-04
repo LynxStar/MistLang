@@ -9,8 +9,7 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A switch expression some value of its scrutinee reaches no arm of. Order 3 of the analysis register,
-/// and the contract's first customer.
+/// A switch expression some value of its scrutinee reaches no arm of.
 /// <para>
 /// IT REPORTS ONLY WHAT THE MODEL PROVES: a case is named missing when no arm could match it at all,
 /// never merely because this rule cannot see how the arms cover it. Not caution for its own sake --

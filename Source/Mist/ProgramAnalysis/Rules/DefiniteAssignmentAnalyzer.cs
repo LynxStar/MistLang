@@ -24,8 +24,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// `this(...)`, when its type has no default and is not a type parameter, whose default is each
 /// instantiation's to decide; and only as classic tracks it: read through an explicit `this`, so that
 /// a bare read, a call on `this`, or `this` handed away stays admitted as classic admits it -- the
-/// decision is recorded on order 10 of the register, with the spec's stricter wording, for the
-/// language's owner.
+/// stricter constructor policy remains MIST-120 in backlog/issues.yaml.
 /// </summary>
 internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
 {

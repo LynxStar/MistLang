@@ -1,7 +1,7 @@
-// Tier 3 (Component): what order 11's rules deliberately do NOT report -- the moves, leases, lends,
-// receivers, disciplines, readonly contexts and captures classic admits -- and the reach facts the
-// corpus cannot phrase. WHY each is silent, and which of them classic refuses, is recorded once, on
-// order 11 of backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): admitted moves, leases, lends, receivers, disciplines, readonly contexts and
+// captures, plus model reach facts. OwnershipAnalyzer, ThisTiers and the readonly/escape rules state
+// the current contracts. Unresolved plain-linear-parameter transfer and frozen-lease call policies
+// remain MIST-122 and MIST-061 in backlog/issues.yaml.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
@@ -402,7 +402,7 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
 
     /// <summary>
     /// A relevant task may be dropped any number of times, and `await` is its Drop, so awaiting one
-    /// twice is admitted where a linear ValueTask's second drop is refused (the corpus holds that).
+    /// twice is admitted where a linear ValueTask's second drop is refused.
     /// </summary>
     [Theory]
     [InlineData("async int Fetch() { return 1; } Standard.Task<int> t = Fetch(); int a = await t; int b = await t;")]

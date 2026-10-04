@@ -1,8 +1,7 @@
-// Tier 3 (Component): an index into an intrinsic indexer -- an array's, a span's, a string's -- is bound
-// against the parameter Standard declares for it and judged there, as an index into a user indexer is,
-// while the bounds question stays the refinement prover's. Built over the real Standard sources, since a
-// shell declares no indexer to bind against. WHY each integral is admitted, and where classic differs, is
-// recorded once, on order 5 of backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): an intrinsic array, span or string index is bound against Standard's declared
+// parameter and judged like a user indexer's. Bounds remain the refinement prover's question. These
+// fixtures use real Standard sources because a shell declares no indexer; Assignability states the
+// admitted integral conversions.
 
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;

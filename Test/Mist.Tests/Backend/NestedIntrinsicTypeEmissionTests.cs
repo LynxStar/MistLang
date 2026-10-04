@@ -1,5 +1,5 @@
-// Tier 3 (Component): how a nested type of a constructed generic is spelled in C#, which is the half of
-// order 66 that samples never reached -- foreach never names an enumerator's type, and a local holding
+// Tier 3 (Component): how a nested type of a constructed generic is spelled in C#.
+// Foreach never names an enumerator's type, and a local holding
 // one had emitted the bare `Enumerator`. Built over the real Standard sources for the intrinsic cases and
 // a probe type for the user case; the emitted text is asserted because a program printing the right value
 // is equally consistent with `var`. The array case is a struct the backend generates: the CLR has no

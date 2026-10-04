@@ -1,8 +1,7 @@
-// Tier 3 (Component): what PatternAnalyzer deliberately does NOT report -- a test of an indeterminate
-// input, of an unsealed class against an abstract, of a refinement, a comparison against a numeric or
-// enum input, a legitimate widening arm, a catch-all that only the last arm is -- and the reach facts the
-// corpus cannot phrase. WHY each is silent is recorded once, on order 8 of
-// backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): tests PatternAnalyzer deliberately admits: indeterminate inputs, unsealed
+// classes against abstracts, refinements, numeric or enum comparisons, widening arms and a final
+// catch-all. The analyzer states the input-flow and comparability rules; these rows also pin model
+// reach facts.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

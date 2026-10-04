@@ -1,4 +1,4 @@
-// Structural guard over the fix for the suite-wide flake in backlog/flaky-tests.yaml. Asserted on the
+// Structural guard over the fix for the suite-wide flake in backlog/issues.yaml (ARCH-135/ARCH-136). Asserted on the
 // SOURCE rather than on behaviour, because the thing it protects is unobservable at runtime: what the
 // fix removes is a race, so a run that passes proves nothing and a regression would reappear as
 // occasional unrelated failures in whichever tests happened to be reading the standard library.
@@ -67,7 +67,7 @@ public sealed class NestedBuildBanTest
             offenders.Count == 0,
             "A test spawns `dotnet run --project` without --no-build, which builds the CLI from inside "
                 + "the suite and rewrites Source/Standard under a running compiler. See "
-                + "backlog/flaky-tests.yaml:\n" + string.Join("\n", offenders));
+                + "backlog/issues.yaml (ARCH-135/ARCH-136):\n" + string.Join("\n", offenders));
     }
 
     [Fact]

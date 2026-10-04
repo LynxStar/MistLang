@@ -1,10 +1,7 @@
-// Covariant widening of a generic at unknown argument positions, and the C# spelling that makes it
-// emittable. Both halves are here because the capability is the pair: the relation has to HOLD for the
-// model to know a widened receiver is legal, and the construction has to be spelled `dynamic` for
-// Roslyn to accept the assignment the relation permits. Neither is visible from program output -- the
-// relation because nothing in v2 refuses a program on containment, the spelling because a passing
-// program says only that SOME conversion happened. Order 82 of
-// backlog/emitter-v2-capability-progression.yaml rests on this file.
+// Covariant widening at unknown generic argument positions and its C# spelling. The relation must
+// permit the widened receiver, while dynamic emission must let Roslyn accept that assignment. Model
+// and text assertions distinguish Mist's conversion decision from a conversion the generated C#
+// chooses.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel.Construction.Binding;

@@ -1,9 +1,7 @@
-// Tier 3 (Component): what order 6's rules deliberately do NOT report, and the reach facts the corpus
-// cannot phrase. The fixture types are themselves under analysis in every row, so the accesses their
-// bodies make -- a private member from its own type and a nested one, a protected member from a
-// derivation, an internal member across types of one compilation, a public class over an internal
-// abstract -- are silences proven by every row. WHY each is silent is recorded once, on order 6 of
-// backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): declaration and accessibility shapes deliberately admitted by the analyzers,
+// plus model reach facts. Fixtures pin private access from the declaring or nested type, protected
+// access from a derivation, internal access within a compilation, and a public class over an
+// internal abstract. AccessDomains and DeclarationShapeAnalyzer state the rules.
 
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;

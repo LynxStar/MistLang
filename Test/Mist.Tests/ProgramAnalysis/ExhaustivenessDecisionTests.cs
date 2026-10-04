@@ -1,8 +1,7 @@
-// Tier 3 (Component): what ExhaustivenessAnalyzer deliberately does NOT report, and the one reach test
-// the corpus cannot phrase. The corpus holds each thing the rule reports; a silence has no line to put
-// a marker on, so each is pinned here instead. WHY each is silent -- the tuple sample that only range
-// reasoning could prove, the guard no rule here can evaluate, the enum decision that departs from
-// classic -- is recorded once, on order 3 of backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): switch shapes ExhaustivenessAnalyzer deliberately leaves unreported. A tuple
+// may need range reasoning to prove coverage, guards are not evaluated, and enum variants form a
+// closed domain. The analyzer reports only missing cases it proves; switch severity remains MIST-106
+// in backlog/issues.yaml.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

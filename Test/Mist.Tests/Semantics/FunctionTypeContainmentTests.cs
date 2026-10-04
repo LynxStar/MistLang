@@ -1,10 +1,7 @@
-// Tier 1 (Unit): what ConversionRelation says about a structural function type. Hand-built types, no
-// pipeline -- the rule is keyed on a CLR name, so naming that type directly is the whole of the setup.
-//
-// Asserted here rather than through a sample because a LONE candidate is selected without the relation
-// being consulted at all, so a program calling a single delegate-taking method runs either way. Only a
-// call with a second candidate reaches this, and order 109 of
-// backlog/emitter-v2-capability-progression.yaml records where that was measured.
+// Tier 1 (Unit): ConversionRelation for a structural function type, with hand-built types and no
+// pipeline. The rule is keyed on a CLR name, so naming the type is the setup. A lone call candidate
+// is selected without consulting the relation; competing candidates exercise the containment
+// distinction.
 
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Types;

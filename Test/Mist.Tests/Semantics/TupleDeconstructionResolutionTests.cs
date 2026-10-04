@@ -1,8 +1,7 @@
-// Tuple deconstruction declarations: where each target's type comes from, and what is refused. Asserted
-// on the model because the two Mist forms lower to ONE C# shape, so output cannot distinguish a target
-// typed by the element from one C# inferred for itself -- and the difference is what makes a target over
-// an unknown element narrowable. Order 102 of backlog/emitter-v2-capability-progression.yaml rests on
-// this file.
+// Tuple deconstruction declarations: where each target's type comes from, and what is refused.
+// Asserted on the model because the two Mist forms lower to ONE C# shape, so output cannot
+// distinguish a target typed by the element from one C# inferred for itself -- and the difference is
+// what makes a target over an unknown element narrowable.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model;

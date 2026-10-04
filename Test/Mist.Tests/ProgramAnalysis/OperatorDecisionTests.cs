@@ -1,7 +1,6 @@
-// Tier 3 (Component): what order 9's rules deliberately do NOT report -- the operators the language
-// admits, the positions that are fine, the captures a static lambda may make of its own -- and the
-// reach facts the corpus cannot phrase. WHY each is silent, and which of them classic refuses, is
-// recorded once, on order 9 of backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): admitted operators, legal expression positions and captures a static lambda
+// may make of its own bindings, plus model reach facts. OperatorAnalyzer and PositionAnalyzer state
+// these rules.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

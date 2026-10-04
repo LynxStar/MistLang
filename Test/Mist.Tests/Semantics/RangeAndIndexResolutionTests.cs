@@ -1,8 +1,7 @@
 // From-end indices, range expressions, and what an element access yields once the ARGUMENT's type is
-// consulted. Asserted on the MODEL because output cannot tell an element from a sub-sequence: a slice
-// mistyped as its element type still emits `numbers[1..3]`, which Roslyn resolves to the right thing on
-// its own, so a passing program says nothing about what Mist decided. Orders 123 and 124 of
-// backlog/emitter-v2-capability-progression.yaml rest on this file.
+// consulted. Asserted on the MODEL because output cannot tell an element from a sub-sequence: a
+// slice mistyped as its element type still emits `numbers[1..3]`, which Roslyn resolves to the right
+// thing on its own, so a passing program says nothing about what Mist decided.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
@@ -82,7 +81,7 @@ public sealed class RangeAndIndexResolutionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// The claim order 124 exists for: the SAME receiver and the SAME indexer yield different types
+    /// The SAME receiver and the SAME indexer yield different types
     /// according to what the argument is. Both halves are asserted because a slice typed as its element
     /// type is the exact failure the model must rule out, and only the pair distinguishes it.
     /// </summary>

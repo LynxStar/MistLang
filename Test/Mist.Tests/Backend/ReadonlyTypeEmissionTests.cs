@@ -1,10 +1,9 @@
-// Where `readonly` survives emission and where it cannot. Asserted on the emitted TEXT rather than on
-// the model, because the model carries one flag for every position and the whole capability is that the
-// flag lands differently in each -- C# has no `readonly class`, refuses a writable instance field on a
-// readonly struct, and refuses `readonly` on a class method. None of that is observable from program
-// output either: a readonly field and a writable one holding the same value print identically, so
-// AllFeaturesV2 cannot guard any of it. Order 134 of
-// backlog/emitter-v2-capability-progression.yaml rests on this file.
+// Where `readonly` survives emission and where it cannot. Asserted on the emitted TEXT rather than
+// on the model, because the model carries one flag for every position and the whole capability is
+// that the flag lands differently in each -- C# has no `readonly class`, refuses a writable instance
+// field on a readonly struct, and refuses `readonly` on a class method. None of that is observable
+// from program output either: a readonly field and a writable one holding the same value print
+// identically, so AllFeaturesV2 cannot guard any of it.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

@@ -16,7 +16,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// domain of the type it names, whether a use sits inside the member's -- <see cref="AccessDomains"/> --
 /// and whether a declaration exposes a type less accessible than itself. A member of a type out of reach,
 /// and a declaration exposing one, are left to the name that reached the type, so that one mistake is
-/// one complaint. Order 6 of the analysis register.
+/// one complaint.
 /// </summary>
 internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
 {

@@ -1,15 +1,15 @@
 # Program Analysis (Stage 5)
 
-The rules that judge a finished program model. Rule structure, contracts and historical
-evidence are in `backlog/analysis-v2-capability-progression.yaml`. Current outstanding
-work and closure evidence are tracked only in `backlog/issues.yaml`.
+The rules that judge a finished program model. Their contracts live in the requirements,
+current rule implementations and tests. Outstanding work, deliberate policy limits and
+closure evidence are tracked in `backlog/issues.yaml`.
 
 ## Isolation
 
 The same rule as `Source/Mist/ProgramModel/`: this is the only analyzer suite in the tree, and the one it
 replaced, classic's `Mist.Analysis`, exists only in git history. Nothing here may reintroduce its types
 or be derived from that source; see the clean-room rule in the root `CLAUDE.md`. Classic's diagnostic
-ids and messages, as the specs and registers record them, are observable behaviour and may be matched.
+ids and messages, as the specs and canonical evidence record them, are observable behaviour and may be matched.
 
 ## The contract
 
@@ -32,8 +32,7 @@ ids and messages, as the specs and registers record them, are observable behavio
 - Scope is every assembly with Mist source, Standard included, exactly as emission's is.
 - Anything flow-sensitive stands on `Flow/`: one `FlowGraph` per body root from `FlowGraphBuilder`,
   one forward solver, `FlowSolution`, over whatever `IFlowLattice` the rule defines. A rule that
-  walks statements with its own notion of a join is the five-frameworks failure the register's
-  one-flow-framework invariant names.
+  walks statements with its own notion of a join breaks the shared-flow-framework invariant.
 - What a predicate admits has one home too: `Refinements/` reads a bound predicate into an interval
   set (`Requirement`, `Admitted`) and every proof -- a constant, an implication, a narrowing -- is a
   subset question there. What a receiver gives `this` and what a method needs of it is `ThisTiers`.

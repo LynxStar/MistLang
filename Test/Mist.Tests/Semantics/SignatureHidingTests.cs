@@ -1,11 +1,8 @@
-// Tier 3 (Component): which declaration a call reaches when two share a closed signature -- a derived
-// type's hiding a base's, or a later declaration repeating an earlier one on the same type -- asserted on
-// the recorded method, since emission lets Roslyn resolve the call again. Every INHERITANCE fixture here
-// is a program order 6 admits, bar the one row that names a refused hide to pin what its use still binds:
-// what a class inherits cannot be hidden, so the inherited declaration answers, and a conformer answering
-// an abstract's slot is the one declaration that does beat what it comes from.
-// Why each verdict is the right one is recorded on order 6 of
-// backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): which declaration a call reaches when two share a closed signature, asserted
+// on the recorded method because emission lets Roslyn resolve the call again.
+// DeclarationShapeAnalyzer admits these inheritance fixtures except the row that pins a refused
+// hide: inherited declarations answer, while a conformer answering an abstract slot supplies the
+// implementation.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.Tests.Helpers;

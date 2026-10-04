@@ -15,7 +15,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// The pattern questions that are assignability's question asked of a test rather than a value: a type
 /// test no value of the input could pass, a relational or constant bound the
 /// input cannot be compared with or that is not a constant, and an arm an earlier arm already covers.
-/// Order 8 of the analysis register. Each pattern is judged against the type flowing INTO it -- the
+/// Each pattern is judged against the type flowing INTO it -- the
 /// scrutinee's, a conjunct's predecessor's narrowing, a member's, a tuple element's, a list element's
 /// or slice's -- and an input
 /// that is indeterminate, <c>unknown</c> above all, admits any test, since that is what a test of it

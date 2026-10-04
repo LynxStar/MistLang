@@ -1,9 +1,8 @@
 // An enum variant in pattern position, asserted on the MODEL. Output cannot carry any of this: a
 // program that prints True for `d is Direction.North` is equally consistent with a type test that
-// happened to succeed, and the load-bearing claim is that the dotted name resolved as a VALUE at all.
-// The negatives -- a dotted name that is NOT a variant, which must keep reporting an unresolved type --
-// are compile failures and exist nowhere else. Order 99 of
-// backlog/emitter-v2-capability-progression.yaml rests on this file.
+// happened to succeed, and the load-bearing claim is that the dotted name resolved as a VALUE at
+// all. The negatives -- a dotted name that is NOT a variant, which must keep reporting an unresolved
+// type -- are compile failures and exist nowhere else.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Expressions;
@@ -67,7 +66,7 @@ public sealed class EnumVariantPatternResolutionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// The whole of what order 99 is about. A Mist variant is a VALUE, so <c>Direction.North</c> names no
+    /// A Mist variant is a VALUE, so <c>Direction.North</c> names no
     /// type -- and the reading has to be tried BEFORE type resolution, which reports what it cannot find
     /// rather than declining. A test that only checked the bound pattern would pass with the diagnostic
     /// still being emitted alongside it.

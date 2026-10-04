@@ -1,8 +1,6 @@
-// Tier 3 (Component): what order 12's prover deliberately does NOT report -- the constants that
-// satisfy, the implications that hold, the narrowings the flow establishes, the indices it proves,
-// and the arguments a call discharges the same way -- and the reach facts the corpus cannot phrase.
-// WHY each is silent, and which of them classic refuses, is recorded once, on order 12 of
-// backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): constants that satisfy predicates, implications that hold, flow narrowings,
+// proven indices and discharged call arguments, plus model reach facts. RefinementAnalyzer and the
+// refinement proof components state why these uses are admitted.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

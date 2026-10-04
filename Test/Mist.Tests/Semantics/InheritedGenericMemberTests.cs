@@ -1,8 +1,7 @@
-// What an inherited member of a GENERIC base resolves to. Asserted on the model because the answer is a
-// type, and a sample can only show it indirectly: printing the right value proves the field was found
-// and initialized, not that Mist typed it by the receiver's argument rather than leaving it an open
-// parameter. A method's half of the same question is InheritedGenericMethodTests. Orders 16 and 53 of
-// backlog/emitter-v2-capability-progression.yaml rest on this file.
+// What an inherited member of a GENERIC base resolves to. Asserted on the model because the answer
+// is a type, and a sample can only show it indirectly: printing the right value proves the field was
+// found and initialized, not that Mist typed it by the receiver's argument rather than leaving it an
+// open parameter. A method's half of the same question is InheritedGenericMethodTests.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Statements;

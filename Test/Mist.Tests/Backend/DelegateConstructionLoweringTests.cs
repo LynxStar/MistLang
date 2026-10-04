@@ -1,10 +1,8 @@
-// Tier 1 (Unit): whether a value crossing between Mist's structural func and a CLR delegate of the same
-// signature needs constructing in C#. Hand-built types, no pipeline.
-//
-// The two sides are ONE type to Mist, so nothing in the model or in a program's output distinguishes
-// them -- a sample passing a func where a Predicate is declared fails at the C# compiler, which is a
-// whole pipeline away from the predicate deciding it. Order 109 of
-// backlog/emitter-v2-capability-progression.yaml records what that cost to find.
+// Tier 1 (Unit): whether a value crossing between Mist's structural func and a CLR delegate of the
+// same signature needs constructing in C#. Hand-built types, no pipeline. The two sides are ONE
+// type to Mist, so nothing in the model or in a program's output distinguishes them -- a sample
+// passing a func where a Predicate is declared fails at the C# compiler, which is a whole pipeline
+// away from the predicate deciding it.
 
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.ProgramModel.Contracts.Types;

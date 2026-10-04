@@ -1,9 +1,8 @@
 // Tier 3 (Component): a lambda or a method group passed to a call that has not yet fixed its type
-// arguments or chosen its overload. The ordinary arguments fix what they can, the callable is typed by
-// that, and its result teaches the rest; under several candidates each types the lambda its own way and
-// the lambda can decide between them. Asserted on the model because the emitter states what the model
-// chose and C# would infer or select most of these calls again by itself. Orders 55 and 108 of
-// backlog/emitter-v2-capability-progression.yaml rest on this file.
+// arguments or chosen its overload. The ordinary arguments fix what they can, the callable is typed
+// by that, and its result teaches the rest; under several candidates each types the lambda its own
+// way and the lambda can decide between them. Asserted on the model because the emitter states what
+// the model chose and C# would infer or select most of these calls again by itself.
 
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;

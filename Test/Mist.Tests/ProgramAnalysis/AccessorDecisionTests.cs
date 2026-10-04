@@ -1,8 +1,7 @@
-// Tier 3 (Component): what AccessorAnalyzer deliberately does NOT report. Every fixture type is under analysis
-// in every row, so what the fixture bodies write -- a get-only auto-property in its own constructor, an init-only
-// one on `this` in a constructor or init accessor of its type or a derivation, a private setter from its own
-// type, a lambda there and a nested type -- is a silence proven by each of them. WHY each is admitted is
-// recorded on order 9 of backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): the writes AccessorAnalyzer deliberately admits. Every fixture is analyzed in
+// every row: a get-only auto-property in its own constructor, an init-only one on this in a
+// constructor or init accessor of its type or derivation, and a private setter from its own type,
+// lambda or nested type. AccessorAnalyzer states the access and initialization privileges.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

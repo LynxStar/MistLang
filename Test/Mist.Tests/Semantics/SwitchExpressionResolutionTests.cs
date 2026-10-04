@@ -1,8 +1,7 @@
-// Switch-expression binding: the result type every arm has to agree on, and the SCOPE of what an arm's
-// pattern introduces. The scope half is the part no sample can carry, for the reason given in
+// Switch-expression binding: the result type every arm has to agree on, and the SCOPE of what an
+// arm's pattern introduces. The scope half is the part no sample can carry, for the reason given in
 // PatternResolutionTests -- a sample that compiles proves a binding is reachable somewhere, and the
-// claim is about where it stops. Orders 95 and 96 of
-// backlog/emitter-v2-capability-progression.yaml rest on this file.
+// claim is about where it stops.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;

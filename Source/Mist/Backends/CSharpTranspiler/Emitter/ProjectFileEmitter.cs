@@ -41,7 +41,7 @@ internal static class ProjectFileEmitter
     /// none, it still turns the output into an executable, and that has no entry point at all
     /// (CS5001), which is what a plain test project is. So the suppression follows the
     /// <c>Main</c>. Splitting emission per assembly removes the need for this; see
-    /// <c>backlog/multi-project-emission.md</c>.
+    /// <c>backlog/issues.yaml MIST-172</c>.
     /// </summary>
     private static string EmitEntryPointSuppression(ProjectOutputType outputType, bool carriesEntryPoint)
     {

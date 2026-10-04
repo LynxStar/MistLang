@@ -1,7 +1,6 @@
-// Tier 3 (Component): the kind of conversion ConversionClassifier finds between two types of a real
-// model. Every row is a case whose answer is a decision rather than an accident -- the rules the partial
-// ConversionRelation declines, stated -- so a changed answer is a changed language, and the reasons are
-// recorded once, on order 4 of backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): the conversion kind between two types of a real model. ConversionClassifier
+// states the total classification rules that the partial ConversionRelation declines; these rows pin
+// those language decisions independently of emitted conversions.
 
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;

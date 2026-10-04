@@ -7,8 +7,8 @@ public static partial class ProgramAnalysisDiagnostics
     /// <summary>
     /// A switch expression some value of its scrutinee reaches no arm of. A WARNING, which is classic's
     /// severity for the same finding (MIST_TC_0090): the program compiles, and an unmatched value throws
-    /// at runtime. Whether Mist should refuse instead is an open decision recorded on order 3 of
-    /// backlog/analysis-v2-capability-progression.yaml, not one this descriptor gets to make.
+    /// at runtime. Whether Mist should refuse instead is the open policy MIST-106 in
+    /// backlog/issues.yaml, not one this descriptor gets to make.
     /// </summary>
     public static readonly DiagnosticDescriptor SwitchNotExhaustive = new(
         new DiagnosticId("MIST_PA_SWITCH_NOT_EXHAUSTIVE"),

@@ -3,7 +3,7 @@
 // alike, C# accepts `K?` as a nullable REFERENCE annotation, so a wrong spelling there compiles,
 // warns about nothing and runs identically -- measured. Only the struct-constrained case changes
 // behaviour, so samples/GenericOptionals guards one of the three rows and this file guards all of
-// them. Order 78 of backlog/emitter-v2-capability-progression.yaml rests on it.
+// them.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

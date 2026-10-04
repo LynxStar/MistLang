@@ -16,7 +16,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// nothing else checks them at all. An argument that is itself a type parameter is judged by
 /// <see cref="ConstraintEntailment"/> against what it declares, at the site that forwards it; a pack
 /// forwarded whole, or one of its elements, is judged for stampable alone, a pack's constraints being
-/// elementwise and the element's rebinding not this rule's to invent. Order 6 of the analysis register.
+/// elementwise and the element's rebinding not this rule's to invent. Nonstampable forwarded pack
+/// constraints remain MIST-028 in backlog/issues.yaml.
 /// </summary>
 internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 {

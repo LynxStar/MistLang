@@ -92,8 +92,7 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// A refinement in a signature is no longer refused: order 141 gives it a C# spelling, the type
-    /// it refines. The predicate constrains which values may reach the slot, which is a question
+    /// A refinement in a signature is spelled as the type it refines. The predicate constrains which values may reach the slot, which is a question
     /// settled before the value gets there rather than a different runtime representation -- so
     /// erasing it in a FIELD, a parameter or a return type loses nothing. Where it may not be
     /// erased is a test, and that refusal lives with the test; see
@@ -108,8 +107,7 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// A dependent parameter is no longer refused: order 146 gives it a C# spelling, a type
-    /// parameter constrained to a witness interface carrying the value.
+    /// A dependent parameter is spelled as a type parameter constrained to a witness interface carrying the value.
     /// </summary>
     [Fact]
     public void DependentTypeParameter_IsNoLongerRefused()
@@ -120,7 +118,7 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
     /// <summary>
     /// A PACK keeps the refusal, and this is what stops the narrowing above from having quietly
     /// un-refused both. Its domain is Type[], so carrying one means a witness per type LIST, which
-    /// orders 149 to 151 have yet to build.
+    /// this guard cannot spell as a C# type.
     /// </summary>
     [Fact]
     public void TypePack_IsStillRefused()

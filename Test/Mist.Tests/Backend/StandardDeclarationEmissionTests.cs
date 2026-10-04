@@ -1,7 +1,7 @@
-// Tier 3 (Component): which Standard declarations the backend supplies rather than emits. The rule is
-// per declaration (order 186 of backlog/emitter-v2-capability-progression.yaml), and Void is the
-// non-intrinsic case with a stand-in: its C# shape needs members Mist cannot spell, so it is held here to every
-// member Void.mist declares, which is what keeps the two from drifting apart silently.
+// Tier 3 (Component): which Standard declarations the backend supplies rather than emits. The rule
+// is per declaration, and Void is the non-intrinsic case with a stand-in: its C# shape needs members
+// Mist cannot spell, so it is held here to every member Void.mist declares, which is what keeps the
+// two from drifting apart silently.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

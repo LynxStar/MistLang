@@ -1,9 +1,9 @@
-// Tuple positional patterns: which grammar alternative a spelling takes, what each element position is
-// typed by, and whether matching type-tests or only deconstructs. Asserted on the MODEL because output
-// cannot tell these apart -- a program that prints the right answer says only that SOME match happened,
-// where the thing that makes the C# correct is whether the tuple type is tested at runtime, which is a
-// different construct and not a different spelling. The negatives are compile failures and so exist
-// nowhere else. Order 103 of backlog/emitter-v2-capability-progression.yaml rests on this file.
+// Tuple positional patterns: which grammar alternative a spelling takes, what each element position
+// is typed by, and whether matching type-tests or only deconstructs. Asserted on the MODEL because
+// output cannot tell these apart -- a program that prints the right answer says only that SOME match
+// happened, where the thing that makes the C# correct is whether the tuple type is tested at
+// runtime, which is a different construct and not a different spelling. The negatives are compile
+// failures and so exist nowhere else.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Expressions;

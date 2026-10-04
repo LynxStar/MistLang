@@ -1,8 +1,7 @@
-// Anonymous types: the shape a literal resolves to, and what unifies two of them. Asserted on the MODEL
-// because C# identifies its own anonymous types by the same rule, so a program that runs proves only
-// that the two pipelines agreed -- whether Mist DECIDED the two literals were one type, or merely
-// emitted something C# then unified, is visible nowhere else. Orders 180 and 181 of
-// backlog/emitter-v2-capability-progression.yaml rest on this file.
+// Anonymous types: the shape a literal resolves to, and what unifies two of them. Asserted on the
+// MODEL because C# identifies its own anonymous types by the same rule, so a program that runs
+// proves only that the two pipelines agreed -- whether Mist DECIDED the two literals were one type,
+// or merely emitted something C# then unified, is visible nowhere else.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;

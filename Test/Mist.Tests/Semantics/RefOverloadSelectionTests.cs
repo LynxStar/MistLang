@@ -5,7 +5,7 @@ namespace Mist.Tests.Semantics;
 
 /// <summary>
 /// Selecting between a by-ref and a by-value overload of one name. Asserted on the RECORDED choice
-/// rather than on output, for the reason order 26 gives: emission re-writes the call the way source
+/// rather than on output: emission re-writes the call the way source
 /// spelled it and lets Roslyn resolve it again, so a program printing the right answer is equally
 /// consistent with Mist having chosen nothing. The model is the only place the choice can be seen.
 /// <para>

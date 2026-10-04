@@ -1,9 +1,8 @@
-// List patterns and slice elements: what each element position is typed by, where the binders live, and
-// which shapes are refused. Asserted on the MODEL because the thing that makes the C# correct is that a
-// positional element and a slice scrutinee DIFFERENT types -- an element and a sub-sequence -- and a
-// slice element typed as an element still emits `.. var middle`, which Roslyn types correctly by itself.
-// The negatives are compile failures and so exist nowhere else. Order 125 of
-// backlog/emitter-v2-capability-progression.yaml rests on this file.
+// List patterns and slice elements: what each element position is typed by, where the binders live,
+// and which shapes are refused. Asserted on the MODEL because the thing that makes the C# correct is
+// that a positional element and a slice scrutinee DIFFERENT types -- an element and a sub-sequence
+// -- and a slice element typed as an element still emits `.. var middle`, which Roslyn types
+// correctly by itself. The negatives are compile failures and so exist nowhere else.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;

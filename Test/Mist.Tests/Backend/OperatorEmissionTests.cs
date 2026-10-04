@@ -1,7 +1,7 @@
 // Tier 3 (Component): what a user-declared operator emits. Asserted on the emitted TEXT because the
-// sample cannot see most of it -- a misspelled symbol fails Roslyn and so the sample, but a type whose
-// equality warnings go unsuppressed still runs and prints the same, and the in-process compile reports
-// errors only. Order 185 of backlog/emitter-v2-capability-progression.yaml rests on this file.
+// sample cannot see most of it -- a misspelled symbol fails Roslyn and so the sample, but a type
+// whose equality warnings go unsuppressed still runs and prints the same, and the in-process compile
+// reports errors only.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

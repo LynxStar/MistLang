@@ -1,8 +1,7 @@
-// Tier 3 (Component): what ConformanceAnalyzer deliberately does NOT report. The fixtures are themselves
-// under analysis in every row, so a default left unfilled, a default a conformer restates, a generic
-// slot closed by the base list, a slot filled by an inherited member, a diamond filled once, a with
-// block answered by a mapping and one answered by the type's own member are silences proven by every
-// row. WHY each is silent is recorded once, on order 7 of backlog/analysis-v2-capability-progression.yaml.
+// Tier 3 (Component): the conformance shapes ConformanceAnalyzer deliberately admits. Fixtures pin
+// defaults left unfilled or restated by a conformer, generic slots closed by the base list,
+// inherited fillers, diamonds filled once, and with blocks answered by mappings or the type's own
+// members. The analyzer states the slot/default/filler contract.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

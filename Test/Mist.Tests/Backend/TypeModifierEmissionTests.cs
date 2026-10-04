@@ -1,9 +1,8 @@
 // Where a type's accessibility and `sealed` survive emission. Asserted on the emitted TEXT because
-// stdout cannot see either: a sealed class and an open one print alike, and a nested type
-// collapsed to C#'s default only shows as a Roslyn refusal of a valid program. A sealed struct is
-// the one declaration that must NOT keep its modifier: C# refuses `sealed struct` as CS0106, and a
-// struct emitted as one is sealed already. Orders 40 and 41 of
-// backlog/emitter-v2-capability-progression.yaml rest on this file.
+// stdout cannot see either: a sealed class and an open one print alike, and a nested type collapsed
+// to C#'s default only shows as a Roslyn refusal of a valid program. A sealed struct is the one
+// declaration that must NOT keep its modifier: C# refuses `sealed struct` as CS0106, and a struct
+// emitted as one is sealed already.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

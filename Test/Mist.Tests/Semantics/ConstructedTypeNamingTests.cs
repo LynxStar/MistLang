@@ -74,6 +74,22 @@ public sealed class ConstructedTypeNamingTests
     }
 
     /// <summary>
+    /// A dependent value names itself by its digits whichever box holds it, so ulong's upper half and the
+    /// long it would wrap to are two names as they are two types.
+    /// </summary>
+    [Fact]
+    [Trait("Tier", "1")]
+    public void AConstructionOverADependentValue_IsNamedByTheValuesDigits()
+    {
+        var int32 = Definition("Int32", "Standard");
+        var top = new ConstructedType(Definition("Mask<>"), [new LiftedType(int32, ulong.MaxValue)]);
+        var wrapped = new ConstructedType(Definition("Mask<>"), [new LiftedType(int32, -1L)]);
+
+        Assert.Equal("Mask<18446744073709551615>", top.Name);
+        Assert.Equal("Mask<-1>", wrapped.Name);
+    }
+
+    /// <summary>
     /// A non-generic definition has no marker to strip, so its name passes through whole.
     /// </summary>
     [Fact]

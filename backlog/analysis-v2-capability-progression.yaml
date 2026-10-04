@@ -3110,10 +3110,16 @@ rules:
       (Tier 1) and ReferenceLocationSiteTests the walk (Tier 2). VERIFIED: zero warnings, format clean,
       and full ledger 20261001-191512 passing all 11,350 tests (10,395 compiler, 99 CLI, 856 source
       generator), both sample baselines included, failures.txt empty.
+
+      READONLY FIELD ACCOUNTING CORRECTED (2026-10-03). The former task claiming writes outside a
+      constructor reach Roslyn is already implemented: ReadonlyAnalyzer.JudgeFieldWrite reports
+      MIST_PA_READONLY_FIELD_ASSIGNED, and its Frame.Constructs distinguishes a constructor of the
+      field's own declaring type and a write through this. The same rule is recorded under order 11.
+      OwnershipRefusalTests holds writes from an ordinary method and from outside the type;
+      ReadonlyContextGapTests holds the permitted constructor writes. Rechecked on fdd5fc1c:
+      focused ledgers 20261003-202902 and 20261003-203112 passed 16/16 and 85/85 respectively.
+      This is a stale-task correction, not a new implementation or a claim about unary operators.
     tasks:
-      - >
-        A readonly FIELD assigned outside a constructor is left to Roslyn (CS0191): the analysis owner
-        of a body is its type, not its member, so a constructor cannot yet be told from a method.
       - >
         Member callability on an unknown-typed readonly receiver (order 83) is not decided; nothing
         distinguishes closed-with-unknown from an open generic construction yet.

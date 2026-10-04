@@ -1558,7 +1558,19 @@ while retiring classic, which reported both itself.
 **Action:** report the first at the point the assembly scope imports the name, and refuse invoking a
 non-callable member in the binder; one Tier 1-3 row each.
 
-## 🔴 A type test against a sized array never tests the length
+## 🟢 A type test against a sized array never tests the length
+
+**Closed (2026-10-03):** every runtime narrowing site now states the length the C# spelling erases. `ErasedShape`, over `LengthErasure.ErasedLength`, emits `five is int[] { Length: 3 } three`. `int[3]`, `int[5]` and `int[]` switch arms emit as distinct arms in first-match order, so a five-element input reaches `int[5]` and the unsized arm still catches every other length. `Span<int, 3>` and `ReadOnlySpan<int, 3>` tested over an unknown-length span emit `System.Span<int> { Length: 3 }` and its read-only twin. The clause also reaches:
+- typed property prefixes, merged with any members (`five is Three {} three` emits `int[] { Length: 3 } three`);
+- member subpatterns (`Holder { Data: int[] { Length: 3 } d }`);
+- tuple type tests (`System.ValueTuple<int[], string> { Item1: { Length: 3 } } whole`), positional elements, nested tuples and optional tuple elements;
+- refined tests rendered as Boolean conditions.
+
+A checked `as` against such a target is a pattern, `(five is int[] { Length: 3 } __asN ? __asN : default(int[]))`: a mismatch is void and the operand runs once. A tuple target names the ValueTuple instead of deconstructing `object` (CS8129), which also repairs an unsized `as (int, string)`. The reproduction above now skips the branch and prints `True` for `as`; with length 3 it prints `matched 3` and `False`.
+
+A sequence whose elements carry a length (`int[3][2]`, `(int[3], string)[]`) cannot be checked by any C# pattern, so it is refused as `MIST_BE_UNSUPPORTED_SIZED_ELEMENT_TEST` at every runtime test site rather than tested on its outer length. Unchanged on purpose: `(int[3])unknownValue` stays `MIST_PA_CAST_HAS_NO_CONVERSION`; `int[] as int[3]` and `span as Span<int, 3>` stay `MIST_PM_AS_NO_RELATIONSHIP`, so no optional span is produced; unsized and nominal tests and `as` keep their spellings.
+
+ErasedShapeTests (Tier 1), SizedSequencePatternEmissionTests and two PropertyPatternEmissionTests rows (Tier 2), and SizedSequenceRuntimeBoundaryTests (Tier 4: one Roslyn compile running each route against matching, mismatching and zero lengths, with operand counters) hold it. Disabling `ErasedLength` failed 37 of the 59 focused tests. samples/SizedSequencePatterns banks the source forms in AllFeaturesV2. Rebased onto main `815b26c6`, the full ledger `20261003-221251` passed 9,837/9,837 (Mist.Tests 8,824) with zero build warnings, and `dotnet format Mist.slnx --verify-no-changes` passed. The action below is complete; a union of two sized arrays is recorded separately below.
 
 **Severity: high** -- a silent wrong answer. dependent-types Requirement 9.1 makes a pattern on a closed
 dependent type branch on the embedded value, and for an array that value is the length. Found 2026-10-03
@@ -1580,3 +1592,22 @@ as `FixedBuffer<Const_Int_6>`, and `six is FixedBuffer<5>` answers false.
 array is tested at run time (a type test, a typed property pattern, `as`, a cast, a tuple's tested type),
 or refuse a sized test whose input does not already carry the length -- and apply the same to
 `Span<T, Length>`. Pin the emission at Tier 1 beside `EmitTypeTest`, and the decision at its owning tier.
+
+## 🟡 A union of two sized arrays collides in its carrier
+
+**Severity: medium** -- the build fails, with `MIST_CS_ERROR` over generated C#. Found 2026-10-03 while closing "A type test against a sized array never tests the length"; not caused by it.
+
+**Verified empirically** (2026-10-03):
+
+```mist
+type Sized = int[3] | int[5];
+
+static string Describe(Sized value)
+{
+    return value switch { int[3] three => "three", int[5] five => "five" };
+}
+```
+
+The carrier is `Union_Int32Array_Int32Array`. It declares `IsInt32Array`, `AsInt32Array` and `AsInt32ArrayOrNull` twice, and two implicit conversions from `int[]`, so Roslyn reports duplicate members and ambiguous conversions. Both constituents erase to `int[]`, so neither a C# conversion nor a runtime type test can tell them apart. Which constituent a value is depends on its length. A union of one sized array and an unrelated type, `int[3] | string`, works.
+
+**Action:** decide the representation. Either name each constituent by its Mist type, length included, and choose the tag at construction from the static type, or refuse a union whose constituents erase to one C# type. The TypeUnions sample's `untested` list in the emitter register records that no union whose constituents erase to one CLR type is exercised.

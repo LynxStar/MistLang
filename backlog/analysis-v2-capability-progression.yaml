@@ -2832,7 +2832,9 @@ rules:
       a runtime type. PROVED BY ten Tier 1 rows -- six covering, four not -- of which the three conversion
       rows failed on the old relation; three mutations each caught by their own rows (the inheritance
       walk, the unknown target, the unrefining). Probing it found that a sized array's type test never
-      tests the length (`five is int[3]` matches five elements), recorded in backlog/general.md.
+      tests the length (`five is int[3]` matches five elements), recorded in backlog/general.md and closed
+      the same day: every runtime test now states the length (emitter order 139), so the emitted switch
+      agrees with this relation: after an `int[3] b` arm, an `int[] a` arm still receives every other length.
 
       THE COPY IS FOLLOWED AS FAR AS IT REACHES (2026-10-03, emitter order 86). ConversionRelation now reads a
       copy three ways, as itself, unaided, and chained, and CopiesAClone asks the chained reading, so a test

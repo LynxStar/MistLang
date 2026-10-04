@@ -93,6 +93,7 @@ Add the `as` operator to the Mist programming language. The `as` operator provid
       - **NonProvable + value type target from unknown**: emit `(operand is TargetType __t ? __t : default(TargetType?))`
       - **NonProvable + union source**: emit union extraction using existing union emission infrastructure
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
+    - Standard-pipeline sized-target correction (2026-10-03): a checked target whose C# spelling drops a concrete length, `int[3]` or a tuple holding one, is emitted as a pattern rather than C#'s `as`: `(x is int[] { Length: 3 } __asN ? __asN : default(int[]))`, and a tuple target names the ValueTuple (`System.ValueTuple<int[], string> { Item1: { Length: 3 } }`) instead of the positional pattern over `object` it used to write, which also repairs an unsized `as (int, string)`. A mismatch answers void, the operand is evaluated once, and unsized and nominal targets keep `(x as T)`. The relation is unchanged: `int[] as int[3]` stays refused. See emitter orders 103 and 139. _Requirements: 3.3, 6.4, 6.5, 6.7._
 
   - [x] 7.2 Write emission tests for `as` expressions
     - Verify provable conversions emit no runtime checks (Property 5)

@@ -1,0 +1,20 @@
+using Standard;
+
+namespace Snippet;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        unknown five = new int[5];
+        int[3]? three = five as int[3];  // five elements: the length check fails, so the result is void
+        Console.WriteLine(three is void);
+
+        unknown pair = (new int[3], "label");
+        var found = pair as (int[3], string);
+        if (found is (int[3], string) labelled)
+        {
+            Console.WriteLine($"{labelled.Item2}: {labelled.Item1.Length}");
+        }
+    }
+}

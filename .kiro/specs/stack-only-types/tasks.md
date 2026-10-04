@@ -69,6 +69,7 @@ Tasks build bottom-up: grammar/AST + `SpanType` + stdlib declaration first, then
     - In `Source/Mist/Backends/CSharpTranspiler/CSharpTypeMap.cs`, beside the `ArrayType a => $"{...}[]"` branch, add `SpanType s when s.IsReadOnly => "System.ReadOnlySpan<...>"` and `SpanType s => "System.Span<...>"`, resolving the element via `GetTypeName`; add a `SpanType s => TypeContainsUnknown(s.ElementType)` arm to `TypeContainsUnknown` (the erased `Length` is irrelevant to emission)
     - This MUST be the Array length-erasure path, NOT the `Task`/`IntrinsicTypeMap` ConstructedType path
     - _Requirements: 6.2, 6.3, 7.1, 7.2 (design: CSharpEmitter — CSharpTypeMap)_
+    - Standard-pipeline runtime-test correction (2026-10-03): the erasure is a spelling of the type and stops at a runtime test. `five is Span<int, 3> three` over an unknown-length span emits `five is System.Span<int> { Length: 3 } three`, and the same holds for `ReadOnlySpan` and for distinct sized span switch arms; declarations, parameters and locals still spell `System.Span<T>`. Span `as` (`MIST_PM_AS_NO_RELATIONSHIP`) and optional spans stay refused. See emitter order 139. _Requirements: 6.2, 7.1._
 
   - [x] 5.2 Write property test for length-erasing emission
     - **Property 13: Length-erasing emission**

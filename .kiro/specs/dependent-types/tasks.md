@@ -154,6 +154,7 @@ This plan implements dependent type parameters across the full Mist compiler pip
   - [x] 8.7 Implement pattern matching emission for closed dependent types
     - `if (x is FixedBuffer<5>)` → `if (x is FixedBuffer<Const_Int_5>)`
     - _Requirements: 9.1, 9.2, 13.9_
+    - Standard-pipeline sized-sequence correction (2026-10-03): `Array<T, N>`, `Span<T, N>` and `ReadOnlySpan<T, N>` erase a concrete `N` from their C# spelling, so every runtime test states it: `ErasedShape` emits `int[] { Length: 3 } three` for a type test, keeps distinct sized switch arms distinct with an unsized arm after them reachable, merges the clause into a typed property prefix, and carries it through tuple type tests, positional elements and nested tuples (`{ Item1: { Length: 3 } }`). Zero lengths, aliases and member subpatterns follow the same rule. A sequence whose elements carry a length is refused as `MIST_BE_UNSUPPORTED_SIZED_ELEMENT_TEST`. See emitter orders 11, 90, 103 and 139 for verification evidence (ErasedShapeTests, SizedSequencePatternEmissionTests, SizedSequenceRuntimeBoundaryTests, samples/SizedSequencePatterns). _Requirements: 9.1, 9.2, 9.5._
   - [x] 8.8 Implement inheritance emission with dependent types
     - Fixed value: `class SmallBuffer : FixedBuffer<10>` → `class SmallBuffer : FixedBuffer<Const_Int_10>`
     - Forwarded parameter: `class ResizableBuffer<N:int> : FixedBuffer<N>` → `class ResizableBuffer<TN> : FixedBuffer<TN> where TN : IConstInt`

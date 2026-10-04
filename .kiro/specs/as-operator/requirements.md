@@ -121,6 +121,8 @@ Key characteristics:
 6. WHEN an As_Expression is a Non_Provable_Conversion and the source is a union type, THE Emitter SHALL emit the union's tag-check logic to extract the constituent or produce `void`.
 7. WHEN an As_Expression is a Non_Provable_Conversion and the source is `unknown`, THE Emitter SHALL emit a C# `is` type-check pattern that produces the value or the void sentinel.
 
+> **Clarified (2026-10-03):** criteria 4, 5 and 7 prescribe C# spellings that are correct only where the C# spelling of the target is the whole runtime test. Where it drops a concrete length -- `int[3]` is `int[]` in C#, and a tuple may hold such an element -- the Emitter tests the length as well, `(x is int[] { Length: 3 } t ? t : default(int[]))`, even for a reference target. The observable contract governs the lowering: the value when it is the target, `void` otherwise, and the operand evaluated once.
+
 ### Requirement 7: As Expression Interaction with Existing Features
 
 **User Story:** As a Mist developer, I want `as` to compose naturally with existing Mist features like `??`, `?.`, pattern matching, and assignment, so that I can write idiomatic code.

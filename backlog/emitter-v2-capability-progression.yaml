@@ -564,6 +564,13 @@ capabilities:
       with direct type-argument and constructor-constraint closures recorded at the element node.
       NamedAllocationElementTypeTests pins identity, unresolved names and arity-bearing Mist diagnostics;
       NamedAllocationElements exercises the emitted allocations and runtime size evaluation in AllFeaturesV2.
+      SIZED TYPE TESTS CHECK THE LENGTH, 2026-10-03. A runtime test against int[3] was emitted as the
+      erased `is int[]`, so `five is int[3] three` matched a five-element array and bound it as int[3], and
+      distinct int[3]/int[5] switch arms reached Roslyn as CS8510. ErasedShape now adds what LengthErasure
+      drops to every runtime test -- `int[] { Length: 3 } three` -- while the declared types still erase;
+      order 139 records the rule. ErasedShapeTests (Tier 1), SizedSequencePatternEmissionTests (Tier 2) and
+      SizedSequenceRuntimeBoundaryTests (Tier 4) hold it, and samples/SizedSequencePatterns banks the source
+      forms in AllFeaturesV2. The dependent-member tasks below are untouched.
     tasks:
       - Resolve a member through a dependent argument's domain, so `arr.Length.ToString()`
         binds on Int32. Needs the expression's type to come from the domain rather than the
@@ -6306,6 +6313,12 @@ capabilities:
 
       NOT banked as a sample: UnknownType needs order 82 (unknown-covariant-generic-widening) as well,
       which is untouched. Its three narrowing sites would compile today.
+      A SIZED TYPE TEST CARRIES ITS LENGTH, 2026-10-03. The C# spelling of int[3] or Span<int, 3> drops the
+      length, so EmitTypeTest appends ErasedShape's clause, `int[] { Length: 3 } three`, and a switch's
+      int[3], int[5] and int[] arms stay distinct, first-match ordered, with the unsized arm reachable. A typed
+      property prefix merges the clause with its own members (`System.ValueTuple<int[], string> { Item1:
+      { Length: 3 }, Item2: "y" } w`), and a refined test rendered as a Boolean condition keeps it. Order 139
+      states the rule; SizedSequencePatternEmissionTests and PropertyPatternEmissionTests hold the spellings.
     analysis_phase_tasks:
       - >
         Report a type test that can never succeed -- a pattern type with no conversion relation to the
@@ -7047,6 +7060,14 @@ capabilities:
       condition bound anything -- it is the only party that knows -- and emission contains it. Reproduced
       on a two-local program with no tuple in it, so the gap is independent of this layer and was merely
       first reached by it.
+      TUPLE FORMS CARRY ELEMENT LENGTHS, 2026-10-03. `(int[3], string) whole` emits
+      `System.ValueTuple<int[], string> { Item1: { Length: 3 } } whole`, a nested tuple nests the clause, and a
+      positional element checks its own length, `(int[] { Length: 3 } three, string s)`. A checked tuple `as`
+      used to write `is (int[], string) __asN`, a positional pattern over object (CS8129, no Deconstruct), and
+      now names the ValueTuple as every other tuple test does; an unsized `pair as (int, string)` was broken
+      the same way and is fixed with it. EmitAsPatternType also sees through an alias or a refinement of a
+      tuple, which it used to spell as a positional pattern. SizedSequenceRuntimeBoundaryTests runs the
+      tuple, positional and nested routes against matching and mismatching lengths.
     analysis_phase_tasks:
       - >
         Report a tuple pattern whose arity or element types make it unsatisfiable for a reason arity
@@ -8990,6 +9011,23 @@ capabilities:
       rather than `System.Span<T>`. Array escapes that by being special-cased ahead of the fallback --
       the length-erasing projection this capability is named for is exactly what Span still lacks.
       StackOnlyTypes is one step further back: `Array<,>` has no member named `AsSpan`.
+      WHAT ERASURE MEANS AT A RUNTIME TEST, 2026-10-03. The erasure is a spelling of the TYPE: declarations,
+      parameters and locals keep `T[]` and `System.Span<T>`, and scalar witnesses, generic identity and value
+      declaration spelling are unchanged. A runtime TEST cannot erase, because succeeding is what establishes
+      the length the narrowed binding promises. So every runtime narrowing site states what the spelling
+      dropped as a C# property clause -- `Length: N` for a concrete length, `ItemK: { ... }` through tuple
+      elements, `null or { ... }` through an optional element -- from ErasedShape over
+      LengthErasure.ErasedLength: type tests, switch arms, typed property prefixes and member subpatterns,
+      tuple type tests and positional elements, refined tests rendered as Boolean conditions, and checked
+      `as`, which takes the pattern form for such a target, `(x is int[] { Length: 3 } __asN ? __asN :
+      default(int[]))`, evaluating its operand once. Span and ReadOnlySpan tests over an unknown-length span
+      get the same clause. An unknown or symbolic length adds nothing. A sequence whose ELEMENTS carry a
+      length (int[3][2], (int[3], string)[]) has no C# pattern for "every element", so it is refused as
+      MIST_BE_UNSUPPORTED_SIZED_ELEMENT_TEST rather than tested on its outer length alone. Left as they were:
+      `span as Span<int, 3>` and `int[] as int[3]` stay MIST_PM_AS_NO_RELATIONSHIP, so no optional span is
+      produced (ref-structs 3.8-3.9, stack-only 9.3), and an explicit `(int[3])unknownValue` stays
+      MIST_PA_CAST_HAS_NO_CONVERSION. A union of two sized arrays erasing to one C# type collides in its carrier;
+      backlog/general.md records it.
     unlocks: [CSharpInteropV2, RefStructs]
 
   - id: stackalloc
@@ -10894,7 +10932,7 @@ capabilities:
         Find a spelling for the two refused relationships, or settle that they stay refused. A sibling
         narrow could go through a common base and a struct-to-abstract through boxing, and both change
         what the operand COSTS, so this is a language decision rather than an emitter one.
-    unlocks: []
+    unlocks: [SizedSequencePatterns]
 
   - id: struct-inheritance-flattening
     name: Struct inheritance by field flattening
@@ -13428,6 +13466,33 @@ samples:
         Neither a struct holding a pack element nor a `where Ts : default` method is emitted per
         instantiation here: both need default witnesses, which an instance does not yet declare
         (variadic-monomorphization's evidence, owned by the generic-default work).
+
+  - name: SizedSequencePatterns
+    intro_order: 105
+    threshold: conversion-classification-for-as
+    requires: [conversion-classification-for-as, stackalloc, tuple-patterns, property-patterns,
+               switch-expressions, type-alias-declarations, pattern-matching-core, unknown-top-type,
+               arrays-sized-index-length, class-declaration, constructors,
+               property-declarations-and-accessors, static-fields, methods-static-and-instance,
+               string-interpolation, var-type-inference, namespace-file-scoped,
+               standard-library-binding, control-flow-basic, statements-core]
+    untested:
+      - >
+        V2-ONLY: written 2026-10-03, after classic was retired, so there is no classic run to capture
+        from. Referenced from AllFeaturesV2 alone, its lines captured from v2 and read against the
+        program by hand.
+      - >
+        A refusal cannot appear in a sample: a runtime test of a sequence whose elements carry a length,
+        MIST_BE_UNSUPPORTED_SIZED_ELEMENT_TEST, is held by SizedSequencePatternEmissionTests at each site
+        that can reach it.
+      - >
+        The emitted clauses are invisible beyond their effect: a check placed on the wrong tuple element
+        would print the same line wherever both elements agree. ErasedShapeTests and
+        SizedSequencePatternEmissionTests hold the spellings, and SizedSequenceRuntimeBoundaryTests runs every
+        route against a mismatching length.
+      - >
+        Exactly-once evaluation is counted for `as` alone; an `is` or switch scrutinee is bound by C# and is
+        not counted here.
 
 # =====================================================================
 

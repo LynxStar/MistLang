@@ -199,3 +199,22 @@ You can also use pattern matching to check dependent type identity at runtime:
 ```mist
 {{#include ../../snippets/type-system/dependent-types/pattern-matching.mist}}
 ```
+
+### Testing a sized array or span
+
+Arrays and spans are dependent on their length too: `int[3]` is `Array<int, 3>`, and `Span<int, 3>` carries its length the same way. Their C# spelling drops it -- `int[3]` is `int[]` in the emitted code, and `Span<int, 3>` is `System.Span<int>` -- so a runtime test cannot be spelled as the C# type alone, or a five-element array would pass `is int[3]` and bind as one. The compiler writes the length into every runtime test instead: `int[] { Length: 3 } three`. Distinct sized switch arms stay distinct, and an unsized arm after them still catches every other length.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/dependent-types/sized-patterns.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/dependent-types/sized-patterns.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The same check reaches a length inside a tuple, `(int[3], string)`, as `{ Item1: { Length: 3 } }`, and `as int[3]` answers `void` for any other length. A test of a sequence whose elements carry their own length, such as `int[3][2]`, is refused (`MIST_BE_UNSUPPORTED_SIZED_ELEMENT_TEST`): no C# pattern can check every element.

@@ -108,6 +108,21 @@ The `unknown` type is Mist's top type — any non-void value can be assigned to 
 
 Since `unknown` can hold any type, the compiler cannot prove the target type matches. The result is always `T?`.
 
+A sized target checks its length as well as its type. The emitted C# spells `int[3]` as `int[]`, and C#'s own `as int[]` would accept an array of any length, so `as int[3]` is emitted as a pattern that tests `Length` too. The same holds for a length inside a tuple target. Either way the operand is evaluated once, and any other length gives `void`.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/as-operator/sized-narrowing.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/as-operator/sized-narrowing.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
 ## Composing with `??`
 
 Because non-provable `as` conversions produce `T?`, they compose naturally with the void-coalescing operator `??` to provide a fallback value when the conversion fails:

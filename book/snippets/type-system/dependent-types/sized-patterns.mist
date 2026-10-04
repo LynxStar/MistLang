@@ -1,0 +1,32 @@
+using Standard;
+
+namespace Snippet;
+
+public class Program
+{
+    private static string Describe(unknown value)
+    {
+        return value switch
+        {
+            int[3] three => $"three elements, first {three[0]}",
+            int[] other => "an array of another length",
+            _ => "not an int array"
+        };
+    }
+
+    public static void Main(string[] args)
+    {
+        unknown five = new int[5];
+        if (five is int[3] three)
+        {
+            Console.WriteLine($"matched {three.Length}");
+        }
+        else
+        {
+            Console.WriteLine("five elements are not an int[3]");
+        }
+
+        Console.WriteLine(Describe(new int[3]));
+        Console.WriteLine(Describe(five));
+    }
+}

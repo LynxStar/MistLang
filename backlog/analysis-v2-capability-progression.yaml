@@ -3112,7 +3112,7 @@ rules:
       generator), both sample baselines included, failures.txt empty.
 
       READONLY FIELD ACCOUNTING CORRECTED (2026-10-03). The former task claiming writes outside a
-      constructor reach Roslyn is already implemented: ReadonlyAnalyzer.JudgeFieldWrite reports
+      constructor reach Roslyn is already implemented: ReadonlyAnalyzer.JudgeAssignment reports
       MIST_PA_READONLY_FIELD_ASSIGNED, and its Frame.Constructs distinguishes a constructor of the
       field's own declaring type and a write through this. The same rule is recorded under order 11.
       OwnershipRefusalTests holds writes from an ordinary method and from outside the type;

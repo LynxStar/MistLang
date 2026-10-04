@@ -5713,6 +5713,11 @@ capabilities:
       accessor with its where clause, both indexer accessors, the lambda, the bound receiver and a qualified reachable
       method group) and CloneConversionRuntimeTests, which runs that Tiger because a mismatched accessor compiles.
       Eleven mutations on confirmed builds each fail at least one test. Full suite green, 6027 of 6027.
+      Promoted private method groups reached through clone accessors complete before their synchronous delegate
+      returns. AsyncAccessorMethodGroupTests constructs static and instance accessor groups directly at Tier 2,
+      checking task signatures, completion adapters, receiver capture once, closed generic call arguments and
+      ordinary sync/declared async controls. A source/runtime probe combining private static and instance
+      promoted closed generic groups with an ordinary generic control returns 17 through both newtype conversions.
       FOUND ON THE WAY, filed as their own tasks rather than fixed here: a coalesce nested in arithmetic emits without
       its parentheses, so `1 + (maybe ?? 0) + 2` prints 6 on v2 and 8 on classic; an optional reference field is
       declared non-nullable, drawing CS8618; an F-bounded constraint (`where T : IRank<T>`) is refused on any class,

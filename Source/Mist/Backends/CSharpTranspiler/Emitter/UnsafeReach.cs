@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
@@ -269,14 +270,16 @@ internal sealed class UnsafeReach : IDisposable
             return null;
         }
 
-        var accessor = reach.accessors.Method(method, ClosedOwner(method.DeclaringType!, receiverType ?? reach.receiver, reach.result));
+        var accessor = reach.accessors.Method(method, ClosedOwner(method.DeclaringType!, receiverType ?? reach.receiver, reach.result))
+            + (function.TypeArguments.Count == 0 ? "" : $"<{string.Join(", ", function.TypeArguments.Select(TypeNameEmitter.Emit))}>");
         var parameters = string.Join(", ", method.ParametersList.Select((_, i) => $"__p{i}"));
         var delegateType = TypeNameEmitter.Emit(function.Type);
+        var completion = AsyncPromotion.IsPromoted(method) ? ".GetAwaiter().GetResult()" : "";
 
         if(function.Receiver is not { } bound || method.Modifiers.IsStatic)
         {
             var leading = Leading(method.Modifiers.IsStatic, null);
-            return $"(({delegateType})(({parameters}) => {accessor}({string.Join(", ", [leading, .. method.ParametersList.Select((_, i) => $"__p{i}")])})))";
+            return $"(({delegateType})(({parameters}) => {accessor}({string.Join(", ", [leading, .. method.ParametersList.Select((_, i) => $"__p{i}")])}){completion}))";
         }
 
         var helper = reach.accessors.Helper("Bound", name =>
@@ -287,7 +290,7 @@ internal sealed class UnsafeReach : IDisposable
             "}",
         ]);
 
-        return $"{helper}({render(bound)}, __t => ({delegateType})(({parameters}) => {accessor}({string.Join(", ", ["__t", .. method.ParametersList.Select((_, i) => $"__p{i}")])})))";
+        return $"{helper}({render(bound)}, __t => ({delegateType})(({parameters}) => {accessor}({string.Join(", ", ["__t", .. method.ParametersList.Select((_, i) => $"__p{i}")])}){completion}))";
     }
 
     private string When()

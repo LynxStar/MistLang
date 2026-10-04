@@ -1,6 +1,7 @@
 using System.Globalization;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
@@ -53,6 +54,7 @@ internal static class BodyEmitter
         Block block, IEnumerable<string> parameterNames, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         using var names = LocalNames.Enter(block, parameterNames);
+        using var lifetimes = LifetimeLowering.Enter(block);
         using var reach = UnitHoisting.Enter(block);
         EmitStatements(block.Statements, 0, writer, diagnostics);
     }
@@ -73,6 +75,7 @@ internal static class BodyEmitter
             using var names = LocalNames.Enter(body, method.ParametersList.Select(parameter => parameter.Name)
                 .Concat(method.ContextBindingsList.Select(binding => binding.Identifier))
                 .Concat(additionalParameterNames ?? []));
+            using var lifetimes = LifetimeLowering.Enter(body);
             using var reach = UnitHoisting.Enter(body);
             EmitContextBindings(method, writer);
             EmitParameterDrops(DropInsertion.DroppedParameters(method, body), 0, body, spell, writer, diagnostics);
@@ -188,9 +191,9 @@ internal static class BodyEmitter
         for(var i = index; i < statements.Count; i++)
         {
             if(statements[i] is LocalDeclarationStatement declaration
-                && DropInsertion.NeedsDrop(declaration, Remainder(statements, i + 1)))
+                && LifetimeLowering.ReleaseOf(declaration, Remainder(statements, i + 1)) is not LifetimeRelease.None and var release)
             {
-                EmitStatement(declaration, writer, diagnostics);
+                var guard = LifetimeLowering.Declare(declaration, release, writer, diagnostics);
                 writer.WriteLine("try");
 
                 using(writer.Block())
@@ -202,7 +205,19 @@ internal static class BodyEmitter
 
                 using(writer.Block())
                 {
-                    EmitRelease(LocalNames.Of(declaration.Local), declaration.Local.Type, writer);
+                    if(guard is null)
+                    {
+                        EmitRelease(LocalNames.Of(declaration.Local), declaration.Local.Type, writer);
+                    }
+                    else
+                    {
+                        writer.WriteLine($"if ({guard})");
+
+                        using(writer.Block())
+                        {
+                            EmitRelease(LocalNames.Of(declaration.Local), declaration.Local.Type, writer);
+                        }
+                    }
                 }
 
                 return;
@@ -950,6 +965,19 @@ internal static class BodyEmitter
     }
 
     internal static void EmitExpression(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(LifetimeLowering.MarksAfter(expression) is { Count: > 0 } marks)
+        {
+            LifetimeLowering.Open(marks, writer);
+            EmitUnmarked(expression, writer, diagnostics);
+            LifetimeLowering.Close(marks, writer);
+            return;
+        }
+
+        EmitUnmarked(expression, writer, diagnostics);
+    }
+
+    private static void EmitUnmarked(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         if(UnitHoisting.Substitution(expression) is { } substituted)
         {

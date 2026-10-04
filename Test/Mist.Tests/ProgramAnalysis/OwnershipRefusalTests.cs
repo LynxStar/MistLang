@@ -1,5 +1,6 @@
 // Tier 2 (Functional): ownership, lease, escape, discipline, tier and readonly rules judge hand-built fragments.
 
+using Mist.ProgramAnalysis.Rules;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -121,5 +122,39 @@ public sealed class OwnershipRefusalTests
     public void AReadonlyMethodMaySetALocalIndexerOnWhatItOwns()
     {
         Assert.Empty(new OwnershipFragments().Analyze("readonly-method-sets-indexer-on-fresh-local"));
+    }
+
+    /// <summary>
+    /// The shapes whose release now follows the executed path stay admitted: a linear local dropped on
+    /// one branch, dropped and given a fresh value -- in a loop too -- or assigned a value after its own
+    /// was consumed. The lowering is only right if the rule lets these through and refuses a use after
+    /// the move, which the rows above hold.
+    /// </summary>
+    [Fact]
+    public void ALinearLocalConsumedAndReintroducedIsAdmitted()
+    {
+        var f = new LifetimeFragments();
+        var t = f.Local("t");
+        var a = f.Local("a");
+        var bodies = new[]
+        {
+            HandBuiltModel.Block(LifetimeFragments.Declare(t, f.New(1)), f.If(HandBuiltModel.Block(LifetimeFragments.Run(LifetimeFragments.Drop(t))))),
+            HandBuiltModel.Block(
+                LifetimeFragments.Declare(t, f.New(1)),
+                LifetimeFragments.Run(LifetimeFragments.Drop(t)),
+                LifetimeFragments.Run(LifetimeFragments.Assign(t, f.New(2))),
+                LifetimeFragments.Run(LifetimeFragments.Drop(t))),
+            HandBuiltModel.Block(
+                LifetimeFragments.Declare(t, f.New(0)),
+                f.While(HandBuiltModel.Block(LifetimeFragments.Run(LifetimeFragments.Drop(t)), LifetimeFragments.Run(LifetimeFragments.Assign(t, f.New(1)))))),
+            HandBuiltModel.Block(
+                LifetimeFragments.Declare(a, f.New(1)),
+                LifetimeFragments.Declare(t, f.New(2)),
+                LifetimeFragments.Run(LifetimeFragments.Drop(t)),
+                LifetimeFragments.Run(LifetimeFragments.Assign(t, LifetimeFragments.Ref(a))),
+                LifetimeFragments.Run(LifetimeFragments.Drop(t))),
+        };
+
+        Assert.All(bodies, body => Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body)));
     }
 }

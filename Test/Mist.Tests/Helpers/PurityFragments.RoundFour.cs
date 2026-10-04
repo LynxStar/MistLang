@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -64,9 +65,12 @@ internal sealed partial class PurityFragments
         var r = new LocalVariable("r", handle);
         var declaration = new LocalDeclarationStatement(h, new NewExpression(Node(), handle, [Literal(integer, 1L)], handle.ConstructorsList[0], [], [integer]));
 
-        return DropInsertion.NeedsDrop(declaration, [
+        Statement[] remainder = [
             new LocalDeclarationStatement(r, null),
-            new ExpressionStatement(Assign(Ref(r), Call(kept, null, 0, Ref(h))))]);
+            new ExpressionStatement(Assign(Ref(r), Call(kept, null, 0, Ref(h))))];
+        var body = HandBuiltModel.Block([declaration, .. remainder]);
+
+        return DropInsertion.ReleaseOf(declaration, remainder, LocalLifetimes.Plan(body)) != LifetimeRelease.None;
     }
 
     private enum LentFrom

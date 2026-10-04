@@ -1,130 +1,115 @@
-// Tier 3 (Component): which bindings a scope drops on the way out, and which it must not. Asserted on
-// the emitted TEXT because an omitted drop and an invented one are both invisible in shape -- only the
-// call the scope makes says which happened. No Roslyn and no process spawning.
+// Which bindings and fields a release reaches, decided one function at a time over types built by
+// hand. How a linear local's release follows the executed path is LocalLifetimeTests' and how it is
+// written is LocalLifetimeEmissionTests'; these are the decisions both stand on.
 
-using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
-using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Flow;
+using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
+using static Mist.Tests.Helpers.LifetimeFragments;
 
 namespace Mist.Tests.Backend;
 
-public sealed class DropInsertionTests : ProgramModelProbe
+[Trait("Tier", "1")]
+public sealed class DropInsertionTests
 {
-    public DropInsertionTests()
-        : base("MistDropInsertion_")
-    {
-    }
+    private readonly LifetimeFragments f = new();
 
-    protected override string Fixtures { get; } = """
-        public linear class Handle
-        {
-            public int Fd;
-            public void Drop() { }
-        }
-
-        public affine class Token
-        {
-            public int Id;
-            public void Drop() { }
-        }
-
-        public class Plain
-        {
-            public int Value;
-            public void Drop() { }
-        }
-
-        public linear class Box
-        {
-            public Handle Inner;
-            public Handle Drop() { return Inner; }
-        }
-
-        public linear class Logged
-        {
-            public Handle Inner;
-            public void Drop() { }
-        }
-
-        public linear class Pair
-        {
-            public Handle First;
-            public Handle Second;
-        }
-
-        public class Sink
-        {
-            public static void Consume(Handle h) { }
-
-            public static void Borrow(readonly ref Handle h) { }
-        }
-        """;
-
-    protected override string Preamble { get; } = "";
-
+    /// <summary>
+    /// Affine allows forgetting and unrestricted owes nothing, so a release there would be a call the
+    /// author declined to make; linear and relevant both owe one.
+    /// </summary>
     [Fact]
-    public void ALinearBindingDropsAtScopeExit()
+    public void OnlyLinearAndRelevantBindingsAreReleasedAtScopeExit()
     {
-        Assert.Contains("h.Drop();", Run("var h = new Handle();"), StringComparison.Ordinal);
+        Assert.Equal(
+            [LifetimeRelease.AtExit, LifetimeRelease.AtExit, LifetimeRelease.None, LifetimeRelease.None],
+            new[] { f.Token, f.Shared, f.Once, f.Plain }.Select(type => Unplanned(f.Local("x", type))));
     }
 
     /// <summary>
-    /// Affine allows forgetting, so a drop here would be a call the author declined to make.
+    /// A linear local the plan covers is released as the plan says, whatever its remainder holds.
     /// </summary>
     [Fact]
-    public void AnAffineBindingDoesNot()
+    public void ACoveredLinearLocalFollowsItsPlan()
     {
-        Assert.DoesNotContain("t.Drop();", Run("var t = new Token();"), StringComparison.Ordinal);
-    }
+        var t = f.Local("t");
+        var declaration = Declare(t, f.New(1));
+        var plan = new LifetimePlan(new Dictionary<LocalVariable, LocalDeclarationStatement> { [t] = declaration });
 
-    [Fact]
-    public void AnUnrestrictedBindingDoesNot()
-    {
-        Assert.DoesNotContain("p.Drop();", Run("var p = new Plain();"), StringComparison.Ordinal);
-    }
+        Assert.Equal(LifetimeRelease.None, DropInsertion.ReleaseOf(declaration, [], plan));
 
-    [Fact]
-    public void HandingTheValueToACallElidesTheDrop()
-    {
-        Assert.DoesNotContain(
-            "h.Drop();",
-            Run("var h = new Handle();\nSink.Consume(h);"),
-            StringComparison.Ordinal);
+        plan.Owe(t);
+        Assert.Equal(LifetimeRelease.AtExit, DropInsertion.ReleaseOf(declaration, [], plan));
+
+        plan.Mark(Ref(t), t, owned: false);
+        Assert.Equal(LifetimeRelease.Guarded, DropInsertion.ReleaseOf(declaration, [], plan));
     }
 
     /// <summary>
-    /// Lending is a loan, so the caller still owes the drop. Reading a member off the value is not a
-    /// move either -- counting references rather than positions would elide both.
+    /// A relevant value is aliasable, so a local transfer leaves both holders releasing it; anything it
+    /// is handed to elsewhere still elides the release, which is the approximation a task's promotion reads.
     /// </summary>
     [Fact]
-    public void LendingAndReadingDoNot()
+    public void ARelevantLocalKeepsTheSubtreeApproximation()
     {
-        Assert.Contains(
-            "h.Drop();",
-            Run("var h = new Handle();\nSink.Borrow(ref h);"),
-            StringComparison.Ordinal);
+        var s = f.Local("s", f.Shared);
+        var alias = f.Local("alias", f.Shared);
+        var take = new Method("Keep", f.Void, [new Parameter("s", f.Shared)], new MemberModifiers { IsStatic = true });
 
-        Assert.Contains(
-            "h.Drop();",
-            Run("var h = new Handle();\nint fd = h.Fd;"),
-            StringComparison.Ordinal);
+        Assert.Equal(LifetimeRelease.AtExit, DropInsertion.ReleaseOf(Declare(s, f.New(1, f.Shared)), [Declare(alias, Ref(s))], LifetimePlan.Empty));
+        Assert.Equal(LifetimeRelease.None, DropInsertion.ReleaseOf(Declare(s, f.New(1, f.Shared)), [Run(f.Call(take, Ref(s)))], LifetimePlan.Empty));
+    }
+
+    [Fact]
+    public void APlanReleasesNothingItDoesNotCover()
+    {
+        var t = f.Local("t");
+
+        Assert.False(LifetimePlan.Empty.Covers(Declare(t, f.New(1))));
+        Assert.Equal(LifetimeRelease.None, LifetimePlan.Empty.ReleaseOf(Declare(t, f.New(1))));
     }
 
     /// <summary>
-    /// The nesting is what orders them: each drop sits inside the try of every binding declared before
-    /// it, so the last declared is the first released.
+    /// A mark is lowered only for a guarded local: an unconditional or absent release has no flag for
+    /// it to change.
     /// </summary>
     [Fact]
-    public void DropsFireInReverseDeclarationOrder()
+    public void MarksAreReadOnlyForAGuardedLocal()
     {
-        var emitted = Run("var first = new Handle();\nvar second = new Handle();");
+        var t = f.Local("t");
+        var u = f.Local("u");
+        var at = Ref(t);
+        var plan = new LifetimePlan(new Dictionary<LocalVariable, LocalDeclarationStatement>
+        {
+            [t] = Declare(t, f.New(1)),
+            [u] = Declare(u, f.New(2)),
+        });
 
-        Assert.True(
-            emitted.IndexOf("second.Drop();", StringComparison.Ordinal)
-                < emitted.IndexOf("first.Drop();", StringComparison.Ordinal),
-            $"second should be released first:\n{emitted}");
+        plan.Owe(t);
+        plan.Mark(at, t, owned: false);
+        plan.Mark(at, u, owned: false);
+
+        Assert.Equal([new LifetimeMark(t, Owned: false)], plan.MarksAfter(at));
+    }
+
+    [Fact]
+    public void AnUninitializedLocalIsAcquiredWhereItIsFirstAssigned()
+    {
+        var r = f.Local("r");
+        var declaration = Declare(r, null);
+        var assignment = Assign(r, f.New(1));
+        var plan = new LifetimePlan(new Dictionary<LocalVariable, LocalDeclarationStatement> { [r] = declaration });
+
+        Assert.Null(plan.AcquiredAt(declaration));
+
+        plan.Mark(assignment, r, owned: true);
+        Assert.Same(assignment.Node, plan.AcquiredAt(declaration));
     }
 
     /// <summary>
@@ -133,10 +118,7 @@ public sealed class DropInsertionTests : ProgramModelProbe
     [Fact]
     public void ADropReturningADroppableValueChains()
     {
-        var emitted = Run("var b = new Box();");
-        Assert.True(
-            emitted.Contains("(b.Drop()).Drop();", StringComparison.Ordinal),
-            $"expected a chained drop, got:\n{emitted}");
+        Assert.Equal("(b.Drop()).Drop()", DropInsertion.DropChain("b", Box()));
     }
 
     /// <summary>
@@ -144,57 +126,64 @@ public sealed class DropInsertionTests : ProgramModelProbe
     /// Drop is not declining -- there is nothing to write that the fields do not already say.
     /// </summary>
     [Fact]
-    public void AContainerWithDroppableFieldsGetsASynthesizedDrop()
+    public void AContainerWithDroppableFieldsGetsASynthesizedDropInDeclarationOrder()
     {
-        var emitted = EmitType("Pair");
+        var pair = Container("Pair", "First", "Second");
 
-        Assert.Contains("public void Drop()", emitted, StringComparison.Ordinal);
-        Assert.Contains("this.First.Drop();", emitted, StringComparison.Ordinal);
-        Assert.Contains("this.Second.Drop();", emitted, StringComparison.Ordinal);
+        Assert.True(DropInsertion.SynthesizesDrop(pair));
+        Assert.Equal(
+            ["this.First.Drop();", "this.Second.Drop();"],
+            DropInsertion.DroppableFields(pair).Select(DropInsertion.FieldDrop));
     }
 
     /// <summary>
     /// Writing a Drop does not discharge the obligation: what the author wrote happens IN ADDITION to
-    /// releasing what the type holds.
+    /// releasing what the type holds, and a field the declared drop hands back is moved instead.
     /// </summary>
     [Fact]
-    public void ADeclaredDropStillOwesItsFields()
+    public void ADeclaredDropOwesEveryFieldItDoesNotHandBack()
     {
-        Assert.Contains("this.Inner.Drop();", EmitType("Logged"), StringComparison.Ordinal);
+        var logged = Container("Logged", "Inner");
+        var box = Box();
+        var silent = new Method("Drop", f.Void, [], default) { Body = HandBuiltModel.Block() };
+        var handing = box.MethodsList.Single(method => method.Name == "Drop");
+
+        Assert.False(DropInsertion.SynthesizesDrop(box));
+        Assert.Equal(["Inner"], DropInsertion.FieldsOwedBy(silent, logged).Select(field => field.Name));
+        Assert.Empty(DropInsertion.FieldsOwedBy(handing, box));
     }
 
-    /// <summary>
-    /// A field the declared drop hands back is moved, so it is not also released.
-    /// </summary>
-    [Fact]
-    public void ADeclaredDropReturningItsFieldOwesNothing()
+    private static LifetimeRelease Unplanned(LocalVariable local)
     {
-        Assert.DoesNotContain("this.Inner.Drop();", EmitType("Box"), StringComparison.Ordinal);
+        var definition = (ClassType)local.Type;
+        var made = new NewExpression(HandBuiltModel.Node(), definition, [], definition.ConstructorsList[0], [], []);
+
+        return DropInsertion.ReleaseOf(Declare(local, made), [], LifetimePlan.Empty);
     }
 
-    private string Run(string statements)
+    private ClassType Container(string name, params string[] fields)
     {
-        var body = BodyIn(statements);
-        var writer = new CSharpWriter();
+        var container = HandBuiltModel.Class(name);
+        container.Modifiers = new MemberModifiers { Discipline = SubstructuralDiscipline.Linear };
 
-        BodyEmitter.EmitBlock(body, writer, new DiagnosticBag());
+        foreach(var field in fields)
+        {
+            container.FieldsList.Add(new Field(field, f.Token, default, default) { DeclaringType = container });
+        }
 
-        return writer.ToString();
+        return container;
     }
 
-    private string EmitType(string typeName)
+    private ClassType Box()
     {
-        var model = BuildModel(statement: "", extraTypes: "", extraPreamble: "", out var diagnostics);
+        var box = Container("Box", "Inner");
+        var inner = box.FieldsList[0];
+        box.MethodsList.Add(new Method("Drop", f.Token, [], default)
+        {
+            DeclaringType = box,
+            Body = HandBuiltModel.Block(Return(new FieldReferenceExpression(HandBuiltModel.Node(), inner))),
+        });
 
-        Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
-
-        var type = Assert.IsAssignableFrom<MemberType>(model.TypesByFQN[$"Probe.{typeName}"]);
-        var emitDiagnostics = new DiagnosticBag();
-        var writer = new CSharpWriter();
-
-        TypeEmitter.EmitTypeBody(
-            type, ConstraintClosureMap.Build(model, emitDiagnostics), model.VariadicUses, writer, emitDiagnostics);
-
-        return writer.ToString();
+        return box;
     }
 }

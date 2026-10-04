@@ -257,7 +257,7 @@ The design unifies cleanup into a single mechanism: the `Drop()` method. The typ
 #### Acceptance Criteria
 
 1. A sample project SHALL exist at `samples/DropSemantics/Program.mist` with a `mist.toml` project file.
-2. The sample SHALL demonstrate: linear type with void Drop, linear type with `T Drop()` (return value), affine type with `with` block, relevant type with multiple aliases, auto-drop at scope exit, drop elision on move, drop elision on return, reverse drop ordering, nested scope ordering, synthetic drop for containing types, field drop restriction, and lending interaction.
+2. The sample SHALL demonstrate: linear type with void Drop, linear type with `T Drop()` (return value), affine type with `with` block, relevant type with multiple aliases, auto-drop at scope exit, drop elision on move, drop elision on return, reverse drop ordering, nested scope ordering, synthetic drop for containing types, field drop restriction, lending interaction, and cleanup that follows the path taken (a move into another local, a drop or return on one branch, and a consumed binding given a fresh value).
 3. Each demonstrated pattern SHALL print labeled output to stdout so correctness is observable.
 4. `samples/AllFeatures/Program.mist` SHALL call `DropSemantics.Program.RunDemo()`.
 5. The sample SHALL compile and run without errors.
@@ -506,7 +506,49 @@ public class Program
             // PROOF: Drop() fires on f here — lending did not move it
         }
 
+        // ─── 11. Linear: cleanup follows the path actually taken ─────────
+        Console.WriteLine("--- 11. Linear: cleanup follows the path taken ---");
+        {
+            var f = new FileHandle(60);
+            var moved = f;
+            Console.WriteLine($"  Moved FileHandle({moved.GetFd()}) to a new local");
+        }
+        DropWhen(61, false);
+        DropWhen(62, true);
+        var kept = KeepOrReplace(63, false);
+        Console.WriteLine($"  KeepOrReplace(false) returned FileHandle({kept.GetFd()})");
+        var given = KeepOrReplace(66, true);
+        Console.WriteLine($"  KeepOrReplace(true) returned FileHandle({given.GetFd()})");
+        given.Drop();
+        kept.Drop();
+        {
+            var f = new FileHandle(64);
+            f.Drop();
+            f = new FileHandle(65);
+            Console.WriteLine($"  Reassigned to FileHandle({f.GetFd()})");
+        }
+
         Console.WriteLine("=== Drop Semantics Done ===");
+    }
+
+    public static void DropWhen(int fd, bool early)
+    {
+        var f = new FileHandle(fd);
+        if (early)
+        {
+            f.Drop();
+        }
+        Console.WriteLine($"  DropWhen({early}) leaving");
+    }
+
+    public static FileHandle KeepOrReplace(int fd, bool keep)
+    {
+        var f = new FileHandle(fd);
+        if (keep)
+        {
+            return f;
+        }
+        return new FileHandle(fd + 4);
     }
 
     public static void ReadFd(readonly ref FileHandle f)
@@ -556,5 +598,20 @@ public class Program
   ReadFd sees FileHandle(30)
   Owner still has FileHandle(30)
   FileHandle(30).Drop() called
+--- 11. Linear: cleanup follows the path taken ---
+  Moved FileHandle(60) to a new local
+  FileHandle(60).Drop() called
+  DropWhen(False) leaving
+  FileHandle(61).Drop() called
+  FileHandle(62).Drop() called
+  DropWhen(True) leaving
+  FileHandle(63).Drop() called
+  KeepOrReplace(false) returned FileHandle(67)
+  KeepOrReplace(true) returned FileHandle(66)
+  FileHandle(66).Drop() called
+  FileHandle(67).Drop() called
+  FileHandle(64).Drop() called
+  Reassigned to FileHandle(65)
+  FileHandle(65).Drop() called
 === Drop Semantics Done ===
 ```

@@ -33,7 +33,7 @@ Linear types imply `owned` — they have single-holder move semantics. You canno
 
 ### Drop Elision
 
-The compiler is smart about when to insert `Drop()`. If a linear value is moved to a function parameter or returned from the function, the caller's `Drop()` is elided — the new owner takes responsibility.
+The compiler is smart about when to insert `Drop()`. If a linear value is moved to a function parameter, into another local, or returned from the function, the caller's `Drop()` is elided — the new owner takes responsibility.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -49,6 +49,38 @@ The compiler is smart about when to insert `Drop()`. If a linear value is moved 
 {{#endtabs }}
 
 When multiple linear variables exist in the same scope, they are dropped in reverse declaration order (last declared, first dropped). The emitted C# uses nested `try/finally` blocks to ensure drops fire even on exception.
+
+### Cleanup Follows the Path Taken
+
+Whether a local still owns its value depends on the path the program took. A `Drop()` on one branch of an `if`, a `return` on one branch, or a hand-off inside a loop leaves the other paths still owing the release, and each value is released exactly once on whichever path actually runs. A local whose value was consumed can be given a fresh one, and that new value is owed a release of its own.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/drop-semantics/path-sensitive-drop.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/drop-semantics/path-sensitive-drop.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The program prints:
+
+```text
+Lease(1) released
+Lease(1) released
+Lease(2) released
+Kept Lease(3)
+Lease(5) released
+Lease(6) released
+Lease(3) released
+Lease(4) released
+```
+
+When ownership is the same on every path, the emitted C# releases the local unconditionally in its `finally`, or not at all when the value is always handed on before anything can fail. When it differs between paths, a flag beside the local records whether it still owns its value: the flag is cleared at the exact point the value is handed on, set again once a fresh value has been assigned, and read by the `finally` before releasing. Because the release sits in a `finally`, an exception thrown while the value is owned still releases it. An exception from the initializer of a new value releases nothing, because no new value exists yet. A value passed as an argument belongs to the callee once the call starts, so a throw from inside the callee is the callee's to clean up.
 
 ### Drop with a Return Value
 
@@ -130,8 +162,9 @@ This inference cascades transitively — if type A contains type B which contain
 
 Drop semantics build on the existing ownership system:
 
-- **Lending** (`readonly ref`, `frozen`) does not transfer drop responsibility. The owner still drops at scope exit.
+- **Lending** (`readonly ref`, `frozen`, `borrowed`) does not transfer drop responsibility. The owner still drops at scope exit, and the lease itself is never dropped.
 - **Moving** (passing by value to a function) transfers drop responsibility to the callee.
+- **Moving into another local** (`var b = a;` or `b = a;`) transfers drop responsibility to the destination.
 - **Returning** transfers drop responsibility to the caller.
 
 Linear and affine types are always owned — the substructural modifier implies `owned`. You don't need to write `owned linear class` — just `linear class`.

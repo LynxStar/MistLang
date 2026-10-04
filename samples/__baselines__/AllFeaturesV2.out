@@ -1521,6 +1521,21 @@ sizeCalls=2
   ReadFd sees FileHandle(30)
   Owner still has FileHandle(30)
   FileHandle(30).Drop() called
+--- 11. Linear: cleanup follows the path taken ---
+  Moved FileHandle(60) to a new local
+  FileHandle(60).Drop() called
+  DropWhen(False) leaving
+  FileHandle(61).Drop() called
+  FileHandle(62).Drop() called
+  DropWhen(True) leaving
+  FileHandle(63).Drop() called
+  KeepOrReplace(false) returned FileHandle(67)
+  KeepOrReplace(true) returned FileHandle(66)
+  FileHandle(66).Drop() called
+  FileHandle(67).Drop() called
+  FileHandle(64).Drop() called
+  Reassigned to FileHandle(65)
+  FileHandle(65).Drop() called
 === Drop Semantics Done ===
 === Substructural Field Discipline Sample ===
 --- 1. Linear container holds linear field ---

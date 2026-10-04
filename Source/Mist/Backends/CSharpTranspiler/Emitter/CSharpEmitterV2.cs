@@ -100,6 +100,7 @@ internal sealed class CSharpEmitterV2
         _ = Directory.CreateDirectory(outputDir);
 
         ContextLowering.Reset();
+        LifetimeLowering.Reset();
         ArrayLowering.Reset();
         ArrayEnumeration.Reset();
         TaskCombinators.Reset();
@@ -144,6 +145,7 @@ internal sealed class CSharpEmitterV2
         }
 
         EmitContextRuntime(outputDir, emittedFiles);
+        EmitOwnershipRuntime(outputDir, emittedFiles);
         EmitArrayRuntime(outputDir, emittedFiles);
         EmitTaskRuntime(outputDir, emittedFiles);
         EmitInvariantRuntime(outputDir, emittedFiles);
@@ -496,6 +498,21 @@ internal sealed class CSharpEmitterV2
         ContextLowering.Emit(writer);
 
         var path = Path.Combine(outputDir, "__Context.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
+    }
+
+    private static void EmitOwnershipRuntime(string outputDir, List<string> emittedFiles)
+    {
+        if(!LifetimeLowering.Used())
+        {
+            return;
+        }
+
+        var writer = new CSharpWriter();
+        LifetimeLowering.Emit(writer);
+
+        var path = Path.Combine(outputDir, "__Ownership.g.cs");
         File.WriteAllText(path, writer.ToString());
         emittedFiles.Add(path);
     }

@@ -3704,6 +3704,22 @@ rules:
       nothing the binder left unwrapped, and a Clone that is not declared owned is still
       MIST_PA_OWNED_SOURCE_NOT_OWNED. A newtype's field-by-field copy is not owned provenance. Tier 2
       OwnedProvenanceTests rows hold both readings over hand-built bodies.
+
+      A LINEAR LOCAL'S IMPLICIT DROP IS JUDGED WHERE IT CAN RUN (2026-10-03, emitter order 161).
+      PurityJudge.ExitDrops mirrored the backend's subtree approximation -- a local handed on anywhere
+      after its declaration had no exit drop at all -- so a drop on one branch hid the release the other
+      branch still made from purity, readonly inference and context calls alike. A user-defined linear
+      local's exit drop is now read from Flow/LocalLifetimes, the plan the backend lowers: reported when
+      some path leaves its scope still owning the value, by its block's end, a return, a break or a
+      throw from a step that may raise one, and filed at its initializer or, with none, its first
+      assignment. A pure method dropping its local on one branch is refused for the implicit drop on
+      the other path as well as for the written one; one returning its local before anything can throw
+      owes nothing, as before; and a lease declared from it owes nothing, where it was charged a second
+      drop. The move rule itself is unchanged: a declaration or assignment taking the local, a consumed
+      binding reassigned, a drop on one branch and a reintroduction inside a loop are admitted, and a use
+      after any of those moves is refused, as the rows above have it. A task, a relevant local, a
+      parameter and a field keep the approximation. ExitDropReachabilityTests (Tier 2, 8) holds the
+      reported set and OwnershipRefusalTests' ALinearLocalConsumedAndReintroducedIsAdmitted the admits.
     tasks:
       - >
         The ownership-v2 spec is stricter than classic in five places v2 follows classic on: mutable
@@ -3723,7 +3739,8 @@ rules:
       - >
         A linear value passed to a plain parameter is admitted after the call by classic and by v2,
         while the emitter's DropInsertion counts that call as a move and elides the drop. One of the
-        two is wrong about what a call does to a linear value.
+        two is wrong about what a call does to a linear value. The local lifetime plan (2026-10-03)
+        keeps emission's reading, being the plan emission lowers, so the disagreement is unchanged.
       - >
         Ownership inference for `var` (order 159's second half) is approximated: an unrestricted local
         satisfies any receiver tier, and none for a lend by call. Classic's inference is finer in
@@ -5728,6 +5745,10 @@ rules:
       report zero warnings/errors, diff checks pass, the second scoped snippet generation is unchanged,
       and the book builds. The full ledger uses DOTNET_USE_POLLING_FILE_WATCHER=1; a writable temporary
       NuGet HTTP cache resolves the initial sandbox cache permission failure without suppressing warnings.
+
+      A LINEAR LOCAL'S DROP, 2026-10-03: ExitDrops reports it only where some path can still release
+      it, from the lifetime plan the backend lowers (order 11), so the context its Drop needs is owed
+      by a scope that can make the call and by no other; still at the end of its declaring block.
     tasks:
       - >
         OPTIONAL-REFERENCE ARGUMENTS ERASED BEHIND A GENERIC KEY REMAIN OPEN. `static T Get<T>() with T

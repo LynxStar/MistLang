@@ -1,0 +1,65 @@
+using Standard;
+
+namespace Snippets;
+
+public linear class Lease
+{
+    int Id;
+
+    public Lease(int id)
+    {
+        this.Id = id;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"Lease({Id}) released");
+    }
+
+    public int GetId()
+    {
+        return Id;
+    }
+}
+
+public class Program
+{
+    public static void Settle(bool early)
+    {
+        var lease = new Lease(1);
+        if (early)
+        {
+            lease.Drop();
+        }
+        // released here only on the path that did not drop it
+    }
+
+    public static Lease KeepOrReplace(bool keep)
+    {
+        var lease = new Lease(2);
+        if (keep)
+        {
+            return lease;
+        }
+        return new Lease(3);
+        // released here only on the path that did not return it
+    }
+
+    public static void Main()
+    {
+        var first = new Lease(4);
+        var second = first;
+        // only second is released: the obligation moved with the value
+
+        Settle(false);
+        Settle(true);
+
+        var kept = KeepOrReplace(false);
+        Console.WriteLine($"Kept Lease({kept.GetId()})");
+
+        var renewed = new Lease(5);
+        renewed.Drop();
+        renewed = new Lease(6);
+        // the fresh value is owed a release of its own
+    }
+}

@@ -10014,7 +10014,10 @@ capabilities:
       is synthesized from its droppable fields in declaration order. Emission nests
       try-finally per binding to get the ordering.
 
-      DELIVERED, ALL OF IT. DropSemantics and SubstructuralFieldDiscipline are banked, byte-identical
+      DELIVERED FOR WHAT CLASSIC PRINTED, which was narrower than "all of it" claimed: the elision was
+      decided for the whole scope at once, and the paragraph below dated 2026-10-03 records the paths
+      that got wrong and what replaced it for a linear local. DropSemantics and
+      SubstructuralFieldDiscipline are banked, byte-identical
       to classic. The nesting is what gives reverse order for free: a declaration that still owns its
       value takes the REST of the block as the body of a try, so each drop sits inside the try of
       every binding declared before it, and try/finally rather than a trailing statement because the
@@ -10039,11 +10042,58 @@ capabilities:
       AN INTRINSIC DROP IS NOT CALLABLE. Standard's Task declares one so a task can carry a
       discipline, which is a claim about Mist's type system; no CLR task has such a member, and
       emitting the call refused the whole program.
+
+      A LINEAR LOCAL'S RELEASE FOLLOWS THE PATH TAKEN (2026-10-03, drop-semantics Req 4.1, 4.5, 4.6,
+      6.2, 9.4, 13.4, 13.5). The elision above was a SUBTREE APPROXIMATION -- NeedsDrop elided a
+      binding's release when any statement after it handed the value on anywhere -- and four programs
+      measured on 0a613679 showed what it cost: `var t = new Token(1); var r = t;` printed 1 twice, a
+      declaration not being a move; `if(flag) { t.Drop(); }` printed nothing for false, the one
+      branch's Drop removing the release from both; a return on one branch leaked the value on the
+      other; and `t.Drop(); t = new Token(2);` leaked token 2. A user-defined linear local, closed
+      generics included, is now planned by ProgramAnalysis/Flow/LocalLifetimes on the flow framework:
+      a lattice of owned or not per local, handed on by a declaration or assignment that takes it
+      whole, a return, a by-value argument or construction argument, or its own Drop, and owning a
+      fresh value after an assignment to it; checked at every Leave of its block and at every step
+      that may throw, a call's hand-off counted first since the callee owns its argument from entry.
+      Each declaration gets one of three releases: NONE when no path can leave its scope still owning
+      the value (`var t = ...; return t;` emits no try at all), AT EXIT when it owns the value of its
+      declaration everywhere (the unconditional finally, unchanged), and GUARDED otherwise. BodyEmitter
+      lowers a guarded local as a bool beside it that its finally reads, cleared by
+      MistOwnership.Handed and set by MistOwnership.Taken, wrapped around the exact node the plan marks.
+      The runtime is __Ownership.g.cs, emitted only when a body used it. An argument is handed on after the last
+      argument that may still throw, so a throw there finds the caller still owning it; a failed
+      reinitializer leaves the flag clear, no new value existing. A lease -- a frozen, borrowed or
+      readonly ref local -- owns nothing: it was released beside its lender before, printing twice.
+      Reverse declaration order is the same nesting. A task and a relevant value keep the subtree
+      approximation, so ReleasedBindings and the promotion that reads it are unchanged for them.
+      PurityJudge.ExitDrops reads the same plan, so purity, readonly inference and context calls
+      judge exactly the releases that can run (analysis order 11).
+      COVERAGE: LocalLifetimeTests (Tier 2, 20 bodies: transfers, chains, a consumed destination,
+      cross-block, both branches, early returns, loops, break, reintroduction, exceptions, the
+      settling argument, leases, lambdas); LocalLifetimeEmissionTests (Tier 2, 13 whole emitted bodies,
+      among them Task and ValueTask beside a guarded local with ReleasedBindings);
+      ExitDropReachabilityTests (Tier 2, 8); DropInsertionTests migrated from a parsed probe to Tier 1
+      decisions (9); and an admitted row in OwnershipRefusalTests. Eleven mutations -- no step
+      throwing, a join forgetting a path, a Leave owing nothing, a declaration or assignment not
+      transferring, the settling argument ignored, a lease owning, the hand-off read after the throw,
+      the flag unread, marks unwrapped, ExitDrops ignoring the plan -- each failed 2 to 18 of them.
+      DropSemantics section 11 prints each of its eight handles exactly once and is banked.
+      STILL OPEN, each measured unchanged: a linear PARAMETER and a FIELD keep the subtree
+      approximation (DroppedParameters, FieldsOwedBy), so `var t = p;` releases token p twice; the
+      plain-parameter disagreement on analysis order 11; overwriting a local that still owns its value
+      releases only the new one (`t = new Token(4)` leaks 3), a policy nothing has decided;
+      `with(t)` on a linear local releases it in the block and again at scope exit (order 162's); a
+      call on a null receiver throws after its arguments were handed on, and an argument followed only
+      by one with no natural C# type (a lambda, a collection) is handed on at itself, so a throw there
+      releases nothing; and a linear ref struct, a for-initializer declaration, and foreach, pattern,
+      deconstruction and `with` bindings are outside the plan. Mist has no `continue`.
     analysis_phase_tasks:
       - >
         Report a use after the binding was moved, and a linear binding dropped twice or not at all.
         The emitter tracks moves to decide ELISION and judges nothing: a program that misuses a
-        linear value emits a drop count this pipeline does not check.
+        linear value emits a drop count this pipeline does not check. For a linear LOCAL the release
+        is now the plan analysis itself computes (LocalLifetimes), so "not at all" cannot arise there;
+        the count stays open for parameters and fields.
     unlocks: []
 
   - id: with-blocks-and-drop-scopes
@@ -12905,6 +12955,10 @@ samples:
         unreachable and no output line asserts it. It also uses dynamic dispatch rather than
         constraint-resolved dispatch.
       - Nothing exercises a use-after-move or a linear binding dropped twice.
+      - Section 11's exceptional paths -- a throw while a local owns its value, a throw from a
+        reinitializer, a throw from an argument after the one handed on -- print nothing a Mist
+        program can observe, having no catch. LocalLifetimeEmissionTests and LocalLifetimeTests
+        (Tier 2) pin them on the emitted body and the plan instead.
 
   - name: Ownership
     intro_order: 68

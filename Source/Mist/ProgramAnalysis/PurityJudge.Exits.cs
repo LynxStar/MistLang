@@ -1,3 +1,4 @@
+using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -17,9 +18,10 @@ internal readonly record struct ExitDrop(string Name, Method Drop, SyntaxNode At
 /// relevant binding the body did not hand on -- as an argument, a return value or an explicit drop --
 /// through its declared Drop and then whatever that Drop hands back, its droppable fields' Drops when it
 /// declares none, or an await when it is a task; and a declared Drop's own body releases every
-/// droppable field it did not hand on after what it was written to do. Mirrors the backend's
-/// DropInsertion rather than sharing it, since analysis may not depend on a backend; a divergence
-/// between the two shows as a drop judged that never runs, or one run unjudged.
+/// droppable field it did not hand on after what it was written to do. Except for a local
+/// <see cref="LocalLifetimes"/> plans, this mirrors the backend's DropInsertion rather than sharing it,
+/// since analysis may not depend on a backend; a divergence between the two shows as a drop judged that
+/// never runs, or one run unjudged.
 /// </summary>
 internal static partial class PurityJudge
 {
@@ -53,13 +55,31 @@ internal static partial class PurityJudge
         }
 
         nodes ??= ScopeNodes(start).ToList();
+        LifetimePlan? lifetimes = null;
 
         foreach(var declaration in nodes.OfType<LocalDeclarationStatement>())
         {
             var local = declaration.Local;
 
+            if(!DropsAtScopeExit(local.Type))
+            {
+                continue;
+            }
+
+            if(LocalLifetimes.IsTracked(local.Type) && (lifetimes ??= LocalLifetimes.Plan(start)).Covers(declaration))
+            {
+                if(lifetimes.ReleaseOf(declaration) != LifetimeRelease.None && lifetimes.AcquiredAt(declaration) is { } acquired)
+                {
+                    foreach(var (drop, isAwait) in Drops(local.Type, awaitable: true, []))
+                    {
+                        yield return new ExitDrop(local.Name, drop, acquired, isAwait, declaration);
+                    }
+                }
+
+                continue;
+            }
+
             if(declaration.Initializer is { } initializer
-                && DropsAtScopeExit(local.Type)
                 && !Moved(nodes, moved => moved is LocalReferenceExpression reference && ReferenceEquals(reference.Local, local)))
             {
                 foreach(var (drop, isAwait) in Drops(local.Type, awaitable: true, []))

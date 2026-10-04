@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis;
+using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -184,17 +185,23 @@ internal static class DropInsertion
             ;
     }
 
-    /// <summary>
-    /// Whether this declaration's local is still owned at the end of <paramref name="remainder"/>, the
-    /// statements that follow it in the block. Only those can move it: a statement before the
-    /// declaration cannot mention the local at all.
-    /// </summary>
-    public static bool NeedsDrop(
-        LocalDeclarationStatement declaration, IReadOnlyList<Statement> remainder)
+    public static LifetimeRelease ReleaseOf(
+        LocalDeclarationStatement declaration, IReadOnlyList<Statement> remainder, LifetimePlan lifetimes)
     {
-        return declaration.Initializer is not null
-            && Releases(declaration.Local.Type)
-            && !remainder.Any(statement => Moves(statement, Same(declaration.Local)));
+        if(!Releases(declaration.Local.Type))
+        {
+            return LifetimeRelease.None;
+        }
+
+        if(lifetimes.Covers(declaration))
+        {
+            return lifetimes.ReleaseOf(declaration);
+        }
+
+        return declaration.Initializer is not null && !remainder.Any(statement => Moves(statement, Same(declaration.Local)))
+            ? LifetimeRelease.AtExit
+            : LifetimeRelease.None
+            ;
     }
 
     /// <summary>
@@ -233,25 +240,25 @@ internal static class DropInsertion
     {
         var released = new List<LocalDeclarationStatement>();
 
-        Collect(body.Statements, released);
+        Collect(body.Statements, LocalLifetimes.Plan(body), released);
 
         return released;
     }
 
     private static void Collect(
-        IReadOnlyList<Statement> statements, List<LocalDeclarationStatement> released)
+        IReadOnlyList<Statement> statements, LifetimePlan lifetimes, List<LocalDeclarationStatement> released)
     {
         for(var i = 0; i < statements.Count; i++)
         {
             if(statements[i] is LocalDeclarationStatement declaration
-                && NeedsDrop(declaration, statements.Skip(i + 1).ToList()))
+                && ReleaseOf(declaration, statements.Skip(i + 1).ToList(), lifetimes) != LifetimeRelease.None)
             {
                 released.Add(declaration);
             }
 
             foreach(var nested in Nested(statements[i]))
             {
-                Collect(nested.Statements, released);
+                Collect(nested.Statements, lifetimes, released);
             }
         }
     }
@@ -288,13 +295,6 @@ internal static class DropInsertion
         }
     }
 
-    /// <summary>
-    /// Whether falling out of scope obliges a drop, which only the two disciplines that REQUIRE one do.
-    /// Linear must drop exactly once and relevant at least once, so a scope holding either has to.
-    /// Affine may drop at most once and unrestricted any number of times, and neither is an obligation
-    /// -- affine explicitly allows forgetting, so inserting a drop there would invent a call the author
-    /// declined to make.
-    /// </summary>
     /// <summary>
     /// The parameters a body drops on its way out: an owned droppable value the caller handed over and
     /// the body did not pass on. A by-reference parameter is a loan and is never one of these.
@@ -348,6 +348,13 @@ internal static class DropInsertion
             && string.Equals(reference.Local.Name, name, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Whether falling out of scope obliges a drop, which only the two disciplines that REQUIRE one do.
+    /// Linear must drop exactly once and relevant at least once, so a scope holding either has to.
+    /// Affine may drop at most once and unrestricted any number of times, and neither is an obligation
+    /// -- affine explicitly allows forgetting, so inserting a drop there would invent a call the author
+    /// declined to make.
+    /// </summary>
     private static bool DropsAtScopeExit(IMistType type)
     {
         return Definition(type) is ConcreteType concrete

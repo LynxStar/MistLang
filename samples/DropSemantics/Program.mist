@@ -239,7 +239,49 @@ public class Program
             // PROOF: Drop() fires on f here — lending did not move it
         }
 
+        // ─── 11. Linear: cleanup follows the path actually taken ─────────
+        Console.WriteLine("--- 11. Linear: cleanup follows the path taken ---");
+        {
+            var f = new FileHandle(60);
+            var moved = f;
+            Console.WriteLine($"  Moved FileHandle({moved.GetFd()}) to a new local");
+        }
+        DropWhen(61, false);
+        DropWhen(62, true);
+        var kept = KeepOrReplace(63, false);
+        Console.WriteLine($"  KeepOrReplace(false) returned FileHandle({kept.GetFd()})");
+        var given = KeepOrReplace(66, true);
+        Console.WriteLine($"  KeepOrReplace(true) returned FileHandle({given.GetFd()})");
+        given.Drop();
+        kept.Drop();
+        {
+            var f = new FileHandle(64);
+            f.Drop();
+            f = new FileHandle(65);
+            Console.WriteLine($"  Reassigned to FileHandle({f.GetFd()})");
+        }
+
         Console.WriteLine("=== Drop Semantics Done ===");
+    }
+
+    public static void DropWhen(int fd, bool early)
+    {
+        var f = new FileHandle(fd);
+        if (early)
+        {
+            f.Drop();
+        }
+        Console.WriteLine($"  DropWhen({early}) leaving");
+    }
+
+    public static FileHandle KeepOrReplace(int fd, bool keep)
+    {
+        var f = new FileHandle(fd);
+        if (keep)
+        {
+            return f;
+        }
+        return new FileHandle(fd + 4);
     }
 
     public static void ReadFd(readonly ref FileHandle f)

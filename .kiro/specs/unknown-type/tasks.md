@@ -444,6 +444,14 @@ Phase D adds the assignability helper for covariant unknown widening, the class-
     - _Requirements: 11.1, 11.2, 11.3, 11.4_
 
 - [x] 25. Bare-unknown member access and operator rejection
+  - Current standard-pipeline failure boundary (2026-10-03): `OperatorDecision` reports
+    `MIST_PA_UNKNOWN_HAS_NO_MEMBERS` / `MIST_PA_UNKNOWN_HAS_NO_OPERATORS`. Failed overload and await expressions
+    retain their inputs for `BodyWalker`, preserving the owning unknown-member/operator refusal for
+    inline and local-initializer forms. A deferred overload/await fallback is suppressed only after
+    positive ownership is recorded by analysis; `ErrorType` alone and an unrelated diagnostic do not
+    count. This preserves Requirements 13.1/13.2 and 16.4 without changing unknown semantics or unary
+    admissibility. Verified diagnostic-identity/location evidence and final gates are recorded in the
+    operator-and-positional-checks and error-sentinel item (5) tracking entries.
   - [x] 25.1 In member-access resolution, when the receiver's static type is exactly `UnknownType`, emit `MIST_TC_0065` (reallocated from the design-document-proposed `MIST_TC_0053`, which was already in use by the pattern-matching feature's `PatternUndefinedProperty` diagnostic — see the "Note on numbering" in `design.md`) and return `ErrorType.Instance`
     - Diagnostic names the receiver's static type and suggests using an `is` pattern to narrow
     - _Requirements: 13.1, 16.4_

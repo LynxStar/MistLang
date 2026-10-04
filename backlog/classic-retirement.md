@@ -350,8 +350,12 @@ Found while closing the gaps, each measured, none established as something class
   storage refusals carried an `EnumMemberResult` arm that `ResolveStorage` cannot produce
   (`c5d33302`). Still open: an enum variant, or a static field or method, named in an initializer or
   a property pattern is `MIST_PM_UNRESOLVED_MEMBER`, "'Widget' has no member named 'Count'", though
-  the member is declared. An `await` over an ErrorType value nothing reported keeps its `'<error>'`
-  wording until that entry's item (5) lands.
+  the member is declared. Historical item (5) also left an `await` over an ErrorType value nothing
+  reported with `'<error>'` wording. Retained-tree recovery (2026-10-03) keeps its operand and defers
+  the fallback only where an input awaits an analysis owner; actual operator/unknown-member refusals
+  now survive failed call/await binding. Bare unfinished ErrorType remains reportable. The item (5)
+  call/await/conditional-access closeout and verification are recorded in the actual body
+  and analysis registers; intrinsic indexing of a sound non-indexable value remains open.
 
 Specs that now disagree with the implementation, beyond the decisions above: project-references
 Requirement 6 (transitive visibility; `MistProject` documents the flat list as deliberate), the

@@ -339,7 +339,7 @@ internal static class ExpressionBinder
         var parameterTypes = choice.Selected?.ParametersList.ConvertAll(
             parameter => choice.Substitution.Apply(parameter.Type, interner));
 
-        return new NewExpression(
+        var creation = new NewExpression(
             node,
             type,
             OwnedProvenance.AtParameters(
@@ -350,6 +350,10 @@ internal static class ExpressionBinder
         {
             ContextTypes = ContextBinding.TypesOf(choice.Selected, contextType => choice.Substitution.Apply(contextType, interner)),
         };
+
+        return choice.FailureExpression is { } failure
+            ? new ErrorExpression(node, [creation], failure.DeferredDiagnostic)
+            : creation;
     }
 
     /// <summary>
@@ -391,7 +395,9 @@ internal static class ExpressionBinder
         var choice = SelectConstructor(
             type, arguments, ArgumentBinder.RefFlags(argumentList), node, new LambdaTrials(ctx, context), context);
 
-        var settled = ArgumentBinder.Settle(arguments, choice.Selected?.ParametersList, choice.Substitution, ctx, context);
+        var settled = choice.FailureExpression is not null
+            ? arguments
+            : ArgumentBinder.Settle(arguments, choice.Selected?.ParametersList, choice.Substitution, ctx, context);
 
         return (settled, choice);
     }
@@ -436,7 +442,7 @@ internal static class ExpressionBinder
         {
             var name = MistType.StripArity(definition.Name);
 
-            OverloadFailure.Report(
+            choice.FailureExpression = OverloadFailure.Retain(
                 choice, concrete.ConstructorsList, arguments,
                 $"constructor '{name}'", node, context.Diagnostics);
         }

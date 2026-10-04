@@ -79,7 +79,7 @@ internal static class BodyWalker
         add<CoalesceExpression>(e => [e.Left, e.Right]);
         add<DefaultExpression>(_ => []);
         add<ElementReadExpression>(_ => []);
-        add<ErrorExpression>(_ => []);
+        add<ErrorExpression>(e => [.. e.Children]);
         add<ExtensionPropertyAccessExpression>(e => [e.Receiver]);
         add<FieldReferenceExpression>(_ => []);
         add<FunctionReferenceExpression>(e => [e.Receiver]);

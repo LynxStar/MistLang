@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
@@ -93,8 +94,21 @@ public sealed class MemberBindingRefusalTests
             value = BindingFragments.Expression(BindingFragments.Identifier("bad"));
         }
 
-        _ = f.Bind(BindingFragments.Identifier("console"), Call("WriteLine", value));
-        var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
+        var expression = f.Bind(BindingFragments.Identifier("console"), Call("WriteLine", value));
+        Diagnostic diagnostic;
+        if(refusal == "unknown-receiver-member-reaches-its-call")
+        {
+            Assert.Empty(f.Diagnostics.ToImmutableArray());
+            var error = Assert.IsType<ErrorExpression>(expression);
+            Assert.False(error.IsReported);
+            diagnostic = Assert.IsType<Diagnostic>(error.DeferredDiagnostic);
+        }
+        else
+        {
+            diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
+        }
+
+
         Assert.Equal(diagnosticId, diagnostic.Id.Value);
         Assert.Equal(31, diagnostic.Location.Start.Column);
     }

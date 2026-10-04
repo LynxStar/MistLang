@@ -377,13 +377,21 @@ internal static class OperatorBinder
 
                     if(!TaskResult.IsTask(operand.Type))
                     {
-                        if(!PriorFailure.Of(operand))
+                        if(PriorFailure.Of(operand))
                         {
-                            context.Diagnostics.ReportAtNode(
-                                ProgramModelDiagnostics.AwaitOfNonTask, node, null, operand.Type.Name);
+                            return new ErrorExpression(node, [operand]);
                         }
 
-                        return new ErrorExpression(node);
+                        if(FailureDependency.NeedsAnalysis(operand))
+                        {
+                            var pending = context.Diagnostics.Withhold(() => context.Diagnostics.ReportAtNode(
+                                ProgramModelDiagnostics.AwaitOfNonTask, node, null, operand.Type.Name));
+                            return new ErrorExpression(node, [operand], pending.Single());
+                        }
+
+                        context.Diagnostics.ReportAtNode(
+                            ProgramModelDiagnostics.AwaitOfNonTask, node, null, operand.Type.Name);
+                        return new ErrorExpression(node, [operand]);
                     }
 
                     return PostfixBinder.BindDrop(node, operand, isImplicit: false, ctx, context);

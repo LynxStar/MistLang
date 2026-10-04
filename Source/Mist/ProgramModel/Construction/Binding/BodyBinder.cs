@@ -94,8 +94,16 @@ internal static class BodyBinder
         var interner = context.ProgramModel.TypeInterner;
         var parameterTypes = choice.Selected?.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner));
 
-        constructor.ChainArgumentsList.AddRange(OwnedProvenance.AtParameters(
-            ImplicitConversions.AtParameters(arguments, choice.Selected, parameterTypes, interner), choice.Selected?.ParametersList));
+        if(choice.FailureExpression is { } failure)
+        {
+            constructor.ChainArgumentsList.Add(failure);
+        }
+        else
+        {
+            constructor.ChainArgumentsList.AddRange(OwnedProvenance.AtParameters(
+                ImplicitConversions.AtParameters(arguments, choice.Selected, parameterTypes, interner), choice.Selected?.ParametersList));
+        }
+
         constructor.ChainedConstructor = choice.Selected;
         constructor.ChainParameterTypes = parameterTypes;
     }

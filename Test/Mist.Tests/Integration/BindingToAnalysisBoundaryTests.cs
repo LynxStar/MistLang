@@ -2,6 +2,7 @@
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Integration;
@@ -58,6 +59,51 @@ public sealed class BindingToAnalysisBoundaryTests : ProgramModelProbe
         var diagnostics = bag.ToImmutableArray().Where(diagnostic => diagnostic.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning).ToArray();
         Assert.True(diagnostics is [var only] && only.Id.Value == expected,
             $"{caseName}: expected only {expected}; got {string.Join(", ", diagnostics.Select(diagnostic => diagnostic.Id.Value))}");
+    }
+
+    [Fact]
+    public void AnalysisOwnedInputsSurviveInlineLocalAndAwaitBinding()
+    {
+        const string source = """
+            namespace Probe;
+            public class Console { public static void WriteLine(unknown value) {} }
+            public class Box { public string Describe() { return "box"; } }
+            public class Probe {
+                public static void InlineOperator(Box p) { Console.WriteLine(p + 1); }
+                public static void LocalOperator(Box p) { var n = p + 1; Console.WriteLine(n); }
+                public static void InlineMember(unknown u) { Console.WriteLine(u.Length); }
+                public static void LocalMember(unknown u) { var n = u.Length; Console.WriteLine(n); }
+                public static void AwaitMember(unknown u) { var r = await u.Length; }
+                public static void AwaitOperator(Box p) { var r = await (p + 1); }
+                public static void InlineConditional(Box p) { Console.WriteLine(p?.Describe()); }
+                public static void LocalConditional(Box p) { var r = p?.Describe(); Console.WriteLine(r); }
+            }
+            """;
+        var model = Build(source, out var binding);
+        Assert.Empty(binding);
+        var bag = new DiagnosticBag();
+        ProgramAnalysisRunner.Run(model, bag);
+        var diagnostics = bag.ToImmutableArray().Where(finding => finding.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning)
+            .OrderBy(finding => finding.Location.Start.Line).ToArray();
+        string[] expected = [
+            "MIST_PA_OPERATOR_NOT_APPLICABLE", "MIST_PA_OPERATOR_NOT_APPLICABLE",
+            "MIST_PA_UNKNOWN_HAS_NO_MEMBERS", "MIST_PA_UNKNOWN_HAS_NO_MEMBERS",
+            "MIST_PA_UNKNOWN_HAS_NO_MEMBERS", "MIST_PA_OPERATOR_NOT_APPLICABLE",
+            "MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL", "MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL",
+        ];
+        Assert.Equal(expected, diagnostics.Select(finding => finding.Id.Value));
+        var owners = SourceBodies.Of(model).SelectMany(root => BodyWalker.DescendantsAndSelf(root.Root))
+            .OfType<Expression>().Where(expression => expression is BinaryExpression
+                or MemberAccessExpression { IsConditional: true }
+                or MemberAccessExpression { Receiver.Type: ProgramModel.Model.Types.UnknownType })
+            .OrderBy(expression => DiagnosticHelper.ResolveLocation(expression.Node).Location.Start.Line).ToArray();
+        Assert.Equal(expected.Length, owners.Length);
+        for(var i = 0; i < diagnostics.Length; i++)
+        {
+            Assert.Equal(i + 5, diagnostics[i].Location.Start.Line);
+            Assert.Equal(DiagnosticHelper.ResolveLocation(owners[i].Node).Location, diagnostics[i].Location);
+            Assert.EndsWith("Program.mist", diagnostics[i].CompilationUnitPath, StringComparison.Ordinal);
+        }
     }
 
     [Fact]

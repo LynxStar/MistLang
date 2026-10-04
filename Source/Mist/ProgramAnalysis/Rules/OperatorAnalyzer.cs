@@ -1,5 +1,4 @@
 using Mist.ProgramModel;
-using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
@@ -19,8 +18,24 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
+        var judged = new HashSet<object>(ReferenceEqualityComparer.Instance);
         foreach(var node in context.Nodes)
         {
+            visit(node);
+        }
+
+        void visit(object node)
+        {
+            if(!judged.Add(node))
+            {
+                return;
+            }
+
+            foreach(var child in BodyWalker.ChildrenOf(node))
+            {
+                visit(child);
+            }
+
             switch(node)
             {
                 case BinaryExpression binary when binary.Type is ErrorType:
@@ -28,22 +43,22 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
                     break;
 
                 case UnaryExpression unary when unary.Type is ErrorType
-                    && !PriorFailure.Of(unary.Operand)
+                    && !context.HasFailure(unary.Operand)
                     && OperatorDecision.Unary(unary.OperatorKind, unary.Operand.Type) is { } refused:
-                    context.Report(
-                        refused, unary.Node, [],
+                    context.Refuse(
+                        unary, refused, [],
                         Spelling(unary.OperatorKind), TypeDisplay.Mist(unary.Operand.Type), TypeDisplay.Mist(unary.Operand.Type));
                     break;
 
                 case MemberAccessExpression { IsConditional: true } access
                     when OperatorDecision.Conditional(access.Receiver.Type) is { } conditional:
-                    context.Report(
-                        conditional, access.Node, [access.Receiver],
+                    context.Refuse(
+                        access, conditional, [access.Receiver],
                         TypeDisplay.Mist(access.Receiver.Type));
                     break;
 
                 case MemberAccessExpression { Receiver.Type: UnknownType, Member: null or NotFoundResult, Type: ErrorType } access:
-                    context.Report(OperatorDecision.Member(access.Receiver.Type)!.Value, access.Node, [access.Receiver], access.MemberName);
+                    context.Refuse(access, OperatorDecision.Member(access.Receiver.Type)!.Value, [access.Receiver], access.MemberName);
                     break;
             }
         }
@@ -61,8 +76,8 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
             return;
         }
 
-        context.Report(
-            descriptor, binary.Node, [binary.Left, binary.Right],
+        context.Refuse(
+            binary, descriptor, [binary.Left, binary.Right],
             Spelling(binary.OperatorKind), TypeDisplay.Mist(binary.Left.Type), TypeDisplay.Mist(binary.Right.Type));
     }
 

@@ -10,6 +10,32 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// </summary>
 internal static class OverloadFailure
 {
+    public static ErrorExpression Retain<T>(
+        OverloadChoice<T> choice,
+        IReadOnlyList<T> candidates,
+        IReadOnlyList<Expression> arguments,
+        string description,
+        Storm.Runtime.SyntaxNode node,
+        DiagnosticBag diagnostics,
+        IReadOnlyList<Expression>? children = null)
+        where T : class, IOverload
+    {
+        var retained = children ?? arguments;
+        if(retained.Any(PriorFailure.Of))
+        {
+            return new ErrorExpression(node, retained);
+        }
+
+        if(retained.Any(FailureDependency.NeedsAnalysis))
+        {
+            var pending = diagnostics.Withhold(() => Report(choice, candidates, arguments, description, node, diagnostics));
+            return new ErrorExpression(node, retained, pending.Single());
+        }
+
+        Report(choice, candidates, arguments, description, node, diagnostics);
+        return new ErrorExpression(node, retained);
+    }
+
     /// <summary>
     /// Reports whichever failure a null <see cref="OverloadChoice{T}.Selected"/> stands for. Called only
     /// where selection failed; with a winner in hand there is nothing here to say.

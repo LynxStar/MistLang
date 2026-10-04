@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 
 namespace Mist.ProgramModel.Model;
@@ -45,6 +46,8 @@ internal sealed class LocalVariable(string name, IMistType type)
     /// value would silence a construct nothing has reported.
     /// </summary>
     public bool IsFailed { get; init; }
+
+    public Expression? FailureSource { get; init; }
 
     public Parameter? Parameter { get; init; }
 

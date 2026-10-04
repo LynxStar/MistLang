@@ -484,22 +484,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// An unknown receiver answers no member and the binder says NOTHING about it -- refusing it is
-    /// MIST_PA_UNKNOWN_HAS_NO_MEMBERS at Stage 5. So the argument must still reach a complaint here,
-    /// which is why suppression is keyed on whether the binder spoke and never on the unresolved result
-    /// alone: the two are indistinguishable in the result and opposite in what they owe the reader.
-    /// </summary>
-    [Theory]
-    [InlineData("var chosen = p.Format(u.Length);")]
-    [InlineData("var r = u.Length; var chosen = p.Format(r);")]
-    public void AnArgumentWhoseReceiverIsUnknown_IsStillReported(string statement)
-    {
-        var diagnostics = BuildRun(statement, extraPreamble: "unknown u = 1;");
-
-        Assert.Equal(UnresolvableId, Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error).Id.Value);
-    }
-
-    /// <summary>
     /// <c>BackendDiagnostics.MethodGroupReachedEmission</c> is meant to be unreachable, which holds
     /// only while every position unable to consume a group reports one instead. These are the two
     /// such positions: a name nothing follows, and an argument, which cannot resolve because the

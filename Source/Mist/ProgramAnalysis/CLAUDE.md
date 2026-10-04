@@ -13,9 +13,16 @@ ids and messages, as the specs and registers record them, are observable behavio
 ## The contract
 
 - A rule is an `IProgramAnalyzer`. It reads the model and reports. It changes nothing.
-- Report through `AnalysisContext.Report`, naming the expressions the finding is **about**. A value that
-  already failed is suppressed there, in one place, so no rule has to remember that the model may hold
-  `ErrorType`.
+- Report through `AnalysisContext.Report`, naming the expressions the finding is **about**. Use positive
+  failure evidence to suppress consequential diagnostics: `ErrorType` and `UnresolvedExpression` alone
+  do not mean a diagnostic was reported. Value rules retain their indeterminate-type guard; deferred
+  fallbacks must report when there is no positive owner. Actual expression refusals live in the per-analysis
+  `ExpressionFailures` store; the finished model stays immutable. A deferred diagnostic on an
+  `ErrorExpression` is a fallback awaiting that analysis, never evidence of a prior report.
+- Failed expressions retain their inputs in `ErrorExpression.Children`. Walk them through `BodyWalker`
+  before settling deferred overload/await fallbacks, including nested failures and local initializer
+  provenance. Preserve independent findings and report the fallback when no positive owner is found.
+  The combined Stage 4/5 gate must still stop emission of a refused model.
 - Report at the syntax node the model already carries — `Expression.Node`, `Pattern.Node`, a
   declaration's `DeclarationNode`. There is no `SourceOrigin` type, whatever older docs say.
 - Expression-level rules read `AnalysisContext.Nodes`, one walk shared by every rule. The walker is a

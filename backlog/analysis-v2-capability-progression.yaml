@@ -2884,6 +2884,41 @@ rules:
       task would refuse samples/RangesAndIndices, and was a decision left open here until order 5 recorded
       it on 2026-09-15 -- a from-end index reaches the element through the length, not the parameter.
 
+      RETAINED FAILED EXPRESSION TREES (2026-10-03). Failed overload and await shapes preserve
+      their inputs through ErrorExpression.Children. BodyWalker visits retained receivers/arguments
+      and nested failures in source order, so an inline binary refusal, unknown member or nonoptional
+      conditional access reaches its existing OperatorDecision just as its local-initializer twin does.
+      The binder may retain a deferred fallback when an input still awaits analysis; this is pending
+      work, never a prior diagnostic. Actual operator refusals are recorded separately in each
+      analysis pass's ExpressionFailures; the failed-expression pass then resolves nested fallbacks
+      through retained children and local initializer provenance. ErrorType and UnresolvedExpression
+      alone establish no ownership. An unrelated diagnostic cannot suppress a fallback, and a sound
+      arity/ambiguity/generic overload or await-of-non-task error stays reportable. This closes the
+      call/await/conditional-access portions of program-model-body-tasks error-sentinel item (5),
+      preserving its intrinsic-index remainder. It changes failure flow, not operator admissibility
+      or unary semantics. FOCUSED VERIFICATION: integrated ledger 20261003-212347 passed 579/579 with no failures/skips,
+      including current-main unary/refinement controls.
+      Tier 1 FailureDependencyTests, ExpressionFailuresTests and PriorFailureConversionTests distinguish
+      reported, deferred and unfinished values; BodyWalkerCoverageTest pins retained-child source order.
+      Tier 2 FailedOverloadRetentionBindingTests and RetainedFailureAnalysisTests cover calls, constructors,
+      constructor chains, user indexers, collection Add, await, failed receivers, independent siblings,
+      conditional unknown/error/optional distinctions, nested/local provenance and fallback identity/span.
+      BindingToAnalysisBoundaryTests adds one batched Tier 4 seam with inline/local binary, unknown-member
+      and conditional-access pairs plus retained await operands. Failed constructor selection keeps
+      raw unsettled arguments: converting an unbound lambda into a reported sentinel before its
+      deferred overload diagnostic is settled would otherwise manufacture ownership. A binder test,
+      a direct analysis-chain fallback test and a private source probe hold this case to the original
+      MIST_PM_UNRESOLVABLE_OVERLOAD with emission stopped. FINAL COMBINED GATES (2026-10-03): integrated onto origin/main 3bd1b507; full ledger
+      20261003-212833 passed 9,739/9,739 (Mist 8,736; CLI 105; Storm consumer 46; Storm 852),
+      zero failures/skips, failures.txt empty, the sole AllFeaturesV2 baseline included. dotnet build
+      Mist.slnx had zero CS/STORM/MSBuild warnings/errors; whole-solution format verification and
+      git diff --check passed. Shared compilation/MSBuild servers were disabled to avoid an inherited
+      compiler-server sandbox write failure, without suppressing warnings. The initial full ledger
+      20261003-210922 exposed one stale eager-overload assertion, corrected to inspect its deferred
+      fallback; both subsequent pre-integration full runs and the final combined run completed green.
+      Current-main unary/async work and its generated book/sample artifacts are preserved; no task-owned
+      book/snippet/sample content changes or second orchestrator are introduced.
+
       ONE HOME FOR WHAT AN OPERATOR ADMITS. OperatorAdmissibility, beside the classifier, gives the type
       a binary operator produces over two operand types or null where none does: numeric promotion as
       C# promotes, string concatenation, a declared operator on either operand's type with projected

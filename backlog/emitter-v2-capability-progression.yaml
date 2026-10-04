@@ -927,6 +927,25 @@ capabilities:
       correct selection from no selection followed by a lucky one. The model is the only place the
       choice can be seen, so that is where the tests read it.
 
+      RETAINED FAILURE BOUNDARY (2026-10-03). An unsuccessful method, constructor or user-indexer
+      selection, or a refused delegate/value invocation, keeps its inputs in ErrorExpression.Children instead
+      of losing an input Stage 5 has not judged. Await failure likewise retains its operand. A
+      deferred overload/await fallback is resolved after actual Stage 5 expression refusals, through
+      retained children and local initializer provenance; it is not a successful invocation or
+      lowering and is not positive prior-failure evidence. BodyWalker supplies the traversal to
+      analysis, flow and naming consumers. StandardPipeline's combined Stage 4/5 diagnostic gate
+      continues to stop emission; BodyEmitter's unsupported-expression diagnostic remains the
+      safeguard for an unexpected failed shape reaching it. Intrinsic indexing of a sound
+      non-indexable value is still an open audit lead, not a delivered refusal. VERIFIED:
+      focused ledger 20261003-212347 passed 579/579; final combined ledger 20261003-212833 passed
+      9,739/9,739, zero failures/skips, including the sole AllFeaturesV2 baseline. Hand-built retention
+      and analysis-chain tests cover receivers, arguments, nested/local provenance, independent errors,
+      unfinished controls and source identities/spans. Failed constructors retain raw unsettled lambda
+      arguments until their fallback is settled, preventing manufactured positive ownership. The
+      solution build has zero CS/STORM/MSBuild warnings/errors; whole-solution formatter verification
+      and git diff --check pass. Integrated unary and async-promotion publications, their generated
+      snippets and sample bookkeeping are preserved. No task-owned book/sample content is changed.
+
       COLLECTION AND SELECTION ARE SEPARATE CONCERNS, and only selection was ever missing.
       CandidateSet.MergeMethods returns the whole overload set spanning the base chain, nearest
       first, shadowing correctly: same name and signature at greater depth is overridden, same name

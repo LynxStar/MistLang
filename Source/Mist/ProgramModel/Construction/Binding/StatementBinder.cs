@@ -160,7 +160,7 @@ internal static class StatementBinder
 
         if(name is not null)
         {
-            local = new LocalVariable(name, keyType?.Type ?? value.Type) { IsFailed = keyType?.IsFailed == true || PriorFailure.Of(value), IsContextBound = true };
+            local = new LocalVariable(name, keyType?.Type ?? value.Type) { IsFailed = keyType?.IsFailed == true || PriorFailure.Of(value), FailureSource = value, IsContextBound = true };
             scope.DeclareLocal(local, context.Diagnostics);
         }
 
@@ -261,6 +261,7 @@ internal static class StatementBinder
                         IsReadonly = IsReadonlyBinding(typed.ReadonlyModifier is not null, typed.OwnershipSpecifier),
                         Ownership = ownership,
                         IsFailed = resolution.IsFailed || (initializer is not null && PriorFailure.Of(initializer)),
+                        FailureSource = initializer,
                     };
                     ctx.Scope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(
@@ -279,6 +280,7 @@ internal static class StatementBinder
                         IsReadonly = IsReadonlyBinding(inferred.ReadonlyModifier is not null, inferred.OwnershipSpecifier),
                         Ownership = inferredOwnership,
                         IsFailed = PriorFailure.Of(initializer),
+                        FailureSource = initializer,
                     };
                     ctx.Scope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(
@@ -526,7 +528,7 @@ internal static class StatementBinder
                     var resolution = context.Resolver.ResolveWithFailure(typed.VariableDeclaration, forScope);
                     var declaredType = resolution.Type;
                     var init = ExpressionBinder.BindExpression(typed.Initializer, ctx, context);
-                    var local = new LocalVariable(typed.Name.Lexeme, declaredType) { IsFailed = resolution.IsFailed || PriorFailure.Of(init) };
+                    var local = new LocalVariable(typed.Name.Lexeme, declaredType) { IsFailed = resolution.IsFailed || PriorFailure.Of(init), FailureSource = init };
                     forScope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(local, init);
                 }
@@ -534,7 +536,7 @@ internal static class StatementBinder
             case ForInitializerVarDeclarationForInitializerNode varDecl:
                 {
                     var init = ExpressionBinder.BindExpression(varDecl.Initializer, ctx, context);
-                    var local = new LocalVariable(varDecl.Name.Lexeme, init.Type) { IsFailed = PriorFailure.Of(init) };
+                    var local = new LocalVariable(varDecl.Name.Lexeme, init.Type) { IsFailed = PriorFailure.Of(init), FailureSource = init };
                     forScope.DeclareLocal(local, context.Diagnostics);
                     return new LocalDeclarationStatement(local, init);
                 }

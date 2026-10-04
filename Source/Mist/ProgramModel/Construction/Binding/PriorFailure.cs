@@ -22,11 +22,13 @@ internal static class PriorFailure
     {
         return value switch
         {
-            ErrorExpression => true,
+            ErrorExpression error => error.IsReported,
             LocalReferenceExpression reference => reference.Local.IsFailed,
-            InvocationExpression call => Of(call.Receiver),
+            InvocationExpression call => Of(call.Receiver) || call.Arguments.Any(Of),
+            MethodGroupExpression { Receiver: { } receiver } => Of(receiver),
+            FunctionReferenceExpression { Receiver: { } receiver } => Of(receiver),
             MemberAccessExpression access => access.IsFailed || Of(access.Receiver),
-            IndexExpression index => Of(index.Receiver),
+            IndexExpression index => Of(index.Receiver) || Of(index.Index),
             ImplicitConversionExpression conversion => Of(conversion.Operand),
             UnaryExpression unary => Of(unary.Operand),
             BinaryExpression binary => Of(binary.Left) || Of(binary.Right),

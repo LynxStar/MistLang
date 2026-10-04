@@ -349,11 +349,9 @@ internal static class PostfixBinder
 
         if(choice.Selected is not { } selected)
         {
-            OverloadFailure.Report(
+            return OverloadFailure.Retain(
                 choice, group.Candidates, bound,
-                $"method '{group.MemberName}'", node, context.Diagnostics);
-
-            return new ErrorExpression(node);
+                $"method '{group.MemberName}'", node, context.Diagnostics, [receiver, .. bound]);
         }
 
         bound = ArgumentBinder.Settle(bound, selected.ParametersList, choice.Substitution, ctx, context);
@@ -477,7 +475,7 @@ internal static class PostfixBinder
             var untargeted = ArgumentBinder.Bind(arguments, ctx, context);
 
             return Callability.Refuses(receiver, node, context)
-                ? new ErrorExpression(node)
+                ? new ErrorExpression(node, [receiver, .. untargeted])
                 : new InvocationExpression(node, receiver, untargeted, receiver.Type, null, parameterTypes: null);
         }
 
@@ -489,7 +487,7 @@ internal static class PostfixBinder
                 ProgramModelDiagnostics.FunctionCallArityMismatch, node, null,
                 function.Name, function.ParameterTypes.Count, bound.Count);
 
-            return new ErrorExpression(node);
+            return new ErrorExpression(node, [receiver, .. bound]);
         }
 
         // Invoking a func VALUE takes the same auto-drop as invoking a method: the rule is about what

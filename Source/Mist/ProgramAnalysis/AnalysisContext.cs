@@ -22,8 +22,11 @@ internal sealed class AnalysisContext(
     string analyzerId,
     IReadOnlyDictionary<CastOperator, ConversionRefusal> conversionRefusals,
     AnalysisModel? scopedModel = null,
-    AnalysisScope? program = null)
+    AnalysisScope? program = null,
+    ExpressionFailures? failures = null)
 {
+    private readonly ExpressionFailures failures = failures ?? new();
+
     public AnalysisModel Model { get; } = scopedModel ?? new AnalysisModel(model, scope, sourcePaths);
 
     /// <summary>
@@ -102,10 +105,9 @@ internal sealed class AnalysisContext(
     }
 
     /// <summary>
-    /// Reports a finding ABOUT the given expressions, and stays silent when any of them already failed.
-    /// Binding and analysis gather into one bag, so a rule runs over a model that may hold ErrorType --
-    /// and a complaint about a value that did not bind is a second complaint about one mistake. Decided
-    /// here, where every report passes, so that no rule has to remember it.
+    /// Reports a finding about values whose types can be judged. The indeterminate ErrorType guard
+    /// does not establish ownership: deferred fallbacks use only positive evidence from
+    /// <see cref="ExpressionFailures"/> and report when no owner exists.
     /// </summary>
     public void Report(
         DiagnosticDescriptor descriptor,
@@ -113,12 +115,41 @@ internal sealed class AnalysisContext(
         IReadOnlyList<Expression> about,
         params ReadOnlySpan<object?> args)
     {
-        if(about.Any(expression => expression.Type is ErrorType) || (scope.Boundary is { } boundary && !boundary.Contains(at)))
+        if(about.Any(expression => expression.Type is ErrorType || failures.Of(expression)) || (scope.Boundary is { } boundary && !boundary.Contains(at)))
         {
             return;
         }
 
         diagnostics.ReportAtNode(descriptor, at, analyzerId, args);
+    }
+
+    public bool HasFailure(Expression expression)
+    {
+        return failures.Of(expression);
+    }
+
+    public void Refuse(
+        Expression expression,
+        DiagnosticDescriptor descriptor,
+        IReadOnlyList<Expression> about,
+        params ReadOnlySpan<object?> args)
+    {
+        if(about.Any(value => value.Type is ErrorType || failures.Of(value))
+            || (scope.Boundary is { } boundary && !boundary.Contains(expression.Node)))
+        {
+            return;
+        }
+
+        diagnostics.ReportAtNode(descriptor, expression.Node, analyzerId, args);
+        failures.Record(expression);
+    }
+
+    public void ResolveFailure(Expression expression)
+    {
+        if(scope.Boundary is null || scope.Boundary.Contains(expression.Node))
+        {
+            failures.Resolve(expression, diagnostics);
+        }
     }
 
     public void ReportAtProject(DiagnosticDescriptor descriptor, MistAssembly project, params ReadOnlySpan<object?> args)

@@ -10,6 +10,7 @@ using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
@@ -36,6 +37,21 @@ public sealed class BodyWalkerCoverageTest
 
         Assert.True(withoutARow.Count == 0, "Node kinds BodyWalker has no row for: " + string.Join(", ", withoutARow));
         Assert.True(notANode.Count == 0, "BodyWalker rows for types that are not nodes: " + string.Join(", ", notANode));
+    }
+
+    [Fact]
+    [Trait("Tier", "1")]
+    public void RetainedFailureTreesVisitReceiversAndArgumentsInNestedSourceOrder()
+    {
+        var receiver = new UnresolvedExpression(HandBuiltModel.Node(1));
+        var left = new UnresolvedExpression(HandBuiltModel.Node(2));
+        var right = new ErrorExpression(HandBuiltModel.Node(3));
+        var inner = new ErrorExpression(HandBuiltModel.Node(4), [left, right]);
+        var lastArgument = new UnresolvedExpression(HandBuiltModel.Node(5));
+        var outer = new ErrorExpression(HandBuiltModel.Node(6), [receiver, inner, lastArgument]);
+
+        Assert.Equal([receiver, inner, lastArgument], BodyWalker.ChildrenOf(outer));
+        Assert.Equal([outer, receiver, inner, left, right, lastArgument], BodyWalker.DescendantsAndSelf(outer));
     }
 
     [Fact]

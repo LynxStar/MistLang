@@ -16,6 +16,8 @@ internal static class ProgramAnalysisRunner
 {
     private static readonly IProgramAnalyzer[] Analyzers =
     [
+        new OperatorAnalyzer(),
+        new FailedExpressionAnalyzer(),
         new ExhaustivenessAnalyzer(),
         new CastAnalyzer(),
         new AssignabilityAnalyzer(),
@@ -26,7 +28,6 @@ internal static class ProgramAnalysisRunner
         new ConformanceAnalyzer(),
         new PatternAnalyzer(),
         new RegexAnalyzer(),
-        new OperatorAnalyzer(),
         new PositionAnalyzer(),
         new AccessorAnalyzer(),
         new DefiniteAssignmentAnalyzer(),
@@ -112,10 +113,11 @@ internal static class ProgramAnalysisRunner
         }
 
         var scopedModel = new AnalysisModel(model, scope, sourcePaths);
+        var failures = new ExpressionFailures();
 
         foreach(var analyzer in Analyzers)
         {
-            var context = new AnalysisContext(model, scope, nodes, roots, assignedBy, sourcePaths, diagnostics, analyzer.Id, refusals, scopedModel, whole);
+            var context = new AnalysisContext(model, scope, nodes, roots, assignedBy, sourcePaths, diagnostics, analyzer.Id, refusals, scopedModel, whole, failures);
             var started = Stopwatch.GetTimestamp();
             analyzer.Analyze(context);
             timings.Record(analyzer, Stopwatch.GetElapsedTime(started));

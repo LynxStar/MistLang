@@ -39,11 +39,9 @@ internal static class IndexBinder
 
         if(choice.Selected is not { } selected)
         {
-            OverloadFailure.Report(
+            return OverloadFailure.Retain(
                 choice, indexers, [index],
-                $"indexer '{TypeDisplay.Mist(receiver.Type)}.this[]'", node, context.Diagnostics);
-
-            return new ErrorExpression(node);
+                $"indexer '{TypeDisplay.Mist(receiver.Type)}.this[]'", node, context.Diagnostics, [receiver, index]);
         }
 
         var type = Indexability.ArrayElement(receiver.Type) ?? Indexability.IndexerType(selected, choice.Substitution, context);

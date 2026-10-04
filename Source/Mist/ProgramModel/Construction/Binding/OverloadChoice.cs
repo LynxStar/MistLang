@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -10,6 +11,8 @@ internal sealed class OverloadChoice<T>
     where T : class, IOverload
 {
     public required T? Selected { get; init; }
+
+    public ErrorExpression? FailureExpression { get; internal set; }
 
     public bool NoArityMatch { get; init; }
 

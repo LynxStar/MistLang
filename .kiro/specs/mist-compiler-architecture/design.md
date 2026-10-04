@@ -765,6 +765,25 @@ CompilerResult { Succeeded, ArtifactPath, Diagnostics }
 
 All diagnostics from every stage are aggregated into a single `ImmutableArray<Diagnostic>` in stage order (R16.2, R17.4). The driver never swallows diagnostics.
 
+### Current standard pipeline failure boundary
+
+`Driver/StandardPipeline` runs Stage 5 whenever Stage 4 produces a model, including a model with
+binding errors. Their combined diagnostic gate prevents Stage 6 from emitting a refused model.
+Failed method, constructor and user-indexer selections, and failed delegate invocations, retain inputs in
+`ErrorExpression.Children`; failed await retains its operand. `BodyWalker` visits these trees so an
+inline invalid operator, unknown member or nonoptional conditional access reaches the same owning
+Stage 5 rule as a value assigned to a local first.
+
+A deferred diagnostic is a fallback, not a prior report. Binding defers only when a retained input
+still needs an analysis decision. Actual expression refusals are recorded in the per-analysis
+`ExpressionFailures` store; the failed-expression pass resolves deferred fallbacks through retained
+children and local initializer provenance after those decisions. It reports the original fallback
+if no positive owner exists. `ErrorType`, `UnresolvedExpression` and unrelated diagnostics do not
+establish ownership. Sound overload and await errors remain reportable, independent errors remain
+independent, and no failed shape represents successful lowering. Intrinsic indexing of a sound
+non-indexable value remains outside this recovery contract. Verification evidence belongs in the
+error-sentinel item (5) and operator-and-positional-checks entries in `backlog/`.
+
 ### Backend resolution
 
 The driver maintains a registry of `IBackend` instances (v1: just `CSharpTranspilerBackend`). `CompilerOptions.Backend` selects which one to invoke (R14.6). If the requested backend ID is not found, the driver emits an Error diagnostic and returns immediately.

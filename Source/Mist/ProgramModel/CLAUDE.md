@@ -3,7 +3,7 @@
 
 ## Purpose
 
-`Mist.ProgramModel` is the compiler's frontend. It represents the fully resolved semantic structure of a Mist program — types, members, namespaces, and relationships — navigable without reference to syntax trees.
+`Mist.ProgramModel` is the compiler's frontend. It represents the resolved semantic structure of a Mist program — types, members, namespaces, relationships and bound bodies. Semantic relationships are navigable directly; declarations, expressions and patterns retain syntax nodes for source-anchored reporting and lowering.
 
 ## Isolation Rule
 
@@ -17,7 +17,7 @@ Code under `Source/Mist/ProgramModel/` MUST NOT reintroduce those types or be de
 
 2. **Contracts first**: All public API is defined through interfaces in `ProgramModel/Contracts/`. Implementations are internal details.
 
-3. **Own types**: The program model defines its own type reference system (`ITypeReference`), its own enums (`OwnershipKind`, `ParameterPassingKind`, etc.), and its own source location type (`SourceOrigin`).
+3. **Own types and source anchors**: The program model defines its own type contracts (`IMistType` and related interfaces) and enums (`OwnershipKind`, `ParameterPassingKind`, etc.). Source anchors are the retained declaration or bound-node syntax nodes; there is no `SourceOrigin` type.
 
 4. **Immutable after construction**: Once built, the program model is read-only. No `Record*` or `Set*` mutation methods on the model itself. Analysis results from later passes live in separate annotation stores.
 
@@ -53,14 +53,14 @@ dotnet format Mist.slnx --verify-no-changes --include Source/Mist/ProgramModel/
 - Extension definitions
 - Conformance declarations (with-blocks)
 - Type parameter constraints
-- Source origin metadata for diagnostics
+- Declaration and bound-node syntax anchors for diagnostics and lowering
 
 ## What Does NOT Belong Here
 
-- Syntax trees or AST nodes
+- Syntax-driven semantic lookup in place of the model's resolved relationships
 - Expression type inference (that's the builder's job, not the model's)
 - Mutable annotation stores for cross-pass communication
-- Anything that requires `Storm.Runtime.SyntaxNode`
+- Cross-pass findings stored on syntax nodes instead of separate analysis stores
 
 # Program Model Verification Policy
 

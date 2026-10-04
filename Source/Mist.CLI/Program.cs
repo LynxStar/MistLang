@@ -529,59 +529,7 @@ internal class Program
             return 1;
         }
 
-        // Run package resolution
-        var packageDiagnostics = new DiagnosticBag();
-        var packageResult = PackageResolver.ResolvePackages(
-            config.Packages,
-            config.FrameworkReferences,
-            config.TargetFramework,
-            packageDiagnostics);
-
-        // Run framework reference resolution
-        var frameworkDiagnostics = new DiagnosticBag();
-        var frameworkResult = FrameworkReferenceResolver.Resolve(
-            config.FrameworkReferences,
-            config.TargetFramework,
-            frameworkDiagnostics);
-
-        // Print per-package detail lines unconditionally
-        foreach(var pkg in packageResult.Resolved)
-        {
-            Console.WriteLine($"Restored {pkg.Name} {pkg.Version} ({pkg.SelectedTfm})");
-        }
-
-        // Print per-framework detail lines unconditionally
-        foreach(var fw in frameworkResult.Resolved)
-        {
-            Console.WriteLine($"Resolved {fw.Name} {fw.Version}");
-        }
-
-        // Print zero-assemblies notes for packages that resolved but contributed nothing
-        foreach(var pkg in packageResult.Resolved)
-        {
-            if(pkg.AssemblyCount == 0)
-            {
-                Console.WriteLine($"{pkg.Name} contributed no assemblies for {config.TargetFramework}");
-            }
-        }
-
-        // Print summary
-        var successCount = packageResult.Resolved.Length + frameworkResult.Resolved.Length;
-        var failureCount = packageResult.FailureCount + frameworkResult.FailureCount;
-        Console.WriteLine($"{successCount} succeeded, {failureCount} failed");
-
-        // Emit diagnostics on failure
-        foreach(var diagnostic in packageDiagnostics.ToImmutableArray())
-        {
-            Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-        }
-
-        foreach(var diagnostic in frameworkDiagnostics.ToImmutableArray())
-        {
-            Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-        }
-
-        return failureCount > 0 ? 1 : 0;
+        return DependencyRestore.Run(config, Console.Out, Console.Error);
     }
 
     private static int RunTestCommand(CliArguments cliArgs)

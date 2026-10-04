@@ -1,9 +1,8 @@
 // Feature: csharp-interop-v2, Task 8.4
-// In-process tests for restore logic — invokes PackageResolver.ResolvePackages
-// and FrameworkReferenceResolver.Resolve directly and verifies the formatted
-// output, exit codes, and diagnostics.
+// In-process tests for `mist restore`: DependencyRestore, the code the command runs, with its
+// output and error streams captured.
 //
-// Validates: Requirements 10.2, 13.2, 13.5
+// Validates: Requirements 10.2, 13.2, 13.3, 13.4, 13.5, 13.7, 13.8
 
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
@@ -13,85 +12,37 @@ using Mist.Driver.Contracts;
 namespace Mist.Tests.Driver;
 
 /// <summary>
-/// In-process tests for the restore command logic. These tests call
-/// <see cref="PackageResolver.ResolvePackages"/> and
-/// <see cref="FrameworkReferenceResolver.Resolve"/> directly, then verify the
-/// output formatting and exit-code-equivalent logic (FailureCount == 0 → exit 0).
-/// Note: Tests that resolve real packages require network access or a pre-cached
-/// copy of the package in ~/.nuget/packages.
+/// The restore command's report. The Newtonsoft.Json tests run a real <c>dotnet restore</c> and need
+/// network access or a pre-cached copy in ~/.nuget/packages; the rest are refused before any process
+/// starts, an invalid version by its syntax and an unknown framework by its name.
 /// </summary>
 public sealed class RestoreCommandInProcessTests
 {
     private const string TargetFramework = "net10.0";
 
-    /// <summary>
-    /// Simulates the RunRestoreCommand output formatting for a given resolution result,
-    /// matching the real CLI's logic from Program.cs.
-    /// </summary>
-    private static (int ExitCode, string Output, string ErrorOutput) SimulateRestoreOutput(
+    private static (int ExitCode, string Output, string ErrorOutput) Restore(
         ImmutableArray<NuGetPackageReference> packages,
         ImmutableArray<FrameworkReference> frameworkReferences)
     {
-        var packageDiagnostics = new DiagnosticBag();
-        var packageResult = PackageResolver.ResolvePackages(packages, TargetFramework, packageDiagnostics);
+        var configuration = new ProjectConfiguration("Probe", "Probe", [], Packages: packages, FrameworkReferences: frameworkReferences);
+        using var output = new StringWriter();
+        using var error = new StringWriter();
 
-        var frameworkDiagnostics = new DiagnosticBag();
-        var frameworkResult = FrameworkReferenceResolver.Resolve(frameworkReferences, TargetFramework, frameworkDiagnostics);
+        var exitCode = DependencyRestore.Run(configuration, output, error);
 
-        var outputLines = new List<string>();
-        var errorLines = new List<string>();
-
-        // Per-package detail
-        foreach(var pkg in packageResult.Resolved)
-        {
-            outputLines.Add($"Restored {pkg.Name} {pkg.Version} ({pkg.SelectedTfm})");
-        }
-
-        // Per-framework detail
-        foreach(var fw in frameworkResult.Resolved)
-        {
-            outputLines.Add($"Resolved {fw.Name} {fw.Version}");
-        }
-
-        // Zero-assemblies notes
-        foreach(var pkg in packageResult.Resolved)
-        {
-            if(pkg.AssemblyCount == 0)
-            {
-                outputLines.Add($"{pkg.Name} contributed no assemblies for {TargetFramework}");
-            }
-        }
-
-        // Summary
-        var successCount = packageResult.Resolved.Length + frameworkResult.Resolved.Length;
-        var failureCount = packageResult.FailureCount + frameworkResult.FailureCount;
-        outputLines.Add($"{successCount} succeeded, {failureCount} failed");
-
-        // Diagnostics on error
-        foreach(var diag in packageDiagnostics.ToImmutableArray())
-        {
-            errorLines.Add(DiagnosticFormatter.Format(diag));
-        }
-
-        foreach(var diag in frameworkDiagnostics.ToImmutableArray())
-        {
-            errorLines.Add(DiagnosticFormatter.Format(diag));
-        }
-
-        var exitCode = failureCount > 0 ? 1 : 0;
-        return (exitCode, string.Join("\n", outputLines), string.Join("\n", errorLines));
+        return (exitCode, output.ToString(), error.ToString());
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test 1: Restore success (real package) → exit 0, output contains
-    //          "Restored {name} {ver} ({tfm})", summary shows "1 succeeded, 0 failed"
-    //          Validates: Requirements 10.2, 13.2
-    // ═══════════════════════════════════════════════════════════════════════
+    private static string[] Lines(string text)
+    {
+        return text.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+    }
 
     [Fact]
+    [Trait("Tier", "4")]
     public void RestoreSuccess_RealPackage_ExitZero_OutputContainsRestoredLine()
     {
-        var (exitCode, output, errorOutput) = SimulateRestoreOutput(
+        var (exitCode, output, errorOutput) = Restore(
             [new NuGetPackageReference("Newtonsoft.Json", "13.0.3")],
             ImmutableArray<FrameworkReference>.Empty);
 
@@ -101,33 +52,24 @@ public sealed class RestoreCommandInProcessTests
         Assert.Empty(errorOutput);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test 2: Restore failure (invalid version) → exit non-zero, MIST_PKG_002,
-    //          summary shows "0 succeeded, 1 failed"
-    //          Validates: Requirements 10.2, 13.5
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
+    [Trait("Tier", "2")]
     public void RestoreFailure_InvalidVersion_ExitNonZero_MistPkg002()
     {
-        var (exitCode, output, errorOutput) = SimulateRestoreOutput(
+        var (exitCode, output, errorOutput) = Restore(
             [new NuGetPackageReference("BadPkg", "invalid-version-string")],
             ImmutableArray<FrameworkReference>.Empty);
 
         Assert.Equal(1, exitCode);
         Assert.Contains("0 succeeded, 1 failed", output);
-        Assert.Contains("MIST_PKG_002", errorOutput);
+        Assert.StartsWith("error MIST_PKG_002: Package 'BadPkg'", errorOutput);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test 3: Restore mixed (one good + one bad) → "1 succeeded, 1 failed"
-    //          Validates: Requirements 10.2, 13.2, 13.5
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
+    [Trait("Tier", "4")]
     public void RestoreMixed_OneGoodOneBad_ShowsMixedSummary()
     {
-        var (exitCode, output, errorOutput) = SimulateRestoreOutput(
+        var (exitCode, output, errorOutput) = Restore(
             [
                 new NuGetPackageReference("Newtonsoft.Json", "13.0.3"),
                 new NuGetPackageReference("NonExistentPkg", "bad-version"),
@@ -138,5 +80,51 @@ public sealed class RestoreCommandInProcessTests
         Assert.Contains("Restored Newtonsoft.Json", output);
         Assert.Contains("1 succeeded, 1 failed", output);
         Assert.Contains("MIST_PKG_002", errorOutput);
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void RestoreFailure_DependenciesSharingAnIdAndAnUnknownFramework_EachReportedOnce()
+    {
+        var (exitCode, output, errorOutput) = Restore(
+            [new NuGetPackageReference("BadA", "not-valid"), new NuGetPackageReference("BadB", "also-not-valid")],
+            [new FrameworkReference("Not.A.Framework")]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(["0 succeeded, 3 failed"], Lines(output));
+        var errors = Lines(errorOutput);
+        Assert.Equal(3, errors.Length);
+        Assert.StartsWith("error MIST_PKG_002: Package 'BadA'", errors[0]);
+        Assert.StartsWith("error MIST_PKG_002: Package 'BadB'", errors[1]);
+        Assert.StartsWith("error MIST_FWREF_002: Framework reference 'Not.A.Framework'", errors[2]);
+    }
+
+    [Fact]
+    [Trait("Tier", "1")]
+    public void Report_WritesDetailNotesAndSummaryToOutput_AndDiagnosticsToError()
+    {
+        var packages = new PackageResolutionResult(
+            [],
+            [new ResolvedPackageInfo("Analyzers", "1.0.0", "", 0), new ResolvedPackageInfo("Lib", "2.0.0", "net8.0", 1)],
+            FailureCount: 1);
+        var frameworks = new FrameworkResolutionResult([], [new ResolvedFrameworkInfo("Microsoft.AspNetCore.App", "10.0.0")], FailureCount: 0);
+        var failure = new Diagnostic(
+            new DiagnosticId("MIST_PKG_001"), DiagnosticSeverity.Error, PipelineStage.Driver, "Package 'Old' does not support net10.0.", default, "", null);
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = DependencyRestore.Report(packages, frameworks, [failure], TargetFramework, output, error);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(
+            [
+                "Restored Analyzers 1.0.0 ()",
+                "Restored Lib 2.0.0 (net8.0)",
+                "Resolved Microsoft.AspNetCore.App 10.0.0",
+                "Analyzers contributed no assemblies for net10.0",
+                "3 succeeded, 1 failed",
+            ],
+            Lines(output.ToString()));
+        Assert.Equal(["error MIST_PKG_001: Package 'Old' does not support net10.0."], Lines(error.ToString()));
     }
 }

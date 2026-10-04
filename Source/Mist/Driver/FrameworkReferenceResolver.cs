@@ -66,7 +66,7 @@ public static class FrameworkReferenceResolver
                 FailureCount: 0);
         }
 
-        var dotnetRoot = SdkDiscovery.FindDotnetRoot();
+        var installation = new Lazy<string?>(SdkDiscovery.FindDotnetRoot);
 
         var assemblyPaths = ImmutableArray.CreateBuilder<string>();
         var resolvedInfos = ImmutableArray.CreateBuilder<ResolvedFrameworkInfo>();
@@ -93,6 +93,7 @@ public static class FrameworkReferenceResolver
                 continue;
             }
 
+            var dotnetRoot = installation.Value;
             var resolved = dotnetRoot is null
                 ? null
                 : ResolvePack(dotnetRoot, framework.Name, targetFramework);

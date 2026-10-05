@@ -29,13 +29,24 @@ public sealed class ReadonlyOwnedWritesTests
     [Theory]
     [InlineData("readonly-method-writes-a-field-of-an-unrestricted-parameter", FieldAssigned)]
     [InlineData("readonly-method-writes-a-field-of-a-frozen-parameter", FieldAssigned)]
-    [InlineData("readonly-method-calls-an-unmarked-member-on-a-fresh-local", CallsMutable)]
-    [InlineData("readonly-method-calls-a-local-member-on-an-unrestricted-parameter", CallsMutable)]
-    [InlineData("readonly-method-calls-an-unmarked-member-on-an-unrestricted-parameter", CallsMutable)]
-    public void AReadonlyMember_StillMayNotWriteWhatItDoesNotOwnOrCallAnUnmarkedMember(string fragment, string expected)
+    public void AReadonlyMember_StillMayNotWriteWhatItDoesNotOwn(string fragment, string expected)
     {
         var finding = Assert.Single(new ReadonlyContextFragments().Analyze(fragment));
 
         Assert.True(finding.Id.Value == expected, $"{fragment}: expected {expected}, got {finding.Id.Value}");
+    }
+
+    [Theory]
+    [InlineData("readonly-method-calls-an-unmarked-member-on-a-fresh-local", "Poke")]
+    [InlineData("readonly-method-calls-a-local-member-on-an-unrestricted-parameter", "Add")]
+    [InlineData("readonly-method-calls-an-unmarked-member-on-an-unrestricted-parameter", "Poke")]
+    public void AReadonlyMember_ExplainsThatNonReadonlyCallsRequireALocalMemberOnAnOwnedReceiver(string fragment, string member)
+    {
+        var finding = Assert.Single(new ReadonlyContextFragments().Analyze(fragment));
+
+        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(
+            $"Cannot call '{member}' from readonly method 'Poke': it is not readonly. A non-readonly call requires a local member on an owned receiver.",
+            finding.Message);
     }
 }

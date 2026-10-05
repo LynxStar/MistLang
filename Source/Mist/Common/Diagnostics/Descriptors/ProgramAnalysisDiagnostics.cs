@@ -560,7 +560,7 @@ public static partial class ProgramAnalysisDiagnostics
         new DiagnosticId("MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
-        "Cannot call '{0}' from readonly {1}: it is not readonly.");
+        "Cannot call '{0}' from readonly {1}: it is not readonly. A non-readonly call requires a local member on an owned receiver.");
 
     public static readonly DiagnosticDescriptor ReadonlyContextSetsProperty = new(
         new DiagnosticId("MIST_PA_READONLY_CONTEXT_SETS_PROPERTY"),

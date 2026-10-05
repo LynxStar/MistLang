@@ -603,33 +603,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-082
   area: analysis
-- id: MIST-018
-  title: Mention owned receiver alternative in readonly mutable-call diagnostic
-  status: confirmed
-  summary: ReadonlyContextCallsMutable message still only says it is not readonly. Requirement10.2 owned-receiver
-    guidance remains missing; small diagnostic/documentation task, not changing admission.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=purity-checking].tasks[25]
-    line_at_baseline: 5370
-    lead_excerpt: 'MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE, for a local Add on a list the scope does not
-      own, says only "it is not readonly". It does not name the owned receiver that would admit the call,
-      as Requirement 10.2 asks; the pure-scope messages do.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/Common/Diagnostics/Descriptors/ProgramAnalysisDiagnostics.cs
-      selector: Cannot call '{0}' from readonly
-      line: 563
-  related: []
-  priority: P3
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-096
-  area: analysis
 - id: MIST-019
   title: Expose a dependent alias parameter by the alias-declared name
   status: confirmed
@@ -7992,6 +7965,63 @@ issues:
   audit_key: root:native-test-runner
   area: verification/tooling
 archive:
+- id: MIST-018
+  title: Mention owned receiver alternative in readonly mutable-call diagnostic
+  status: implemented
+  summary: ReadonlyContextCallsMutable names the local-member and owned-receiver alternative required
+    by purity requirement 10.2. Diagnostic wording only; admission and capability semantics are unchanged.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=purity-checking].tasks[25]
+    line_at_baseline: 5370
+    lead_excerpt: 'MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE, for a local Add on a list the scope does not
+      own, says only "it is not readonly". It does not name the owned receiver that would admit the call,
+      as Requirement 10.2 asks; the pure-scope messages do.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/Common/Diagnostics/Descriptors/ProgramAnalysisDiagnostics.cs
+      selector: Cannot call '{0}' from readonly
+      line: 563
+  - revision: MIST-018 completion commit containing this archive entry, based on 41010ce36b7dd01188e7d1f8ce7c37db5e5e1aa6
+    date: '2026-10-04'
+    kind: implementation and executed regression verification
+    implementation:
+    - Applied the saved mist-018-recovery.patch in the isolated session worktree. Only the diagnostic
+      descriptor and Tier 2 ReadonlyOwnedWritesTests change; no analyzer or capability admission changes.
+    - The diagnostic now explains that a non-readonly call requires a local member on an owned receiver,
+      matching purity requirements 4.2, 10.2 and 11.1.
+    - Three hand-built-context regression cases assert the diagnostic ID and complete message for an
+      unmarked member on a fresh local, a local member on an unrestricted parameter, and an unmarked
+      member on an unrestricted parameter. Existing owned/fresh receiver admissions remain covered.
+    verification:
+    - 'tools/test-ledger/run.sh Test/Mist.Tests --filter FullyQualifiedName~ReadonlyOwnedWritesTests:
+      old descriptor, rebuilt, 9 passed and the 3 message cases failed as expected; ledger
+      TestResults/ledger/20261004-205253, summary.txt and failures.txt inspected.'
+    - 'tools/test-ledger/run.sh Test/Mist.Tests --filter FullyQualifiedName~ReadonlyOwnedWritesTests:
+      corrected descriptor, rebuilt, 12/12 passed; ledger TestResults/ledger/20261004-205315,
+      summary.txt inspected and failures.txt empty. Both focused builds: 0 warnings, 0 errors.'
+    - 'DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh: full Mist.slnx build (dotnet build
+      Mist.slnx) succeeded with 0 warnings and 0 errors; all 10045 tests passed, 0 failed, 0 skipped:
+      Mist.Tests 9032, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852, Storm.ConsumerIntegration.Tests
+      46. Ledger TestResults/ledger/20261004-205334; summary.txt, failures.txt and TRX inspected.
+      AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed.
+      The documented macOS polling-file-watcher setting is recorded in env.txt.'
+    - 'dotnet format whitespace Mist.slnx --include Source/Mist/Common/Diagnostics/Descriptors/ProgramAnalysisDiagnostics.cs
+      Test/Mist.Tests/ProgramAnalysis/ReadonlyOwnedWritesTests.cs: exit 0.'
+    - 'dotnet format Mist.slnx --verify-no-changes --no-restore: exit 0.'
+    - 'git diff --check: passed. Python/PyYAML comparison against the base ledger: all 341 IDs,
+      every other record and historical provenance retained; 204 open records, 137 archive records,
+      MIST-018 archived once with status implemented.'
+  related: []
+  priority: P3
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-096
+  area: analysis
 - id: ARCH-001
   title: Refusal migration and single positive baseline are complete
   status: implemented

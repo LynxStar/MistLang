@@ -85,12 +85,20 @@ git clone --recurse-submodules https://github.com/LynxStar/MistLang.git
 
 For an existing checkout, run `git submodule update --init --recursive` before building.
 
-`git worktree add` does not populate submodules. Enable the tracked hooks once per clone and
-every new worktree initializes the submodule itself, borrowing objects from the main checkout:
+To build and install the CLI to `~/.mist/bin`, run `./publish.sh` on macOS/Linux or
+`./publish.ps1` on Windows. Both scripts can be invoked from any directory and initialize
+the Storm submodule when it is missing. This requires Git access to the private Storm repository.
+
+`git worktree add` does not populate submodules. Enable the tracked hooks once per clone so
+worktrees created through Git initialize the submodule, borrowing objects from the main checkout:
 
 ```bash
 git config core.hooksPath .githooks
 ```
+
+Codex disables Git hooks when creating managed worktrees. Configure
+`git submodule update --init --recursive` as the project's Codex local-environment setup script
+to initialize Storm before ordinary builds and tests in those worktrees.
 
 ```bash
 dotnet run --project Source/Mist.CLI -- build ./my-project

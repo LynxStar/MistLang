@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$REPO_ROOT"
+
 # =============================================================================
 # publish.sh — Build and install the Mist CLI tool
 # =============================================================================
@@ -11,6 +14,25 @@ set -euo pipefail
 if ! command -v dotnet &>/dev/null; then
     echo "Error: .NET SDK is required but 'dotnet' was not found on PATH." >&2
     exit 1
+fi
+
+STORM_PROJECT="Source/Storm.SourceGenerator/Storm.SourceGenerator.csproj"
+if [[ ! -f "$STORM_PROJECT" ]]; then
+    if ! command -v git &>/dev/null; then
+        echo "Error: Git is required to initialize the Storm source-generator submodule." >&2
+        exit 1
+    fi
+
+    echo "Initializing Storm source-generator submodule..."
+    if ! git submodule update --init --recursive -- Source/Storm.SourceGenerator; then
+        echo "Error: Could not initialize Storm. Ensure Git can access the private LynxStar/StormLang repository, then run 'git submodule update --init --recursive'." >&2
+        exit 1
+    fi
+
+    if [[ ! -f "$STORM_PROJECT" ]]; then
+        echo "Error: Storm source-generator project is still missing at ${REPO_ROOT}/${STORM_PROJECT}." >&2
+        exit 1
+    fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -108,7 +130,7 @@ if echo "$PATH" | tr ':' '\n' | grep -qx "$HOME/.mist/bin"; then
     echo "PATH already contains ~/.mist/bin — skipping profile modification."
 else
     # Detect shell profile file
-    case "$SHELL" in
+    case "${SHELL:-}" in
         */zsh)
             PROFILE_FILE="$HOME/.zshrc"
             ;;

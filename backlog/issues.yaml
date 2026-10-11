@@ -577,9 +577,10 @@ issues:
 - id: MIST-017
   title: Check readonly IFormattable behavior through generic closures
   status: confirmed
-  summary: ReadonlyInference.FormatWrites only examines formatted.Type and resolved IFormattable answers;
-    it does not recheck a type parameter instantiated with an impure formatter. Retained source-supported
-    generic formatting omission; no new runtime formatting probe executed.
+  summary: 'Concrete closed Box<int> formatting already refuses a mutable IFormattable.ToString in a readonly
+    method. The live residue is an open nominally constrained T: readonly Read<T>(T item) where T:IFormattable
+    formats a mutable Box<int>, is admitted and mutates N. Preserve the concrete control and judge the
+    callback promise through the existing symbolic constraint rather than guessing a hidden runtime type.'
   source_refs:
   - file: backlog/analysis-v2-capability-progression.yaml
     selector: rules[id=purity-checking].tasks[4]
@@ -597,6 +598,43 @@ issues:
     - file: Source/Mist/ProgramAnalysis/ReadonlyInference.Triggers.cs
       selector: private bool FormatWrites
       line: 32
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
+    source: 'using Standard; using System; namespace Probe; public class Box<T> : IFormattable { public
+      int N; public string ToString(string format, IFormatProvider provider) { this.N = this.N + 1; return
+      "box"; } } public class Program { public static readonly string Read<T>(T item) where T : IFormattable
+      { return $"{item}"; } public static void Main() { var x = new Box<int>(); Standard.Console.WriteLine(Read(x));
+      Standard.Console.WriteLine(x.N); } }
+
+      '
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: 'box
+
+      1
+
+      '
+    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
+      described in the summary; no broader unknown-domain behavior is claimed.
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: executed positive diagnostic control
+    source: 'using Standard; using System; namespace Probe; public class Box<T> : IFormattable { public
+      int N; public string ToString(string format, IFormatProvider provider) { this.N = this.N + 1; return
+      "box"; } } public class Program { public static readonly string Read(Box<int> item) { return $"{item}";
+      } public static void Main() { Standard.Console.WriteLine(Read(new Box<int>())); } }
+
+      '
+    exit_code: 1
+    observed: '/private/tmp/mist-oct11-analysis-probes/generic-formattable-fixed/Program.mist(1,289):
+      error MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE: Cannot call ''ToString'' from readonly method ''Read'':
+      it is not readonly. A non-readonly call requires a local member on an owned receiver.
+
+      '
   related:
   - CLR callback/purity generic instantiations
   priority: P2
@@ -648,9 +686,10 @@ issues:
 - id: MIST-020
   title: Report ambiguous bare names in expression position
   status: confirmed
-  summary: IdentifierBinder maps NotFound to a source diagnostic but lets AmbiguousResult fall through
-    to an unresolved sentinel without reporting the ambiguity. A distinct type-position ambiguity owner
-    already exists.
+  summary: 'A bare inherited abstract member can reach CandidateSet AmbiguousResult without an owning
+    source diagnostic: A.Value and B.Value inherited by C, whose Read returns bare Value, reaches MIST_BE_UNSUPPORTED_EXPRESSION.
+    Imported same-name types are already diagnosed by ImportingScope; retain them as a working control
+    rather than claiming every expression ambiguity is silent.'
   source_refs:
   - file: backlog/emitter-v2-capability-progression.yaml
     selector: capabilities[order=22,id=static-context-checking].tasks[0]
@@ -668,6 +707,23 @@ issues:
     - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/IdentifierBinder.cs
       symbol: return result switch
       line: 31
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
+    source: 'using Standard; public abstract A { public int Value { get; } } public abstract B { public
+      int Value { get; } } public abstract C : A, B { public int Read() { return Value; } } public class
+      Program { public static void Main() {} }'
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '/private/tmp/mist-plan-20261011-binding-probes/ambiguous-inherited/Program.mist(1,167):
+      error MIST_BE_UNSUPPORTED_EXPRESSION: This expression is not supported by the compiler yet, so no
+      C# can be emitted for it.'
+    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
+      described in the summary; no broader unknown-domain behavior is claimed.
   related:
   - name binding diagnostics
   priority_rationale: Current source-established wrong behavior; correctness work.
@@ -1212,8 +1268,10 @@ issues:
 - id: MIST-033
   title: Use a parenthesized switch expression’s result type for following member access
   status: confirmed
-  summary: (x switch {1=>"five", _=>"six"}).Length targets arms as int and resolves Length against int
-    rather than the switch result.
+  summary: An explicit enclosing target leaks into the receiver of a parenthesized switch followed by
+    member access. int n = (x switch {1 => "five", _ => "six"}).Length resolves the arms/member as int
+    and refuses the valid program. Untargeted var/direct Console controls already produce 4; the residual
+    is specifically outer target propagation.
   source_refs:
   - file: backlog/emitter-v2-capability-progression.yaml
     selector: capabilities[order=95,id=switch-expressions].tasks[0]
@@ -1254,6 +1312,37 @@ issues:
         Cannot implicitly convert type ''string'' to ''int''.
 
         '
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
+    source: using Standard; namespace Probe; public class Program { public static void Main() { int x=1;
+      int n=(x switch { 1 => "five", _ => "six" }).Length; Console.WriteLine(n); } }
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '/private/tmp/mist-plan-20261011-root-probes/switch-result-typed/Program.mist(1,138): error
+      MIST_PM_UNRESOLVED_MEMBER: ''int'' has no member named ''Length''.
+
+      /private/tmp/mist-plan-20261011-root-probes/switch-result-typed/Program.mist(1,117): error MIST_PA_NO_IMPLICIT_CONVERSION:
+      Cannot implicitly convert type ''string'' to ''int''.
+
+      /private/tmp/mist-plan-20261011-root-probes/switch-result-typed/Program.mist(1,130): error MIST_PA_NO_IMPLICIT_CONVERSION:
+      Cannot implicitly convert type ''string'' to ''int''.
+
+      '
+    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
+      described in the summary; no broader unknown-domain behavior is claimed.
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: executed untargeted receiver control
+    source: using Standard; namespace Probe; public class Program { public static void Main() { int x=1;
+      Console.WriteLine((x switch { 1 => "five", _ => "six" }).Length); } }
+    exit_code: 0
+    observed: '4
+
+      '
   related:
   - program-model-body-tasks switch expressions
   priority_rationale: Current reproducible wrong behavior; correctness work.
@@ -1325,10 +1414,9 @@ issues:
 - id: MIST-035
   title: Preserve explicitly sized lengths on direct call results
   status: confirmed
-  summary: A current CLI probe with int[3] Make() returning new int[3] refuses Make()[2] as MIST_PA_INDEX_UNPROVEN.
-    Lengths.Of selects OfCall, whose fallback drops the explicitly type-carried size instead of using
-    Typed(invocation.Type). Restore the declared sized-type fact only; this is distinct from optional
-    inference of an unknown/unsized method return length and needs no broader interprocedural solver.
+  summary: A direct call explicitly returning int[3] loses its declared length in Lengths.OfCall and Make()[2]
+    is refused as MIST_PA_INDEX_UNPROVEN. Reconfirmed on current main; preserve the declared size as the
+    fallback without adding inference for unknown/unsized method return lengths.
   source_refs:
   - file: backlog/general.md
     selector: section[34] A sized array type's length written with `_` or a suffix reads as 0
@@ -1374,11 +1462,30 @@ issues:
       and < Length.'
     expected: The declared int[3] result already guarantees a length of three; the in-bounds index should
       be admitted and print 0.
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
+    source: using Standard; namespace Probe; public class Program { public static int[3] Make() { return
+      new int[3]; } public static void Main() { Console.WriteLine(Make()[2]); } }
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '/private/tmp/mist-plan-20261011-root-probes/sized-call/Program.mist(1,161): error MIST_PA_INDEX_UNPROVEN:
+      Index ''2'' is not proven within the bounds of ''int[3]'', which needs >= 0 and < Length.
+
+      '
+    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
+      described in the summary; no broader unknown-domain behavior is claimed.
   related:
   - general historical leads
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  priority_rationale: Current executed probe violates the declared sized result contract; no interprocedural
+    unsized-return inference is required.
   audit_key: backend:general-34
   area: backend
+  priority: P2
 - id: MIST-036
   title: Duplicate local diagnostics lack source location
   status: confirmed

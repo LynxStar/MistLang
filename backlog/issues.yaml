@@ -719,97 +719,6 @@ issues:
   priority_rationale: Current source-established wrong behavior; correctness work.
   audit_key: backend:backend-iterator-ancestors
   area: backend
-- id: MIST-024
-  title: Replace subtree drop elision for linear parameters and fields
-  status: confirmed
-  summary: DroppedParameters and FieldsOwedBy still use whole-subtree transfer detection, so a transfer
-    on one path can suppress cleanup on others and declaration handoff can duplicate releases. Scope the
-    confirmed residue to fields and parameter forms whose cleanup obligation is already established. Plain
-    unannotated parameter transfer remains the separate policy decision; current synchronous custom-linear
-    local cleanup is delivered. Source-established path omission and retained historical cases; those
-    old parameter/field probes were not rerun here.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=161,id=drop-recognition-and-insertion].analysis_phase_tasks[0]
-    lead_excerpt: 'Report a use after the binding was moved, and a linear binding dropped twice or not
-      at all. The emitter tracks moves to decide ELISION and judges nothing: a program that misuses a
-      linear value emits a drop count this pipeline does not check. For a linear LOCAL the release is
-      now the plan analysis itself computes (LocalLifetimes), so "not at all" cannot arise there; the
-      count stays open for paramet…'
-    line_at_baseline: 10057
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=161,id=drop-recognition-and-insertion]
-    line_at_baseline: 10057
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: 'Source-only: current DropInsertion retains parameter/field approximation while local release
-      reads LocalLifetimes.Plan; the frozen tracker records unchanged measured parameter/field cases.
-      The tracker’s old probes were not rerun here.'
-    source_symbols:
-    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/DropInsertion.cs
-      symbol: DroppedParameters
-      line: 302
-    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/DropInsertion.cs
-      symbol: FieldsOwedBy
-      line: 163
-  related:
-  - analysis order 11 parameter ownership
-  - substructural field discipline
-  priority_rationale: Current source-established wrong behavior; correctness work.
-  audit_key: backend:backend-linear-parameters-fields
-  area: backend
-- id: MIST-025
-  title: Consume a linear local when it enters a scoped with block
-  status: confirmed
-  summary: with(t) releases a linear token inside the block, then the enclosing local cleanup drops it
-    again. Integrate this consuming site with the local lifetime plan.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=161,id=drop-recognition-and-insertion]
-    line_at_baseline: 10057
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=162,id=with-blocks-and-drop-scopes]
-    line_at_baseline: 10153
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe plus source inspection
-    detail: Fresh CLI probe prints token 1 twice. Current local plan does not discharge the outer local
-      through the scoped with handoff.
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Flow/LocalLifetimes.cs
-      symbol: internal sealed class LocalLifetimes
-      line: 27
-    probes:
-    - path: /private/tmp/mist-backend-reconcile-probes/with_linear
-      source: 'using Standard;
-
-        namespace Probe;
-
-        public linear class Token { public int Id; public Token(int id) { Id=id; } public void Drop()
-        { Console.WriteLine(Id); } } public class Program { public static void Main() { var t=new Token(1);
-        with(t) {} } }
-
-        '
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/with_linear
-        --quiet
-      exit_code: 0
-      output: '1
-
-        1
-
-        '
-  related:
-  - analysis register linear ownership
-  - drop semantics
-  - packet 16 linear-local cleanup
-  priority_rationale: Current reproducible wrong behavior; correctness work.
-  audit_key: backend:backend-linear-with-consumption
-  area: backend
 - id: MIST-026
   title: Reject operator modifiers outside the specified public static form
   status: confirmed
@@ -2237,34 +2146,6 @@ issues:
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:backend-driver-inspect-resolution
   area: backend
-- id: MIST-076
-  title: Settle linear handoff around receiver failure and untyped trailing arguments
-  status: unverified
-  summary: 'Two explicit residual routes remain: null receiver failure after by-value handoff, and a trailing
-    lambda/collection expression that prevents delaying a prior handoff until the settling argument. Validate
-    each current route before implementing.'
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=161,id=drop-recognition-and-insertion]
-    line_at_baseline: 10057
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Current capability narrative says both were measured unchanged; source local plan and LifetimeLowering/BodyEmitter
-      carry argument handoff. This audit did not execute those exact exception cases.
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Flow/LocalLifetimes.cs
-      symbol: LocalLifetimes
-      line: 27
-    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/LifetimeLowering.cs
-      symbol: MistOwnership.Handed
-      line: 102
-  related:
-  - linear local lifetime lowering
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:backend-exceptional-argument-handoff
-  area: backend
 - id: MIST-077
   title: Make generated multi-project csproj entry point selection agree with native compilation
   status: unverified
@@ -2291,11 +2172,13 @@ issues:
   audit_key: backend:backend-generated-main-selection
   area: backend
 - id: MIST-078
-  title: Extend cleanup planning to currently excluded binding forms
-  status: unverified
-  summary: 'Explicit inventory: linear ref structs, for-initializer declarations, foreach, pattern, deconstruction
-    and with bindings are outside the custom linear local plan. Verify accepted grammar and resource behavior
-    per form; no continue task exists because Mist has no continue.'
+  title: Decide ownership of fresh pattern scrutinees and non-literal tuple deconstruction
+  status: decision
+  summary: 'Five of the six inventoried forms are delivered and the sixth validated (foreach views own
+    nothing). Two ownership questions remain undecided: a pattern binding over a fresh scrutinee
+    (`if (Make() is Token t)`) and a deconstruction whose initializer is not a tuple literal (a call
+    returning `(Token, int)`, a tuple local). Each linear value there is released by nobody; the fix needs a
+    pattern-extraction and a tuple-container ownership policy.'
   source_refs:
   - file: backlog/emitter-v2-capability-progression.yaml
     selector: capabilities[order=161,id=drop-recognition-and-insertion]
@@ -2310,10 +2193,36 @@ issues:
     - file: Source/Mist/ProgramAnalysis/Flow/LocalLifetimes.cs
       symbol: private static Dictionary<LocalVariable
       line: 107
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+    date: '2026-10-11'
+    kind: per-form validation, implementation and executed verification
+    dispositions:
+    - 'linear ref structs: fixed. LocalLifetimes.IsTracked no longer excludes them, and the MistOwnership
+      helpers are generic with where T : allows ref struct and a scoped ref flag, so nothing is boxed and no
+      ref escapes. CLI probe: a linear ref struct dropped on one branch is released once on the other;
+      baseline leaked it. The Tier 4 boundary test compiles and runs a guarded linear ref struct (8/8).'
+    - 'for initializer: fixed. FlowGraphBuilder gives a for statement whose initializer declares a local a
+      Leave step on every path out, and the local is released there: body then 1 for the packet probe, once
+      on zero iterations, normal termination, return and exception. Body locals are still released per
+      iteration. Tier 4: a throw in the body releases once (6/6).'
+    - 'foreach binding: validated, unchanged. The binding is a view of a collection element. It is never
+      released (foreach over [new Token(1), new Token(2)] prints no drop), and moving it to an owned
+      parameter is refused with MIST_PA_LOOP_MOVE and MIST_PA_OWNED_SOURCE_NOT_OWNED. The iterator protocol
+      is unchanged. Element ownership is container policy and stays excluded.'
+    - 'pattern binding: alias identity fixed. A binding over a holder, in is or switch and through and, or
+      and not, is that holder, so handing it on hands on the holder: the pattern_move probe now releases once
+      where baseline released twice. A binding that is not handed on gets no drop of its own.
+      Residue: Make() is Token t releases the fresh value nowhere (pattern_fresh probe prints m, end).'
+    - 'deconstruction: fixed for a tuple-literal initializer. Each element goes to its target as a declaration
+      would: var (a, n) = (new Token(1), 2) releases 1 once (baseline leaked), and (t, 2) hands t to a.
+      Residue: var (b, m) = Pair(3) leaks Token 3 (decon2 probe prints x, y, 1).'
+    - 'with bindings: fixed under MIST-025.'
+    verification:
+    - The shared build, full ledger 20261011-175445 (10490 passed, 0 failed), format, sample and artifact checks are recorded on the MIST-024 archive entry.
   related:
   - linear local lifetime scope
   - foreach/pattern lowering
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  priority_rationale: Language contract needs resolution before selecting behavior.
   audit_key: backend:backend-linear-binding-forms
   area: backend
 - id: MIST-079
@@ -3810,6 +3719,13 @@ issues:
     - file: Source/Mist/ProgramAnalysis/Flow/LocalLifetimes.cs
       symbol: Parameter
       line: 189
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+    date: '2026-10-11'
+    kind: executed CLI probe
+    detail: 'Lambda parameters are plain parameters: Func<Token, int> f = (Token t) => t.Id; f(new Token(1))
+      releases nothing, and neither does Action<Token>. Callee-side release of plain method and
+      local-function parameters is now path-sensitive (MIST-024) but follows this unchanged policy. The
+      linear-plan PurityJudge exit drops no longer report lambda parameters, since emission releases none.'
   related:
   - emitter161 drop insertion
   - workstream16
@@ -7291,7 +7207,289 @@ issues:
   priority: Deferred product expansion.
   audit_key: root:native-test-runner
   area: verification/tooling
+- id: MIST-208
+  title: Choose whether a discarded linear result is released or refused
+  status: decision
+  summary: A call whose linear result is discarded, Make(1); with Make returning a linear Token, compiles
+    without a diagnostic and nothing ever releases the value. Either release the temporary when its
+    statement ends, as a fresh value lent to a frozen parameter now is, or refuse the discard under the no-forget
+    rule (drop-semantics 6.1). A discarded task is already awaited at scope exit.
+  source_refs: []
+  evidence:
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+    kind: executed CLI probe
+    detail: 'public static Token Make(int id){return new Token(id);} ... Make(1); Console.WriteLine("end");
+      prints only end. Found while writing samples/ResourceTransfer; the sample binds and drops the result
+      instead.'
+  related:
+  - MIST-024
+  - drop semantics 6.1-6.2
+  priority_rationale: Language contract needs resolution before selecting behavior.
+  audit_key: backend:discarded-linear-result
+  area: backend
 archive:
+- id: MIST-024
+  title: Replace subtree drop elision for linear parameters and fields
+  status: implemented
+  summary: 'Delivered: a tracked linear parameter (owned or plain; frozen, borrowed and by-reference ones
+    are loans) and a manual Drop''s linear fields are holders of the body''s lifetime plan, matched by binding
+    identity and released on exactly the paths that still hold them, in finally blocks. A value stored in a
+    field is handed to its container; a fresh value lent to a frozen or borrowed parameter is released by
+    its caller. Plain parameter transfer policy stays MIST-122.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=161,id=drop-recognition-and-insertion].analysis_phase_tasks[0]
+    lead_excerpt: 'Report a use after the binding was moved, and a linear binding dropped twice or not
+      at all. The emitter tracks moves to decide ELISION and judges nothing: a program that misuses a
+      linear value emits a drop count this pipeline does not check. For a linear LOCAL the release is
+      now the plan analysis itself computes (LocalLifetimes), so "not at all" cannot arise there; the
+      count stays open for paramet…'
+    line_at_baseline: 10057
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=161,id=drop-recognition-and-insertion]
+    line_at_baseline: 10057
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: 'Source-only: current DropInsertion retains parameter/field approximation while local release
+      reads LocalLifetimes.Plan; the frozen tracker records unchanged measured parameter/field cases.
+      The tracker’s old probes were not rerun here.'
+    source_symbols:
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/DropInsertion.cs
+      symbol: DroppedParameters
+      line: 302
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/DropInsertion.cs
+      symbol: FieldsOwedBy
+      line: 163
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - LocalLifetimes now plans holders through LifetimeOwners. A method's tracked linear parameters are
+      entered at body start keyed by their Parameter, a local function's at its nested entry, and a manual
+      Drop's linear fields keyed by their Field. References match by binding identity, so a shadowing local
+      named like a parameter neither releases nor moves it. A linear type with nothing to release is no
+      longer tracked.
+    - DropInsertion.ReleasedParameters and ReleasedFields read that plan for linear holders. Relevant,
+      disposable and generic droppable ones keep the whole-body approximation, now also matched by identity.
+      BodyEmitter.EmitMethodBody wraps the body in one try/finally per released holder, guarded by a flag
+      where paths differ. Parameters nest in declaration order and fields so the first declared is released
+      first. Field releases moved from statements appended after the body, which an early return or a throw
+      skipped, into finally blocks.
+    - A tracked value stored in a field of linear type or in an owned slot, by assignment or object
+      initializer, is handed to the container. Frozen and borrowed parameters are loans on both sides. The
+      callee no longer releases them, and a fresh value passed to one is released by the caller once the
+      statement is done (LentValues). A loop condition or step releases its previous loan as the body begins.
+    - PurityJudge.ExitDrops reads the same plan for parameters and Drop fields and reports lent values. The
+      owned-slot test moved to ThisTiers.OwnedSlot, shared with OwnershipAnalyzer.
+    acceptance:
+    - 'CLI probe Use(owned Token t, bool take){if(take){t.Drop();}} with Use(1,false), Use(2,true): prints
+      1 then 2, each once. Baseline printed only 2. A plain Token parameter behaves the same; baseline leaked
+      1.'
+    - 'CLI probe Holder.Drop(){if(Take){Inner.Drop();}} with Holder(1,false) and Holder(2,true): 2 then 1,
+      each once. Baseline printed only 2.'
+    - 'CLI probe Use(owned Token t, bool b){if(b){var t=new Token(5); t.Drop();}}: 5, then the parameter 1
+      once. Baseline never released 1.'
+    - 'CLI probes Holder(Token t){Inner=t;} and a local stored into a field: one release each. Baseline
+      released twice.'
+    - 'CLI probe frozen var v=c; Look(v) with Look(frozen Token t): one release. Baseline released twice.
+      Look(new Token(1)) releases 1 once after the statement; while(Look(new Token(i))) releases each loan
+      once.'
+    - 'Tier 4 ResourceTransferRuntimeBoundaryTests: an owned parameter is released once in all four
+      throw/drop combinations; a manual Drop releases First and Second once each, in declaration order,
+      with and without a throw after its body.'
+    remaining_limits:
+    - Plain parameter transfer policy remains MIST-122. Callers still hand a value to a plain parameter and
+      the callee releases it. A lambda's parameters, all plain, are never released; that evidence is on
+      MIST-122.
+    - A fresh value lent outside a statement or lambda result, such as a constructor chain argument or a
+      field initializer, is not released.
+    - Overwriting a live linear local or field still releases only the new value (MIST-135).
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors, with the implementation rebased onto main 39c2d357.'
+    - 'tools/test-ledger/run.sh, all projects: test exit 0. 10490 passed and 0 failed: Mist.Tests 9477,
+      Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852, Storm.ConsumerIntegration.Tests 46. Ledger
+      TestResults/ledger/20261011-175445; summary.txt inspected and failures.txt empty. The trx records
+      AllFeaturesV2_CompilesRunsAndMatchesBaseline, Testing_RunsUnderTheTestCommand and
+      ResourceTransferRuntimeBoundaryTests as passed. Windows, 32 CPUs, no other test run active.'
+    - 'New tests: ResourceTransferPlanTests 20 (Tier 2), ResourceTransferEmissionTests 13 (Tier 2),
+      ResourceTransferDecisionTests 5 (Tier 1), ExitDropReachabilityTests +3 (Tier 2), DropInsertionTests +2
+      (Tier 1), OwnershipRefusalTests +2 (Tier 2), ResourceTransferRuntimeBoundaryTests 1 (Tier 4: emitted C#
+      compiled with Roslyn in-process and run, because a Mist program cannot catch the exceptions those paths
+      need).'
+    - 'dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'AllFeaturesV2 run through the CLI matches samples/__baselines__/AllFeaturesV2.out, which gained the 72
+      lines of the new samples/ResourceTransfer (V2-only provenance in samples/CLAUDE.md). The sample
+      builds with 0 errors, 0 warnings and no info diagnostics.'
+    - 'Generated out/Probe.csproj for 11 probes (ref struct, receiver gate, lent values, with, for, fields,
+      deconstruction, conditional call, loop loans, pattern alias, constructor store) built with MSBuild:
+      0 errors. The only warnings were the pre-existing __Locale.g.cs CS8669 and the probes'' own
+      CS8618/CS8625; none came from MistOwnership.'
+    - 'Book: drop-semantics gained the Parameters, Fields and Scopes section and the path-sensitive-holders
+      snippet. SnippetEmitter regenerated the affected tabs with 0 failures, and a second generation was
+      unchanged.'
+    - 'Final integration, rebased onto main 99a3b42c, which brings typed discards and generic initialization
+      contracts. dotnet build Mist.slnx: 0 warnings, 0 errors. dotnet format --verify-no-changes: exit 0. git
+      diff --check: clean. tools/test-ledger/run.sh: test exit 0 with 10511 passed and 0 failed: Mist.Tests
+      9498, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852, Storm.ConsumerIntegration.Tests 46. Ledger
+      TestResults/ledger/20261011-181535; summary.txt inspected, failures.txt empty, and the same three named
+      tests passed. Chapters whose tabs both lines touched, regenerated by a freshly built SnippetEmitter,
+      came back unchanged.'
+  related:
+  - analysis order 11 parameter ownership
+  - substructural field discipline
+  priority_rationale: Current source-established wrong behavior; correctness work.
+  audit_key: backend:backend-linear-parameters-fields
+  area: backend
+- id: MIST-025
+  title: Consume a linear local when it enters a scoped with block
+  status: implemented
+  summary: 'Delivered: a with given a linear holder releases it after the context pop, on the paths
+    where the holder still owns it, and the holder''s scope does not release it again. A with binding of a
+    fresh value owns it; one of a holder is that holder; a with over a lease or a field view releases
+    nothing. A use after the block is refused as use of a dropped value.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=161,id=drop-recognition-and-insertion]
+    line_at_baseline: 10057
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=162,id=with-blocks-and-drop-scopes]
+    line_at_baseline: 10153
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe plus source inspection
+    detail: Fresh CLI probe prints token 1 twice. Current local plan does not discharge the outer local
+      through the scoped with handoff.
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Flow/LocalLifetimes.cs
+      symbol: internal sealed class LocalLifetimes
+      line: 27
+    probes:
+    - path: /private/tmp/mist-backend-reconcile-probes/with_linear
+      source: 'using Standard;
+
+        namespace Probe;
+
+        public linear class Token { public int Id; public Token(int id) { Id=id; } public void Drop()
+        { Console.WriteLine(Id); } } public class Program { public static void Main() { var t=new Token(1);
+        with(t) {} } }
+
+        '
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/with_linear
+        --quiet
+      exit_code: 0
+      output: '1
+
+        1
+
+        '
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - LifetimeOwners records a with whose value is a holder (with(t), with t;, with T _ = t;) as a release
+      point at its body's Leave step. The with's finally releases what the holder still owns after
+      MistContext.Pop, clearing the holder's flag. Throws inside the body are counted as exits of the scope.
+      A with binding of a holder is an alias of it.
+    - with var x = e, with T x = e and with(var x = e) bind an owner the with releases after the pop,
+      guarded when x is handed on inside the scope.
+    - A with over a lease (frozen, borrowed, readonly ref) or a field view releases nothing, and
+      ContextCalls no longer records that drop.
+    - OwnershipAnalyzer marks a linear or affine local given to a dropping with as dropped when the body
+      ends. A later use reports MIST_PA_USE_AFTER_MOVE "dropped" (drop-semantics 3.2 and 5.5); a use or
+      hand-off inside the block stays admitted.
+    acceptance:
+    - 'CLI probe var t=new Token(1); with(t){}: prints 1 once. Baseline printed 1 twice.'
+    - 'CLI probe with on one branch: the true route releases once inside the branch, the false route once at
+      scope exit. Baseline released twice on the true route.'
+    - 'CLI probe with(t){var u=new Token(2);}: 2 then 1, once each.'
+    - 'CLI probes with var x=new Token(1); Sink.Take(x) and with(t){Sink.Take(t);}: one release each.
+      Baseline released twice.'
+    - 'CLI probes with var, with Token x, with Token _, with e; and with(fresh) over a fresh token: one
+      release after the body. with(this.Inner){} in a method: the field is released once, by its
+      container; baseline released it twice. The AllFeaturesV2 StructuredContext lines are unchanged.'
+    - 'Tier 4: a throw inside with(t){Risky();} releases t once.'
+    remaining_limits:
+    - A with over a pattern alias of a holder releases the holder, but the analyzer marks only a local given
+      directly as dropped.
+    verification:
+    - The shared build, full ledger 20261011-175445 (10490 passed, 0 failed), format, sample and artifact checks are recorded on the MIST-024 archive entry.
+  related:
+  - analysis register linear ownership
+  - drop semantics
+  - packet 16 linear-local cleanup
+  priority_rationale: Current reproducible wrong behavior; correctness work.
+  audit_key: backend:backend-linear-with-consumption
+  area: backend
+- id: MIST-076
+  title: Settle linear handoff around receiver failure and untyped trailing arguments
+  status: implemented
+  summary: 'Delivered: both residual routes were confirmed and fixed. A trailing array literal now
+    settles the hand-off, so a throw from it leaves the value with the caller. A call that may not begin,
+    conditional or through a possibly-null reference receiver, completes the hand-off only once the callee
+    is entered.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=161,id=drop-recognition-and-insertion]
+    line_at_baseline: 10057
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Current capability narrative says both were measured unchanged; source local plan and LifetimeLowering/BodyEmitter
+      carry argument handoff. This audit did not execute those exact exception cases.
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Flow/LocalLifetimes.cs
+      symbol: LocalLifetimes
+      line: 27
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/LifetimeLowering.cs
+      symbol: MistOwnership.Handed
+      line: 102
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+    date: '2026-10-11'
+    kind: validation, implementation and executed verification
+    validation:
+    - 'Confirmed at 4f018a0d79b8a8231545edd9a7f32edf917a8e6b: Box.Pair(t, [1, 10 / z]) inside an async block with z = 0 never released the
+      token. Emission handed t off before new int[] {...} threw.'
+    - 'Confirmed: h.B.Use(t) through an unassigned class field (the MIST-008 null source) threw a
+      NullReferenceException with the token unreleased. b?.Use(t) with b absent released nothing on an
+      ordinary, non-exceptional path.'
+    - 'After rebasing onto 39c2d357, constructor initialization (407d341d, MIST-008) gives that field a
+      default, so this probe no longer reaches null. The gate still covers the conditional call and a null
+      that reaches a reference receiver some other way; the Tier 4 test passes one directly.'
+    - A trailing lambda never settles a hand-off, since creating it cannot throw.
+    implementation:
+    - ArrayLiteralExpression and ArrayCreationExpression count as natural-typed, since emission spells
+      their element type, so the mark moves to the trailing array.
+    - CallEntries.Of classifies a call as certain, conditional or absentable (an instance, non-extension
+      call through a reference receiver other than this, a new value or a holder). The plan owes what such
+      a call is handed. Emission captures the receiver once with MistOwnership.Present(receiver, out var r)
+      and clears the flag through MistOwnership.HandedTo(r, ...) only when r is present. A skipped
+      conditional call leaves the flag set.
+    - Tuple literal construction and instance field reads through this are no longer counted as throws.
+    acceptance:
+    - 'CLI probes: the trailing-array program prints "drop 2" before the DivideByZeroException; the null
+      field program prints "drop 1" before the NullReferenceException; b?.Use(t) releases once at scope
+      exit when b is absent and once in the callee when it is present.'
+    - 'Tier 4 ResourceTransferRuntimeBoundaryTests: trailing throw 1/1, null receiver 2/2, conditional 3/3.
+      A callee that throws after entry releases its parameter itself and the caller does not (4/4).'
+    - 'Mutation check: removing the array-literal natural type made the boundary test fail with
+      "trailing:/1"; restoring it, the test passed.'
+    remaining_limits:
+    - The receiver gate is emitted on the standard invocation path only. Respelled intrinsic, unsafe-reach
+      and promoted conditional-async calls still clear the flag at the argument. Extension carriers always
+      enter.
+    verification:
+    - The shared build, full ledger 20261011-175445 (10490 passed, 0 failed), format, sample and artifact checks are recorded on the MIST-024 archive entry.
+  related:
+  - linear local lifetime lowering
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:backend-exceptional-argument-handoff
+  area: backend
 - id: MIST-207
   title: Resolve nullable contract of unchecked generic CLR initialization routes
   status: implemented

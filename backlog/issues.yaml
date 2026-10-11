@@ -6771,38 +6771,6 @@ issues:
   priority: P3
   priority_rationale: Generated consumer warning only; no runtime defect.
   area: backend
-- id: MIST-215
-  title: Reconcile effective declaration order with requirement 6.8
-  status: decision
-  summary: 'Compiler-architecture requirement 6.8 and its design orders token tie-breaking as root declarations
-    first, then unnamespaced imports, then namespaced-only declarations. StormGrammar has always placed each file''s
-    unnamespaced imports ahead of its own declarations, and Mist depends on it: tokens.storm declares IDENTIFIER after
-    importing the keyword files, so a literal reading of requirement 6.8 would let IDENTIFIER win every keyword tie.
-    Decide whether to amend the requirement to the implemented order or change the order and Mist''s grammar
-    together.'
-  source_refs: []
-  evidence:
-  - revision: 83410653c7d722868a5001d2ef71e6692ec012b3
-    repository: LynxStar/StormLang
-    date: '2026-10-11'
-    kind: source inspection during MIST-051
-    sources:
-    - file: Source/Storm.SourceGenerator/Resolve/StormGrammar.cs
-      selector: unnamespaced imports first (in import-appearance order)
-    - file: Source/Storm.SourceGenerator/Resolve/ImportScope.cs
-      selector: Merge
-    - file: Source/Mist/Grammar/tokens/tokens.storm
-      selector: token IDENTIFIER
-    - file: .kiro/specs/mist-compiler-architecture/requirements.md
-      selector: Requirement 6.8
-    detail: StormGrammarTests.Build_DeclarationOrder_* pin the implemented order. The Storm grammar semantics packet
-      preserved it, as it requires Mist's token priorities to stay unchanged; no order change was made.
-  related:
-  - MIST-051
-  priority: P3
-  priority_rationale: Contract text and long-standing behaviour disagree; behaviour is correct for Mist.
-  audit_key: binding:storm-declaration-order
-  area: binding
 - id: MIST-216
   title: Distinguish refined constituents that share a base in one union carrier
   status: confirmed
@@ -6948,6 +6916,48 @@ issues:
   priority_rationale: Invalid program reaches the target compiler.
   area: binding
 archive:
+- id: MIST-215
+  title: Reconcile effective declaration order with requirement 6.8
+  status: implemented
+  summary: Requirement 6.8 and its design described root declarations first, while StormGrammar places each file's
+    unnamespaced imports ahead of its own declarations, which Mist's keyword-before-IDENTIFIER token priority relies
+    on. The owner confirmed the implemented order is intended; the requirement and design now state it.
+  source_refs: []
+  evidence:
+  - revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    repository: LynxStar/StormLang
+    date: '2026-10-11'
+    kind: source inspection during MIST-051
+    sources:
+    - file: Source/Storm.SourceGenerator/Resolve/StormGrammar.cs
+      selector: unnamespaced imports first (in import-appearance order)
+    - file: Source/Storm.SourceGenerator/Resolve/ImportScope.cs
+      selector: Merge
+    - file: Source/Mist/Grammar/tokens/tokens.storm
+      selector: token IDENTIFIER
+    - file: .kiro/specs/mist-compiler-architecture/requirements.md
+      selector: Requirement 6.8
+    detail: StormGrammarTests.Build_DeclarationOrder_* pin the implemented order. The Storm grammar semantics packet
+      preserved it, as it requires Mist's token priorities to stay unchanged; no order change was made.
+  - revision: MIST-215 closure commit containing this archive entry, based on ed2ccacc
+    date: '2026-10-11'
+    kind: owner decision and specification amendment
+    decision: The owner confirmed the existing Storm declaration order is the intended behaviour and requirement 6.8 was
+      out of date.
+    implementation:
+    - .kiro/specs/mist-compiler-architecture/requirements.md Requirement 6.8 now places each file's unnamespaced imports,
+      in import-appearance order, ahead of its own declarations, recursively from the root with each file contributing
+      at its first visit, followed by declarations reached only through namespaced imports.
+    - design.md Imports steps 4 and 6 state the same order and why Mist relies on it. No Storm or Mist source changed;
+      StormGrammarTests.Build_DeclarationOrder_* already pin this order.
+    verification:
+    - Documentation only. git diff --check passed; issues.yaml parses with PyYAML and only MIST-215 changed.
+  related:
+  - MIST-051
+  priority: P3
+  priority_rationale: Contract text and long-standing behaviour disagree; behaviour is correct for Mist.
+  audit_key: binding:storm-declaration-order
+  area: binding
 - id: MIST-011
   title: Close associated type slots in member signatures and compare generic constraints
   status: implemented

@@ -470,12 +470,11 @@ Resolution algorithm:
      - Otherwise add to `visitedPaths`, parse, and recursively resolve its imports.
      - If the file cannot be read/resolved → emit `STORM_IMPORT_NOT_FOUND` and fail (R6.6).
 4. Build the **effective grammar** (represented by `StormGrammar`, which exposes a `GrammarName` property derived from the `grammar` declaration):
-   - Start with the root file's declarations in declaration order.
-   - Append, in DFS-pre-order of first visit, declarations contributed by each unnamespaced import's file (recursively merged).
+   - Starting from the root file, each file contributes its unnamespaced imports first, in import-appearance order and recursively (depth first, each file merged at its first visit only), then its own declarations in declaration order.
    - Namespaced imports' declarations are stored under a qualified name table keyed by `<Namespace>.<Name>` and are accessible only via qualified reference (R6.4).
    - The root and the files it reaches through unnamespaced imports share one name set. Every name inside a file reached only through a namespaced import means what it means in that file: its own declarations, merged with its unnamespaced imports, and its own namespaced imports, which nest under its namespace (`<Namespace>.<Inner>.<Name>`). A name that means nothing there is reported against that file rather than resolved in the root. Each declaration has one effective name — its own for one the root sees, otherwise the first namespace path reaching it — so a file imported under two namespaces, or both plainly and under a namespace, contributes its declarations once.
 5. Duplicate-name check (R6.5): if two unnamespaced declarations share the same name across the unnamespaced namespace, emit `STORM_DUPLICATE_NAME` with both source locations and fail.
-6. The resulting **declaration order** used for token tiebreaking (R4.7) is exactly the order produced by step 4: root first, unnamespaced imports in import-appearance order, then namespaced-only declarations last (R6.8).
+6. The resulting **declaration order** used for token tiebreaking (R4.7) is exactly the order produced by step 4: every file's unnamespaced imports ahead of its own declarations, then namespaced-only declarations last (R6.8). Mist relies on this: `tokens.storm` imports the keyword files before declaring `IDENTIFIER`, so each keyword wins its tie with `IDENTIFIER`.
 
 ### Semantic validation passes
 

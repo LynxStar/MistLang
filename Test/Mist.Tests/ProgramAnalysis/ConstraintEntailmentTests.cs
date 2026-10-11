@@ -300,6 +300,20 @@ public sealed class ConstraintEntailmentTests
         Assert.Null(Judge(Closing(Parameter("T"), forwarded), new TypeConstraint(Abstract("IShow"))));
     }
 
+    [Theory]
+    [InlineData(true, null)]
+    [InlineData(false, Refused)]
+    public void APackElementOffersWhatItsPackDeclaresOfEachElement(bool rankedAgainstItself, string? expected)
+    {
+        var rank = Abstract("IRank<>");
+        rank.TypeParametersList.Add(new TypeParameter("R", 0, rank.Scope, rank));
+        var parameter = Parameter("T");
+        var pack = new TypeParameter("Us", 0, new Scope(null), null) { PackKind = TypePackKind.Unbracketed, PackLength = 2 };
+        pack.ConstraintsList.Add(new TypeConstraint(built.Interner.GetOrCreateConstructedType(rank, [rankedAgainstItself ? pack : built.Type("Int32")])));
+
+        Assert.Equal(expected, Judge(Closing(parameter, pack.ElementAt(1)), new TypeConstraint(built.Interner.GetOrCreateConstructedType(rank, [parameter]))));
+    }
+
     [Fact]
     public void ClosedArgumentIsNotThisDecision()
     {

@@ -77,8 +77,15 @@ internal static class ConstraintEntailment
             return false;
         }
 
-        return offered.ConstraintsList.OfType<TypeConstraint>()
+        return Offered(offered, interner).OfType<TypeConstraint>()
             .Any(bound => Reaches(bound.ConstraintType, required, interner, entered, depth));
+    }
+
+    private static IEnumerable<TypeParameterConstraint> Offered(TypeParameter offered, TypeInterner interner)
+    {
+        var element = offered is PackElementType projected ? TypeSubstitution.Empty.With(projected.Pack, projected) : TypeSubstitution.Empty;
+
+        return offered.ConstraintsList.Select(constraint => ConstraintAnalyzer.Closed(constraint, element, interner)).OfType<TypeParameterConstraint>();
     }
 
     private static bool Reaches(IMistType offered, IMistType required, TypeInterner interner, HashSet<TypeParameter> entered, int depth)
@@ -106,7 +113,7 @@ internal static class ConstraintEntailment
     private static bool GuaranteesConstructor(TypeParameter offered, IReadOnlyList<IMistType> required, TypeInterner interner)
     {
         return (required.Count == 0 && Declares(offered, TypeParameterConstraintKind.Struct))
-            || offered.ConstraintsList.OfType<ConstructorConstraint>().Any(offer => SameSignature(offer.ParameterTypes, required, interner));
+            || Offered(offered, interner).OfType<ConstructorConstraint>().Any(offer => SameSignature(offer.ParameterTypes, required, interner));
     }
 
     private static bool GuaranteesKeyword(TypeParameter offered, TypeParameterConstraintKind required)

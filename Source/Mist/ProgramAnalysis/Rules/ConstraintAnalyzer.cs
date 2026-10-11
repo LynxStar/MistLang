@@ -15,9 +15,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// the Mist-only kinds -- readonly, mutable, owned, the substructural three, default -- erase, so
 /// nothing else checks them at all. An argument that is itself a type parameter is judged by
 /// <see cref="ConstraintEntailment"/> against what it declares, at the site that forwards it; a pack
-/// forwarded whole, or one of its elements, is judged for stampable alone, a pack's constraints being
-/// elementwise and the element's rebinding not this rule's to invent. Nonstampable forwarded pack
-/// constraints remain MIST-028 in backlog/issues.yaml.
+/// forwarded whole, spread into a pack, or one of its elements, is judged by what that pack declares of
+/// every element.
 /// </summary>
 internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 {
@@ -41,7 +40,7 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
                     TypeDisplay.Mist(closing.Argument), $"Type[{closing.Parameter.PackLength}]", closing.Parameter.Name);
             }
 
-            foreach(var constraint in Judged(closing))
+            foreach(var constraint in closing.Parameter.ConstraintsList)
             {
                 foreach(var argument in Arguments(closing, constraint))
                 {
@@ -50,18 +49,6 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
                 }
             }
         }
-    }
-
-    private static IEnumerable<TypeParameterConstraint> Judged(TypeArgumentClosing closing)
-    {
-        if(closing.Argument is not TypeParameter forwarded)
-        {
-            return closing.Parameter.ConstraintsList;
-        }
-
-        return closing.Parameter.IsPack || forwarded.IsPack || forwarded is PackElementType
-            ? closing.Parameter.ConstraintsList.Where(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable)
-            : closing.Parameter.ConstraintsList;
     }
 
     /// <summary>
@@ -112,9 +99,17 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
                 : [closing.Argument];
         }
 
-        return closing.Argument is LiftedType { Value: TypePackValue otherPack }
-            ? otherPack.Elements.Where(element => element is not (TypeParameter or SpreadType))
-            : [];
+        return closing.Argument switch
+        {
+            LiftedType { Value: TypePackValue otherPack } => otherPack.Elements.SelectMany(element => element switch
+            {
+                SpreadType { Operand: TupleType tuple } => tuple.ElementTypes,
+                SpreadType spread => [spread.Operand],
+                _ => [element],
+            }),
+            TypeParameter whole => [whole],
+            _ => [],
+        };
     }
 
     private static void Judge(AnalysisContext context, TypeArgumentClosing closing, TypeParameterConstraint declared)

@@ -556,52 +556,6 @@ issues:
   priority_rationale: Current reproducible wrong behavior; correctness work.
   audit_key: backend:backend-alias-dependent-projection
   area: backend
-- id: MIST-020
-  title: Report ambiguous bare names in expression position
-  status: confirmed
-  summary: 'A bare inherited abstract member can reach CandidateSet AmbiguousResult without an owning
-    source diagnostic: A.Value and B.Value inherited by C, whose Read returns bare Value, reaches MIST_BE_UNSUPPORTED_EXPRESSION.
-    Imported same-name types are already diagnosed by ImportingScope; retain them as a working control
-    rather than claiming every expression ambiguity is silent.'
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=22,id=static-context-checking].tasks[0]
-    lead_excerpt: Report an ambiguous name in expression position. ScopeResolver.ResolveNamedType already
-      reports MIST_PM_AMBIGUOUS_TYPE for the type-position equivalent, so only the expression path is
-      missing, and its wording is type-specific rather than reusable as-is.
-    line_at_baseline: 835
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: 'Source inspection of the complete result switch: no AmbiguousResult branch. This is a source-only
-      confirmed missing diagnostic path; no new CLI ambiguity fixture was executed.'
-    source_symbols:
-    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/IdentifierBinder.cs
-      symbol: return result switch
-      line: 31
-  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
-    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
-    source: 'using Standard; public abstract A { public int Value { get; } } public abstract B { public
-      int Value { get; } } public abstract C : A, B { public int Read() { return Value; } } public class
-      Program { public static void Main() {} }'
-    manifest: 'name = "Probe"
-
-      namespace_root = "Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: '/private/tmp/mist-plan-20261011-binding-probes/ambiguous-inherited/Program.mist(1,167):
-      error MIST_BE_UNSUPPORTED_EXPRESSION: This expression is not supported by the compiler yet, so no
-      C# can be emitted for it.'
-    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
-      described in the summary; no broader unknown-domain behavior is claimed.
-  related:
-  - name binding diagnostics
-  priority_rationale: Current source-established wrong behavior; correctness work.
-  audit_key: backend:backend-expression-ambiguity
-  area: backend
 - id: MIST-021
   title: Close parameterized constructor factories over a generic type’s own arguments
   status: confirmed
@@ -920,6 +874,39 @@ issues:
       output: 'none
 
         '
+  - revision: 37142e0f3097529a2199255e1457f6eab99587be
+    date: '2026-10-11'
+    kind: executed generated-consumer observation
+    detail: Optional-reference control in contextual-expression artifact verification emitted string present
+      = default(string) for string? present = void. CLI runtime behavior was correct; generated consumer
+      build warned CS8600. Existing optional-reference annotation issue remains confirmed and open; optional
+      representation is excluded from this binder packet. Numeric optional assignment/narrowing acceptance
+      has zero artifact warnings.
+    source: "using Standard;\nnamespace Probe;\npublic class Holder\n{\n    public long Field;\n    public\
+      \ long Property { get; set; }\n    public Holder() { }\n    public long this[int index]\n    {\n \
+      \       get { return Property; }\n        set { Property = value; }\n    }\n}\npublic class Program\n\
+      {\n    private static int evaluations = 0;\n    public static int Next()\n    {\n        evaluations\
+      \ = evaluations + 1;\n        return evaluations;\n    }\n    public static int Length(int x)\n  \
+      \  {\n        return (x switch { 1 => \"five\", _ => \"six\" }).Length;\n    }\n    public static\
+      \ int Keep(int n) { return n; }\n    public static void Main()\n    {\n        int x = 1;\n      \
+      \  int localLength = (x switch { 1 => \"five\", _ => \"six\" }).Length;\n        var inferred = (x\
+      \ switch { 1 => \"five\", _ => \"six\" }).Length;\n        int called = Keep((x switch { 1 => \"five\"\
+      , _ => \"six\" }).Length);\n        long direct = x switch { 1 => 1, _ => 2 };\n        Console.WriteLine($\"\
+      receivers={localLength},{Length(x)},{inferred},{called}; direct={direct}\");\n        long stored\
+      \ = 0;\n        var localResult = (stored = Next());\n        var holder = new Holder();\n       \
+      \ var fieldResult = (holder.Field = Next());\n        var propertyResult = (holder.Property = Next());\n\
+      \        var indexResult = (holder[0] = Next());\n        Console.WriteLine($\"results={localResult},{fieldResult},{propertyResult},{indexResult};\
+      \ evaluations={evaluations}\");\n        string? present = void;\n        present ??= \"set\";\n \
+      \       Console.WriteLine($\"narrowed={present.Length}\");\n    }\n}\n"
+    command: dotnet build <scratch-project>/out/Probe.csproj --disable-build-servers
+    observed: "  Determining projects to restore...\n  Restored /private/tmp/mist-contextual-receiver-assignment/out/Probe.csproj\
+      \ (in 25 ms).\n/private/tmp/mist-contextual-receiver-assignment/out/Probe/Program.cs(63,26): warning\
+      \ CS8600: Converting null literal or possible null value to non-nullable type. [/private/tmp/mist-contextual-receiver-assignment/out/Probe.csproj]\n\
+      \  Probe -> /private/tmp/mist-contextual-receiver-assignment/out/bin/Debug/net10.0/Probe.dll\n\nBuild\
+      \ succeeded.\n\n/private/tmp/mist-contextual-receiver-assignment/out/Probe/Program.cs(63,26): warning\
+      \ CS8600: Converting null literal or possible null value to non-nullable type. [/private/tmp/mist-contextual-receiver-assignment/out/Probe.csproj]\n\
+      \    1 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:01.24\n"
+    limits: No broad warning suppression or nullable representation change made.
   related:
   - warning collection in CSharpCompilationDriver
   - generated C# artifact fidelity
@@ -1112,114 +1099,6 @@ issues:
   - packet 15 sized runtime narrowing
   priority_rationale: Current reproducible wrong behavior; correctness work.
   audit_key: backend:backend-sized-union-carriers
-  area: backend
-- id: MIST-032
-  title: Distinguish declared non-instance members from unknown storage targets
-  status: confirmed
-  summary: An enum variant or static field/method named as initializer/property-pattern storage reports
-    no such member, even when declared. ResolveStorage requests instance-only members before it can distinguish
-    nonassignable targets.
-  source_refs:
-  - file: backlog/classic-retirement.md
-    selector: residual an enum variant, or a static field
-    line_at_baseline: 373
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: 'Source-only: instance-only ResolveStorage lookup filters the declared static member; the
-      old EnumMemberResult branch was removed as unreachable. No fresh diagnostic fixture run.'
-    source_symbols:
-    - file: Source/Mist/ProgramModel/Construction/Binding/MemberResolution.cs
-      symbol: ResolveStorage
-      line: 33
-  related:
-  - program-model-body-tasks storage diagnostics
-  priority_rationale: Current source-established wrong behavior; correctness work.
-  audit_key: backend:backend-static-storage-message
-  area: backend
-- id: MIST-033
-  title: Use a parenthesized switch expression’s result type for following member access
-  status: confirmed
-  summary: An explicit enclosing target leaks into the receiver of a parenthesized switch followed by
-    member access. int n = (x switch {1 => "five", _ => "six"}).Length resolves the arms/member as int
-    and refuses the valid program. Untargeted var/direct Console controls already produce 4; the residual
-    is specifically outer target propagation.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=95,id=switch-expressions].tasks[0]
-    lead_excerpt: 'A member read off a parenthesized switch expression binds against the scrutinee''s
-      type. Measured 2026-09-14: `int x = 1; int n = (x switch { 1 => "five", _ => "six" }).Length;` is
-      MIST_PM_UNRESOLVED_MEMBER "''Int32'' has no member named ''Length''" beside a NO_IMPLICIT_CONVERSION
-      on v2, and prints 4 on classic.
-
-      '
-    line_at_baseline: 6586
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe
-    detail: CLI emits MIST_PM_UNRESOLVED_MEMBER on int.Length and MIST_PA_NO_IMPLICIT_CONVERSION for each
-      string arm.
-    source_symbols: []
-    probes:
-    - path: /private/tmp/mist-backend-reconcile-probes/switch_member
-      source: 'using Standard;
-
-        namespace Probe;
-
-        public class Program { public static void Main() { int x = 1; int n = (x switch { 1 => "five",
-        _ => "six" }).Length; Console.WriteLine(n); } }
-
-        '
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/switch_member
-        --quiet
-      exit_code: 1
-      output: '/private/tmp/mist-backend-reconcile-probes/switch_member/Program.mist(3,109): error MIST_PM_UNRESOLVED_MEMBER:
-        ''int'' has no member named ''Length''.
-
-        /private/tmp/mist-backend-reconcile-probes/switch_member/Program.mist(3,88): error MIST_PA_NO_IMPLICIT_CONVERSION:
-        Cannot implicitly convert type ''string'' to ''int''.
-
-        /private/tmp/mist-backend-reconcile-probes/switch_member/Program.mist(3,101): error MIST_PA_NO_IMPLICIT_CONVERSION:
-        Cannot implicitly convert type ''string'' to ''int''.
-
-        '
-  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
-    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
-    source: using Standard; namespace Probe; public class Program { public static void Main() { int x=1;
-      int n=(x switch { 1 => "five", _ => "six" }).Length; Console.WriteLine(n); } }
-    manifest: 'name = "Probe"
-
-      namespace_root = "Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: '/private/tmp/mist-plan-20261011-root-probes/switch-result-typed/Program.mist(1,138): error
-      MIST_PM_UNRESOLVED_MEMBER: ''int'' has no member named ''Length''.
-
-      /private/tmp/mist-plan-20261011-root-probes/switch-result-typed/Program.mist(1,117): error MIST_PA_NO_IMPLICIT_CONVERSION:
-      Cannot implicitly convert type ''string'' to ''int''.
-
-      /private/tmp/mist-plan-20261011-root-probes/switch-result-typed/Program.mist(1,130): error MIST_PA_NO_IMPLICIT_CONVERSION:
-      Cannot implicitly convert type ''string'' to ''int''.
-
-      '
-    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
-      described in the summary; no broader unknown-domain behavior is claimed.
-  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
-    verification: executed untargeted receiver control
-    source: using Standard; namespace Probe; public class Program { public static void Main() { int x=1;
-      Console.WriteLine((x switch { 1 => "five", _ => "six" }).Length); } }
-    exit_code: 0
-    observed: '4
-
-      '
-  related:
-  - program-model-body-tasks switch expressions
-  priority_rationale: Current reproducible wrong behavior; correctness work.
-  audit_key: backend:backend-switch-result-member
   area: backend
 - id: MIST-034
   title: Retain universal parameterless ToString beside user overloads
@@ -1416,233 +1295,6 @@ issues:
   priority_rationale: Bounded remaining language behavior or diagnostic consistency.
   audit_key: binding:bind-02
   area: binding
-- id: MIST-040
-  title: Best common type inference stops at identity
-  status: confirmed
-  summary: Untargeted arrays, switch arms and block-lambda returns require reference-identical types.
-    Existing common base/implicit-widening contracts are not fulfilled, including int/long. One inference
-    requirement with three consumers; no arbitrary new union policy is asserted.
-  source_refs:
-  - file: backlog/program-model-body-tasks.yaml
-    selector: array-literal element unification
-    lead_excerpt: '    - [~] array-literal element unification -- MISSING: unification. CommonElementType
-      is a reference-identity uniformity check plus a diagnostic'
-    line_at_baseline: 587
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/program-model-body-tasks.yaml
-    selector: switch-expression arm unification
-    lead_excerpt: '    - [ ] switch-expression arm unification'
-    line_at_baseline: 586
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/program-model-body-tasks.yaml
-    selector: lambda multi-return unification
-    lead_excerpt: '    - [ ] lambda multi-return unification'
-    line_at_baseline: 588
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/program-model-body-tasks.yaml
-    selector: ArrayLiteralExpression (`[a, b, ...]`)
-    lead_excerpt: '    - [~] ArrayLiteralExpression (`[a, b, ...]`) -> element type via best-common-type
-      -- MISSING: best-common-type. Elements bind against the target ELEMENT type and the length is known,
-      but CommonElementType is a ReferenceEquals uniformity check that reports ArrayLiteralNoCommonElementType
-      on any difference, because no widening infrastructure exists yet'
-    line_at_baseline: 443
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/program-model-body-tasks.yaml
-    selector: result-type unification across arms
-    lead_excerpt: '    - [~] result-type unification across arms (best-common-type / common base) -- a
-      TARGET type wins outright when one is in effect, leaving assignability to Roslyn as everywhere else.
-      With no target the arms must agree by interned identity, following LiteralBinder.CommonElementType''s
-      precedent, and an arm whose result failed to bind is skipped rather than compared so its failure
-      is not re-reporte…'
-    line_at_baseline: 527
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/LiteralBinder.cs
-    selector: private static IMistType CommonElementType
-    line: 250
-    observed: Reports on any non-identical element type, even when an implicit numeric widening exists.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/PostfixBinder.cs
-    selector: private static IMistType CommonArmType
-    line: 289
-    observed: Compares surviving arm types by ReferenceEquals.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/LambdaBinder.cs
-    selector: internal static IMistType? InferredReturnType
-    line: 238
-    observed: Reports on differing return Type identities.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: .kiro/specs/switch-expressions/requirements.md
-    selector: common base type or implicit conversion target
-    line: 95
-    observed: Requirement 6.3 demands use of common base/implicit conversion target.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: .kiro/specs/first-class-functions/requirements.md
-    selector: unless a common base type or union type
-    line: 110
-    observed: Requirement 8.7 admits a determinable common base/union.
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/array-common
-    exit_code: 1
-    source: using Standard; public class Program { public static void Main() { var values = [1,2L]; Console.WriteLine(values.Length);
-      } }
-    artifact: /private/tmp/mist-reconcile-binding-probes/array-common
-    observed: '/private/tmp/mist-reconcile-binding-probes/array-common/Program.mist(1,81): error MIST_PM_ARRAY_LITERAL_NO_COMMON_TYPE:
-      The elements of the array literal have no common type (''Int32'' and ''Int64''). Annotate the target
-      with an array type to select the element type explicitly.'
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/switch-common
-    exit_code: 1
-    source: using Standard; public class Program { public static void Main() { var r = true switch { true
-      => 1, false => 2L }; Console.WriteLine(r); } }
-    artifact: /private/tmp/mist-reconcile-binding-probes/switch-common
-    observed: '/private/tmp/mist-reconcile-binding-probes/switch-common/Program.mist(1,81): error MIST_PM_SWITCH_ARMS_NO_COMMON_TYPE:
-      The arms of the switch expression have no common type (''Int32'' and ''Int64''). Annotate the target
-      with the type you want.'
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/lambda-common
-    exit_code: 1
-    source: using Standard; public class Program { public static void Main() { var f = (bool b) => { if(b)
-      { return 1; } return 2L; }; Console.WriteLine(f(true)); } }
-    artifact: /private/tmp/mist-reconcile-binding-probes/lambda-common
-    observed: '/private/tmp/mist-reconcile-binding-probes/lambda-common/Program.mist(1,76): error MIST_PM_LAMBDA_RETURNS_NO_COMMON_TYPE:
-      The lambda''s returns have no common type (''Int32'' and ''Int64''). Annotate the target with a
-      function type to select the result.
-
-      /private/tmp/mist-reconcile-binding-probes/lambda-common/Program.mist(1,131): error MIST_PM_UNRESOLVABLE_OVERLOAD:
-      The call to method ''WriteLine'' matches no overload. No conversion is known from the given arguments
-      to any of: (string), (unknown).'
-  related:
-  - emitter switch/array/lambda evidence
-  - analysis conversion classification
-  priority: P2
-  priority_rationale: Valid values with known widening/common bases are refused before emission.
-  audit_key: binding:bind-05
-  area: binding
-- id: MIST-041
-  title: Assignment expression retains RHS type rather than storage type
-  status: confirmed
-  summary: With long n=0, var r=(n=1) binds r as int but emits a C# assignment of type long, causing a
-    downstream conversion error. RHS target typing is present; the remaining issue is the assignment result
-    contract.
-  source_refs:
-  - file: backlog/program-model-body-tasks.yaml
-    selector: simple assignment (`=`)
-    lead_excerpt: '    - [~] simple assignment (`=`) -> result type is target type; bind RHS with target-type
-      context -- MISSING: the result type only, which is value.Type rather than the target''s. The RHS
-      IS bound under the assignment target''s type now, which is what lets a target-typed new stand on
-      the right of one'
-    line_at_baseline: 398
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Model/Expressions/AssignmentExpression.cs
-    selector: The <see cref="Type"/> is the type of the assigned value
-    line: 9
-    observed: The model documents assigned-value typing.
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/assignment-result
-    exit_code: 1
-    source: using Standard; public class Program { public static void Main() { long n = 0; var r = (n
-      = 1); Console.WriteLine(r); } }
-    artifact: /private/tmp/mist-reconcile-binding-probes/assignment-result
-    observed: '/private/tmp/mist-reconcile-binding-probes/assignment-result/out/PacketProbe/Program.cs:
-      error MIST_CS_ERROR: Cannot implicitly convert type ''long'' to ''int''. An explicit conversion
-      exists (are you missing a cast?)'
-  related: []
-  priority: P1
-  priority_rationale: Bound type and emitted expression disagree and reject a sound program.
-  audit_key: binding:bind-06
-  area: binding
-- id: MIST-042
-  title: Non-indexable intrinsic access lacks its owning refusal
-  status: confirmed
-  summary: Indexing a sound receiver with no indexer falls back to ErrorType silently. 5[0] reports a
-    later WriteLine overload instead of refusing the index; packet12 deliberately preserved this remainder.
-    Intrinsic index type checks also need revalidation, rather than marking every index gap open.
-  source_refs:
-  - file: backlog/program-model-body-tasks.yaml
-    selector: error-expression sentinel type
-    lead_excerpt: '    - [~] error-expression sentinel type (ProgramModel''s own; suppresses cascading
-      errors) -- Model/Types/ErrorType.cs + Model/Expressions/ErrorExpression.cs + Model/Expressions/UnresolvedExpression.cs.
-      A VALUE THAT ALREADY FAILED ADDS NO SECOND COMPLAINT WHERE IT IS PASSED ON (2026-09-15): OverloadFailure.Report
-      is silent when an argument is Construction/Binding/PriorFailure.Of -- an ErrorExpress…'
-    line_at_baseline: 130
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/program-model-body-tasks.yaml
-    selector: IndexSuffix (`[i]`)
-    lead_excerpt: '    - [~] IndexSuffix (`[i]`) -> indexer resolution / array-element / span-element
-      / slice -- MISSING: index typing for an intrinsic indexer (analysis order 5 judges a user indexer''s
-      index only). THE GET/SET DISTINCTION IS DONE (2026-09-15), judged in analysis rather than decided
-      here: selection still reads the index alone, since C# selects before it refuses and a sibling that
-      has the accessor mus…'
-    line_at_baseline: 426
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/classic-retirement.md
-    selector: residual intrinsic indexing of a sound
-    line_at_baseline: 380
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/IndexBinder.cs
-    selector: if(indexers.Count == 0)
-    line: 33
-    observed: Returns IndexExpression with ArrayElement(...) ?? ErrorType without reporting.
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/invalid-index
-    exit_code: 1
-    source: using Standard; public class Program { public static void Main() { var r = 5[0]; Console.WriteLine(r);
-      } }
-    artifact: /private/tmp/mist-reconcile-binding-probes/invalid-index
-    observed: '/private/tmp/mist-reconcile-binding-probes/invalid-index/Program.mist(1,89): error MIST_PM_UNRESOLVABLE_OVERLOAD:
-      The call to method ''WriteLine'' matches no overload. No conversion is known from the given arguments
-      to any of: (string), (unknown).'
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe by binding auditor plus source inspection
-    detail: Exact current counterpart bind-07 evidence copied for traceability.
-    counterpart_evidence:
-    - kind: source_inspection
-      revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-      file: Source/Mist/ProgramModel/Construction/Binding/Expressions/IndexBinder.cs
-      selector: if(indexers.Count == 0)
-      line: 33
-      observed: Returns IndexExpression with ArrayElement(...) ?? ErrorType without reporting.
-    - kind: executed_cli_probe
-      revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/invalid-index
-      exit_code: 1
-      source: using Standard; public class Program { public static void Main() { var r = 5[0]; Console.WriteLine(r);
-        } }
-      artifact: /private/tmp/mist-reconcile-binding-probes/invalid-index
-      observed: '/private/tmp/mist-reconcile-binding-probes/invalid-index/Program.mist(1,89): error MIST_PM_UNRESOLVABLE_OVERLOAD:
-        The call to method ''WriteLine'' matches no overload. No conversion is known from the given arguments
-        to any of: (string), (unknown).'
-  related:
-  - analysis index/position capability
-  - classic-retirement residual indexing
-  - completed packet12 remainder
-  - packet 12 failed-tree/error ownership
-  - analysis indexing
-  - binding canonical bind-07
-  priority: P1
-  priority_rationale: Wrong owning diagnostic and potentially unreported malformed index tree.
-  audit_key: binding:bind-07
-  area: binding
-  merged_audit_keys:
-  - backend:backend-sound-nonindexable
 - id: MIST-043
   title: Large tuple type-test spelling uses flat ValueTuple arity
   status: confirmed
@@ -1683,70 +1335,6 @@ issues:
   priority_rationale: A supported tuple type shape reaches Roslyn as an invalid emitted type.
   audit_key: binding:bind-08
   area: binding
-- id: MIST-044
-  title: Noncallable contextual arguments across overload candidates
-  status: confirmed
-  summary: 'ArgumentBinder supplies targets only for SoleByArity; candidate trials target lambdas/method
-    groups, not target-dependent new/default/empty arrays. The several-candidate lead remains source-supported.
-    No executed reproduction here: revalidate a call whose other sound argument uniquely selects an overload
-    before implementing.'
-  source_refs:
-  - file: backlog/program-model-body-tasks.yaml
-    selector: argument binding threads parameter types
-    lead_excerpt: '    - [~] argument binding threads parameter types as target types (lambdas, void literal,
-      default, target-typed new) -- MISSING: the case where SEVERAL candidates share an arity, which is
-      circular -- a parameter can target an argument only once the overload is known, and the overload
-      is chosen from the argument types. ArgumentBinder pushes the parameter type where exactly one candidate
-      matches by…'
-    line_at_baseline: 481
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/program-model-body-tasks.yaml
-    selector: argument target type (from resolved parameter type)
-    lead_excerpt: '    - [~] argument target type (from resolved parameter type) -- MISSING: the several-candidates
-      case for any argument but a lambda or a method group, which needs the argument to take part in applicability
-      before it has a type -- those two do since 2026-09-25, typed per candidate (see generic_inference).
-      One candidate of the right arity supplies its parameter types, now SUBSTITUTED against a const…'
-    line_at_baseline: 580
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=65,id=target-typed-new].tasks[0]
-    lead_excerpt: Target an argument from its parameter where SEVERAL candidates share an arity. Needs
-      the construction to take part in applicability as convertible to anything constructible, rather
-      than needing a type before selection has run.
-    line_at_baseline: 3728
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ArgumentBinder.cs
-    selector: var targets = sole is null
-    line: 271
-    observed: No argument targets when multiple same-arity candidates remain; settlement handles UnboundLambdaExpression/method
-      groups.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ArgumentBinder.cs
-    selector: internal static IReadOnlyList<Expression> Settle
-    line: 297
-    observed: Only unbound lambdas and method groups are settled under winner parameters.
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols:
-    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ExpressionBinder.cs
-      symbol: ExpressionBinder
-      line: 17
-  related:
-  - emitter overload/target-typed-new work
-  - emitter capability target-typed-new
-  priority: P2
-  priority_rationale: Current source confirms missing contextual path, but acceptance needs a uniquely
-    resolvable source call.
-  audit_key: binding:bind-09
-  area: binding
-  merged_audit_keys:
-  - backend:emitter-065-tasks-0
 - id: MIST-045
   title: Qualified base type references do not parse
   status: confirmed
@@ -7848,6 +7436,39 @@ issues:
     observed: 'dotnet build /tmp/mist-constructor-contracts/acceptance/out/Probe.csproj succeeds with 0 errors, 6 CS8603 and 3 CS8618. Full diagnostic log: /tmp/mist-constructor-contracts/acceptance.final.consumer-build.log. Independently built artifact matches all 34 runtime checks.'
     detail: CS8603 sites return default(T) from Func<T> compatibility lambdas. Two CS8618 sites are marker part constructors that assign user slots without initializing stored __default_T; the third is RawRoot<T>(int), whose undecided T storage is excluded from DA and has no witness. These emission/DA mechanisms predate this packet by source comparison; their baseline consumer diagnostics were not executed. No nullable suppression added.
     disposition: Retained open because this packet explicitly excludes CLR constructor projection expansion and generic contract design. Preserve valid witness call sites, struct conversion/part-factory behavior and unconstrained generic admissions when addressing the residue.
+  - revision: e8bc3c967b976814ba8e1f8440798d4b59feb67c
+    date: '2026-10-11'
+    kind: executed witness-factory generated-consumer observation
+    detail: The matching generic inherited factory scratch prints 0 and builds with no CS0108 or CS0109.
+      Its existing parameterless compatibility constructors return default(T) from injected callbacks and
+      produce two CS8603 warnings, the same nullable compatibility defect already tracked here. The witness-signature
+      extension does not alter those callbacks or suppress their warnings.
+    source: "using Standard;\npublic class Parent<T> { public T Value; }\npublic class Child<U> : Parent<U>\
+      \ { }\npublic class Program {\n    public static void Main() {\n        var value = default(Child<int>);\n\
+      \        Console.WriteLine(value.Value);\n    }\n}\n"
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet build
+      <scratch-project>/out/Probe.csproj --disable-build-servers
+    exit_code: 0
+    stdout: '0
+
+      '
+    consumer_build: "  Determining projects to restore...\n  Restored /private/tmp/mist-contextual-factory-witness/out/Probe.csproj\
+      \ (in 44 ms).\n/private/tmp/mist-contextual-factory-witness/out/Probe/Program.cs(9,79): warning CS8603:\
+      \ Possible null reference return. [/private/tmp/mist-contextual-factory-witness/out/Probe.csproj]\n\
+      /private/tmp/mist-contextual-factory-witness/out/Probe/Program.cs(30,78): warning CS8603: Possible\
+      \ null reference return. [/private/tmp/mist-contextual-factory-witness/out/Probe.csproj]\n  Probe\
+      \ -> /private/tmp/mist-contextual-factory-witness/out/bin/Debug/net10.0/Probe.dll\n\nBuild succeeded.\n\
+      \n/private/tmp/mist-contextual-factory-witness/out/Probe/Program.cs(9,79): warning CS8603: Possible\
+      \ null reference return. [/private/tmp/mist-contextual-factory-witness/out/Probe.csproj]\n/private/tmp/mist-contextual-factory-witness/out/Probe/Program.cs(30,78):\
+      \ warning CS8603: Possible null reference return. [/private/tmp/mist-contextual-factory-witness/out/Probe.csproj]\n\
+      \    2 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:01.68\n"
+    limits: Retain as confirmed open; nullable generic compatibility projection is outside the contextual-expression
+      packet.
   related:
   - MIST-008
   - MIST-206
@@ -7855,10 +7476,995 @@ issues:
   priority_rationale: Generated artifact fidelity; 0 build errors and exercised Mist runtime behavior remains correct.
   area: backend/generic interop
 archive:
-- id: MIST-206
-  title: Declare parameterless inherited default factory hiding in C#
+- id: MIST-020
+  title: Report ambiguous bare names in expression position
   status: implemented
-  summary: Parameterless synthesized class factories explicitly hide an actually emitted parameterless ancestor factory, eliminating generated CS0108. Structs, ambient/nondefaultable ancestors and differing witness signatures do not gain a misleading new modifier.
+  summary: Bare expression ambiguity now reports one frontend ambiguity naming the surviving qualified candidates.
+    Nearest declaration selection precedes ambiguity classification; imported-type ambiguity and valid overload
+    groups retain their existing owners.
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=22,id=static-context-checking].tasks[0]
+    lead_excerpt: Report an ambiguous name in expression position. ScopeResolver.ResolveNamedType already
+      reports MIST_PM_AMBIGUOUS_TYPE for the type-position equivalent, so only the expression path is
+      missing, and its wording is type-specific rather than reusable as-is.
+    line_at_baseline: 835
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: 'Source inspection of the complete result switch: no AmbiguousResult branch. This is a source-only
+      confirmed missing diagnostic path; no new CLI ambiguity fixture was executed.'
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/IdentifierBinder.cs
+      symbol: return result switch
+      line: 31
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
+    source: 'using Standard; public abstract A { public int Value { get; } } public abstract B { public
+      int Value { get; } } public abstract C : A, B { public int Read() { return Value; } } public class
+      Program { public static void Main() {} }'
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '/private/tmp/mist-plan-20261011-binding-probes/ambiguous-inherited/Program.mist(1,167):
+      error MIST_BE_UNSUPPORTED_EXPRESSION: This expression is not supported by the compiler yet, so no
+      C# can be emitted for it.'
+    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
+      described in the summary; no broader unknown-domain behavior is claimed.
+  - revision: 37142e0f3097529a2199255e1457f6eab99587be
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - IdentifierBinder handles AmbiguousResult as MIST_PM_AMBIGUOUS_IDENTIFIER and a positively failed expression.
+      CandidateSet first selects the closest surviving depth across kinds.
+    - Tier 1 ContextualExpressionLookupDecisionTests checks nearest-kind shadowing and actual ambiguity.
+      Tier 2 ContextualExpressionLookupContractTests checks candidate names, exact source spans, unambiguous
+      inherited storage, method groups and unfinished controls; ScopeResolverAmbiguityTests remains a regression
+      anchor.
+    verification:
+    - 'UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh
+      Mist.slnx: outcome: test exit 0 after 250s
+
+      storm.consumerintegration.tests.dll: total 46, passed 46, failed 0, 2s
+
+      mist.cli.tests.dll: total 115, passed 115, failed 0, 4s
+
+      storm.sourcegenerator.tests.dll: total 852, passed 852, failed 0, 7s
+
+      mist.tests.dll: total 9358, passed 9358, failed 0, 249s. Ledger TestResults/ledger/20261011-170813;
+      summary.txt and failures.txt inspected; failures.txt empty. Ledger build uses dotnet build Mist.slnx
+      and passed with zero warnings/errors. Environment settings recorded in env.txt.'
+    - 'dotnet format Mist.slnx --verify-no-changes: passed on the integrated sources; git diff --check:
+      passed.'
+    - 'Closed-pack repair focused ledger TestResults/ledger/20261011-170325: 430 passed, zero failed. Summary
+      and empty failures inspected; includes contextual expressions, value packs, TargetTypedNew, and integrated
+      local-binding contracts.'
+    - 'Focused ledger TestResults/ledger/20261011-164833: 597 passed, zero failed. Earlier ledgers 20261011-164031
+      (11 failures) and 20261011-164457 (one failure) were inspected before reruns; failures were attributed
+      to new fixture expectations and the contextual-new detector, then corrected. These were not unexplained
+      intermittent failures.'
+    - 'Ledger TestResults/ledger/20261011-165420 retained: tests not run because shared compilation could
+      not write generated sources (CS0016). Summary and failures inspected; shared compilation disabled
+      for the integrated final run. This is an environment build failure, not a test pass.'
+    - Rebased onto fa2841978df416e8f072a1dd885a924e73c808c0, retaining the concurrent local-binding, constructor-initialization
+      and parameterless factory implementations and closeout. No retired classic implementation consulted;
+      Storm submodule initialized and checked at the recorded b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin.
+    limits: Lookup diagnostics only; no static/member namespace grammar or imported-type policy expansion.
+    probes:
+    - source: 'public abstract A { public int Value { get; } } public abstract B { public int Value { get;
+        } } public abstract C : A, B { public int Read() { return Value; } } public class Program { public
+        static void Main() {} }
+
+        '
+      manifest: 'name = "Probe"
+
+        namespace_root = "Probe"
+
+        '
+      command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+      exit_code: 1
+      observed: '/private/tmp/mist-contextual-refusals/ambiguous/Program.mist(1,151): error MIST_PM_AMBIGUOUS_IDENTIFIER:
+        The identifier ''Value'' is ambiguous between property ''Probe.A.Value'', property ''Probe.B.Value''.'
+      acceptance: Exactly one MIST_PM_AMBIGUOUS_IDENTIFIER; no derivative/backend finding.
+  related:
+  - name binding diagnostics
+  priority_rationale: Current source-established wrong behavior; correctness work.
+  audit_key: backend:backend-expression-ambiguity
+  area: backend
+- id: MIST-032
+  title: Distinguish declared non-instance members from unknown storage targets
+  status: implemented
+  summary: Initializer and property-pattern storage lookup retains declared static and nonstorage members
+    long enough to report the correct refusal. Failed target provenance prevents derivative storage, accessibility,
+    accessor, readonly and purity findings while independent values/patterns remain available.
+  source_refs:
+  - file: backlog/classic-retirement.md
+    selector: residual an enum variant, or a static field
+    line_at_baseline: 373
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: 'Source-only: instance-only ResolveStorage lookup filters the declared static member; the
+      old EnumMemberResult branch was removed as unreachable. No fresh diagnostic fixture run.'
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Construction/Binding/MemberResolution.cs
+      symbol: ResolveStorage
+      line: 33
+  - revision: 37142e0f3097529a2199255e1457f6eab99587be
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - ResolveStorage classifies instance field/property storage after lookup of instance and static candidates.
+      Static storage receives not-instance; method, variant and type targets receive not-assignable. Genuinely
+      missing members remain unresolved.
+    - Tier 2 ContextualExpressionStorageContractTests and InitializerTargetBindingTests cover both paths
+      for field/property/method/enum/type, missing and valid targets. ContextualExpressionStorageFailureTests
+      checks one owning refusal without admitting a write or read; existing accessibility/accessor/readonly
+      checks passed.
+    verification:
+    - 'UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh
+      Mist.slnx: outcome: test exit 0 after 250s
+
+      storm.consumerintegration.tests.dll: total 46, passed 46, failed 0, 2s
+
+      mist.cli.tests.dll: total 115, passed 115, failed 0, 4s
+
+      storm.sourcegenerator.tests.dll: total 852, passed 852, failed 0, 7s
+
+      mist.tests.dll: total 9358, passed 9358, failed 0, 249s. Ledger TestResults/ledger/20261011-170813;
+      summary.txt and failures.txt inspected; failures.txt empty. Ledger build uses dotnet build Mist.slnx
+      and passed with zero warnings/errors. Environment settings recorded in env.txt.'
+    - 'dotnet format Mist.slnx --verify-no-changes: passed on the integrated sources; git diff --check:
+      passed.'
+    - 'Closed-pack repair focused ledger TestResults/ledger/20261011-170325: 430 passed, zero failed. Summary
+      and empty failures inspected; includes contextual expressions, value packs, TargetTypedNew, and integrated
+      local-binding contracts.'
+    - 'Focused ledger TestResults/ledger/20261011-164833: 597 passed, zero failed. Earlier ledgers 20261011-164031
+      (11 failures) and 20261011-164457 (one failure) were inspected before reruns; failures were attributed
+      to new fixture expectations and the contextual-new detector, then corrected. These were not unexplained
+      intermittent failures.'
+    - 'Ledger TestResults/ledger/20261011-165420 retained: tests not run because shared compilation could
+      not write generated sources (CS0016). Summary and failures inspected; shared compilation disabled
+      for the integrated final run. This is an environment build failure, not a test pass.'
+    - Rebased onto fa2841978df416e8f072a1dd885a924e73c808c0, retaining the concurrent local-binding, constructor-initialization
+      and parameterless factory implementations and closeout. No retired classic implementation consulted;
+      Storm submodule initialized and checked at the recorded b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin.
+    limits: Storage lookup and failure ownership only; no pattern proof, exhaustiveness or runtime representation
+      changes.
+    probes:
+    - source: 'using Standard; public class Widget { public static int Count { get; } } public class Program
+        { public static void Main() { var w = new Widget() { Count = 1 }; } }
+
+        '
+      manifest: 'name = "Probe"
+
+        namespace_root = "Probe"
+
+        '
+      command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+      exit_code: 1
+      observed: '/private/tmp/mist-contextual-refusals/static-initializer/Program.mist(1,148): error MIST_PM_INITIALIZER_TARGET_NOT_INSTANCE:
+        ''Count'' on ''Widget'' is static, so an initializer block cannot assign to it.'
+      acceptance: Exactly one MIST_PM_INITIALIZER_TARGET_NOT_INSTANCE; no derivative/backend finding.
+    - source: 'using Standard; public class Widget { public static int Count { get; } } public class Program
+        { public static void Main() { var w = new Widget(); if(w is { Count: 1 }) {} } }
+
+        '
+      exit_code: 1
+      observed: '/private/tmp/mist-contextual-refusals/static-pattern/Program.mist(1,157): error MIST_PM_PATTERN_SUBPATTERN_NOT_INSTANCE:
+        ''Count'' on ''Widget'' is static, so a property pattern cannot match against it.'
+      acceptance: Exactly one MIST_PM_PATTERN_SUBPATTERN_NOT_INSTANCE.
+  related:
+  - program-model-body-tasks storage diagnostics
+  priority_rationale: Current source-established wrong behavior; correctness work.
+  audit_key: backend:backend-static-storage-message
+  area: backend
+- id: MIST-033
+  title: Use a parenthesized switch expression’s result type for following member access
+  status: implemented
+  summary: Postfix binding clears the enclosing result target while binding receivers and intermediate suffixes,
+    then applies it to the final suffix. String-valued switch receivers therefore retain string before Length
+    produces int. Directly targeted switch and callable conversions remain supported.
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=95,id=switch-expressions].tasks[0]
+    lead_excerpt: 'A member read off a parenthesized switch expression binds against the scrutinee''s
+      type. Measured 2026-09-14: `int x = 1; int n = (x switch { 1 => "five", _ => "six" }).Length;` is
+      MIST_PM_UNRESOLVED_MEMBER "''Int32'' has no member named ''Length''" beside a NO_IMPLICIT_CONVERSION
+      on v2, and prints 4 on classic.
+
+      '
+    line_at_baseline: 6586
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe
+    detail: CLI emits MIST_PM_UNRESOLVED_MEMBER on int.Length and MIST_PA_NO_IMPLICIT_CONVERSION for each
+      string arm.
+    source_symbols: []
+    probes:
+    - path: /private/tmp/mist-backend-reconcile-probes/switch_member
+      source: 'using Standard;
+
+        namespace Probe;
+
+        public class Program { public static void Main() { int x = 1; int n = (x switch { 1 => "five",
+        _ => "six" }).Length; Console.WriteLine(n); } }
+
+        '
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/switch_member
+        --quiet
+      exit_code: 1
+      output: '/private/tmp/mist-backend-reconcile-probes/switch_member/Program.mist(3,109): error MIST_PM_UNRESOLVED_MEMBER:
+        ''int'' has no member named ''Length''.
+
+        /private/tmp/mist-backend-reconcile-probes/switch_member/Program.mist(3,88): error MIST_PA_NO_IMPLICIT_CONVERSION:
+        Cannot implicitly convert type ''string'' to ''int''.
+
+        /private/tmp/mist-backend-reconcile-probes/switch_member/Program.mist(3,101): error MIST_PA_NO_IMPLICIT_CONVERSION:
+        Cannot implicitly convert type ''string'' to ''int''.
+
+        '
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
+    source: using Standard; namespace Probe; public class Program { public static void Main() { int x=1;
+      int n=(x switch { 1 => "five", _ => "six" }).Length; Console.WriteLine(n); } }
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '/private/tmp/mist-plan-20261011-root-probes/switch-result-typed/Program.mist(1,138): error
+      MIST_PM_UNRESOLVED_MEMBER: ''int'' has no member named ''Length''.
+
+      /private/tmp/mist-plan-20261011-root-probes/switch-result-typed/Program.mist(1,117): error MIST_PA_NO_IMPLICIT_CONVERSION:
+      Cannot implicitly convert type ''string'' to ''int''.
+
+      /private/tmp/mist-plan-20261011-root-probes/switch-result-typed/Program.mist(1,130): error MIST_PA_NO_IMPLICIT_CONVERSION:
+      Cannot implicitly convert type ''string'' to ''int''.
+
+      '
+    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
+      described in the summary; no broader unknown-domain behavior is claimed.
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: executed untargeted receiver control
+    source: using Standard; namespace Probe; public class Program { public static void Main() { int x=1;
+      Console.WriteLine((x switch { 1 => "five", _ => "six" }).Length); } }
+    exit_code: 0
+    observed: '4
+
+      '
+  - revision: 37142e0f3097529a2199255e1457f6eab99587be
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - BindPostfix preserves target-failure provenance when a target belongs to the expression, while clearing
+      it together with a receiver-inapplicable target. Rebase integration adds direct new/default/empty-array
+      failed-target controls.
+    - Tier 2 ContextualExpressionContractReceiverTests covers typed local, return, call, inferred control,
+      parentheses, chains, final target and method-group/lambda conversion. ContextualExpressionContractEmissionTests
+      checks emitted member reads.
+    verification:
+    - 'UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh
+      Mist.slnx: outcome: test exit 0 after 250s
+
+      storm.consumerintegration.tests.dll: total 46, passed 46, failed 0, 2s
+
+      mist.cli.tests.dll: total 115, passed 115, failed 0, 4s
+
+      storm.sourcegenerator.tests.dll: total 852, passed 852, failed 0, 7s
+
+      mist.tests.dll: total 9358, passed 9358, failed 0, 249s. Ledger TestResults/ledger/20261011-170813;
+      summary.txt and failures.txt inspected; failures.txt empty. Ledger build uses dotnet build Mist.slnx
+      and passed with zero warnings/errors. Environment settings recorded in env.txt.'
+    - 'dotnet format Mist.slnx --verify-no-changes: passed on the integrated sources; git diff --check:
+      passed.'
+    - 'Closed-pack repair focused ledger TestResults/ledger/20261011-170325: 430 passed, zero failed. Summary
+      and empty failures inspected; includes contextual expressions, value packs, TargetTypedNew, and integrated
+      local-binding contracts.'
+    - 'Focused ledger TestResults/ledger/20261011-164833: 597 passed, zero failed. Earlier ledgers 20261011-164031
+      (11 failures) and 20261011-164457 (one failure) were inspected before reruns; failures were attributed
+      to new fixture expectations and the contextual-new detector, then corrected. These were not unexplained
+      intermittent failures.'
+    - 'Ledger TestResults/ledger/20261011-165420 retained: tests not run because shared compilation could
+      not write generated sources (CS0016). Summary and failures inspected; shared compilation disabled
+      for the integrated final run. This is an environment build failure, not a test pass.'
+    - Rebased onto fa2841978df416e8f072a1dd885a924e73c808c0, retaining the concurrent local-binding, constructor-initialization
+      and parameterless factory implementations and closeout. No retired classic implementation consulted;
+      Storm submodule initialized and checked at the recorded b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin.
+    limits: Target consumption only; declaration-target production remains owned by the integrated local-binding
+      work.
+    artifact:
+      source: "using Standard;\nnamespace Probe;\npublic class Holder\n{\n    public long Field;\n    public\
+        \ long Property { get; set; }\n    public Holder() { }\n    public long this[int index]\n    {\n\
+        \        get { return Property; }\n        set { Property = value; }\n    }\n}\npublic class Program\n\
+        {\n    private static int evaluations = 0;\n    public static int Next()\n    {\n        evaluations\
+        \ = evaluations + 1;\n        return evaluations;\n    }\n    public static int Length(int x)\n\
+        \    {\n        return (x switch { 1 => \"five\", _ => \"six\" }).Length;\n    }\n    public static\
+        \ int Keep(int n) { return n; }\n    public static void Main()\n    {\n        int x = 1;\n    \
+        \    int localLength = (x switch { 1 => \"five\", _ => \"six\" }).Length;\n        var inferred\
+        \ = (x switch { 1 => \"five\", _ => \"six\" }).Length;\n        int called = Keep((x switch { 1\
+        \ => \"five\", _ => \"six\" }).Length);\n        long direct = x switch { 1 => 1, _ => 2 };\n  \
+        \      Console.WriteLine($\"receivers={localLength},{Length(x)},{inferred},{called}; direct={direct}\"\
+        );\n        long stored = 0;\n        var localResult = (stored = Next());\n        var holder =\
+        \ new Holder();\n        var fieldResult = (holder.Field = Next());\n        var propertyResult\
+        \ = (holder.Property = Next());\n        var indexResult = (holder[0] = Next());\n        Console.WriteLine($\"\
+        results={localResult},{fieldResult},{propertyResult},{indexResult}; evaluations={evaluations}\"\
+        );\n        long? present = void;\n        present ??= 3L;\n        long narrowed = present;\n \
+        \       Console.WriteLine($\"narrowed={narrowed}\");\n    }\n}\n"
+      manifest: 'name = "Probe"
+
+        namespace_root = "Probe"
+
+        '
+      command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet
+        build <scratch-project>/out/Probe.csproj --disable-build-servers
+      exit_code: 0
+      stdout: 'receivers=4,4,4,4; direct=1
+
+        results=1,2,3,4; evaluations=4
+
+        narrowed=3
+
+        '
+      consumer_build: zero warnings and zero errors; complete cli.log and consumer-build.log retained in
+        scratch
+  related:
+  - program-model-body-tasks switch expressions
+  priority_rationale: Current reproducible wrong behavior; correctness work.
+  audit_key: backend:backend-switch-result-member
+  area: backend
+- id: MIST-040
+  title: Best common type inference stops at identity
+  status: implemented
+  summary: Untargeted arrays, switch results and block-lambda returns share supported common-type inference
+    and settle values through normal conversions. Numeric widening, nominal bases and declared implicit
+    targets select a unique narrowest supported target independently of input order.
+  source_refs:
+  - file: backlog/program-model-body-tasks.yaml
+    selector: array-literal element unification
+    lead_excerpt: '    - [~] array-literal element unification -- MISSING: unification. CommonElementType
+      is a reference-identity uniformity check plus a diagnostic'
+    line_at_baseline: 587
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/program-model-body-tasks.yaml
+    selector: switch-expression arm unification
+    lead_excerpt: '    - [ ] switch-expression arm unification'
+    line_at_baseline: 586
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/program-model-body-tasks.yaml
+    selector: lambda multi-return unification
+    lead_excerpt: '    - [ ] lambda multi-return unification'
+    line_at_baseline: 588
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/program-model-body-tasks.yaml
+    selector: ArrayLiteralExpression (`[a, b, ...]`)
+    lead_excerpt: '    - [~] ArrayLiteralExpression (`[a, b, ...]`) -> element type via best-common-type
+      -- MISSING: best-common-type. Elements bind against the target ELEMENT type and the length is known,
+      but CommonElementType is a ReferenceEquals uniformity check that reports ArrayLiteralNoCommonElementType
+      on any difference, because no widening infrastructure exists yet'
+    line_at_baseline: 443
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/program-model-body-tasks.yaml
+    selector: result-type unification across arms
+    lead_excerpt: '    - [~] result-type unification across arms (best-common-type / common base) -- a
+      TARGET type wins outright when one is in effect, leaving assignability to Roslyn as everywhere else.
+      With no target the arms must agree by interned identity, following LiteralBinder.CommonElementType''s
+      precedent, and an arm whose result failed to bind is skipped rather than compared so its failure
+      is not re-reporte…'
+    line_at_baseline: 527
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/LiteralBinder.cs
+    selector: private static IMistType CommonElementType
+    line: 250
+    observed: Reports on any non-identical element type, even when an implicit numeric widening exists.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/PostfixBinder.cs
+    selector: private static IMistType CommonArmType
+    line: 289
+    observed: Compares surviving arm types by ReferenceEquals.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/LambdaBinder.cs
+    selector: internal static IMistType? InferredReturnType
+    line: 238
+    observed: Reports on differing return Type identities.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: .kiro/specs/switch-expressions/requirements.md
+    selector: common base type or implicit conversion target
+    line: 95
+    observed: Requirement 6.3 demands use of common base/implicit conversion target.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: .kiro/specs/first-class-functions/requirements.md
+    selector: unless a common base type or union type
+    line: 110
+    observed: Requirement 8.7 admits a determinable common base/union.
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/array-common
+    exit_code: 1
+    source: using Standard; public class Program { public static void Main() { var values = [1,2L]; Console.WriteLine(values.Length);
+      } }
+    artifact: /private/tmp/mist-reconcile-binding-probes/array-common
+    observed: '/private/tmp/mist-reconcile-binding-probes/array-common/Program.mist(1,81): error MIST_PM_ARRAY_LITERAL_NO_COMMON_TYPE:
+      The elements of the array literal have no common type (''Int32'' and ''Int64''). Annotate the target
+      with an array type to select the element type explicitly.'
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/switch-common
+    exit_code: 1
+    source: using Standard; public class Program { public static void Main() { var r = true switch { true
+      => 1, false => 2L }; Console.WriteLine(r); } }
+    artifact: /private/tmp/mist-reconcile-binding-probes/switch-common
+    observed: '/private/tmp/mist-reconcile-binding-probes/switch-common/Program.mist(1,81): error MIST_PM_SWITCH_ARMS_NO_COMMON_TYPE:
+      The arms of the switch expression have no common type (''Int32'' and ''Int64''). Annotate the target
+      with the type you want.'
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/lambda-common
+    exit_code: 1
+    source: using Standard; public class Program { public static void Main() { var f = (bool b) => { if(b)
+      { return 1; } return 2L; }; Console.WriteLine(f(true)); } }
+    artifact: /private/tmp/mist-reconcile-binding-probes/lambda-common
+    observed: '/private/tmp/mist-reconcile-binding-probes/lambda-common/Program.mist(1,76): error MIST_PM_LAMBDA_RETURNS_NO_COMMON_TYPE:
+      The lambda''s returns have no common type (''Int32'' and ''Int64''). Annotate the target with a
+      function type to select the result.
+
+      /private/tmp/mist-reconcile-binding-probes/lambda-common/Program.mist(1,131): error MIST_PM_UNRESOLVABLE_OVERLOAD:
+      The call to method ''WriteLine'' matches no overload. No conversion is known from the given arguments
+      to any of: (string), (unknown).'
+  - revision: 37142e0f3097529a2199255e1457f6eab99587be
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - CommonTypeInference considers normalized input types, established numeric widening, nominal bases
+      and implicit targets declared on source types. It does not chain arbitrary declared operators or manufacture
+      union/unknown types.
+    - All three consumers retain positively failed subtrees and ignore them for common-type complaints;
+      an unfinished ErrorType stays distinguishable. Lambda returns are settled without collecting nested
+      lambda/local-function returns, including returns inside with blocks.
+    - Tier 1 ContextualExpressionContractCommonTypeDecisionTests and CommonTypeFailureDecisionTests plus
+      Tier 2 CommonTypeBindingTests cover numeric/base/declared conversion, same/explicit target, order
+      independence, unique/incompatible cases, retained failures, existing union targets and nested returns.
+    verification:
+    - 'UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh
+      Mist.slnx: outcome: test exit 0 after 250s
+
+      storm.consumerintegration.tests.dll: total 46, passed 46, failed 0, 2s
+
+      mist.cli.tests.dll: total 115, passed 115, failed 0, 4s
+
+      storm.sourcegenerator.tests.dll: total 852, passed 852, failed 0, 7s
+
+      mist.tests.dll: total 9358, passed 9358, failed 0, 249s. Ledger TestResults/ledger/20261011-170813;
+      summary.txt and failures.txt inspected; failures.txt empty. Ledger build uses dotnet build Mist.slnx
+      and passed with zero warnings/errors. Environment settings recorded in env.txt.'
+    - 'dotnet format Mist.slnx --verify-no-changes: passed on the integrated sources; git diff --check:
+      passed.'
+    - 'Closed-pack repair focused ledger TestResults/ledger/20261011-170325: 430 passed, zero failed. Summary
+      and empty failures inspected; includes contextual expressions, value packs, TargetTypedNew, and integrated
+      local-binding contracts.'
+    - 'Focused ledger TestResults/ledger/20261011-164833: 597 passed, zero failed. Earlier ledgers 20261011-164031
+      (11 failures) and 20261011-164457 (one failure) were inspected before reruns; failures were attributed
+      to new fixture expectations and the contextual-new detector, then corrected. These were not unexplained
+      intermittent failures.'
+    - 'Ledger TestResults/ledger/20261011-165420 retained: tests not run because shared compilation could
+      not write generated sources (CS0016). Summary and failures inspected; shared compilation disabled
+      for the integrated final run. This is an environment build failure, not a test pass.'
+    - Rebased onto fa2841978df416e8f072a1dd885a924e73c808c0, retaining the concurrent local-binding, constructor-initialization
+      and parameterless factory implementations and closeout. No retired classic implementation consulted;
+      Storm submodule initialized and checked at the recorded b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin.
+    limits: No new implicit-union/unknown fallback or generic inference policy; genuine no-unique-common-target
+      inputs keep the existing owning diagnostic.
+    artifact:
+      source: "using Standard;\npublic class Thing { }\npublic class Other { }\npublic class Parent { }\n\
+        public class Left : Parent { }\npublic class Right : Parent { }\npublic class Container {\n    public\
+        \ int Kind;\n    public Container(Thing x, int k) { Kind = 1; }\n    public Container(Other x, string\
+        \ k) { Kind = 2; }\n    public Container() : this(new(), 1) { }\n}\npublic class Derived : Container\
+        \ {\n    public Derived() : base(new(), 1) { }\n}\npublic class Program {\n    public static int\
+        \ Pick(Thing x, int k) { return 1; }\n    public static int Pick(Other x, string k) { return 2;\
+        \ }\n    public static int Arrays(int[] x, int k) { return 3; }\n    public static int Arrays(string[]\
+        \ x, string k) { return 4; }\n    public static void Main() {\n        Console.WriteLine(Pick(new(),\
+        \ 1));\n        Console.WriteLine(Pick(default, 1));\n        Console.WriteLine(Arrays([], 1));\n\
+        \        Console.WriteLine(new Container(new(), 1).Kind);\n        Console.WriteLine(new Container().Kind);\n\
+        \        Console.WriteLine(new Derived().Kind);\n        var numbers = [1, 2L];\n        Console.WriteLine(numbers[0]\
+        \ + numbers[1]);\n        var result = true switch { true => 1, false => 2L };\n        Console.WriteLine(result);\n\
+        \        var callback = (bool b) => { if(b) { return 1; } return 2L; };\n        Console.WriteLine(callback(false));\n\
+        \        var bases = [new Left(), new Right()];\n        Console.WriteLine(bases.Length);\n    }\n\
+        }\n"
+      manifest: 'name = "Probe"
+
+        namespace_root = "Probe"
+
+        '
+      command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet
+        build <scratch-project>/out/Probe.csproj --disable-build-servers
+      exit_code: 0
+      stdout: '1
+
+        1
+
+        3
+
+        1
+
+        1
+
+        1
+
+        3
+
+        1
+
+        2
+
+        2
+
+        '
+      consumer_build: zero warnings and zero errors; complete cli.log and consumer-build.log retained in
+        scratch
+      note: Parameterless factory hiding landed concurrently in fa284197; this task extends matching witness
+        signatures in e8bc3c967b976814ba8e1f8440798d4b59feb67c under the same MIST-206 record.
+  related:
+  - emitter switch/array/lambda evidence
+  - analysis conversion classification
+  priority: P2
+  priority_rationale: Valid values with known widening/common bases are refused before emission.
+  audit_key: binding:bind-05
+  area: binding
+- id: MIST-041
+  title: Assignment expression retains RHS type rather than storage type
+  status: implemented
+  summary: Ordinary assignment results use the assigned storage type after the normal RHS conversion, matching
+    generated C#. Coalescing assignment retains its unwrapped target and subsequent narrowing contract and
+    remains a statement.
+  source_refs:
+  - file: backlog/program-model-body-tasks.yaml
+    selector: simple assignment (`=`)
+    lead_excerpt: '    - [~] simple assignment (`=`) -> result type is target type; bind RHS with target-type
+      context -- MISSING: the result type only, which is value.Type rather than the target''s. The RHS
+      IS bound under the assignment target''s type now, which is what lets a target-typed new stand on
+      the right of one'
+    line_at_baseline: 398
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Model/Expressions/AssignmentExpression.cs
+    selector: The <see cref="Type"/> is the type of the assigned value
+    line: 9
+    observed: The model documents assigned-value typing.
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/assignment-result
+    exit_code: 1
+    source: using Standard; public class Program { public static void Main() { long n = 0; var r = (n
+      = 1); Console.WriteLine(r); } }
+    artifact: /private/tmp/mist-reconcile-binding-probes/assignment-result
+    observed: '/private/tmp/mist-reconcile-binding-probes/assignment-result/out/PacketProbe/Program.cs:
+      error MIST_CS_ERROR: Cannot implicitly convert type ''long'' to ''int''. An explicit conversion
+      exists (are you missing a cast?)'
+  - revision: 37142e0f3097529a2199255e1457f6eab99587be
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - ExpressionBinder.AssignmentResultType is directly checked at Tier 1. Tier 2 ContextualExpressionContractAssignmentTests
+      covers local, field, property and index storage, numeric and declared conversions, and coalescing
+      target/result/narrowing controls.
+    - ContextualExpressionContractAssignmentFailureTests preserves invalid assignment source ownership and
+      independent failures. Backend emission checks retain a single RHS call; the scratch program evaluates
+      Next exactly four times for four assignments.
+    verification:
+    - 'UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh
+      Mist.slnx: outcome: test exit 0 after 250s
+
+      storm.consumerintegration.tests.dll: total 46, passed 46, failed 0, 2s
+
+      mist.cli.tests.dll: total 115, passed 115, failed 0, 4s
+
+      storm.sourcegenerator.tests.dll: total 852, passed 852, failed 0, 7s
+
+      mist.tests.dll: total 9358, passed 9358, failed 0, 249s. Ledger TestResults/ledger/20261011-170813;
+      summary.txt and failures.txt inspected; failures.txt empty. Ledger build uses dotnet build Mist.slnx
+      and passed with zero warnings/errors. Environment settings recorded in env.txt.'
+    - 'dotnet format Mist.slnx --verify-no-changes: passed on the integrated sources; git diff --check:
+      passed.'
+    - 'Closed-pack repair focused ledger TestResults/ledger/20261011-170325: 430 passed, zero failed. Summary
+      and empty failures inspected; includes contextual expressions, value packs, TargetTypedNew, and integrated
+      local-binding contracts.'
+    - 'Focused ledger TestResults/ledger/20261011-164833: 597 passed, zero failed. Earlier ledgers 20261011-164031
+      (11 failures) and 20261011-164457 (one failure) were inspected before reruns; failures were attributed
+      to new fixture expectations and the contextual-new detector, then corrected. These were not unexplained
+      intermittent failures.'
+    - 'Ledger TestResults/ledger/20261011-165420 retained: tests not run because shared compilation could
+      not write generated sources (CS0016). Summary and failures inspected; shared compilation disabled
+      for the integrated final run. This is an environment build failure, not a test pass.'
+    - Rebased onto fa2841978df416e8f072a1dd885a924e73c808c0, retaining the concurrent local-binding, constructor-initialization
+      and parameterless factory implementations and closeout. No retired classic implementation consulted;
+      Storm submodule initialized and checked at the recorded b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin.
+    limits: No change to the existing statement-only coalescing-assignment rule or optional representation.
+      The optional-reference artifact annotation warning remains open in MIST-027.
+    artifact:
+      source: "using Standard;\nnamespace Probe;\npublic class Holder\n{\n    public long Field;\n    public\
+        \ long Property { get; set; }\n    public Holder() { }\n    public long this[int index]\n    {\n\
+        \        get { return Property; }\n        set { Property = value; }\n    }\n}\npublic class Program\n\
+        {\n    private static int evaluations = 0;\n    public static int Next()\n    {\n        evaluations\
+        \ = evaluations + 1;\n        return evaluations;\n    }\n    public static int Length(int x)\n\
+        \    {\n        return (x switch { 1 => \"five\", _ => \"six\" }).Length;\n    }\n    public static\
+        \ int Keep(int n) { return n; }\n    public static void Main()\n    {\n        int x = 1;\n    \
+        \    int localLength = (x switch { 1 => \"five\", _ => \"six\" }).Length;\n        var inferred\
+        \ = (x switch { 1 => \"five\", _ => \"six\" }).Length;\n        int called = Keep((x switch { 1\
+        \ => \"five\", _ => \"six\" }).Length);\n        long direct = x switch { 1 => 1, _ => 2 };\n  \
+        \      Console.WriteLine($\"receivers={localLength},{Length(x)},{inferred},{called}; direct={direct}\"\
+        );\n        long stored = 0;\n        var localResult = (stored = Next());\n        var holder =\
+        \ new Holder();\n        var fieldResult = (holder.Field = Next());\n        var propertyResult\
+        \ = (holder.Property = Next());\n        var indexResult = (holder[0] = Next());\n        Console.WriteLine($\"\
+        results={localResult},{fieldResult},{propertyResult},{indexResult}; evaluations={evaluations}\"\
+        );\n        long? present = void;\n        present ??= 3L;\n        long narrowed = present;\n \
+        \       Console.WriteLine($\"narrowed={narrowed}\");\n    }\n}\n"
+      manifest: 'name = "Probe"
+
+        namespace_root = "Probe"
+
+        '
+      command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet
+        build <scratch-project>/out/Probe.csproj --disable-build-servers
+      exit_code: 0
+      stdout: 'receivers=4,4,4,4; direct=1
+
+        results=1,2,3,4; evaluations=4
+
+        narrowed=3
+
+        '
+      consumer_build: zero warnings and zero errors; complete cli.log and consumer-build.log retained in
+        scratch
+  related: []
+  priority: P1
+  priority_rationale: Bound type and emitted expression disagree and reject a sound program.
+  audit_key: binding:bind-06
+  area: binding
+- id: MIST-042
+  title: Non-indexable intrinsic access lacks its owning refusal
+  status: implemented
+  summary: A sound intrinsic non-indexable receiver now owns MIST_PM_RECEIVER_NOT_INDEXABLE at the index
+    site. Failed receiver/index operands retain their positive root cause and subtree; unfinished ErrorType/Unknown
+    controls remain available to existing fallback owners.
+  source_refs:
+  - file: backlog/program-model-body-tasks.yaml
+    selector: error-expression sentinel type
+    lead_excerpt: '    - [~] error-expression sentinel type (ProgramModel''s own; suppresses cascading
+      errors) -- Model/Types/ErrorType.cs + Model/Expressions/ErrorExpression.cs + Model/Expressions/UnresolvedExpression.cs.
+      A VALUE THAT ALREADY FAILED ADDS NO SECOND COMPLAINT WHERE IT IS PASSED ON (2026-09-15): OverloadFailure.Report
+      is silent when an argument is Construction/Binding/PriorFailure.Of -- an ErrorExpress…'
+    line_at_baseline: 130
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/program-model-body-tasks.yaml
+    selector: IndexSuffix (`[i]`)
+    lead_excerpt: '    - [~] IndexSuffix (`[i]`) -> indexer resolution / array-element / span-element
+      / slice -- MISSING: index typing for an intrinsic indexer (analysis order 5 judges a user indexer''s
+      index only). THE GET/SET DISTINCTION IS DONE (2026-09-15), judged in analysis rather than decided
+      here: selection still reads the index alone, since C# selects before it refuses and a sibling that
+      has the accessor mus…'
+    line_at_baseline: 426
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/classic-retirement.md
+    selector: residual intrinsic indexing of a sound
+    line_at_baseline: 380
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/IndexBinder.cs
+    selector: if(indexers.Count == 0)
+    line: 33
+    observed: Returns IndexExpression with ArrayElement(...) ?? ErrorType without reporting.
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/invalid-index
+    exit_code: 1
+    source: using Standard; public class Program { public static void Main() { var r = 5[0]; Console.WriteLine(r);
+      } }
+    artifact: /private/tmp/mist-reconcile-binding-probes/invalid-index
+    observed: '/private/tmp/mist-reconcile-binding-probes/invalid-index/Program.mist(1,89): error MIST_PM_UNRESOLVABLE_OVERLOAD:
+      The call to method ''WriteLine'' matches no overload. No conversion is known from the given arguments
+      to any of: (string), (unknown).'
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe by binding auditor plus source inspection
+    detail: Exact current counterpart bind-07 evidence copied for traceability.
+    counterpart_evidence:
+    - kind: source_inspection
+      revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+      file: Source/Mist/ProgramModel/Construction/Binding/Expressions/IndexBinder.cs
+      selector: if(indexers.Count == 0)
+      line: 33
+      observed: Returns IndexExpression with ArrayElement(...) ?? ErrorType without reporting.
+    - kind: executed_cli_probe
+      revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/invalid-index
+      exit_code: 1
+      source: using Standard; public class Program { public static void Main() { var r = 5[0]; Console.WriteLine(r);
+        } }
+      artifact: /private/tmp/mist-reconcile-binding-probes/invalid-index
+      observed: '/private/tmp/mist-reconcile-binding-probes/invalid-index/Program.mist(1,89): error MIST_PM_UNRESOLVABLE_OVERLOAD:
+        The call to method ''WriteLine'' matches no overload. No conversion is known from the given arguments
+        to any of: (string), (unknown).'
+  - revision: 37142e0f3097529a2199255e1457f6eab99587be
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - Indexability.RefusesElement makes the sound decision and IndexBinder reports or defers the owning
+      refusal. Array/string/user-indexer selection and index operand conversions remain unchanged.
+    - Tier 1 indexability controls and Tier 2 ContextualExpressionIndexContractTests cover the owning span,
+      sound/failure/unfinished cases, retained operands and existing array/string/user-indexer behavior;
+      IntrinsicIndexDecisionTests and RangeAndIndexResolutionTests passed.
+    verification:
+    - 'UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh
+      Mist.slnx: outcome: test exit 0 after 250s
+
+      storm.consumerintegration.tests.dll: total 46, passed 46, failed 0, 2s
+
+      mist.cli.tests.dll: total 115, passed 115, failed 0, 4s
+
+      storm.sourcegenerator.tests.dll: total 852, passed 852, failed 0, 7s
+
+      mist.tests.dll: total 9358, passed 9358, failed 0, 249s. Ledger TestResults/ledger/20261011-170813;
+      summary.txt and failures.txt inspected; failures.txt empty. Ledger build uses dotnet build Mist.slnx
+      and passed with zero warnings/errors. Environment settings recorded in env.txt.'
+    - 'dotnet format Mist.slnx --verify-no-changes: passed on the integrated sources; git diff --check:
+      passed.'
+    - 'Closed-pack repair focused ledger TestResults/ledger/20261011-170325: 430 passed, zero failed. Summary
+      and empty failures inspected; includes contextual expressions, value packs, TargetTypedNew, and integrated
+      local-binding contracts.'
+    - 'Focused ledger TestResults/ledger/20261011-164833: 597 passed, zero failed. Earlier ledgers 20261011-164031
+      (11 failures) and 20261011-164457 (one failure) were inspected before reruns; failures were attributed
+      to new fixture expectations and the contextual-new detector, then corrected. These were not unexplained
+      intermittent failures.'
+    - 'Ledger TestResults/ledger/20261011-165420 retained: tests not run because shared compilation could
+      not write generated sources (CS0016). Summary and failures inspected; shared compilation disabled
+      for the integrated final run. This is an environment build failure, not a test pass.'
+    - Rebased onto fa2841978df416e8f072a1dd885a924e73c808c0, retaining the concurrent local-binding, constructor-initialization
+      and parameterless factory implementations and closeout. No retired classic implementation consulted;
+      Storm submodule initialized and checked at the recorded b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin.
+    limits: No slicing protocol implementation, bounds proof or blanket ErrorType suppression.
+    probes:
+    - source: 'using Standard; public class Program { public static void Main() { var r = 5[0]; Console.WriteLine(r);
+        } }
+
+        '
+      manifest: 'name = "Probe"
+
+        namespace_root = "Probe"
+
+        '
+      command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+      exit_code: 1
+      observed: '/private/tmp/mist-contextual-refusals/non-indexable/Program.mist(1,77): error MIST_PM_RECEIVER_NOT_INDEXABLE:
+        ''int'' cannot be indexed because it declares no indexer and is not an array.'
+      acceptance: Exactly one MIST_PM_RECEIVER_NOT_INDEXABLE; no derivative/backend finding.
+    - source: 'using Standard; public class Program { public static void Main() { var r = 5[missing]; Console.WriteLine(r);
+        } }
+
+        '
+      exit_code: 1
+      observed: '/private/tmp/mist-contextual-refusals/failed-index/Program.mist(1,78): error MIST_PM_UNRESOLVED_IDENTIFIER:
+        The name ''missing'' could not be found in this scope.'
+      acceptance: Exactly one unresolved identifier at missing; no index/overload derivative.
+  related:
+  - analysis index/position capability
+  - classic-retirement residual indexing
+  - completed packet12 remainder
+  - packet 12 failed-tree/error ownership
+  - analysis indexing
+  - binding canonical bind-07
+  priority: P1
+  priority_rationale: Wrong owning diagnostic and potentially unreported malformed index tree.
+  audit_key: binding:bind-07
+  area: binding
+  merged_audit_keys:
+  - backend:backend-sound-nonindexable
+- id: MIST-044
+  title: Noncallable contextual arguments across overload candidates
+  status: implemented
+  summary: Target-dependent new/default/empty-array arguments participate in isolated candidate trials.
+    Known arguments select the exact declared overload before final settlement; constructors and this/base
+    chains use the same contract. Genuine ties stay ambiguous, and an untyped new alone does not infer an
+    unknown generic parameter.
+  source_refs:
+  - file: backlog/program-model-body-tasks.yaml
+    selector: argument binding threads parameter types
+    lead_excerpt: '    - [~] argument binding threads parameter types as target types (lambdas, void literal,
+      default, target-typed new) -- MISSING: the case where SEVERAL candidates share an arity, which is
+      circular -- a parameter can target an argument only once the overload is known, and the overload
+      is chosen from the argument types. ArgumentBinder pushes the parameter type where exactly one candidate
+      matches by…'
+    line_at_baseline: 481
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/program-model-body-tasks.yaml
+    selector: argument target type (from resolved parameter type)
+    lead_excerpt: '    - [~] argument target type (from resolved parameter type) -- MISSING: the several-candidates
+      case for any argument but a lambda or a method group, which needs the argument to take part in applicability
+      before it has a type -- those two do since 2026-09-25, typed per candidate (see generic_inference).
+      One candidate of the right arity supplies its parameter types, now SUBSTITUTED against a const…'
+    line_at_baseline: 580
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=65,id=target-typed-new].tasks[0]
+    lead_excerpt: Target an argument from its parameter where SEVERAL candidates share an arity. Needs
+      the construction to take part in applicability as convertible to anything constructible, rather
+      than needing a type before selection has run.
+    line_at_baseline: 3728
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ArgumentBinder.cs
+    selector: var targets = sole is null
+    line: 271
+    observed: No argument targets when multiple same-arity candidates remain; settlement handles UnboundLambdaExpression/method
+      groups.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ArgumentBinder.cs
+    selector: internal static IReadOnlyList<Expression> Settle
+    line: 297
+    observed: Only unbound lambdas and method groups are settled under winner parameters.
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ExpressionBinder.cs
+      symbol: ExpressionBinder
+      line: 17
+  - revision: 37142e0f3097529a2199255e1457f6eab99587be
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - Internal UnboundContextualExpression retains syntax until selection. ContextualExpressionTrials withholds
+      diagnostics and discards trial registries; the chosen parameter target is rebound once through ordinary
+      binding and conversion settlement.
+    - OverloadResolution uses contextual applicability alongside existing lambda/method-group trials. Optional,
+      expanded variadic/value-pack, ref flags and substituted slots retain selection and settlement behavior.
+      TypeArgumentInference excludes the untyped sentinel as inference evidence.
+    - Tier 2 ContextualExpressionContractArgumentTests checks exact method/constructor identity, new/default/array/parentheses,
+      rejected construction and registry isolation, retained owning construction errors, genuine ties, generic
+      controls and existing call adapters. TargetTypedNewTests retains the no-target var row and now assesses
+      the multi-candidate row as real ambiguity.
+    - 'Full ledger TestResults/ledger/20261011-165829 completed with one failure out of 10277: PackSlotCallBindingTests.ACallThroughTheAbstract_TakesExactlyTheWidthThePackWasBoundTo
+      (constant.Apply(1)) threw in ArgumentBinder.Targets after expansion to an empty closed pack. Summary
+      and failures were inspected. The target-preparation arity guard fixes the crash, with three Tier 2
+      closed-width controls and the existing Tier 3 regression; the failing ledger is retained.'
+    - The scratch genuine-tie probe initially exposed a missing BodyWalker leaf for the deferred model (an
+      ICE). BodyWalker, Origins and StorageLocations now classify it consistently with unbound lambdas,
+      with a direct leaf regression. Final rerun has exactly one MIST_PM_AMBIGUOUS_OVERLOAD.
+    verification:
+    - 'UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh
+      Mist.slnx: outcome: test exit 0 after 250s
+
+      storm.consumerintegration.tests.dll: total 46, passed 46, failed 0, 2s
+
+      mist.cli.tests.dll: total 115, passed 115, failed 0, 4s
+
+      storm.sourcegenerator.tests.dll: total 852, passed 852, failed 0, 7s
+
+      mist.tests.dll: total 9358, passed 9358, failed 0, 249s. Ledger TestResults/ledger/20261011-170813;
+      summary.txt and failures.txt inspected; failures.txt empty. Ledger build uses dotnet build Mist.slnx
+      and passed with zero warnings/errors. Environment settings recorded in env.txt.'
+    - 'dotnet format Mist.slnx --verify-no-changes: passed on the integrated sources; git diff --check:
+      passed.'
+    - 'Closed-pack repair focused ledger TestResults/ledger/20261011-170325: 430 passed, zero failed. Summary
+      and empty failures inspected; includes contextual expressions, value packs, TargetTypedNew, and integrated
+      local-binding contracts.'
+    - 'Focused ledger TestResults/ledger/20261011-164833: 597 passed, zero failed. Earlier ledgers 20261011-164031
+      (11 failures) and 20261011-164457 (one failure) were inspected before reruns; failures were attributed
+      to new fixture expectations and the contextual-new detector, then corrected. These were not unexplained
+      intermittent failures.'
+    - 'Ledger TestResults/ledger/20261011-165420 retained: tests not run because shared compilation could
+      not write generated sources (CS0016). Summary and failures inspected; shared compilation disabled
+      for the integrated final run. This is an environment build failure, not a test pass.'
+    - Rebased onto fa2841978df416e8f072a1dd885a924e73c808c0, retaining the concurrent local-binding, constructor-initialization
+      and parameterless factory implementations and closeout. No retired classic implementation consulted;
+      Storm submodule initialized and checked at the recorded b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin.
+    limits: No generic inference/witness redesign or constructor declaration/default/definite-assignment
+      policy expansion.
+    probes:
+    - source: 'public class Thing {} public class Other {} public class Program { public static int Pick(Thing
+        x,int k){return 1;} public static int Pick(Other x,int k){return 2;} public static void Main(){var
+        r=Pick(new(),1);} }
+
+        '
+      manifest: 'name = "Probe"
+
+        namespace_root = "Probe"
+
+        '
+      command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+      exit_code: 1
+      observed: '/private/tmp/mist-contextual-refusals/genuine-new-tie/Program.mist(1,202): error MIST_PM_AMBIGUOUS_OVERLOAD:
+        The call to method ''Pick'' is ambiguous. These overloads are equally applicable: (Thing, int),
+        (Other, int). Cast an argument to choose one.'
+      acceptance: Exactly one MIST_PM_AMBIGUOUS_OVERLOAD; no derivative/backend finding.
+    artifact:
+      source: "using Standard;\npublic class Thing { }\npublic class Other { }\npublic class Parent { }\n\
+        public class Left : Parent { }\npublic class Right : Parent { }\npublic class Container {\n    public\
+        \ int Kind;\n    public Container(Thing x, int k) { Kind = 1; }\n    public Container(Other x, string\
+        \ k) { Kind = 2; }\n    public Container() : this(new(), 1) { }\n}\npublic class Derived : Container\
+        \ {\n    public Derived() : base(new(), 1) { }\n}\npublic class Program {\n    public static int\
+        \ Pick(Thing x, int k) { return 1; }\n    public static int Pick(Other x, string k) { return 2;\
+        \ }\n    public static int Arrays(int[] x, int k) { return 3; }\n    public static int Arrays(string[]\
+        \ x, string k) { return 4; }\n    public static void Main() {\n        Console.WriteLine(Pick(new(),\
+        \ 1));\n        Console.WriteLine(Pick(default, 1));\n        Console.WriteLine(Arrays([], 1));\n\
+        \        Console.WriteLine(new Container(new(), 1).Kind);\n        Console.WriteLine(new Container().Kind);\n\
+        \        Console.WriteLine(new Derived().Kind);\n        var numbers = [1, 2L];\n        Console.WriteLine(numbers[0]\
+        \ + numbers[1]);\n        var result = true switch { true => 1, false => 2L };\n        Console.WriteLine(result);\n\
+        \        var callback = (bool b) => { if(b) { return 1; } return 2L; };\n        Console.WriteLine(callback(false));\n\
+        \        var bases = [new Left(), new Right()];\n        Console.WriteLine(bases.Length);\n    }\n\
+        }\n"
+      manifest: 'name = "Probe"
+
+        namespace_root = "Probe"
+
+        '
+      command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet
+        build <scratch-project>/out/Probe.csproj --disable-build-servers
+      exit_code: 0
+      stdout: '1
+
+        1
+
+        3
+
+        1
+
+        1
+
+        1
+
+        3
+
+        1
+
+        2
+
+        2
+
+        '
+      consumer_build: zero warnings and zero errors; complete cli.log and consumer-build.log retained in
+        scratch
+      note: Parameterless factory hiding landed concurrently in fa284197; this task extends matching witness
+        signatures in e8bc3c967b976814ba8e1f8440798d4b59feb67c under the same MIST-206 record.
+  related:
+  - emitter overload/target-typed-new work
+  - emitter capability target-typed-new
+  priority: P2
+  priority_rationale: Current source confirms missing contextual path, but acceptance needs a uniquely
+    resolvable source call.
+  audit_key: binding:bind-09
+  area: binding
+  merged_audit_keys:
+  - backend:emitter-065-tasks-0
+- id: MIST-206
+  title: Declare inherited default factory hiding in C#
+  status: implemented
+  summary: Generated class default factories explicitly hide an actually emitted ancestor factory with the
+    same closed parameter signature, including matching default witnesses through generic base paths. Parameterless
+    behavior and exclusions from the landed fix are retained; different witness types do not gain a misleading
+    new modifier.
   source_refs: []
   evidence:
   - revision: MIST-206 completion commit containing this archive entry, based on 407d341d66547293819112e4416007364ccc5e1a
@@ -7880,6 +8486,51 @@ archive:
     - 'Generated consumer builds inspected: exact MIST-008 out/Probe.csproj has 0 warnings/errors. Broader generic acceptance artifact has 0 errors and 9 nullable warnings (6 CS8603, 3 CS8618); these unchecked compatibility/part-constructor routes are retained as open MIST-207, outside this packet''s CLR projection scope. Parameterless inherited factory CS0108 is resolved separately in MIST-206.'
     - SnippetEmitter regenerated 14 default-keyword pairs (4 updated) and 3 inheritance pairs (3 updated), 0 failures. After integrating main it regenerated both folders again; resulting checked-in C# reflects the integrated compiler.
     - Acceptance consumer originally reported CS0108 for DefaultChild.__CreateDefault(); final consumer reports neither CS0108 nor CS0109, including the DefaultGrandchild/DefaultMiddle<T>/DefaultBase signature control. Runtime output remains correct.
+  - revision: e8bc3c967b976814ba8e1f8440798d4b59feb67c
+    date: '2026-10-11'
+    kind: bounded witness-signature extension and executed verification
+    implementation:
+    - Concurrent main fa284197 already fixed parameterless factory hiding and archived MIST-206. Retain
+      that implementation and its nine tests; extend the same record rather than duplicate the obligation.
+    - DefaultEmitter compares inherited generated factory signatures through closed generic base paths.
+      Matching default-witness signatures now receive new, while equal-width different witness types do
+      not. Factory behavior, constructor entry and witness signatures are unchanged.
+    verification:
+    - Four Tier 2 DefaultFactoryInheritanceEmissionTests cover constructed matching witnesses, same-width
+      different witness types, a matching grandparent through generic substitution and an intrinsic control.
+      The nine landed FactoryHidingEmissionTests are also retained and passed.
+    - Fresh /private/tmp/mist-contextual-factory-witness CLI prints exactly 0; generated consumer builds
+      with zero errors, no CS0108 or CS0109, and two existing CS8603 compatibility warnings retained in
+      MIST-207. Complete source, manifest and diagnostics are embedded in that observation.
+    - 'UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh
+      Mist.slnx: outcome: test exit 0 after 250s
+
+      storm.consumerintegration.tests.dll: total 46, passed 46, failed 0, 2s
+
+      mist.cli.tests.dll: total 115, passed 115, failed 0, 4s
+
+      storm.sourcegenerator.tests.dll: total 852, passed 852, failed 0, 7s
+
+      mist.tests.dll: total 9358, passed 9358, failed 0, 249s. Ledger TestResults/ledger/20261011-170813;
+      summary.txt and failures.txt inspected; failures.txt empty. Ledger build uses dotnet build Mist.slnx
+      and passed with zero warnings/errors. Environment settings recorded in env.txt.'
+    - 'dotnet format Mist.slnx --verify-no-changes: passed on the integrated sources; git diff --check:
+      passed.'
+    - 'Closed-pack repair focused ledger TestResults/ledger/20261011-170325: 430 passed, zero failed. Summary
+      and empty failures inspected; includes contextual expressions, value packs, TargetTypedNew, and integrated
+      local-binding contracts.'
+    - 'Focused ledger TestResults/ledger/20261011-164833: 597 passed, zero failed. Earlier ledgers 20261011-164031
+      (11 failures) and 20261011-164457 (one failure) were inspected before reruns; failures were attributed
+      to new fixture expectations and the contextual-new detector, then corrected. These were not unexplained
+      intermittent failures.'
+    - 'Ledger TestResults/ledger/20261011-165420 retained: tests not run because shared compilation could
+      not write generated sources (CS0016). Summary and failures inspected; shared compilation disabled
+      for the integrated final run. This is an environment build failure, not a test pass.'
+    - Rebased onto fa2841978df416e8f072a1dd885a924e73c808c0, retaining the concurrent local-binding, constructor-initialization
+      and parameterless factory implementations and closeout. No retired classic implementation consulted;
+      Storm submodule initialized and checked at the recorded b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin.
+    limits: No constructor/default/definite-assignment or witness API policy expansion. Existing nullable
+      generic compatibility warnings remain open MIST-207; optional-reference annotations remain open MIST-027.
   related:
   - MIST-008
   - MIST-207

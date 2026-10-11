@@ -206,7 +206,7 @@ internal static class InvariantCulture
 
         using(writer.Block())
         {
-            writer.WriteLine("public static string Text(object? value)");
+            writer.WriteLine("public static string Text(object value)");
 
             using(writer.Block())
             {
@@ -244,7 +244,7 @@ internal static class InvariantCulture
             }
 
             writer.WriteBlankLine();
-            writer.WriteLine("public static string? Optional(object? value)");
+            writer.WriteLine("public static string Optional(object value)");
 
             using(writer.Block())
             {
@@ -320,7 +320,7 @@ internal static class InvariantCulture
             }
 
             writer.WriteBlankLine();
-            writer.WriteLine("private static string? Pair(object value)");
+            writer.WriteLine("private static string Pair(object value)");
 
             using(writer.Block())
             {

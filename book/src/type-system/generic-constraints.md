@@ -161,6 +161,8 @@ The compiler emits parameterized constructor constraints as factory delegates (`
 
 The emitted C# invokes a `Func<int, T>` delegate to construct the value because C# does not support parameterized constructor constraints natively. At the call site, Mist generates a lambda that calls the required concrete constructor and supplies any default factories its generic class needs.
 
+A generic type can satisfy the constraint through a constructor written over its own type parameter: `Crate<int>` satisfies `new(int)` with `public Crate(X held)`, because the closing makes `X` exactly `int`. The constraint still asks for an identical signature, so `Crate<long>` does not satisfy `new(int)`.
+
 ### Multiple Constructor Constraints
 
 You can require multiple constructors on the same type parameter. This guarantees the type has several construction paths available in the generic body:

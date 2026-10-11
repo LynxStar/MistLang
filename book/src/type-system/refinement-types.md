@@ -183,6 +183,25 @@ A `where` clause on a method parameter constrains which values can be passed at 
 {{#endtab }}
 {{#endtabs }}
 
+### Bounds That Name What the Call Supplies
+
+A bound may name something other than a constant: another parameter, a dependent parameter of the type or method, or a member of the receiver -- `this.Count` on the declaring type, or `self.Count` on an extension block's receiver. Each is read at the call through what that call supplies: the argument passed for the other parameter, the value the construction closes the dependent parameter with (`Buffer<4>` closes `Size` to `4`, through an alias as well), or the member's declared or lifted value.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/refinement-types/adhoc-symbolic-bounds.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/refinement-types/adhoc-symbolic-bounds.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`new Buffer<4>().At(4)`, `new Tally().Pick(3)` and `Ranges.Width(5, 2)` are each refused as violating their bound. A bound is proven when every value its source may take clears it, and refused as violating only when that source is one known value, so `Ranges.Width(1, h)` with an unknown `h` must be narrowed first. A member of some other parameter, or of a receiver a local function captures, is not the call's receiver, so a bound naming one stays unproven.
+
 ### Type Argument Constraints
 
 Ad-hoc refinements can also constrain dependent type parameters. This is useful for types whose behavior depends on a compile-time integer value (like fixed-size collections).

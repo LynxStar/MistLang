@@ -1,0 +1,41 @@
+using Standard;
+
+public abstract IShow
+{
+    string Show();
+}
+
+public class Card : IShow
+{
+    public string Show() { return "card"; }
+}
+
+public abstract IPicker
+{
+    string Pick<T>(T value) where T : IShow;
+    string Name<T>(T value) where T : IShow;
+}
+
+public class Picker : IPicker
+{
+    public string Pick<U>(U value) where U : IShow
+    {
+        return value.Show();
+    }
+
+    public string Name<V>(V value)
+    {
+        return "any value";
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        IPicker picker = new Picker();
+        Console.WriteLine(picker.Pick<Card>(new Card()));
+        Console.WriteLine(picker.Name<Card>(new Card()));
+        Console.WriteLine(new Picker().Name<int>(5));
+    }
+}

@@ -36,6 +36,8 @@ public class Program
         System.Console.WriteLine(Snippet.FixedBuffer<Const_5>.Size.ToString(System.Globalization.CultureInfo.InvariantCulture));
         System.Console.WriteLine(Snippet.FixedBuffer<Const_5>.Size.ToString(System.Globalization.CultureInfo.InvariantCulture));
         System.Console.WriteLine(Snippet.FixedBuffer<Const_10>.Size.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        System.Console.WriteLine(((int)6).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        System.Console.WriteLine(((int)7).ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     public Program()

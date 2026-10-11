@@ -119,7 +119,9 @@ error MIST_PM_UNRESOLVED_MEMBER: 'FixedBuffer<5>' has no member named 'Size'.
 error MIST_PA_NO_SET_ACCESSOR: Cannot assign to 'FixedBuffer.Size': it has no 'set' or 'init' accessor.
 ```
 
-The first is `buffer.Size` on an instance, the second `FixedBuffer<5>.Size = 6;`. An ordinary type parameter has no such property, a dependent parameter may not share its name with a member of its own type (`MIST_DT_0005`), and two parameters of one list may not share a name (`MIST_PM_DUPLICATE_TYPE_PARAMETER`). A dependent parameter on a type alias projects no property yet.
+The first is `buffer.Size` on an instance, the second `FixedBuffer<5>.Size = 6;`. An ordinary type parameter has no such property, a dependent parameter may not share its name with a member of its own type (`MIST_DT_0005`), and two parameters of one list may not share a name (`MIST_PM_DUPLICATE_TYPE_PARAMETER`).
+
+A type alias projects its own dependent parameters too, under the names the alias declares. `Sized<6>.Count` is `6`, and so is `Tagged<7>.Count` though the alias stands for `string` and never names the value: the read is the value the use supplies, so it is emitted as that value, `((int)6)`, rather than as a member of the target. The alias is still transparent everywhere else -- `Sized<6>` is `FixedBuffer<6>`, whose own `Size` reads through it -- and an alias forwarding to another keeps only its own names, so `type Outer<P:int> = Sized<P>;` answers `Outer<4>.P` and not `Outer<4>.Count`.
 
 ## Dependent Types on Classes
 

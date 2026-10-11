@@ -4,6 +4,10 @@ public class FixedBuffer<Size:int> { }
 
 type FiveBuffer = FixedBuffer<5>;
 
+type Sized<Count:int> = FixedBuffer<Count>;
+
+type Tagged<Count:int> = string;
+
 public class SmallBuffer : FixedBuffer<10> { }
 
 public class Program
@@ -13,5 +17,7 @@ public class Program
         Console.WriteLine(FixedBuffer<5>.Size);
         Console.WriteLine(FiveBuffer.Size);
         Console.WriteLine(SmallBuffer.Size);
+        Console.WriteLine(Sized<6>.Count);
+        Console.WriteLine(Tagged<7>.Count);
     }
 }

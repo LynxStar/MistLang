@@ -261,7 +261,7 @@ A whole-pack constraint applies elementwise to every element:
 {{#endtab }}
 {{#endtabs }}
 
-Every element type must satisfy the constraint. An empty pack vacuously satisfies it.
+Every element type must satisfy the constraint. An empty pack vacuously satisfies it. A pack forwarded into a constrained one -- whole, spread among other arguments as `Family<T, Us...>`, or one of its elements -- must itself declare every constraint the target asks of each element, and so must a type parameter written among the arguments.
 
 ### A Constraint That Names Its Pack
 

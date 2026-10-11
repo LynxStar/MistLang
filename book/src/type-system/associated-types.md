@@ -82,7 +82,7 @@ The slot's type parameters are independent of the enclosing abstract type's type
 
 ## Implementor Satisfaction
 
-A class or struct satisfies an associated type slot by providing a concrete nested type that matches the slot's name and satisfies its constraints:
+A class or struct satisfies an associated type slot by providing a concrete nested type that matches the slot's name and satisfies its constraints. A slot with no type parameters of its own may also be filled by a nested type alias of that name, `public type Element = string;`, which fills it with the type the alias stands for:
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -125,7 +125,7 @@ For each associated type slot in an implemented abstract type, the type checker 
 
 1. **Existence** — The implementor provides a concrete type member with the same name (and arity, if the slot has type parameters). Missing slots produce a "does not provide a concrete type" error.
 2. **Constraint satisfaction** — The concrete type satisfies every constraint in the slot's constraint list. Violations produce a "does not satisfy constraint" error identifying the specific failing constraint.
-3. **Signature consistency** — Abstract type methods that reference the slot name in their signatures must be implemented with the concrete type in the corresponding positions.
+3. **Signature consistency** — Abstract type methods that reference the slot name in their signatures must be implemented with the concrete type in the corresponding positions, including inside other types: a slot method returning `List<Element>` is answered by one returning `List<string>` when `Element` is filled with `string`, and one returning `List<int>` is refused.
 
 ## Generic Context Resolution
 

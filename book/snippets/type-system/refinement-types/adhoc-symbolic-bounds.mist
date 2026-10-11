@@ -1,0 +1,40 @@
+using Standard;
+
+public class Buffer<Size:int>
+{
+    public int At(int index) where index >= 0 and < Size
+    {
+        return index;
+    }
+}
+
+public class Tally
+{
+    public int Count { get { return 3; } }
+}
+
+extension(Tally self)
+{
+    public int Pick(int n) where n >= 0 and < self.Count
+    {
+        return n;
+    }
+}
+
+public class Ranges
+{
+    public static int Width(int lo, int hi) where lo < hi
+    {
+        return hi - lo;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        Console.WriteLine(new Buffer<4>().At(3));
+        Console.WriteLine(new Tally().Pick(2));
+        Console.WriteLine(Ranges.Width(2, 5));
+    }
+}

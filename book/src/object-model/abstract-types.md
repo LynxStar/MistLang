@@ -82,6 +82,27 @@ When a type implements a child abstract type, it must satisfy all members from t
 
 `Robot` implements `IFullyDescribable`, which extends `IDescribable`. The class provides both `Describe()` (from `IDescribable`) and `DetailedDescribe()` (from `IFullyDescribable`).
 
+A generic slot is answered by a member with as many type parameters, matched by position whatever they are called. The answer may require of them only what the slot promises, since a call through the abstract type may pass any type the slot admits: it may repeat the slot's constraints or ask for less, but not more.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/object-model/abstract-types/generic-slots.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/object-model/abstract-types/generic-slots.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`Pick<U>` restates the slot's constraint and `Name<V>` asks for none, so both answer. C# requires an implementing member's constraints to match exactly, so `Name` is reached from the interface through an explicit implementation that forwards to it. An answer adding a constraint the slot does not declare is refused: had `IPicker` declared `string Plain<T>(T value);` with no constraint, `Plain<V>(V value) where V : IShow` would not answer it.
+
+```text
+error MIST_PA_SLOT_CONSTRAINT_STRENGTHENED: 'Picker' does not fill slot 'string Plain<T>(T)' of 'IPicker': its 'Plain' requires 'IShow' of type parameter 'V', which the slot does not promise.
+```
+
 ## Polymorphic Usage
 
 Abstract types can be used as variable types and parameter types, allowing code to work with any implementing type without knowing the concrete type.

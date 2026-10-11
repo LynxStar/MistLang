@@ -296,39 +296,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-022
   area: analysis
-- id: MIST-011
-  title: Close associated type slots in member signatures and compare generic constraints
-  status: confirmed
-  summary: SlotSignatures.IsIndeterminate still treats abstract-declared parameters/associated slots permissively;
-    Answers compares types/passing but not generic where constraints. Top-level type slot constraints
-    are checked separately. Retain these two related signature-conformance obligations without reopening
-    already matched method/enclosing type identities.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=abstract-conformance-checking].tasks[4]
-    line_at_baseline: 2704
-    lead_excerpt: An associated type slot in a slot's signature agrees with any type, so a member answering
-      it is checked there on shape alone; TypeSlots judges only that the nested filler exists and meets
-      the slot's constraints. A generic slot's `where` constraints are not compared with its filler's.
-      Method type parameters, the conformer's own and a base class's closed ones have been matched exactly
-      since 2026-10-…
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/SlotSignatures.cs
-      selector: TypeParameter parameter => parameter.DeclaringType is AbstractType
-      line: 206
-    - file: Source/Mist/ProgramAnalysis/SlotSignatures.cs
-      selector: public static bool Answers(
-      line: 36
-  related:
-  - analysis12 refined filler contracts
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-038
-  area: analysis
 - id: MIST-012
   title: Extend switch-arm containment across unsupported value domains
   status: confirmed
@@ -362,156 +329,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-042
   area: analysis
-- id: MIST-014
-  title: Resolve extension receiver members in symbolic where bounds
-  status: confirmed
-  summary: Requirement.Symbol only reads members on null/This receivers, not extension receiver local
-    identity. Direct receiver Count bound remains unprovable even where equivalent this.Count works. Source-only
-    reconfirmation; captured/other-parameter bounds must remain distinct.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=refinement-proving].tasks[7]
-    line_at_baseline: 4809
-    lead_excerpt: 'A bound naming the RECEIVER''s member in an extension method''s `where` is unproven
-      at every call. Measured 2026-09-19: over `extension(Tally self)` declaring `Pick(int n) where n
-      >= 0 and < self.Count`, and a Count that lifts to 3, `t.Pick(2)` and `t.Pick(7)` are both MIST_PA_CONSTRAINT_UNPROVEN,
-      where the same bound written `< this.Count` on Tally itself proves the first and VIOLATES the second
-      (R…'
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Refinements/Requirement.cs
-      selector: private static (string Name, object? Member)? Symbol
-      line: 204
-  related:
-  - extension where/dependent contracts
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-069
-  area: analysis
-- id: MIST-016
-  title: Bind and substitute other-parameter/dependent symbolic bounds
-  status: confirmed
-  summary: Requirement.Symbol can name a local/type parameter, but proof needs the corresponding call
-    argument or constructed dependent value knowledge. Receiver sequence special cases do not establish
-    these general bounds. Retained binding and proving obligations require finite examples; current exact
-    lo<hi CLI verdict not executed.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=refinement-proving].tasks[12]
-    line_at_baseline: 4846
-    lead_excerpt: A symbolic bound naming neither a member nor an array's or a span's Length has nothing
-      to read it through. A `where` naming another parameter (`where lo < hi`) does not bind on v2 (MIST_PM_UNRESOLVED_IDENTIFIER
-      at the declaration); classic accepts it and never checks it, so `Take(5, 3)` prints -2. Bound, it
-      would want the other argument's knowledge at each call. A dependent type parameter of a use…
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Refinements/Requirement.cs
-      selector: LocalReferenceExpression local =>
-      line: 214
-    - file: Source/Mist/ProgramAnalysis/Rules/RefinementAnalyzer.cs
-      selector: public void NeedArguments
-      line: 231
-  related:
-  - dependent scalar14 proves scalar domains, not relational solver
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-076
-  area: analysis
-- id: MIST-019
-  title: Expose a dependent alias parameter by the alias-declared name
-  status: confirmed
-  summary: type Alias<M:int>=Box<M> does not expose Alias<7>.M although dependent-types 7.5 specifies
-    alias parameter projection. Ordinary class dependent properties were delivered by packet 14.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=145,id=dependent-type-parameters]
-    line_at_baseline: 9230
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe plus source inspection
-    detail: 'Fresh CLI reports MIST_PM_UNRESOLVED_MEMBER: Box<7> has no M. This does not reopen class
-      static dependent value projection.'
-    source_symbols:
-    - file: .kiro/specs/dependent-types/requirements.md
-      symbol: WHEN a type alias has a Dependent_Type_Parameter
-      line: 131
-    probes:
-    - path: /private/tmp/mist-backend-reconcile-probes/alias_dependent
-      source: 'using Standard;
-
-        namespace Probe;
-
-        public class Box<N:int> {} type Alias<M:int> = Box<M>; public class Program { public static void
-        Main() { Console.WriteLine(Alias<7>.M); } }
-
-        '
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/alias_dependent
-        --quiet
-      exit_code: 1
-      output: '/private/tmp/mist-backend-reconcile-probes/alias_dependent/Program.mist(3,125): error MIST_PM_UNRESOLVED_MEMBER:
-        ''Box<7>'' has no member named ''M''.
-
-        '
-  related:
-  - dependent constant binding
-  - packet 14 scalar witnesses
-  priority_rationale: Current reproducible wrong behavior; correctness work.
-  audit_key: backend:backend-alias-dependent-projection
-  area: backend
-- id: MIST-021
-  title: Close parameterized constructor factories over a generic type’s own arguments
-  status: confirmed
-  summary: Factory<Crate<int>> where T:new(int) appends __New(int) to open Crate<X>, then calls Crate<X>(int),
-    which Roslyn refuses. Fix the selected closed constructor factory rather than the already-fixed open
-    signature interface.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=57,id=generic-constraints-constructor].tasks[4]
-    lead_excerpt: 'A GENERIC CLOSING TYPE WHOSE CONSTRUCTOR TAKES ITS OWN PARAMETER does not emit, concrete
-      signature or open alike. Measured 2026-09-26: `Sized<Crate<int>>` over `where T : new(int)`, with
-      `Crate<X>(X held)`, appends `Crate<X> : __IConstruct_int<Crate<X>>` and `__New(int arg0) { return
-      new Crate<X>(arg0); }`, which C# refuses ("cannot convert from ''int'' to ''X''"); `Sized<Crate<int>,
-      int>` over `new(A…'
-    line_at_baseline: 3249
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe plus source inspection
-    detail: 'CLI fails MIST_CS_ERROR: cannot convert int to X.'
-    source_symbols:
-    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/ConstructorConstraintInterfaces.cs
-      symbol: DeclaredParameters
-      line: 62
-    probes:
-    - path: /private/tmp/mist-backend-reconcile-probes/ctor_closed_generic
-      source: 'using Standard;
-
-        namespace Probe;
-
-        public class Crate<X> { public X Held; public Crate(X held) { Held=held; } } public class Factory<T>
-        where T:new(int) { public T Make() { return new T(7); } } public class Program { public static
-        void Main() { Console.WriteLine(new Factory<Crate<int>>().Make().Held); } }
-
-        '
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/ctor_closed_generic
-        --quiet
-      exit_code: 1
-      output: '/private/tmp/mist-backend-reconcile-probes/ctor_closed_generic/out/Probe/Program.cs: error
-        MIST_CS_ERROR: Argument 1: cannot convert from ''int'' to ''X''
-
-        '
-  related:
-  - generic constructor constraints
-  priority_rationale: Current reproducible wrong behavior; correctness work.
-  audit_key: backend:backend-generic-constructor-closure
-  area: backend
 - id: MIST-022
   title: Preserve optional-reference context keys through generic consumers
   status: confirmed
@@ -648,32 +465,6 @@ issues:
   - analysis modifier legality
   priority_rationale: Current source-established wrong behavior; correctness work.
   audit_key: backend:backend-operator-modifiers
-  area: backend
-- id: MIST-028
-  title: Entail all constraint kinds for a forwarded pack or pack element
-  status: confirmed
-  summary: Unconstrained ordinary forwarding is now checked; the pack path still judges stampable alone.
-    Other nominal/kind constraints must be entailed at each forwarded position.
-  source_refs:
-  - file: backlog/classic-retirement.md
-    selector: residual except that a pack or pack element
-    line_at_baseline: 309
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: 'Source-only: ConstraintEntailment retains a dedicated pack path for stampability; frozen
-      tracker explicitly says broader pack entailment remains open.'
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/ConstraintAnalyzer.cs
-      symbol: closing.Parameter.IsPack || forwarded.IsPack
-      line: 61
-  related:
-  - analysis register constraints
-  - pack constraints
-  - emitter order 153
-  priority_rationale: Current source-established wrong behavior; correctness work.
-  audit_key: backend:backend-pack-forwarded-constraints
   area: backend
 - id: MIST-029
   title: Support both specified user-defined sliceable protocols
@@ -7087,7 +6878,379 @@ issues:
   priority: P3
   priority_rationale: Admitted program refused with a clear backend diagnostic; typed elements are a workaround.
   area: backend
+- id: MIST-218
+  title: Bridge a weaker generic slot answer whose default or constructor witnesses differ
+  status: confirmed
+  summary: 'A slot whose method type parameter declares `default` or a constructor constraint carries witness parameters in the emitted interface; an answer that requires less has a different C# parameter list, so it implements nothing and Roslyn refuses the conformer. Mist admits the answer (MIST-011), and ConstraintSlotBridgeEmitter bridges only answers whose witnesses match.'
+  source_refs: []
+  evidence:
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    kind: executed CLI probe
+    detail: "abstract IMaker { string Make<T>(T value) where T : default; } answered by Make<U>(U value) fails MIST_CS_ERROR: 'Maker' does not implement interface member 'IMaker.Make<T>(Func<T>, T)'. The same failure predates the slot-constraint emission fix."
+  related:
+  - MIST-011
+  priority_rationale: Admitted program fails in Roslyn; bounded emission work.
+  area: backend
+- id: MIST-219
+  title: Lift associated type slots through a derived abstract
+  status: confirmed
+  summary: 'An abstract deriving from one with an associated type slot emits its base without the lifted slot argument, so `abstract INamedBag : IBag` over `abstract IBag { type Element; }` fails in Roslyn whatever fills the slot.'
+  source_refs: []
+  evidence:
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    kind: executed CLI probe
+    detail: "Strings : INamedBag filling Element with an alias or a nested class fails MIST_CS_ERROR: Using the generic type 'IBag<Element>' requires 1 type arguments, at `interface INamedBag : Probe.IBag`. Directly implementing IBag compiles and runs."
+  related:
+  - MIST-011
+  - associated type slot lifting
+  priority_rationale: Valid conformance fails in Roslyn.
+  area: backend
+- id: MIST-220
+  title: Decide how an abstract with lifted associated slots is used as a value type
+  status: decision
+  summary: '`IBag bag = new Strings();` over `abstract IBag { type Element; }` reaches Roslyn because the lifted interface needs its slot argument and a variable of the abstract type names none. No contract says whether such a variable is valid, must state its slots, or is refused; do not invent the policy.'
+  source_refs: []
+  evidence:
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    kind: executed CLI probe
+    detail: "IBag bag = new Strings(); fails MIST_CS_ERROR: Using the generic type 'IBag<Element>' requires 1 type arguments. associated-types Requirement 5 covers slots reached through a constrained type parameter, not abstract-typed values."
+  related:
+  - MIST-011
+  priority_rationale: Language decision before implementation.
+  area: language
+- id: MIST-221
+  title: Fill a parameterized associated slot with a generic nested alias
+  status: confirmed
+  summary: 'The associated-types glossary lets a type alias be a Concrete_Type_Member; TypeSlots.Filler accepts an alias only for a slot with no type parameters, so `public type Holder<T> = List<T>;` does not fill `type Holder<T>;`.'
+  source_refs: []
+  evidence:
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    kind: executed CLI probe plus source inspection
+    detail: "class Shelf : IShelf { public type Holder<T> = List<T>; } is MIST_PA_TYPE_SLOT_UNFILLED. The parameterized slot's constraint check and erasure would need the alias expanded per application."
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Construction/TypeSlots.cs
+      symbol: 'TypeAlias { TypeParametersList.Count: 0 }'
+  related:
+  - MIST-011
+  priority_rationale: Specified filler form refused.
+  area: analysis
+- id: MIST-222
+  title: Refuse an assignment whose target is not a variable, property or indexer
+  status: confirmed
+  summary: 'Assigning to a literal, or to a dependent parameter read as a value, binds without a Mist diagnostic and fails in Roslyn with CS0131. The frontend should refuse every non-assignable target; enumerate the expression kinds and choose the diagnostic rather than special-casing these two.'
+  source_refs: []
+  evidence:
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    kind: executed CLI probe
+    detail: "`7 = 3;` and `N = 3;` inside Box<N:int> each fail MIST_CS_ERROR: The left-hand side of an assignment must be a variable, property or indexer. A projected property write is already refused (MIST_PA_NO_SET_ACCESSOR)."
+  related:
+  - language rules belong in the frontend
+  priority_rationale: Invalid program reaches the target compiler.
+  area: binding
 archive:
+- id: MIST-011
+  title: Close associated type slots in member signatures and compare generic constraints
+  status: implemented
+  summary: 'Delivered: a nested alias fills an associated slot of no type parameters; answering signatures are compared with every filled slot closed to its filler, so a string Get answers Element Get with Element = string and int Get is refused; and a generic answer may require only what its slot promises, by ConstraintEntailment, or it is MIST_PA_SLOT_CONSTRAINT_STRENGTHENED.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=abstract-conformance-checking].tasks[4]
+    line_at_baseline: 2704
+    lead_excerpt: An associated type slot in a slot's signature agrees with any type, so a member answering
+      it is checked there on shape alone; TypeSlots judges only that the nested filler exists and meets
+      the slot's constraints. A generic slot's `where` constraints are not compared with its filler's.
+      Method type parameters, the conformer's own and a base class's closed ones have been matched exactly
+      since 2026-10-…
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/SlotSignatures.cs
+      selector: TypeParameter parameter => parameter.DeclaringType is AbstractType
+      line: 206
+    - file: Source/Mist/ProgramAnalysis/SlotSignatures.cs
+      selector: public static bool Answers(
+      line: 36
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'TypeSlots.Filler accepts a nested TypeAlias for a slot with no type parameters, through a concrete base too; TypeSlots.Closing maps every filled slot of the abstracts reached.'
+    - 'ConformanceAnalyzer.Reached takes the conformer and extends each substitution with that closing; ConformanceAnalyzer, RefinementContracts, ContextCalls and PurityInference pass it. An unfilled slot stays indeterminate, so it reports once.'
+    - 'SlotSignatures.Strengthened judges each answer type parameter''s constraints against the slot''s renamed and closed ones with ConstraintEntailment; a failed promise judges nothing.'
+    - 'Incidental emitter fix in the same bundle: interface method slots now declare their where clauses (an equivalent renamed answer used to fail with CS0425), and ConstraintSlotBridgeEmitter forwards an explicit implementation to an answer whose C# constraints differ.'
+    acceptance:
+    - 'CLI probes: Strings with type Element = string answers Get, Put, List<Element> All and T Echo<T>(T, Element) renamed to U; Numbers inherits Element = int from Base; Boxes fills it with a nested class; all print. Wrong answering with int is MIST_PA_SLOT_SIGNATURE_MISMATCH against string Get(), void Put(string) and List<string> All(); Missing is only MIST_PA_TYPE_SLOT_UNFILLED.'
+    - 'CLI probes: Pick<T>(T) answered with where T : IShow is MIST_PA_SLOT_CONSTRAINT_STRENGTHENED; a slot where T : IShow answered by Pick<U>(U) where U : IShow prints shown, and answered with no constraint prints weak through the explicit bridge; a default slot keeps its constraint.'
+    - 'Tier 1 SlotSignatureDecisionTests (closed slots, renamed method type parameters, entailment over keywords, bounds, bases, renamed constructed bounds and constructor signatures), TypeSlotFillerTests; Tier 2 ConformanceAssociatedSlotTests and ConstraintSlotBridgeEmissionTests.'
+    - 'Mutation check: disabling alias fillers, the slot closing or the strengthened report fails each positive row.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors on the integrated branch.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check: passed.'
+    - 'DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh on head 9299542f (clean tree, Storm 83410653), ledger TestResults/ledger/20261011-192901: Mist.slnx build 0 warnings, 0 errors; 10837 tests passed, 0 failed, 0 skipped (Mist.Tests 9766, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46); summary.txt read, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. The polling watcher was set preemptively; no stall was observed. An earlier run on the previous base (ledger 20261011-191819, 10613 passed) is superseded by this integration. SnippetEmitter on this head: 405 snippets, 0 updated, 0 failed.'
+    limitations:
+    - 'Tracked separately: a weaker answer whose default or constructor witnesses differ (MIST-218), slot lifting through a derived abstract (MIST-219), an abstract with lifted slots as a value type (MIST-220, decision) and a generic alias filling a parameterized slot (MIST-221).'
+  related:
+  - analysis12 refined filler contracts
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-038
+  area: analysis
+- id: MIST-014
+  title: Resolve extension receiver members in symbolic where bounds
+  status: implemented
+  summary: 'Delivered: a member bound written through an extension block''s receiver (`where n < self.Count`) is read through the member''s type or lift when the callee is that block''s own method, exactly as `this.Count` is. A captured receiver, another parameter''s member and a same-named local stay unproven.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=refinement-proving].tasks[7]
+    line_at_baseline: 4809
+    lead_excerpt: 'A bound naming the RECEIVER''s member in an extension method''s `where` is unproven
+      at every call. Measured 2026-09-19: over `extension(Tally self)` declaring `Pick(int n) where n
+      >= 0 and < self.Count`, and a Count that lifts to 3, `t.Pick(2)` and `t.Pick(7)` are both MIST_PA_CONSTRAINT_UNPROVEN,
+      where the same bound written `< this.Count` on Tally itself proves the first and VIOLATES the second
+      (R…'
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Refinements/Requirement.cs
+      selector: private static (string Name, object? Member)? Symbol
+      line: 204
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'SymbolicBound records the local a member bound is read through (Receiver) beside the member; Requirement.Symbol reads MemberAccess over a LocalReferenceExpression whose member is a property or field.'
+    - 'RefinementAnalyzer.Proving reads a member bound through a Reading built per call: a this/implicit receiver as before, and a local receiver only when it is the callee''s (SourceDeclaration''s) DeclaringBlock.Receiver, by reference.'
+    acceptance:
+    - 'CLI probe Tally.Count lifting to 3, extension(Tally self) Pick(int n) where n >= 0 and < self.Count: t.Pick(2) admitted, t.Pick(7) MIST_PA_CONSTRAINT_VIOLATED (>= 0 and <= 2); the instance control Own(int n) where n < this.Count gives the same verdicts.'
+    - 'CLI probes: a Count over a mutable field leaves Pick(1) MIST_PA_CONSTRAINT_UNPROVEN; Other(Tally other, int n) where n < other.Count leaves Other(t, 2) unproven.'
+    - 'Tier 2 SymbolicBoundSubstitutionTests.AReceiverMemberBound_IsReadOnlyThroughTheCalleesOwnReceiver: extension receiver, this, captured receiver and a parameter named like the receiver, fixed and open Count. Tier 1 RequirementClosingTests.AMemberBound_RecordsTheLocalItIsReadThrough.'
+    - 'Mutation check: disabling the receiver identity match fails the admitted and violated extension rows; the controls stay green.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors on the integrated branch.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check: passed.'
+    - 'DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh on head 9299542f (clean tree, Storm 83410653), ledger TestResults/ledger/20261011-192901: Mist.slnx build 0 warnings, 0 errors; 10837 tests passed, 0 failed, 0 skipped (Mist.Tests 9766, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46); summary.txt read, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. The polling watcher was set preemptively; no stall was observed. An earlier run on the previous base (ledger 20261011-191819, 10613 passed) is superseded by this integration. SnippetEmitter on this head: 405 snippets, 0 updated, 0 failed.'
+    limitations:
+    - 'An extension property, or a member reached through an extension property, is not a readable bound and stays unproven.'
+  related:
+  - extension where/dependent contracts
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-069
+  area: analysis
+- id: MIST-016
+  title: Bind and substitute other-parameter/dependent symbolic bounds
+  status: implemented
+  summary: 'Delivered: parameter predicates bind with their sibling parameters in scope, so `where lo < hi` names hi''s Parameter and each call reads the argument passed for it; a dependent parameter a bound names is closed by the substitution that closes the parameter''s type, so calls, constructions, indexers and chains read the construction''s value, through aliases too. No relational solving is introduced.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=refinement-proving].tasks[12]
+    line_at_baseline: 4846
+    lead_excerpt: A symbolic bound naming neither a member nor an array's or a span's Length has nothing
+      to read it through. A `where` naming another parameter (`where lo < hi`) does not bind on v2 (MIST_PM_UNRESOLVED_IDENTIFIER
+      at the declaration); classic accepts it and never checks it, so `Take(5, 3)` prints -2. Bound, it
+      would want the other argument's knowledge at each call. A dependent type parameter of a use…
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Refinements/Requirement.cs
+      selector: LocalReferenceExpression local =>
+      line: 214
+    - file: Source/Mist/ProgramAnalysis/Rules/RefinementAnalyzer.cs
+      selector: public void NeedArguments
+      line: 231
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'PredicateBinder.BindParameters declares every parameter of the declaration as a local carrying its Parameter in the predicate scope; the body binder still owns duplicate-name reports.'
+    - 'TypeSubstitution.Apply over a RefinedType records, on a copy sharing the declaration''s predicate, the values it supplies for the dependent parameters the bound predicate names (RefinedType.Closing); a refinement naming none keeps its identity.'
+    - 'Requirement.OfType turns a bound closed with one value into an interval and renames a bound forwarded to another dependent parameter; RefinementAnalyzer reads a sibling bound through the argument at that position (matched through SourceDeclaration for closed copies) and proves a forwarded dependent bound against that parameter''s own refinement and domain.'
+    - 'RefinementFindings displays a dependent bound by the parameter name.'
+    acceptance:
+    - 'CLI probe Take(int lo, int hi) where lo < hi: Take(2, 3) admitted, Take(5, 3) MIST_PA_CONSTRAINT_VIOLATED at the argument 5, Take(1, x) for an unknown x unproven; a valid program prints and its emitted C# builds with no diagnostics.'
+    - 'CLI probe Buf<N:int> with At(int i) where i >= 0 and < N, an indexer and a constructor bounded the same way: on Buf<3>, 2 is admitted and 7 (9 for the constructor) violates; Window<M:int> = Buf<M> gives the same verdicts; Fill<K:int>(int i) where i < K admits Fill<3>(2) and refuses Fill<3>(5); Outer<K:int> where K >= 5 holding Buf<K> admits inner.At(2) and leaves At(6) unproven.'
+    - 'Tier 2 SymbolicBoundSubstitutionTests (sibling values, identity not name, closed, unknown, forwarded and unclosed dependents); Tier 2 SiblingParameterPredicateBindingTests; Tier 1 RefinementClosingSubstitutionTests and RequirementClosingTests.'
+    - 'Mutation check: removing the sibling read, the closing, the forwarded-refinement proof or the sibling declaration fails each admitted and violated row; controls stay green.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors on the integrated branch.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check: passed.'
+    - 'DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh on head 9299542f (clean tree, Storm 83410653), ledger TestResults/ledger/20261011-192901: Mist.slnx build 0 warnings, 0 errors; 10837 tests passed, 0 failed, 0 skipped (Mist.Tests 9766, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46); summary.txt read, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. The polling watcher was set preemptively; no stall was observed. An earlier run on the previous base (ledger 20261011-191819, 10613 passed) is superseded by this integration. SnippetEmitter on this head: 405 snippets, 0 updated, 0 failed.'
+    limitations:
+    - 'Bounds relate a value only to a supplied value: two unknown locals, or a recursive call passing its own parameters, stay unproven, as flow tracks local relations only against array lengths.'
+    - 'A refinement substituted before predicates bind -- a generic refinement alias written in a member signature -- carries no closing, so its dependent bound stays unproven there; the same alias in a body is closed.'
+    - 'A bound naming a flattened (params) sibling, or a sibling of a call whose parameters are flattened, is not read.'
+  related:
+  - dependent scalar14 proves scalar domains, not relational solver
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-076
+  area: analysis
+- id: MIST-019
+  title: Expose a dependent alias parameter by the alias-declared name
+  status: implemented
+  summary: 'Delivered: each dependent parameter of a type alias projects a public static get-only value under the alias-declared name, so Alias<7>.M is 7 and type Foo<T:int> = string | bool answers Foo<7>.T; the read lowers to the value the use supplies while the alias stays transparent elsewhere.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=145,id=dependent-type-parameters]
+    line_at_baseline: 9230
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe plus source inspection
+    detail: 'Fresh CLI reports MIST_PM_UNRESOLVED_MEMBER: Box<7> has no M. This does not reopen class
+      static dependent value projection.'
+    source_symbols:
+    - file: .kiro/specs/dependent-types/requirements.md
+      symbol: WHEN a type alias has a Dependent_Type_Parameter
+      line: 131
+    probes:
+    - path: /private/tmp/mist-backend-reconcile-probes/alias_dependent
+      source: 'using Standard;
+
+        namespace Probe;
+
+        public class Box<N:int> {} type Alias<M:int> = Box<M>; public class Program { public static void
+        Main() { Console.WriteLine(Alias<7>.M); } }
+
+        '
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/alias_dependent
+        --quiet
+      exit_code: 1
+      output: '/private/tmp/mist-backend-reconcile-probes/alias_dependent/Program.mist(3,125): error MIST_PM_UNRESOLVED_MEMBER:
+        ''Box<7>'' has no member named ''M''.
+
+        '
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'TypeParameterDomainResolver.ProjectValues(TypeAlias) gives each dependent, non-pack alias parameter a ValueProperty with no declaring type; ProgramModelBuilder runs it beside the type projections.'
+    - 'PostfixBinder.BindGenericTypeMemberAccess binds Name<args>.Member over an alias to that projection first, with the alias''s arguments as its substitution path; the receiver stays the expanded type.'
+    - 'ProjectedValueAccess.Supplied and DependentCarrierNames.ValueOf lower the read to a literal of the domain or to the forwarded parameter''s value read.'
+    acceptance:
+    - 'CLI probe of the record: Alias<7>.M prints 7. Also Outer<P:int> = Alias<P> answers Outer<8>.P, Foo<T:int> = string | bool answers Foo<9>.T, negative, bool and char domains print their values, Wrap<K:int>.Read() returning Alias<K>.M prints 11 for Wrap<11>, and Box<5>.N and an inherited Child.N are unchanged.'
+    - 'CLI refusals: Alias<7>.M = 3 is MIST_PA_NO_SET_ACCESSOR; Outer<8>.M, an ordinary parameter''s Plain<int>.T and an instance a.M are MIST_PM_UNRESOLVED_MEMBER.'
+    - 'Tier 1 DependentValueLookupTests.AnAliasProjectsEachDependentParameterAndNothingElseWithNoDeclaringType and DependentValueEmissionTests.AnAliasReadIsTheValueItsUseSupplies; Tier 2 AliasDependentProjectionBindingTests and DependentValueEmissionTests.AnAliasReadIsEmittedAsItsSuppliedValue.'
+    - 'DependentTypes sample section 19 (an alias over int, a forwarding alias, a nested forwarding alias, an open forwarded parameter and nominal identity) is banked in AllFeaturesV2 with V2-only provenance in samples/CLAUDE.md.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors on the integrated branch.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check: passed.'
+    - 'DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh on head 9299542f (clean tree, Storm 83410653), ledger TestResults/ledger/20261011-192901: Mist.slnx build 0 warnings, 0 errors; 10837 tests passed, 0 failed, 0 skipped (Mist.Tests 9766, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46); summary.txt read, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. The polling watcher was set preemptively; no stall was observed. An earlier run on the previous base (ledger 20261011-191819, 10613 passed) is superseded by this integration. SnippetEmitter on this head: 405 snippets, 0 updated, 0 failed.'
+    limitations:
+    - 'Like a class projection, the read carries no refinement knowledge: Adult a = Alias<20>.M is unproven, as Adult a = Box<20>.N is.'
+  related:
+  - dependent constant binding
+  - packet 14 scalar witnesses
+  priority_rationale: Current reproducible wrong behavior; correctness work.
+  audit_key: backend:backend-alias-dependent-projection
+  area: backend
+- id: MIST-021
+  title: Close parameterized constructor factories over a generic type’s own arguments
+  status: implemented
+  summary: 'Delivered: the factory a parameterized constructor constraint appends to a generic closing definition is written over that definition''s own parameters, so Factory<Crate<int>> over new(int) with Crate(X held) builds and Held is 7; open positions share one factory across instantiations.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=57,id=generic-constraints-constructor].tasks[4]
+    lead_excerpt: 'A GENERIC CLOSING TYPE WHOSE CONSTRUCTOR TAKES ITS OWN PARAMETER does not emit, concrete
+      signature or open alike. Measured 2026-09-26: `Sized<Crate<int>>` over `where T : new(int)`, with
+      `Crate<X>(X held)`, appends `Crate<X> : __IConstruct_int<Crate<X>>` and `__New(int arg0) { return
+      new Crate<X>(arg0); }`, which C# refuses ("cannot convert from ''int'' to ''X''"); `Sized<Crate<int>,
+      int>` over `new(A…'
+    line_at_baseline: 3249
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe plus source inspection
+    detail: 'CLI fails MIST_CS_ERROR: cannot convert int to X.'
+    source_symbols:
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/ConstructorConstraintInterfaces.cs
+      symbol: DeclaredParameters
+      line: 62
+    probes:
+    - path: /private/tmp/mist-backend-reconcile-probes/ctor_closed_generic
+      source: 'using Standard;
+
+        namespace Probe;
+
+        public class Crate<X> { public X Held; public Crate(X held) { Held=held; } } public class Factory<T>
+        where T:new(int) { public T Make() { return new T(7); } } public class Program { public static
+        void Main() { Console.WriteLine(new Factory<Crate<int>>().Make().Held); } }
+
+        '
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/ctor_closed_generic
+        --quiet
+      exit_code: 1
+      output: '/private/tmp/mist-backend-reconcile-probes/ctor_closed_generic/out/Probe/Program.cs: error
+        MIST_CS_ERROR: Argument 1: cannot convert from ''int'' to ''X''
+
+        '
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'ConstraintClosureMap selects the constructor a closure satisfies (public, identical once the closure substitutes it, as the constraint rule admits one) and records its declared parameter types on the ConstructorWitness.'
+    - 'An open interface position takes the constructor''s own type (__IConstruct_0<Crate<X>, X>); a closed one keeps the interface''s type and converts to the constructor''s through object, which that identity makes exact. Factories and base-list entries are deduplicated on the written factory signature.'
+    acceptance:
+    - 'CLI probe of the record prints 7. Texts<Crate<string>> over new(string) prints t; Open<Crate<int>, int> and Open<Crate<string>, string> over new(A) print 8 and o through one shared factory; Mixed<Pair<int, string>, string> over new(int, A) prints m; Sized<X>(int size) is unchanged; a static Native<Crate<int>>.Build() reaching the interface factory prints 11. The emitted C# builds with no diagnostics.'
+    - 'Tier 1 and Tier 2 ConstructorFactoryClosingTests (closed, open and mixed positions, two instantiations without duplicates); the ConstructorConstraintInterfaceEmissionTests controls for non-generic closings and open positions pass unchanged.'
+    - 'ConstructorConstraintSignatures closes new(int) and new(A) with the generic Box, including through a static member; banked in AllFeaturesV2.'
+    - 'Mutation check: falling back to the closed signature fails every Tier 2 factory test.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors on the integrated branch.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check: passed.'
+    - 'DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh on head 9299542f (clean tree, Storm 83410653), ledger TestResults/ledger/20261011-192901: Mist.slnx build 0 warnings, 0 errors; 10837 tests passed, 0 failed, 0 skipped (Mist.Tests 9766, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46); summary.txt read, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. The polling watcher was set preemptively; no stall was observed. An earlier run on the previous base (ledger 20261011-191819, 10613 passed) is superseded by this integration. SnippetEmitter on this head: 405 snippets, 0 updated, 0 failed.'
+    limitations:
+    - 'A definition declaring both Crate(X) and Crate(int) leaves Crate<int> closing new(int) ambiguous in C# at the call-site witness; no such program was found and none is refused yet.'
+  related:
+  - generic constructor constraints
+  priority_rationale: Current reproducible wrong behavior; correctness work.
+  audit_key: backend:backend-generic-constructor-closure
+  area: backend
+- id: MIST-028
+  title: Entail all constraint kinds for a forwarded pack or pack element
+  status: implemented
+  summary: 'Delivered: a pack forwarded whole, spread into a pack value, or one of its elements is judged against every constraint of the closed parameter, each position of a pack value by what fills it; the pack-naming bound rebinds to the element on both sides.'
+  source_refs:
+  - file: backlog/classic-retirement.md
+    selector: residual except that a pack or pack element
+    line_at_baseline: 309
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: 'Source-only: ConstraintEntailment retains a dedicated pack path for stampability; frozen
+      tracker explicitly says broader pack entailment remains open.'
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/ConstraintAnalyzer.cs
+      symbol: closing.Parameter.IsPack || forwarded.IsPack
+      line: 61
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'ConstraintAnalyzer judges every constraint for every closing; a pack value yields its closed types, type parameters, spread packs and the elements of a spread tuple, and a whole forwarded pack is judged itself.'
+    - 'ConstraintEntailment rebinds an element''s offered bounds from its pack to the element, mirroring TypeSubstitution.With on the required side; stampable and default keep the direct open-argument rule.'
+    acceptance:
+    - 'CLI probes: Forward<Type[2]:Us> where Us : class, IShow forwards Family<Us...>, Single<Us[0]> and, with Mixed<T, Us>, Family<T, Shown, Us...>; RankForward where Us : IRank<Us> forwards Ranked<Us...>; an empty Family() is admitted. An unconstrained pack is refused for class, struct, IShow, Base and new(int), class-only for IShow, and default and stampable are judged; NeedsShow<int, T> names both int and T, and Us[0] is refused for IShow.'
+    - 'Tier 2 ConstraintForwardingSiteTests (whole, spread and element forwarding per constraint; each position of a pack value; a bound naming the pack); Tier 1 ConstraintEntailmentTests.APackElementOffersWhatItsPackDeclaresOfEachElement. The old stampable-only test was replaced by the full contract.'
+    - 'Mutation check: the previous ConstraintAnalyzer and ConstraintEntailment fail every refusal row and the element rebinding row.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors on the integrated branch.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check: passed.'
+    - 'DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh on head 9299542f (clean tree, Storm 83410653), ledger TestResults/ledger/20261011-192901: Mist.slnx build 0 warnings, 0 errors; 10837 tests passed, 0 failed, 0 skipped (Mist.Tests 9766, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46); summary.txt read, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. The polling watcher was set preemptively; no stall was observed. An earlier run on the previous base (ledger 20261011-191819, 10613 passed) is superseded by this integration. SnippetEmitter on this head: 405 snippets, 0 updated, 0 failed.'
+  related:
+  - analysis register constraints
+  - pack constraints
+  - emitter order 153
+  priority_rationale: Current source-established wrong behavior; correctness work.
+  audit_key: backend:backend-pack-forwarded-constraints
+  area: backend
 - id: MIST-027
   title: Emit optional reference annotations consistent with the generated project
   status: implemented

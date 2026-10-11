@@ -22,8 +22,8 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        Snippet.Item present = new Snippet.Item(5);
-        Snippet.Item absent = null;
+        Snippet.Item? present = new Snippet.Item(5);
+        Snippet.Item? absent = null;
         int? result1 = present?.GetValue();
         int? result2 = absent?.GetValue();
         System.Console.WriteLine(System.FormattableString.Invariant($"present?.GetValue()={(object?)result1 ?? "Void"}"));

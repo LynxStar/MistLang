@@ -29,7 +29,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Animal animal = new Snippet.Dog("Rex", "Labrador");
-        string breed = (animal as Snippet.Dog)?.Breed;
+        string? breed = (animal as Snippet.Dog)?.Breed;
         {
             if (breed is string b)
             {

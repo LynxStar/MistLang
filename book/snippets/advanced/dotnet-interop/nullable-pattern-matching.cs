@@ -14,14 +14,14 @@ public class Program
             int value = dict["hello"];
             System.Console.WriteLine(System.FormattableString.Invariant($"Found={value}"));
         }
-        string name = "Mist";
+        string? name = "Mist";
         {
             if (name is string s)
             {
                 System.Console.WriteLine($"Name={s}");
             }
         }
-        string empty = null;
+        string? empty = null;
         {
             if (empty is string e)
             {

@@ -5,9 +5,9 @@ namespace Snippet;
 public class Node : Standard.IClonable<Snippet.Node>
 {
     public int Item;
-    public Snippet.Node Next;
+    public Snippet.Node? Next;
 
-    public Node(int item, Snippet.Node next)
+    public Node(int item, Snippet.Node? next)
     {
         this.Item = default(int);
         this.Next = null;
@@ -24,9 +24,9 @@ public class Node : Standard.IClonable<Snippet.Node>
 public class Chain : Standard.IClonable<Snippet.Chain>
 {
     public int Item;
-    public Snippet.Chain Next;
+    public Snippet.Chain? Next;
 
-    public Chain(int item, Snippet.Chain next)
+    public Chain(int item, Snippet.Chain? next)
     {
         this.Item = default(int);
         this.Next = null;
@@ -47,10 +47,10 @@ public class Chain : Standard.IClonable<Snippet.Chain>
 
 public class Program
 {
-    public static string Spell(Snippet.Chain head)
+    public static string Spell(Snippet.Chain? head)
     {
         string text = "";
-        Snippet.Chain cursor = head;
+        Snippet.Chain? cursor = head;
         {
             while (cursor is Snippet.Chain here)
             {
@@ -63,7 +63,7 @@ public class Program
 
     public static void Main(string[] args)
     {
-        Snippet.Node end = null;
+        Snippet.Node? end = null;
         Snippet.Node nodes = new Snippet.Node(1, new Snippet.Node(2, end));
         Snippet.Chain chain = ((Snippet.Chain)(nodes));
         {

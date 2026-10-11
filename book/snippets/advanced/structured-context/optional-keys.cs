@@ -10,9 +10,9 @@ public class Program
         return s;
     }
 
-    public static string Optional()
+    public static string? Optional()
     {
-        var s = (string)MistContext.Peek<MistContext.Optional<string>>();
+        var s = (string?)MistContext.Peek<MistContext.Optional<string>>();
         return s;
     }
 
@@ -23,7 +23,7 @@ public class Program
             MistContext.Push<string>(__e1);
             try
             {
-                string absent = null;
+                string? absent = null;
                 {
                     var __e2 = absent;
                     MistContext.Push<MistContext.Optional<string>>(__e2);
@@ -31,7 +31,7 @@ public class Program
                     {
                         System.Console.WriteLine(Required());
                         System.Console.WriteLine(Optional() ?? "absent");
-                        string present = "inner";
+                        string? present = "inner";
                         {
                             var __e3 = present;
                             MistContext.Push<MistContext.Optional<string>>(__e3);

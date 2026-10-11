@@ -37,7 +37,7 @@ public class Program
     {
         Snippet.Reader reader = new Snippet.Reader();
         Snippet.IReader view = reader;
-        Snippet.Reader absent = null;
+        Snippet.Reader? absent = null;
         System.Console.WriteLine((await reader.Read()).ToString(System.Globalization.CultureInfo.InvariantCulture));
         System.Console.WriteLine(view.Read().ToString(System.Globalization.CultureInfo.InvariantCulture));
         System.Console.WriteLine((await Snippet.Int32Extensions_promotiondispatch_0.ReadExtension(2)).ToString(System.Globalization.CultureInfo.InvariantCulture));

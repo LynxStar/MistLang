@@ -29,7 +29,7 @@ public class Program
     public static void Main(string[] args)
     {
         Snippet.Animal animal = new Snippet.Dog("Fido", "Beagle");
-        Snippet.Dog maybeDog = (animal as Snippet.Dog);
+        Snippet.Dog? maybeDog = (animal as Snippet.Dog);
         {
             if (maybeDog is Snippet.Dog d)
             {

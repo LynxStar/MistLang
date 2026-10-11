@@ -30,7 +30,7 @@ public class Pick__P2__Standard_String__Standard_Int32
 
 public class Pick__P2__Standard_Int32__Standard_String
 {
-    public string Second;
+    public string? Second;
 
     public string Show()
     {

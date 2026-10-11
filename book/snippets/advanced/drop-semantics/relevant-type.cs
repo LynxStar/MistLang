@@ -9,6 +9,8 @@ public class Logger
 
     public Logger(string name)
     {
+        this.Name = "";
+        this.Flushed = default(bool);
         this.Name = name;
         this.Flushed = false;
     }

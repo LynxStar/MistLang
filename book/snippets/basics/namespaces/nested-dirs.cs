@@ -9,6 +9,8 @@ public class Player
 
     public Player(string name, int health)
     {
+        this.name = "";
+        this.health = default(int);
         this.name = name;
         this.health = health;
     }

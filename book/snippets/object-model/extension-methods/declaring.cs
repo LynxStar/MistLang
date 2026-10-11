@@ -8,6 +8,7 @@ public class Greeting
 
     public Greeting(string message)
     {
+        this.Message = "";
         Message = message;
     }
 }

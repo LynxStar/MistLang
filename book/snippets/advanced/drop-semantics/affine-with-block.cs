@@ -8,6 +8,7 @@ public class Transaction
 
     public Transaction(string id)
     {
+        this.Id = "";
         this.Id = id;
     }
 

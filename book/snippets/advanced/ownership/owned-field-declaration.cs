@@ -9,6 +9,8 @@ public class Document
 
     public Document(string content, int version)
     {
+        this.Content = "";
+        this.Version = default(int);
         this.Content = content;
         this.Version = version;
     }

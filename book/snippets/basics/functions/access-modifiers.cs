@@ -8,6 +8,7 @@ public class Account
 
     public Account(int initial)
     {
+        this.balance = default(int);
         this.balance = initial;
     }
 

@@ -8,6 +8,7 @@ public class Config
 
     public Config(string value)
     {
+        this.Value = "";
         this.Value = value;
     }
 }

@@ -8,6 +8,7 @@ public class AffineToken
 
     public AffineToken(int id)
     {
+        this.Id = default(int);
         this.Id = id;
     }
 
@@ -23,6 +24,7 @@ public class PlainData
 
     public PlainData(int v)
     {
+        this.Value = default(int);
         this.Value = v;
     }
 }

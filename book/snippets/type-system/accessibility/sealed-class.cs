@@ -9,6 +9,8 @@ public sealed class Config
 
     public Config(string key, string value)
     {
+        this.key = "";
+        this.value = "";
         this.key = key;
         this.value = value;
     }

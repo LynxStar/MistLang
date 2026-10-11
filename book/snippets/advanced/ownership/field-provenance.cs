@@ -8,6 +8,7 @@ public class Node
 
     public Node(int id)
     {
+        this.Id = default(int);
         this.Id = id;
     }
 
@@ -24,6 +25,7 @@ public class Slot
 
     public Slot(Snippet.Node first)
     {
+        this.Count = default(int);
         this.Current = first;
         this.Count = 1;
     }

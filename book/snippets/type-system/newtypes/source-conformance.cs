@@ -11,6 +11,7 @@ public class Money : Snippet.IPriced
 {
     public Money(int amount)
     {
+        this.Amount = default(int);
         this.Amount = amount;
     }
 
@@ -28,6 +29,7 @@ internal class Cash
 {
     public Cash(int amount)
     {
+        this.Amount = default(int);
         this.Amount = amount;
     }
 

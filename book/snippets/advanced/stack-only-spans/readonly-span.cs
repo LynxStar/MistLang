@@ -21,6 +21,8 @@ namespace Snippet
 
         public Point(int a, int b)
         {
+            this.x = default(int);
+            this.y = default(int);
             this.x = a;
             this.y = b;
         }

@@ -8,6 +8,7 @@ public class Item
 
     public Item(int v)
     {
+        this.value = default(int);
         this.value = v;
     }
 

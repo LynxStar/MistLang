@@ -9,6 +9,8 @@ public class Label
 
     public Label(string text, int code)
     {
+        this.text = "";
+        this.code = default(int);
         this.text = text;
         this.code = code;
     }

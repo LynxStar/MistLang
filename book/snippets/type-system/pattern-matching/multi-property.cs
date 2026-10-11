@@ -6,6 +6,8 @@ public class Rectangle
 {
     public Rectangle(int width, int height)
     {
+        this.Width = default(int);
+        this.Height = default(int);
         this.Width = width;
         this.Height = height;
     }

@@ -8,6 +8,7 @@ public class FileHandle
 
     public FileHandle(int fd)
     {
+        this.Fd = default(int);
         this.Fd = fd;
     }
 

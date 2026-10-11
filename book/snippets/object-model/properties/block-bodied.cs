@@ -6,6 +6,7 @@ public class Thermostat
 {
     public Thermostat(int initial)
     {
+        this.Temperature = default(int);
         this.Temperature = initial;
     }
 

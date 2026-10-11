@@ -8,6 +8,7 @@ public class Lease
 
     public Lease(int id)
     {
+        this.Id = default(int);
         this.Id = id;
     }
 
@@ -25,6 +26,7 @@ public class Pair
 
     public Pair(bool early)
     {
+        this.Early = default(bool);
         First = new Snippets.Lease(1);
         Second = new Snippets.Lease(2);
         Early = early;

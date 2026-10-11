@@ -8,6 +8,7 @@ public class Payload
 
     public Payload(int size)
     {
+        this.Size = default(int);
         this.Size = size;
     }
 
@@ -24,6 +25,7 @@ public class Envelope
 
     public Envelope(Snippet.Payload body)
     {
+        this.Stamp = default(int);
         this.Body = body;
         this.Stamp = 1;
     }

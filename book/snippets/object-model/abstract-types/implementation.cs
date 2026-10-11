@@ -14,6 +14,8 @@ public class Person : Snippet.IDescribable
 
     public Person(string name, int age)
     {
+        this.name = "";
+        this.age = default(int);
         this.name = name;
         this.age = age;
     }

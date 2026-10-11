@@ -10,6 +10,8 @@ public struct Vec2
 
     public Vec2(int x, int y)
     {
+        this.X = default(int);
+        this.Y = default(int);
         this.X = x;
         this.Y = y;
     }

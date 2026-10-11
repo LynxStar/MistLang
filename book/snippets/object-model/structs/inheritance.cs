@@ -10,6 +10,8 @@ public struct Point
 
     public Point(int x, int y)
     {
+        this.X = default(int);
+        this.Y = default(int);
         this.X = x;
         this.Y = y;
     }
@@ -35,6 +37,9 @@ public struct Point3D
 
     public Point3D(int x, int y, int z)
     {
+        this.X = default(int);
+        this.Y = default(int);
+        this.Z = default(int);
         __Point_ctor(x, y);
         this.Z = z;
     }

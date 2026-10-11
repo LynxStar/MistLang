@@ -9,6 +9,8 @@ public class Sensor
 
     public Sensor(int id, int reading)
     {
+        this.Id = default(int);
+        this.Reading = default(int);
         this.Id = id;
         this.Reading = reading;
     }

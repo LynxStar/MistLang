@@ -9,6 +9,8 @@ public class GameState
 
     public GameState(int level, bool active)
     {
+        this.level = default(int);
+        this.active = default(bool);
         this.level = level;
         this.active = active;
     }

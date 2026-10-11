@@ -8,6 +8,7 @@ public sealed class Singleton
 
     public Singleton()
     {
+        this.instanceCount = default(int);
         this.instanceCount = 1;
     }
 }

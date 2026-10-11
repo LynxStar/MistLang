@@ -8,6 +8,7 @@ internal class TopLevelService
 
     public TopLevelService()
     {
+        this.counter = default(int);
         this.counter = 0;
     }
 

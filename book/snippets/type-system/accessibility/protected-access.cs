@@ -8,6 +8,7 @@ public class Vehicle
 
     public Vehicle(int speed)
     {
+        this.speed = default(int);
         this.speed = speed;
     }
 }
@@ -18,6 +19,7 @@ public class Car : Snippet.Vehicle
 
     public Car(string model, int speed) : base(speed)
     {
+        this.model = "";
         this.model = model;
     }
 

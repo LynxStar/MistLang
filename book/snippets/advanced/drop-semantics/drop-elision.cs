@@ -8,6 +8,7 @@ public class Connection
 
     public Connection(string host)
     {
+        this.Host = "";
         this.Host = host;
     }
 

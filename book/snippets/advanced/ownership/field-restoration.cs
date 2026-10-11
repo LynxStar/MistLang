@@ -9,6 +9,8 @@ public class Pair
 
     public Pair(string left, string right)
     {
+        this.Left = "";
+        this.Right = "";
         this.Left = left;
         this.Right = right;
     }

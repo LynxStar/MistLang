@@ -9,6 +9,8 @@ public class Connection
 
     public Connection(string host, int port)
     {
+        this.Host = "";
+        this.Port = default(int);
         this.Host = host;
         this.Port = port;
     }

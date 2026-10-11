@@ -8,6 +8,7 @@ public class Logger
 
     public Logger(string prefix)
     {
+        this.prefix = "";
         this.prefix = prefix;
     }
 

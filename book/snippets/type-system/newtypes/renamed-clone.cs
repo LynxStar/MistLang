@@ -8,6 +8,7 @@ public class Cat
 
     public Cat(string name)
     {
+        this.Name = "";
         this.Name = name;
     }
 }

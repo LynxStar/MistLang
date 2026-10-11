@@ -6,6 +6,7 @@ public class Account
 {
     public Account(string name)
     {
+        this.Name = "";
         this.Name = name;
     }
 

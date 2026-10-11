@@ -9,6 +9,7 @@ public class Person
 
     public Person(string name)
     {
+        this.Name = "";
         this.Name = name;
         this.Age = 18;
     }

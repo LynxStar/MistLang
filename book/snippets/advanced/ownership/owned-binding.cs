@@ -9,6 +9,8 @@ public class Point
 
     public Point(int x, int y)
     {
+        this.X = default(int);
+        this.Y = default(int);
         this.X = x;
         this.Y = y;
     }

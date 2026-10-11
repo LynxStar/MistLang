@@ -8,6 +8,7 @@ public class Outer
 
     public Outer(int secret)
     {
+        this.secret = default(int);
         this.secret = secret;
     }
 

@@ -11,6 +11,9 @@ public struct Color
 
     public Color(int r, int g, int b)
     {
+        this.r = default(int);
+        this.g = default(int);
+        this.b = default(int);
         this.r = r;
         this.g = g;
         this.b = b;

@@ -9,6 +9,8 @@ public class Interval
 
     public Interval(int start, int end)
     {
+        this.Start = default(int);
+        this.End = default(int);
         this.Start = start;
         this.End = end;
     }

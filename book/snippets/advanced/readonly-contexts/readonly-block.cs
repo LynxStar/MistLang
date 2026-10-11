@@ -8,6 +8,7 @@ public class ReadonlyBlockDemo
 
     public ReadonlyBlockDemo(int value)
     {
+        this.Value = default(int);
         this.Value = value;
     }
 

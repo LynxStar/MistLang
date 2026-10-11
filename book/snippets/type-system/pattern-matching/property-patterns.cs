@@ -6,6 +6,7 @@ public class Circle
 {
     public Circle(int radius)
     {
+        this.Radius = default(int);
         this.Radius = radius;
     }
 

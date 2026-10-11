@@ -8,6 +8,7 @@ public class Measurement
 
     public Measurement(string unit)
     {
+        this.unit = "";
         this.unit = unit;
     }
 }
@@ -18,6 +19,7 @@ public class Weight : Snippet.Measurement
 
     public Weight(double value, string unit) : base(unit)
     {
+        this.value = default(double);
         this.value = value;
     }
 

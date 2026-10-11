@@ -35,6 +35,7 @@ internal class MessageProducer : Snippet.IProducer<Snippet.MessageProducer.Outpu
 
         public Output(string value)
         {
+            this.Value = "";
             Value = value;
         }
 

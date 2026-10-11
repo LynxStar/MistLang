@@ -8,6 +8,7 @@ public class Connection
 
     public Connection(int id)
     {
+        this.Id = default(int);
         this.Id = id;
     }
 
@@ -51,6 +52,7 @@ public class RelevantHolder<T>
 
     public RelevantHolder(T value)
     {
+        this.Dropped = default(bool);
         this.Value = value;
         this.Dropped = false;
     }

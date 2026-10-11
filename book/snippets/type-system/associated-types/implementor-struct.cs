@@ -31,6 +31,7 @@ internal class RangeIterator : Snippet.IIterator<Snippet.RangeIterator.Cursor>
 
         public Cursor(int pos)
         {
+            this.Position = default(int);
             Position = pos;
         }
 

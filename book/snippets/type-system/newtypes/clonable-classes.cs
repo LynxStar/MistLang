@@ -9,6 +9,7 @@ public class Tiger : Standard.IClonable<Snippet.Tiger>
 
     public Tiger(int stripes)
     {
+        this.stripes = default(int);
         this.stripes = stripes;
     }
 
@@ -31,6 +32,7 @@ internal class Jaguar : Standard.IClonable<Snippet.Jaguar>
 
     public Jaguar(int stripes)
     {
+        this.stripes = default(int);
         this.stripes = stripes;
     }
 

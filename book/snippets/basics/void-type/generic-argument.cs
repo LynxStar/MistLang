@@ -18,6 +18,7 @@ namespace Snippet
 
         public Result(T value, bool success)
         {
+            this.success = default(bool);
             this.value = value;
             this.success = success;
         }

@@ -18,6 +18,7 @@ public class FriendlyDog : Snippet.IGreetable
 
     public FriendlyDog(string dogName)
     {
+        this.dogName = "";
         this.dogName = dogName;
     }
 

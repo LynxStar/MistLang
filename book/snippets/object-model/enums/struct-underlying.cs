@@ -10,6 +10,8 @@ public readonly struct Vec2
 
     public Vec2(int x, int y)
     {
+        this.x = default(int);
+        this.y = default(int);
         this.x = x;
         this.y = y;
     }

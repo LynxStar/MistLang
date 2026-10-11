@@ -15,6 +15,8 @@ namespace Snippet
 
         public Point(int x, int y)
         {
+            this.X = default(int);
+            this.Y = default(int);
             X = x;
             Y = y;
         }

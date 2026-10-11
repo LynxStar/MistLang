@@ -8,6 +8,7 @@ public class Resource
 
     public Resource(string name)
     {
+        this.Name = "";
         this.Name = name;
     }
 

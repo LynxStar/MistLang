@@ -11,6 +11,10 @@ public class Account
 
     public Account(string name, int balance, int overdraftLimit, string accountType)
     {
+        this.name = "";
+        this.balance = default(int);
+        this.overdraftLimit = default(int);
+        this.accountType = "";
         this.name = name;
         this.balance = balance;
         this.overdraftLimit = overdraftLimit;

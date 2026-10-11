@@ -8,6 +8,7 @@ public class Resource
 
     public Resource(int id)
     {
+        this.Id = default(int);
         this.Id = id;
     }
 
@@ -23,6 +24,7 @@ public class Token
 
     public Token(int id)
     {
+        this.Id = default(int);
         this.Id = id;
     }
 
@@ -39,6 +41,8 @@ public class Subscription
 
     public Subscription(int id)
     {
+        this.Id = default(int);
+        this.Dropped = default(bool);
         this.Id = id;
         this.Dropped = false;
     }
@@ -60,6 +64,7 @@ public class PlainData
 
     public PlainData(int v)
     {
+        this.Value = default(int);
         this.Value = v;
     }
 }

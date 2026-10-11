@@ -9,6 +9,8 @@ public class Robot : Snippet.IFullyDescribable
 
     public Robot(string model, int version)
     {
+        this.model = "";
+        this.version = default(int);
         this.model = model;
         this.version = version;
     }

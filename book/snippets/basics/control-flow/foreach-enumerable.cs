@@ -8,6 +8,7 @@ internal class Countdown : System.Collections.Generic.IEnumerable<int>
 
     public Countdown(int start)
     {
+        this.start = default(int);
         this.start = start;
     }
 
@@ -27,6 +28,7 @@ internal class Countdown : System.Collections.Generic.IEnumerable<int>
 
         public Enumerator(int start)
         {
+            this.current = default(int);
             current = start + 1;
         }
 

@@ -8,6 +8,7 @@ public class Tag : Standard.IClonable<Snippet.Tag>
 
     public Tag(int code)
     {
+        this.Code = default(int);
         this.Code = code;
     }
 

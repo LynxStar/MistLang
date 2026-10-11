@@ -8,6 +8,7 @@ public class Accumulator
 
     public Accumulator(int seed)
     {
+        this.Total = default(int);
         this.Total = seed;
     }
 

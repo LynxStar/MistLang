@@ -8,6 +8,7 @@ public class Printer
 
     public Printer(string prefix)
     {
+        this._prefix = "";
         this._prefix = prefix;
     }
 

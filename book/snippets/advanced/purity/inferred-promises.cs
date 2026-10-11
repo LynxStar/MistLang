@@ -8,6 +8,7 @@ public class Vec
 
     public Vec(int x)
     {
+        this.X = default(int);
         X = x;
     }
 }
@@ -33,6 +34,8 @@ public class Interval
 
     public Interval(int start, int end)
     {
+        this.Start = default(int);
+        this.End = default(int);
         Start = start;
         End = end;
     }

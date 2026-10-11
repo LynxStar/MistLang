@@ -14,6 +14,7 @@ namespace MyApp
 
         public Helper(string target)
         {
+            this.target = "";
             this.target = target;
         }
 

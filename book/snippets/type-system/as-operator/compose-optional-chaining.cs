@@ -8,6 +8,7 @@ public class Animal
 
     public Animal(string name)
     {
+        this.Name = "";
         Name = name;
     }
 }
@@ -18,6 +19,7 @@ public class Dog : Snippet.Animal
 
     public Dog(string name, string breed) : base(name)
     {
+        this.Breed = "";
         Breed = breed;
     }
 }

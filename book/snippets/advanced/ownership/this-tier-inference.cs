@@ -9,6 +9,8 @@ public class Account
 
     public Account(string name, int balance)
     {
+        this.Name = "";
+        this.Balance = default(int);
         this.Name = name;
         this.Balance = balance;
     }

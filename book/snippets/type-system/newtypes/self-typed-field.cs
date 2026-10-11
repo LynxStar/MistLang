@@ -9,6 +9,8 @@ public class Node : Standard.IClonable<Snippet.Node>
 
     public Node(int item, Snippet.Node next)
     {
+        this.Item = default(int);
+        this.Next = null;
         this.Item = item;
         this.Next = next;
     }
@@ -26,6 +28,8 @@ public class Chain : Standard.IClonable<Snippet.Chain>
 
     public Chain(int item, Snippet.Chain next)
     {
+        this.Item = default(int);
+        this.Next = null;
         this.Item = item;
         this.Next = next;
     }

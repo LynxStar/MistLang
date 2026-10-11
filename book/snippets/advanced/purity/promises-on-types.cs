@@ -8,6 +8,7 @@ public class Tally
 
     public Tally(int start)
     {
+        this.total = default(int);
         total = start;
     }
 
@@ -31,6 +32,7 @@ public class Money
 
     public Money(int cents)
     {
+        this.Cents = default(int);
         Cents = cents;
     }
 

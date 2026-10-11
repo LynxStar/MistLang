@@ -6,6 +6,8 @@ public class Person
 {
     public Person(string name, string id)
     {
+        this.Name = "";
+        this.Id = "";
         this.Name = name;
         this.Id = id;
     }

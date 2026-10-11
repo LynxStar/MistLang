@@ -8,6 +8,7 @@ public class Sensor
 
     public Sensor(int reading)
     {
+        this.Reading = default(int);
         this.Reading = reading;
     }
 

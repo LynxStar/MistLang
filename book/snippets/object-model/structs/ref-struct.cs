@@ -10,6 +10,8 @@ public ref struct IntBuffer
 
     public IntBuffer(int value, int capacity)
     {
+        this.value = default(int);
+        this.capacity = default(int);
         this.value = value;
         this.capacity = capacity;
     }

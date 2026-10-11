@@ -9,6 +9,8 @@ public class AppConfig
 
     public AppConfig(string appName, string version)
     {
+        this.appName = "";
+        this.version = "";
         this.appName = appName;
         this.version = version;
     }

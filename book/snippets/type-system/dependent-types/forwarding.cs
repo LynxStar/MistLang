@@ -31,7 +31,7 @@ public class NarrowCounter<TCap> : Snippet.WideCounter<TCap>
     {
     }
 
-    public static NarrowCounter<TCap> __CreateDefault()
+    public new static NarrowCounter<TCap> __CreateDefault()
     {
         return new NarrowCounter<TCap>();
     }

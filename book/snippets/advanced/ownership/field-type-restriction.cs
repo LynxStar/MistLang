@@ -9,6 +9,8 @@ public class Vault
 
     public Vault(string secret)
     {
+        this.Secret = "";
+        this.AccessCount = default(int);
         this.Secret = secret;
         this.AccessCount = 0;
     }

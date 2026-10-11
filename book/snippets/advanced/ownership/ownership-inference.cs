@@ -8,6 +8,7 @@ public class Counter
 
     public Counter(int value)
     {
+        this.Value = default(int);
         this.Value = value;
     }
 

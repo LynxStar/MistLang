@@ -10,6 +10,9 @@ public class Connection
 
     public Connection(string handle, string label)
     {
+        this.Handle = "";
+        this.Label = "";
+        this.RetryCount = default(int);
         this.Handle = handle;
         this.Label = label;
         this.RetryCount = 0;

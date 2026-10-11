@@ -6,6 +6,7 @@ public class Shape
 {
     public Shape(string kind)
     {
+        this.Kind = "";
         this.Kind = kind;
     }
 
@@ -16,6 +17,7 @@ public class Circle : Snippet.Shape
 {
     public Circle(int radius) : base("circle")
     {
+        this.Radius = default(int);
         this.Radius = radius;
     }
 

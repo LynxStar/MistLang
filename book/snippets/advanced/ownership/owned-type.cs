@@ -9,6 +9,8 @@ public class UniqueHandle
 
     public UniqueHandle(int id)
     {
+        this.Id = default(int);
+        this.RefCount = default(int);
         this.Id = id;
         this.RefCount = 1;
     }

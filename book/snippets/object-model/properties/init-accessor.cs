@@ -6,6 +6,8 @@ public class Record
 {
     public Record(string name, int year)
     {
+        this.Name = "";
+        this.Year = default(int);
         this.Name = name;
         this.Year = year;
     }

@@ -8,6 +8,7 @@ public class FormalCat : Snippet.IGreetable
 
     public FormalCat(string catName)
     {
+        this.catName = "";
         this.catName = catName;
     }
 

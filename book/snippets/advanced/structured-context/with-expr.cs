@@ -9,6 +9,7 @@ public struct Locale
 
     public Locale(string language)
     {
+        this.Language = "";
         this.Language = language;
     }
 

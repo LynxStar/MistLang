@@ -8,6 +8,7 @@ public class Resource
 
     public Resource(int id)
     {
+        this.Id = default(int);
         this.Id = id;
     }
 

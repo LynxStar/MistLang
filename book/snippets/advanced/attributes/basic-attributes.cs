@@ -10,6 +10,7 @@ internal class Config
 
     public Config(string name)
     {
+        this.name = "";
         this.name = name;
     }
 }

@@ -23,7 +23,7 @@ public class SmallBuffer : Snippet.FixedBuffer<Const_10>
     {
     }
 
-    public static SmallBuffer __CreateDefault()
+    public new static SmallBuffer __CreateDefault()
     {
         return new SmallBuffer();
     }

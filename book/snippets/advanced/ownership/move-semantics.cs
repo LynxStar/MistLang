@@ -8,6 +8,7 @@ public class Handle
 
     public Handle(int id)
     {
+        this.Id = default(int);
         this.Id = id;
     }
 

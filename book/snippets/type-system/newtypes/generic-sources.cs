@@ -33,6 +33,7 @@ internal class IntBox
 
     public IntBox(int item)
     {
+        this.item = default(int);
         this.item = item;
     }
 

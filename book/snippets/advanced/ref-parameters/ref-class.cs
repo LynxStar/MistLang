@@ -8,6 +8,7 @@ public class Container
 
     public Container(int value)
     {
+        this.Value = default(int);
         this.Value = value;
     }
 

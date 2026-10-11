@@ -8,6 +8,7 @@ public class Celsius
 
     public Celsius(double degrees)
     {
+        this.degrees = default(double);
         this.degrees = degrees;
     }
 
@@ -28,6 +29,7 @@ public class Kelvin
 
     public Kelvin(double degrees)
     {
+        this.degrees = default(double);
         this.degrees = degrees;
     }
 

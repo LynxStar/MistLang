@@ -8,6 +8,7 @@ public class Lease
 
     public Lease(int id)
     {
+        this.Id = default(int);
         this.Id = id;
     }
 

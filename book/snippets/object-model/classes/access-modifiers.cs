@@ -10,6 +10,8 @@ public class Counter
 
     public Counter(string name)
     {
+        this.name = "";
+        this.value = default(int);
         this.name = name;
         this.value = 0;
         totalCreated = totalCreated + 1;

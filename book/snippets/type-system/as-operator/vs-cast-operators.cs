@@ -9,6 +9,7 @@ public struct Celsius
 
     public Celsius(double degrees)
     {
+        this.Degrees = default(double);
         Degrees = degrees;
     }
 
@@ -35,6 +36,7 @@ public struct Fahrenheit
 
     public Fahrenheit(double degrees)
     {
+        this.Degrees = default(double);
         Degrees = degrees;
     }
 

@@ -9,6 +9,8 @@ public class Resource
 
     public Resource(int id, int priority)
     {
+        this.Id = default(int);
+        this.Priority = default(int);
         this.Id = id;
         this.Priority = priority;
     }

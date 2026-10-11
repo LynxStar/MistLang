@@ -8,6 +8,7 @@ public class Color
 
     public Color(string name)
     {
+        this.Name = "";
         this.Name = name;
     }
 }

@@ -27,6 +27,7 @@ internal sealed class FormattingFragments
         Text.Modifiers = new MemberModifiers { IsReadonly = true, IsIntrinsic = true };
         Integer = Model.Type("Int32");
         Integer.Modifiers = new MemberModifiers { IsReadonly = true, IsIntrinsic = true };
+        Void = Model.Type("Void");
         Program = Declare(HandBuiltModel.Class("Program"));
         Box = Formatter("Box", mutates: true);
         Calm = Formatter("Calm", mutates: false, declaredReadonly: true);
@@ -40,6 +41,8 @@ internal sealed class FormattingFragments
     public ClassType Text { get; }
 
     public ClassType Integer { get; }
+
+    public ClassType Void { get; }
 
     public ClassType Program { get; }
 
@@ -64,6 +67,14 @@ internal sealed class FormattingFragments
         var item = Item(parameter);
 
         return Generic(name, isReadonly, parameter, Returning(concatenates ? Concatenate(HandBuiltModel.Literal(Text, "c"), item) : Interpolate(item)));
+    }
+
+    public Method FormatsOptional(string name, bool isReadonly)
+    {
+        var parameter = TypeParameterNamed("T");
+        var optional = new UnionType([parameter, Void]);
+
+        return Generic(name, isReadonly, parameter, Returning(Interpolate(Value(optional))));
     }
 
     public Method Forwards(string name, bool isReadonly, Method callee, int offset)
@@ -98,6 +109,49 @@ internal sealed class FormattingFragments
         };
         keep.MethodsList.Add(describe);
         return (keep, describe);
+    }
+
+    public (ClassType Base, Method Show) GenericBase(string name)
+    {
+        var type = Declare(HandBuiltModel.Class(name));
+        var parameter = new TypeParameter("T", 0, type.Scope, type);
+        type.TypeParametersList.Add(parameter);
+        var show = new Method("Show", Text, [], Public) { DeclaringType = type, Body = Returning(Interpolate(Item(parameter))) };
+        type.MethodsList.Add(show);
+        return (type, show);
+    }
+
+    public ClassType Derived(string name, ClassType baseDefinition, IMistType argument)
+    {
+        return Declare(HandBuiltModel.Class(name, Constructed(baseDefinition, argument)));
+    }
+
+    public Method CallsThrough(string name, Method callee, IMistType receiver, int offset)
+    {
+        var node = HandBuiltModel.Node(offset);
+        var call = new InvocationExpression(node, new MemberAccessExpression(node, Value(receiver), callee.Name, Text), [], Text, callee, []);
+        return Member(name, isReadonly: true, Returning(call));
+    }
+
+    public (Method Declared, Method Closed) ReadonlyExtension(IMistType closedWith)
+    {
+        var block = new ExtensionBlock("self", "Probe", new Scope(null), null);
+        var parameter = new TypeParameter("T", 0, block.Scope, null);
+        block.TypeParametersList.Add(parameter);
+        var declared = new Method("Show", Text, [], Readonly)
+        {
+            DeclaringBlock = block,
+            Body = Returning(Interpolate(Value(parameter))),
+        };
+
+        return (declared, ExtensionSpecialization.Close(declared, block, [closedWith], Model.Interner));
+    }
+
+    public Method CallsClosed(string name, Method closed, int offset)
+    {
+        var node = HandBuiltModel.Node(offset);
+        var call = new InvocationExpression(node, new MethodReferenceExpression(node, closed, []), [], Text, closed, []);
+        return Member(name, isReadonly: false, Returning(call));
     }
 
     public InvocationExpression Call(Method callee, IMistType typeArgument, Expression argument, int offset)

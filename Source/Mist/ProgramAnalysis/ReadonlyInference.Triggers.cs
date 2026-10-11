@@ -20,7 +20,7 @@ internal sealed partial class ReadonlyInference
         }
 
         return FormattingCallbacks.Sites(node).Any(formatted => FormatWrites(formatting.Reach(formatted.Type), callees))
-            || FormattingCallbacks.Uses(node).Any(use => FormatWrites(formatting.Through(use), callees));
+            || FormattingCallbacks.Uses(node, ScopeTypeOf(member)).Any(use => FormatWrites(formatting.Through(use), callees));
     }
 
     private bool FormatWrites(IEnumerable<FormatStep> steps, List<object> callees)

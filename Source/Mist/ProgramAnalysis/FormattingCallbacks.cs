@@ -1,3 +1,4 @@
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -15,16 +16,19 @@ internal readonly record struct FormatUse(object Callee, MemberModifiers Declare
 /// <summary>
 /// The formatter callbacks a body sets off, followed through generic closings. A hole or a string
 /// concatenation operand whose type is a Mist <c>System.IFormattable</c> calls its two-argument
-/// <c>ToString</c>, a <see cref="FormatStep"/> naming it as its <see cref="FormatStep.Formatter"/>; one whose type is a type parameter is an
-/// <see cref="FormatStep.Open"/> step, since what it calls is decided where the parameter is closed, and so
-/// is a call into a generic member that formats one of its own parameters, a <see cref="FormatUse"/> whose
-/// closing says what that parameter is there. <see cref="Of"/> answers which type parameters a member
-/// formats, a least fixed point over the members it calls.
+/// <c>ToString</c>, as does each element of a tuple and the value of an optional, which the target formats
+/// in turn; a wider union is formatted as its carrier and calls nothing. Such a call is a
+/// <see cref="FormatStep"/> naming its <see cref="FormatStep.Formatter"/>. A value whose type is a type
+/// parameter is an <see cref="FormatStep.Open"/> step instead, since what it calls is decided where the
+/// parameter is closed, and so is a call into a generic member that formats one of its own parameters, a
+/// <see cref="FormatUse"/> whose closing says what that parameter is there. <see cref="Of"/> answers which
+/// type parameters a member formats, a least fixed point over the members it calls.
 /// <para>
 /// A callee or formatter that DECLARES readonly is not followed. Its promise is judged where its formatted
-/// parameters are closed, so following it as well would report one mistake twice. Only Mist types are
-/// judged, by their static type, exactly as for a concrete hole; a value typed by an abstract type, or
-/// reached through an inherited generic method or a generic extension block, is not resolved here.
+/// parameters are closed, so following it as well would report one mistake twice. Only a type parameter in
+/// scope of the member is collected: one a use leaves unbound belongs to some other declaration, and
+/// promising it would judge closings the member never reaches. Only Mist types are judged, by their static
+/// type, exactly as for a concrete hole.
 /// </para>
 /// </summary>
 internal sealed class FormattingCallbacks
@@ -45,7 +49,7 @@ internal sealed class FormattingCallbacks
         };
     }
 
-    public static IEnumerable<FormatUse> Uses(object node)
+    public static IEnumerable<FormatUse> Uses(object node, MistType? enclosing)
     {
         switch(node)
         {
@@ -54,10 +58,11 @@ internal sealed class FormattingCallbacks
                 var (receiver, typeArguments) = call.Receiver switch
                 {
                     MemberAccessExpression access => (access.Receiver.Type, access.TypeArguments),
-                    MethodReferenceExpression reference => (null, reference.TypeArguments),
+                    MethodReferenceExpression reference => (enclosing, reference.TypeArguments),
                     _ => (null, []),
                 };
-                var closing = TypeSubstitution.ForReceiver(Constructed(receiver))
+                var closing = method.BlockClosing
+                    .Extend(Inherited(receiver, declared.DeclaringType))
                     .Extend(TypeSubstitution.ForParameters(declared.TypeParametersList, typeArguments));
 
                 yield return new FormatUse(declared, declared.Modifiers, declared.DeclaringType, call, closing);
@@ -75,7 +80,8 @@ internal sealed class FormattingCallbacks
                 break;
 
             case PropertyReferenceExpression { Property: { Getter: { } getter } property } read:
-                yield return new FormatUse(getter, ReadonlyInference.Declared(getter, property.Modifiers), property.DeclaringType, read, TypeSubstitution.Empty);
+                yield return new FormatUse(
+                    getter, ReadonlyInference.Declared(getter, property.Modifiers), property.DeclaringType, read, Inherited(enclosing, property.DeclaringType));
                 break;
         }
     }
@@ -90,6 +96,24 @@ internal sealed class FormattingCallbacks
         var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
 
         return use.Declared.IsReadonly ? [] : Of(use.Callee, use.Scope).SelectMany(parameter => Reach(use.Closing.Apply(parameter, interner: null), visited));
+    }
+
+    public static bool InScope(TypeParameter parameter, object? member, MistType? scope)
+    {
+        if(member is Method method && (method.TypeParametersList.Contains(parameter) || method.DeclaringBlock?.TypeParametersList.Contains(parameter) == true))
+        {
+            return true;
+        }
+
+        for(var current = scope; current is not null; current = current.DeclaringType)
+        {
+            if(current is IHasTypeParameters generic && generic.TypeParametersList.Contains(parameter))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public IReadOnlySet<TypeParameter> Of(object member, MistType? scope)
@@ -108,6 +132,11 @@ internal sealed class FormattingCallbacks
     }
 
     private IEnumerable<FormatStep> Reach(IMistType formatted, HashSet<object> visited)
+    {
+        return Leaves(formatted).SelectMany(leaf => ReachLeaf(leaf, visited));
+    }
+
+    private IEnumerable<FormatStep> ReachLeaf(IMistType formatted, HashSet<object> visited)
     {
         if(PurityJudge.DefinitionOf(formatted) is TypeParameter open)
         {
@@ -155,7 +184,7 @@ internal sealed class FormattingCallbacks
                 continue;
             }
 
-            var found = EdgesOf(next);
+            var found = EdgesOf(next, nextScope);
             edges[next] = found;
             settling[next] = [.. found.Opens];
 
@@ -177,7 +206,7 @@ internal sealed class FormattingCallbacks
                     {
                         foreach(var step in Reach(use.Closing.Apply(parameter, interner: null)))
                         {
-                            changed |= step.Open is { } open && settling[next].Add(open);
+                            changed |= step.Open is { } open && InScope(open, next, found.Scope) && settling[next].Add(open);
                         }
                     }
                 }
@@ -193,7 +222,7 @@ internal sealed class FormattingCallbacks
         return settled[member];
     }
 
-    private static Edges EdgesOf(object member)
+    private static Edges EdgesOf(object member, MistType? scope)
     {
         var opens = new HashSet<TypeParameter>();
         var uses = new List<FormatUse>();
@@ -202,26 +231,44 @@ internal sealed class FormattingCallbacks
         {
             foreach(var formatted in Sites(node))
             {
-                if(PurityJudge.DefinitionOf(formatted.Type) is TypeParameter open)
+                foreach(var leaf in Leaves(formatted.Type))
                 {
-                    _ = opens.Add(open);
-                }
-                else if(ClrCallbacks.Implements(formatted.Type, "System.IFormattable")
-                    && ClrCallbacks.Answering(formatted.Type, "ToString", 2) is { Modifiers.IsReadonly: false } toString)
-                {
-                    uses.Add(new FormatUse(toString, toString.Modifiers, toString.DeclaringType, formatted, TypeSubstitution.ForReceiver(Constructed(formatted.Type))));
+                    if(PurityJudge.DefinitionOf(leaf) is TypeParameter open)
+                    {
+                        if(InScope(open, member, scope))
+                        {
+                            _ = opens.Add(open);
+                        }
+                    }
+                    else if(ClrCallbacks.Implements(leaf, "System.IFormattable")
+                        && ClrCallbacks.Answering(leaf, "ToString", 2) is { Modifiers.IsReadonly: false } toString)
+                    {
+                        uses.Add(new FormatUse(toString, toString.Modifiers, toString.DeclaringType, formatted, TypeSubstitution.ForReceiver(Constructed(leaf))));
+                    }
                 }
             }
 
-            uses.AddRange(Uses(node).Where(use => !use.Declared.IsReadonly));
+            uses.AddRange(Uses(node, scope).Where(use => !use.Declared.IsReadonly));
         }
 
-        return new Edges(opens, uses);
+        return new Edges(opens, uses, scope);
+    }
+
+    private static IEnumerable<IMistType> Leaves(IMistType formatted)
+    {
+        return formatted switch
+        {
+            TypeAlias { AliasedType: { } aliased } => Leaves(aliased),
+            RefinedType refined => Leaves(refined.BaseType),
+            ITupleType tuple => tuple.ElementTypes.SelectMany(Leaves),
+            _ when OptionalUnion.InnerType(formatted) is { } inner => Leaves(inner),
+            _ => [formatted],
+        };
     }
 
     private static bool IsGeneric(object member, MistType? scope)
     {
-        if(member is Method { TypeParametersList.Count: > 0 })
+        if(member is Method { TypeParametersList.Count: > 0 } or Method { DeclaringBlock.TypeParametersList.Count: > 0 })
         {
             return true;
         }
@@ -237,6 +284,29 @@ internal sealed class FormattingCallbacks
         return false;
     }
 
+    private static TypeSubstitution Inherited(IMistType? receiver, MemberType? declaring)
+    {
+        if(receiver is null)
+        {
+            return TypeSubstitution.Empty;
+        }
+
+        var path = new List<ConstructedType>();
+        var visited = new HashSet<ConcreteType>(ReferenceEqualityComparer.Instance);
+
+        for(var current = PurityJudge.DefinitionOf(receiver) as ConcreteType;
+            current is not null && !ReferenceEquals(current, declaring) && visited.Add(current) && current.BaseType is { } baseType;
+            current = PurityJudge.DefinitionOf(baseType) as ConcreteType)
+        {
+            if(Constructed(baseType) is { } constructedBase)
+            {
+                path.Add(constructedBase);
+            }
+        }
+
+        return TypeSubstitution.ForPath(Constructed(receiver), path, interner: null);
+    }
+
     private static ConstructedType? Constructed(IMistType? type)
     {
         return type switch
@@ -248,5 +318,5 @@ internal sealed class FormattingCallbacks
         };
     }
 
-    private sealed record Edges(HashSet<TypeParameter> Opens, List<FormatUse> Uses);
+    private sealed record Edges(HashSet<TypeParameter> Opens, List<FormatUse> Uses, MistType? Scope);
 }

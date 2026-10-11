@@ -116,7 +116,7 @@ Only the chain written on the parameter is followed: a local that copies `panel.
 
 ## Readonly Generics and Formatting
 
-Interpolating a value, or concatenating it into a string, calls its `ToString(format, provider)` when its type implements `System.IFormattable`. In a readonly context that call must be readonly too. When the value's type is a type parameter, the readonly member cannot know which `ToString` it will run, so the promise is checked where the parameter is given a type: at each call, and at each place a generic type is named with one.
+Interpolating a value, or concatenating it into a string, calls its `ToString(format, provider)` when its type implements `System.IFormattable`, and formatting an optional or a tuple calls it on the value inside. In a readonly context that call must be readonly too. When the value's type is a type parameter, the readonly member cannot know which `ToString` it will run, so the promise is checked where the parameter is given a type: at each call, and at each place a generic type is named with one.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -137,7 +137,7 @@ Interpolating a value, or concatenating it into a string, calls its `ToString(fo
 error MIST_PA_READONLY_CONTEXT_FORMATS_MUTABLE: Cannot use 'Celsius' as type argument 'T': readonly method 'Label' formats it, and the 'ToString' of 'Celsius' is not readonly.
 ```
 
-The check follows the type parameter wherever it goes. A generic method that is not readonly but passes its own parameter on to `Label` is refused where its parameter is given `Celsius`, and a readonly method that calls an unmarked generic formatter with such a type is refused at that call. A method that is not readonly may still format a value whose `ToString` changes it.
+The check follows the type parameter wherever it goes. A generic method that is not readonly but passes its own parameter on to `Label` is refused where its parameter is given `Celsius`, a readonly extension method formatting its block's type parameter is refused at the call whose receiver gives it that type, and a readonly method that calls an unmarked generic formatter with such a type is refused at that call. A method that is not readonly may still format a value whose `ToString` changes it.
 
 ## When to Use Each Construct
 

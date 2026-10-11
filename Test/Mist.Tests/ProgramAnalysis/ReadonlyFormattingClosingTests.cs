@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -62,6 +63,23 @@ public sealed class ReadonlyFormattingClosingTests
         _ = f.Call(read, closing, FormattingFragments.Value(closing), offset: 60);
 
         Assert.Empty(f.Analyze(read));
+    }
+
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 0)]
+    public void AReadonlyExtensionFormattingItsBlocksParameter_IsJudgedWhereTheReceiverClosesTheBlock(bool mutable, int findings)
+    {
+        var (declared, closed) = f.ReadonlyExtension(mutable ? f.Box : f.Calm);
+
+        var found = f.Analyze(declared, f.CallsClosed("Main", closed, offset: 60));
+
+        Assert.Equal(findings, found.Count);
+        Assert.All(found, finding =>
+        {
+            Assert.Equal(FormatsMutable, finding.Id.Value);
+            Assert.Equal(61, finding.Location.Start.Column);
+        });
     }
 
     [Fact]
@@ -139,6 +157,40 @@ public sealed class ReadonlyFormattingClosingTests
     }
 
     [Fact]
+    public void AnInheritedUnmarkedGenericCalledThroughADerivedReceiver_IsClosedByItsBase()
+    {
+        var (shown, show) = f.GenericBase("Shown");
+        var derived = f.Derived("Boxes", shown, f.Box);
+        f.Close(shown, f.Box, offset: 20);
+
+        var finding = Assert.Single(f.Analyze(show, f.CallsThrough("Look", show, derived, offset: 60)));
+
+        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(61, finding.Location.Start.Column);
+    }
+
+    [Fact]
+    public void AnInheritedGenericClosedSafely_PromisesNothingAboutTheBasesOtherClosings()
+    {
+        var (shown, show) = f.GenericBase("Shown");
+        _ = f.Derived("Boxes", shown, f.Box);
+        var calms = f.Derived("Calms", shown, f.Calm);
+        f.Close(shown, f.Box, offset: 20);
+        f.Close(shown, f.Calm, offset: 30);
+
+        Assert.Empty(f.Analyze(show, f.CallsThrough("Look", show, calms, offset: 60)));
+    }
+
+    [Fact]
+    public void AParameterAUseLeavesUnbound_IsNoPromiseOfTheCallingMember()
+    {
+        var (shown, show) = f.GenericBase("Shown");
+        f.Close(shown, f.Box, offset: 20);
+
+        Assert.Empty(f.Analyze(show, f.CallsThrough("Look", show, f.Program, offset: 60)));
+    }
+
+    [Fact]
     public void AReadonlyMemberFormattingAConstructedGenericFormatter_IsRefusedAtTheHole()
     {
         var deep = f.Interpolates("Deep", f.Constructed(f.Wrapper, f.Box));
@@ -147,6 +199,34 @@ public sealed class ReadonlyFormattingClosingTests
 
         Assert.Equal(CallsMutable, finding.Id.Value);
         Assert.Contains("Cannot call 'ToString' from readonly method 'Deep'", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AReadonlyGenericFormattingAnOptionalOfItsParameter_IsRefusedWhereAMutableFormatterClosesIt()
+    {
+        var maybe = f.FormatsOptional("Maybe", isReadonly: true);
+        _ = f.Call(maybe, f.Box, FormattingFragments.Value(f.Box), offset: 60);
+
+        Assert.Equal(FormatsMutable, Assert.Single(f.Analyze(maybe)).Id.Value);
+    }
+
+    [Theory]
+    [InlineData("optional", 1)]
+    [InlineData("tuple", 1)]
+    [InlineData("union", 0)]
+    public void AReadonlyMemberFormattingAMutableFormatterInsideAnotherType_IsRefusedWhereTheTargetFormatsIt(string shape, int findings)
+    {
+        IMistType formatted = shape switch
+        {
+            "optional" => new UnionType([f.Box, f.Void]),
+            "tuple" => new TupleType([f.Box, f.Integer]),
+            _ => new UnionType([f.Box, f.Integer]),
+        };
+
+        var found = f.Analyze(f.Interpolates("Shown", formatted));
+
+        Assert.Equal(findings, found.Count);
+        Assert.All(found, finding => Assert.Equal(CallsMutable, finding.Id.Value));
     }
 
     [Fact]

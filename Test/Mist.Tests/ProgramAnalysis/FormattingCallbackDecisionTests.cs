@@ -40,7 +40,7 @@ public sealed class FormattingCallbackDecisionTests
         var call = new InvocationExpression(
             HandBuiltModel.Node(), new MemberAccessExpression(HandBuiltModel.Node(), receiver, "Take", f.Text, [f.Calm]), [], f.Text, take, []);
 
-        var use = Assert.Single(FormattingCallbacks.Uses(call));
+        var use = Assert.Single(FormattingCallbacks.Uses(call, enclosing: null));
 
         Assert.Same(take, use.Callee);
         Assert.Same(f.Box, use.Closing.Apply(held, interner: null));
@@ -54,10 +54,49 @@ public sealed class FormattingCallbackDecisionTests
         var access = new MemberAccessExpression(
             HandBuiltModel.Node(), FormattingFragments.Value(f.Constructed(holder, f.Box)), "Shown", f.Box, member: new PropertyResult(shown, holder, []));
 
-        var use = Assert.Single(FormattingCallbacks.Uses(access));
+        var use = Assert.Single(FormattingCallbacks.Uses(access, enclosing: null));
 
         Assert.Same(shown.Getter, use.Callee);
         Assert.Same(f.Box, use.Closing.Apply(held, interner: null));
+    }
+
+    [Fact]
+    public void ACallThroughADerivedReceiverClosesTheBaseDeclaringIt()
+    {
+        var (shown, show) = f.GenericBase("Shown");
+        var derived = f.Derived("Boxes", shown, f.Box);
+        var call = new InvocationExpression(
+            HandBuiltModel.Node(), new MemberAccessExpression(HandBuiltModel.Node(), FormattingFragments.Value(derived), "Show", f.Text), [], f.Text, show, []);
+
+        var use = Assert.Single(FormattingCallbacks.Uses(call, enclosing: null));
+
+        Assert.Same(f.Box, use.Closing.Apply(shown.TypeParametersList[0], interner: null));
+    }
+
+    [Fact]
+    public void AnImplicitCallInsideADerivedTypeClosesTheBaseDeclaringIt()
+    {
+        var (shown, show) = f.GenericBase("Shown");
+        var derived = f.Derived("Boxes", shown, f.Box);
+        var call = new InvocationExpression(HandBuiltModel.Node(), new MethodReferenceExpression(HandBuiltModel.Node(), show, []), [], f.Text, show, []);
+
+        var use = Assert.Single(FormattingCallbacks.Uses(call, derived));
+
+        Assert.Same(f.Box, use.Closing.Apply(shown.TypeParametersList[0], interner: null));
+    }
+
+    [Fact]
+    public void ATypeParameterIsInScopeOfItsMethodAndOfMembersOfItsTypeOnly()
+    {
+        var (shown, show) = f.GenericBase("Shown");
+        var read = f.Formats("Read", isReadonly: true);
+        var own = read.TypeParametersList[0];
+        var declared = shown.TypeParametersList[0];
+
+        Assert.True(FormattingCallbacks.InScope(own, read, read.DeclaringType));
+        Assert.True(FormattingCallbacks.InScope(declared, show, shown));
+        Assert.False(FormattingCallbacks.InScope(declared, read, read.DeclaringType));
+        Assert.False(FormattingCallbacks.InScope(own, show, shown));
     }
 
     [Fact]
@@ -85,6 +124,32 @@ public sealed class FormattingCallbackDecisionTests
         var step = Assert.Single(new FormattingCallbacks().Reach(f.Constructed(f.SealedWrapper, f.Box)));
 
         Assert.Same(f.SealedWrapper, DefinitionOf(step.Formatted));
+    }
+
+    [Theory]
+    [InlineData("optional")]
+    [InlineData("tuple")]
+    public void AnOptionalsValueAndATuplesElementsAreFormattedInTurn(string shape)
+    {
+        IMistType formatted = shape == "optional" ? new UnionType([f.Box, f.Void]) : new TupleType([f.Integer, f.Box]);
+
+        var step = Assert.Single(new FormattingCallbacks().Reach(formatted));
+
+        Assert.Same(f.Box, step.Formatted);
+    }
+
+    [Fact]
+    public void AnOptionalTypeParameterIsOpen()
+    {
+        var parameter = new TypeParameter("T", 0, f.Program.Scope, null);
+
+        Assert.Same(parameter, Assert.Single(new FormattingCallbacks().Reach(new UnionType([parameter, f.Void]))).Open);
+    }
+
+    [Fact]
+    public void AWiderUnionIsFormattedAsItsCarrierAndCallsNothing()
+    {
+        Assert.Empty(new FormattingCallbacks().Reach(new UnionType([f.Box, f.Integer])));
     }
 
     [Theory]

@@ -86,6 +86,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
 
     private static void Judge(object node, Frame frame, AnalysisContext context, PurityInference inference, FormatPromises promises)
     {
+        promises.Observe(node);
         JudgeReadonlyFieldEscapes(node, frame, context);
         JudgeCounted(node, frame, context, inference);
 

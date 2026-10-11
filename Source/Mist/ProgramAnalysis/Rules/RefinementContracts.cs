@@ -43,7 +43,7 @@ internal static class RefinementContracts
 
         var fillers = ConformanceAnalyzer.Fillers(concrete).ToList();
 
-        foreach(var (abstractType, substitution) in ConformanceAnalyzer.Reached(concrete.BaseAbstractTypes, context.Model.TypeInterner))
+        foreach(var (abstractType, substitution) in ConformanceAnalyzer.Reached(concrete.BaseAbstractTypes, context.Model.TypeInterner, concrete))
         {
             Judge(context, concrete, abstractType, substitution, fillers, null, at, lifted);
         }
@@ -57,7 +57,7 @@ internal static class RefinementContracts
                 continue;
             }
 
-            foreach(var (abstractType, substitution) in ConformanceAnalyzer.Reached([conformance.AbstractType], context.Model.TypeInterner))
+            foreach(var (abstractType, substitution) in ConformanceAnalyzer.Reached([conformance.AbstractType], context.Model.TypeInterner, concrete))
             {
                 Judge(context, concrete, abstractType, substitution, fillers, conformance, conformance.DeclarationNode, lifted);
             }

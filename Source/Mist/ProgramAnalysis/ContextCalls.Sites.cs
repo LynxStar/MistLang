@@ -299,7 +299,7 @@ internal sealed partial class ContextCalls
 
         foreach(var (named, mappings) in reaches)
         {
-            foreach(var (abstractType, substitution) in ConformanceAnalyzer.Reached([named], interner))
+            foreach(var (abstractType, substitution) in ConformanceAnalyzer.Reached([named], interner, concrete))
             {
                 yield return (abstractType, substitution, mappings, mappings?.DeclarationNode ?? concrete.DeclarationNode);
             }

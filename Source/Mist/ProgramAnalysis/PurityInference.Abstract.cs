@@ -24,7 +24,7 @@ internal sealed partial class PurityInference
         {
             var reaches = concrete.BaseAbstractTypes.Concat(concrete.ConformancesList.Select(conformance => conformance.AbstractType));
 
-            foreach(var (definition, substitution) in ConformanceAnalyzer.Reached(reaches, interner))
+            foreach(var (definition, substitution) in ConformanceAnalyzer.Reached(reaches, interner, concrete))
             {
                 if(!ReferenceEquals(definition, abstractType))
                 {

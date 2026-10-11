@@ -43,7 +43,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
             var fillers = Fillers(concrete).ToList();
 
-            foreach(var (abstractType, substitution) in Reached(concrete.BaseAbstractTypes, context.Model.TypeInterner))
+            foreach(var (abstractType, substitution) in Reached(concrete.BaseAbstractTypes, context.Model.TypeInterner, concrete))
             {
                 CheckSlots(context, inference, concrete, node, abstractType, substitution, fillers, mappings: null);
                 CheckTypeSlots(context, concrete, node, abstractType, substitution);
@@ -67,7 +67,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                 continue;
             }
 
-            foreach(var (abstractType, substitution) in Reached([conformance.AbstractType], context.Model.TypeInterner))
+            foreach(var (abstractType, substitution) in Reached([conformance.AbstractType], context.Model.TypeInterner, concrete))
             {
                 CheckSlots(context, inference, concrete, conformance.DeclarationNode, abstractType, substitution, fillers, conformance);
                 CheckTypeSlots(context, concrete, conformance.DeclarationNode, abstractType, substitution);
@@ -83,10 +83,16 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
         foreach(var slot in abstractType.MethodsList.Where(method => !method.Modifiers.IsStatic))
         {
-            var answering = ConformanceAnswers.Method(slot, substitution, fillers, mappings, interner)?.Member;
+            var answer = ConformanceAnswers.Method(slot, substitution, fillers, mappings, interner);
+            var answering = answer?.Member;
 
             if(answering is not null)
             {
+                if(Strengthened(context, concrete, abstractType, slot, answer!, substitution, answering.DeclarationNode ?? at))
+                {
+                    continue;
+                }
+
                 if(SlotSignatures.ReturnsOwned(slot) && !SlotSignatures.ReturnsOwned(answering))
                 {
                     context.Report(
@@ -173,6 +179,35 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
             CheckAccessors(context, inference, concrete, abstractType, name, slot.Modifiers, slot.Getter, slot.Setter, name, answer.Getter, answer.Setter, answer.DeclarationNode ?? at);
         }
+    }
+
+    private static bool Strengthened(
+        AnalysisContext context, ConcreteType concrete, AbstractType abstractType, Method slot, ConformanceAnswers.MethodAnswer answer,
+        TypeSubstitution substitution, SyntaxNode at)
+    {
+        var interner = context.Model.TypeInterner;
+        var found = false;
+
+        foreach(var (parameter, constraint) in SlotSignatures.Strengthened(slot, answer.Member, substitution, answer.Source, at, interner))
+        {
+            context.Report(
+                ProgramAnalysisDiagnostics.SlotConstraintStrengthened, at, [],
+                TypeDisplay.Mist(concrete), SlotSignatures.Display(slot, substitution, interner), TypeDisplay.Mist(abstractType),
+                answer.Member.Name, Spelled(constraint), parameter.Name);
+            found = true;
+        }
+
+        return found;
+    }
+
+    private static string Spelled(TypeParameterConstraint constraint)
+    {
+        return constraint switch
+        {
+            TypeConstraint typed => TypeDisplay.Mist(typed.ConstraintType),
+            ConstructorConstraint constructor => $"new({string.Join(", ", constructor.ParameterTypes.Select(TypeDisplay.Mist))})",
+            _ => constraint.Kind.ToString().ToLowerInvariant(),
+        };
     }
 
     private static void CheckAccessors(
@@ -339,11 +374,14 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
     }
 
     internal static IEnumerable<(AbstractType Abstract, TypeSubstitution Substitution)> Reached(
-        IEnumerable<IMistType> roots, TypeInterner interner)
+        IEnumerable<IMistType> roots, TypeInterner interner, MemberType? conformer = null)
     {
-        foreach(var (_, definition, substitution) in AbstractInheritance.Reached(roots, interner))
+        var reached = AbstractInheritance.Reached(roots, interner).ToList();
+        var slots = conformer is null ? TypeSubstitution.Empty : TypeSlots.Closing(conformer, reached.Select(each => each.Definition));
+
+        foreach(var (_, definition, substitution) in reached)
         {
-            yield return (definition, substitution);
+            yield return (definition, substitution.Extend(slots));
         }
     }
 

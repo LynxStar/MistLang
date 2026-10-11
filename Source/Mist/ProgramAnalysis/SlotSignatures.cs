@@ -2,9 +2,11 @@ using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
+using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramAnalysis;
 
@@ -19,8 +21,10 @@ namespace Mist.ProgramAnalysis;
 /// answer one returning its own <c>T</c>. What still agrees with anything is what no substitution here
 /// could have closed: an error, and a parameter DECLARED BY AN ABSTRACT, which surviving the slot's
 /// substitution is one the conformer gave no argument for -- someone else's complaint already -- or an
-/// associated type slot, the conformer's nested type under another name, whose filler
-/// <see cref="ConformanceAnalyzer"/> judges on its own. A refinement, named or a parameter's `where`, is
+/// associated type slot it left unfilled, which <see cref="ConformanceAnalyzer"/> reports on its own; a
+/// filled slot is closed to its filler by the substitution the conformance passes. A generic answer's
+/// constraints are not part of agreeing: <see cref="Strengthened"/> judges them, by entailment from the
+/// slot's, once the answer is found. A refinement, named or a parameter's `where`, is
 /// looked through, at the top and in a construction's arguments: it is the same signature over a
 /// narrower set of values, and whether the filler narrows MORE than the slot promised is the refinement
 /// rule's to judge. Inside a tuple, union or function type it is not, those signatures being nominal.
@@ -64,6 +68,38 @@ internal static class SlotSignatures
     public static TypeSubstitution Closing(Method slot, Method filler, TypeSubstitution substitution)
     {
         return substitution.Extend(TypeSubstitution.ForParameters(slot.TypeParametersList, [.. filler.TypeParametersList]));
+    }
+
+    public static IEnumerable<(TypeParameter Parameter, TypeParameterConstraint Constraint)> Strengthened(
+        Method slot, Method filler, TypeSubstitution slotSubstitution, TypeSubstitution fillerSubstitution, SyntaxNode at, TypeInterner interner)
+    {
+        var closing = Closing(slot, filler, slotSubstitution);
+
+        for(var i = 0; i < slot.TypeParametersList.Count && i < filler.TypeParametersList.Count; i++)
+        {
+            var answering = filler.TypeParametersList[i];
+            var promised = slot.TypeParametersList[i].ConstraintsList.Select(constraint => ConstraintAnalyzer.Closed(constraint, closing, interner)).ToList();
+
+            if(promised.Contains(null))
+            {
+                continue;
+            }
+
+            var offered = new TypeParameter(answering.Name, answering.Ordinal, answering.Scope, answering.DeclaringType)
+            {
+                IsDependent = answering.IsDependent,
+                Domain = answering.Domain,
+            };
+            offered.ConstraintsList.AddRange(promised!);
+
+            foreach(var required in answering.ConstraintsList)
+            {
+                if(ConstraintEntailment.Decide(new TypeArgumentClosing(answering, offered, at, fillerSubstitution), required, interner) is not null)
+                {
+                    yield return (answering, required);
+                }
+            }
+        }
     }
 
     public static IEnumerable<ConformanceAnalyzer.Filler> ExactFirst(

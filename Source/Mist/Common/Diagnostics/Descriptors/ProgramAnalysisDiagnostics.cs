@@ -226,6 +226,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "'{0}' does not fill slot '{1}' of '{2}': its '{3}' has a different signature.");
 
+    public static readonly DiagnosticDescriptor SlotConstraintStrengthened = new(
+        new DiagnosticId("MIST_PA_SLOT_CONSTRAINT_STRENGTHENED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' does not fill slot '{1}' of '{2}': its '{3}' requires '{4}' of type parameter '{5}', which the slot does not promise.");
+
     public static readonly DiagnosticDescriptor SlotReturnNotOwned = new(
         new DiagnosticId("MIST_PA_SLOT_RETURN_NOT_OWNED"),
         DiagnosticSeverity.Error,

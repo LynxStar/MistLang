@@ -19,6 +19,15 @@ public sealed class SlotSignatureDecisionTests
     private readonly HandBuiltModel built = new();
     private readonly AbstractType shape = new("IShape", "Probe", new Scope(null), null, null);
     private readonly ClassType thing = HandBuiltModel.Class("Thing");
+    private readonly AbstractType show = new("IShow", "Probe", new Scope(null), null, null);
+    private readonly AbstractType rank = new("IRank<>", "Probe", new Scope(null), null, null);
+    private readonly AbstractType derived = new("IDerived", "Probe", new Scope(null), null, null);
+
+    public SlotSignatureDecisionTests()
+    {
+        rank.TypeParametersList.Add(new TypeParameter("R", 0, rank.Scope, rank));
+        derived.BaseAbstractTypes.Add(show);
+    }
 
     private IMistType Int => built.Type("Int32");
 
@@ -165,6 +174,72 @@ public sealed class SlotSignatureDecisionTests
         Assert.True(SlotSignatures.Agree(kind, HandBuiltModel.Class("Kind")));
     }
 
+    [Theory]
+    [InlineData("Element", "String", true)]
+    [InlineData("Element", "Int32", false)]
+    [InlineData("List<Element>", "List<String>", true)]
+    [InlineData("List<Element>", "List<Int32>", false)]
+    public void AClosedAssociatedSlot_IsAnsweredOnlyByItsFiller(string slotSpelling, string fillerSpelling, bool answers)
+    {
+        var element = new TypeSlot("Element", 0, shape.Scope, shape);
+        var slot = Declare(shape, "Take", Spelled(slotSpelling, element), [], new Parameter("x", Spelled(slotSpelling, element)));
+        var filler = Declare(thing, "Take", Filled(fillerSpelling), [], new Parameter("x", Filled(fillerSpelling)));
+
+        Assert.Equal(answers, SlotSignatures.Answers(slot, filler, TypeSubstitution.ForParameters([element], [Text]), built.Interner));
+    }
+
+    [Fact]
+    public void AClosedSlotAndARenamedMethodTypeParameter_CloseTogether()
+    {
+        var element = new TypeSlot("Element", 0, shape.Scope, shape);
+        var (t, u) = (Owned("T", shape), Owned("U", thing));
+        var slot = Declare(shape, "Echo", t, [t], new Parameter("value", t), new Parameter("tag", element));
+        var filler = Declare(thing, "Echo", u, [u], new Parameter("value", u), new Parameter("tag", Text));
+        var crossed = Declare(thing, "Echo", u, [u], new Parameter("value", Text), new Parameter("tag", u));
+
+        Assert.True(SlotSignatures.Answers(slot, filler, TypeSubstitution.ForParameters([element], [Text]), built.Interner));
+        Assert.False(SlotSignatures.Answers(slot, crossed, TypeSubstitution.ForParameters([element], [Text]), built.Interner));
+    }
+
+    [Theory]
+    [InlineData("", "IShow", "IShow")]
+    [InlineData("IShow", "IShow", "")]
+    [InlineData("IShow", "", "")]
+    [InlineData("IShow, class", "class", "")]
+    [InlineData("class", "IShow, class", "IShow")]
+    [InlineData("class", "struct", "struct")]
+    [InlineData("stampable", "struct", "")]
+    [InlineData("IDerived", "IShow", "")]
+    [InlineData("IRank<T>", "IRank<U>", "")]
+    [InlineData("IRank<Int32>", "IRank<U>", "IRank<U>")]
+    [InlineData("new(Int32)", "new(Int32)", "")]
+    [InlineData("", "new(Int32)", "new(Int32)")]
+    public void AGenericAnswer_MayRequireOnlyWhatItsSlotPromises(string promised, string required, string strengthened)
+    {
+        var (t, u) = (Owned("T", shape), Owned("U", thing));
+        var slot = Declare(shape, "Pick", t, [t], new Parameter("value", t));
+        var filler = Declare(thing, "Pick", u, [u], new Parameter("value", u));
+        Constrain(t, promised, t);
+        Constrain(u, required, u);
+
+        var found = SlotSignatures.Strengthened(slot, filler, TypeSubstitution.Empty, TypeSubstitution.Empty, HandBuiltModel.Node(), built.Interner).ToList();
+
+        Assert.All(found, each => Assert.Same(u, each.Parameter));
+        Assert.Equal(strengthened, string.Join(", ", found.Select(each => Spelling(each.Constraint))));
+    }
+
+    [Fact]
+    public void AFailedPromise_JudgesNothingAboutItsParameter()
+    {
+        var (t, u) = (Owned("T", shape), Owned("U", thing));
+        var slot = Declare(shape, "Pick", t, [t], new Parameter("value", t));
+        var filler = Declare(thing, "Pick", u, [u], new Parameter("value", u));
+        t.ConstraintsList.Add(new TypeConstraint(ErrorType.Instance));
+        Constrain(u, "IShow", u);
+
+        Assert.Empty(SlotSignatures.Strengthened(slot, filler, TypeSubstitution.Empty, TypeSubstitution.Empty, HandBuiltModel.Node(), built.Interner));
+    }
+
     [Fact]
     public void AnErrorOnEitherSide_AgreesSoNothingCascades()
     {
@@ -235,6 +310,44 @@ public sealed class SlotSignatureDecisionTests
     private static TypeParameter Owned(string name, MistType owner, int ordinal = 0)
     {
         return new TypeParameter(name, ordinal, new Scope(null), owner);
+    }
+
+    private void Constrain(TypeParameter parameter, string constraints, TypeParameter self)
+    {
+        foreach(var constraint in constraints.Split(", ", StringSplitOptions.RemoveEmptyEntries))
+        {
+            parameter.ConstraintsList.Add(constraint switch
+            {
+                "class" => new KeywordConstraint(TypeParameterConstraintKind.Class),
+                "struct" => new KeywordConstraint(TypeParameterConstraintKind.Struct),
+                "stampable" => new KeywordConstraint(TypeParameterConstraintKind.Stampable),
+                "new(Int32)" => new ConstructorConstraint([Int]),
+                "IRank<Int32>" => new TypeConstraint(built.Interner.GetOrCreateConstructedType(rank, [Int])),
+                _ when constraint.StartsWith("IRank<", StringComparison.Ordinal) => new TypeConstraint(built.Interner.GetOrCreateConstructedType(rank, [self])),
+                "IDerived" => new TypeConstraint(derived),
+                _ => new TypeConstraint(show),
+            });
+        }
+    }
+
+    private static string Spelling(TypeParameterConstraint constraint)
+    {
+        return constraint switch
+        {
+            TypeConstraint { ConstraintType: ConstructedType constructed } => $"{MistType.StripArity(constructed.Definition.Name)}<{constructed.TypeArguments[0].Name}>",
+            TypeConstraint typed => typed.ConstraintType.Name,
+            ConstructorConstraint => "new(Int32)",
+            _ => constraint.Kind.ToString().ToLowerInvariant(),
+        };
+    }
+
+    private IMistType Filled(string spelling)
+    {
+        var element = built.Type(spelling.Contains("Int32", StringComparison.Ordinal) ? "Int32" : "String");
+
+        return spelling.StartsWith("List<", StringComparison.Ordinal)
+            ? built.Interner.GetOrCreateConstructedType(built.Type("List<>"), [element])
+            : element;
     }
 
     private static Parameter Passed(string name, IMistType type, ByRefDirection passing)

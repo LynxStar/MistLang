@@ -536,19 +536,19 @@ public static partial class ProgramAnalysisDiagnostics
         new DiagnosticId("MIST_PA_FIELD_ASSIGNED_ON_READONLY_PARAMETER"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
-        "Cannot assign to field '{0}' of readonly parameter '{1}'.");
+        "Cannot assign to field '{0}' of {1}.");
 
     public static readonly DiagnosticDescriptor ReadonlyParameterCallsMutable = new(
         new DiagnosticId("MIST_PA_READONLY_PARAMETER_CALLS_MUTABLE"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
-        "Cannot call '{0}' on readonly parameter '{1}': it is not readonly.");
+        "Cannot call '{0}' on {1}: it is not readonly.");
 
     public static readonly DiagnosticDescriptor ReadonlyParameterSetsProperty = new(
         new DiagnosticId("MIST_PA_READONLY_PARAMETER_SETS_PROPERTY"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
-        "Cannot set '{0}' on readonly parameter '{1}': a readonly parameter admits no setter.");
+        "Cannot set '{0}' on {1}: a readonly parameter admits no setter.");
 
     public static readonly DiagnosticDescriptor FieldAssignedInReadonlyBlock = new(
         new DiagnosticId("MIST_PA_FIELD_ASSIGNED_IN_READONLY_BLOCK"),

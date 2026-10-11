@@ -134,11 +134,13 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                 JudgeLoop(loop, frame, context, inference);
                 break;
 
-            case InvocationExpression { Receiver: MemberAccessExpression { Receiver: LocalReferenceExpression { Local.Parameter.Modifier: { IsReadonly: true, IsRef: false } } through } } call
-                when call.Method is { } reached && !inference.IsReadonly(reached):
+            case InvocationExpression { Receiver: MemberAccessExpression { Receiver: var receiver } } call
+                when call.Method is { } reached
+                    && ReadonlyParameterReceivers.RootOf(receiver) is { Local.Parameter.Modifier.IsRef: false } through
+                    && !inference.IsReadonly(reached):
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyParameterCallsMutable, call.Node, [call],
-                    reached.Name, through.Local.Name);
+                    reached.Name, ReadonlyParameterReceivers.Describe(receiver, through));
                 break;
 
             case IndexExpression { Indexer: { } indexer } read when frame.IsReadonly && context.DirectionOf(node).HasFlag(AccessDirection.Read):
@@ -437,22 +439,34 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             return;
         }
 
-        if(target is MemberAccessExpression { Receiver: LocalReferenceExpression { Local.Parameter.Modifier.IsReadonly: true } parameter }
-            && Written(target) is { } through)
+        if(target is MemberAccessExpression { Receiver: var fieldReceiver }
+            && Written(target) is { } through
+            && ReadonlyParameterReceivers.RootOf(fieldReceiver) is { } parameter)
         {
             context.Report(
                 ProgramAnalysisDiagnostics.FieldAssignedOnReadonlyParameter, target.Node,
-                [target], through.Name, parameter.Local.Name);
+                [target], through.Name, ReadonlyParameterReceivers.Describe(fieldReceiver, parameter));
             return;
         }
 
-        if(target is MemberAccessExpression { Receiver: LocalReferenceExpression { Local.Parameter.Modifier: { IsReadonly: true, IsRef: false } } setThrough }
+        if(target is MemberAccessExpression { Receiver: var setReceiver }
             && SetProperty(target) is { } setOnParameter
+            && ReadonlyParameterReceivers.RootOf(setReceiver) is { Local.Parameter.Modifier.IsRef: false } setThrough
             && !ReadonlyInference.Declared(setOnParameter.Setter, setOnParameter.Modifiers).IsReadonly)
         {
             context.Report(
                 ProgramAnalysisDiagnostics.ReadonlyParameterSetsProperty, target.Node,
-                [target], setOnParameter.Name, setThrough.Local.Name);
+                [target], setOnParameter.Name, ReadonlyParameterReceivers.Describe(setReceiver, setThrough));
+            return;
+        }
+
+        if(target is IndexExpression { Indexer: { } indexedOnParameter } setIndex
+            && ReadonlyParameterReceivers.RootOf(setIndex.Receiver) is { Local.Parameter.Modifier.IsRef: false } indexThrough
+            && !ReadonlyInference.Declared(indexedOnParameter.Setter, indexedOnParameter.Modifiers).IsReadonly)
+        {
+            context.Report(
+                ProgramAnalysisDiagnostics.ReadonlyParameterSetsProperty, target.Node,
+                [target], "this[]", ReadonlyParameterReceivers.Describe(setIndex.Receiver, indexThrough));
             return;
         }
 
@@ -512,20 +526,14 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             return;
         }
 
-        if(target is IndexExpression { Indexer: { } indexer } indexed)
+        if(target is IndexExpression { Indexer: { } indexer })
         {
             if(ReadonlyInference.Declared(indexer.Setter, indexer.Modifiers).IsReadonly)
             {
                 return;
             }
 
-            if(indexed.Receiver is LocalReferenceExpression { Local.Parameter.Modifier: { IsReadonly: true, IsRef: false } } indexThrough)
-            {
-                context.Report(
-                    ProgramAnalysisDiagnostics.ReadonlyParameterSetsProperty, target.Node,
-                    [target], "this[]", indexThrough.Local.Name);
-            }
-            else if(frame.IsReadonly && !(own && LocalSetter(indexer.Setter, inference)))
+            if(frame.IsReadonly && !(own && LocalSetter(indexer.Setter, inference)))
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextSetsProperty, target.Node,

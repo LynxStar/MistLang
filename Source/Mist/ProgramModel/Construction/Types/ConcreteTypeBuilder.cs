@@ -58,6 +58,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
             modifiers = modifiers with
             {
                 Accessibility = ModifierBuilder.Build(newtypeDeclaration, Context.Diagnostics, typeDef.DeclaringType).Accessibility,
+                IsReadonly = modifiers.IsReadonly || NewtypeCloner.DeclaresReadonly(typeDef),
             };
         }
 

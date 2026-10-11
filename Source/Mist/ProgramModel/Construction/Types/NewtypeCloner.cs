@@ -137,6 +137,34 @@ internal static class NewtypeCloner
             || modifiers.Any(modifier => modifier is ReadonlyModifierModifierNode or PureModifierModifierNode);
     }
 
+    /// <summary>
+    /// Read off each newtype declaration along the clone chain rather than off the immediate source clone's
+    /// modifiers, which clones build in no particular order. Only <c>readonly</c> reaches a clone: the other
+    /// promises are a placement error on a newtype (purity spec, Deferred 2).
+    /// </summary>
+    internal static bool DeclaresReadonly(ConcreteType clone)
+    {
+        for(var current = clone; current?.NewtypeDeclaration is { } declaration; current = SourceClone(current))
+        {
+            if(declaration.Modifiers.Any(modifier => modifier is ReadonlyModifierModifierNode))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static ConcreteType? SourceClone(ConcreteType clone)
+    {
+        return clone.CloneSourceType switch
+        {
+            ConcreteType { CloneSource: not null } source => source,
+            ConstructedType { Definition: ConcreteType { CloneSource: not null } source } => source,
+            _ => null,
+        };
+    }
+
     private static string Stem(QualifiedIdentifierNode name)
     {
         return name.IDENTIFIERs.Length > 0 ? QualifiedNameHelper.Build(name) : name.IDENTIFIER.Lexeme;

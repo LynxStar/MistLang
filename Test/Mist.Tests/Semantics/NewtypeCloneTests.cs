@@ -6,6 +6,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -156,6 +157,24 @@ public sealed class NewtypeCloneTests : ProgramModelProbe
         type Holding = new Outer<string>.Inner;
         type Parenthesized = new (Point);
         type Id<T> = new Point;
+        """;
+
+    private const string Frozen = """
+        public sealed class Gauge
+        {
+            public int Level;
+
+            public Gauge(int level)
+            {
+                this.Level = level;
+            }
+
+            public int Doubled() { return this.Level * 2; }
+        }
+
+        internal readonly type FrozenGauge = new Gauge;
+        type FrozenAgain = new FrozenGauge;
+        type LooseGauge = new Gauge;
         """;
 
     protected override string Preamble { get; } = """
@@ -361,11 +380,45 @@ public sealed class NewtypeCloneTests : ProgramModelProbe
         Assert.Equal("Standard.String", holding.FieldsList.Single(field => field.Name == "Held").Type.FullyQualifiedName);
     }
 
+    [Fact]
+    [Trait("Tier", "3")]
+    public void AReadonlyNewtype_ClonesItsSourceAsAReadonlyTypeWithTheNewtypesAccessibilityAndTheSourcesOtherModifiers()
+    {
+        var frozen = Assert.IsType<ClassType>(FrozenNamed("Probe.FrozenGauge"));
+
+        Assert.True(frozen.Modifiers.IsReadonly);
+        Assert.True(frozen.Modifiers.IsSealed);
+        Assert.Equal(Accessibility.Internal, frozen.Modifiers.Accessibility);
+        Assert.True(Assert.Single(frozen.FieldsList).Modifiers.IsReadonly);
+        Assert.True(frozen.MethodsList.Single(method => method.Name == "Doubled").Modifiers.IsReadonly);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("Probe.FrozenAgain", true)]
+    [InlineData("Probe.LooseGauge", false)]
+    [InlineData("Probe.Gauge", false)]
+    public void ReadonlyReachesTheClonesOfAReadonlyNewtypeAndNeitherItsSourceNorAPlainNewtype(string type, bool expected)
+    {
+        var built = Assert.IsType<ClassType>(FrozenNamed(type));
+
+        Assert.Equal(expected, built.Modifiers.IsReadonly);
+        Assert.Equal(expected, Assert.Single(built.FieldsList).Modifiers.IsReadonly);
+    }
+
     private MistType GenericNamed(string fullyQualifiedName)
     {
         var model = BuildModel("int ok = 1;", Generics, "", out var diagnostics);
         var errors = diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Select(diagnostic => diagnostic.Message).ToList();
         Assert.True(errors.Count == 0, string.Join(Environment.NewLine, errors));
+
+        return Assert.IsAssignableFrom<MistType>(model.TypesByFQN[fullyQualifiedName]);
+    }
+
+    private MistType FrozenNamed(string fullyQualifiedName)
+    {
+        var model = BuildModel("int ok = 1;", Frozen, "", out var diagnostics);
+        Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
 
         return Assert.IsAssignableFrom<MistType>(model.TypesByFQN[fullyQualifiedName]);
     }

@@ -1169,63 +1169,6 @@ issues:
   area: backend
   merged_audit_keys:
   - analysis:analysis-093
-- id: MIST-037
-  title: Local declaration discards become real named bindings
-  status: confirmed
-  summary: Inferred ordinary and typed/inferred loop discards have hidden semantic identities without source lookup. Ordinary typed discard syntax remains unaccepted by current grammar; its narrow grammar correction awaits scope authorization.
-  source_refs:
-  - file: backlog/program-model-body-tasks.yaml
-    selector: discard `_` handling
-    lead_excerpt: '    - [ ] discard `_` handling (introduces no binding) -- the grammar spells these
-      name:(IDENTIFIER | DISCARD); StatementBinder reads .Name.Lexeme unconditionally, so `_` becomes
-      a real local named "_" and a second `_` in one scope fires a spurious DuplicateLocalVariable'
-    line_at_baseline: 140
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/StatementBinder.cs
-    selector: case InferredVariableDeclaration
-    line: 272
-    observed: Builds LocalVariable(inferred.Name.Lexeme, inferredType) and always declares it.
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/discards
-    exit_code: 1
-    source: using Standard; public class Program { public static void Main() { var _ = 1; var _ = 2; }
-      }
-    artifact: /private/tmp/mist-reconcile-binding-probes/discards
-    observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''_'' is already declared in this scope.'
-  - revision: 447218b22a0183ea33169fb2ecf9b697e05a5421
-    date: '2026-10-11'
-    kind: implementation and executed acceptance verification
-    implementation:
-    - 'LocalVariable.IsDiscard preserves bound local/lifetime identity while BodyScope excludes source-name registration. Shared declaration binding evaluates and validates values; LocalNames reserves distinct collision-safe hidden C# names and keeps established tuple/pattern spelling.'
-    - 'Tier 1 registration/name decisions and Tier 2 LocalBindingContractBinderTests/EmissionTests cover repeated discards, absent lookup, one initializer call per declaration, distinct for/foreach identities, conversion retention and existing cleanup. Hand-built ordinary typed declaration fragments bind correctly.'
-    - 'Fresh accepted runtime probe prints initializer markers 1 through 7 once in order, plus the expected shadow/capture, sibling-loop and pattern/deconstruction controls. hidden-cleanup prints 2 then 1, retaining reverse-order exactly-once linear drop. All three generated consumers (accepted, hidden-cleanup, for-conversions) build with zero warnings/errors; scratch output remains untracked.'
-    - 'Loop discard with incompatible string initializer still reports MIST_PA_NO_IMPLICIT_CONVERSION at the value. Reading _ in source is refused by expression grammar; direct scope lookup is NotFound.'
-    - 'Executed baseline ordinary typed int _ = 3 fails MIST_PARSE_INCOMPLETE: VariableDeclarationStatement typed branch admits IDENTIFIER only, while inferred/loop branches admit DISCARD. Packet simultaneously requires ordinary typed discards and excludes grammar changes. Asked for the one-token grammar correction; no answer/authorization received before this partial closeout. Grammar/pin remain unchanged.'
-    verification:
-    - 'Focused ledger TestResults/ledger/20261011-164518: 161 passed, zero failed; summary.txt
-      and failures.txt inspected. Initial ledger 20261011-164346 retained 158 passed / 2 failed
-      in new tests: numeric widening retains its operand rather than recording an operator node,
-      and Mist arity lookup uses T<> rather than CLR backtick spelling. Test assumptions corrected
-      before the passing rebuild; no intermittent or unexplained failure claimed.'
-    - 'Full ledger TestResults/ledger/20261011-164700: dotnet build Mist.slnx, zero warnings/errors;
-      10108 tests passed, zero failures/skips (Mist.Tests 9095, CLI 115, Storm 852, consumer 46).
-      summary.txt and failures.txt inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and
-      Testing_RunsUnderTheTestCommand passed. No polling-file-watcher workaround or interrupted run.'
-    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check passed. Build uses
-      UseSharedCompilation=false and NUGET_HTTP_CACHE_PATH=/private/tmp/mist-local-binding-nuget
-      to avoid initial sandboxed compiler-server/cache permission failures; no warnings suppressed.'
-    - 'Submodule update --init --recursive executed; checked-out Storm commit matches recorded
-      b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin. Main revalidated at the stated base; no classic
-      implementation read and no generic-local support or ownership/shadowing policy introduced.'
-  related: []
-  priority: P2
-  priority_rationale: Bounded remaining language behavior or diagnostic consistency.
-  audit_key: binding:bind-02
-  area: binding
 - id: MIST-043
   title: Large tuple type-test spelling uses flat ValueTuple arity
   status: confirmed
@@ -7407,6 +7350,81 @@ issues:
   priority_rationale: Generated artifact fidelity; 0 build errors and exercised Mist runtime behavior remains correct.
   area: backend/generic interop
 archive:
+- id: MIST-037
+  title: Local declaration discards become real named bindings
+  status: implemented
+  summary: Typed, inferred, for and foreach discard declarations retain distinct hidden semantic identities without source lookup. Initializers validate and run once; emitted C# avoids constant-discard warnings and preserves existing cleanup.
+  source_refs:
+  - file: backlog/program-model-body-tasks.yaml
+    selector: discard `_` handling
+    lead_excerpt: '    - [ ] discard `_` handling (introduces no binding) -- the grammar spells these
+      name:(IDENTIFIER | DISCARD); StatementBinder reads .Name.Lexeme unconditionally, so `_` becomes
+      a real local named "_" and a second `_` in one scope fires a spurious DuplicateLocalVariable'
+    line_at_baseline: 140
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/StatementBinder.cs
+    selector: case InferredVariableDeclaration
+    line: 272
+    observed: Builds LocalVariable(inferred.Name.Lexeme, inferredType) and always declares it.
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/discards
+    exit_code: 1
+    source: using Standard; public class Program { public static void Main() { var _ = 1; var _ = 2; }
+      }
+    artifact: /private/tmp/mist-reconcile-binding-probes/discards
+    observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''_'' is already declared in this scope.'
+  - revision: 447218b22a0183ea33169fb2ecf9b697e05a5421
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - 'LocalVariable.IsDiscard preserves bound local/lifetime identity while BodyScope excludes source-name registration. Shared declaration binding evaluates and validates values; LocalNames reserves distinct collision-safe hidden C# names and keeps established tuple/pattern spelling.'
+    - 'Tier 1 registration/name decisions and Tier 2 LocalBindingContractBinderTests/EmissionTests cover repeated discards, absent lookup, one initializer call per declaration, distinct for/foreach identities, conversion retention and existing cleanup. Hand-built ordinary typed declaration fragments bind correctly.'
+    - 'Fresh accepted runtime probe prints initializer markers 1 through 7 once in order, plus the expected shadow/capture, sibling-loop and pattern/deconstruction controls. hidden-cleanup prints 2 then 1, retaining reverse-order exactly-once linear drop. All three generated consumers (accepted, hidden-cleanup, for-conversions) build with zero warnings/errors; scratch output remains untracked.'
+    - 'Loop discard with incompatible string initializer still reports MIST_PA_NO_IMPLICIT_CONVERSION at the value. Reading _ in source is refused by expression grammar; direct scope lookup is NotFound.'
+    - 'Executed baseline ordinary typed int _ = 3 fails MIST_PARSE_INCOMPLETE: VariableDeclarationStatement typed branch admits IDENTIFIER only, while inferred/loop branches admit DISCARD. Packet simultaneously requires ordinary typed discards and excludes grammar changes. Asked for the one-token grammar correction; no answer/authorization received before this partial closeout. Grammar/pin remain unchanged.'
+    verification:
+    - 'Focused ledger TestResults/ledger/20261011-164518: 161 passed, zero failed; summary.txt
+      and failures.txt inspected. Initial ledger 20261011-164346 retained 158 passed / 2 failed
+      in new tests: numeric widening retains its operand rather than recording an operator node,
+      and Mist arity lookup uses T<> rather than CLR backtick spelling. Test assumptions corrected
+      before the passing rebuild; no intermittent or unexplained failure claimed.'
+    - 'Full ledger TestResults/ledger/20261011-164700: dotnet build Mist.slnx, zero warnings/errors;
+      10108 tests passed, zero failures/skips (Mist.Tests 9095, CLI 115, Storm 852, consumer 46).
+      summary.txt and failures.txt inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and
+      Testing_RunsUnderTheTestCommand passed. No polling-file-watcher workaround or interrupted run.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check passed. Build uses
+      UseSharedCompilation=false and NUGET_HTTP_CACHE_PATH=/private/tmp/mist-local-binding-nuget
+      to avoid initial sandboxed compiler-server/cache permission failures; no warnings suppressed.'
+    - 'Submodule update --init --recursive executed; checked-out Storm commit matches recorded
+      b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin. Main revalidated at the stated base; no classic
+      implementation read and no generic-local support or ownership/shadowing policy introduced.'
+  - revision: c342d0a733828a3251b8faff4f5abade5d3e2642
+    date: '2026-10-11'
+    kind: approved grammar completion and integrated acceptance verification
+    integrated_base: 39c2d35720bd9b62825fbde5792559547d074665
+    full_suite_base: 262ac0c161550337c8ee2e5aed2b53a2e6276896
+    implementation:
+    - 'The owner explicitly approved the ordinary typed-discard grammar correction after the earlier partial closeout. VariableDeclarationStatement now admits IDENTIFIER or DISCARD for an initialized typed local. No other grammar rule or Storm dependency representation changed.'
+    - 'Tier 2 LocalBindingContractGrammarTests supplies tokens directly to the declaration parser, proving typed discard/identifier and readonly controls in four cases without lexing or a whole-program pipeline.'
+    - 'Constant hidden locals initially produced CS0219 in the generated consumer. Ordinary declaration emission reads the hidden local through a C# discard; for headers use an always-matching var-discard pattern before the original condition. Initializers still evaluate once, conditions preserve their order, and hidden identities and existing cleanup remain intact. Two Tier 2 emitter cases cover constant initializers with and without a loop condition.'
+    - 'The language book now documents ordinary typed discards and removes the parser limitation. Existing tuple/pattern discards, shadowing and unsupported generic-local policy remain unchanged. No existing book snippet contains an ordinary discard declaration requiring C# regeneration.'
+    verification:
+    - 'Focused grammar/binding run TestResults/ledger/20261011-171357: 165 passed. Emission iteration 20261011-171728: 164 passed, 3 failed; failures.txt inspected before rerun. Two new constant tests used a class-shaped Int32 fixture for default emission, and the cleanup expected text omitted the deliberate discard reads. Changed the fixture to literal zero and corrected cleanup expectations. Pre-integration focused 20261011-171849: 167 passed, zero failed. Final integrated focused ledger 20261011-172641 includes contextual-expression regressions: 332 passed, zero failed; summary.txt and failures.txt inspected. Prior failed-run evidence remains retained; no intermittent or unexplained failure is claimed.'
+    - 'Initial scratch typed-completion/initial-results.json records two generated CS0219 warnings for ordinary/for default discards; the consumer compiled, but the zero-warning acceptance assertion failed. After emission correction, typed-completion/results.json records both accepted and hidden-cleanup consumers building with zero warnings/errors. Accepted stdout is 1 through 8 once in source order, followed by 7,9,1,2,10,23 shadow/capture/sibling/pattern controls; typed/readonly/inferred linear cleanup prints 3,2,1 exactly once. Incompatible typed int discard reports one MIST_PA_NO_IMPLICIT_CONVERSION at Program.mist(1,76); Missing discard targets with new/default/[] each report one MIST_PM_UNRESOLVED_TYPE at (1,68). Integrated verified/extra-results.json also retains the inferred linear cleanup output 2,1 and for-conversions output 1,3; both consumers build with zero warnings/errors. Scratch artifacts stay untracked.'
+    - 'Pre-integration full ledger TestResults/ledger/20261011-171859 was deliberately interrupted by SIGTERM after 379s to integrate newer main: Mist.Tests has no TRX; other assemblies passed 46 consumer,115 CLI,852 Storm cases; test.log/failures.txt contain no failure. Managed stack full-171859-managed-stack.txt showed active ambient projection, not configuration watcher recursion. This interrupted run remains retained. Full ledger TestResults/ledger/20261011-172552, on contextual-expression main 262ac0c1 plus the typed-discard implementation before the later analysis-only publication race: 10377 passed, zero failed/skipped (Mist.Tests 9364, CLI 115, Storm 852, consumer 46); summary.txt and failures.txt inspected. Full ledger includes a fresh zero-warning/error solution build. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand pass. Polling-file-watcher override is not used.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check pass on the integrated revision. Earlier formatting checks refused trailing EOF newlines; files now follow the enforced insert_final_newline=false setting. Builds use UseSharedCompilation=false and NUGET_HTTP_CACHE_PATH=/private/tmp/mist-local-binding-nuget; no warnings are suppressed.'
+    - 'Submodule update --init --recursive executed and checked-out Storm matches recorded b4e5853ccca45623e59fcdb9ee0afd6e90e836ce. Latest main changes are integrated with normal Git history; no retired classic implementation read.'
+    - 'Final publication integration preserves concurrent analysis commit 39c2d35720bd9b62825fbde5792559547d074665 after the first normal push was rejected as non-fast-forward. Both task commits were rebased; the shared backlog conflict was resolved from current main with only MIST-037 closure reapplied. All 343 stable IDs, unrelated records and historical evidence were compared and preserved. Final affected ledger TestResults/ledger/20261011-174539: 882 passed, zero failed/skipped, covering finite coverage, predicate compatibility, refinement/call lengths and local/contextual binding; summary.txt and failures.txt inspected.'
+    - 'Post-race dotnet build Mist.slnx passes with zero warnings/errors. typed-completion/results.json rechecks accepted runtime/cleanup, invalid source diagnostics and both zero-warning generated consumers against the reconciled compiler. Full dotnet format Mist.slnx --verify-no-changes and git diff --check pass. A concurrent formatter attempt was deliberately stopped to reduce observed machine swap pressure; its sequential replacement passed. No warning suppression or skipped regression gate.'
+  related: []
+  priority: P2
+  priority_rationale: Bounded remaining language behavior or diagnostic consistency.
+  audit_key: binding:bind-02
+  area: binding
 - id: MIST-020
   title: Report ambiguous bare names in expression position
   status: implemented

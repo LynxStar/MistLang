@@ -1,3 +1,4 @@
+using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
@@ -38,7 +39,11 @@ internal sealed partial class ContextCalls
             switch(node)
             {
                 case WithBlockStatement scope:
-                    Drop(scope.Value, frame);
+                    if(!LifetimeOwners.IsView(scope.Value))
+                    {
+                        Drop(scope.Value, frame);
+                    }
+
                     pending.Push((scope.Body, frame with { Held = new ContextHeld(scope.KeyType, frame.Held) }));
                     pending.Push((scope.Value, frame));
                     continue;

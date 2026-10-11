@@ -4,6 +4,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -56,6 +57,18 @@ internal static class BodyEmitter
         using var names = LocalNames.Enter(block, parameterNames);
         using var lifetimes = LifetimeLowering.Enter(block);
         using var reach = UnitHoisting.Enter(block);
+
+        foreach(var (temp, flag, type) in LifetimeLowering.Renewed(block))
+        {
+            writer.WriteLine($"if ({flag})");
+
+            using(writer.Block())
+            {
+                writer.WriteLine($"{flag} = false;");
+                EmitRelease(temp, type, writer);
+            }
+        }
+
         EmitStatements(block.Statements, 0, writer, diagnostics);
     }
 
@@ -75,10 +88,11 @@ internal static class BodyEmitter
             using var names = LocalNames.Enter(body, method.ParametersList.Select(parameter => parameter.Name)
                 .Concat(method.ContextBindingsList.Select(binding => binding.Identifier))
                 .Concat(additionalParameterNames ?? []));
-            using var lifetimes = LifetimeLowering.Enter(body);
+            var holder = owner is ConcreteType concrete && concrete.MethodsList.Contains(method) ? concrete : null;
+            using var lifetimes = LifetimeLowering.Enter(body, method, holder);
             using var reach = UnitHoisting.Enter(body);
             EmitContextBindings(method, writer);
-            EmitParameterDrops(DropInsertion.DroppedParameters(method, body), 0, body, spell, writer, diagnostics);
+            EmitWrapped(Held(method, body, spell, holder, writer), 0, () => EmitBlock(body, writer, diagnostics), writer);
         }
         finally
         {
@@ -144,34 +158,66 @@ internal static class BodyEmitter
         }
     }
 
-    private static void EmitParameterDrops(
-        IReadOnlyList<Parameter> dropped,
-        int index,
-        Block body,
-        Func<Parameter, string>? spell,
-        CSharpWriter writer,
-        DiagnosticBag diagnostics)
+    private static List<(string? Flag, string Release)> Held(
+        Method method, Block body, Func<Parameter, string>? spell, ConcreteType? owner, CSharpWriter writer)
     {
-        if(index >= dropped.Count)
+        var held = new List<(string?, string)>();
+
+        foreach(var (parameter, release) in DropInsertion.ReleasedParameters(method, body, LifetimeLowering.Active))
         {
-            EmitBlock(body, writer, diagnostics);
-            return;
+            var flag = release is LifetimeRelease.Guarded ? LifetimeLowering.Flag(parameter, owned: true, writer) : null;
+            held.Add((flag, Released(spell?.Invoke(parameter) ?? parameter.Name, parameter.Type)));
         }
 
-        var parameter = dropped[index];
+        if(owner is not null)
+        {
+            foreach(var (field, release) in Enumerable.Reverse(DropInsertion.ReleasedFields(method, owner, LifetimeLowering.Active)))
+            {
+                var flag = release is LifetimeRelease.Guarded ? LifetimeLowering.Flag(field, owned: true, writer) : null;
+                held.Add((flag, DropInsertion.FieldDrop(field)));
+            }
+        }
+
+        return held;
+    }
+
+    private static void EmitWrapped(
+        IReadOnlyList<(string? Flag, string Release)> held, int index, Action body, CSharpWriter writer)
+    {
+        if(index >= held.Count)
+        {
+            body();
+            return;
+        }
 
         writer.WriteLine("try");
 
         using(writer.Block())
         {
-            EmitParameterDrops(dropped, index + 1, body, spell, writer, diagnostics);
+            EmitWrapped(held, index + 1, body, writer);
         }
 
         writer.WriteLine("finally");
 
         using(writer.Block())
         {
-            EmitRelease(spell?.Invoke(parameter) ?? parameter.Name, parameter.Type, writer);
+            EmitGuarded(held[index].Flag, held[index].Release, writer);
+        }
+    }
+
+    private static void EmitGuarded(string? flag, string release, CSharpWriter writer)
+    {
+        if(flag is null)
+        {
+            writer.WriteLine(release);
+            return;
+        }
+
+        writer.WriteLine($"if ({flag})");
+
+        using(writer.Block())
+        {
+            writer.WriteLine(release);
         }
     }
 
@@ -190,36 +236,41 @@ internal static class BodyEmitter
     {
         for(var i = index; i < statements.Count; i++)
         {
+            if(LifetimeLowering.Lend(statements[i], writer) is { Count: > 0 } lent)
+            {
+                List<(string?, string)> held = [.. lent.Select(value => ((string?)value.Flag, Released(value.Temp, value.Type)))];
+
+                if(statements[i] is ReturnStatement or IfStatement or WhileStatement or ForStatement or ForEachStatement
+                    || (statements[i] is ExpressionStatement evaluated && !DropInsertion.IsDiscardedTask(evaluated.Expression)))
+                {
+                    EmitWrapped(held, 0, () => EmitStatements([statements[i]], 0, writer, diagnostics), writer);
+                    continue;
+                }
+
+                EmitWrapped(held, 0, () => EmitStatements(statements, i, writer, diagnostics), writer);
+                return;
+            }
+
             if(statements[i] is LocalDeclarationStatement declaration
                 && LifetimeLowering.ReleaseOf(declaration, Remainder(statements, i + 1)) is not LifetimeRelease.None and var release)
             {
                 var guard = LifetimeLowering.Declare(declaration, release, writer, diagnostics);
-                writer.WriteLine("try");
+                EmitWrapped([(guard, Released(LocalNames.Of(declaration.Local), declaration.Local.Type))], 0, () => EmitStatements(statements, i + 1, writer, diagnostics), writer);
+                return;
+            }
 
-                using(writer.Block())
+            if(statements[i] is TupleDeconstructionStatement deconstruction
+                && deconstruction.Targets.Any(target => LifetimeLowering.Active.ReleaseOf(target) is not LifetimeRelease.None))
+            {
+                EmitStatement(deconstruction, writer, diagnostics);
+                var held = new List<(string?, string)>();
+
+                foreach(var target in deconstruction.Targets.Where(target => LifetimeLowering.Active.ReleaseOf(target) is not LifetimeRelease.None))
                 {
-                    EmitStatements(statements, i + 1, writer, diagnostics);
+                    held.Add((LifetimeLowering.Flag(target, owned: true, writer), Released(LocalNames.Of(target), target.Type)));
                 }
 
-                writer.WriteLine("finally");
-
-                using(writer.Block())
-                {
-                    if(guard is null)
-                    {
-                        EmitRelease(LocalNames.Of(declaration.Local), declaration.Local.Type, writer);
-                    }
-                    else
-                    {
-                        writer.WriteLine($"if ({guard})");
-
-                        using(writer.Block())
-                        {
-                            EmitRelease(LocalNames.Of(declaration.Local), declaration.Local.Type, writer);
-                        }
-                    }
-                }
-
+                EmitWrapped(held, 0, () => EmitStatements(statements, i + 1, writer, diagnostics), writer);
                 return;
             }
 
@@ -272,13 +323,17 @@ internal static class BodyEmitter
     /// </summary>
     private static void EmitRelease(string name, IMistType type, CSharpWriter writer)
     {
+        writer.WriteLine(Released(name, type));
+    }
+
+    private static string Released(string name, IMistType type)
+    {
         if(!DropInsertion.IsAwaitable(type))
         {
-            writer.WriteLine($"{DropInsertion.DropChain(name, type)};");
-            return;
+            return $"{DropInsertion.DropChain(name, type)};";
         }
 
-        writer.WriteLine(blockingAwaits ? $"{name}.GetAwaiter().GetResult();" : $"await {name};");
+        return blockingAwaits ? $"{name}.GetAwaiter().GetResult();" : $"await {name};";
     }
 
     private static IReadOnlyList<Statement> Remainder(IReadOnlyList<Statement> statements, int from)
@@ -758,7 +813,8 @@ internal static class BodyEmitter
     {
         ContextLowering.Require();
 
-        var bound = withBlock.Binding is { } bindingLocal ? LocalNames.Of(bindingLocal) : TemporaryName();
+        var binding = withBlock.Binding;
+        var bound = binding is not null ? LocalNames.Of(binding) : TemporaryName();
 
         // The KEY the value is filed under, which a form may have written and which is not the
         // value's own type -- see WithBlockStatement.KeyType. The drop below still asks the VALUE
@@ -766,6 +822,9 @@ internal static class BodyEmitter
         var type = TypeNameEmitter.EmitContextKey(withBlock.KeyType);
 
         EmitSequenced(withBlock.Value, $"var {bound} = ", writer, diagnostics);
+        var plan = LifetimeLowering.Active;
+        var owning = binding is not null && plan.Covers(binding) ? binding : null;
+        var flag = owning is null ? null : LifetimeLowering.Flag(owning, owned: true, writer);
         writer.WriteLine($"MistContext.Push<{type}>({bound});");
         writer.WriteLine("try");
 
@@ -780,10 +839,54 @@ internal static class BodyEmitter
         {
             writer.WriteLine($"MistContext.Pop<{type}>();");
 
-            if(DropInsertion.ExitAction(withBlock.Value.Type) is not null)
+            if(plan.ReleaseAt(withBlock) is var (held, release))
+            {
+                EmitScopeRelease(held, release, withBlock.Value, writer);
+            }
+            else if(owning is not null)
+            {
+                if(plan.ReleaseOf(owning) is not LifetimeRelease.None)
+                {
+                    EmitGuarded(flag, $"{DropInsertion.DropChain(bound, withBlock.Value.Type)};", writer);
+                }
+            }
+            else if(!LifetimeOwners.IsView(withBlock.Value) && DropInsertion.ExitAction(withBlock.Value.Type) is not null)
             {
                 writer.WriteLine($"{DropInsertion.DropChain(bound, withBlock.Value.Type)};");
             }
+        }
+    }
+
+    /// <summary>
+    /// A with given a value something else in the body holds releases it through that holder: what the
+    /// holder still owns when the scope ends, under its flag where it has one, which the release clears
+    /// so the holder's own scope does not release it again.
+    /// </summary>
+    private static void EmitScopeRelease(object held, LifetimeRelease release, Expression value, CSharpWriter writer)
+    {
+        var (name, type) = held switch
+        {
+            LocalVariable local => (LocalNames.Of(local), local.Type),
+            Parameter parameter when value is LocalReferenceExpression { Local: { } reached } && ReferenceEquals(reached.Parameter, parameter)
+                => (LocalNames.Of(reached), parameter.Type),
+            Parameter parameter => (parameter.Name, parameter.Type),
+            Field field => ($"this.{field.Name}", field.Type),
+            _ => throw new InvalidOperationException($"ICE: a with scope cannot release a {held.GetType().Name}."),
+        };
+
+        if(LifetimeLowering.FlagOf(held) is { } flag)
+        {
+            writer.WriteLine($"if ({flag})");
+
+            using(writer.Block())
+            {
+                writer.WriteLine($"{flag} = false;");
+                EmitRelease(name, type, writer);
+            }
+        }
+        else if(release is not LifetimeRelease.None)
+        {
+            EmitRelease(name, type, writer);
         }
     }
 
@@ -920,16 +1023,47 @@ internal static class BodyEmitter
 
     private static void EmitFor(ForStatement forStmt, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        if(ForLowering.Applies(forStmt))
+        if(forStmt.Initializer is LocalDeclarationStatement held
+            && LifetimeLowering.Active.ReleaseOf(held) is not LifetimeRelease.None and var release)
         {
-            ForLowering.Emit(forStmt, writer, diagnostics);
+            using(writer.Block())
+            {
+                var guard = LifetimeLowering.Declare(held, release, writer, diagnostics);
+                writer.WriteLine("try");
+
+                using(writer.Block())
+                {
+                    EmitLoop(forStmt, initialized: true, writer, diagnostics);
+                }
+
+                writer.WriteLine("finally");
+
+                using(writer.Block())
+                {
+                    EmitGuarded(guard, Released(LocalNames.Of(held.Local), held.Local.Type), writer);
+                }
+            }
+
+            return;
+        }
+
+        EmitLoop(forStmt, initialized: false, writer, diagnostics);
+    }
+
+    private static void EmitLoop(ForStatement forStmt, bool initialized, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(ForLowering.Applies(forStmt, initialized))
+        {
+            ForLowering.Emit(forStmt, initialized, writer, diagnostics);
             return;
         }
 
         writer.Write("for (");
 
         // Initializer
-        if(forStmt.Initializer is LocalDeclarationStatement initDecl)
+        var initializer = initialized ? null : forStmt.Initializer;
+
+        if(initializer is LocalDeclarationStatement initDecl)
         {
             var typeName = TypeNameEmitter.Emit(initDecl.Local.Type);
             writer.Append($"{typeName} {LocalNames.Of(initDecl.Local)}");
@@ -939,7 +1073,7 @@ internal static class BodyEmitter
                 EmitExpression(initDecl.Initializer, writer, diagnostics);
             }
         }
-        else if(forStmt.Initializer is ExpressionStatement initExpr)
+        else if(initializer is ExpressionStatement initExpr)
         {
             EmitExpression(initExpr.Expression, writer, diagnostics);
         }
@@ -984,6 +1118,22 @@ internal static class BodyEmitter
 
     internal static void EmitExpression(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(LifetimeLowering.Captured(expression) is { } receiver)
+        {
+            writer.Append("MistOwnership.Present(");
+            EmitExpression(expression, writer, diagnostics);
+            writer.Append($", out var {receiver})");
+            return;
+        }
+
+        if(LifetimeLowering.LentAt(expression) is var (temp, flag))
+        {
+            writer.Append($"MistOwnership.Taken({temp} = ");
+            EmitUnmarked(expression, writer, diagnostics);
+            writer.Append($", ref {flag})");
+            return;
+        }
+
         if(LifetimeLowering.MarksAfter(expression) is { Count: > 0 } marks)
         {
             LifetimeLowering.Open(marks, writer);
@@ -1140,6 +1290,8 @@ internal static class BodyEmitter
                     writer.Append(reached.Close);
                     break;
                 }
+
+                LifetimeLowering.Capture(invocation);
 
                 // The member access is emitted from HERE when it carries type arguments, because
                 // only the invocation knows which overload they fill -- and a dependent slot is
@@ -1680,7 +1832,7 @@ internal static class BodyEmitter
         {
             var discarded = ReturnsNothing(lambda);
 
-            if(!NeedsStatements(result, discarded))
+            if(!NeedsStatements(result, discarded) && LentValues.Within(result).Count == 0)
             {
                 EmitExpression(result, writer, diagnostics);
                 return;
@@ -1690,7 +1842,8 @@ internal static class BodyEmitter
 
             using(writer.Block())
             {
-                EmitSequenced(result, discarded ? null : "return ", writer, diagnostics);
+                List<(string?, string)> held = [.. LifetimeLowering.Lend(result, writer).Select(value => ((string?)value.Flag, Released(value.Temp, value.Type)))];
+                EmitWrapped(held, 0, () => EmitSequenced(result, discarded ? null : "return ", writer, diagnostics), writer);
             }
 
             return;

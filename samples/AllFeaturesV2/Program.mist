@@ -114,5 +114,6 @@ public class Program
         ClrRefReadonly.Program.RunDemo();
         VariadicSpecialization.Program.RunDemo();
         SizedSequencePatterns.Program.RunDemo();
+        ResourceTransfer.Program.RunDemo();
     }
 }

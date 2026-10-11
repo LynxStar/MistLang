@@ -2225,3 +2225,75 @@ eight levels: 8
 [member] holder of 3 | holder of another length
 [as] five: True, three: False
 [as] pair of three: False, pair of five: True, produced 2
+=== Resource Transfer Sample ===
+--- 1. Owned parameter released where it was not dropped ---
+  DropWhen(early=False) leaving
+  Token(1) released
+  Token(2) released
+  DropWhen(early=True) leaving
+--- 2. Plain parameter returned on one path ---
+  Pass(true) handed back Token(3)
+  Token(3) released
+  Pass(false) keeps Token(4)
+  Token(4) released
+  Pass(false) made Token(104)
+  Token(104) released
+--- 3. A local shadowing a parameter is its own value ---
+  Token(1005) released
+  Shadow leaving
+  Token(5) released
+--- 4. A Drop releases the fields its body left ---
+  Token(8) released
+  Pair.Drop(dropFirst=True) body done
+  Token(9) released
+  Pair.Drop(dropFirst=False) body done
+  Token(6) released
+  Token(7) released
+--- 5. A with releases the value it was given ---
+  inside with(t)
+  Token(10) released
+  after with(t)
+  inside the branch's with
+  Token(11) released
+  WithOnOneBranch(enter=True) leaving
+  WithOnOneBranch(enter=False) leaving
+  Token(12) released
+  inner and outer held
+  Token(14) released
+  Token(13) released
+  Consume took Token(15)
+  Token(15) released
+  scoped value handed on inside its with
+--- 6. A for initializer is released when the loop is left ---
+  loop body sees Token(16)
+  Token(16) released
+  Token(17) released
+--- 7. A linear ref struct follows the same paths ---
+  LeaseWhen(early=False) leaving
+  Lease(18) released
+  Lease(19) released
+  LeaseWhen(early=True) leaving
+--- 8. A pattern binding hands on what it views ---
+  Consume took Token(20)
+  Token(20) released
+  after the pattern
+--- 9. A deconstructed element is owned by its target ---
+  deconstructed twenty-one into Token(21)
+  Token(21) released
+--- 10. A value stored in a field belongs to its container ---
+  Keeper took Token(22)
+  Token(22) released
+--- 11. A lease is released by its owner, a lent value by its lender ---
+  Look sees Token(23)
+  owner still holds its value
+  Token(23) released
+  Look sees Token(24)
+  Token(24) released
+  after lending a fresh value
+--- 12. A call that is skipped leaves the value with the caller ---
+  Maybe leaving
+  Token(25) released
+  Box used Token(26)
+  Token(26) released
+  Maybe leaving
+=== Resource Transfer Done ===

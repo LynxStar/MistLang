@@ -157,4 +157,50 @@ public sealed class OwnershipRefusalTests
 
         Assert.All(bodies, body => Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body)));
     }
+
+    /// <summary>
+    /// A with releases the linear or affine local it was given as it ends, so a use after it is a use of
+    /// a dropped value; inside the block the local is still there to use or hand on.
+    /// </summary>
+    [Fact]
+    public void ALocalGivenToAWithIsDroppedWhenTheBlockEnds()
+    {
+        var f = new LifetimeFragments();
+        var t = f.Local("t");
+        var once = f.Local("once", f.Once);
+        var linear = HandBuiltModel.Block(
+            LifetimeFragments.Declare(t, f.New(1)),
+            LifetimeFragments.With(LifetimeFragments.Ref(t), HandBuiltModel.Block()),
+            LifetimeFragments.Run(f.Call(f.Take, LifetimeFragments.Ref(t))));
+        var affine = HandBuiltModel.Block(
+            LifetimeFragments.Declare(once, f.New(2, f.Once)),
+            LifetimeFragments.With(LifetimeFragments.Ref(once), HandBuiltModel.Block()),
+            LifetimeFragments.Run(LifetimeFragments.Drop(once)));
+
+        Assert.All(
+            [linear, affine],
+            body => Assert.Equal("MIST_PA_USE_AFTER_MOVE", Assert.Single(f.Model.Analyze(new OwnershipAnalyzer(), body)).Id.Value));
+    }
+
+    [Fact]
+    public void ALocalGivenToAWithOrLentToItIsAdmittedWhereItIsStillHeld()
+    {
+        var f = new LifetimeFragments();
+        var t = f.Local("t");
+        var u = f.Local("u");
+        var v = f.Local("v", ownership: ProgramModel.Model.Enums.OwnershipKind.Frozen);
+        var bodies = new[]
+        {
+            HandBuiltModel.Block(
+                LifetimeFragments.Declare(t, f.New(1)),
+                LifetimeFragments.With(LifetimeFragments.Ref(t), HandBuiltModel.Block(LifetimeFragments.Run(f.Call(f.Take, LifetimeFragments.Ref(t)))))),
+            HandBuiltModel.Block(
+                LifetimeFragments.Declare(u, f.New(2)),
+                LifetimeFragments.Declare(v, LifetimeFragments.Ref(u)),
+                LifetimeFragments.With(LifetimeFragments.Ref(v), HandBuiltModel.Block()),
+                LifetimeFragments.Run(LifetimeFragments.Drop(u))),
+        };
+
+        Assert.All(bodies, body => Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body)));
+    }
 }

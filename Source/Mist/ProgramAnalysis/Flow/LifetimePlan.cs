@@ -12,7 +12,7 @@ internal enum LifetimeRelease
     Guarded,
 }
 
-internal readonly record struct LifetimeMark(LocalVariable Local, bool Owned);
+internal readonly record struct LifetimeMark(object Owner, bool Owned, InvocationExpression? Gate = null);
 
 /// <summary>
 /// A mark sits on the expression, not its statement, because a throw on either side of a hand-off made
@@ -22,31 +22,69 @@ internal sealed class LifetimePlan(IReadOnlyDictionary<LocalVariable, LocalDecla
 {
     public static readonly LifetimePlan Empty = new(new Dictionary<LocalVariable, LocalDeclarationStatement>());
 
-    private readonly HashSet<LocalVariable> owed = new(ReferenceEqualityComparer.Instance);
-    private readonly HashSet<LocalVariable> changing = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<object> covered = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<object> owed = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<object> changing = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<Expression, List<LifetimeMark>> marks = new(ReferenceEqualityComparer.Instance);
-    private readonly Dictionary<LocalVariable, SyntaxNode> acquisitions = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<object, SyntaxNode> acquisitions = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<WithBlockStatement, (object Owner, Holding Holding)> scoped = new(ReferenceEqualityComparer.Instance);
 
     public bool Covers(LocalDeclarationStatement declaration)
     {
-        return declarations.TryGetValue(declaration.Local, out var covered) && ReferenceEquals(covered, declaration);
+        return declarations.TryGetValue(declaration.Local, out var covering) && ReferenceEquals(covering, declaration);
+    }
+
+    public bool Covers(object owner)
+    {
+        return covered.Contains(owner) || (owner is LocalVariable local && declarations.ContainsKey(local));
     }
 
     public LifetimeRelease ReleaseOf(LocalDeclarationStatement declaration)
     {
-        if(!Covers(declaration) || !owed.Contains(declaration.Local))
+        return Covers(declaration) ? ReleaseOf(declaration.Local) : LifetimeRelease.None;
+    }
+
+    public LifetimeRelease ReleaseOf(object owner)
+    {
+        if(!Covers(owner) || !owed.Contains(owner))
         {
             return LifetimeRelease.None;
         }
 
-        return changing.Contains(declaration.Local) ? LifetimeRelease.Guarded : LifetimeRelease.AtExit;
+        return changing.Contains(owner) ? LifetimeRelease.Guarded : LifetimeRelease.AtExit;
+    }
+
+    /// <summary>
+    /// What a with scope does with the holder whose value it was given: release it on the way out,
+    /// unconditionally or under that holder's flag, or not at all when every path has handed it on.
+    /// </summary>
+    public (object Owner, LifetimeRelease Release)? ReleaseAt(WithBlockStatement scope)
+    {
+        if(!scoped.TryGetValue(scope, out var found))
+        {
+            return null;
+        }
+
+        var release = found.Holding switch
+        {
+            Holding.Owned => LifetimeRelease.AtExit,
+            Holding.Owned | Holding.Unowned => LifetimeRelease.Guarded,
+            _ => LifetimeRelease.None,
+        };
+
+        return (found.Owner, release);
     }
 
     public IReadOnlyList<LifetimeMark> MarksAfter(Expression node)
     {
         return marks.TryGetValue(node, out var found)
-            ? found.Where(mark => ReleaseOf(declarations[mark.Local]) == LifetimeRelease.Guarded).ToList()
+            ? found.Where(mark => ReleaseOf(mark.Owner) == LifetimeRelease.Guarded).ToList()
             : [];
+    }
+
+    public bool Gates(InvocationExpression call)
+    {
+        return marks.Values.Any(found => found.Exists(mark => ReferenceEquals(mark.Gate, call) && ReleaseOf(mark.Owner) == LifetimeRelease.Guarded));
     }
 
     public SyntaxNode? AcquiredAt(LocalDeclarationStatement declaration)
@@ -54,14 +92,19 @@ internal sealed class LifetimePlan(IReadOnlyDictionary<LocalVariable, LocalDecla
         return declaration.Initializer?.Node ?? acquisitions.GetValueOrDefault(declaration.Local);
     }
 
-    internal void Owe(LocalVariable local)
+    internal void Cover(object owner)
     {
-        _ = owed.Add(local);
+        _ = covered.Add(owner);
     }
 
-    internal void Mark(Expression at, LocalVariable local, bool owned)
+    internal void Owe(object owner)
     {
-        _ = changing.Add(local);
+        _ = owed.Add(owner);
+    }
+
+    internal void Mark(Expression at, object owner, bool owned, InvocationExpression? gate = null)
+    {
+        _ = changing.Add(owner);
 
         if(!marks.TryGetValue(at, out var found))
         {
@@ -69,14 +112,35 @@ internal sealed class LifetimePlan(IReadOnlyDictionary<LocalVariable, LocalDecla
             marks.Add(at, found);
         }
 
-        if(!found.Contains(new LifetimeMark(local, owned)))
+        if(!found.Contains(new LifetimeMark(owner, owned, gate)))
         {
-            found.Add(new LifetimeMark(local, owned));
+            found.Add(new LifetimeMark(owner, owned, gate));
         }
 
         if(owned)
         {
-            _ = acquisitions.TryAdd(local, at.Node);
+            _ = acquisitions.TryAdd(owner, at.Node);
+        }
+    }
+
+    internal void Scope(WithBlockStatement scope, object owner, Holding holding)
+    {
+        scoped[scope] = (owner, scoped.TryGetValue(scope, out var found) ? found.Holding | holding : holding);
+
+        if(holding.HasFlag(Holding.Owned))
+        {
+            _ = changing.Add(owner);
+        }
+    }
+
+    internal void Settle()
+    {
+        foreach(var (_, (owner, holding)) in scoped)
+        {
+            if(holding == (Holding.Owned | Holding.Unowned))
+            {
+                Owe(owner);
+            }
         }
     }
 }

@@ -153,6 +153,47 @@ public sealed class DropInsertionTests
         Assert.Empty(DropInsertion.FieldsOwedBy(handing, box));
     }
 
+    /// <summary>
+    /// A linear parameter is released as its plan says; a relevant one keeps the whole-body reading, with
+    /// a hand-off recognised by the binding it reaches and not by a local that shares its name.
+    /// </summary>
+    [Fact]
+    public void AParameterIsReleasedAsItsPlanSaysOrElseAsItsBodyReads()
+    {
+        var keep = new Method("Keep", f.Void, [new Parameter("s", f.Shared)], new MemberModifiers { IsStatic = true }) { DeclaringType = f.Sink };
+        var linear = new Parameter("t", f.Token);
+        var kept = new Parameter("s", f.Shared);
+        var passed = new Parameter("p", f.Shared);
+        var namesake = f.Local("s", f.Shared);
+        var method = f.Function("Use", HandBuiltModel.Block(Run(f.Call(keep, Ref(passed))), Run(f.Call(keep, Ref(namesake)))), linear, kept, passed);
+        var plan = new LifetimePlan(new Dictionary<LocalVariable, LocalDeclarationStatement>());
+
+        plan.Cover(linear);
+        plan.Owe(linear);
+        plan.Mark(Ref(linear), linear, owned: false);
+
+        Assert.Equal(
+            [(linear, LifetimeRelease.Guarded), (kept, LifetimeRelease.AtExit)],
+            DropInsertion.ReleasedParameters(method, method.Body!, plan));
+    }
+
+    [Fact]
+    public void AFieldIsReleasedAsItsPlanSaysOrElseAsItsDropReads()
+    {
+        var shared = new Field("Log", f.Shared, OwnershipKind.Unrestricted, default) { DeclaringType = f.Holder };
+        f.Holder.FieldsList.Add(shared);
+        var drop = f.HolderDrop(HandBuiltModel.Block(Run(DropOf(Ref(f.First)))));
+        var plan = new LifetimePlan(new Dictionary<LocalVariable, LocalDeclarationStatement>());
+
+        plan.Cover(f.First);
+        plan.Cover(f.Second);
+        plan.Owe(f.Second);
+
+        Assert.Equal(
+            [(f.Second, LifetimeRelease.AtExit), (shared, LifetimeRelease.AtExit)],
+            DropInsertion.ReleasedFields(drop, f.Holder, plan));
+    }
+
     private static LifetimeRelease Unplanned(LocalVariable local)
     {
         var definition = (ClassType)local.Type;

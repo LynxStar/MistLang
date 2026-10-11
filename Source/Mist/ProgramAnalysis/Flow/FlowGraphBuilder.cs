@@ -23,7 +23,7 @@ internal sealed class FlowGraphBuilder
     private readonly Dictionary<object, FlowGraph> nested = new(ReferenceEqualityComparer.Instance);
     private readonly List<FlowLoop> loops = [];
     private readonly Stack<(FlowBlock Exit, int Depth)> breakTargets = new();
-    private readonly Stack<Block> scopes = new();
+    private readonly Stack<Statement> scopes = new();
     private readonly FlowBlock exit;
 
     private FlowGraphBuilder()
@@ -130,16 +130,33 @@ internal sealed class FlowGraphBuilder
                 return Loop(current, header => Condition(whileStatement.Condition, header), whileStatement.Body, iterator: null);
 
             case ForStatement forStatement:
-                if(forStatement.Initializer is { } forInitializer)
                 {
-                    current = Statement(forInitializer, current);
-                }
+                    var scoped = forStatement.Initializer is LocalDeclarationStatement;
 
-                return Loop(
-                    current,
-                    header => forStatement.Condition is { } condition ? Condition(condition, header) : (header, NewBlock()),
-                    forStatement.Body,
-                    forStatement.Iterator);
+                    if(scoped)
+                    {
+                        scopes.Push(forStatement);
+                    }
+
+                    if(forStatement.Initializer is { } forInitializer)
+                    {
+                        current = Statement(forInitializer, current);
+                    }
+
+                    var after = Loop(
+                        current,
+                        header => forStatement.Condition is { } condition ? Condition(condition, header) : (header, NewBlock()),
+                        forStatement.Body,
+                        forStatement.Iterator);
+
+                    if(scoped)
+                    {
+                        _ = scopes.Pop();
+                        after.Steps.Add(new FlowStep(FlowStepKind.Leave, forStatement));
+                    }
+
+                    return after;
+                }
 
             case ForEachStatement forEach:
                 current = Expression(forEach.Collection, current);

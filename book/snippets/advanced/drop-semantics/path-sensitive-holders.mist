@@ -1,0 +1,71 @@
+using Standard;
+
+namespace Snippets;
+
+public linear class Lease
+{
+    int Id;
+
+    public Lease(int id)
+    {
+        this.Id = id;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"Lease({Id}) released");
+    }
+}
+
+public linear class Pair
+{
+    Lease First;
+    Lease Second;
+    bool Early;
+
+    public Pair(bool early)
+    {
+        First = new Lease(1);
+        Second = new Lease(2);
+        Early = early;
+    }
+
+    public void Drop()
+    {
+        if (Early)
+        {
+            First.Drop();
+        }
+    }
+}
+
+public class Program
+{
+    public static void Settle(owned Lease lease, bool early)
+    {
+        if (early)
+        {
+            lease.Drop();
+        }
+    }
+
+    public static void Main()
+    {
+        Settle(new Lease(3), false);
+        Settle(new Lease(4), true);
+
+        var pair = new Pair(true);
+
+        var scoped = new Lease(5);
+        with(scoped)
+        {
+            Console.WriteLine("inside the with");
+        }
+
+        for (var counter = new Lease(6); true; )
+        {
+            Console.WriteLine("loop body");
+            break;
+        }
+    }
+}

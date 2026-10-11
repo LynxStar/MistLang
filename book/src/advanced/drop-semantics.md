@@ -80,7 +80,39 @@ Lease(3) released
 Lease(4) released
 ```
 
-When ownership is the same on every path, the emitted C# releases the local unconditionally in its `finally`, or not at all when the value is always handed on before anything can fail. When it differs between paths, a flag beside the local records whether it still owns its value: the flag is cleared at the exact point the value is handed on, set again once a fresh value has been assigned, and read by the `finally` before releasing. Because the release sits in a `finally`, an exception thrown while the value is owned still releases it. An exception from the initializer of a new value releases nothing, because no new value exists yet. A value passed as an argument belongs to the callee once the call starts, so a throw from inside the callee is the callee's to clean up.
+When ownership is the same on every path, the emitted C# releases the local unconditionally in its `finally`, or not at all when the value is always handed on before anything can fail. When it differs between paths, a flag beside the local records whether it still owns its value: the flag is cleared at the exact point the value is handed on, set again once a fresh value has been assigned, and read by the `finally` before releasing. Because the release sits in a `finally`, an exception thrown while the value is owned still releases it. An exception from the initializer of a new value releases nothing, because no new value exists yet. A value passed as an argument belongs to the callee once the call starts, so a throw from inside the callee is the callee's to clean up. A throw from a later argument, or a call that never starts because its receiver is absent, leaves the value with the caller, which still releases it.
+
+### Parameters, Fields and Scopes
+
+The same rule covers every other holder of a linear value. A parameter the caller handed over is released at the end of the function on the paths that did not drop, return or pass it on. A manual `Drop()` releases each droppable field its body did not drop or hand on, after the body and in declaration order, on exactly the paths where the field is still held. A `with` given a linear local releases it as the block ends, after the context is popped, and the local's own scope does not release it again; a `with` that declares its binding owns the value it binds. A `for` initializer is released once the loop is left, by its condition, a `break` or a `return`. A pattern binding is a view of the value it matched, so passing it on passes on the matched local, and a tuple literal that is deconstructed hands each element to its target as a declaration would.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/drop-semantics/path-sensitive-holders.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/drop-semantics/path-sensitive-holders.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The program prints:
+
+```text
+Lease(3) released
+Lease(4) released
+inside the with
+Lease(5) released
+loop body
+Lease(6) released
+Lease(1) released
+Lease(2) released
+```
+
+Each of these releases sits in a `finally`, so it also runs when an exception leaves the function, the `with` or the loop.
 
 ### Drop with a Return Value
 
@@ -156,13 +188,14 @@ When a type contains fields with `Drop()` methods but doesn't define its own, th
 {{#endtab }}
 {{#endtabs }}
 
-This inference cascades transitively — if type A contains type B which contains type C (which has `Drop()`), then both B and A get synthetic `Drop()` methods. If you provide a manual `Drop()`, the compiler appends drops for any fields you didn't explicitly handle.
+This inference cascades transitively — if type A contains type B which contains type C (which has `Drop()`), then both B and A get synthetic `Drop()` methods. If you provide a manual `Drop()`, the compiler releases every droppable field your body did not drop or hand on, after the body and in declaration order, on the paths where the field is still held (see [Parameters, Fields and Scopes](#parameters-fields-and-scopes)).
 
 ## Interaction with Ownership
 
 Drop semantics build on the existing ownership system:
 
-- **Lending** (`readonly ref`, `frozen`, `borrowed`) does not transfer drop responsibility. The owner still drops at scope exit, and the lease itself is never dropped.
+- **Lending** (`readonly ref`, `frozen`, `borrowed`) does not transfer drop responsibility. The owner still drops at scope exit, and the lease itself is never dropped — not by a function that receives it as a `frozen` or `borrowed` parameter, nor by a `with` it is given to. A fresh value passed straight to such a parameter stays with the caller, which releases it once that statement is done.
+- **Storing into a field** transfers drop responsibility to the value that holds the field.
 - **Moving** (passing by value to a function) transfers drop responsibility to the callee.
 - **Moving into another local** (`var b = a;` or `b = a;`) transfers drop responsibility to the destination.
 - **Returning** transfers drop responsibility to the caller.

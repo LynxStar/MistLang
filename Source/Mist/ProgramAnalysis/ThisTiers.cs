@@ -109,6 +109,18 @@ internal sealed class ThisTiers
             && (field.Ownership == OwnershipKind.Owned || field.Modifiers.IsOwned || field.DeclaringType is { Modifiers.IsOwned: true });
     }
 
+    public static string? OwnedSlot(Expression target)
+    {
+        return target switch
+        {
+            FieldReferenceExpression { Field: var field } when IsOwned(field) => $"owned field '{field.Name}'",
+            MemberAccessExpression { Member: FieldResult { Field: var field } } when IsOwned(field) => $"owned field '{field.Name}'",
+            MemberAccessExpression { Member: PropertyResult { Property: { Modifiers: { IsOwned: true, IsStatic: false } } property } } => $"owned property '{property.Name}'",
+            PropertyReferenceExpression { Property: { Modifiers: { IsOwned: true, IsStatic: false } } property } => $"owned property '{property.Name}'",
+            _ => null,
+        };
+    }
+
     public static Expression? ReceiverOf(InvocationExpression invocation)
     {
         return invocation.Receiver switch

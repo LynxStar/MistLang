@@ -5,6 +5,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -31,7 +32,18 @@ internal sealed class LifetimeFragments
         Pair = Static("Pair", Void, new Parameter("t", Token), new Parameter("n", Int32));
         Risky = Static("Risky", Int32);
         Make = Static("Make", Token);
+        Peek = Static("Peek", Void, new Parameter("t", Token, new ParameterModifier(IsReadonly: false, IsRef: false, OwnershipKind.Frozen)));
         Flag = new LocalVariable("flag", Boolean);
+        Box = HandBuiltModel.Class("Box");
+        Use = new Method("Use", Void, [new Parameter("t", Token)], default) { DeclaringType = Box };
+        Box.MethodsList.Add(Use);
+        Holder = Disciplined("Holder", SubstructuralDiscipline.Linear, withDrop: false);
+        First = new Field("First", Token, OwnershipKind.Unrestricted, default) { DeclaringType = Holder };
+        Second = new Field("Second", Token, OwnershipKind.Unrestricted, default) { DeclaringType = Holder };
+        Holder.FieldsList.AddRange([First, Second]);
+        Lease = HandBuiltModel.Struct("Lease");
+        Lease.Modifiers = new MemberModifiers { Discipline = SubstructuralDiscipline.Linear, IsRef = true };
+        Lease.MethodsList.Add(new Method("Drop", Void, [], default) { DeclaringType = Lease });
     }
 
     public HandBuiltModel Model { get; } = new();
@@ -62,7 +74,21 @@ internal sealed class LifetimeFragments
 
     public Method Make { get; }
 
+    public Method Peek { get; }
+
     public LocalVariable Flag { get; }
+
+    public ClassType Box { get; }
+
+    public Method Use { get; }
+
+    public ClassType Holder { get; }
+
+    public Field First { get; }
+
+    public Field Second { get; }
+
+    public StructType Lease { get; }
 
     public LocalVariable Local(string name, IMistType? type = null, OwnershipKind ownership = OwnershipKind.Unrestricted)
     {
@@ -129,6 +155,81 @@ internal sealed class LifetimeFragments
         return new WhileStatement(Condition(), body);
     }
 
+    public Method Function(string name, Block body, params Parameter[] parameters)
+    {
+        return new Method(name, Void, [.. parameters], new MemberModifiers { IsStatic = true }) { DeclaringType = Sink, Body = body, DeclarationNode = HandBuiltModel.Node() };
+    }
+
+    public Method HolderDrop(Block body)
+    {
+        var drop = new Method("Drop", Void, [], default) { DeclaringType = Holder, Body = body, DeclarationNode = HandBuiltModel.Node() };
+        Holder.MethodsList.Add(drop);
+        return drop;
+    }
+
+    public static Parameter Owned(string name, IMistType type, OwnershipKind ownership = OwnershipKind.Owned)
+    {
+        return new Parameter(name, type, new ParameterModifier(IsReadonly: false, IsRef: false, ownership));
+    }
+
+    public static LocalReferenceExpression Ref(Parameter parameter)
+    {
+        return Ref(new LocalVariable(parameter.Name, parameter.Type) { Parameter = parameter, Ownership = parameter.Modifier.Ownership, IsRef = parameter.Modifier.IsRef });
+    }
+
+    public static FieldReferenceExpression Ref(Field field)
+    {
+        return new FieldReferenceExpression(HandBuiltModel.Node(), field);
+    }
+
+    public static InvocationExpression DropOf(Expression held)
+    {
+        var definition = (MemberType)(held.Type is ConstructedType constructed ? constructed.Definition : held.Type);
+        var drop = definition.MethodsList.Single(method => method.Name == "Drop");
+        var callee = new MemberAccessExpression(HandBuiltModel.Node(), held, "Drop", drop.ReturnType);
+        return new InvocationExpression(HandBuiltModel.Node(), callee, [], drop.ReturnType, drop, []);
+    }
+
+    public InvocationExpression CallOn(Expression receiver, bool conditional, params Expression[] arguments)
+    {
+        var callee = new MemberAccessExpression(HandBuiltModel.Node(), receiver, Use.Name, Void, isConditional: conditional);
+        return new InvocationExpression(HandBuiltModel.Node(), callee, arguments, Void, Use, [Token]);
+    }
+
+    public static AssignmentExpression Store(Field field, Expression value)
+    {
+        return new AssignmentExpression(HandBuiltModel.Node(), Ref(field), value, field.Type);
+    }
+
+    public ForStatement For(LocalDeclarationStatement initializer, Block body)
+    {
+        return new ForStatement(initializer, Condition(), null, body);
+    }
+
+    public static WithBlockStatement With(Expression value, Block body, LocalVariable? binding = null)
+    {
+        return new WithBlockStatement(value, body, binding);
+    }
+
+    public IsPatternExpression Is(Expression scrutinee, LocalVariable binding)
+    {
+        return new IsPatternExpression(HandBuiltModel.Node(), scrutinee, new TypeTestPattern(HandBuiltModel.Node(), binding.Type, binding), Boolean);
+    }
+
+    public TupleLiteralExpression Tuple(params Expression[] elements)
+    {
+        return new TupleLiteralExpression(
+            HandBuiltModel.Node(), elements, [.. elements.Select(_ => (string?)null)], Model.Interner.GetOrCreateTupleType([.. elements.Select(element => element.Type)]));
+    }
+
+    public static string EmittedMethod(Method method, MemberType? owner = null)
+    {
+        var writer = new CSharpWriter();
+        BodyEmitter.ResetTemporaries();
+        BodyEmitter.EmitMethodBody(method, method.Body!, writer, new DiagnosticBag(), owner: owner);
+        return writer.ToString().Replace("\r\n", "\n", StringComparison.Ordinal).Trim();
+    }
+
     public LambdaExpression Lambda(Block body)
     {
         return new LambdaExpression(HandBuiltModel.Node(), [], null, body, false, Model.Interner.GetOrCreateFunctionType([], Void));
@@ -142,11 +243,16 @@ internal sealed class LifetimeFragments
         return writer.ToString().Replace("\r\n", "\n", StringComparison.Ordinal).Trim();
     }
 
-    private ClassType Disciplined(string name, SubstructuralDiscipline discipline)
+    private ClassType Disciplined(string name, SubstructuralDiscipline discipline, bool withDrop = true)
     {
         var type = HandBuiltModel.Class(name);
         type.Modifiers = new MemberModifiers { Discipline = discipline };
-        type.MethodsList.Add(new Method("Drop", Void, [], default) { DeclaringType = type });
+
+        if(withDrop)
+        {
+            type.MethodsList.Add(new Method("Drop", Void, [], default) { DeclaringType = type });
+        }
+
         type.ConstructorsList.Add(new Constructor(name, type, [new Parameter("id", Int32)], default) { DeclaringType = type });
         return type;
     }

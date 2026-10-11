@@ -90,6 +90,35 @@ public sealed class ExitDropReachabilityTests
         Assert.Equal(["s", "alias"], Dropped(Declare(s, f.New(1, f.Shared)), Declare(alias, Ref(s))));
     }
 
+    [Fact]
+    public void AParameterIsDroppedAtExitOnlyWhenAPathStillHoldsIt()
+    {
+        var kept = Owned("t", f.Token);
+        var handed = Owned("t", f.Token);
+        var lent = Owned("t", f.Token, OwnershipKind.Frozen);
+        var dropping = f.Function("Use", HandBuiltModel.Block(f.If(HandBuiltModel.Block(Run(DropOf(Ref(kept)))))), kept);
+        var passing = f.Function("Pass", HandBuiltModel.Block(Run(f.Call(f.Take, Ref(handed)))), handed);
+        var looking = f.Function("Look", HandBuiltModel.Block(Run(f.Call(f.Risky))), lent);
+
+        Assert.Equal(["t"], PurityJudge.ExitDrops(dropping.Body!, dropping).Select(exit => exit.Name));
+        Assert.Empty(PurityJudge.ExitDrops(passing.Body!, passing));
+        Assert.Empty(PurityJudge.ExitDrops(looking.Body!, looking));
+    }
+
+    [Fact]
+    public void ADropsFieldIsDroppedAtExitOnlyWhenAPathStillHoldsIt()
+    {
+        var drop = f.HolderDrop(HandBuiltModel.Block(Run(DropOf(Ref(f.First)))));
+
+        Assert.Equal(["Second"], PurityJudge.ExitDrops(drop.Body!, drop).Select(exit => exit.Name));
+    }
+
+    [Fact]
+    public void AValueLentToAFrozenParameterIsDroppedByItsLender()
+    {
+        Assert.Equal(["lent t"], Dropped(Run(f.Call(f.Peek, f.New(1)))));
+    }
+
     private static IEnumerable<string> Dropped(params Statement[] statements)
     {
         return PurityJudge.ExitDrops(HandBuiltModel.Block(statements), member: null).Select(exit => exit.Name);

@@ -11,9 +11,9 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class ForLowering
 {
-    public static bool Applies(ForStatement loop)
+    public static bool Applies(ForStatement loop, bool initialized = false)
     {
-        var initializer = loop.Initializer switch
+        var initializer = (initialized ? null : loop.Initializer) switch
         {
             LocalDeclarationStatement declaration => UnitHoisting.Plan(declaration.Initializer),
             ExpressionStatement statement => UnitHoisting.Plan(statement.Expression, discarded: true),
@@ -26,11 +26,11 @@ internal static class ForLowering
             ;
     }
 
-    public static void Emit(ForStatement loop, CSharpWriter writer, DiagnosticBag diagnostics)
+    public static void Emit(ForStatement loop, bool initialized, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         using(writer.Block())
         {
-            if(loop.Initializer is { } initializer)
+            if(!initialized && loop.Initializer is { } initializer)
             {
                 BodyEmitter.EmitStatement(initializer, writer, diagnostics);
             }

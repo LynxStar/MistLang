@@ -1,14 +1,13 @@
 using System.Collections.Immutable;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
-using Holdings = System.Collections.Immutable.ImmutableDictionary<Mist.ProgramModel.Model.LocalVariable, Mist.ProgramAnalysis.Flow.Holding>;
+using Holdings = System.Collections.Immutable.ImmutableDictionary<object, Mist.ProgramAnalysis.Flow.Holding>;
 
 namespace Mist.ProgramAnalysis.Flow;
 
@@ -26,44 +25,51 @@ internal enum Holding
 /// </summary>
 internal sealed class LocalLifetimes : IFlowLattice<Holdings>
 {
-    private static readonly Holdings Nothing = ImmutableDictionary.Create<LocalVariable, Holding>(ReferenceEqualityComparer.Instance);
+    private static readonly Holdings Nothing = ImmutableDictionary.Create<object, Holding>(ReferenceEqualityComparer.Instance);
 
-    private readonly IReadOnlyDictionary<LocalVariable, (Block Home, LocalDeclarationStatement Declaration)> homes;
+    private readonly LifetimeOwners owners;
     private readonly HashSet<object> callees;
+    private readonly Dictionary<object, List<WithBlockStatement>> enclosing = new(ReferenceEqualityComparer.Instance);
 
-    private LocalLifetimes(IReadOnlyDictionary<LocalVariable, (Block Home, LocalDeclarationStatement Declaration)> homes, object root)
+    private LocalLifetimes(LifetimeOwners owners, object root)
     {
-        this.homes = homes;
+        this.owners = owners;
         callees = BodyWalker.DescendantsAndSelf(root)
             .OfType<InvocationExpression>()
             .Select(invocation => invocation.Receiver)
             .Where(receiver => receiver is MemberAccessExpression { Member: null or MethodGroupResult })
             .ToHashSet<object>(ReferenceEqualityComparer.Instance);
+
+        foreach(var (scope, _) in owners.Scopes)
+        {
+            Enclose(scope);
+        }
     }
 
     public static bool IsTracked(IMistType type)
     {
-        return PurityJudge.DefinitionOf(type) is ConcreteType { Discipline: SubstructuralDiscipline.Linear } and not StructType { IsRef: true }
-            && !TaskResult.IsTask(type);
+        return PurityJudge.DefinitionOf(type) is ConcreteType { Discipline: SubstructuralDiscipline.Linear }
+            && !TaskResult.IsTask(type)
+            && PurityJudge.Drops(type, awaitable: false).Any();
     }
 
-    public static LifetimePlan Plan(object root)
+    public static LifetimePlan Plan(object root, Method? method = null, ConcreteType? holder = null)
     {
-        var declared = Declared(root);
+        var owners = LifetimeOwners.Of(root, method, holder);
 
-        if(declared.Count == 0)
+        if(owners.Count == 0 && owners.Declarations.Count == 0)
         {
             return LifetimePlan.Empty;
         }
 
-        var plan = new LifetimePlan(declared.ToDictionary(pair => pair.Key, pair => pair.Value.Declaration));
-        var owners = declared
-            .Where(pair => pair.Key is { IsRef: false, Ownership: not (OwnershipKind.Frozen or OwnershipKind.Borrowed) })
-            .ToDictionary(pair => pair.Key, pair => pair.Value);
+        var plan = new LifetimePlan(owners.Declarations);
 
         if(owners.Count > 0)
         {
-            new LocalLifetimes(owners, root).Solve(FlowGraphBuilder.Build(root), plan);
+            var lifetimes = new LocalLifetimes(owners, root);
+            var entry = owners.Entered.Aggregate(Nothing, (state, owner) => state.SetItem(owner, Holding.Owned));
+            lifetimes.Solve(FlowGraphBuilder.Build(root), plan, entry);
+            plan.Settle();
         }
 
         return plan;
@@ -73,9 +79,9 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
     {
         var joined = left;
 
-        foreach(var (local, holding) in right)
+        foreach(var (owner, holding) in right)
         {
-            joined = joined.SetItem(local, joined.TryGetValue(local, out var other) ? other | holding : holding);
+            joined = joined.SetItem(owner, joined.TryGetValue(owner, out var other) ? other | holding : holding);
         }
 
         return joined;
@@ -89,96 +95,179 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
 
     public Holdings Transfer(Holdings state, FlowStep step)
     {
-        foreach(var (local, owned, _) in Changes(state, step))
+        foreach(var (owner, owned, _) in Changes(state, step))
         {
-            state = state.SetItem(local, owned ? Holding.Owned : Holding.Unowned);
+            state = state.SetItem(owner, owned ? Holding.Owned : Holding.Unowned);
         }
 
-        return step switch
+        switch(step)
         {
-            { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement declaration } when homes.ContainsKey(declaration.Local)
-                => state.SetItem(declaration.Local, declaration.Initializer is null ? Holding.Unowned : Holding.Owned),
-            { Kind: FlowStepKind.Leave, Node: Block block }
-                => state.RemoveRange(state.Keys.Where(local => ReferenceEquals(homes[local].Home, block))),
-            _ => state,
-        };
-    }
+            case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement declaration } when owners.Owns(declaration.Local):
+                return state.SetItem(declaration.Local, declaration.Initializer is null ? Holding.Unowned : Holding.Owned);
 
-    private static Dictionary<LocalVariable, (Block Home, LocalDeclarationStatement Declaration)> Declared(object root)
-    {
-        var declared = new Dictionary<LocalVariable, (Block Home, LocalDeclarationStatement Declaration)>(ReferenceEqualityComparer.Instance);
+            case { Kind: FlowStepKind.Introduce, Variable: { } variable } when owners.Introduced(variable) is { } introduced:
+                return state.SetItem(introduced, Holding.Owned);
 
-        foreach(var block in BodyWalker.DescendantsAndSelf(root).OfType<Block>())
-        {
-            foreach(var declaration in block.Statements.OfType<LocalDeclarationStatement>())
-            {
-                if(IsTracked(declaration.Local.Type))
+            case { Kind: FlowStepKind.Leave, Node: var scope }:
+                if(owners.ScopeEndingAt(scope) is { Owner: var released } && state.ContainsKey(released))
                 {
-                    declared[declaration.Local] = (block, declaration);
+                    state = state.SetItem(released, Holding.Unowned);
                 }
-            }
-        }
 
-        return declared;
+                return state.RemoveRange(state.Keys.Where(owner => owners.IsHome(owner, scope)));
+
+            default:
+                return state;
+        }
     }
 
-    private void Solve(FlowGraph graph, LifetimePlan plan)
+    private void Solve(FlowGraph graph, LifetimePlan plan, Holdings entry)
     {
-        FlowSolution<Holdings>.Solve(graph, this, Nothing).Replay((state, step) => Record(state, step, plan));
+        foreach(var owner in owners.All)
+        {
+            plan.Cover(owner);
+        }
+
+        Settle(graph, plan, entry);
+    }
+
+    private static InvocationExpression? CallOf(FlowStep step)
+    {
+        return step.Kind == FlowStepKind.Evaluate ? step.Node as InvocationExpression : null;
+    }
+
+    private void Settle(FlowGraph graph, LifetimePlan plan, Holdings entry)
+    {
+        FlowSolution<Holdings>.Solve(graph, this, entry).Replay((state, step) => Record(state, step, plan));
 
         foreach(var nested in graph.Nested.Values)
         {
-            Solve(nested, plan);
+            Settle(nested, plan, Nothing);
         }
     }
 
     private void Record(Holdings state, FlowStep step, LifetimePlan plan)
     {
-        foreach(var (local, owned, at) in Changes(state, step))
+        var call = CallOf(step);
+        var entry = call is null ? CallEntry.Certain : CallEntries.Of(call, receiver => owners.OwnerOf(receiver) is not null);
+
+        foreach(var (owner, owned, at) in Changes(state, step))
         {
-            plan.Mark(at, local, owned);
+            var passed = !owned && entry is not CallEntry.Certain && !(call?.Receiver is MemberAccessExpression { Receiver: var receiver } && ReferenceEquals(receiver, at));
+            plan.Mark(at, owner, owned, passed && entry is CallEntry.Absentable ? call : null);
+
+            if(passed && state.TryGetValue(owner, out var holding) && holding.HasFlag(Holding.Owned))
+            {
+                plan.Owe(owner);
+            }
         }
 
-        if(step is { Kind: FlowStepKind.Leave, Node: Block block })
+        if(step.Kind == FlowStepKind.Leave)
         {
-            foreach(var (local, holding) in state)
+            if(owners.ScopeEndingAt(step.Node) is var (scope, released) && state.TryGetValue(released, out var held))
             {
-                if(ReferenceEquals(homes[local].Home, block) && holding.HasFlag(Holding.Owned))
+                plan.Scope(scope, released, held);
+            }
+
+            foreach(var (owner, holding) in state)
+            {
+                if(owners.IsHome(owner, step.Node) && holding.HasFlag(Holding.Owned))
                 {
-                    plan.Owe(local);
+                    plan.Owe(owner);
                 }
             }
         }
 
         if(MayThrow(step))
         {
-            foreach(var (local, holding) in Transfer(state, step))
+            var after = Transfer(state, step);
+
+            foreach(var (owner, holding) in after)
             {
                 if(holding.HasFlag(Holding.Owned))
                 {
-                    plan.Owe(local);
+                    plan.Owe(owner);
+                }
+            }
+
+            foreach(var scope in Enclosing(step.Node))
+            {
+                if(owners.ScopeEndingAt(scope.Body) is { Owner: var released } && after.TryGetValue(released, out var held))
+                {
+                    plan.Scope(scope, released, held);
                 }
             }
         }
     }
 
-    private IEnumerable<(LocalVariable Local, bool Owned, Expression At)> Changes(Holdings state, FlowStep step)
+    /// <summary>
+    /// The with scopes a throw from this node leaves through, each of whose finally releases what its
+    /// holder still owns there -- so a throw is one more way out of the scope, judged like its exits. A
+    /// lambda's body is not inside: it throws when it is called, not where it is written.
+    /// </summary>
+    private void Enclose(WithBlockStatement scope)
+    {
+        var pending = new Stack<object>();
+        pending.Push(scope.Body);
+
+        while(pending.Count > 0)
+        {
+            var node = pending.Pop();
+
+            if(!enclosing.TryGetValue(node, out var scopes))
+            {
+                scopes = [];
+                enclosing.Add(node, scopes);
+            }
+
+            scopes.Add(scope);
+
+            if(node is LambdaExpression or LocalFunctionStatement or AsyncBlockExpression)
+            {
+                continue;
+            }
+
+            foreach(var child in BodyWalker.ChildrenOf(node))
+            {
+                pending.Push(child);
+            }
+        }
+    }
+
+    private List<WithBlockStatement> Enclosing(object node)
+    {
+        return enclosing.GetValueOrDefault(node) ?? [];
+    }
+
+    private IEnumerable<(object Owner, bool Owned, Expression At)> Changes(Holdings state, FlowStep step)
     {
         switch(step)
         {
             case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: { } initializer } declaration }
-                when homes.ContainsKey(declaration.Local) && Source(initializer, state) is { } source:
+                when owners.Owns(declaration.Local) && Source(initializer, state) is { } source:
                 yield return (source, false, initializer);
                 break;
 
-            case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false, Target: LocalReferenceExpression { Local: var target } } assignment }
-                when state.ContainsKey(target):
-                if(Source(assignment.Value, state) is { } moved && !ReferenceEquals(moved, target))
+            case { Kind: FlowStepKind.Introduce, Variable: { } introduced }
+                when owners.ElementOf(introduced) is { } element && Source(element, state) is { } source:
+                yield return (source, false, element);
+                break;
+
+            case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }:
+                if(owners.TargetOf(assignment.Target) is { } target && state.ContainsKey(target))
                 {
-                    yield return (moved, false, assignment.Value);
+                    if(Source(assignment.Value, state) is { } moved && !ReferenceEquals(moved, target))
+                    {
+                        yield return (moved, false, assignment.Value);
+                    }
+
+                    yield return (target, true, assignment);
+                }
+                else if(Keeps(assignment.Target) && Source(assignment.Value, state) is { } stored)
+                {
+                    yield return (stored, false, assignment.Value);
                 }
 
-                yield return (target, true, assignment);
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } returned } } when Source(returned, state) is { } source:
@@ -186,7 +275,7 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression invocation }:
-                foreach(var passed in Passed(invocation.Arguments, invocation.Parameters, state, lending: true))
+                foreach(var passed in Passed(invocation.Arguments, invocation.Parameters, state))
                 {
                     yield return passed;
                 }
@@ -200,21 +289,44 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: NewExpression creation }:
-                foreach(var passed in Passed(creation.Arguments, creation.Constructor?.ParametersList, state, lending: false))
+                foreach(var passed in Passed(creation.Arguments, creation.Constructor?.ParametersList, state))
                 {
                     yield return passed;
+                }
+
+                foreach(var entry in creation.Initializer)
+                {
+                    if(entry.Member is FieldResult { Field: var field } && Keeps(field) && Source(entry.Value, state) is { } stored)
+                    {
+                        yield return (stored, false, entry.Value);
+                    }
                 }
 
                 break;
         }
     }
 
-    private static IEnumerable<(LocalVariable, bool, Expression)> Passed(
-        IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters, Holdings state, bool lending)
+    private static bool Keeps(Expression target)
+    {
+        return ThisTiers.OwnedSlot(target) is not null || target switch
+        {
+            FieldReferenceExpression { Field: var field } => Keeps(field),
+            MemberAccessExpression { Member: FieldResult { Field: var field } } => Keeps(field),
+            _ => false,
+        };
+    }
+
+    private static bool Keeps(Field field)
+    {
+        return !field.Modifiers.IsStatic && (ThisTiers.IsOwned(field) || IsTracked(field.Type));
+    }
+
+    private IEnumerable<(object, bool, Expression)> Passed(
+        IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters, Holdings state)
     {
         for(var i = 0; i < arguments.Count; i++)
         {
-            if(Source(arguments[i], state) is { } source && !(lending && ByReference(parameters, i)))
+            if(Source(arguments[i], state) is { } source && !Lends(parameters, i))
             {
                 yield return (source, false, Settled(arguments, i, parameters));
             }
@@ -239,9 +351,15 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
         return parameters is not null && index < parameters.Count && parameters[index].Modifier.IsRef;
     }
 
-    private static LocalVariable? Source(Expression expression, Holdings state)
+    private static bool Lends(IReadOnlyList<Parameter>? parameters, int index)
     {
-        return expression is LocalReferenceExpression { Local: var local } && state.ContainsKey(local) ? local : null;
+        return ByReference(parameters, index)
+            || (parameters is not null && index < parameters.Count && parameters[index].Modifier.Ownership is OwnershipKind.Frozen or OwnershipKind.Borrowed);
+    }
+
+    private object? Source(Expression expression, Holdings state)
+    {
+        return owners.OwnerOf(expression) is { } owner && state.ContainsKey(owner) ? owner : null;
     }
 
     private bool MayThrow(FlowStep step)
@@ -259,13 +377,15 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
     {
         return expression is not (LiteralExpression or LocalReferenceExpression or ThisExpression or DefaultExpression
             or LambdaExpression or FunctionReferenceExpression or MethodGroupExpression or MethodReferenceExpression
-            or TypeReferenceExpression or TypeLiteralExpression or NamespaceReferenceExpression or VoidLiteralExpression);
+            or TypeReferenceExpression or TypeLiteralExpression or NamespaceReferenceExpression or VoidLiteralExpression or TupleLiteralExpression
+            or FieldReferenceExpression { Field.Modifiers.IsStatic: false }
+            or MemberAccessExpression { Receiver: ThisExpression, Member: FieldResult { Field.Modifiers.IsStatic: false } });
     }
 
     private static bool HasNaturalType(Expression expression)
     {
         return expression is InvocationExpression or NewExpression or MemberAccessExpression or FieldReferenceExpression
             or PropertyReferenceExpression or IndexExpression or ElementReadExpression or BinaryExpression or UnaryExpression
-            or CastExpression or InterpolatedStringExpression or CloneExpression;
+            or CastExpression or InterpolatedStringExpression or CloneExpression or ArrayLiteralExpression or ArrayCreationExpression;
     }
 }

@@ -6,6 +6,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -158,16 +159,38 @@ internal static class DropInsertion
     /// The fields a DECLARED drop still owes, which is every droppable one its body does not hand on.
     /// A container's obligation does not end because the author wrote a Drop of their own -- what they
     /// wrote is what happens IN ADDITION to releasing what it holds. A field returned out is moved, so
-    /// `Drop()` returning its own value releases nothing.
+    /// `Drop()` returning its own value releases nothing. A linear field is released on exactly the paths
+    /// that leave it held, as the plan says; any other droppable one keeps the whole-body approximation.
     /// </summary>
+    public static List<(Field Field, LifetimeRelease Release)> ReleasedFields(Method drop, ConcreteType type, LifetimePlan lifetimes)
+    {
+        if(drop is not { Name: "Drop", ParametersList.Count: 0 } || drop.Body is not { } body)
+        {
+            return [];
+        }
+
+        var released = new List<(Field, LifetimeRelease)>();
+
+        foreach(var field in DroppableFields(type))
+        {
+            var release = LocalLifetimes.IsTracked(field.Type)
+                ? lifetimes.ReleaseOf(field)
+                : body.Statements.Any(statement => Moves(statement, Field(field))) ? LifetimeRelease.None : LifetimeRelease.AtExit;
+
+            if(release is not LifetimeRelease.None)
+            {
+                released.Add((field, release));
+            }
+        }
+
+        return released;
+    }
+
     public static List<Field> FieldsOwedBy(Method drop, ConcreteType type)
     {
-        return drop is { Name: "Drop", ParametersList.Count: 0 } && drop.Body is { } body
-            ? DroppableFields(type)
-                .Where(field => !body.Statements.Any(statement => Moves(statement, Field(field.Name))))
-                .ToList()
-            : []
-            ;
+        return drop.Body is { } body
+            ? [.. ReleasedFields(drop, type, LocalLifetimes.Plan(body, drop, type)).Select(released => released.Field)]
+            : [];
     }
 
     /// <summary>
@@ -297,26 +320,30 @@ internal static class DropInsertion
 
     /// <summary>
     /// The parameters a body drops on its way out: an owned droppable value the caller handed over and
-    /// the body did not pass on. A by-reference parameter is a loan and is never one of these.
+    /// the body did not pass on. A by-reference, frozen or borrowed linear parameter is a loan and is
+    /// never one of these; a linear one is released on exactly the paths that still hold it, as the plan
+    /// says, and any other droppable one keeps the whole-body approximation.
     /// </summary>
-    public static List<Parameter> DroppedParameters(Method method, Block body)
+    public static List<(Parameter Parameter, LifetimeRelease Release)> ReleasedParameters(Method method, Block body, LifetimePlan lifetimes)
     {
-        return method.ParametersList
-            .Where(parameter => !parameter.Modifier.IsRef
-                && DropsAtScopeExit(parameter.Type)
-                && ExitAction(parameter.Type) is not null
-                && !MovesParameter(body, parameter))
-            .ToList();
-    }
+        var released = new List<(Parameter, LifetimeRelease)>();
 
-    /// <summary>
-    /// A parameter is referenced through a local of the same identity as the body's declared locals,
-    /// so the move walk is reused by matching on NAME -- the body's references resolve to the
-    /// parameter's own isTarget, which the emitter does not hold.
-    /// </summary>
-    private static bool MovesParameter(Block body, Parameter parameter)
-    {
-        return body.Statements.Any(statement => Moves(statement, Named(parameter.Name)));
+        foreach(var parameter in method.ParametersList)
+        {
+            var release = LocalLifetimes.IsTracked(parameter.Type)
+                ? lifetimes.ReleaseOf(parameter)
+                : !parameter.Modifier.IsRef && DropsAtScopeExit(parameter.Type) && ExitAction(parameter.Type) is not null
+                    && !body.Statements.Any(statement => Moves(statement, Passing(parameter)))
+                    ? LifetimeRelease.AtExit
+                    : LifetimeRelease.None;
+
+            if(release is not LifetimeRelease.None)
+            {
+                released.Add((parameter, release));
+            }
+        }
+
+        return released;
     }
 
     private static Func<Expression, bool> Same(LocalVariable local)
@@ -325,27 +352,19 @@ internal static class DropInsertion
             candidate is LocalReferenceExpression reference && ReferenceEquals(reference.Local, local);
     }
 
-    /// <summary>
-    /// A field of the enclosing value, matched by name for the reason a parameter is: the emitter holds
-    /// the declaration and the body holds references bound to it, and no identity spans the two.
-    /// </summary>
-    private static Func<Expression, bool> Field(string name)
+    private static Func<Expression, bool> Field(Field field)
     {
-        return candidate =>
-            candidate is FieldReferenceExpression reference
-            && string.Equals(reference.Field.Name, name, StringComparison.Ordinal);
+        return candidate => candidate switch
+        {
+            FieldReferenceExpression reference => ReferenceEquals(reference.Field, field),
+            MemberAccessExpression { Receiver: ThisExpression, Member: FieldResult found } => ReferenceEquals(found.Field, field),
+            _ => false,
+        };
     }
 
-    /// <summary>
-    /// A parameter's references resolve to a local the emitter does not hold -- BodyBinder declares one
-    /// per parameter -- so a parameter is matched by NAME. A nested block shadowing the name would be
-    /// read as a use of the parameter, which errs toward eliding a drop rather than inventing one.
-    /// </summary>
-    private static Func<Expression, bool> Named(string name)
+    private static Func<Expression, bool> Passing(Parameter parameter)
     {
-        return candidate =>
-            candidate is LocalReferenceExpression reference
-            && string.Equals(reference.Local.Name, name, StringComparison.Ordinal);
+        return candidate => candidate is LocalReferenceExpression { Local.Parameter: { } passed } && ReferenceEquals(passed, parameter);
     }
 
     /// <summary>

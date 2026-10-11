@@ -81,10 +81,28 @@ public class LinearHolder
 
     public void Drop()
     {
-        System.Console.WriteLine("LinearHolder.Drop()");
-        this.Lin.Drop();
-        this.Aff.Drop();
-        this.Rel.Drop();
+        try
+        {
+            try
+            {
+                try
+                {
+                    System.Console.WriteLine("LinearHolder.Drop()");
+                }
+                finally
+                {
+                    this.Lin.Drop();
+                }
+            }
+            finally
+            {
+                this.Aff.Drop();
+            }
+        }
+        finally
+        {
+            this.Rel.Drop();
+        }
     }
 }
 

@@ -5,6 +5,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
@@ -18,8 +19,9 @@ internal readonly record struct ExitDrop(string Name, Method Drop, SyntaxNode At
 /// relevant binding the body did not hand on -- as an argument, a return value or an explicit drop --
 /// through its declared Drop and then whatever that Drop hands back, its droppable fields' Drops when it
 /// declares none, or an await when it is a task; and a declared Drop's own body releases every
-/// droppable field it did not hand on after what it was written to do. Except for a local
-/// <see cref="LocalLifetimes"/> plans, this mirrors the backend's DropInsertion rather than sharing it,
+/// droppable field it did not hand on after what it was written to do, and a lender releases what it
+/// lent fresh. Except for the linear holders <see cref="LocalLifetimes"/> plans and what
+/// <see cref="LentValues"/> finds, this mirrors the backend's DropInsertion rather than sharing it,
 /// since analysis may not depend on a backend; a divergence between the two shows as a drop judged that
 /// never runs, or one run unjudged.
 /// </summary>
@@ -56,6 +58,17 @@ internal static partial class PurityJudge
 
         nodes ??= ScopeNodes(start).ToList();
         LifetimePlan? lifetimes = null;
+        var owning = root switch
+        {
+            LocalFunctionStatement function => function.Function,
+            _ => member is Method { Body: { } body } method && ReferenceEquals(body, start) ? method : null,
+        };
+        var holder = owning is { Name: "Drop", DeclaringType: ConcreteType declaring } && declaring.MethodsList.Contains(owning) ? declaring : null;
+
+        LifetimePlan planned()
+        {
+            return lifetimes ??= LocalLifetimes.Plan(start, owning, holder);
+        }
 
         foreach(var declaration in nodes.OfType<LocalDeclarationStatement>())
         {
@@ -66,9 +79,9 @@ internal static partial class PurityJudge
                 continue;
             }
 
-            if(LocalLifetimes.IsTracked(local.Type) && (lifetimes ??= LocalLifetimes.Plan(start)).Covers(declaration))
+            if(LocalLifetimes.IsTracked(local.Type) && planned().Covers(declaration))
             {
-                if(lifetimes.ReleaseOf(declaration) != LifetimeRelease.None && lifetimes.AcquiredAt(declaration) is { } acquired)
+                if(planned().ReleaseOf(declaration) != LifetimeRelease.None && planned().AcquiredAt(declaration) is { } acquired)
                 {
                     foreach(var (drop, isAwait) in Drops(local.Type, awaitable: true, []))
                     {
@@ -89,12 +102,30 @@ internal static partial class PurityJudge
             }
         }
 
+        foreach(var node in nodes)
+        {
+            foreach(var (value, parameter) in LentValues.Of(node))
+            {
+                foreach(var (drop, isAwait) in Drops(value.Type, awaitable: false, []))
+                {
+                    yield return new ExitDrop($"lent {parameter.Name}", drop, value.Node, isAwait);
+                }
+            }
+        }
+
         if(member is Method { Name: "Drop", ParametersList.Count: 0, Modifiers.IsStatic: false, DeclaringType: ConcreteType { IsIntrinsic: false } owner, DeclarationNode: { } declared } dropping
             && ReferenceEquals(dropping.Body, root))
         {
             foreach(var field in owner.FieldsList.Where(field => !field.Modifiers.IsStatic))
             {
-                if(Moved(nodes, moved => moved is FieldReferenceExpression reference && reference.Field.Name == field.Name))
+                if(LocalLifetimes.IsTracked(field.Type)
+                    ? planned().ReleaseOf(field) == LifetimeRelease.None
+                    : Moved(nodes, moved => moved switch
+                    {
+                        FieldReferenceExpression reference => ReferenceEquals(reference.Field, field),
+                        MemberAccessExpression { Receiver: ThisExpression, Member: FieldResult found } => ReferenceEquals(found.Field, field),
+                        _ => false,
+                    }))
                 {
                     continue;
                 }
@@ -113,9 +144,14 @@ internal static partial class PurityJudge
             yield break;
         }
 
-        foreach(var (name, type, byRef) in parameters)
+        foreach(var (name, type, byRef, identity) in parameters)
         {
-            if(!byRef && DropsAtScopeExit(type) && !Moved(nodes, moved => moved is LocalReferenceExpression reference && reference.Local.Name == name))
+            var released = LocalLifetimes.IsTracked(type)
+                ? planned().ReleaseOf(identity) != LifetimeRelease.None
+                : !byRef && DropsAtScopeExit(type) && !Moved(nodes, moved => moved is LocalReferenceExpression { Local: var reached }
+                    && (ReferenceEquals(reached, identity) || ReferenceEquals(reached.Parameter, identity)));
+
+            if(released)
             {
                 foreach(var (drop, isAwait) in Drops(type, awaitable: false, []))
                 {
@@ -135,20 +171,20 @@ internal static partial class PurityJudge
         };
     }
 
-    private static (IEnumerable<(string Name, IMistType Type, bool ByRef)> Parameters, SyntaxNode? At) ParametersOf(object root, object? member)
+    private static (IEnumerable<(string Name, IMistType Type, bool ByRef, object Declared)> Parameters, SyntaxNode? At) ParametersOf(object root, object? member)
     {
         return (root, member) switch
         {
-            (LambdaExpression lambda, _) => (lambda.Parameters.Select(parameter => (parameter.Name, parameter.Type, parameter.IsRef)), lambda.Node),
+            (LambdaExpression lambda, _) => (lambda.Parameters.Select(parameter => (parameter.Name, parameter.Type, parameter.IsRef, (object)parameter)), lambda.Node),
             (LocalFunctionStatement function, _) => (Declared(function.Function), function.Function.DeclarationNode),
             (_, Method method) when ReferenceEquals(method.Body, root) => (Declared(method), method.DeclarationNode),
             _ => ([], null),
         };
     }
 
-    private static IEnumerable<(string Name, IMistType Type, bool ByRef)> Declared(Method method)
+    private static IEnumerable<(string Name, IMistType Type, bool ByRef, object Declared)> Declared(Method method)
     {
-        return method.ParametersList.Select(parameter => (parameter.Name, parameter.Type, parameter.Modifier.IsRef));
+        return method.ParametersList.Select(parameter => (parameter.Name, parameter.Type, parameter.Modifier.IsRef, (object)parameter));
     }
 
     private static bool Moved(IReadOnlyList<object> nodes, Func<Expression, bool> isTarget)

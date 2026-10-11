@@ -1,0 +1,263 @@
+// ResourceTransfer -- every linear value is released exactly once on the path actually taken, whoever
+// holds it: a parameter, a Drop's field, a with scope, a for initializer, a pattern or tuple target, a
+// field it was stored in, or the statement that only lent it.
+
+using Standard;
+
+namespace ResourceTransfer;
+
+public linear class Token
+{
+    public int Id;
+
+    public Token(int id)
+    {
+        Id = id;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"  Token({Id}) released");
+    }
+}
+
+public linear ref struct Lease
+{
+    public int Id;
+
+    public Lease(int id)
+    {
+        Id = id;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"  Lease({Id}) released");
+    }
+}
+
+public linear class Pair
+{
+    Token First;
+    Token Second;
+    bool DropFirst;
+
+    public Pair(int first, int second, bool dropFirst)
+    {
+        First = new Token(first);
+        Second = new Token(second);
+        DropFirst = dropFirst;
+    }
+
+    public void Drop()
+    {
+        if (DropFirst)
+        {
+            First.Drop();
+        }
+        Console.WriteLine($"  Pair.Drop(dropFirst={DropFirst}) body done");
+    }
+}
+
+public linear class Keeper
+{
+    Token Kept;
+
+    public Keeper(Token kept)
+    {
+        Kept = kept;
+        Console.WriteLine($"  Keeper took Token({Kept.Id})");
+    }
+}
+
+public class Box
+{
+    public void Use(Token t)
+    {
+        Console.WriteLine($"  Box used Token({t.Id})");
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Resource Transfer Sample ===");
+
+        Console.WriteLine("--- 1. Owned parameter released where it was not dropped ---");
+        DropWhen(new Token(1), false);
+        DropWhen(new Token(2), true);
+
+        Console.WriteLine("--- 2. Plain parameter returned on one path ---");
+        var back = Pass(new Token(3), true);
+        Console.WriteLine($"  Pass(true) handed back Token({back.Id})");
+        back.Drop();
+        var fresh = Pass(new Token(4), false);
+        Console.WriteLine($"  Pass(false) made Token({fresh.Id})");
+        fresh.Drop();
+
+        Console.WriteLine("--- 3. A local shadowing a parameter is its own value ---");
+        Shadow(new Token(5));
+
+        Console.WriteLine("--- 4. A Drop releases the fields its body left ---");
+        {
+            var kept = new Pair(6, 7, false);
+            var dropped = new Pair(8, 9, true);
+        }
+
+        Console.WriteLine("--- 5. A with releases the value it was given ---");
+        {
+            var t = new Token(10);
+            with(t)
+            {
+                Console.WriteLine("  inside with(t)");
+            }
+            Console.WriteLine("  after with(t)");
+        }
+        WithOnOneBranch(11, true);
+        WithOnOneBranch(12, false);
+        {
+            var outer = new Token(13);
+            with(outer)
+            {
+                var inner = new Token(14);
+                Console.WriteLine("  inner and outer held");
+            }
+        }
+        HandOnWithBinding();
+
+        Console.WriteLine("--- 6. A for initializer is released when the loop is left ---");
+        for (var t = new Token(16); t.Id < 100; )
+        {
+            Console.WriteLine($"  loop body sees Token({t.Id})");
+            break;
+        }
+        for (var t = new Token(17); t.Id < 0; )
+        {
+            Console.WriteLine("  never runs");
+        }
+
+        Console.WriteLine("--- 7. A linear ref struct follows the same paths ---");
+        LeaseWhen(18, false);
+        LeaseWhen(19, true);
+
+        Console.WriteLine("--- 8. A pattern binding hands on what it views ---");
+        {
+            var k = new Token(20);
+            if (k is Token viewed)
+            {
+                Consume(viewed);
+            }
+            Console.WriteLine("  after the pattern");
+        }
+
+        Console.WriteLine("--- 9. A deconstructed element is owned by its target ---");
+        {
+            var (token, label) = (new Token(21), "twenty-one");
+            Console.WriteLine($"  deconstructed {label} into Token({token.Id})");
+        }
+
+        Console.WriteLine("--- 10. A value stored in a field belongs to its container ---");
+        {
+            var stored = new Token(22);
+            var keeper = new Keeper(stored);
+        }
+
+        Console.WriteLine("--- 11. A lease is released by its owner, a lent value by its lender ---");
+        {
+            var owner = new Token(23);
+            frozen var lease = owner;
+            Look(lease);
+            Console.WriteLine("  owner still holds its value");
+        }
+        Look(new Token(24));
+        Console.WriteLine("  after lending a fresh value");
+
+        Console.WriteLine("--- 12. A call that is skipped leaves the value with the caller ---");
+        Maybe(25, void);
+        Maybe(26, new Box());
+
+        Console.WriteLine("=== Resource Transfer Done ===");
+    }
+
+    public static void DropWhen(owned Token t, bool early)
+    {
+        if (early)
+        {
+            t.Drop();
+        }
+        Console.WriteLine($"  DropWhen(early={early}) leaving");
+    }
+
+    public static Token Pass(Token t, bool giveBack)
+    {
+        if (giveBack)
+        {
+            return t;
+        }
+        Console.WriteLine($"  Pass(false) keeps Token({t.Id})");
+        return new Token(t.Id + 100);
+    }
+
+    public static void Shadow(owned Token t)
+    {
+        if (t.Id > 0)
+        {
+            var t = new Token(t.Id + 1000);
+            t.Drop();
+        }
+        Console.WriteLine("  Shadow leaving");
+    }
+
+    public static void WithOnOneBranch(int id, bool enter)
+    {
+        var t = new Token(id);
+        if (enter)
+        {
+            with(t)
+            {
+                Console.WriteLine("  inside the branch's with");
+            }
+        }
+        Console.WriteLine($"  WithOnOneBranch(enter={enter}) leaving");
+    }
+
+    public static void HandOnWithBinding()
+    {
+        with var scoped = new Token(15);
+        Consume(scoped);
+        Console.WriteLine("  scoped value handed on inside its with");
+    }
+
+    public static void LeaseWhen(int id, bool early)
+    {
+        var lease = new Lease(id);
+        if (early)
+        {
+            lease.Drop();
+        }
+        Console.WriteLine($"  LeaseWhen(early={early}) leaving");
+    }
+
+    public static void Consume(owned Token t)
+    {
+        Console.WriteLine($"  Consume took Token({t.Id})");
+    }
+
+    public static void Look(frozen Token t)
+    {
+        Console.WriteLine($"  Look sees Token({t.Id})");
+    }
+
+    public static void Maybe(int id, Box? box)
+    {
+        var t = new Token(id);
+        box?.Use(t);
+        Console.WriteLine("  Maybe leaving");
+    }
+}

@@ -35,25 +35,7 @@ internal static class MethodEmitter
             if(method.Body is not null)
             {
                 BodyEmitter.EmitMethodBody(method, method.Body, writer, diagnostics, owner: owner);
-                EmitOwedFieldDrops(method, owner, writer);
             }
-        }
-    }
-
-    /// <summary>
-    /// What a declared <c>Drop</c> still owes its fields, appended after whatever the author wrote.
-    /// See <see cref="DropInsertion.FieldsOwedBy"/> for why writing a Drop does not discharge it.
-    /// </summary>
-    private static void EmitOwedFieldDrops(Method method, MemberType? owner, CSharpWriter writer)
-    {
-        if(owner is not ConcreteType concrete)
-        {
-            return;
-        }
-
-        foreach(var field in DropInsertion.FieldsOwedBy(method, concrete))
-        {
-            writer.WriteLine(DropInsertion.FieldDrop(field));
         }
     }
 

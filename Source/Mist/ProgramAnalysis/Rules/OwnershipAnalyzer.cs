@@ -48,7 +48,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         {
             var graph = FlowGraphBuilder.Build(root.Root);
             var owning = OwningMethod(root);
-            new Ownership(context, tiers, DeclaringBlocks(root.Root), owning).Judge(graph, Ownership.Nothing);
+            new Ownership(context, tiers, DeclaringBlocks(root.Root), Scoped(root.Root), owning).Judge(graph, Ownership.Nothing);
 
             if(owning is { Body: { } body })
             {
@@ -166,6 +166,31 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         return blocks;
     }
 
+    /// <summary>
+    /// The with blocks that release the linear or affine local they were given, keyed by the body whose end
+    /// releases it (drop-semantics Requirements 3.2 and 5.5): from there on the local is dropped. A lease
+    /// is given only for the block's duration and stays its owner's.
+    /// </summary>
+    private static Dictionary<Block, LocalReferenceExpression> Scoped(object root)
+    {
+        var scoped = new Dictionary<Block, LocalReferenceExpression>(ReferenceEqualityComparer.Instance);
+
+        foreach(var scope in BodyWalker.DescendantsAndSelf(root).OfType<WithBlockStatement>())
+        {
+            if(scope.Value is LocalReferenceExpression { Local: var held } given
+                && Tracked(held)
+                && Substructural(held.Type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine
+                && held is { IsRef: false, Ownership: not (OwnershipKind.Frozen or OwnershipKind.Borrowed) }
+                && held.Parameter is not { Modifier: { IsRef: true } or { Ownership: OwnershipKind.Frozen or OwnershipKind.Borrowed } }
+                && PurityJudge.Drops(held.Type, awaitable: false).Any())
+            {
+                scoped[scope.Body] = given;
+            }
+        }
+
+        return scoped;
+    }
+
     internal static bool Tracked(LocalVariable local)
     {
         return !ThisTiers.IsValue(local.Type)
@@ -200,6 +225,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         AnalysisContext context,
         ThisTiers tiers,
         IReadOnlyDictionary<LocalVariable, Block> declaringBlocks,
+        IReadOnlyDictionary<Block, LocalReferenceExpression> scoped,
         Method? owning) : IFlowLattice<State>
     {
         public static readonly State Nothing = new(
@@ -287,6 +313,11 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     return Has(state, read.Local, Lease.Borrowed) ? state with { Complained = state.Complained.Add(read.Local) } : state;
 
                 case { Kind: FlowStepKind.Leave, Node: Block block }:
+                    if(scoped.TryGetValue(block, out var given))
+                    {
+                        state = state with { MovedBindings = state.MovedBindings.SetItem(given.Local, new Moved(given, Dropped: true)) };
+                    }
+
                     return state with
                     {
                         Leases = state.Leases.RemoveRange(
@@ -419,7 +450,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                         JudgeMove(state, moved);
                         JudgeShared(state, moved, $"owned binding '{written.Local.Name}'", written.Local.Ownership == OwnershipKind.Owned);
                     }
-                    else if(OwnedSlot(assignment.Target) is { } slot && assignment.Value is LocalReferenceExpression stored && Tracked(stored.Local))
+                    else if(ThisTiers.OwnedSlot(assignment.Target) is { } slot && assignment.Value is LocalReferenceExpression stored && Tracked(stored.Local))
                     {
                         JudgeMove(state, stored);
                         JudgeShared(state, stored, slot, owned: true);
@@ -455,7 +486,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Ownership(context, tiers, declaringBlocks, owning: null).Judge(nested, state);
+                    new Ownership(context, tiers, declaringBlocks, scoped, owning: null).Judge(nested, state);
                     break;
             }
         }
@@ -494,7 +525,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                 state = state with { Shared = state.Shared.Remove(holder) };
             }
 
-            if(OwnedSlot(target) is not null && value is LocalReferenceExpression moved && Tracked(moved.Local))
+            if(ThisTiers.OwnedSlot(target) is not null && value is LocalReferenceExpression moved && Tracked(moved.Local))
             {
                 return Move(state, moved.Local, value);
             }
@@ -512,18 +543,6 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     when Tracked(holder) && ThisTiers.IsOwned(field) && !Origins.IsUnchangeable(field.Type) =>
                     state with { Shared = state.Shared.SetItem(holder, new Kept($"its owned field '{field.Name}' is also held by {where}, which read it out without a move", field.Name)) },
                 _ => state,
-            };
-        }
-
-        private static string? OwnedSlot(Expression target)
-        {
-            return target switch
-            {
-                FieldReferenceExpression { Field: var field } when ThisTiers.IsOwned(field) => $"owned field '{field.Name}'",
-                MemberAccessExpression { Member: FieldResult { Field: var field } } when ThisTiers.IsOwned(field) => $"owned field '{field.Name}'",
-                MemberAccessExpression { Member: PropertyResult { Property: { Modifiers: { IsOwned: true, IsStatic: false } } property } } => $"owned property '{property.Name}'",
-                PropertyReferenceExpression { Property: { Modifiers: { IsOwned: true, IsStatic: false } } property } => $"owned property '{property.Name}'",
-                _ => null,
             };
         }
 

@@ -33,8 +33,14 @@ public class AffineHolder<T>
 
     public void Drop()
     {
-        System.Console.WriteLine("AffineHolder<T>.Drop()");
-        ((dynamic)this.Value).Drop();
+        try
+        {
+            System.Console.WriteLine("AffineHolder<T>.Drop()");
+        }
+        finally
+        {
+            ((dynamic)this.Value).Drop();
+        }
     }
 }
 
@@ -51,13 +57,19 @@ public class RelevantHolder<T>
 
     public void Drop()
     {
-        if (Dropped)
+        try
         {
-            return;
+            if (Dropped)
+            {
+                return;
+            }
+            this.Dropped = true;
+            System.Console.WriteLine("RelevantHolder<T>.Drop()");
         }
-        this.Dropped = true;
-        System.Console.WriteLine("RelevantHolder<T>.Drop()");
-        ((dynamic)this.Value).Drop();
+        finally
+        {
+            ((dynamic)this.Value).Drop();
+        }
     }
 }
 

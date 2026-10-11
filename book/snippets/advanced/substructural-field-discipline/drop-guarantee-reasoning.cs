@@ -40,8 +40,14 @@ public class AffineContainer
 
     public void Drop()
     {
-        System.Console.WriteLine("AffineContainer.Drop()");
-        this.Inner.Drop();
+        try
+        {
+            System.Console.WriteLine("AffineContainer.Drop()");
+        }
+        finally
+        {
+            this.Inner.Drop();
+        }
     }
 }
 

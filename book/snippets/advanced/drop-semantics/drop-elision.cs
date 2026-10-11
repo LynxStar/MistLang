@@ -38,8 +38,19 @@ public class Program
 
     public static Snippets.Connection Upgrade(Snippets.Connection conn)
     {
-        System.Console.WriteLine($"Upgrading {conn.GetHost()}");
-        return conn;
+        var __e1 = true;
+        try
+        {
+            System.Console.WriteLine($"Upgrading {conn.GetHost()}");
+            return MistOwnership.Handed(conn, ref __e1);
+        }
+        finally
+        {
+            if (__e1)
+            {
+                conn.Drop();
+            }
+        }
     }
 
     public static void Main()

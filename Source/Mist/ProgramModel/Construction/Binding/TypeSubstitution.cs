@@ -2,7 +2,9 @@ using System.Diagnostics.CodeAnalysis;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -268,8 +270,9 @@ internal sealed class TypeSubstitution
         if(type is RefinedType refined)
         {
             var refinedBase = Apply(refined.BaseType, interner);
+            var closing = Close(refined, interner);
 
-            return ReferenceEquals(refinedBase, refined.BaseType) ? refined : new RefinedType(refined, refinedBase);
+            return ReferenceEquals(refinedBase, refined.BaseType) && closing is null ? refined : new RefinedType(refined, refinedBase, closing);
         }
 
         if(type is FunctionType function)
@@ -321,6 +324,43 @@ internal sealed class TypeSubstitution
         }
 
         return Construct(constructed.Definition, substituted, enclosing, interner);
+    }
+
+    /// <summary>
+    /// What this use supplies for the dependent parameters a refinement's bounds name. The predicate is
+    /// shared with its declaration and never rewritten, so the values travel beside it; null where this
+    /// substitution supplies none of them.
+    /// </summary>
+    private Dictionary<TypeParameter, IMistType>? Close(RefinedType refined, TypeInterner? interner)
+    {
+        Dictionary<TypeParameter, IMistType>? closed = null;
+
+        foreach(var parameter in NamedDependents(refined.Predicate).Distinct())
+        {
+            var current = refined.Closing.TryGetValue(parameter, out var held) ? held : parameter;
+            var applied = Apply(current, interner);
+
+            if(!ReferenceEquals(applied, current))
+            {
+                closed ??= new Dictionary<TypeParameter, IMistType>(refined.Closing);
+                closed[parameter] = applied;
+            }
+        }
+
+        return closed;
+    }
+
+    private static IEnumerable<TypeParameter> NamedDependents(Pattern? predicate)
+    {
+        return predicate switch
+        {
+            ComparisonPattern { Bound: TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true, IsPack: false } named } } => [named],
+            ConjunctionPattern conjunction => conjunction.Operands.SelectMany(NamedDependents),
+            DisjunctionPattern disjunction => disjunction.Operands.SelectMany(NamedDependents),
+            NegatedPattern negated => NamedDependents(negated.Operand),
+            TypeTestPattern { Refinement: var refinement } => NamedDependents(refinement),
+            _ => [],
+        };
     }
 
     /// <summary>

@@ -32,11 +32,12 @@ internal sealed class RefinedType : MistType, IRefinedType
     /// there, so a copy taken before <c>PredicateBinder</c> runs would be empty forever, and a copy
     /// taken after would let the declaration's verdict and this one's disagree.
     /// </summary>
-    public RefinedType(RefinedType declared, IMistType baseType)
+    public RefinedType(RefinedType declared, IMistType baseType, IReadOnlyDictionary<TypeParameter, IMistType>? closing = null)
         : this(baseType, declared.PredicateNode, declared.IsAnonymous ? null : declared.Name)
     {
-        IsSubstituted = true;
+        IsSubstituted = declared.IsSubstituted || !ReferenceEquals(baseType, declared.BaseType);
         Declaration = declared.Declaration;
+        Closing = closing ?? declared.Closing;
     }
 
     public bool IsAnonymous { get; }
@@ -44,6 +45,8 @@ internal sealed class RefinedType : MistType, IRefinedType
     public RefinedType Declaration { get; }
 
     public bool IsSubstituted { get; }
+
+    public IReadOnlyDictionary<TypeParameter, IMistType> Closing { get; } = new Dictionary<TypeParameter, IMistType>();
 
     /// <summary>
     /// The underlying type being refined (e.g., <c>Int32</c> for <c>int >= 0</c>).

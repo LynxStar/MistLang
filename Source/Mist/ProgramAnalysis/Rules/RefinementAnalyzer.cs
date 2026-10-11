@@ -5,6 +5,7 @@ using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -68,7 +69,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 if(constructor is { ChainedConstructor: { } chained, DeclarationNode: { } declared } && context.IsInSource(declared))
                 {
                     new Proving(context, lifted, UnseenWrites.None).NeedArguments(
-                        RefinementFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList);
+                        RefinementFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList, callee: chained);
                 }
             }
         }
@@ -211,11 +212,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression call }:
-                    NeedArguments(state, call.Arguments, call.ParameterTypes, call.Parameters, (call.Receiver as MemberAccessExpression)?.Receiver);
+                    NeedArguments(state, call.Arguments, call.ParameterTypes, call.Parameters, (call.Receiver as MemberAccessExpression)?.Receiver, call.Signature);
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: NewExpression construction }:
-                    NeedArguments(state, construction.Arguments, construction.ParameterTypes, construction.Constructor?.ParametersList);
+                    NeedArguments(state, construction.Arguments, construction.ParameterTypes, construction.Constructor?.ParametersList, callee: construction.Constructor);
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: CastExpression cast } when CastAnalyzer.Converts(context, cast):
@@ -230,7 +231,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         public void NeedArguments(
             ImmutableDictionary<object, Knowledge> state, IReadOnlyList<Expression> arguments,
-            IReadOnlyList<IMistType>? parameterTypes, IReadOnlyList<Parameter>? parameters, Expression? receiver = null)
+            IReadOnlyList<IMistType>? parameterTypes, IReadOnlyList<Parameter>? parameters, Expression? receiver = null, Method? callee = null)
         {
             if(parameterTypes is null)
             {
@@ -238,6 +239,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             }
 
             var flattened = parameters is not null && ValuePack.FlattenedSlot(parameters) is not null;
+            var reading = Reading.Of(state, arguments, callee?.SourceDeclaration ?? callee, flattened, this);
             var targets = flattened
                 ? ArgumentTargets.Of(
                     parameters, parameterTypes, [.. arguments.Select(argument => argument is SpreadExpression ? null : argument.Type)],
@@ -256,7 +258,9 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     continue;
                 }
 
-                Need(state, arguments[i], target, arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]), measured: Measured(receiver));
+                Need(
+                    state, arguments[i], target, arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]), measured: Measured(receiver),
+                    reading: reading);
             }
         }
 
@@ -379,8 +383,10 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private void Need(
             ImmutableDictionary<object, Knowledge> state, Expression value, IMistType target, Expression at, string? onConstraint = null,
-            Expression? measured = null)
+            Expression? measured = null, Reading? reading = null)
         {
+            reading ??= Reading.None;
+
             if(value.Type is ErrorType)
             {
                 return;
@@ -396,7 +402,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             if(onConstraint is not null && Requirement.IsAnonymous(target) && !LiteralPredicates.Applies(target)
                 && Requirement.OfType(target) is { Bounds.Length: > 0 } constrained)
             {
-                Need(state, value, constrained, at, onConstraint, measured: measured);
+                Need(state, value, constrained, at, onConstraint, measured: measured, reading: reading);
                 return;
             }
 
@@ -408,7 +414,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             if(decided
                 ? RefinementDecision.Judge(value, target, known.Values, literal, known.Real, onConstraint is not null) is null
-                : AnySatisfied(known, considered, value.Type, measured, Length(state, measured), literal, value))
+                : AnySatisfied(known, considered, value.Type, reading, measured, Length(state, measured), literal, value))
             {
                 return;
             }
@@ -422,7 +428,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             else if(Requirement.OfType(considered[0]) is { } required)
             {
                 RefinementFindings.Report(
-                    context, known.Values, value, Stated(Read(required, proving: false), Length(state, measured)), TypeDisplay.Mist(target), at,
+                    context, known.Values, value, Stated(Read(required, proving: false, reading), Length(state, measured)), TypeDisplay.Mist(target), at,
                     onConstraint: Requirement.IsAnonymous(target) ? onConstraint : null);
             }
             else
@@ -466,7 +472,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         {
             var considered = Considered(counted.ParameterType, counted.Count.Type, value: null);
 
-            if(considered.Count == 0 || AnySatisfied(new Knowledge(position, ImmutableHashSet<Bound>.Empty), considered, counted.Count.Type))
+            if(considered.Count == 0 || AnySatisfied(new Knowledge(position, ImmutableHashSet<Bound>.Empty), considered, counted.Count.Type, Reading.None))
             {
                 return;
             }
@@ -475,7 +481,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
             if(Requirement.OfType(considered[0]) is { } required)
             {
-                RefinementFindings.ReportPosition(context, position, Read(required, proving: false), at, shown, parameter, about);
+                RefinementFindings.ReportPosition(context, position, Read(required, proving: false, Reading.None), at, shown, parameter, about);
             }
             else
             {
@@ -499,27 +505,28 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         }
 
         private bool AnySatisfied(
-            Knowledge known, List<IMistType> considered, IMistType valueType, Expression? measured = null, Admitted? length = null, LiteralValue? literal = null, Expression? expression = null)
+            Knowledge known, List<IMistType> considered, IMistType valueType, Reading reading, Expression? measured = null, Admitted? length = null,
+            LiteralValue? literal = null, Expression? expression = null)
         {
             return considered.Any(constituent => LiteralPredicates.Applies(constituent)
                 ? LiteralPredicates.Satisfied(constituent, valueType, literal, expression)
                     || (LiteralPredicates.Decide(constituent, literal) is null && RealKnowledge.Satisfied(known.Real, constituent))
                 : Requirement.OfType(constituent) is { } required
-                ? Satisfied(known, Read(required, proving: true), measured, length)
+                ? Satisfied(known, Read(required, proving: true, reading), measured, length)
                 : !Requirement.IsUnreadable(constituent) || ReferenceEquals(Requirement.Refined(valueType), Requirement.Refined(constituent)));
         }
 
         // A bound naming a member is read through that member's type or lift, which every instance shares:
         // to prove, against the end of the member's interval every value it may take clears; to report,
         // only once the member is one value, so a value it merely might exceed stays unproven.
-        private Requirement Read(Requirement required, bool proving)
+        private Requirement Read(Requirement required, bool proving, Reading reading)
         {
             var values = required.Values;
             var bounds = ImmutableArray.CreateBuilder<SymbolicBound>();
 
             foreach(var bound in required.Bounds)
             {
-                if(bound.Member is { } member && Limit(bound.Kind, Signature(member), proving) is { } limit)
+                if(reading.Of(bound, this) is { } read && Limit(bound.Kind, read, proving) is { } limit)
                 {
                     values = values.And(limit);
                 }
@@ -561,7 +568,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private void Need(
             ImmutableDictionary<object, Knowledge> state, Expression value, Requirement required, Expression at,
-            string? onConstraint = null, Expression? onIndex = null, Expression? measured = null)
+            string? onConstraint = null, Expression? onIndex = null, Expression? measured = null, Reading? reading = null)
         {
             if(value.Type is ErrorType)
             {
@@ -569,11 +576,12 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             }
 
             var known = Known(state, value);
+            reading ??= Reading.None;
 
-            if(!Satisfied(known, Read(required, proving: true), onIndex ?? measured, Length(state, measured)))
+            if(!Satisfied(known, Read(required, proving: true, reading), onIndex ?? measured, Length(state, measured)))
             {
                 RefinementFindings.Report(
-                    context, known.Values, value, Stated(Read(required, proving: false), Length(state, measured)),
+                    context, known.Values, value, Stated(Read(required, proving: false, reading), Length(state, measured)),
                     onIndex is { } receiver ? RefinementFindings.Display(receiver) : "", at, onConstraint, onIndex);
             }
         }
@@ -627,6 +635,12 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     continue;
                 }
 
+                if(bound.Named is TypeParameter { IsDependent: true } dependent && Demanded(dependent) is { } own
+                    && Limit(bound.Kind, own.Values, proving: true) is { } floor && known.Values.IsSubsetOf(floor))
+                {
+                    continue;
+                }
+
                 if(RefinementFlow.Holder(onIndex) is not { } holder || !known.Bounds.Contains(new Bound(holder, bound.Kind)))
                 {
                     return false;
@@ -658,6 +672,45 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         private static bool Accepts(IMistType constituent, IMistType valueType)
         {
             return ConversionClassifier.Classify(Requirement.Unrefined(valueType), Requirement.Unrefined(constituent)) is ConversionKind.Identity or ConversionKind.Implicit;
+        }
+
+        // A member bound written through a local is read only when that local is the callee's own extension
+        // receiver: a captured receiver or another parameter is not the instance the call supplies, however
+        // it is named. A bound naming a sibling parameter reads what the call passes in that position.
+        private sealed class Reading(LocalVariable? receiver, Func<Parameter, Admitted?>? sibling)
+        {
+            public static readonly Reading None = new(null, null);
+
+            public static Reading Of(
+                ImmutableDictionary<object, Knowledge> state, IReadOnlyList<Expression> arguments, Method? callee, bool flattened, Proving proving)
+            {
+                if(callee is null)
+                {
+                    return None;
+                }
+
+                var parameters = callee.ParametersList;
+
+                return new Reading(callee.DeclaringBlock?.Receiver, flattened ? null : named =>
+                {
+                    var index = parameters.FindIndex(parameter => ReferenceEquals(parameter, named));
+
+                    return index >= 0 && index < arguments.Count && parameters[index].Modifier.Direction != ByRefDirection.Out
+                        ? proving.Known(state, arguments[index]).Values
+                        : null;
+                });
+            }
+
+            public Admitted? Of(SymbolicBound bound, Proving proving)
+            {
+                return bound switch
+                {
+                    { Member: { } member, Receiver: null } => proving.Signature(member),
+                    { Member: { } member, Receiver: var through } when ReferenceEquals(through, receiver) => proving.Signature(member),
+                    { Named: Parameter named } => sibling?.Invoke(named),
+                    _ => null,
+                };
+            }
         }
     }
 }

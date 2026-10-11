@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
@@ -34,8 +35,8 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
                     return new Requirement(Interval(kind, constant), []);
                 }
 
-                return Symbol(bound) is var (name, member) && kind != ComparisonKind.Equal
-                    ? new Requirement(Admitted.Everything, [new SymbolicBound(name, kind, member)])
+                return kind != ComparisonKind.Equal && Symbol(bound, kind) is { } symbolic
+                    ? new Requirement(Admitted.Everything, [symbolic])
                     : null;
 
             case ConjunctionPattern conjunction:
@@ -97,7 +98,7 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
         {
             case RefinedType refined:
                 {
-                    var own = Of(refined.Predicate);
+                    var own = Closed(Of(refined.Predicate), refined.Closing);
                     var beneath = OfType(refined.BaseType);
                     return own is null || (beneath is null && Refined(refined.BaseType) is not null) ? null : beneath is null ? own : own.And(beneath);
                 }
@@ -201,19 +202,62 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
         };
     }
 
-    private static (string Name, object? Member)? Symbol(Expression bound)
+    private static SymbolicBound? Symbol(Expression bound, ComparisonKind kind)
     {
         return bound switch
         {
-            TypeReferenceExpression { ReferencedType: TypeParameter parameter } => (parameter.Name, null),
-            MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name, Member: PropertyResult { Property: var property } } => (name, property),
-            MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name, Member: FieldResult { Field: var field } } => (name, field),
-            MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name } => (name, null),
-            PropertyReferenceExpression { Property: var property } => (property.Name, property),
-            FieldReferenceExpression { Field: var field } => (field.Name, field),
-            LocalReferenceExpression local => (local.Local.Name, null),
+            TypeReferenceExpression { ReferencedType: TypeParameter parameter } => new(parameter.Name, kind) { Named = parameter },
+            MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name, Member: var found } => new(name, kind, MemberOf(found)),
+            MemberAccessExpression { Receiver: LocalReferenceExpression { Local: var receiver }, MemberName: var name, Member: var found }
+                when MemberOf(found) is { } member => new(name, kind, member) { Receiver = receiver },
+            PropertyReferenceExpression { Property: var property } => new(property.Name, kind, property),
+            FieldReferenceExpression { Field: var field } => new(field.Name, kind, field),
+            LocalReferenceExpression local => new(local.Local.Name, kind) { Named = (object?)local.Local.Parameter ?? local.Local },
             _ => null,
         };
+    }
+
+    private static object? MemberOf(LookupResult? found)
+    {
+        return found switch
+        {
+            PropertyResult { Property: var property } => property,
+            FieldResult { Field: var field } => field,
+            _ => null,
+        };
+    }
+
+    private static Requirement? Closed(Requirement? own, IReadOnlyDictionary<TypeParameter, IMistType> closing)
+    {
+        if(own is null || closing.Count == 0)
+        {
+            return own;
+        }
+
+        var values = own.Values;
+        var bounds = ImmutableArray.CreateBuilder<SymbolicBound>();
+
+        foreach(var bound in own.Bounds)
+        {
+            if(bound.Named is TypeParameter parameter && closing.TryGetValue(parameter, out var argument))
+            {
+                if(ValuesOf(argument) is { } supplied && Lengths.Exact(supplied) is { } exact)
+                {
+                    values = values.And(Interval(bound.Kind, exact));
+                    continue;
+                }
+
+                if(argument is TypeParameter { IsDependent: true } forwarded)
+                {
+                    bounds.Add(bound with { Named = forwarded });
+                    continue;
+                }
+            }
+
+            bounds.Add(bound);
+        }
+
+        return new Requirement(values, bounds.ToImmutable());
     }
 }
 
@@ -223,4 +267,9 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
 /// flow, which does not cross a member -- and a bound with no member is met only by what the flow
 /// relates to it, an array's or a span's `Length`.
 /// </summary>
-internal sealed record SymbolicBound(string Name, ComparisonKind Kind, object? Member = null);
+internal sealed record SymbolicBound(string Name, ComparisonKind Kind, object? Member = null)
+{
+    public object? Named { get; init; }
+
+    public LocalVariable? Receiver { get; init; }
+}

@@ -145,6 +145,7 @@ internal static class RefinementFindings
             LocalReferenceExpression local => local.Local.Name,
             FieldReferenceExpression field => field.Field.Name,
             ThisExpression => "this",
+            TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true } named } => named.Name,
             MemberAccessExpression access => $"{Display(access.Receiver)}.{access.MemberName}",
             LiteralExpression { Value: { } constant } => Convert.ToString(constant, CultureInfo.InvariantCulture) ?? "",
             UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset } => $"^{Display(offset)}",

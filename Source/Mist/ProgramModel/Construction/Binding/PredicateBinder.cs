@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Contracts.Types;
@@ -5,6 +6,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
+using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
@@ -80,11 +82,26 @@ internal static class PredicateBinder
 
     public static void BindParameters(IEnumerable<Parameter> parameters, Scope scope, BuilderContext context)
     {
-        foreach(var parameter in parameters)
+        var declared = parameters.ToList();
+
+        if(declared.Select(parameter => parameter.Type).OfType<RefinedType>().FirstOrDefault(refined => refined.Predicate is null) is not { } unbound)
+        {
+            return;
+        }
+
+        var siblings = new BodyScope(scope);
+
+        // The body binder reports a repeated parameter name; declaring them here must not report it again.
+        foreach(var parameter in declared)
+        {
+            siblings.DeclareLocal(BodyBinder.ParameterLocal(parameter), (SyntaxNode?)parameter.DeclarationNode ?? unbound.PredicateNode, new DiagnosticBag());
+        }
+
+        foreach(var parameter in declared)
         {
             if(parameter.Type is RefinedType { Predicate: null } refined)
             {
-                refined.Predicate = PatternBinder.BindRefinement(refined, Context(scope), context);
+                refined.Predicate = PatternBinder.BindRefinement(refined, new BindingContext(siblings, returnType: null), context);
             }
         }
     }

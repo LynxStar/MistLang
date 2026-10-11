@@ -3,6 +3,8 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+$repoRoot = $PSScriptRoot
+
 # =============================================================================
 # publish.ps1 — Build and install the Mist CLI tool (Windows)
 # =============================================================================
@@ -13,6 +15,26 @@ $ErrorActionPreference = 'Stop'
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     Write-Error "Error: .NET SDK is required but 'dotnet' was not found on PATH."
     exit 1
+}
+
+$stormProject = Join-Path $repoRoot 'Source/Storm.SourceGenerator/Storm.SourceGenerator.csproj'
+if (-not (Test-Path -LiteralPath $stormProject -PathType Leaf)) {
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        Write-Error "Error: Git is required to initialize the Storm source-generator submodule."
+        exit 1
+    }
+
+    Write-Host "Initializing Storm source-generator submodule..."
+    git -C $repoRoot submodule update --init --recursive -- Source/Storm.SourceGenerator
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Error: Could not initialize Storm. Ensure Git can access the private LynxStar/StormLang repository, then run 'git submodule update --init --recursive'."
+        exit 1
+    }
+
+    if (-not (Test-Path -LiteralPath $stormProject -PathType Leaf)) {
+        Write-Error "Error: Storm source-generator project is still missing at $stormProject."
+        exit 1
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -39,7 +61,8 @@ Write-Host "Detected platform: $rid"
 # ---------------------------------------------------------------------------
 Write-Host "Publishing Mist CLI (Release, $rid)..."
 
-dotnet publish Source/Mist.CLI/Mist.CLI.csproj -c Release -r $rid
+$cliProject = Join-Path $repoRoot 'Source/Mist.CLI/Mist.CLI.csproj'
+dotnet publish $cliProject -c Release -r $rid
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Error: dotnet publish failed."
     exit 1
@@ -48,8 +71,8 @@ if ($LASTEXITCODE -ne 0) {
 # ---------------------------------------------------------------------------
 # Binary installation to ~/.mist/bin
 # ---------------------------------------------------------------------------
-$installDir = Join-Path $env:USERPROFILE '.mist' 'bin'
-$publishDir = Join-Path 'Source' 'Mist.CLI' 'bin' 'Release' 'net10.0' $rid 'publish'
+$installDir = Join-Path $env:USERPROFILE '.mist/bin'
+$publishDir = Join-Path $repoRoot "Source/Mist.CLI/bin/Release/net10.0/$rid/publish"
 $binarySrc  = Join-Path $publishDir 'mist.exe'
 $binaryDst  = Join-Path $installDir 'mist.exe'
 
@@ -78,6 +101,18 @@ if (Test-Path $stdlibSrc) {
     Write-Host "Installed Standard Library to $stdlibDst"
 } else {
     Write-Warning "Standard Library not found at $stdlibSrc — stdlib will not be available."
+}
+
+$steeringSrc = Join-Path $publishDir 'Steering'
+$steeringDst = Join-Path $installDir 'Steering'
+if (Test-Path $steeringSrc) {
+    if (Test-Path $steeringDst) {
+        Remove-Item -Recurse -Force $steeringDst
+    }
+    Copy-Item -Recurse -Path $steeringSrc -Destination $steeringDst
+    Write-Host "Installed steering files to $steeringDst"
+} else {
+    Write-Warning "Steering files not found at $steeringSrc — 'mist steering' will not be available."
 }
 
 # ---------------------------------------------------------------------------
@@ -113,3 +148,4 @@ Write-Host ""
 Write-Host "Usage:"
 Write-Host "  mist build <project-folder>"
 Write-Host "  mist run <project-folder>"
+Write-Host "  mist steering [project-folder]"

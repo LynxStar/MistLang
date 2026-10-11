@@ -7829,7 +7829,62 @@ issues:
   priority: Deferred product expansion.
   audit_key: root:native-test-runner
   area: verification/tooling
+- id: MIST-207
+  title: Resolve nullable contract of unchecked generic CLR initialization routes
+  status: confirmed
+  summary: The generated generic acceptance consumer builds with six CS8603 warnings from compatibility default delegates and three CS8618 warnings from struct part constructors/unconstrained generic storage. Mist call sites supply semantic default witnesses correctly. The unchecked CLR fallback and part-factory contracts need separate scoped work; no runtime defect is claimed for routes not exercised.
+  source_refs: []
+  evidence:
+  - revision: MIST-206 completion commit containing this observation, based on 407d341d66547293819112e4416007364ccc5e1a
+    date: '2026-10-11'
+    kind: executed generated consumer build and source inspection
+    sources:
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/DefaultWitnesses.cs
+      selector: CompatibilityArguments
+    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/TypeEmitter.cs
+      selector: EmitAncestorFactory
+    - file: Source/Mist/ProgramAnalysis/Rules/DefiniteAssignmentAnalyzer.cs
+      selector: Unassigned / Defaultability.IsUndecided
+    observed: 'dotnet build /tmp/mist-constructor-contracts/acceptance/out/Probe.csproj succeeds with 0 errors, 6 CS8603 and 3 CS8618. Full diagnostic log: /tmp/mist-constructor-contracts/acceptance.final.consumer-build.log. Independently built artifact matches all 34 runtime checks.'
+    detail: CS8603 sites return default(T) from Func<T> compatibility lambdas. Two CS8618 sites are marker part constructors that assign user slots without initializing stored __default_T; the third is RawRoot<T>(int), whose undecided T storage is excluded from DA and has no witness. These emission/DA mechanisms predate this packet by source comparison; their baseline consumer diagnostics were not executed. No nullable suppression added.
+    disposition: Retained open because this packet explicitly excludes CLR constructor projection expansion and generic contract design. Preserve valid witness call sites, struct conversion/part-factory behavior and unconstrained generic admissions when addressing the residue.
+  related:
+  - MIST-008
+  - MIST-206
+  priority: P3
+  priority_rationale: Generated artifact fidelity; 0 build errors and exercised Mist runtime behavior remains correct.
+  area: backend/generic interop
 archive:
+- id: MIST-206
+  title: Declare parameterless inherited default factory hiding in C#
+  status: implemented
+  summary: Parameterless synthesized class factories explicitly hide an actually emitted parameterless ancestor factory, eliminating generated CS0108. Structs, ambient/nondefaultable ancestors and differing witness signatures do not gain a misleading new modifier.
+  source_refs: []
+  evidence:
+  - revision: MIST-206 completion commit containing this archive entry, based on 407d341d66547293819112e4416007364ccc5e1a
+    date: '2026-10-11'
+    kind: incidental implementation and executed artifact verification
+    implementation:
+    - DefaultEmitter.HidesParameterlessFactory walks class ancestors and matches only zero-parameter emitted factory signatures; witness factory signature matching is not broadened.
+    - Nine Tier 2 FactoryHidingEmissionTests cover roots, parameterless ancestors, structs, ambient/nondefaultable bases, default/constructor witnesses, and a matching grandparent behind a different intermediate signature.
+    verification:
+    - Final integration checkout based on 8908ff91d5d85c7e05ea19fff9ad5db30d9426b4; git submodule update --init --recursive executed. Storm HEAD and recorded gitlink both b4e5853ccca45623e59fcdb9ee0afd6e90e836ce.
+    - 'Current-main baseline 4f018a0d79b8a8231545edd9a7f32edf917a8e6b: exact MIST-008 and MIST-009 CLI probes exited 134 with NullReferenceException; MIST-010 exited 1 with MIST_CS_ERROR for inaccessible Base.Base().'
+    - 'Focused ledger TestResults/ledger/20261011-164010: 392/392 passed; constructor storage, accessibility, binding, defaultability and emission anchors. Review checkpoint ledger 20261011-164647: 109/109 passed. Summaries and empty failures.txt inspected.'
+    - 'Pre-integration full ledgers 20261011-164128 and 20261011-165222: 10128/10128 and 10140/10140 passed respectively; all four assemblies completed, failures.txt empty. These precede the concurrent local-binding integration and do not stand in for its final gate.'
+    - 'Final integrated full regression: LEDGER_NO_BUILD=1 NUGET_HTTP_CACHE_PATH=/tmp/mist-constructors-nuget-cache UseSharedCompilation=false tools/test-ledger/run.sh; 10203/10203 passed, 0 failed, 0 skipped; TestResults/ledger/20261011-165815. summary.txt, failures.txt and TRX inspected; AllFeaturesV2 and Testing passed. No interrupted run or observed macOS watcher stall; polling override not used.'
+    - 'dotnet build Mist.slnx after integration: 0 warnings, 0 errors; /tmp/mist-constructors-integrated-build.log. Task-local NuGet cache and UseSharedCompilation=false avoid the first sandboxed baseline attempt''s cache/compiler-server access errors; no warning suppression.'
+    - 'dotnet format Mist.slnx --verify-no-changes --no-restore: exit 0 after integration; /tmp/mist-constructors-integrated-format.log. git diff --check passed.'
+    - 'Fresh final CLI probes: MIST-008 prints 7 and exits 0; MIST-009 and its one-sided branch control exit 1 with MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED; MIST-010 exits 1 with MIST_PA_INACCESSIBLE_MEMBER at the written empty base() chain. Invalid fresh projects produce no consumer project.'
+    - 'Batched scratch acceptance: 34 expected output lines matched under Mist run and independently MSBuild-built consumer runtime; class/struct storage, designated enum, optional absence, closed generic slots, default witnesses, auto/get-only/backed properties, constructor assignment branches, initializer precedence, public/protected/private-this chains, per-owner initialization, native generic struct delegation, once-only field/property initializers and new/default separation. /tmp/mist-constructor-contracts/acceptance; out/ remains scratch.'
+    - 'Generated consumer builds inspected: exact MIST-008 out/Probe.csproj has 0 warnings/errors. Broader generic acceptance artifact has 0 errors and 9 nullable warnings (6 CS8603, 3 CS8618); these unchecked compatibility/part-constructor routes are retained as open MIST-207, outside this packet''s CLR projection scope. Parameterless inherited factory CS0108 is resolved separately in MIST-206.'
+    - SnippetEmitter regenerated 14 default-keyword pairs (4 updated) and 3 inheritance pairs (3 updated), 0 failures. After integrating main it regenerated both folders again; resulting checked-in C# reflects the integrated compiler.
+    - Acceptance consumer originally reported CS0108 for DefaultChild.__CreateDefault(); final consumer reports neither CS0108 nor CS0109, including the DefaultGrandchild/DefaultMiddle<T>/DefaultBase signature control. Runtime output remains correct.
+  related:
+  - MIST-008
+  - MIST-207
+  priority: P3
+  area: backend
 - id: MIST-008
   title: Inject semantic defaults into uninitialized user-constructor storage
   status: implemented

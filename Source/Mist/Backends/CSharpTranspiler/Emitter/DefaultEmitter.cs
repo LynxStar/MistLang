@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
@@ -61,12 +62,33 @@ internal static class DefaultEmitter
         }
 
         SeparateMember(writer, ref anyEmitted);
-        writer.WriteLine($"public static {self} {DefaultSynthesis.FactoryName}({string.Join(", ", DefaultWitnesses.FactoryParameters(type))})");
+        var hiding = HidesParameterlessFactory(type) ? "new " : "";
+        writer.WriteLine($"public {hiding}static {self} {DefaultSynthesis.FactoryName}({string.Join(", ", DefaultWitnesses.FactoryParameters(type))})");
         using(writer.Block())
         {
             var arguments = sentinel ? string.Join(", ", witnesses.Prepend(marker)) : "";
             writer.WriteLine($"return new {self}({arguments});");
         }
+    }
+
+    private static bool HidesParameterlessFactory(ConcreteType type)
+    {
+        if(type is not ClassType || DefaultWitnesses.FactoryParameters(type).Count != 0)
+        {
+            return false;
+        }
+
+        for(var written = type.BaseType;
+            written is not null && Defaultability.DeclarationOf(written) is ClassType { Assembly.Kind: not MistAssemblyKind.Ambient } ancestor;
+            written = ancestor.BaseType)
+        {
+            if(DefaultSynthesis.IsDefaultable(ancestor) && DefaultWitnesses.FactoryParameters(ancestor).Count == 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static void EmitImplicitConstruction(ConcreteType type, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted)

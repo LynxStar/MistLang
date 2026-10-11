@@ -21,7 +21,7 @@ public class Box<T>
 {
     public T Value;
 
-    public Box() : this(default(Mist.Emission.CSharp.__DefaultInit), () => default(T))
+    public Box() : this(default(Mist.Emission.CSharp.__DefaultInit), () => default(T) ?? throw new System.InvalidOperationException("A semantic default witness is required when the CLR default is null."))
     {
     }
 

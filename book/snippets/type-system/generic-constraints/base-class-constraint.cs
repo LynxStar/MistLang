@@ -8,6 +8,7 @@ internal class Animal
 
     public Animal(string species)
     {
+        this.Species = "";
         Species = species;
     }
 

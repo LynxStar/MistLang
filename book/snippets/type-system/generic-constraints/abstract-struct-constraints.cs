@@ -18,6 +18,7 @@ internal struct Holder<T>
 
     public Holder(T value)
     {
+        this.Value = default(Holder<T>).Value;
         Value = value;
     }
 

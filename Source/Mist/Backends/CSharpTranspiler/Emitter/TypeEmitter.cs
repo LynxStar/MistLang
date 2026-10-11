@@ -392,14 +392,19 @@ internal static class TypeEmitter
     {
         var self = EmitTypeName(type);
         var members = StructAncestorFactory.Members(flattened);
-        var parameters = StructAncestorFactory.Parameters(members);
-        var arguments = StructAncestorFactory.Arguments(members);
+        var defaults = DefaultWitnesses.Stored(type);
+        var constructors = ConstructorWitnesses.Stored(type);
+        var parameters = string.Join(", ", defaults.Select(DefaultConstraintWitness.Parameter)
+            .Concat(ConstructorWitnesses.Parameters(constructors)).Append(StructAncestorFactory.Parameters(members)));
+        var arguments = string.Join(", ", defaults.Select(DefaultConstraintWitness.Name)
+            .Concat(ConstructorWitnesses.Names(constructors)).Append(StructAncestorFactory.Arguments(members)));
         var name = StructAncestorFactory.Name(flattened);
 
         SeparateMember(writer, ref anyEmitted);
         writer.WriteLine($"private {CleanName(type)}({parameters})");
         using(writer.Block())
         {
+            DefaultWitnesses.EmitAssignments(type, writer);
             for(var i = 0; i < members.Length; i++)
             {
                 writer.WriteLine($"this.{members[i].Name} = p{i};");

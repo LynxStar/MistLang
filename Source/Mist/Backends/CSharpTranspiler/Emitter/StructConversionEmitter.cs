@@ -36,7 +36,9 @@ internal static class StructConversionEmitter
         writer.WriteLine($"public static implicit operator {ancestorName}({derivedName} value)");
         using(writer.Block())
         {
-            var arguments = members.Select(member => $"value.{member.Name}").ToList();
+            var arguments = DefaultWitnesses.Arguments(DefaultWitnesses.Stored(ancestor.Definition), ancestor.Reference, "value") ?? [];
+            arguments.AddRange(ConstructorWitnesses.Arguments(ConstructorWitnesses.Stored(ancestor.Definition), ancestor.Reference, "value"));
+            arguments.AddRange(members.Select(member => $"value.{member.Name}"));
             arguments.Add("default");
 
             writer.WriteLine($"return {ancestorName}.{factory}({string.Join(", ", arguments)});");

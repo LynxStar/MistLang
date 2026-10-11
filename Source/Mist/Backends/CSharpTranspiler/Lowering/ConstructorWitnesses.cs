@@ -83,10 +83,10 @@ internal static class ConstructorWitnesses
         return Arguments(Of(parameters), TypeSubstitution.ForParameters(parameters, typeArguments), new HashSet<string>(StringComparer.Ordinal), 0);
     }
 
-    public static List<string> Arguments(IReadOnlyList<ConstructorFactoryWitness> witnesses, IMistType receiver)
+    public static List<string> Arguments(IReadOnlyList<ConstructorFactoryWitness> witnesses, IMistType receiver, string? witnessReceiver = null)
     {
         return Arguments(witnesses, TypeSubstitution.ForReceiver(TypeNameEmitter.Closed(receiver) as ConstructedType),
-            new HashSet<string>(StringComparer.Ordinal), 0);
+            new HashSet<string>(StringComparer.Ordinal), 0, witnessReceiver);
     }
 
     public static List<string> DefaultArguments(IReadOnlyList<ConstructorFactoryWitness> witnesses)
@@ -118,7 +118,8 @@ internal static class ConstructorWitnesses
     }
 
     private static List<string> Arguments(
-        IReadOnlyList<ConstructorFactoryWitness> witnesses, TypeSubstitution substitution, HashSet<string> visiting, int depth)
+        IReadOnlyList<ConstructorFactoryWitness> witnesses, TypeSubstitution substitution, HashSet<string> visiting, int depth,
+        string? witnessReceiver = null)
     {
         var arguments = new List<string>();
 
@@ -129,18 +130,20 @@ internal static class ConstructorWitnesses
 
             if(product is TypeParameter parameter && Of([parameter]).FirstOrDefault(factory => Same(factory.Signature, signature)) is { } forwarded)
             {
-                arguments.Add(Name(forwarded));
+                var name = Name(forwarded);
+                arguments.Add(witnessReceiver is null ? name : $"{witnessReceiver}.{name}");
             }
             else
             {
-                arguments.Add(Factory(product, signature, visiting, depth));
+                arguments.Add(Factory(product, signature, visiting, depth, witnessReceiver));
             }
         }
 
         return arguments;
     }
 
-    private static string Factory(IMistType product, IReadOnlyList<IMistType> signature, HashSet<string> visiting, int depth)
+    private static string Factory(IMistType product, IReadOnlyList<IMistType> signature, HashSet<string> visiting, int depth,
+        string? witnessReceiver = null)
     {
         var key = $"{product.FullyQualifiedName}({string.Join(",", signature.Select(type => type.FullyQualifiedName))})";
 
@@ -153,8 +156,8 @@ internal static class ConstructorWitnesses
 
         if(Defaultability.DeclarationOf(product) is { } declaration)
         {
-            supplied.AddRange(DefaultWitnesses.Arguments(DefaultWitnesses.ConstructionOf(declaration), product) ?? []);
-            supplied.AddRange(Arguments(Stored(declaration), TypeSubstitution.ForReceiver(product as ConstructedType), visiting, depth + 1));
+            supplied.AddRange(DefaultWitnesses.Arguments(DefaultWitnesses.ConstructionOf(declaration), product, witnessReceiver) ?? []);
+            supplied.AddRange(Arguments(Stored(declaration), TypeSubstitution.ForReceiver(product as ConstructedType), visiting, depth + 1, witnessReceiver));
         }
 
         supplied.AddRange(ArgumentNames(signature, depth));

@@ -7291,10 +7291,13 @@ issues:
   priority: Deferred product expansion.
   audit_key: root:native-test-runner
   area: verification/tooling
+archive:
 - id: MIST-207
   title: Resolve nullable contract of unchecked generic CLR initialization routes
-  status: confirmed
-  summary: The generated generic acceptance consumer builds with six CS8603 warnings from compatibility default delegates and three CS8618 warnings from struct part constructors/unconstrained generic storage. Mist call sites supply semantic default witnesses correctly. The unchecked CLR fallback and part-factory contracts need separate scoped work; no runtime defect is claimed for routes not exercised.
+  status: implemented
+  summary: The nine confirmed nullable warnings in the generated generic consumer are resolved. Compatibility defaults
+    enforce their non-null delegate result, struct part factories preserve stored capabilities, and undecided generic
+    struct storage explicitly retains its CLR zero.
   source_refs: []
   evidence:
   - revision: MIST-206 completion commit containing this observation, based on 407d341d66547293819112e4416007364ccc5e1a
@@ -7343,13 +7346,77 @@ issues:
       \    2 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:01.68\n"
     limits: Retain as confirmed open; nullable generic compatibility projection is outside the contextual-expression
       packet.
+  - revision: MIST-207 completion commit containing this archive entry, based on f1c298c274bd0e321e8b1eba895137778b205838
+    date: '2026-10-11'
+    kind: implementation and executed nullable consumer verification
+    implementation:
+    - DefaultWitnesses compatibility factories use the native CLR zero for value-constrained parameters and otherwise
+      check default(T) for null before returning it. A null default throws InvalidOperationException with a semantic-witness
+      requirement. The existing Func<T> overload accepts reference defaults and nullable value absence; no type argument
+      constructor is inferred or invoked.
+    - Struct part constructors and __FromParts factories transport stored default and constructor delegates alongside
+      ordinary storage. StructConversionEmitter fills those parameters from the source value or an existing closed
+      concrete factory. Receiver-qualified witness forwarding composes through renamed and transitive generic bases
+      and nested constructor factories.
+    - Unwitnessed generic struct fields and bodiless auto-property storage explicitly copy their existing CLR zero
+      from default(Self), without evaluating constructors, declaration initializers or computed accessors. Existing
+      undecided generic admission is preserved; this does not promise a semantic default for an unconstrained parameter.
+    - Added 14 emitter/decision cases in GenericInitializationContractEmissionTests, classified as Tier 1 or Tier
+      2. Updated default and struct inheritance documentation; regenerated five affected C# book tabs using SnippetEmitter.
+    verification:
+    - Integrated current remote main f1c298c274bd0e321e8b1eba895137778b205838; submodule update --init --recursive
+      executed, Storm HEAD/gitlink both b4e5853ccca45623e59fcdb9ee0afd6e90e836ce.
+    - 'Corrected focused ledger TestResults/ledger/20261011-172755: 114/114 passed, including the 14 new Tier 1/2
+      cases and integrated default-factory inheritance checks; summary.txt and empty failures.txt inspected.'
+    - 'Latest integrated dotnet build Mist.slnx: 0 warnings, 0 errors; /tmp/mist-nullable-contracts/latest-build.log.
+      Full dotnet format Mist.slnx --verify-no-changes --no-restore and git diff --check passed. Task-local NuGet
+      cache and UseSharedCompilation=false used.'
+    - 'Full regression on 262ac0c161550337c8ee2e5aed2b53a2e6276896 plus this fix, TestResults/ledger/20261011-174041:
+      10385/10385 passed, 0 failed/skipped; summary.txt, failures.txt and all four TRX inspected. AllFeaturesV2 and
+      Testing passed. Full suite used xUnit.MaxParallelThreads=4 after the retained resource-heavy interruption; no
+      observed macOS file-watcher stall or polling override.'
+    - 'Post-integration regression on f1c298c274bd0e321e8b1eba895137778b205838 plus this fix, TestResults/ledger/20261011-180113:
+      728/728 passed, 0 failed/skipped. Covers the constructor/default witness checks, constructor storage decisions/assignment,
+      all eight changed switch/refinement analysis test classes, typed-discard grammar/emission classes, AllFeaturesV2
+      and Testing. All TRX, summary.txt and empty failures.txt inspected. Unaffected coverage from the full run was
+      not mechanically repeated.'
+    - 'Fresh /tmp/mist-nullable-contracts/acceptance emitted by the integrated CLI and independently rebuilt through
+      MSBuild: all 41 expected output lines matched under both runtimes. Added converted-base default calls, constructor-factory
+      calls, native value constraints and once-only generic struct declaration initializers.'
+    - 'dotnet build /tmp/mist-nullable-contracts/clr-consumer/Consumer.csproj -t:Rebuild -p:TreatWarningsAsErrors=true:
+      generated Probe and external C# consumer both succeed with 0 warnings/errors. The previous six CS8603 and three
+      CS8618 diagnostics are absent; /tmp/mist-nullable-contracts/latest-consumer-build.log.'
+    - 'Nine external C# runtime checks passed: native integer defaults, supplied reference/nullable defaults, missing-witness
+      refusals for reference/nullable arguments, preservation of a custom stateful default delegate and custom constructor
+      delegate through struct conversion, and unchanged unchecked raw struct CLR zero with one initializer evaluation.'
+    - SnippetEmitter regenerated 14 default-keyword and 12 generic-constraints pairs, 0 failures; latest integrated
+      regeneration retained those outputs. No nullable-context disable, warning pragma, null-forgiving operator or
+      nullable warning suppression added.
+    observations:
+    - run: TestResults/ledger/20261011-172807
+      outcome: Interrupted by this task with SIGTERM after 731 seconds; Mist.Tests TRX incomplete, the other three
+        assemblies passed; no failure appeared before interruption.
+      cause: Native sample showed GC/JIT activity and a 16.7 GB process footprint. Two dotnet-stack attempts produced
+        no data. This is resource-pressure evidence, not an attributed compiler defect or confirmed watcher stall.
+        The full suite was retried with xUnit.MaxParallelThreads=4 using the supported VSTest runsetting (https://xunit.net/docs/config-runsettings).
+      retained: summary.txt, empty failures.txt, env.txt, partial TRX and test.log retained; native sample is /tmp/mist-nullable-contracts/native-test-stack.txt.
+    - run: TestResults/ledger/20261011-172202
+      outcome: 108/110 passed; two deterministic failures in new UnwitnessedStructStorageExplicitlyCopiesItsClrZero
+        theory rows.
+      cause: The assertion inspected the entire emitted type and rejected the valid part-constructor assignment this.Mark
+        = pN. failures.txt was inspected before rerun; the assertion now examines only the user constructor body.
+        This was a test-scope error, not duplicate declaration-initializer evaluation.
+      retained: Original summary.txt, failures.txt and TRX remain in the run ledger.
+    limitations:
+    - C# compatibility overloads still do not discover Mist semantic defaults. When the CLR zero is null, callers
+      must supply the existing default factory. An unconstrained raw struct can still contain a null CLR zero for
+      a reference argument; no new language admission or default-constraint metadata policy is selected.
   related:
   - MIST-008
   - MIST-206
   priority: P3
   priority_rationale: Generated artifact fidelity; 0 build errors and exercised Mist runtime behavior remains correct.
   area: backend/generic interop
-archive:
 - id: MIST-037
   title: Local declaration discards become real named bindings
   status: implemented

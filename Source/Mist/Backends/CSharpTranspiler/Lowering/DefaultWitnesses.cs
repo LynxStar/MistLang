@@ -91,9 +91,18 @@ internal static class DefaultWitnesses
 
     public static List<string> CompatibilityArguments(ConcreteType declaration, bool factory)
     {
+        // CLR callers supply no semantic witness; a null CLR default cannot satisfy Func<T>'s result contract.
         return (factory ? Of(declaration) : Stored(declaration))
-            .Select(parameter => $"() => default({DependentCarrierNames.Parameter(parameter)})")
+            .Select(CompatibilityArgument)
             .Concat(ConstructorWitnesses.DefaultArguments(ConstructorWitnesses.Stored(declaration))).ToList();
+    }
+
+    private static string CompatibilityArgument(TypeParameter parameter)
+    {
+        var value = $"default({DependentCarrierNames.Parameter(parameter)})";
+        return TypeNameEmitter.IsValueKind(parameter)
+            ? $"() => {value}"
+            : $"() => {value} ?? throw new System.InvalidOperationException(\"A semantic default witness is required when the CLR default is null.\")";
     }
 
     public static List<string> Parameters(ConcreteType declaration)
@@ -118,14 +127,14 @@ internal static class DefaultWitnesses
         return Arguments(Of(declaration), type);
     }
 
-    public static List<string>? Arguments(IReadOnlyList<TypeParameter> parameters, IMistType type)
+    public static List<string>? Arguments(IReadOnlyList<TypeParameter> parameters, IMistType type, string? witnessReceiver = null)
     {
         var substitution = TypeSubstitution.ForReceiver(type as ConstructedType);
         var arguments = new List<string>();
 
         foreach(var parameter in parameters)
         {
-            if(Argument(substitution.Apply(parameter, interner: null)) is not { } argument)
+            if(Argument(substitution.Apply(parameter, interner: null), witnessReceiver) is not { } argument)
             {
                 return null;
             }
@@ -167,6 +176,13 @@ internal static class DefaultWitnesses
             {
                 writer.WriteLine($"this.{assignment.Storage.Name} = {zero};");
             }
+            else if(declaration is StructType && assignment.Storage.Initializer is null
+                && Defaultability.IsUndecided(TypeNameEmitter.Closed(assignment.Storage.Type))
+                && (assignment.Storage.Field is not null || (assignment.Storage.Property is { Getter.IsAuto: true } property
+                    && AccessorEmitter.IsBodiless(property.Setter))))
+            {
+                writer.WriteLine($"this.{assignment.Storage.Name} = default({TypeEmitter.EmitTypeName(declaration)}).{assignment.Storage.Name};");
+            }
         }
     }
 
@@ -198,13 +214,14 @@ internal static class DefaultWitnesses
         }
     }
 
-    private static string? Argument(IMistType type)
+    private static string? Argument(IMistType type, string? witnessReceiver = null)
     {
         type = TypeNameEmitter.Closed(type);
 
         if(type is TypeParameter parameter && IsWitnessed(parameter))
         {
-            return DefaultConstraintWitness.Name(parameter);
+            var name = DefaultConstraintWitness.Name(parameter);
+            return witnessReceiver is null ? name : $"{witnessReceiver}.{name}";
         }
 
         return DefaultSynthesis.Expression(type) is { } value ? $"() => {value}" : null;

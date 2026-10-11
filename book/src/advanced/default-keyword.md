@@ -290,6 +290,8 @@ The constraint is enforced at instantiation: if you try to call `Factory.Create<
 
 The `default` constraint has no direct equivalent in C#. Mist checks it at compile time and passes a generated `Func<T>` default factory to the emitted generic method. The method invokes that factory to obtain the type argument's semantic default. For a class-level constraint, the emitted class retains the factory so instance methods can use it; see the [class-level example](../type-system/generic-constraints.md#default-constraint). Each factory call produces a fresh class default.
 
+C# callers can use the emitted constructor overload that accepts a `Func<T>` to supply the semantic default. Compatibility overloads without that factory use the CLR default only when it is non-null; they throw `InvalidOperationException` when a null CLR default would be used. Supplying the factory is required for reference defaults and for nullable value defaults that represent absence. These overloads do not infer Mist defaults or run a type argument's constructor.
+
 ### Arrays Require `where TValue : default`
 
 The standard library `Array<TValue, Length>` type declares `where TValue : default` on its element type parameter. This ensures that array slot initialization is well-defined — every element gets a default value when the array is created.

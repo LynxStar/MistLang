@@ -89,7 +89,7 @@ Notice that the emitted C# has no inheritance relationship — `Point3D` does no
 While the syntax is the same, the runtime behavior differs:
 
 - **Class inheritance** preserves a runtime subtype relationship. A `Dog` reference stored in an `Animal` variable still points to the original `Dog` object on the heap. No data is lost.
-- **Struct inheritance** is a compile-time composition mechanism. Assigning a `Point3D` to a `Point` variable copies only the base fields (`X`, `Y`) into a new independent value. The `Z` field is not carried along — this is safe narrowing, not slicing a reference.
+- **Struct inheritance** is a compile-time composition mechanism. Assigning a `Point3D` to a `Point` variable copies only the base fields (`X`, `Y`) into a new independent value. The `Z` field is not carried along — this is safe narrowing, not slicing a reference. Stored default and constructor factories are preserved during a generic struct conversion, so methods on the copied base value retain the capabilities supplied at construction.
 
 ### No Object Slicing
 

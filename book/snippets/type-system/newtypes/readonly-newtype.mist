@@ -1,0 +1,32 @@
+using Standard;
+
+public class Reading
+{
+    public int Value;
+    public string Unit;
+
+    public Reading(int value, string unit)
+    {
+        this.Value = value;
+        this.Unit = unit;
+    }
+
+    public string Describe()
+    {
+        return $"{Value} {Unit}";
+    }
+}
+
+public readonly type Recorded = new Reading;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var live = new Reading(20, "C");
+        live.Value = 21;
+
+        var recorded = new Recorded(19, "C");
+        Console.WriteLine($"live={live.Describe()} recorded={recorded.Describe()}");
+    }
+}

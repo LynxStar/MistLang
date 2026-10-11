@@ -1,0 +1,31 @@
+using Standard;
+using System;
+
+public class Celsius : IFormattable
+{
+    public double Degrees;
+
+    public Celsius(double degrees)
+    {
+        this.Degrees = degrees;
+    }
+
+    public string ToString(string format, IFormatProvider provider)
+    {
+        return $"{Degrees} C";
+    }
+}
+
+public class Program
+{
+    public static readonly string Label<T>(T value)
+    {
+        return $"[{value}]";
+    }
+
+    public static void Main(string[] args)
+    {
+        Standard.Console.WriteLine(Label(new Celsius(21.5)));
+        Standard.Console.WriteLine(Label(7));
+    }
+}

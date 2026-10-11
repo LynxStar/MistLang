@@ -1,0 +1,41 @@
+using Standard;
+
+public class Gauge
+{
+    public int Level;
+
+    public Gauge(int level)
+    {
+        this.Level = level;
+    }
+
+    public readonly int Doubled()
+    {
+        return Level * 2;
+    }
+
+    public void Raise()
+    {
+        this.Level = Level + 1;
+    }
+}
+
+public class Panel
+{
+    public Gauge Main = new Gauge(3);
+}
+
+public class Program
+{
+    public static int Report(readonly Panel panel)
+    {
+        return panel.Main.Level + panel.Main.Doubled();
+    }
+
+    public static void Main(string[] args)
+    {
+        var panel = new Panel();
+        panel.Main.Raise();
+        Console.WriteLine($"report={Report(panel)}");
+    }
+}

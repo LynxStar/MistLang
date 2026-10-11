@@ -254,6 +254,32 @@ A newtype over a clonable newtype converts the same way, each cast running the `
 
 > **Not yet implemented:** an implicit leave reaches at most two sources up, since C# carries one conversion of its own after the one Mist records. A newtype three levels above a type -- `type Purse = new Coins;` -- leaves for `Money` only through a cast on the way, `Money money = (Coins)purse;`, and an optional or a tuple of a newtype over a newtype leaves only for its own source's optional or tuple: `Cash? cash = maybeCoins;` holds, while `Money? money = maybeCoins;` is refused.
 
+## A Readonly Newtype
+
+A newtype may be declared `readonly`. The clone is then a readonly type, as though its source had been declared `readonly` itself: every member is readonly, no field can be assigned outside a constructor, and the clone emits as a readonly class or a C# `readonly struct`. The source keeps its own modifiers, and so does a plain newtype over it.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/type-system/newtypes/readonly-newtype.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/type-system/newtypes/readonly-newtype.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`live.Value = 21;` writes a `Reading`, which stays mutable, while `recorded.Value = 20;` would be refused. A source member that writes its own fields does not hold for the readonly clone, and is reported at the newtype declaration like any other member that fails only once renamed:
+
+```text
+error MIST_PA_READONLY_FIELD_ASSIGNED: Cannot assign to readonly field 'Value' outside a constructor of 'Recorded'.
+error MIST_PM_NEWTYPE_CLONE_INVALID: 'Recorded' cannot clone 'Reading', whose member 'Reset' does not hold for 'Recorded': Cannot assign to field 'Value' within readonly member 'Reset'.
+```
+
+A newtype over a readonly newtype is readonly too, and since a readonly class is copyable, it converts with that source as [Copyable Sources](#copyable-sources) describes.
+
 ## Generic Sources
 
 The source of a newtype can be a constructed generic type, and a newtype can declare type parameters of its own. `type IntBox = new Box<int>;` is `Box`'s declaration with `T` bound to `int`, so `IntBox.Get()` returns an `int`. `type Boxed<T> = new Box<T>;` is a generic clone.
@@ -285,4 +311,5 @@ A newtype is never lowered to its source, because a value of the source's C# typ
 
 - **A class source** becomes a class named after the newtype, with the source's base list, members and bodies renamed. A clonable source adds an explicit conversion operator in each direction, emitted only when some cast calls it.
 - **A struct or readonly class source** does the same, adding an implicit conversion to the source and an explicit one from it, each copying every field.
+- **A readonly newtype** emits its clone as a readonly class or a `readonly struct`, with `readonly` fields, whatever its source declares.
 - **An intrinsic source** becomes a struct holding the backing value in `Value`, supplying each member of the source's contract by forwarding to the backing value and wrapping a result of the newtype.

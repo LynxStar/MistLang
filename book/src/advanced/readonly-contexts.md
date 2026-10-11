@@ -88,6 +88,57 @@ A particularly useful application of `readonly` blocks is inside constructors. C
 
 This pattern is useful when a constructor needs to perform validation or computation after field initialization but wants to guarantee it doesn't accidentally modify the fields it just set.
 
+## Readonly Parameters
+
+A `readonly` parameter promises the caller that the method will not change the argument through it. The promise covers what the argument's fields and properties reach, however deep: `panel.Main.Raise()` and `panel.Main.Level = 0` are refused exactly as `panel.Raise()` and `panel.Level = 0` would be. Reading through the chain, and calling readonly methods and readonly setters along it, stays fine.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/readonly-contexts/readonly-parameter.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/readonly-contexts/readonly-parameter.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+Adding `panel.Main.Raise();` and `panel.Main.Level = 0;` to `Report` is refused at each statement, naming the receiver and the parameter it was reached through:
+
+```text
+error MIST_PA_READONLY_PARAMETER_CALLS_MUTABLE: Cannot call 'Raise' on 'panel.Main', reached through readonly parameter 'panel': it is not readonly.
+error MIST_PA_FIELD_ASSIGNED_ON_READONLY_PARAMETER: Cannot assign to field 'Level' of 'panel.Main', reached through readonly parameter 'panel'.
+```
+
+Only the chain written on the parameter is followed: a local that copies `panel.Main` is an ordinary local. A field written through a `readonly ref` parameter is refused at any depth too; its calls follow [`readonly ref` Parameters](./ref-parameters.md#readonly-ref-parameters).
+
+## Readonly Generics and Formatting
+
+Interpolating a value, or concatenating it into a string, calls its `ToString(format, provider)` when its type implements `System.IFormattable`. In a readonly context that call must be readonly too. When the value's type is a type parameter, the readonly member cannot know which `ToString` it will run, so the promise is checked where the parameter is given a type: at each call, and at each place a generic type is named with one.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/readonly-contexts/readonly-generic-formatting.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/readonly-contexts/readonly-generic-formatting.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`Celsius.ToString` only reads, so it is inferred readonly and `Label(new Celsius(21.5))` is admitted, as is `Label(7)`. Had it changed a field, the call that gives `T` the type `Celsius` would be refused:
+
+```text
+error MIST_PA_READONLY_CONTEXT_FORMATS_MUTABLE: Cannot use 'Celsius' as type argument 'T': readonly method 'Label' formats it, and the 'ToString' of 'Celsius' is not readonly.
+```
+
+The check follows the type parameter wherever it goes. A generic method that is not readonly but passes its own parameter on to `Label` is refused where its parameter is given `Celsius`, and a readonly method that calls an unmarked generic formatter with such a type is refused at that call. A method that is not readonly may still format a value whose `ToString` changes it.
+
 ## When to Use Each Construct
 
 Use `frozen` parameters when you want to accept a reference to an object and promise the caller you won't modify it. This is stronger than `readonly ref` — a frozen borrow also prevents the callee from storing the reference or passing it to something that might mutate it later.

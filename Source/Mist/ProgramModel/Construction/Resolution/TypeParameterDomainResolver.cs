@@ -88,14 +88,28 @@ internal sealed class TypeParameterDomainResolver
             return;
         }
 
-        foreach(var parameter in type.TypeParametersList)
+        Project(type.TypeParametersList, type);
+    }
+
+    /// <summary>
+    /// An alias's projection has no declaring type: the alias emits nothing, so its read is the value
+    /// the use supplies (dependent-types Requirement 7.5), whether or not its target names that position.
+    /// </summary>
+    public static void ProjectValues(TypeAlias alias)
+    {
+        Project(alias.TypeParametersList, declaring: null);
+    }
+
+    private static void Project(IEnumerable<TypeParameter> parameters, MemberType? declaring)
+    {
+        foreach(var parameter in parameters)
         {
             if(parameter is { IsDependent: true, IsPack: false, Domain: { } domain })
             {
                 parameter.ValueProperty = new Property(
                     parameter.Name, domain, new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true, IsReadonly = true, IsPure = true })
                 {
-                    DeclaringType = type,
+                    DeclaringType = declaring,
                     Getter = new PropertyAccessor(),
                     ProjectedParameter = parameter,
                 };

@@ -80,6 +80,46 @@ public sealed class DependentValueEmissionTests
         Assert.Null(ProjectedValueAccess.Declaring(access));
     }
 
+    [Theory]
+    [Trait("Tier", "1")]
+    [InlineData("seven", "Int32", "((int)7)")]
+    [InlineData("negative", "Int64", "((long)-3)")]
+    [InlineData("flag", "Boolean", "((bool)true)")]
+    [InlineData("letter", "Char", "((char)'\\u0078')")]
+    [InlineData("forwarded", "Int32", "((int)TK.Value)")]
+    public void AnAliasReadIsTheValueItsUseSupplies(string supplied, string domain, string expected)
+    {
+        IMistType argument = supplied switch
+        {
+            "seven" => new LiftedType(built.Type(domain), 7L),
+            "negative" => new LiftedType(built.Type(domain), -3L),
+            "flag" => new LiftedType(built.Type(domain), true),
+            "letter" => new LiftedType(built.Type(domain), 'x'),
+            _ => new TypeParameter("K", 0, new Scope(null), null) { IsDependent = true, Domain = built.Type(domain) },
+        };
+        var access = AliasRead(domain, argument);
+
+        Assert.Same(argument, ProjectedValueAccess.Supplied(access));
+        Assert.Null(ProjectedValueAccess.Declaring(access));
+        Assert.Equal(expected, DependentCarrierNames.ValueOf(argument, access.Type));
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void AnAliasReadIsEmittedAsItsSuppliedValue()
+    {
+        Assert.Equal("((int)7)", BodyEmitter.Render(AliasRead("Int32", new LiftedType(built.Type("Int32"), 7L)), new DiagnosticBag()));
+    }
+
+    [Fact]
+    [Trait("Tier", "1")]
+    public void AClassProjectionSuppliesNoAliasValue()
+    {
+        var (box, _) = Box("Int32");
+
+        Assert.Null(ProjectedValueAccess.Supplied(Read(Seven(box), box)));
+    }
+
     [Fact]
     [Trait("Tier", "2")]
     public void AProjectedReadIsSpelledOnTheDeclaringConstructionsCarrier()
@@ -127,6 +167,18 @@ public sealed class DependentValueEmissionTests
         box.TypeParametersList.Add(size);
         TypeParameterDomainResolver.ProjectValues(box);
         return (box, size);
+    }
+
+    private MemberAccessExpression AliasRead(string domain, IMistType argument)
+    {
+        var alias = new TypeAlias("Sized<>", "Probe", new Scope(null), null, null!);
+        var count = new TypeParameter("Count", 0, alias.Scope, alias) { IsDependent = true, Domain = built.Type(domain) };
+        alias.TypeParametersList.Add(count);
+        TypeParameterDomainResolver.ProjectValues(alias);
+
+        return new MemberAccessExpression(
+            HandBuiltModel.Node(), new TypeReferenceExpression(HandBuiltModel.Node(), built.Type("String")), "Count", built.Type(domain),
+            member: new PropertyResult(count.ValueProperty!, alias, [new ConstructedType(alias, [argument])]));
     }
 
     private ConstructedType Seven(ClassType box)

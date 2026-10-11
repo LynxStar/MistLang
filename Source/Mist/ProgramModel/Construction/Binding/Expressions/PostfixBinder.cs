@@ -110,8 +110,16 @@ internal static class PostfixBinder
         var type = definition is TypeAlias alias
             ? context.Resolver.ExpandAlias(alias, typeArgs, node, ctx.Scope)
             : context.Resolver.Construct(definition, typeArgs, ctx.Scope, enclosing);
+        var receiver = new TypeReferenceExpression(node, type);
 
-        return BindMemberAccess(node, new TypeReferenceExpression(node, type), node.Member.Lexeme, ctx, context);
+        if(definition is TypeAlias declared
+            && declared.TypeParametersList.Find(parameter => parameter.ValueProperty?.Name == node.Member.Lexeme) is { ValueProperty: { } projected })
+        {
+            return new MemberAccessExpression(
+                node, receiver, projected.Name, projected.Type, member: new PropertyResult(projected, declared, [new ConstructedType(declared, typeArgs)]));
+        }
+
+        return BindMemberAccess(node, receiver, node.Member.Lexeme, ctx, context);
     }
 
     /// <summary>

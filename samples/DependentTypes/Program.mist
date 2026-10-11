@@ -97,6 +97,16 @@ public class CharParam<V:char> { public string Describe() { return $"CharParam<{
 
 type FiveBuffer = FixedBuffer<5>;
 
+// ─── 19. An alias's own dependent parameter, read by the alias's name ──────
+
+type SizedAlias<Count:int> = FixedBuffer<Count>;
+type OuterAlias<Outer:int> = SizedAlias<Outer>;
+
+public class AliasReader<K:int>
+{
+    public static int Read() { return SizedAlias<K>.Count; }
+}
+
 public class WideCounter<Limit:long>
 {
     public long Remaining(long used) { return Limit - used; }
@@ -269,6 +279,14 @@ public class Program
         Console.WriteLine($"  {DomainEdges.Describe<255, -128, 18446744073709551615, -9223372036854775808>()}");
         UlongParam<18446744073709551615> top = new UlongParam<0xFFFF_FFFF_FFFF_FFFF>();
         Console.WriteLine($"  UlongParam<0xFFFF_FFFF_FFFF_FFFF> is UlongParam<18446744073709551615>: {top.Describe()}");
+
+        Console.WriteLine("--- 19. An alias's own dependent parameter ---");
+        Console.WriteLine($"  SmallInt<9>.V (alias of int) = {SmallInt<9>.V}");
+        Console.WriteLine($"  SizedAlias<6>.Count = {SizedAlias<6>.Count}, through it FixedBuffer<6>.Size = {SizedAlias<6>.Size}");
+        Console.WriteLine($"  OuterAlias<4>.Outer (nested forwarding) = {OuterAlias<4>.Outer}");
+        Console.WriteLine($"  AliasReader<12>.Read() (open forwarding) = {AliasReader<12>.Read()}");
+        SizedAlias<6> sized = new FixedBuffer<6>();
+        Console.WriteLine($"  SizedAlias<6> holds {sized.Describe()}");
 
         Console.WriteLine("=== Dependent Types Done ===");
     }

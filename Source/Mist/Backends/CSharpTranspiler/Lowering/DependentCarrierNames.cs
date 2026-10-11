@@ -62,6 +62,13 @@ internal static class DependentCarrierNames
             : $"{Parameter(parameter)}.Value";
     }
 
+    public static string? ValueOf(IMistType supplied, IMistType domain)
+    {
+        return supplied is LiftedType lifted && Keyword(domain) is { } keyword && DependentDomains.KindOfValue(lifted.Value) is not null
+            ? $"(({keyword}){Literal(lifted.Value)})"
+            : ValueRead(supplied);
+    }
+
     public static string? ValueProperty(TypeParameter parameter)
     {
         return parameter is { ValueProperty: not null, Domain: { } domain } && Keyword(domain) is { } keyword && ValueRead(parameter) is { } read

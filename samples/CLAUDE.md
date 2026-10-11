@@ -16,7 +16,7 @@ the record of which samples run.
 | `NamedAllocationElements` | Classic refused the relative qualified element types and aliases. |
 | `StampableTypes` | The stampable modifier and constraint were implemented only in v2. |
 | `Purity` | Classic lacked Standard's `List<T>` and local-function binding. |
-| `DependentTypes`, sections 16–18 | Added 2026-10-03; classic lacked projected value properties, the upper `ulong` range and widening forwarding. |
+| `DependentTypes`, sections 16–19 | Added 2026-10-03 and 2026-10-11; classic lacked projected value properties, the upper `ulong` range, widening forwarding and an alias's own dependent projection. |
 | `ClrRefReadonly` | Classic hid CLR members returning `ref readonly`. |
 | `LocalFunctions` | Classic could not compile local functions. |
 | `OperatorOverloads` | Classic parsed operator declarations but did not emit them. |

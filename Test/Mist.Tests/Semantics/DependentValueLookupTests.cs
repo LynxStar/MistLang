@@ -140,6 +140,26 @@ public sealed class DependentValueLookupTests
         Assert.Null(pack.ValueProperty);
     }
 
+    [Fact]
+    public void AnAliasProjectsEachDependentParameterAndNothingElseWithNoDeclaringType()
+    {
+        var alias = new TypeAlias("Sized<,,>", "Probe", new Scope(null), null, null!);
+        var count = new TypeParameter("Count", 0, alias.Scope, alias) { IsDependent = true, Domain = Int32 };
+        var element = new TypeParameter("T", 1, alias.Scope, alias);
+        var pack = new TypeParameter("Ts", 2, alias.Scope, alias) { IsDependent = true, PackKind = TypePackKind.Unbracketed, Domain = Int32 };
+        alias.TypeParametersList.AddRange([count, element, pack]);
+
+        TypeParameterDomainResolver.ProjectValues(alias);
+
+        var property = count.ValueProperty!;
+        Assert.Same(count, property.ProjectedParameter);
+        Assert.Null(property.DeclaringType);
+        Assert.True(property.Modifiers.IsStatic);
+        Assert.Null(property.Setter);
+        Assert.Null(element.ValueProperty);
+        Assert.Null(pack.ValueProperty);
+    }
+
     private static (ClassType Box, TypeParameter Size) Declare(string name)
     {
         var box = new ClassType($"{name}<>", "Probe", new Scope(null), null, null);

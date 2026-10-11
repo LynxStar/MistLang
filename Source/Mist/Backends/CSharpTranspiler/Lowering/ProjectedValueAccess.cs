@@ -26,6 +26,13 @@ internal static class ProjectedValueAccess
         return Declaring(found.Property, answering as ConstructedType, found.BaseConstructions);
     }
 
+    public static IMistType? Supplied(MemberAccessExpression access)
+    {
+        return access.Member is PropertyResult { Property: { ProjectedParameter: { } projected, DeclaringType: null } } found
+            ? TypeSubstitution.ForPath(receiver: null, found.BaseConstructions, interner: null).Apply(projected, interner: null)
+            : null;
+    }
+
     public static IMistType? Declaring(PropertyReferenceExpression reference)
     {
         return Declaring(reference.Property, receiver: null, reference.BaseConstructions);

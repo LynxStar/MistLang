@@ -2976,6 +2976,12 @@ internal static class BodyEmitter
             return;
         }
 
+        if(ProjectedValueAccess.Supplied(memberAccess) is { } supplied && DependentCarrierNames.ValueOf(supplied, memberAccess.Type) is { } value)
+        {
+            writer.Append(value);
+            return;
+        }
+
         if(ProjectedValueAccess.Declaring(memberAccess) is { } declaring)
         {
             writer.Append($"{TypeNameEmitter.Emit(declaring)}.{memberAccess.MemberName}");

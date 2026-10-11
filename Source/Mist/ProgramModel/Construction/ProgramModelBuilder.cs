@@ -145,6 +145,10 @@ public sealed class ProgramModelBuilder
             {
                 TypeParameterDomainResolver.ProjectValues(memberType);
             }
+            else if(typeDef is TypeAlias alias)
+            {
+                TypeParameterDomainResolver.ProjectValues(alias);
+            }
         }
 
         var clones = sourceTypes.OfType<ConcreteType>().Where(concrete => concrete.CloneSource is not null).ToList();

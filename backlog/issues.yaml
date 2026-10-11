@@ -649,88 +649,6 @@ issues:
   priority_rationale: Current source-established wrong behavior; correctness work.
   audit_key: backend:backend-operator-modifiers
   area: backend
-- id: MIST-027
-  title: Emit optional reference annotations consistent with the generated project
-  status: confirmed
-  summary: Optional reference fields are emitted as string although the generated csproj enables nullable
-    analysis. A valid absent optional field produces CS8618 under MSBuild. Runtime absence itself remains
-    correct.
-  source_refs:
-  - file: backlog/general.md
-    selector: section v2 emits an optional reference field as non-nullable
-    line_at_baseline: 499
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe plus source inspection
-    detail: Mist CLI prints none. Separately executed dotnet build on optional_field/out/Probe.csproj
-      succeeded with CS8618 and CS0649. Relevant defect is CS8618, not the unrelated never-assigned warning.
-    source_symbols:
-    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/TypeNameEmitter.cs
-      symbol: EmitOptional
-      line: 189
-    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/FieldEmitter.cs
-      symbol: TypeNameEmitter.Emit
-      line: 46
-    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/ProjectFileEmitter.cs
-      symbol: Nullable
-      line: 29
-    probes:
-    - path: /private/tmp/mist-backend-reconcile-probes/optional_field
-      source: 'using Standard;
-
-        namespace Probe;
-
-        public class Holder { private string? note; public Holder() {} public string Show() { return note
-        ?? "none"; } } public class Program { public static void Main() { Console.WriteLine(new Holder().Show());
-        } }
-
-        '
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/optional_field
-        --quiet
-      exit_code: 0
-      output: 'none
-
-        '
-  - revision: 37142e0f3097529a2199255e1457f6eab99587be
-    date: '2026-10-11'
-    kind: executed generated-consumer observation
-    detail: Optional-reference control in contextual-expression artifact verification emitted string present
-      = default(string) for string? present = void. CLI runtime behavior was correct; generated consumer
-      build warned CS8600. Existing optional-reference annotation issue remains confirmed and open; optional
-      representation is excluded from this binder packet. Numeric optional assignment/narrowing acceptance
-      has zero artifact warnings.
-    source: "using Standard;\nnamespace Probe;\npublic class Holder\n{\n    public long Field;\n    public\
-      \ long Property { get; set; }\n    public Holder() { }\n    public long this[int index]\n    {\n \
-      \       get { return Property; }\n        set { Property = value; }\n    }\n}\npublic class Program\n\
-      {\n    private static int evaluations = 0;\n    public static int Next()\n    {\n        evaluations\
-      \ = evaluations + 1;\n        return evaluations;\n    }\n    public static int Length(int x)\n  \
-      \  {\n        return (x switch { 1 => \"five\", _ => \"six\" }).Length;\n    }\n    public static\
-      \ int Keep(int n) { return n; }\n    public static void Main()\n    {\n        int x = 1;\n      \
-      \  int localLength = (x switch { 1 => \"five\", _ => \"six\" }).Length;\n        var inferred = (x\
-      \ switch { 1 => \"five\", _ => \"six\" }).Length;\n        int called = Keep((x switch { 1 => \"five\"\
-      , _ => \"six\" }).Length);\n        long direct = x switch { 1 => 1, _ => 2 };\n        Console.WriteLine($\"\
-      receivers={localLength},{Length(x)},{inferred},{called}; direct={direct}\");\n        long stored\
-      \ = 0;\n        var localResult = (stored = Next());\n        var holder = new Holder();\n       \
-      \ var fieldResult = (holder.Field = Next());\n        var propertyResult = (holder.Property = Next());\n\
-      \        var indexResult = (holder[0] = Next());\n        Console.WriteLine($\"results={localResult},{fieldResult},{propertyResult},{indexResult};\
-      \ evaluations={evaluations}\");\n        string? present = void;\n        present ??= \"set\";\n \
-      \       Console.WriteLine($\"narrowed={present.Length}\");\n    }\n}\n"
-    command: dotnet build <scratch-project>/out/Probe.csproj --disable-build-servers
-    observed: "  Determining projects to restore...\n  Restored /private/tmp/mist-contextual-receiver-assignment/out/Probe.csproj\
-      \ (in 25 ms).\n/private/tmp/mist-contextual-receiver-assignment/out/Probe/Program.cs(63,26): warning\
-      \ CS8600: Converting null literal or possible null value to non-nullable type. [/private/tmp/mist-contextual-receiver-assignment/out/Probe.csproj]\n\
-      \  Probe -> /private/tmp/mist-contextual-receiver-assignment/out/bin/Debug/net10.0/Probe.dll\n\nBuild\
-      \ succeeded.\n\n/private/tmp/mist-contextual-receiver-assignment/out/Probe/Program.cs(63,26): warning\
-      \ CS8600: Converting null literal or possible null value to non-nullable type. [/private/tmp/mist-contextual-receiver-assignment/out/Probe.csproj]\n\
-      \    1 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:01.24\n"
-    limits: No broad warning suppression or nullable representation change made.
-  related:
-  - warning collection in CSharpCompilationDriver
-  - generated C# artifact fidelity
-  priority_rationale: Current reproducible wrong behavior; correctness work.
-  audit_key: backend:backend-optional-nullability
-  area: backend
 - id: MIST-028
   title: Entail all constraint kinds for a forwarded pack or pack element
   status: confirmed
@@ -826,73 +744,6 @@ issues:
   priority_rationale: Current reproducible wrong behavior; correctness work.
   audit_key: backend:backend-range-sliceable
   area: backend
-- id: MIST-031
-  title: Distinguish sized constituents that share a CLR array representation
-  status: confirmed
-  summary: int[3]|int[5] generates duplicate array accessors and implicit conversions, so a supported
-    union cannot compile. Preserve Mist constituent identity while lowering equal CLR shapes.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=76,id=union-types-and-carriers]
-    line_at_baseline: 4637
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/general.md
-    selector: section A union of two sized arrays collides
-    line_at_baseline: 1605
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe plus source inspection
-    detail: CLI reports duplicate IsInt32Array/AsInt32Array/AsInt32ArrayOrNull members, duplicate conversions
-      and ambiguous use. Type-unions requirements 10.1–10.6 require a usable unique discriminated carrier.
-    source_symbols:
-    - file: .kiro/specs/type-unions/requirements.md
-      symbol: generate a Helper_Type
-      line: 132
-    probes:
-    - path: /private/tmp/mist-backend-reconcile-probes/sized_union
-      source: 'using Standard;
-
-        namespace Probe;
-
-        type Sized = int[3] | int[5]; public class Program { public static void Main() { Sized v = new
-        int[3]; Console.WriteLine(v switch { int[3] a => "three", int[5] b => "five" }); } }
-
-        '
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/sized_union
-        --quiet
-      exit_code: 1
-      output: '/private/tmp/mist-backend-reconcile-probes/sized_union/out/__Unions.g.cs: error MIST_CS_ERROR:
-        The type ''Union_Int32Array_Int32Array'' already contains a definition for ''IsInt32Array''
-
-        /private/tmp/mist-backend-reconcile-probes/sized_union/out/__Unions.g.cs: error MIST_CS_ERROR:
-        The type ''Union_Int32Array_Int32Array'' already contains a definition for ''AsInt32Array''
-
-        /private/tmp/mist-backend-reconcile-probes/sized_union/out/__Unions.g.cs: error MIST_CS_ERROR:
-        The type ''Union_Int32Array_Int32Array'' already contains a definition for ''AsInt32ArrayOrNull''
-
-        /private/tmp/mist-backend-reconcile-probes/sized_union/out/__Unions.g.cs: error MIST_CS_ERROR:
-        Duplicate user-defined conversion in type ''Union_Int32Array_Int32Array''
-
-        /private/tmp/mist-backend-reconcile-probes/sized_union/out/Probe/Program.cs: error MIST_CS_ERROR:
-        Ambiguous user defined conversions ''Union_Int32Array_Int32Array.implicit operator Union_Int32Array_Int32Array(int[])''
-        and ''Union_Int32Array_Int32Array.implicit operator Union_Int32Array_Int32Array(int[])'' when
-        converting from ''int[]'' to ''Union_Int32Array_Int32Array''
-
-        /private/tmp/mist-backend-reconcile-probes/sized_union/out/Probe/Program.cs: error MIST_CS_ERROR:
-        Ambiguity between ''Union_Int32Array_Int32Array.AsInt32ArrayOrNull'' and ''Union_Int32Array_Int32Array.AsInt32ArrayOrNull''
-
-        /private/tmp/mist-backend-reconcile-probes/sized_union/out/Probe/Program.cs: error MIST_CS_ERROR:
-        Ambiguity between ''Union_Int32Array_Int32Array.AsInt32ArrayOrNull'' and ''Union_Int32Array_Int32Array.AsInt32ArrayOrNull''
-
-        '
-  related:
-  - type unions
-  - dependent types runtime sized identity
-  - packet 15 sized runtime narrowing
-  priority_rationale: Current reproducible wrong behavior; correctness work.
-  audit_key: backend:backend-sized-union-carriers
-  area: backend
 - id: MIST-034
   title: Retain universal parameterless ToString beside user overloads
   status: confirmed
@@ -956,46 +807,6 @@ issues:
   area: backend
   merged_audit_keys:
   - analysis:analysis-093
-- id: MIST-043
-  title: Large tuple type-test spelling uses flat ValueTuple arity
-  status: confirmed
-  summary: Nine-element tuple member/deconstruction paths work, but a tuple type test still emits a flat
-    nonexistent ValueTuple arity. Preserve the distinction between working tuple syntax and broken runtime-pattern
-    CLR spelling.
-  source_refs:
-  - file: backlog/program-model-body-tasks.yaml
-    selector: tuple arity above 7
-    lead_excerpt: '    - [~] tuple arity above 7 -- a C# ValueTuple nests its eighth element onward under
-      Rest, while TupleType synthesizes Item1..ItemN flat. MEMBER ACCESS IS NOT WRONG, measured 2026-09-25:
-      C# exposes Item8..ItemN on a tuple TYPE, and v2 always emits tuple syntax, so `nine.Item9`, typed
-      assignment to a 9-tuple and `var (a, ..., i)` all run, on Mist-declared tuples and on CLR-projected
-      9- and 16-ele…'
-    line_at_baseline: 607
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/nine-type-test
-    exit_code: 1
-    source: using Standard; public class Program { public static void Main() { unknown box = (1,2,3,4,5,6,7,8,"x");
-      if(box is (int,int,int,int,int,int,int,int,string) back) { Console.WriteLine(back.Item9); } } }
-    artifact: /private/tmp/mist-reconcile-binding-probes/nine-type-test
-    observed: '/private/tmp/mist-reconcile-binding-probes/nine-type-test/out/PacketProbe/Program.cs: error
-      MIST_CS_ERROR: The non-generic type ''ValueTuple'' cannot be used with type arguments'
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/Backends/CSharpTranspiler/Emitter/TypeNameEmitter.cs
-    selector: EmitAsPatternType
-    line: 157
-    observed: The runtime type-pattern emitter is the owning spelling path; ordinary tuple declaration
-      spelling is separate.
-  related:
-  - emitter tuple-pattern/type-pattern capabilities
-  - backend audit canonical nine-tuple row
-  priority: P1
-  priority_rationale: A supported tuple type shape reaches Roslyn as an invalid emitted type.
-  audit_key: binding:bind-08
-  area: binding
 - id: MIST-045
   title: Qualified base type references do not parse
   status: confirmed
@@ -7201,7 +7012,413 @@ issues:
   priority_rationale: Contract text and long-standing behaviour disagree; behaviour is correct for Mist.
   audit_key: binding:storm-declaration-order
   area: binding
+- id: MIST-216
+  title: Distinguish refined constituents that share a base in one union carrier
+  status: confirmed
+  summary: A union of two refinements of one type, such as Small | Big over int, is admitted but its carrier
+    names both constituents by the erased base, so it emits duplicate Is/As/AsOrNull members and factories
+    and fails in Roslyn. Sized constituents were separated by MIST-031; carrier names still erase a refinement
+    to its base, the CLR carrying no refinement. Entering an unrefined literal additionally needs MIST-108's
+    selection decision.
+  source_refs: []
+  evidence:
+  - revision: '16c0621fac6bc440d4ab60281fea9a178fc2153d'
+    date: '2026-10-11'
+    kind: executed CLI probe plus source inspection
+    source: 'using Standard;
+
+      namespace Probe;
+
+      type Small = int < 10;
+
+      type Big = int > 100;
+
+      public class Program { public static void Main() { Small | Big value = 5; Console.WriteLine(value switch
+      { Small s => "small", Big b => "big" }); } }
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    observed: MIST_PA_SWITCH_NOT_EXHAUSTIVE warning, then MIST_CS_ERROR on __Unions.g.cs (Union_Int32_Int32
+      already defines IsInt32, AsInt32, AsInt32OrNull and FromInt32) and on Program.cs (cannot convert int
+      to Union_Int32_Int32; ambiguous AsInt32OrNull). Identical at the MIST-031 base apart from the duplicate
+      implicit operators the base emitted in place of FromInt32.
+    sources:
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/UnionCarrierNames.cs
+      symbol: ConstituentName (RefinedType arm)
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/UnionEntry.cs
+      symbol: Entered
+    expected: The carrier distinguishes the two constituents in its member names and carrier name; a value
+      typed as one refinement enters through that constituent. An anonymous refinement has no declared name,
+      so the naming scheme needs a stable identity for it.
+  related:
+  - MIST-031 sized constituents sharing a CLR spelling
+  - MIST-065 refinement-union runtime narrowing
+  - MIST-108 ambiguous union entry selection
+  priority: P2
+  priority_rationale: An admitted program fails in Roslyn; the literal-entry half depends on an open decision.
+  area: backend
+- id: MIST-217
+  title: Emit positional tuple patterns with untyped elements over unknown
+  status: confirmed
+  summary: A positional pattern whose elements include a discard or var, tested against an unknown scrutinee,
+    is admitted by binding and refused by emission with MIST_BE_UNSUPPORTED_EXPRESSION at every width. With
+    every element typed, the same pattern emits a ValueTuple type test; over a statically tuple-typed scrutinee
+    the discard works.
+  source_refs: []
+  evidence:
+  - revision: '16c0621fac6bc440d4ab60281fea9a178fc2153d'
+    date: '2026-10-11'
+    kind: executed CLI probes
+    probes:
+    - source: 'unknown pair = (1, "s"); if(pair is (int one, _)) { Console.WriteLine(one); }'
+      observed: error MIST_BE_UNSUPPORTED_EXPRESSION at the is expression
+    - source: 'unknown pair = (1, "s"); if(pair is (int one, var rest)) { Console.WriteLine(one); }'
+      observed: error MIST_BE_UNSUPPORTED_EXPRESSION at the is expression
+    - source: '(int, string) pair = (1, "s"); if(pair is (int one, _)) { Console.WriteLine(one); }'
+      observed: prints 1
+    - source: 'unknown nine = (1,2,3,4,5,6,7,8,"i"); if(nine is (int a1, int a2, int a3, int a4, int a5,
+        int a6, int a7, int eighth, string ninth)) { ... }'
+      observed: runs; the fully typed pattern emits System.ValueTuple with Rest nesting
+    expected: An untyped element needs a test C# can spell for any element type at that position (for example
+      an ITuple length test with per-element patterns); the admitted program should not reach an emission
+      refusal.
+  related:
+  - MIST-043 wide tuple type tests
+  priority: P3
+  priority_rationale: Admitted program refused with a clear backend diagnostic; typed elements are a workaround.
+  area: backend
 archive:
+- id: MIST-027
+  title: Emit optional reference annotations consistent with the generated project
+  status: implemented
+  summary: An optional over a reference kind is emitted as the CLR type annotated nullable, T?, matching the
+    generated project's nullable context; absence is still null. Value and struct-constrained optionals stay
+    Nullable<T>, unconstrained type parameters stay bare and context keys keep MistContext.Optional<T>.
+  source_refs:
+  - file: backlog/general.md
+    selector: section v2 emits an optional reference field as non-nullable
+    line_at_baseline: 499
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe plus source inspection
+    detail: Mist CLI prints none. Separately executed dotnet build on optional_field/out/Probe.csproj
+      succeeded with CS8618 and CS0649. Relevant defect is CS8618, not the unrelated never-assigned warning.
+    source_symbols:
+    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/TypeNameEmitter.cs
+      symbol: EmitOptional
+      line: 189
+    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/FieldEmitter.cs
+      symbol: TypeNameEmitter.Emit
+      line: 46
+    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/ProjectFileEmitter.cs
+      symbol: Nullable
+      line: 29
+    probes:
+    - path: /private/tmp/mist-backend-reconcile-probes/optional_field
+      source: 'using Standard;
+
+        namespace Probe;
+
+        public class Holder { private string? note; public Holder() {} public string Show() { return note
+        ?? "none"; } } public class Program { public static void Main() { Console.WriteLine(new Holder().Show());
+        } }
+
+        '
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/optional_field
+        --quiet
+      exit_code: 0
+      output: 'none
+
+        '
+  - revision: 37142e0f3097529a2199255e1457f6eab99587be
+    date: '2026-10-11'
+    kind: executed generated-consumer observation
+    detail: Optional-reference control in contextual-expression artifact verification emitted string present
+      = default(string) for string? present = void. CLI runtime behavior was correct; generated consumer
+      build warned CS8600. Existing optional-reference annotation issue remains confirmed and open; optional
+      representation is excluded from this binder packet. Numeric optional assignment/narrowing acceptance
+      has zero artifact warnings.
+    source: "using Standard;\nnamespace Probe;\npublic class Holder\n{\n    public long Field;\n    public\
+      \ long Property { get; set; }\n    public Holder() { }\n    public long this[int index]\n    {\n \
+      \       get { return Property; }\n        set { Property = value; }\n    }\n}\npublic class Program\n\
+      {\n    private static int evaluations = 0;\n    public static int Next()\n    {\n        evaluations\
+      \ = evaluations + 1;\n        return evaluations;\n    }\n    public static int Length(int x)\n  \
+      \  {\n        return (x switch { 1 => \"five\", _ => \"six\" }).Length;\n    }\n    public static\
+      \ int Keep(int n) { return n; }\n    public static void Main()\n    {\n        int x = 1;\n      \
+      \  int localLength = (x switch { 1 => \"five\", _ => \"six\" }).Length;\n        var inferred = (x\
+      \ switch { 1 => \"five\", _ => \"six\" }).Length;\n        int called = Keep((x switch { 1 => \"five\"\
+      , _ => \"six\" }).Length);\n        long direct = x switch { 1 => 1, _ => 2 };\n        Console.WriteLine($\"\
+      receivers={localLength},{Length(x)},{inferred},{called}; direct={direct}\");\n        long stored\
+      \ = 0;\n        var localResult = (stored = Next());\n        var holder = new Holder();\n       \
+      \ var fieldResult = (holder.Field = Next());\n        var propertyResult = (holder.Property = Next());\n\
+      \        var indexResult = (holder[0] = Next());\n        Console.WriteLine($\"results={localResult},{fieldResult},{propertyResult},{indexResult};\
+      \ evaluations={evaluations}\");\n        string? present = void;\n        present ??= \"set\";\n \
+      \       Console.WriteLine($\"narrowed={present.Length}\");\n    }\n}\n"
+    command: dotnet build <scratch-project>/out/Probe.csproj --disable-build-servers
+    observed: "  Determining projects to restore...\n  Restored /private/tmp/mist-contextual-receiver-assignment/out/Probe.csproj\
+      \ (in 25 ms).\n/private/tmp/mist-contextual-receiver-assignment/out/Probe/Program.cs(63,26): warning\
+      \ CS8600: Converting null literal or possible null value to non-nullable type. [/private/tmp/mist-contextual-receiver-assignment/out/Probe.csproj]\n\
+      \  Probe -> /private/tmp/mist-contextual-receiver-assignment/out/bin/Debug/net10.0/Probe.dll\n\nBuild\
+      \ succeeded.\n\n/private/tmp/mist-contextual-receiver-assignment/out/Probe/Program.cs(63,26): warning\
+      \ CS8600: Converting null literal or possible null value to non-nullable type. [/private/tmp/mist-contextual-receiver-assignment/out/Probe.csproj]\n\
+      \    1 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:01.24\n"
+    limits: No broad warning suppression or nullable representation change made.
+  - revision: '16c0621fac6bc440d4ab60281fea9a178fc2153d'
+    based_on: '4b3ab5ef65a07f7967774fe76ab7acdea05c26e6'
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - 'TypeNameEmitter.EmitOptional annotates a reference kind (class, abstract, array and other class constructions,
+      function, unknown, and a type parameter under a class keyword constraint), so fields, parameters, returns,
+      properties, locals, temporaries, type arguments and constructed optionals spell T?. Value kinds keep
+      Nullable<T>; an unconstrained or interface-constrained parameter stays bare (representation policy unchanged);
+      keyed spellings keep MistContext.Optional<T> with no annotation inside a key.'
+    - 'TypeNameEmitter.EmitUnannotated spells the bare type where C# refuses a nullable reference type: typeof,
+      as targets and pattern types. The lifted-clone conversion compares against it, so a reference result is
+      not cast twice.'
+    - 'Content written into .g.cs files (carriers, dependent values, variadic monomorphs, constructor-constraint
+      interfaces, intrinsics) is emitted inside TypeNameEmitter.Oblivious, because MSBuild compiles generated
+      code with nullable analysis off and an annotation there is CS8669; bare it is oblivious, as before.
+      The invariant-text runtime''s own object? and string? spellings, which raised CS8669 at the base, are
+      dropped in commit 29eccbcf024b33968dada41a5c39b91d6e0d4474.'
+    - 'optional-types requirement 7.1 and design Property 18 now state the annotated reference spelling.'
+    - 'The ten book snippet twins whose output spells an optional reference were regenerated by SnippetEmitter
+      in commit 989fef219da6dafe6b99c4f4cebc3a0e0015e37e; a full run found no other twin this change affects, and the nine directories holding those twins or snippet sources changed later on main were rerun at the final revision without updates.'
+    acceptance:
+    - 'This record''s probe (absent private string? note): prints none; its generated project now spells string?
+      note and MSBuild reports no CS8618. The explicitly assigned control builds with zero warnings.'
+    - 'The contextual-expression observation recorded above at 37142e0f (string? present = void) builds with
+      0 warnings, 0 errors at the revision (CS8600 at that observation).'
+    - 'Probe of fields, parameters, returns, a static property, locals, class-constrained Box<T>.Held, int[]?,
+      func<int, int>?, List<string>?, ?. and ??, typeof and as: prints the expected 14 lines and its generated
+      project builds with 0 warnings.'
+    - 'AllFeaturesV2 generated project (MSBuild with StartupObject set, compared at the same main revision):
+      88 unique diagnostics with the base compiler, 25 at the revision, none of them new. CS8669 4 to 0, CS8625
+      18 to 0, CS8604 14 to 0, CS8619 1 to 0, CS8600 23 to 2, CS8618 11 to 7, CS8603 8 to 7. The remaining
+      CS8618/CS8603/CS8602/CS8600/CS8601 are non-optional paths: unconstrained generic storage (MIST-207 residue),
+      record-backed enum ToString and dynamic Drop on generic storage.'
+    tests:
+    - Tier 1 OptionalSpellingTests (annotation by kind and constraint, keys, oblivious scope, unannotated spelling)
+      and updated StructuredContextKeyEmissionTests value spellings.
+    - Updated pinned spellings in OptionalOverTypeParameterEmissionTests (class-constrained K? and closed string?;
+      the unconstrained row still bare), UnionSpecializationTests, ParamsCollectionEmissionTests, OptionalAsyncPromotionTests,
+      UnitHoistingEmissionTests, SizedSequencePatternEmissionTests, ErasedShapeTests and UnionTypeResolutionTests.
+    - Tier 4 GeneratedProjectNullabilityTests.EmitterToMSBuild_TheGeneratedProjectRaisesNoNullableWarning
+      (one in-process compile, one dotnet build of the emitted project; no CS86xx warning, including the
+      carrier and invariant-runtime .g.cs files).
+    verification:
+    - 'Focused: tools/test-ledger/run.sh Test/Mist.Tests filtered to the packet anchors (ErasedShapeTests, SizedSequencePatternEmissionTests, ClrValueTupleTests, OptionalOverTypeParameterEmissionTests, SizedSequenceRuntimeBoundaryTests, TupleTypeIdentityTests, UnionCarrierOpenTypeTests), the new classes and every class whose pinned spelling changed: 270 of 270 passed, ledger TestResults/ledger/20261011-183032.'
+    - 'Full regression at the implementation revision on base 4b3ab5ef65a07f7967774fe76ab7acdea05c26e6 (Storm 83410653): UseSharedCompilation=false tools/test-ledger/run.sh built Mist.slnx with 0 warnings and 0 errors; 10735 of 10735 passed (Mist.Tests 9664, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46), AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand included; ledger TestResults/ledger/20261011-191338, summary.txt read, failures.txt empty, no polling-watcher setting needed. dotnet format Mist.slnx --verify-no-changes and git diff --check passed. An earlier full run on base feb16e31 (ledger 20261011-185623, 10568 of 10569) failed StructuredContextRuntimeBoundaryTests deterministically: its harness compiled emitted code without the nullable context the generated project and the in-process driver enable, so the new annotations raised CS8632. The harness now compiles the context runtime as __Context.g.cs and the emitted code with nullable enabled and passed (ledger 20261011-190605); the change is part of the implementation commit.'
+    limitations:
+    - Optional representation over an unconstrained type parameter remains bare and unresolved, as excluded
+      by the workstream; generated .g.cs files remain oblivious rather than annotated.
+  related:
+  - warning collection in CSharpCompilationDriver
+  - generated C# artifact fidelity
+  - MIST-207 generic CLR initialization nullable contract
+  priority_rationale: Current reproducible wrong behavior; correctness work.
+  audit_key: backend:backend-optional-nullability
+  area: backend
+- id: MIST-031
+  title: Distinguish sized constituents that share a CLR array representation
+  status: implemented
+  summary: A union carrier keeps each array length and lifted value in its constituent names, so int[3]
+    | int[5] emits one valid carrier, Union_Int32Array3_Int32Array5, distinct from int[3] | int[4]. A
+    constituent whose C# spelling another constituent shares is entered through a From{Name} factory chosen
+    from the value's Mist type, never a duplicate implicit operator.
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=76,id=union-types-and-carriers]
+    line_at_baseline: 4637
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/general.md
+    selector: section A union of two sized arrays collides
+    line_at_baseline: 1605
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe plus source inspection
+    detail: CLI reports duplicate IsInt32Array/AsInt32Array/AsInt32ArrayOrNull members, duplicate conversions
+      and ambiguous use. Type-unions requirements 10.1–10.6 require a usable unique discriminated carrier.
+    source_symbols:
+    - file: .kiro/specs/type-unions/requirements.md
+      symbol: generate a Helper_Type
+      line: 132
+    probes:
+    - path: /private/tmp/mist-backend-reconcile-probes/sized_union
+      source: 'using Standard;
+
+        namespace Probe;
+
+        type Sized = int[3] | int[5]; public class Program { public static void Main() { Sized v = new
+        int[3]; Console.WriteLine(v switch { int[3] a => "three", int[5] b => "five" }); } }
+
+        '
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/sized_union
+        --quiet
+      exit_code: 1
+      output: '/private/tmp/mist-backend-reconcile-probes/sized_union/out/__Unions.g.cs: error MIST_CS_ERROR:
+        The type ''Union_Int32Array_Int32Array'' already contains a definition for ''IsInt32Array''
+
+        /private/tmp/mist-backend-reconcile-probes/sized_union/out/__Unions.g.cs: error MIST_CS_ERROR:
+        The type ''Union_Int32Array_Int32Array'' already contains a definition for ''AsInt32Array''
+
+        /private/tmp/mist-backend-reconcile-probes/sized_union/out/__Unions.g.cs: error MIST_CS_ERROR:
+        The type ''Union_Int32Array_Int32Array'' already contains a definition for ''AsInt32ArrayOrNull''
+
+        /private/tmp/mist-backend-reconcile-probes/sized_union/out/__Unions.g.cs: error MIST_CS_ERROR:
+        Duplicate user-defined conversion in type ''Union_Int32Array_Int32Array''
+
+        /private/tmp/mist-backend-reconcile-probes/sized_union/out/Probe/Program.cs: error MIST_CS_ERROR:
+        Ambiguous user defined conversions ''Union_Int32Array_Int32Array.implicit operator Union_Int32Array_Int32Array(int[])''
+        and ''Union_Int32Array_Int32Array.implicit operator Union_Int32Array_Int32Array(int[])'' when
+        converting from ''int[]'' to ''Union_Int32Array_Int32Array''
+
+        /private/tmp/mist-backend-reconcile-probes/sized_union/out/Probe/Program.cs: error MIST_CS_ERROR:
+        Ambiguity between ''Union_Int32Array_Int32Array.AsInt32ArrayOrNull'' and ''Union_Int32Array_Int32Array.AsInt32ArrayOrNull''
+
+        /private/tmp/mist-backend-reconcile-probes/sized_union/out/Probe/Program.cs: error MIST_CS_ERROR:
+        Ambiguity between ''Union_Int32Array_Int32Array.AsInt32ArrayOrNull'' and ''Union_Int32Array_Int32Array.AsInt32ArrayOrNull''
+
+        '
+  - revision: '16c0621fac6bc440d4ab60281fea9a178fc2153d'
+    based_on: '4b3ab5ef65a07f7967774fe76ab7acdea05c26e6'
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - 'UnionCarrierNames.ConstituentName keeps an array length (int[3] is Int32Array3, (int[3])[2] is Int32Array3Array2)
+      and any other lifted value through DependentCarrierNames.Carrier (Box<5> is Box_1_Const_5). Refinements
+      and function purity still erase. Unions differing only in a length are distinct carriers, which also
+      repairs widening through a carrier name two unions used to share: at the base, int[3] | string into
+      int[3] | int | string failed with CS0029 when int[5] | string also existed.'
+    - 'UnionCarrierEmitter, extracted from CSharpEmitterV2, emits a From{Name} factory instead of an implicit
+      operator for each constituent whose C# spelling (compared without nullable annotations) another constituent
+      shares. Accessors, tags and carrier-to-carrier widening use the same constituent names.'
+    - 'UnionEntry selects the constituent identical to the value''s Mist type, else the only one the value
+      reaches for free. BodyEmitter.EmitEntering applies it at local initializers, assignments and their
+      lowered ??= form, arguments (CLR-projected calls by their closed parameter type), returns, expression-bodied
+      lambdas, getters and extension getters, field and property initializers, array-literal elements, switch
+      arms, explicit casts, widening as and implicit-operator results. A tuple literal enters element by element;
+      any other tuple value is bound once with is var and rebuilt around its entering elements. A value no
+      single constituent claims, such as an unstated-length int[] into int[3] | int[5], is not lowered and
+      C# refuses it; no runtime tag selection was added.'
+    acceptance:
+    - 'This record''s probe, int[3] | int[5] value = new int[3]: prints made at the revision (the base reported
+      duplicate members and conversions).'
+    - 'Runtime probe through the CLI: each constituent entered by local, assignment, argument, return, field,
+      auto-property and computed-getter initializer, array literal, switch result, expression and block lambdas,
+      cast, widening as, alias, tuple literal, tuple variable, List<T>.Add, generic method and generic class
+      argument. is and switch narrowing recover the stated constituent; the void member of int[3] | int[5]
+      | void, Box<5> | Box<6>, and widening into int[3] | int[5] | string keep their tags. type Sized = int[5]
+      | int[3] reuses Union_Int32Array3_Int32Array5 and int[3] | int[4] is a separate carrier. int | string,
+      optionals and generic instantiations are unchanged.'
+    tests:
+    - Tier 1 UnionCarrierNamesTests (lengths, nested lengths, lifted values, order independence) and UnionEntryTests
+      (identity before containment, aliases, shared spelling ignores annotations, unclaimed values unlowered,
+      tuple decomposition).
+    - Tier 2 UnionCarrierEmissionTests (factories against operators, accessors, widening, entry at each statement
+      and expression shape on hand-built models).
+    - Tier 4 SizedSequenceRuntimeBoundaryTests.ModelToEmitterToRoslynToRuntime_KeepsErasedConstituentsAndWideTupleElementsApart
+      (the emitted carrier and entries compiled by Roslyn and run; entry, is and switch narrowing and widening
+      keep each length's tag).
+    verification:
+    - 'Focused: tools/test-ledger/run.sh Test/Mist.Tests filtered to the packet anchors (ErasedShapeTests, SizedSequencePatternEmissionTests, ClrValueTupleTests, OptionalOverTypeParameterEmissionTests, SizedSequenceRuntimeBoundaryTests, TupleTypeIdentityTests, UnionCarrierOpenTypeTests), the new classes and every class whose pinned spelling changed: 270 of 270 passed, ledger TestResults/ledger/20261011-183032.'
+    - 'Full regression at the implementation revision on base 4b3ab5ef65a07f7967774fe76ab7acdea05c26e6 (Storm 83410653): UseSharedCompilation=false tools/test-ledger/run.sh built Mist.slnx with 0 warnings and 0 errors; 10735 of 10735 passed (Mist.Tests 9664, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46), AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand included; ledger TestResults/ledger/20261011-191338, summary.txt read, failures.txt empty, no polling-watcher setting needed. dotnet format Mist.slnx --verify-no-changes and git diff --check passed. An earlier full run on base feb16e31 (ledger 20261011-185623, 10568 of 10569) failed StructuredContextRuntimeBoundaryTests deterministically: its harness compiled emitted code without the nullable context the generated project and the in-process driver enable, so the new annotations raised CS8632. The harness now compiles the context runtime as __Context.g.cs and the emitted code with nullable enabled and passed (ledger 20261011-190605); the change is part of the implementation commit.'
+    limitations:
+    - Refined constituents over one base (type Small = int < 10; type Big = int > 100; Small | Big) still collide
+      in one carrier; tracked as MIST-216. Choosing a constituent for an unrefined literal remains MIST-108's
+      decision.
+    - 'Narrowing a union to a constituent whose elements carry a length ((int[3])[2] | (int[2])[3]) keeps the
+      existing MIST_BE_UNSUPPORTED_SIZED_ELEMENT_TEST refusal even though the tag alone discriminates; the
+      carrier and entry work.'
+    - 'A switch over a sized union keeps the erased-length subpattern inside each accessor arm, so MSBuild over
+      the generated project reports C# exhaustiveness warnings (CS8509, and CS8655 with a void constituent)
+      for it. Runtime results are correct; switches over ordinary unions stay warning-free.'
+  related:
+  - type unions
+  - dependent types runtime sized identity
+  - packet 15 sized runtime narrowing
+  - MIST-216 refined constituents sharing a base
+  - MIST-108 ambiguous union entry selection
+  priority_rationale: Current reproducible wrong behavior; correctness work.
+  audit_key: backend:backend-sized-union-carriers
+  area: backend
+- id: MIST-043
+  title: Large tuple type-test spelling uses flat ValueTuple arity
+  status: implemented
+  summary: A tuple named in a type test spells the CLR layout, nesting every element past the seventh under
+    Rest, and an erased-length fact beyond element seven follows the Rest path. Ordinary tuple syntax, member
+    access and deconstruction were already correct and are unchanged.
+  source_refs:
+  - file: backlog/program-model-body-tasks.yaml
+    selector: tuple arity above 7
+    lead_excerpt: '    - [~] tuple arity above 7 -- a C# ValueTuple nests its eighth element onward under
+      Rest, while TupleType synthesizes Item1..ItemN flat. MEMBER ACCESS IS NOT WRONG, measured 2026-09-25:
+      C# exposes Item8..ItemN on a tuple TYPE, and v2 always emits tuple syntax, so `nine.Item9`, typed
+      assignment to a 9-tuple and `var (a, ..., i)` all run, on Mist-declared tuples and on CLR-projected
+      9- and 16-ele…'
+    line_at_baseline: 607
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/nine-type-test
+    exit_code: 1
+    source: using Standard; public class Program { public static void Main() { unknown box = (1,2,3,4,5,6,7,8,"x");
+      if(box is (int,int,int,int,int,int,int,int,string) back) { Console.WriteLine(back.Item9); } } }
+    artifact: /private/tmp/mist-reconcile-binding-probes/nine-type-test
+    observed: '/private/tmp/mist-reconcile-binding-probes/nine-type-test/out/PacketProbe/Program.cs: error
+      MIST_CS_ERROR: The non-generic type ''ValueTuple'' cannot be used with type arguments'
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/Backends/CSharpTranspiler/Emitter/TypeNameEmitter.cs
+    selector: EmitAsPatternType
+    line: 157
+    observed: The runtime type-pattern emitter is the owning spelling path; ordinary tuple declaration
+      spelling is separate.
+  - revision: '16c0621fac6bc440d4ab60281fea9a178fc2153d'
+    based_on: '4b3ab5ef65a07f7967774fe76ab7acdea05c26e6'
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - 'ValueTupleNesting (Lowering) spells a ValueTuple list with everything past ClrValueTuple.RestPosition
+      nested under the last argument, and maps a Mist element position to its Rest.ItemN path.'
+    - 'TypeNameEmitter.EmitAsPatternType spells tuples through it (with any spread expanded, as ordinary tuple
+      spelling already did); ErasedShape.Members writes each erased-length fact at the element''s real path,
+      so the ninth element of a nine-tuple is Rest.Item2 and the fifteenth of a fifteen-tuple Rest.Rest.Item1.
+      Positional patterns keep one subpattern per Mist element.'
+    acceptance:
+    - 'This record''s probe, unknown box = (1,2,3,4,5,6,7,8,"x") tested as (int,int,int,int,int,int,int,int,string):
+      prints x at the revision (the base reported the non-generic ValueTuple error).'
+    - 'Runtime probe through the CLI: 7-, 8-, 9-, 14- and 15-element type tests bind and read Item7..Item15;
+      a nine-int tuple does not match the int,...,string test and a switch picks the right arm; named elements
+      bind through the existing deconstruction form; a nested wide tuple, an is test with int[3] at element
+      8 (int[5] rejected), a switch over int[2] versus int[3] at element 15, a positional nine-element pattern,
+      an optional wide tuple with ?., checked as, and ordinary construction, Item9 access and deconstruction
+      all run. The generated project builds with no warning.'
+    tests:
+    - Tier 1 ValueTupleNestingTests (spelling at widths 0, 1, 7, 8, 9, 14, 15; Rest paths) and new ErasedShapeTests
+      rows (8, 9, 15 and nested wide tuples; Rest-path members).
+    - Tier 2 SizedSequencePatternEmissionTests (wide type test with a Rest length, wide positional pattern,
+      wide switch arms differing past element seven).
+    - Tier 4 SizedSequenceRuntimeBoundaryTests.ModelToEmitterToRoslynToRuntime_KeepsErasedConstituentsAndWideTupleElementsApart
+      (Rest-path length tests at elements 8 and 15 compiled and run, including mismatches).
+    verification:
+    - 'Focused: tools/test-ledger/run.sh Test/Mist.Tests filtered to the packet anchors (ErasedShapeTests, SizedSequencePatternEmissionTests, ClrValueTupleTests, OptionalOverTypeParameterEmissionTests, SizedSequenceRuntimeBoundaryTests, TupleTypeIdentityTests, UnionCarrierOpenTypeTests), the new classes and every class whose pinned spelling changed: 270 of 270 passed, ledger TestResults/ledger/20261011-183032.'
+    - 'Full regression at the implementation revision on base 4b3ab5ef65a07f7967774fe76ab7acdea05c26e6 (Storm 83410653): UseSharedCompilation=false tools/test-ledger/run.sh built Mist.slnx with 0 warnings and 0 errors; 10735 of 10735 passed (Mist.Tests 9664, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46), AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand included; ledger TestResults/ledger/20261011-191338, summary.txt read, failures.txt empty, no polling-watcher setting needed. dotnet format Mist.slnx --verify-no-changes and git diff --check passed. An earlier full run on base feb16e31 (ledger 20261011-185623, 10568 of 10569) failed StructuredContextRuntimeBoundaryTests deterministically: its harness compiled emitted code without the nullable context the generated project and the in-process driver enable, so the new annotations raised CS8632. The harness now compiles the context runtime as __Context.g.cs and the emitted code with nullable enabled and passed (ledger 20261011-190605); the change is part of the implementation commit.'
+    limitations:
+    - 'The existing refusal of a test whose sequence elements carry a length (MIST_BE_UNSUPPORTED_SIZED_ELEMENT_TEST)
+      and optional null handling are unchanged. A positional pattern with a discard or var element over an
+      unknown scrutinee is refused by emission at every width, a separate limitation tracked as MIST-217.'
+  related:
+  - emitter tuple-pattern/type-pattern capabilities
+  - backend audit canonical nine-tuple row
+  - MIST-217 positional discard over unknown
+  priority: P1
+  priority_rationale: A supported tuple type shape reaches Roslyn as an invalid emitted type.
+  audit_key: binding:bind-08
+  area: binding
 - id: MIST-213
   title: Inline a token a token expression names instead of matching its name's text
   status: implemented

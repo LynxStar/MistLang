@@ -67,7 +67,7 @@ internal static class ConditionalLowering
 
         using(writer.Block())
         {
-            BodyEmitter.EmitSequenced(coalesce.Right, Assigning(result), writer, diagnostics);
+            BodyEmitter.EmitSequenced(coalesce.Right, Assigning(result), writer, diagnostics, slot: coalesce.Type);
         }
 
         return result;
@@ -85,7 +85,7 @@ internal static class ConditionalLowering
 
         using(writer.Block())
         {
-            BodyEmitter.EmitSequenced(assignment.Value, Assigning(target), writer, diagnostics);
+            BodyEmitter.EmitSequenced(assignment.Value, Assigning(target), writer, diagnostics, slot: assignment.Target.Type);
         }
 
         return valued ? target : null;
@@ -139,7 +139,7 @@ internal static class ConditionalLowering
 
                 using(writer.Block())
                 {
-                    BodyEmitter.EmitSequenced(arm.Result, Assigning(result) ?? Discarding(arm.Result), writer, diagnostics);
+                    BodyEmitter.EmitSequenced(arm.Result, Assigning(result) ?? Discarding(arm.Result), writer, diagnostics, slot: switchExpression.Type);
                     writer.WriteLine("break;");
                 }
             }

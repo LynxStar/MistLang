@@ -75,7 +75,6 @@ public sealed class StructuredContextRuntimeBoundaryTests
         var runtime = new CSharpWriter();
         ContextLowering.Emit(runtime);
         var source = $$"""
-            {{runtime}}
             public static class Probe
             {
                 private static readonly System.Collections.Generic.List<string> observations = new();
@@ -127,9 +126,11 @@ public sealed class StructuredContextRuntimeBoundaryTests
                 }
             }
             """;
+        var parse = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview);
         var compilation = CSharpCompilation.Create("StructuredContextRuntime_" + Guid.NewGuid().ToString("N"),
-            [CSharpSyntaxTree.ParseText(source, CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview))],
-            CSharpCompilationDriver.CoreReferences, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            [CSharpSyntaxTree.ParseText(runtime.ToString(), parse, path: "__Context.g.cs"), CSharpSyntaxTree.ParseText(source, parse, path: "Probe.cs")],
+            CSharpCompilationDriver.CoreReferences,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
         using var stream = new MemoryStream();
         var emitted = compilation.Emit(stream);
         Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Select(diagnostic => diagnostic.ToString())));

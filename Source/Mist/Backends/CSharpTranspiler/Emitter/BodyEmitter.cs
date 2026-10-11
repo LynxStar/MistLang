@@ -613,7 +613,7 @@ internal static class BodyEmitter
         if(callee?.Modifiers.IsIntrinsic == true || callee?.Modifiers.IsClrProjected == true)
         {
             // A projected CLR member may expect a nominal delegate where its Mist target is func.
-            EmitCoerced(argument, parameter?.Type, writer, diagnostics);
+            EmitCoerced(argument, parameter?.Type, writer, diagnostics, entered: closedTarget);
             return;
         }
 
@@ -658,7 +658,7 @@ internal static class BodyEmitter
         }
         else if(returnStmt.Value is not null)
         {
-            EmitSequenced(returnStmt.Value, returnStmt.IsRef ? "return ref " : "return ", writer, diagnostics);
+            EmitSequenced(returnStmt.Value, returnStmt.IsRef ? "return ref " : "return ", writer, diagnostics, slot: returnStmt.TargetType);
         }
         else
         {
@@ -667,7 +667,12 @@ internal static class BodyEmitter
     }
 
     internal static void EmitSequenced(
-        Expression value, string? lead, CSharpWriter writer, DiagnosticBag diagnostics, bool branchTaken = false)
+        Expression value,
+        string? lead,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics,
+        bool branchTaken = false,
+        IMistType? slot = null)
     {
         using var hoisted = EmitHoisted(value, writer, diagnostics, discarded: lead is null, branchTaken);
 
@@ -677,7 +682,7 @@ internal static class BodyEmitter
         }
 
         writer.Write(lead ?? "");
-        EmitExpression(value, writer, diagnostics);
+        EmitEntering(value, slot, writer, diagnostics);
         writer.Append(";");
         writer.AppendLine();
     }
@@ -1411,10 +1416,14 @@ internal static class BodyEmitter
 
                     writer.Append(
                         $"({Render(lifted.Operand, diagnostics)} is {{ }} {present} ? "
-                        + (string.Equals(result, target, StringComparison.Ordinal) ? converted : $"({result})({converted})")
+                        + (string.Equals(TypeNameEmitter.EmitUnannotated(lifted.Type), target, StringComparison.Ordinal) ? converted : $"({result})({converted})")
                         + " : null)");
                 }
 
+                break;
+
+            case CastExpression { ParameterType: null } cast when UnionEntry.Factory(cast.Operand.Type, cast.Type) is { } entry:
+                writer.Append($"{entry}({Render(cast.Operand, diagnostics)})");
                 break;
 
             case CastExpression cast:
@@ -1449,7 +1458,7 @@ internal static class BodyEmitter
                 }
 
                 writer.Append(assignment.IsCoalescing ? " ??= " : " = ");
-                EmitExpression(assignment.Value, writer, diagnostics);
+                EmitEntering(assignment.Value, assignment.Target.Type, writer, diagnostics);
                 break;
 
             case IndexExpression elementAccess
@@ -1512,7 +1521,7 @@ internal static class BodyEmitter
                     ? "new[]"
                     : $"new {TypeNameEmitter.Emit(arrayLiteral.ElementType)}[]");
                 writer.Append(arrayLiteral.Elements.Count == 0 ? " { }" : " { ");
-                EmitList.Separated(arrayLiteral.Elements, ", ", writer, element => EmitExpression(element, writer, diagnostics));
+                EmitList.Separated(arrayLiteral.Elements, ", ", writer, element => EmitEntering(element, arrayLiteral.ElementType, writer, diagnostics));
 
                 if(arrayLiteral.Elements.Count > 0)
                 {
@@ -1522,7 +1531,8 @@ internal static class BodyEmitter
                 break;
 
             case TupleLiteralExpression tupleLiteral:
-                EmitTupleLiteral(tupleLiteral, writer, diagnostics);
+                EmitTupleLiteral(tupleLiteral, writer, diagnostics,
+                    enteringTuple is { } entering && ReferenceEquals(entering.Literal, tupleLiteral) ? entering.Slots : null);
                 break;
 
             case AnonymousObjectExpression anonymous:
@@ -1657,7 +1667,7 @@ internal static class BodyEmitter
 
 
             case TypeLiteralExpression typeLiteral:
-                writer.Append($"typeof({TypeNameEmitter.Emit(typeLiteral.ReferencedType)})");
+                writer.Append($"typeof({TypeNameEmitter.EmitUnannotated(typeLiteral.ReferencedType)})");
                 break;
 
             case DefaultExpression @default when DefaultSynthesis.Expression(@default.Type) is { } value:
@@ -1736,7 +1746,10 @@ internal static class BodyEmitter
     }
 
     private static void EmitTupleLiteral(
-        TupleLiteralExpression tupleLiteral, CSharpWriter writer, DiagnosticBag diagnostics)
+        TupleLiteralExpression tupleLiteral,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics,
+        IReadOnlyList<IMistType>? slots = null)
     {
         writer.Append("(");
 
@@ -1752,7 +1765,7 @@ internal static class BodyEmitter
                 writer.Append($"{name}: ");
             }
 
-            EmitExpression(tupleLiteral.Elements[i], writer, diagnostics);
+            EmitEntering(tupleLiteral.Elements[i], slots?[i], writer, diagnostics);
         }
 
         writer.Append(")");
@@ -1832,9 +1845,11 @@ internal static class BodyEmitter
         {
             var discarded = ReturnsNothing(lambda);
 
+            var slot = lambda.IsAsync ? TaskResult.Of(ResultTypeOf(lambda)) : ResultTypeOf(lambda);
+
             if(!NeedsStatements(result, discarded) && LentValues.Within(result).Count == 0)
             {
-                EmitExpression(result, writer, diagnostics);
+                EmitEntering(result, slot, writer, diagnostics);
                 return;
             }
 
@@ -1843,7 +1858,7 @@ internal static class BodyEmitter
             using(writer.Block())
             {
                 List<(string?, string)> held = [.. LifetimeLowering.Lend(result, writer).Select(value => ((string?)value.Flag, Released(value.Temp, value.Type)))];
-                EmitWrapped(held, 0, () => EmitSequenced(result, discarded ? null : "return ", writer, diagnostics), writer);
+                EmitWrapped(held, 0, () => EmitSequenced(result, discarded ? null : "return ", writer, diagnostics, slot: slot), writer);
             }
 
             return;
@@ -2027,7 +2042,7 @@ internal static class BodyEmitter
         {
             EmitArmHead(arm, narrowed, writer, diagnostics);
             writer.Append(" => ");
-            EmitExpression(arm.Result, writer, diagnostics);
+            EmitEntering(arm.Result, switchExpression.Type, writer, diagnostics);
         });
 
         writer.Append(" }");
@@ -2148,7 +2163,13 @@ internal static class BodyEmitter
             return;
         }
 
-        var target = TypeNameEmitter.Emit(asExpression.TargetType);
+        var target = TypeNameEmitter.EmitUnannotated(asExpression.TargetType);
+
+        if(asExpression.Kind is AsConversionKind.Widening && UnionEntry.Factory(asExpression.Operand.Type, asExpression.TargetType) is { } entry)
+        {
+            writer.Append($"{entry}({Render(asExpression.Operand, diagnostics)})");
+            return;
+        }
 
         if(asExpression.Kind is AsConversionKind.Widening)
         {
@@ -2203,7 +2224,7 @@ internal static class BodyEmitter
     }
 
     private static void EmitCoerced(
-        Expression expression, IMistType? target, CSharpWriter writer, DiagnosticBag diagnostics)
+        Expression expression, IMistType? target, CSharpWriter writer, DiagnosticBag diagnostics, IMistType? entered = null)
     {
         if(DelegateLowering.NeedsConstruction(expression.Type, target))
         {
@@ -2214,7 +2235,49 @@ internal static class BodyEmitter
             return;
         }
 
-        EmitExpression(expression, writer, diagnostics);
+        EmitEntering(expression, entered ?? target, writer, diagnostics);
+    }
+
+    [ThreadStatic]
+    private static (TupleLiteralExpression Literal, IReadOnlyList<IMistType> Slots)? enteringTuple;
+
+    internal static void EmitEntering(
+        Expression value, IMistType? slot, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(UnionEntry.Factory(value.Type, slot) is { } factory)
+        {
+            writer.Append($"{factory}(");
+            EmitExpression(value, writer, diagnostics);
+            writer.Append(")");
+            return;
+        }
+
+        if(value is not TupleLiteralExpression && UnionEntry.Decomposed(value.Type, slot, "") is not null)
+        {
+            var bound = TemporaryName();
+            writer.Append("(");
+            EmitSubExpression(value, RelationalPrecedence, writer, diagnostics);
+            writer.Append($" is var {bound} ? {UnionEntry.Decomposed(value.Type, slot, bound)} : default)");
+            return;
+        }
+
+        if(value is not TupleLiteralExpression tuple || UnionEntry.Elements(slot, tuple) is not { } elements)
+        {
+            EmitExpression(value, writer, diagnostics);
+            return;
+        }
+
+        var enclosing = enteringTuple;
+        enteringTuple = (tuple, elements);
+
+        try
+        {
+            EmitExpression(value, writer, diagnostics);
+        }
+        finally
+        {
+            enteringTuple = enclosing;
+        }
     }
 
     internal static string Render(Expression expression, DiagnosticBag diagnostics)

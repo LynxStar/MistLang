@@ -1,9 +1,9 @@
 // Which C# shape a `K?` takes when K is a TYPE PARAMETER. The answer comes from the parameter's
-// CONSTRAINT, and nothing downstream can see the choice: under `where K : class` and unconstrained
-// alike, C# accepts `K?` as a nullable REFERENCE annotation, so a wrong spelling there compiles,
-// warns about nothing and runs identically -- measured. Only the struct-constrained case changes
-// behaviour, so samples/GenericOptionals guards one of the three rows and this file guards all of
-// them.
+// CONSTRAINT, and no runtime output can see most of the choice: under `where K : class` and
+// unconstrained alike, C# reads `K?` as a nullable REFERENCE annotation, so a wrong spelling there
+// compiles and runs identically, differing only in the generated project's nullable warnings. Only
+// the struct-constrained case changes behaviour, so samples/GenericOptionals guards one of the three
+// rows and this file guards all of them.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
@@ -70,17 +70,14 @@ public sealed class OptionalOverTypeParameterEmissionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// A reference kind carries absence as null, so the bare name already is the whole optional and
-    /// the annotation would add nothing. The rows below it are what keep this one honest: `K?` would
-    /// also compile here, which is why no sample can hold this claim.
+    /// A reference kind carries absence as null, and the annotation is what tells the generated
+    /// project's nullable context so. Bare would also compile and run, which is why no sample can hold
+    /// this claim.
     /// </summary>
     [Fact]
-    public void AClassConstrainedParameterStaysBare()
+    public void AClassConstrainedParameterTakesTheReferenceAnnotation()
     {
-        var emitted = EmitDeclaration("RefHolder");
-
-        Assert.Contains("public K Field;", emitted, StringComparison.Ordinal);
-        Assert.DoesNotContain("K? Field", emitted, StringComparison.Ordinal);
+        Assert.Contains("public K? Field;", EmitDeclaration("RefHolder"), StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -108,7 +105,7 @@ public sealed class OptionalOverTypeParameterEmissionTests : ProgramModelProbe
         var emitted = EmitDeclaration("ClosedHolder");
 
         Assert.Contains("public int? Number;", emitted, StringComparison.Ordinal);
-        Assert.Contains("public string Word;", emitted, StringComparison.Ordinal);
+        Assert.Contains("public string? Word;", emitted, StringComparison.Ordinal);
     }
 
     private string EmitDeclaration(string typeName)

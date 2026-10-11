@@ -27,7 +27,7 @@ internal static class IndexerEmitter
         {
             if(indexer.Getter is { } getter)
             {
-                AccessorEmitter.Emit(getter, isSetter: false, readonlyGetter, writer, diagnostics);
+                AccessorEmitter.Emit(getter, isSetter: false, readonlyGetter, writer, diagnostics, indexer.Type);
             }
 
             if(indexer.Setter is { } setter)

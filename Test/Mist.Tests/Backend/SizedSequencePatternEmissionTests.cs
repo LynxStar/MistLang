@@ -85,6 +85,47 @@ public sealed class SizedSequencePatternEmissionTests
     }
 
     [Fact]
+    public void AWideTupleTest_NamesTheNestedValueTupleAndFollowsRestToTheLength()
+    {
+        var nine = TupleOf([.. Enumerable.Repeat<IMistType>(IntegerType, 7), Three, StringType]);
+
+        Assert.Equal(
+            "box is System.ValueTuple<int, int, int, int, int, int, int, System.ValueTuple<int[], string>> { Rest.Item1: { Length: 3 } } whole",
+            Emit(Is(Reference("box", UnknownType.Instance), TypeTest(nine, "whole"))));
+    }
+
+    [Fact]
+    public void AWidePositionalPattern_KeepsOneSubpatternPerElement()
+    {
+        var types = Enumerable.Repeat<IMistType>(IntegerType, 8).Append(StringType).ToList();
+        var nine = TupleOf([.. types]);
+        var positional = new TuplePattern(null!, [.. types.Select((type, i) => TypeTest(type, $"e{i + 1}"))], nine, nine, null);
+
+        Assert.Equal(
+            "box is System.ValueTuple<int, int, int, int, int, int, int, System.ValueTuple<int, string>>"
+            + "(int e1, int e2, int e3, int e4, int e5, int e6, int e7, int e8, string e9)",
+            Emit(Is(Reference("box", UnknownType.Instance), positional)));
+    }
+
+    [Fact]
+    public void WideTupleArms_DifferingPastTheSeventhElement_StayDistinct()
+    {
+        var numbers = TupleOf([.. Enumerable.Repeat<IMistType>(IntegerType, 9)]);
+        var labelled = TupleOf([.. Enumerable.Repeat<IMistType>(IntegerType, 8), StringType]);
+        var switched = new SwitchExpression(null!, Reference("box", UnknownType.Instance),
+        [
+            Arm(TypeTest(numbers, "a"), 1),
+            Arm(TypeTest(labelled, "b"), 2),
+            Arm(new CatchAllPattern(null!, UnknownType.Instance, null), 0),
+        ], IntegerType);
+
+        Assert.Equal(
+            "box switch { System.ValueTuple<int, int, int, int, int, int, int, System.ValueTuple<int, int>> a => 1, "
+            + "System.ValueTuple<int, int, int, int, int, int, int, System.ValueTuple<int, string>> b => 2, var _ => 0 }",
+            Emit(switched));
+    }
+
+    [Fact]
     public void APositionalPattern_ChecksTheLengthOnTheElementThatBindsIt()
     {
         var positional = new TuplePattern(null!, [TypeTest(Three, "three"), TypeTest(StringType, "s")],
@@ -105,7 +146,7 @@ public sealed class SizedSequencePatternEmissionTests
     [Fact]
     public void ACheckedAs_TestsTheErasedLengthAndAnswersAbsenceOtherwise()
     {
-        Assert.Equal("(five is int[] { Length: 3 } __as7 ? __as7 : default(int[]))",
+        Assert.Equal("(five is int[] { Length: 3 } __as7 ? __as7 : default(int[]?))",
             Emit(As(Reference("five", UnknownType.Instance), Three)));
         Assert.Equal(
             "(pair is System.ValueTuple<int[], string> { Item1: { Length: 3 } } __as7 ? __as7 : default((int[], string)?))",

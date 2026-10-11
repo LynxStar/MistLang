@@ -114,7 +114,7 @@ This feature introduces optional type syntax and void-safety operators to the Mi
 
 1. WHEN emitting a type `T | void` (or equivalently `T?`), THE Emitter SHALL map the optional type to C# as follows:
    - IF T is a value type (struct, primitive, enum), THE Emitter SHALL emit `T?` (C# `Nullable<T>`)
-   - IF T is a reference type (class), THE Emitter SHALL emit `T` (using C# null to represent the void case)
+   - IF T is a reference type (class), THE Emitter SHALL emit the CLR type `T` with a nullable reference annotation, `T?`, as the generated project's nullable context expects (using C# null to represent the void case)
    - THE Emitter SHALL NOT generate a `Union_T_Void` helper struct for two-constituent unions where one constituent is void
 2. WHEN emitting code for the `?.` operator on a receiver of type `T | void`, THE Emitter SHALL generate C#'s native `?.` operator (null-conditional) since the void case maps to null in both the Nullable and reference-type representations
 3. WHEN emitting code for the `??` operator, THE Emitter SHALL generate C#'s native `??` operator (null-coalescing) since the void case maps to null in both representations

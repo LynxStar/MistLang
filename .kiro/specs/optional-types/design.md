@@ -162,7 +162,7 @@ When the type checker encounters a `VoidCoalescingAssignment` node:
 Since `T?` resolves to `UnionType([T, void])` in the semantic model, the emitter maps this to C# as follows:
 
 - **Value types** (int, float, bool, structs, enums): Emit as C# `T?` (`Nullable<T>`)
-- **Reference types** (classes): Emit as plain `T` (using C# `null` to represent the void/absence case)
+- **Reference types** (classes): Emit as `T?`, the CLR type `T` with a nullable reference annotation (using C# `null` to represent the void/absence case). The generated project enables nullable analysis, so the annotation is what marks the slot as one absence may occupy; it does not change the runtime type. Positions where C# refuses a nullable reference type (`typeof`, `as`, a pattern's type) spell the bare `T`.
 
 This avoids generating a `Union_T_Void` helper struct entirely for two-constituent unions where one constituent is void. The emitter detects this pattern in `GetTypeName` / `EmitTypeReference` and short-circuits to the native C# nullable representation.
 
@@ -391,9 +391,9 @@ This narrowing persists for all subsequent statements in the same block scope an
 
 **Validates: Requirements 6.1, 6.4**
 
-### Property 18: T? emits as Nullable<T> for value types and plain T for reference types
+### Property 18: T? emits as Nullable<T> for value types and as an annotated T for reference types
 
-*For any* value type T, the C# code emitted for a program using `T?` SHALL use `T?` (C# Nullable) as the type representation and `null` for the void case. *For any* reference type T, the C# code emitted for `T?` SHALL use plain `T` as the type representation and `null` for the void case.
+*For any* value type T, the C# code emitted for a program using `T?` SHALL use `T?` (C# Nullable) as the type representation and `null` for the void case. *For any* reference type T, the C# code emitted for `T?` SHALL use the CLR type `T` annotated as a nullable reference (`T?`) and `null` for the void case.
 
 **Validates: Requirements 7.1**
 

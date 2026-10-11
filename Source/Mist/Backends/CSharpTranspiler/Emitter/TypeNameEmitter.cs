@@ -42,6 +42,9 @@ internal static class TypeNameEmitter
     [ThreadStatic]
     private static bool keying;
 
+    [ThreadStatic]
+    private static bool oblivious;
+
     /// <summary>
     /// Spells every type parameter bound by <paramref name="substitution"/> as its argument for the
     /// scope's duration: how a member inherited from a generic base is written inside the struct that
@@ -52,6 +55,13 @@ internal static class TypeNameEmitter
         var enclosing = substituting;
         substituting = new Frame(substitution, enclosing);
         return new SubstitutionScope(enclosing);
+    }
+
+    public static IDisposable Oblivious()
+    {
+        var outer = oblivious;
+        oblivious = true;
+        return new ObliviousScope(outer);
     }
 
     /// <summary>
@@ -176,15 +186,17 @@ internal static class TypeNameEmitter
         };
 
         return elementTypes is null
-            ? Emit(type)
-            : $"System.ValueTuple<{string.Join(", ", elementTypes.Select(Emit))}>"
+            ? EmitUnannotated(type)
+            : ValueTupleNesting.Spelled([.. Expand(elementTypes).Select(Emit)])
             ;
     }
 
     /// <summary>
-    /// The C# spelling of "a T, or absent": Nullable of T for a value kind, and the bare type for a
-    /// reference kind with null standing for absence. Reference kinds are left UNANNOTATED because the
-    /// generated files carry no nullable context, where a <c>?</c> on a reference type is a warning.
+    /// The C# spelling of "a T, or absent": Nullable of T for a value kind, and for a reference kind the
+    /// type annotated nullable, null standing for absence. The annotation is the generated project's
+    /// nullable context reading the slot as the optional it is; bare, an absent field is CS8618. A kind
+    /// that is neither -- an unconstrained type parameter -- stays bare, C# having no spelling of "a T, or
+    /// absent" for it at all.
     /// </summary>
     internal static string EmitOptional(IMistType type)
     {
@@ -196,7 +208,19 @@ internal static class TypeNameEmitter
             return $"MistContext.Optional<{name}>";
         }
 
-        return valueKind ? $"{name}?" : name;
+        return valueKind || (!oblivious && IsReferenceKind(type)) ? $"{name}?" : name;
+    }
+
+    /// <summary>
+    /// The spelling where C# refuses a nullable reference type outright -- <c>typeof</c>, <c>as</c> and a
+    /// pattern's type -- which differs from <see cref="Emit"/> only for an optional reference, spelled bare.
+    /// </summary>
+    internal static string EmitUnannotated(IMistType type)
+    {
+        return Unaliased(Closed(type)) is UnionType union && OptionalUnion.InnerType(union) is { } inner && !IsValueKind(inner)
+            ? Emit(inner)
+            : Emit(type)
+            ;
     }
 
     /// <summary>
@@ -209,6 +233,11 @@ internal static class TypeNameEmitter
             ? EmitOptional(inner)
             : UnionCarrierNames.CarrierName(union)
             ;
+    }
+
+    private static IMistType Unaliased(IMistType type)
+    {
+        return type is TypeAlias { AliasedType: { } aliased } ? Unaliased(aliased) : type;
     }
 
     private static bool IsContextValueKind(IMistType type)
@@ -233,6 +262,20 @@ internal static class TypeNameEmitter
             TypeAlias { AliasedType: { } aliased } => IsValueKind(aliased),
             ConstructedType constructed => IsValueKind(constructed.Definition),
             TypeParameter parameter => HasStructConstraint(parameter),
+            _ => false,
+        };
+    }
+
+    internal static bool IsReferenceKind(IMistType type)
+    {
+        return type switch
+        {
+            ClassType or AbstractType or FunctionType or UnknownType => true,
+            RefinedType refined => IsReferenceKind(refined.BaseType),
+            TypeAlias { AliasedType: { } aliased } => IsReferenceKind(aliased),
+            ConstructedType constructed => IsReferenceKind(constructed.Definition),
+            TypeParameter parameter => parameter.ConstraintsList.Exists(
+                constraint => constraint is KeywordConstraint { Kind: TypeParameterConstraintKind.Class }),
             _ => false,
         };
     }
@@ -551,6 +594,14 @@ internal static class TypeNameEmitter
         public void Dispose()
         {
             substituting = enclosing;
+        }
+    }
+
+    private sealed class ObliviousScope(bool outer) : IDisposable
+    {
+        public void Dispose()
+        {
+            oblivious = outer;
         }
     }
 }

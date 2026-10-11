@@ -28,12 +28,12 @@ public sealed class StructuredContextKeyEmissionTests
     public void OptionalKeysHaveIdentityWithoutChangingValueSpellings()
     {
         Assert.Equal("string", TypeNameEmitter.Emit(text));
-        Assert.Equal("string", TypeNameEmitter.Emit(Optional(text)));
+        Assert.Equal("string?", TypeNameEmitter.Emit(Optional(text)));
         Assert.Equal("int?", TypeNameEmitter.Emit(Optional(integer)));
         Assert.Equal("string", TypeNameEmitter.EmitContextKey(text));
         Assert.Equal("MistContext.Optional<string>", TypeNameEmitter.EmitContextKey(Optional(text)));
         Assert.Equal("int?", TypeNameEmitter.EmitContextKey(Optional(integer)));
-        Assert.Equal("string", TypeNameEmitter.Emit(Optional(text)));
+        Assert.Equal("string?", TypeNameEmitter.Emit(Optional(text)));
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class StructuredContextKeyEmissionTests
         Assert.Equal(TypeNameEmitter.EmitContextKey(optional), TypeNameEmitter.EmitContextKey(Optional(refined)));
         Assert.Equal(TypeNameEmitter.EmitContextKey(optional), TypeNameEmitter.EmitContextKey(HandBuiltModel.Refined(optional)));
         Assert.Equal(TypeNameEmitter.EmitContextKey(pair), TypeNameEmitter.EmitContextKey(new NamedTupleType(pair, ["name", "count"])));
-        Assert.Equal("(string name, int count)", TypeNameEmitter.Emit(new NamedTupleType(pair, ["name", "count"])));
+        Assert.Equal("(string? name, int count)", TypeNameEmitter.Emit(new NamedTupleType(pair, ["name", "count"])));
         var numberAlias = new TypeAlias("Count", "Probe", new Scope(null), null, new TypeAliasDeclarationNode()) { AliasedType = integer };
         Assert.Equal(TypeNameEmitter.EmitContextKey(Optional(integer)), TypeNameEmitter.EmitContextKey(Optional(numberAlias)));
         Assert.Equal(TypeNameEmitter.EmitContextKey(Optional(integer)), TypeNameEmitter.EmitContextKey(Optional(HandBuiltModel.Refined(numberAlias))));
@@ -68,7 +68,7 @@ public sealed class StructuredContextKeyEmissionTests
         Assert.Equal("(MistContext.Optional<string>, MistContext.Pure<System.Func<MistContext.Optional<string>, int?>>)?",
             TypeNameEmitter.EmitContextKey(Optional(nested)));
         Assert.Equal("Probe.Holder<MistContext.Optional<string>>", TypeNameEmitter.EmitContextKey(new ConstructedType(holder, [optional])));
-        Assert.Equal("System.Func<string, int?>", TypeNameEmitter.Emit(new FunctionType([optional], Optional(integer), isPure: true)));
+        Assert.Equal("System.Func<string?, int?>", TypeNameEmitter.Emit(new FunctionType([optional], Optional(integer), isPure: true)));
         Assert.NotEqual(TypeNameEmitter.EmitContextKey(new FunctionType([optional], text)), TypeNameEmitter.EmitContextKey(new FunctionType([text], optional)));
     }
 
@@ -86,7 +86,7 @@ public sealed class StructuredContextKeyEmissionTests
         {
             Assert.Equal("Probe.Holder<MistContext.Optional<string>>", TypeNameEmitter.EmitContextKey(constructed));
             Assert.Equal("MistContext.Optional<string>", TypeNameEmitter.EmitContextKey(parameter));
-            Assert.Equal("Probe.Holder<string>", TypeNameEmitter.Emit(constructed));
+            Assert.Equal("Probe.Holder<string?>", TypeNameEmitter.Emit(constructed));
         }
 
         Assert.Equal("T", TypeNameEmitter.EmitContextKey(parameter));
@@ -107,7 +107,7 @@ public sealed class StructuredContextKeyEmissionTests
         BodyEmitter.EmitMethodBody(method, body, writer, diagnostics);
 
         Assert.Empty(diagnostics.ToImmutableArray());
-        Assert.Contains("var value = (string)MistContext.Peek<MistContext.Optional<string>>();", writer.ToString(), StringComparison.Ordinal);
+        Assert.Contains("var value = (string?)MistContext.Peek<MistContext.Optional<string>>();", writer.ToString(), StringComparison.Ordinal);
         Assert.Contains("MistContext.Push<MistContext.Optional<string>>(", writer.ToString(), StringComparison.Ordinal);
         Assert.Contains("MistContext.Pop<MistContext.Optional<string>>();", writer.ToString(), StringComparison.Ordinal);
     }

@@ -2,6 +2,9 @@ using System.Runtime.Loader;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Mist.Backends.CSharpTranspiler;
+using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.Backends.CSharpTranspiler.Lowering;
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -113,8 +116,82 @@ public sealed class SizedSequenceRuntimeBoundaryTests
             }
             """;
 
+        Assert.Equal(
+            [1, 0, 0, 0, 0, 1, 0, 3, 5, 0, -1, 1, 0, 1, 0, 5, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 3, 1, -1, 1, 3, 1, -1, 1, 1, 1, 1],
+            Run(harness, "SizedSequenceRuntime"));
+    }
+
+    [Fact]
+    [Trait("Tier", "4")]
+    public void ModelToEmitterToRoslynToRuntime_KeepsErasedConstituentsAndWideTupleElementsApart()
+    {
+        var three = ArrayOf(IntegerType, 3);
+        var five = ArrayOf(IntegerType, 5);
+        var sized = new UnionType([three, five]);
+        var wide = new UnionType([three, five, StringType]);
+        var carriers = new[] { sized, wide }.ToDictionary(UnionCarrierNames.CarrierName);
+        var held = Local("value", sized);
+        var narrowed = new SwitchExpression(null!, held,
+            [Arm(new TypeTestPattern(null!, three, new LocalVariable("a", three), three), 3),
+             Arm(new TypeTestPattern(null!, five, new LocalVariable("b", five), five), 5)], IntegerType);
+        var widened = new SwitchExpression(null!, Local("value", wide),
+            [Arm(new TypeTestPattern(null!, three, new LocalVariable("a", three), three), 3),
+             Arm(new TypeTestPattern(null!, five, new LocalVariable("b", five), five), 5),
+             Arm(new TypeTestPattern(null!, StringType, new LocalVariable("s", StringType), StringType), -1)], IntegerType);
+        var nine = TupleOf([.. Enumerable.Repeat<IMistType>(IntegerType, 7), three, StringType]);
+        var fifteen = TupleOf([.. Enumerable.Repeat<IMistType>(IntegerType, 14), ArrayOf(IntegerType, 2)]);
+
+        var harness = $$"""
+            {{string.Join("\n", carriers.Select(carrier => Carrier(carrier.Key, carrier.Value, carriers)))}}
+            public static class Probe
+            {
+                private static {{UnionCarrierNames.CarrierName(sized)}} Three(int[] three) { return {{Entering(Local("three", three), sized)}}; }
+                private static {{UnionCarrierNames.CarrierName(sized)}} Five(int[] five) { return {{Entering(Local("five", five), sized)}}; }
+                private static int Narrow({{UnionCarrierNames.CarrierName(sized)}} value) { return {{Emit(narrowed, null)}}; }
+                private static bool IsFive({{UnionCarrierNames.CarrierName(sized)}} value) { return {{Emit(Is(held, new TypeTestPattern(null!, five, new LocalVariable("b", five), five)), null)}}; }
+                private static int Widen({{UnionCarrierNames.CarrierName(sized)}} narrow) { {{UnionCarrierNames.CarrierName(wide)}} value = narrow; return {{Emit(widened, null)}}; }
+                private static bool Nine(object value) { return {{Emit(Is(Local("value", UnknownType.Instance), Bound(nine, "whole")), null)}} && whole.Item9 == "x"; }
+                private static bool Fifteen(object value) { return {{Emit(Is(Local("value", UnknownType.Instance), Bound(fifteen, "whole")), null)}} && whole.Item15.Length == 2; }
+                public static int[] Run()
+                {
+                    var results = new System.Collections.Generic.List<int>();
+                    results.Add(Narrow(Three(new int[3])));
+                    results.Add(Narrow(Five(new int[5])));
+                    results.Add(IsFive(Five(new int[5])) ? 1 : 0);
+                    results.Add(IsFive(Three(new int[3])) ? 1 : 0);
+                    results.Add(Widen(Three(new int[3])));
+                    results.Add(Widen(Five(new int[5])));
+                    results.Add(Nine((1, 2, 3, 4, 5, 6, 7, new int[3], "x")) ? 1 : 0);
+                    results.Add(Nine((1, 2, 3, 4, 5, 6, 7, new int[5], "x")) ? 1 : 0);
+                    results.Add(Nine((1, 2, 3, 4, 5, 6, 7, 8, 9)) ? 1 : 0);
+                    results.Add(Fifteen((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, new int[2])) ? 1 : 0);
+                    results.Add(Fifteen((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, new int[3])) ? 1 : 0);
+                    return results.ToArray();
+                }
+            }
+            """;
+
+        Assert.Equal([3, 5, 1, 0, 3, 5, 1, 0, 0, 1, 0], Run(harness, "ErasedConstituentRuntime"));
+    }
+
+    private static string Carrier(string name, UnionType union, IReadOnlyDictionary<string, UnionType> carriers)
+    {
+        var writer = new CSharpWriter();
+        UnionCarrierEmitter.Emit(name, union, carriers, writer);
+        return writer.ToString();
+    }
+
+    private static string Entering(Expression value, IMistType slot)
+    {
+        var writer = new CSharpWriter();
+        BodyEmitter.EmitEntering(value, slot, writer, new DiagnosticBag());
+        return writer.ToString();
+    }
+
+    private static int[] Run(string harness, string name)
+    {
         var compilation = CSharpCompilation.Create(
-            "SizedSequenceRuntime_" + Guid.NewGuid().ToString("N"),
+            name + "_" + Guid.NewGuid().ToString("N"),
             [CSharpSyntaxTree.ParseText(harness, CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview))],
             CSharpCompilationDriver.CoreReferences,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -122,17 +199,12 @@ public sealed class SizedSequenceRuntimeBoundaryTests
         var emitted = compilation.Emit(stream);
         Assert.True(emitted.Success, string.Join("\n", emitted.Diagnostics.Select(d => d.ToString())));
         stream.Position = 0;
-        var context = new AssemblyLoadContext("SizedSequenceRuntime", isCollectible: true);
+        var context = new AssemblyLoadContext(name, isCollectible: true);
 
         try
         {
-            var assembly = context.LoadFromStream(stream);
-            var run = assembly.GetType("Probe")!.GetMethod("Run")!;
-            var results = Assert.IsType<int[]>(run.Invoke(null, null));
-
-            Assert.Equal(
-                [1, 0, 0, 0, 0, 1, 0, 3, 5, 0, -1, 1, 0, 1, 0, 5, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 3, 1, -1, 1, 3, 1, -1, 1, 1, 1, 1],
-                results);
+            var run = context.LoadFromStream(stream).GetType("Probe")!.GetMethod("Run")!;
+            return Assert.IsType<int[]>(run.Invoke(null, null));
         }
         finally
         {

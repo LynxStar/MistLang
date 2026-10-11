@@ -25,7 +25,7 @@ internal static class StatementHost
     {
         if(!BodyEmitter.NeedsStatements(value, discarded: false))
         {
-            BodyEmitter.EmitExpression(value, writer, diagnostics);
+            BodyEmitter.EmitEntering(value, type, writer, diagnostics);
             return null;
         }
 
@@ -45,7 +45,7 @@ internal static class StatementHost
 
             using(writer.Block())
             {
-                BodyEmitter.EmitSequenced(method.Value, "return ", writer, diagnostics);
+                BodyEmitter.EmitSequenced(method.Value, "return ", writer, diagnostics, slot: method.Type);
             }
         }
     }

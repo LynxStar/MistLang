@@ -245,7 +245,7 @@ Union_{Type1}_{Type2}_...
 ├── _value: object                       (boxed value)
 ├── Is{TypeN}: bool                      (tag check properties)
 ├── As{TypeN}: TypeN                     (extraction properties with tag validation)
-└── implicit operator Union_...(TypeN)   (one per constituent)
+└── implicit operator Union_...(TypeN)   (one per constituent; From{TypeN} factory where C# types collide)
 ```
 
 ### Diagnostic IDs
@@ -371,6 +371,7 @@ When a constituent type in a union cannot be resolved (e.g., `int | Foo` where `
 ### C# Emission Edge Cases
 
 - Union with generic types: helper type name includes the constructed type name (e.g., `Union_Int32_List_1_String` for `int | List<string>`).
+- Constituents sharing one C# type: a lifted value stays in the constituent name, so `int[3] | int[5]` is `Union_Int32Array3_Int32Array5` and is a different helper from `int[3] | int[4]`. C# selects a user-defined conversion by CLR type alone, so each constituent whose C# type another constituent shares gets a `From{TypeN}` factory in place of an implicit operator. The emitter calls the factory of the constituent identical to the value's Mist type (else the only constituent it widens into) wherever a value enters the helper type: initializers, assignments, arguments, returns, array and tuple elements, switch arms, casts and widening `as`. A value no single constituent claims is not given a tag; C# refuses it.
 
 ## Testing Strategy
 

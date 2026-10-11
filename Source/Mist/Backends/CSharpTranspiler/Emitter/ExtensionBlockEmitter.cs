@@ -119,7 +119,7 @@ internal static class ExtensionBlockEmitter
             }
             else if(getter.ExpressionBody is { } expression)
             {
-                BodyEmitter.EmitSequenced(expression, "return ", writer, diagnostics);
+                BodyEmitter.EmitSequenced(expression, "return ", writer, diagnostics, slot: property.Type);
             }
         }
     }

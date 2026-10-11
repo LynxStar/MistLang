@@ -131,7 +131,7 @@ Out of scope for this spec: union type narrowing via control flow analysis (beyo
 
 1. THE Emitter SHALL generate a Helper_Type for each distinct union type used in the program, providing a discriminated container that can hold a value of any constituent type.
 2. THE Helper_Type SHALL include a discriminator field (tag) that identifies which constituent type the current value belongs to.
-3. THE Helper_Type SHALL include implicit conversion operators from each constituent type to the Helper_Type, so that assigning a constituent value to a union-typed variable compiles in C#.
+3. THE Helper_Type SHALL include implicit conversion operators from each constituent type to the Helper_Type, so that assigning a constituent value to a union-typed variable compiles in C#. WHERE two constituents share one C# type (e.g., `int[3]` and `int[5]`, both `int[]`), an operator cannot tell them apart, so THE Helper_Type SHALL instead provide a named factory for each such constituent.
 4. THE Helper_Type SHALL include a method or property to retrieve the stored value as a specific constituent type.
 5. THE Emitter SHALL generate Helper_Types with unique names derived from the constituent types to avoid naming collisions.
 6. THE Emitter SHALL reuse the same Helper_Type when the same union type (same constituents regardless of order) appears in multiple locations.
@@ -146,7 +146,7 @@ Out of scope for this spec: union type narrowing via control flow analysis (beyo
 2. THE Emitter SHALL emit method parameters with union types using the generated Helper_Type name.
 3. THE Emitter SHALL emit method return types with union types using the generated Helper_Type name.
 4. THE Emitter SHALL emit field declarations with union types using the generated Helper_Type name.
-5. WHEN a constituent value is assigned to a union-typed variable, THE Emitter SHALL rely on the implicit conversion operator in the Helper_Type to perform the conversion.
+5. WHEN a constituent value is assigned to a union-typed variable, THE Emitter SHALL rely on the implicit conversion operator in the Helper_Type to perform the conversion, or, for a constituent sharing its C# type with another, SHALL call the factory of the constituent the value's type selects.
 6. WHEN a union-typed value is used in a pattern match (`is` expression), THE Emitter SHALL emit C# code that checks the discriminator and extracts the typed value.
 
 ### Requirement 11: C# Emission — Pattern Matching on Union Types

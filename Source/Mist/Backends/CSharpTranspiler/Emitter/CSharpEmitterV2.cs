@@ -116,13 +116,18 @@ internal sealed class CSharpEmitterV2
 
         ReportForeignConformances();
 
-        EmitConstructorConstraintInterfaces(outputDir, emittedFiles);
-        EmitStructInitMarker(outputDir, emittedFiles);
-        EmitUnionCarriers(outputDir, emittedFiles);
-        EmitDependentCarriers(outputDir, emittedFiles);
-        EmitMonomorphs(outputDir, emittedFiles, closures);
-        EmitVoidStandIn(outputDir, emittedFiles);
-        IntrinsicMemberEmitter.EmitFile((ProgramModel.Model.ProgramModel)programModel, outputDir, emittedFiles, diagnostics);
+        // A .g.cs file is generated code to MSBuild, compiled with nullable analysis off whatever the
+        // project says, where an annotated reference is CS8669 and an unannotated one is oblivious.
+        using(TypeNameEmitter.Oblivious())
+        {
+            EmitConstructorConstraintInterfaces(outputDir, emittedFiles);
+            EmitStructInitMarker(outputDir, emittedFiles);
+            EmitUnionCarriers(outputDir, emittedFiles);
+            EmitDependentCarriers(outputDir, emittedFiles);
+            EmitMonomorphs(outputDir, emittedFiles, closures);
+            EmitVoidStandIn(outputDir, emittedFiles);
+            IntrinsicMemberEmitter.EmitFile((ProgramModel.Model.ProgramModel)programModel, outputDir, emittedFiles, diagnostics);
+        }
 
         var usings = UsingSelection.Of(programModel);
 
@@ -319,7 +324,7 @@ internal sealed class CSharpEmitterV2
             }
 
             first = false;
-            EmitCarrierStruct(name, union, carriers, writer);
+            UnionCarrierEmitter.Emit(name, union, carriers, writer);
         }
 
         var path = Path.Combine(outputDir, "__Unions.g.cs");
@@ -561,100 +566,9 @@ internal sealed class CSharpEmitterV2
         emittedFiles.Add(path);
     }
 
-    private static void EmitCarrierStruct(
-        string name, UnionType union, SortedDictionary<string, UnionType> carriers, CSharpWriter writer)
-    {
-        writer.WriteLine("[System.Runtime.CompilerServices.CompilerGenerated]");
-        writer.WriteLine($"public readonly struct {name}");
-
-        using(writer.Block())
-        {
-            writer.WriteLine("private readonly byte _tag;");
-            writer.WriteLine("private readonly object _value;");
-            writer.WriteBlankLine();
-            writer.WriteLine($"private {name}(byte tag, object value)");
-
-            using(writer.Block())
-            {
-                writer.WriteLine("_tag = tag;");
-                writer.WriteLine("_value = value;");
-            }
-
-            for(var i = 0; i < union.Constituents.Count; i++)
-            {
-                var constituentName = UnionCarrierNames.ConstituentName(union.Constituents[i]);
-                var typeName = TypeNameEmitter.Emit(union.Constituents[i]);
-                var tag = i + 1;
-
-                writer.WriteBlankLine();
-                writer.WriteLine($"public bool Is{constituentName} => _tag == {tag};");
-                writer.WriteBlankLine();
-                writer.WriteLine($"public {typeName} As{constituentName} => _tag == {tag}");
-                writer.WriteLine($"    ? ({typeName})_value");
-                writer.WriteLine(
-                    $"    : throw new System.InvalidOperationException(\"Union does not hold {constituentName}\");");
-                writer.WriteBlankLine();
-                writer.WriteLine(
-                    $"public {TypeNameEmitter.EmitOptional(union.Constituents[i])} "
-                    + $"{UnionCarrierNames.NarrowingAccessor(union.Constituents[i])} "
-                    + $"=> _tag == {tag} ? ({typeName})_value : null;");
-            }
-
-            for(var i = 0; i < union.Constituents.Count; i++)
-            {
-                var typeName = TypeNameEmitter.Emit(union.Constituents[i]);
-                var tag = i + 1;
-
-                writer.WriteBlankLine();
-                writer.WriteLine($"public static implicit operator {name}({typeName} value)");
-                writer.WriteLine($"    => new {name}({tag}, value);");
-            }
-
-            // A union widens into any union holding every constituent of it, as the binder already
-            // admits; the carrier is where C# can be told so once, rather than at each use site.
-            foreach(var (narrowName, narrow) in carriers)
-            {
-                if(narrowName == name || !IsNarrower(narrow, union))
-                {
-                    continue;
-                }
-
-                var arms = narrow.Constituents.Select((constituent, i) =>
-                {
-                    var constituentName = UnionCarrierNames.ConstituentName(constituent);
-                    var rewrapped = $"new {name}({TagOf(union, constituent)}, value.As{constituentName})";
-                    return i == narrow.Constituents.Count - 1 ? rewrapped : $"value.Is{constituentName} ? {rewrapped}";
-                });
-
-                writer.WriteBlankLine();
-                writer.WriteLine($"public static implicit operator {name}({narrowName} value)");
-                writer.WriteLine($"    => {string.Join(" : ", arms)};");
-            }
-        }
-    }
-
     internal static bool IsOpen(IMistType type)
     {
         return TypeParameterReach.Collect(type).Count > 0;
-    }
-
-    private static bool IsNarrower(UnionType narrow, UnionType wide)
-    {
-        return narrow.Constituents.Count < wide.Constituents.Count
-            && narrow.Constituents.All(constituent => TagOf(wide, constituent) > 0);
-    }
-
-    private static int TagOf(UnionType union, IMistType constituent)
-    {
-        for(var i = 0; i < union.Constituents.Count; i++)
-        {
-            if(union.Constituents[i].FullyQualifiedName == constituent.FullyQualifiedName)
-            {
-                return i + 1;
-            }
-        }
-
-        return 0;
     }
 
     /// <summary>

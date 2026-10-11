@@ -76,7 +76,7 @@ internal static class PropertyEmitter
     {
         if(property.Getter is { } getter)
         {
-            AccessorEmitter.Emit(getter, isSetter: false, readonlyGetter, writer, diagnostics);
+            AccessorEmitter.Emit(getter, isSetter: false, readonlyGetter, writer, diagnostics, property.Type);
         }
 
         if(property.Setter is { } setter)

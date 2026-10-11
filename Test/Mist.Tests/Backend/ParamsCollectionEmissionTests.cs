@@ -7,7 +7,7 @@ namespace Mist.Tests.Backend;
 
 // Tier 3: the C# `params` modifier on a value-level params parameter (variadics Requirement 13.6),
 // written for every collection the binder admits as it is for an array, with the collection spelled as
-// the parameter's own type -- the optional over a reference kind bare, as every such optional is.
+// the parameter's own type -- the optional over a reference kind annotated, as every such optional is.
 [Trait("Tier", "3")]
 public sealed class ParamsCollectionEmissionTests
 {
@@ -33,7 +33,7 @@ public sealed class ParamsCollectionEmissionTests
 
     [Theory]
     [InlineData("Array", "params int[] xs")]
-    [InlineData("Optional", "params int[] xs")]
+    [InlineData("Optional", "params int[]? xs")]
     [InlineData("Listed", "params System.Collections.Generic.List<int> xs")]
     [InlineData("Sequence", "params System.Collections.Generic.IEnumerable<int> xs")]
     [InlineData("Spanned", "params System.ReadOnlySpan<int> xs")]

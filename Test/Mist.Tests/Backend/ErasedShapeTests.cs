@@ -26,10 +26,16 @@ public sealed class ErasedShapeTests
             { "(int[3], string)", "System.ValueTuple<int[], string> { Item1: { Length: 3 } }" },
             { "(string, int[3], int[5])", "System.ValueTuple<string, int[], int[]> { Item2: { Length: 3 }, Item3: { Length: 5 } }" },
             { "((int[3], string), int)", "System.ValueTuple<(int[], string), int> { Item1: { Item1: { Length: 3 } } }" },
-            { "(int[3]?, string)", "System.ValueTuple<int[], string> { Item1: null or { Length: 3 } }" },
+            { "(int[3]?, string)", "System.ValueTuple<int[]?, string> { Item1: null or { Length: 3 } }" },
             { "Pair", "System.ValueTuple<int[], string> { Item1: { Length: 3 } }" },
             { "(int, string)", "System.ValueTuple<int, string>" },
             { "(int[], string)", "System.ValueTuple<int[], string>" },
+            { "Eight", "System.ValueTuple<int, int, int, int, int, int, int, System.ValueTuple<int>>" },
+            { "Nine", "System.ValueTuple<int, int, int, int, int, int, int, System.ValueTuple<int[], string>> { Rest.Item1: { Length: 3 } }" },
+            { "Fifteen",
+                "System.ValueTuple<int, int, int, int, int, int, int, System.ValueTuple<int, int, int, int, int, int, int, System.ValueTuple<int[]>>>"
+                + " { Rest.Rest.Item1: { Length: 2 } }" },
+            { "(Nine, int)", "System.ValueTuple<(int, int, int, int, int, int, int, int[], string), int> { Item1: { Rest.Item1: { Length: 3 } } }" },
         };
     }
 
@@ -45,6 +51,8 @@ public sealed class ErasedShapeTests
     {
         Assert.Equal(["Length: 3"], ErasedShape.Members(ArrayOf(IntegerType, 3)));
         Assert.Equal(["Item2: { Length: 5 }"], ErasedShape.Members(TupleOf(StringType, ArrayOf(IntegerType, 5))));
+        Assert.Equal(["Item1: { Length: 3 }", "Rest.Item2: { Length: 5 }"],
+            ErasedShape.Members(TupleOf([ArrayOf(IntegerType, 3), .. Enumerable.Repeat<IMistType>(IntegerType, 7), ArrayOf(IntegerType, 5)])));
         Assert.Empty(ErasedShape.Members(ArrayOf(IntegerType, null)));
         Assert.Empty(ErasedShape.Members(OptionalOf(ArrayOf(IntegerType, 3))));
         Assert.Empty(ErasedShape.Members(BoxOf(3)));
@@ -115,6 +123,10 @@ public sealed class ErasedShapeTests
             "int[3][][]" => ArrayOf(ArrayOf(three, null), null),
             "int[3]?[2]" => ArrayOf(OptionalOf(three), 2),
             "int[][2]" => ArrayOf(ArrayOf(IntegerType, null), 2),
+            "Eight" => TupleOf([.. Enumerable.Repeat<IMistType>(IntegerType, 8)]),
+            "Nine" => TupleOf([.. Enumerable.Repeat<IMistType>(IntegerType, 7), three, StringType]),
+            "Fifteen" => TupleOf([.. Enumerable.Repeat<IMistType>(IntegerType, 14), ArrayOf(IntegerType, 2)]),
+            "(Nine, int)" => TupleOf(Described("Nine"), IntegerType),
             _ => throw new ArgumentOutOfRangeException(nameof(described), described, null),
         };
     }

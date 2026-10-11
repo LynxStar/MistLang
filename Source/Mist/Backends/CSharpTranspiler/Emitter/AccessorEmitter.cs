@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 
@@ -16,7 +17,12 @@ internal static class AccessorEmitter
     /// for a getter and a setter -- only the member knows which slot it filled.
     /// </param>
     public static void Emit(
-        PropertyAccessor accessor, bool isSetter, bool isReadonly, CSharpWriter writer, DiagnosticBag diagnostics)
+        PropertyAccessor accessor,
+        bool isSetter,
+        bool isReadonly,
+        CSharpWriter writer,
+        DiagnosticBag diagnostics,
+        IMistType? result = null)
     {
         var header = Header(accessor, isSetter, isReadonly);
 
@@ -37,7 +43,7 @@ internal static class AccessorEmitter
 
             using(writer.Block())
             {
-                BodyEmitter.EmitSequenced(expression, isSetter ? null : "return ", writer, diagnostics);
+                BodyEmitter.EmitSequenced(expression, isSetter ? null : "return ", writer, diagnostics, slot: result);
             }
 
             return;
@@ -46,7 +52,7 @@ internal static class AccessorEmitter
         if(accessor.ExpressionBody is { } expressionBody)
         {
             writer.Write($"{header} => ");
-            BodyEmitter.EmitExpression(expressionBody, writer, diagnostics);
+            BodyEmitter.EmitEntering(expressionBody, result, writer, diagnostics);
             writer.Append(";");
             writer.AppendLine();
             return;

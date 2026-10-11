@@ -49,7 +49,9 @@ internal static class CastLowering
 
         if(conversion.TargetType is UnionType carrier && !OptionalUnion.IsOptional(carrier) && !ConversionRelation.IsIdentity(conversion.Type, carrier))
         {
-            result = $"(({TypeNameEmitter.Emit(carrier)})({result}))";
+            result = UnionEntry.Factory(conversion.Type, carrier) is { } entry
+                ? $"{entry}({result})"
+                : $"(({TypeNameEmitter.Emit(carrier)})({result}))";
         }
 
         return RegexLowering.Is(conversion.Type) && !ConversionClassifier.IsFree(conversion.Type, conversion.TargetType, interner: null)

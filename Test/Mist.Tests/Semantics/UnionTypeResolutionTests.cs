@@ -173,7 +173,7 @@ public sealed class UnionTypeResolutionTests : ProgramModelProbe
             """);
 
         Assert.Equal("int?", TypeNameEmitter.Emit(TypeOf(locals, "valueKind")));
-        Assert.Equal("string", TypeNameEmitter.Emit(TypeOf(locals, "referenceKind")));
+        Assert.Equal("string?", TypeNameEmitter.Emit(TypeOf(locals, "referenceKind")));
         Assert.Equal("Union_Int32_String", TypeNameEmitter.Emit(TypeOf(locals, "carried")));
     }
 

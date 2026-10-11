@@ -150,7 +150,7 @@ public sealed class UnitHoistingEmissionTests
         "if (none is null)\n{\nProbe.Log.F();\nnone = Probe.Log.Show(Standard.Void.Instance);\n}")]
     [InlineData(
         "Log? maybe = void; var taken = maybe?.Take(Log.F());",
-        "string __e1 = default;\nif (maybe is not null)\n{\nProbe.Log.F();\n__e1 = maybe?.Take(Standard.Void.Instance);\n}\nstring taken = __e1;")]
+        "string? __e1 = default;\nif (maybe is not null)\n{\nProbe.Log.F();\n__e1 = maybe?.Take(Standard.Void.Instance);\n}\nstring? taken = __e1;")]
     [InlineData(
         "int one = 1; var text = one switch { 1 => Log.Show(Log.F()), _ => \"none\" };",
         "string __e1;\nswitch (one)\n{\ncase 1:\n{\nProbe.Log.F();\n__e1 = Probe.Log.Show(Standard.Void.Instance);\nbreak;\n}\ncase var _:\n{\n__e1 = \"none\";\nbreak;\n}\ndefault:\nthrow new System.Runtime.CompilerServices.SwitchExpressionException();\n}\nstring text = __e1;")]
@@ -166,7 +166,7 @@ public sealed class UnitHoistingEmissionTests
     public void AConditionalAccessReceiver_IsStoredOnceAheadOfItsTest()
     {
         Assert.Contains(
-            "Probe.Log __e1 = Probe.Log.Maybe();\nstring __e2 = default;\nif (__e1 is not null)\n{\nProbe.Log.F();\n__e2 = __e1?.Take(Standard.Void.Instance);\n}",
+            "Probe.Log? __e1 = Probe.Log.Maybe();\nstring? __e2 = default;\nif (__e1 is not null)\n{\nProbe.Log.F();\n__e2 = __e1?.Take(Standard.Void.Instance);\n}",
             EmitRun("var taken = Log.Maybe()?.Take(Log.F());", out _));
     }
 

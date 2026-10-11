@@ -35,7 +35,7 @@ internal static class ErasedShape
                 {
                     if(Subpattern(elements[i]) is { } element)
                     {
-                        members.Add($"Item{i + 1}: {element}");
+                        members.Add($"{ValueTupleNesting.Path(i)}: {element}");
                     }
                 }
 

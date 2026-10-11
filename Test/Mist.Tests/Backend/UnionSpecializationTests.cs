@@ -256,7 +256,7 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
     [InlineData("Pair<int, int>", "public int Held;")]
     [InlineData("Pair<int, int>", "public Probe.Cell<int> Boxed;")]
     [InlineData("Slot<int>", "public int? Item;")]
-    [InlineData("Slot<string>", "public string Item;")]
+    [InlineData("Slot<string>", "public string? Item;")]
     public void AnInstanceSpellsItsUnionsExactlyAsClosedCodeDoes(string instance, string expected)
     {
         Assert.Contains(expected, EmitInstance(instance), StringComparison.Ordinal);
@@ -265,7 +265,7 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
     [Theory]
     [InlineData("Lifted<int>", "Take__o0(int? key)")]
     [InlineData("Lifted<int>", "Take__o1(int? number)")]
-    [InlineData("Lifted<string>", "Take(string key)")]
+    [InlineData("Lifted<string>", "Take(string? key)")]
     [InlineData("Lifted<string>", "Take(int? number)")]
     public void OverloadsAnInstanceMakesIdenticalAreNamedApart_AndOnlyThere(string instance, string expected)
     {
@@ -333,10 +333,10 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("Kept", "private static extern ref string __Probe_KeptString_item(Probe.Kept__Standard_String target);")]
-    [InlineData("Kept", "private static extern ref string __Probe_KeepString_item(Probe.Keep__Standard_String target);")]
-    [InlineData("Helded", "private static extern ref string __In_Probe_HeldString_item(Probe.Held__Standard_String __target);")]
-    [InlineData("Helded", "private static extern Probe.Held__Standard_String __Out_Probe_HeldString_new(string start, int tag);")]
+    [InlineData("Kept", "private static extern ref string? __Probe_KeptString_item(Probe.Kept__Standard_String target);")]
+    [InlineData("Kept", "private static extern ref string? __Probe_KeepString_item(Probe.Keep__Standard_String target);")]
+    [InlineData("Helded", "private static extern ref string? __In_Probe_HeldString_item(Probe.Held__Standard_String __target);")]
+    [InlineData("Helded", "private static extern Probe.Held__Standard_String __Out_Probe_HeldString_new(string? start, int tag);")]
     [InlineData("Helded", "private static extern int __In_Probe_HeldString_get_Tag(Probe.Held__Standard_String __target);")]
     [InlineData("Helded", "private static extern void __Out_Probe_HeldString_set_Tag(Probe.Held__Standard_String __target, int value);")]
     [InlineData("Helded", "UnsafeAccessorKind.Method, Name = \"Take__o0\")]")]
@@ -484,7 +484,7 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
     [Theory]
     [Trait("Tier", "3")]
     [InlineData("Duo<[Int32, String]>", "public class Duo__P2__Standard_Int32__Standard_String")]
-    [InlineData("Duo<[Int32, String]>", "public string Second;")]
+    [InlineData("Duo<[Int32, String]>", "public string? Second;")]
     [InlineData("Duo<[String, Int32]>", "public int? Second;")]
     [InlineData("Duo<[Int32, String]>", "public (int, string) Item;")]
     [InlineData("Duo<[Int32, String]>", "public Duo__P2__Standard_Int32__Standard_String((int, string) values)")]

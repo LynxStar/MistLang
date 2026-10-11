@@ -1,0 +1,92 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
+using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
+using static Mist.Tests.Backend.SizedSequenceTypes;
+
+namespace Mist.Tests.Backend;
+
+[Trait("Tier", "1")]
+public sealed class UnionEntryTests
+{
+    private static readonly ConstructedType Three = ArrayOf(IntegerType, 3);
+    private static readonly ConstructedType Five = ArrayOf(IntegerType, 5);
+    private static readonly ConstructedType Unsized = ArrayOf(IntegerType, null);
+    private static readonly UnionType Sized = new([Three, Five]);
+
+    [Fact]
+    public void OnlyConstituentsSharingACSharpSpelling_ShareIt()
+    {
+        var mixed = new UnionType([Three, Five, StringType]);
+
+        Assert.True(UnionEntry.SharesSpelling(Sized, Three));
+        Assert.True(UnionEntry.SharesSpelling(mixed, Five));
+        Assert.False(UnionEntry.SharesSpelling(mixed, StringType));
+        Assert.False(UnionEntry.SharesSpelling(new UnionType([IntegerType, StringType]), IntegerType));
+    }
+
+    [Fact]
+    public void ANullableAnnotation_DoesNotMakeTwoSpellingsDistinct()
+    {
+        var list = new ClassType("List<>", "System.Collections.Generic", new Scope(null), null, null!);
+        var annotated = new ConstructedType(list, [OptionalOf(StringType)]);
+        var plain = new ConstructedType(list, [StringType]);
+
+        Assert.True(UnionEntry.SharesSpelling(new UnionType([annotated, plain]), plain));
+    }
+
+    [Fact]
+    public void ASizedValue_EntersThroughTheFactoryOfItsOwnLength()
+    {
+        Assert.Equal("Union_Int32Array3_Int32Array5.FromInt32Array3", UnionEntry.Factory(Three, Sized));
+        Assert.Equal("Union_Int32Array3_Int32Array5.FromInt32Array5", UnionEntry.Factory(Five, Sized));
+    }
+
+    [Fact]
+    public void AnAlias_IsSeenThroughOnEitherSide()
+    {
+        Assert.Equal("Union_Int32Array3_Int32Array5.FromInt32Array3", UnionEntry.Factory(AliasOf("Three", Three), Sized));
+        Assert.Equal("Union_Int32Array3_Int32Array5.FromInt32Array5", UnionEntry.Factory(Five, AliasOf("Sized", Sized)));
+    }
+
+    [Fact]
+    public void AConstituentWithASpellingOfItsOwn_KeepsTheImplicitOperator()
+    {
+        Assert.Null(UnionEntry.Factory(StringType, new UnionType([Three, Five, StringType])));
+        Assert.Null(UnionEntry.Factory(IntegerType, new UnionType([IntegerType, StringType])));
+    }
+
+    [Fact]
+    public void AnIdenticalConstituent_IsChosenOverOneThatContainsIt()
+    {
+        var either = new UnionType([Three, Unsized]);
+
+        Assert.Equal("Union_Int32Array_Int32Array3.FromInt32Array3", UnionEntry.Factory(Three, either));
+        Assert.Equal("Union_Int32Array_Int32Array3.FromInt32Array", UnionEntry.Factory(Unsized, either));
+    }
+
+    [Fact]
+    public void AValueNoSingleConstituentClaims_IsLeftUnlowered()
+    {
+        Assert.Null(UnionEntry.Factory(Unsized, Sized));
+    }
+
+    [Fact]
+    public void ATupleValue_IsRebuiltOnlyAroundTheElementsThatEnterThroughAFactory()
+    {
+        Assert.Equal("(Union_Int32Array3_Int32Array5.FromInt32Array3(t.Item1), t.Item2)",
+            UnionEntry.Decomposed(TupleOf(Three, StringType), TupleOf(Sized, StringType), "t"));
+        Assert.Equal("((Union_Int32Array3_Int32Array5.FromInt32Array5(t.Item1.Item1), t.Item1.Item2), t.Item2)",
+            UnionEntry.Decomposed(TupleOf(TupleOf(Five, IntegerType), StringType), TupleOf(TupleOf(Sized, IntegerType), StringType), "t"));
+        Assert.Null(UnionEntry.Decomposed(TupleOf(IntegerType, StringType), TupleOf(new UnionType([IntegerType, StringType]), StringType), "t"));
+        Assert.Null(UnionEntry.Decomposed(TupleOf(Three, StringType), TupleOf(Three, StringType), "t"));
+    }
+
+    [Fact]
+    public void NoCarrierEntry_LowersNothing()
+    {
+        Assert.Null(UnionEntry.Factory(Three, null));
+        Assert.Null(UnionEntry.Factory(Three, Three));
+        Assert.Null(UnionEntry.Factory(Three, OptionalOf(Three)));
+        Assert.Null(UnionEntry.Factory(Sized, new UnionType([Three, Five, StringType])));
+    }
+}

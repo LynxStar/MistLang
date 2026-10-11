@@ -20,7 +20,7 @@ public sealed class OptionalAsyncPromotionTests
 
     [Theory]
     [InlineData("Int32", "int?")]
-    [InlineData("String", "string")]
+    [InlineData("String", "string?")]
     public void ConditionalPromotedResult_NarrowsBeforeAwaitAndRetainsAbsence(string resultName, string spelling)
     {
         var result = Type(resultName);
@@ -129,7 +129,7 @@ public sealed class OptionalAsyncPromotionTests
 
         using var promotion = AsyncPromotion.Enter(model.Model);
 
-        Assert.Equal("((reader is { } __e1 ? await __e1.Read() : default(string)))?.Length", Emit(length));
+        Assert.Equal("((reader is { } __e1 ? await __e1.Read() : default(string?)))?.Length", Emit(length));
     }
 
     [Fact]

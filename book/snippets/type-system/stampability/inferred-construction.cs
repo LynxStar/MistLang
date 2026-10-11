@@ -9,6 +9,7 @@ public struct Box<T>
 
     public Box(T item)
     {
+        this.Item = default(Box<T>).Item;
         Item = item;
     }
 

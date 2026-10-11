@@ -10,6 +10,8 @@ public struct Pair<A, B>
 
     public Pair(A first, B second)
     {
+        this.First = default(Pair<A, B>).First;
+        this.Second = default(Pair<A, B>).Second;
         this.First = first;
         this.Second = second;
     }

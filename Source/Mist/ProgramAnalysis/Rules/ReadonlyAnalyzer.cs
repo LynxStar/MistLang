@@ -35,20 +35,23 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
     public void Analyze(AnalysisContext context)
     {
         var inference = new PurityInference(context);
+        var promises = new FormatPromises();
 
         foreach(var root in context.Bodies)
         {
             var frame = Frame.For(root);
-            Walk(root.Root, frame, context, inference);
+            Walk(root.Root, frame, context, inference, promises);
 
             if(frame.IsReadonly)
             {
                 JudgeExits(root.Root, root.Member, frame, context, inference);
             }
         }
+
+        JudgeClosings(context, inference, promises);
     }
 
-    private static void Walk(object node, Frame frame, AnalysisContext context, PurityInference inference)
+    private static void Walk(object node, Frame frame, AnalysisContext context, PurityInference inference, FormatPromises promises)
     {
         if(node is Block { IsReadonly: true } block)
         {
@@ -62,11 +65,11 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             frame = entered;
         }
 
-        Judge(node, frame, context, inference);
+        Judge(node, frame, context, inference, promises);
 
         foreach(var child in BodyWalker.ChildrenOf(node))
         {
-            Walk(child, frame, context, inference);
+            Walk(child, frame, context, inference, promises);
         }
     }
 
@@ -81,14 +84,14 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void Judge(object node, Frame frame, AnalysisContext context, PurityInference inference)
+    private static void Judge(object node, Frame frame, AnalysisContext context, PurityInference inference, FormatPromises promises)
     {
         JudgeReadonlyFieldEscapes(node, frame, context);
         JudgeCounted(node, frame, context, inference);
 
         if(frame.IsReadonly)
         {
-            JudgeTriggers(node, frame, context, inference);
+            JudgeTriggers(node, frame, context, inference, promises);
         }
 
         switch(node)
@@ -237,7 +240,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void JudgeTriggers(object node, Frame frame, AnalysisContext context, PurityInference inference)
+    private static void JudgeTriggers(object node, Frame frame, AnalysisContext context, PurityInference inference, FormatPromises promises)
     {
         if(node is not Expression at)
         {
@@ -258,26 +261,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             }
         }
 
-        var formatted = node switch
-        {
-            InterpolatedStringExpression interpolated => interpolated.Parts.OfType<InterpolatedStringHole>().Select(hole => hole.Expression),
-            BinaryExpression { Operator: null, OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Concatenate } concatenation
-                when PurityJudge.DefinitionOf(concatenation.Type) is ConcreteType { IsIntrinsic: true, Name: "String" } => [concatenation.Left, concatenation.Right],
-            _ => [],
-        };
-
-        foreach(var hole in formatted)
-        {
-            if(!ClrCallbacks.Implements(hole.Type, "System.IFormattable"))
-            {
-                continue;
-            }
-
-            if(ClrCallbacks.Answering(hole.Type, "ToString", 2) is not { } toString || !inference.IsReadonly(toString))
-            {
-                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, hole.Node, [hole], "ToString", frame.Describe());
-            }
-        }
+        JudgeFormatting(at, frame, context, inference, promises);
     }
 
     private static void JudgeCounted(object node, Frame frame, AnalysisContext context, PurityInference inference)

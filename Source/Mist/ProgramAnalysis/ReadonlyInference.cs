@@ -43,9 +43,10 @@ namespace Mist.ProgramAnalysis;
 /// was handed writes the caller's storage.
 /// </para>
 /// </summary>
-internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred = null)
+internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred = null, FormattingCallbacks? callbacks = null)
 {
     private readonly Dictionary<object, bool> settled = new(ReferenceEqualityComparer.Instance);
+    private readonly FormattingCallbacks formatting = callbacks ?? new();
 
     public bool IsReadonly(Method method)
     {
@@ -472,7 +473,7 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
         return false;
     }
 
-    private static IEnumerable<object> Roots(object member)
+    internal static IEnumerable<object> Roots(object member)
     {
         switch(member)
         {

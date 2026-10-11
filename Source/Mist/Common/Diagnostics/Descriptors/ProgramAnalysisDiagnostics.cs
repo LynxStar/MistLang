@@ -568,6 +568,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot call '{0}' from readonly {1}: it is not readonly. A non-readonly call requires a local member on an owned receiver.");
 
+    public static readonly DiagnosticDescriptor ReadonlyContextFormatsMutable = new(
+        new DiagnosticId("MIST_PA_READONLY_CONTEXT_FORMATS_MUTABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot use '{0}' as type argument '{1}': readonly {2} formats it, and the 'ToString' of '{3}' is not readonly.");
+
     public static readonly DiagnosticDescriptor ReadonlyContextSetsProperty = new(
         new DiagnosticId("MIST_PA_READONLY_CONTEXT_SETS_PROPERTY"),
         DiagnosticSeverity.Error,

@@ -75,6 +75,8 @@ internal sealed partial class PurityInference(AnalysisContext context)
     private bool running;
     private bool dirty;
 
+    public FormattingCallbacks Formatting { get; } = new();
+
     public Promise Of(object member)
     {
         return Settled(() => Answer(member));
@@ -125,7 +127,7 @@ internal sealed partial class PurityInference(AnalysisContext context)
         {
             changed = false;
             dirty = false;
-            readonlyInference = new ReadonlyInference(Answer);
+            readonlyInference = new ReadonlyInference(Answer, Formatting);
 
             foreach(var member in inferred.Keys.ToList())
             {

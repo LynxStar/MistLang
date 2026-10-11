@@ -19,19 +19,13 @@ internal sealed partial class ReadonlyInference
             }
         }
 
-        return node switch
-        {
-            InterpolatedStringExpression interpolated => interpolated.Parts.OfType<InterpolatedStringHole>().Any(hole => FormatWrites(hole.Expression, callees)),
-            BinaryExpression { Operator: null, OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Concatenate } concatenation
-                when PurityJudge.DefinitionOf(concatenation.Type) is ConcreteType { IsIntrinsic: true, Name: "String" } =>
-                FormatWrites(concatenation.Left, callees) || FormatWrites(concatenation.Right, callees),
-            _ => false,
-        };
+        return FormattingCallbacks.Sites(node).Any(formatted => FormatWrites(formatting.Reach(formatted.Type), callees))
+            || FormattingCallbacks.Uses(node).Any(use => FormatWrites(formatting.Through(use), callees));
     }
 
-    private bool FormatWrites(Expression formatted, List<object> callees)
+    private bool FormatWrites(IEnumerable<FormatStep> steps, List<object> callees)
     {
-        return ClrCallbacks.Implements(formatted.Type, "System.IFormattable") && Unproven(ClrCallbacks.Answering(formatted.Type, "ToString", 2), callees);
+        return steps.Any(step => step.Open is null && Unproven(step.Formatter, callees));
     }
 
     private static bool CallsFunctionValue(InvocationExpression call, Origins origins, List<object> callees)

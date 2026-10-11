@@ -1,0 +1,159 @@
+using Mist.ProgramModel.Contracts.Types;
+using Mist.Tests.Helpers;
+
+namespace Mist.Tests.ProgramAnalysis;
+
+[Trait("Tier", "2")]
+public sealed class ReadonlyFormattingClosingTests
+{
+    private const string FormatsMutable = "MIST_PA_READONLY_CONTEXT_FORMATS_MUTABLE";
+    private const string CallsMutable = "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE";
+
+    private readonly FormattingFragments f = new();
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AReadonlyGenericFormattingItsParameter_IsRefusedWhereAMutableFormatterClosesIt(bool concatenates)
+    {
+        var read = f.Formats("Read", isReadonly: true, concatenates);
+        _ = f.Call(read, f.Box, FormattingFragments.Value(f.Box), offset: 60);
+
+        var finding = Assert.Single(f.Analyze(read));
+
+        Assert.Equal(FormatsMutable, finding.Id.Value);
+        Assert.Equal(61, finding.Location.Start.Column);
+        Assert.Equal(
+            "Cannot use 'Box' as type argument 'T': readonly method 'Read' formats it, and the 'ToString' of 'Box' is not readonly.",
+            finding.Message);
+    }
+
+    [Fact]
+    public void AConstructedGenericFormatter_IsJudgedByTheFormatterItsClosingReaches()
+    {
+        var read = f.Formats("Read", isReadonly: true);
+        var wrapped = f.Constructed(f.Wrapper, f.Box);
+        _ = f.Call(read, wrapped, FormattingFragments.Value(wrapped), offset: 60);
+
+        var finding = Assert.Single(f.Analyze(read));
+
+        Assert.Equal(FormatsMutable, finding.Id.Value);
+        Assert.Contains("type argument 'T'", finding.Message, StringComparison.Ordinal);
+        Assert.Contains("the 'ToString' of 'Box' is not readonly", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("calm")]
+    [InlineData("quiet")]
+    [InlineData("int")]
+    [InlineData("wrapped-calm")]
+    [InlineData("wrapped-int")]
+    public void AReadonlyOrInferredReadonlyFormatterClosure_IsAdmitted(string argument)
+    {
+        var read = f.Formats("Read", isReadonly: true);
+        IMistType closing = argument switch
+        {
+            "calm" => f.Calm,
+            "quiet" => f.Quiet,
+            "int" => f.Integer,
+            "wrapped-calm" => f.Constructed(f.Wrapper, f.Calm),
+            _ => f.Constructed(f.Wrapper, f.Integer),
+        };
+        _ = f.Call(read, closing, FormattingFragments.Value(closing), offset: 60);
+
+        Assert.Empty(f.Analyze(read));
+    }
+
+    [Fact]
+    public void AnUnmarkedGenericFormattingItsParameter_StaysAdmittedForAMutableFormatter()
+    {
+        var show = f.Formats("Show", isReadonly: false);
+        _ = f.Call(show, f.Box, FormattingFragments.Value(f.Box), offset: 60);
+
+        Assert.Empty(f.Analyze(show));
+    }
+
+    [Fact]
+    public void AParameterForwardedIntoAReadonlyFormatting_IsRefusedWhereItIsClosed()
+    {
+        var read = f.Formats("Read", isReadonly: true);
+        var wrap = f.Forwards("Wrap", isReadonly: false, read, offset: 40);
+        _ = f.Call(wrap, f.Box, FormattingFragments.Value(f.Box), offset: 60);
+
+        var finding = Assert.Single(f.Analyze(read, wrap));
+
+        Assert.Equal(61, finding.Location.Start.Column);
+        Assert.StartsWith("Cannot use 'Box' as type argument 'U': readonly method 'Read' formats it", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AReadonlyGenericTypeFormattingItsParameter_IsRefusedWhereAMutableFormatterClosesIt()
+    {
+        var (keep, describe) = f.ReadonlyGeneric("Keep");
+        f.Close(keep, f.Box, offset: 60);
+        f.Close(keep, f.Calm, offset: 80);
+
+        var finding = Assert.Single(f.Analyze(describe));
+
+        Assert.Equal(61, finding.Location.Start.Column);
+        Assert.StartsWith("Cannot use 'Box' as type argument 'K': readonly method 'Describe' formats it", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AReadonlyMemberCallingAnUnmarkedGenericAtAMutableClosing_IsRefusedAtTheCall()
+    {
+        var show = f.Formats("Show", isReadonly: false);
+        var direct = f.Calls("Direct", isReadonly: true, show, f.Box, offset: 60);
+
+        var finding = Assert.Single(f.Analyze(show, direct));
+
+        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(61, finding.Location.Start.Column);
+        Assert.Contains("Cannot call 'ToString' from readonly method 'Direct'", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AReadonlyGenericCallingAnUnmarkedGenericWithItsOwnParameter_PromisesThatParameter()
+    {
+        var show = f.Formats("Show", isReadonly: false);
+        var open = f.Forwards("Open", isReadonly: true, show, offset: 40);
+        _ = f.Call(open, f.Box, FormattingFragments.Value(f.Box), offset: 60);
+        _ = f.Call(open, f.Calm, FormattingFragments.Value(f.Calm), offset: 80);
+
+        var finding = Assert.Single(f.Analyze(show, open));
+
+        Assert.Equal(FormatsMutable, finding.Id.Value);
+        Assert.Equal(61, finding.Location.Start.Column);
+        Assert.Contains("readonly method 'Open' formats it", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AReadonlyMemberCallingAReadonlyGenericAtAMutableClosing_IsOneComplaint()
+    {
+        var read = f.Formats("Read", isReadonly: true);
+        var direct = f.Calls("Direct", isReadonly: true, read, f.Box, offset: 60);
+
+        var finding = Assert.Single(f.Analyze(read, direct));
+
+        Assert.Equal(FormatsMutable, finding.Id.Value);
+    }
+
+    [Fact]
+    public void AReadonlyMemberFormattingAConstructedGenericFormatter_IsRefusedAtTheHole()
+    {
+        var deep = f.Interpolates("Deep", f.Constructed(f.Wrapper, f.Box));
+
+        var finding = Assert.Single(f.Analyze(deep));
+
+        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Contains("Cannot call 'ToString' from readonly method 'Deep'", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AReadonlyMemberFormattingAMutableFormatterDirectly_KeepsItsRefusal()
+    {
+        var finding = Assert.Single(f.Analyze(f.Interpolates("Shown", f.Box)));
+
+        Assert.Equal(CallsMutable, finding.Id.Value);
+    }
+}

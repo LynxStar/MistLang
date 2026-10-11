@@ -121,6 +121,28 @@ internal sealed class FormattingFragments
         return (type, show);
     }
 
+    public (ClassType Shelf, Indexer Slot) GenericIndexed(string name)
+    {
+        var type = Declare(HandBuiltModel.Class(name));
+        var parameter = new TypeParameter("T", 0, type.Scope, type);
+        type.TypeParametersList.Add(parameter);
+        var held = new Field("held", parameter, default, default) { DeclaringType = type };
+        type.FieldsList.Add(held);
+        var slot = new Indexer(Text, [new Parameter("index", Integer)], Public)
+        {
+            Getter = new PropertyAccessor { Body = Returning(Interpolate(new FieldReferenceExpression(HandBuiltModel.Node(), held))) },
+            DeclaringType = type,
+        };
+        type.IndexersList.Add(slot);
+        return (type, slot);
+    }
+
+    public Method Indexes(string name, Indexer slot, IMistType receiver, int offset)
+    {
+        var read = new IndexExpression(HandBuiltModel.Node(offset), Value(receiver), HandBuiltModel.Literal(Integer, 0L), Text) { Indexer = slot };
+        return Member(name, isReadonly: true, Returning(read));
+    }
+
     public ClassType Derived(string name, ClassType baseDefinition, IMistType argument)
     {
         return Declare(HandBuiltModel.Class(name, Constructed(baseDefinition, argument)));

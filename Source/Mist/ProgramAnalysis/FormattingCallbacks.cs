@@ -79,6 +79,27 @@ internal sealed class FormattingCallbacks
                     TypeSubstitution.ForMember(Constructed(access.Receiver.Type), found, interner: null));
                 break;
 
+            case IndexExpression { Indexer: { Getter: { } getter } indexer } index:
+                yield return new FormatUse(
+                    getter, ReadonlyInference.Declared(getter, indexer.Modifiers), indexer.DeclaringType, index, Inherited(index.Receiver.Type, indexer.DeclaringType));
+                break;
+
+            case BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } binaryOperator } binary:
+                yield return ThroughOperands(binaryOperator, binary, binary.Left.Type, binary.Right.Type);
+                break;
+
+            case UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator } unary:
+                yield return ThroughOperands(unaryOperator, unary, unary.Operand.Type);
+                break;
+
+            case CastExpression { Operator: { Modifiers.IsIntrinsic: false } conversion } cast:
+                yield return ThroughOperands(conversion, cast, cast.Operand.Type, cast.Type);
+                break;
+
+            case ImplicitConversionExpression { Operator: { Modifiers.IsIntrinsic: false } conversion } converted:
+                yield return ThroughOperands(conversion, converted, converted.Operand.Type, converted.Type);
+                break;
+
             case PropertyReferenceExpression { Property: { Getter: { } getter } property } read:
                 yield return new FormatUse(
                     getter, ReadonlyInference.Declared(getter, property.Modifiers), property.DeclaringType, read, Inherited(enclosing, property.DeclaringType));
@@ -282,6 +303,13 @@ internal sealed class FormattingCallbacks
         }
 
         return false;
+    }
+
+    private static FormatUse ThroughOperands(Method member, Expression at, params IMistType[] operands)
+    {
+        var closing = operands.Select(Constructed).FirstOrDefault(constructed => ReferenceEquals(constructed?.Definition, member.DeclaringType));
+
+        return new FormatUse(member, member.Modifiers, member.DeclaringType, at, TypeSubstitution.ForReceiver(closing));
     }
 
     private static TypeSubstitution Inherited(IMistType? receiver, MemberType? declaring)

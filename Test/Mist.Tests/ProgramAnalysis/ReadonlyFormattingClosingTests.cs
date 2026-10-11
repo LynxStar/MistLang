@@ -181,6 +181,19 @@ public sealed class ReadonlyFormattingClosingTests
         Assert.Empty(f.Analyze(show, f.CallsThrough("Look", show, calms, offset: 60)));
     }
 
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 0)]
+    public void AReadonlyMemberReadingAGenericIndexerThatFormatsItsParameter_IsJudgedByTheReceiversClosing(bool mutable, int findings)
+    {
+        var (shelf, slot) = f.GenericIndexed("Shelf");
+
+        var found = f.Analyze(f.Indexes("Peek", slot, f.Constructed(shelf, mutable ? f.Box : f.Calm), offset: 60));
+
+        Assert.Equal(findings, found.Count);
+        Assert.All(found, finding => Assert.Equal(CallsMutable, finding.Id.Value));
+    }
+
     [Fact]
     public void AParameterAUseLeavesUnbound_IsNoPromiseOfTheCallingMember()
     {

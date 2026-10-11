@@ -1,5 +1,6 @@
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -58,6 +59,42 @@ public sealed class FormattingCallbackDecisionTests
 
         Assert.Same(shown.Getter, use.Callee);
         Assert.Same(f.Box, use.Closing.Apply(held, interner: null));
+    }
+
+    [Fact]
+    public void AnIndexerReadThroughAConstructedReceiverIsClosedByIt()
+    {
+        var (shelf, slot) = f.GenericIndexed("Shelf");
+        var read = new IndexExpression(
+            HandBuiltModel.Node(), FormattingFragments.Value(f.Constructed(shelf, f.Box)), HandBuiltModel.Literal(f.Integer, 0L), f.Text)
+        {
+            Indexer = slot,
+        };
+
+        var use = Assert.Single(FormattingCallbacks.Uses(read, enclosing: null));
+
+        Assert.Same(slot.Getter, use.Callee);
+        Assert.Same(f.Box, use.Closing.Apply(shelf.TypeParametersList[0], interner: null));
+    }
+
+    [Fact]
+    public void AnOperatorIsClosedByTheOperandOfTheTypeDeclaringIt()
+    {
+        var (shelf, _) = f.GenericIndexed("Shelf");
+        var closed = f.Constructed(shelf, f.Box);
+        var plus = new Operator(OperatorKind.Plus, closed, [new Parameter("a", closed), new Parameter("b", f.Integer)], new MemberModifiers { IsStatic = true })
+        {
+            DeclaringType = shelf,
+        };
+        var addition = new BinaryExpression(HandBuiltModel.Node(), FormattingFragments.Value(f.Integer), BinaryOperatorKind.Add, FormattingFragments.Value(closed), closed)
+        {
+            Operator = plus,
+        };
+
+        var use = Assert.Single(FormattingCallbacks.Uses(addition, enclosing: null));
+
+        Assert.Same(plus, use.Callee);
+        Assert.Same(f.Box, use.Closing.Apply(shelf.TypeParametersList[0], interner: null));
     }
 
     [Fact]

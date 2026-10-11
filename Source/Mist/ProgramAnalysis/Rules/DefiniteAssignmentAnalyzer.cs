@@ -35,7 +35,7 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
         foreach(var root in context.Bodies)
         {
             var constructor = root.Member as Constructor;
-            var storage = constructor is { ChainKind: not ConstructorChainKind.This, DeclaringType: ConcreteType owner }
+            var storage = constructor is { Modifiers.IsStatic: false, ChainKind: not ConstructorChainKind.This, DeclaringType: ConcreteType owner }
                 && ReferenceEquals(root.Root, constructor.Body)
                 ? Unassigned(owner)
                 : [];
@@ -75,7 +75,7 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
     private static List<object> Unassigned(ConcreteType owner)
     {
         return InstanceStorage.Of(owner)
-            .Where(slot => !Defaultability.IsUndecided(slot.Type) && !StorageDefaults.HasDefault(owner, slot))
+            .Where(slot => !Defaultability.IsUndecided(slot.Type) && !StorageDefaults.HasConstructorDefault(slot))
             .Select(slot => slot.Member)
             .ToList();
     }

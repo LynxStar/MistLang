@@ -76,11 +76,6 @@ internal static class BodyBinder
             _ => null,
         };
 
-        if(argumentList is null)
-        {
-            return;
-        }
-
         var bindingCtx = new BindingContext(scope, returnType: null);
 
         var target = chain is BaseChainConstructorChainNode

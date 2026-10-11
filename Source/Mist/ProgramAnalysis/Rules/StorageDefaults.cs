@@ -5,15 +5,15 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// <see cref="Defaultability"/>'s answer for a slot of instance storage, less a refinement whose predicate
-/// refuses the base's zero the slot would start from. ProgramModel cannot read a predicate, so the rule for
-/// defaults and the rule for constructors both finish the answer here.
+/// A constructor starts from a slot's initializer or type default, independently of the owner's default
+/// block. Both construction and default synthesis refuse a refinement's zero when its predicate does.
 /// </summary>
 internal static class StorageDefaults
 {
-    public static bool HasDefault(ConcreteType owner, InstanceStorage slot)
+    public static bool HasConstructorDefault(InstanceStorage slot)
     {
-        return Defaultability.StorageHasDefault(owner, slot) && !ZeroRefused(owner, slot);
+        return slot.Initializer is not null
+            || (Defaultability.HasDefault(Requirement.Unrefined(slot.Type)) && RefinedZero.IsAdmitted(slot.Type));
     }
 
     public static bool ZeroRefused(ConcreteType owner, InstanceStorage slot)

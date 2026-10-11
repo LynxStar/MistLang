@@ -247,8 +247,8 @@ When a type has constructors, the compiler verifies that every field is assigned
 The rules are:
 
 1. **Fields with initializers** (e.g., `public int X = 5;`) are considered assigned at constructor entry.
-2. **Fields with defaultable types** and no initializer are considered assigned at constructor entry by the analysis. Explicit user constructors currently retain CLR storage initialization for these slots; assign a semantic class or enum default explicitly when the constructor needs it. Constructorless construction and synthesized defaults supply semantic defaults.
-3. **Fields with non-defaultable types** and no initializer must be explicitly assigned in every constructor body, on every control-flow path.
+2. **Fields with defaultable types** and no initializer receive their type's semantic default before the constructor body runs. A class field receives a fresh default instance, a string receives `""`, an enum receives its designated default variant, and an optional receives absence. Auto-properties with backing storage follow the same rule, including get-only auto-properties.
+3. **Fields with non-defaultable types** and no initializer must be explicitly assigned in every constructor body, on every control-flow path. An entry in the containing type's `default` block does not satisfy this obligation, because user construction does not run that block.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -263,9 +263,11 @@ The rules are:
 {{#endtab }}
 {{#endtabs }}
 
-If a constructor fails to assign a non-defaultable field on any code path, the compiler emits `MIST_FIELD_NOT_DEFINITELY_ASSIGNED` naming the unassigned field.
+If a constructor fails to assign a non-defaultable field on any code path, the compiler emits `MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED` naming the unassigned field.
 
-The analysis is control-flow sensitive. A field assigned inside an `if` block is only considered assigned after the `if` if it is also assigned in the `else` branch (or the code unconditionally continues past the branch).
+The analysis is control-flow sensitive. An assignment in only one branch does not discharge a field's constructor obligation; every path that reaches the end must assign it. A `this(...)` chain relies on its target constructor's assignments and does not repeat storage initialization. A base constructor initializes its own storage portion once.
+
+Constructor entry uses the stored member's type default, not the containing type's whole default. For example, a scalar field `Count` starts at `0` in an otherwise empty user constructor even if the containing type's `default` block overrides `Count` to `7`. Taking the containing type's default applies that override without running its user constructors. Static storage and computed properties do not receive per-instance initialization.
 
 ## The `where T : default` Generic Constraint
 

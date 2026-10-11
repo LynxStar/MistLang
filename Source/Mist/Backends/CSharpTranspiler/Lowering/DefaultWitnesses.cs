@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramAnalysis;
+using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
@@ -160,6 +161,11 @@ internal static class DefaultWitnesses
             if(assignment.Storage.Initializer is { } initializer && Deferred(initializer))
             {
                 BodyEmitter.EmitSequenced(initializer, $"this.{assignment.Storage.Name} = ", writer, diagnostics);
+            }
+            else if(assignment.Storage.Initializer is null && RefinedZero.IsAdmitted(TypeNameEmitter.Closed(assignment.Storage.Type))
+                && DefaultSynthesis.StorageZero(assignment.Storage.Type) is { } zero)
+            {
+                writer.WriteLine($"this.{assignment.Storage.Name} = {zero};");
             }
         }
     }

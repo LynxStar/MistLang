@@ -10,6 +10,9 @@ public class Connection
 
     public Connection(string host, int port)
     {
+        this.Host = "";
+        this.Port = default(int);
+        this.Secure = default(bool);
         this.Host = host;
         this.Port = port;
         this.Secure = false;

@@ -10,6 +10,8 @@ public readonly struct Container
 
     public Container()
     {
+        this.Code = default(int);
+        this.Label = "";
         this.Code = 99;
         this.Label = "constructed";
     }

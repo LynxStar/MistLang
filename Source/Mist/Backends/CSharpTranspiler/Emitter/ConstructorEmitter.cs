@@ -13,8 +13,8 @@ internal static class ConstructorEmitter
 {
     /// <param name="structInitNames">
     /// The per-ancestor initializer names when the declaring type is a struct, which turns a chain
-    /// clause C# cannot express into a call at the top of the body. Both chain kinds are lowered,
-    /// not just <c>base</c>, so a struct constructor's shape does not depend on which it used.
+    /// clause C# cannot express into a call at the top of the body. A same-type chain keeps its
+    /// native clause so C# runs declaration initializers only in the target constructor.
     /// Null for a class, which keeps its real chain clause.
     /// </param>
     /// <param name="nameOverride">
@@ -67,7 +67,8 @@ internal static class ConstructorEmitter
         AttributeEmitter.EmitLines(constructor.DeclaredAttributesList, writer, diagnostics);
         writer.Write($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({string.Join(", ", parts)})");
 
-        var loweredToCall = declaringType is StructType && structInitNames is not null;
+        var loweredToCall = declaringType is StructType && structInitNames is not null
+            && constructor.ChainKind != ConstructorChainKind.This;
         var hosted = new List<StatementHost.Hosted>();
 
         if(!loweredToCall && constructor.ChainKind != ConstructorChainKind.None)

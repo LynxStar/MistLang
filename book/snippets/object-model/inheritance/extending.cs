@@ -9,6 +9,8 @@ public class Animal
 
     public Animal(string name, int age)
     {
+        this.name = "";
+        this.age = default(int);
         this.name = name;
         this.age = age;
     }
@@ -35,6 +37,7 @@ public class Dog : Snippet.Animal
 
     public Dog(string name, int age, string breed) : base(name, age)
     {
+        this.breed = "";
         this.breed = breed;
     }
 

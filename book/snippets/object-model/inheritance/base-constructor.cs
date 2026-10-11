@@ -8,6 +8,7 @@ public class GuideDog : Snippet.Dog
 
     public GuideDog(string name, int age, string breed, string handler) : base(name, age, breed)
     {
+        this.handler = "";
         this.handler = handler;
     }
 

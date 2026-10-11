@@ -63,6 +63,17 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
         foreach(var type in context.Types)
         {
             CheckExposure(context, type);
+
+            foreach(var constructor in (type as ConcreteType)?.ConstructorsList ?? [])
+            {
+                if(InaccessibleChain(constructor) is { } target)
+                {
+                    var accessibility = target.Modifiers.Accessibility;
+                    context.Report(
+                        ProgramAnalysisDiagnostics.InaccessibleMember, constructor.ChainNode!, [],
+                        target.Name, accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(accessibility));
+                }
+            }
         }
 
         foreach(var declared in DeclaredPredicates.Of(context))
@@ -93,6 +104,25 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
     {
         return AccessDomains.Blocking(naming.Owner, naming.Assembly, naming.Named) is { } blocking
             ? (blocking, ProgramAnalysisDiagnostics.InaccessibleType)
+            : null;
+    }
+
+    internal static Constructor? InaccessibleChain(Constructor constructor)
+    {
+        if(constructor is not
+            {
+                ChainKind: ConstructorChainKind.This or ConstructorChainKind.Base,
+                ChainNode: not null,
+                ChainedConstructor: { DeclaringType: { } declaring } target,
+                DeclaringType: { } owner,
+            })
+        {
+            return null;
+        }
+
+        return AccessDomains.Reaches(owner, owner.Assembly, declaring)
+            && !AccessDomains.Admits(owner, owner.Assembly, target.Modifiers.Accessibility, declaring)
+            ? target
             : null;
     }
 

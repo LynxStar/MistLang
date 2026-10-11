@@ -290,101 +290,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-022
   area: analysis
-- id: MIST-008
-  title: Inject semantic defaults into uninitialized user-constructor storage
-  status: confirmed
-  summary: DefaultWitnesses.EmitInitializers only emits written deferred initializers, not absent storage
-    defaults; DA excludes defaultable storage from required assignments. Frozen CLI run of new Holder(1).Item.Value,
-    where Inner has semantic default Value=7, throws NullReferenceException. Retained defaultability10.1
-    omission is confirmed through source and execution.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=declaration-shape-checks].tasks[10]
-    line_at_baseline: 2183
-    lead_excerpt: Defaultability10.1 default injection missing for fields, auto-properties, enums and
-      constructed slots without initializers in user constructors.
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: executed frozen-main CLI run and source inspection; no test-suite execution
-    sources:
-    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/DefaultWitnesses.cs
-      selector: public static void EmitInitializers
-      line: 154
-    - file: Source/Mist/ProgramAnalysis/Rules/DefiniteAssignmentAnalyzer.cs
-      selector: private static List<object> Unassigned
-      line: 76
-    probes:
-    - project: /private/tmp/mist-reconcile-analysis-probes/candidate-default-constructor-injection
-      results_file: /private/tmp/mist-reconcile-analysis-probes/results-second.json
-      observed: exit134; NullReferenceException
-  related:
-  - emitter default-value-synthesis
-  - backlog/general.md constructor injection
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-028
-  area: analysis
-- id: MIST-009
-  title: Do not let default block entries satisfy constructor assignment
-  status: confirmed
-  summary: DA Unassigned uses StorageDefaults.HasDefault; Defaultability.CanDefault counts any DefaultBlock
-    entry as a default although a user constructor does not run that block. Source-only retained unsound
-    DA obligation.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=declaration-shape-checks].tasks[10]
-    line_at_baseline: 2183
-    lead_excerpt: Definite assignment counts a default block entry as an answer inside a constructor,
-      which never runs the block.
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/DefiniteAssignmentAnalyzer.cs
-      selector: StorageDefaults.HasDefault
-      line: 79
-    - file: Source/Mist/ProgramModel/Construction/Defaultability.cs
-      selector: return entry is not null ||
-      line: 185
-  related:
-  - constructor injection/defaultability
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-029
-  area: analysis
-- id: MIST-010
-  title: Check accessibility of explicit constructor chains
-  status: confirmed
-  summary: AccessibilityAnalyzer reads NewExpression but not written chain selection; frozen explicit
-    private base() probe reaches Roslyn accessibility error. The implicit-chain implementation does not
-    cover this obligation.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=declaration-shape-checks].tasks[11]
-    line_at_baseline: 2391
-    lead_excerpt: 'Explicit `: base()` to a private base constructor is judged by nothing.'
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: current CLI probes executed, plus source inspection; no test-suite execution claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/AccessibilityAnalyzer.cs
-      selector: case NewExpression
-      line: 51
-    - file: Source/Mist/ProgramAnalysis/ImplicitChains.cs
-      selector: 'ChainKind: ConstructorChainKind.None'
-      line: 39
-    probes:
-    - project: /private/tmp/mist-reconcile-analysis-probes/candidate-explicit-base-private
-      results_file: /private/tmp/mist-reconcile-analysis-probes/results-second.json
-  related:
-  - emitter constructor chains
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-033
-  area: analysis
 - id: MIST-011
   title: Close associated type slots in member signatures and compare generic constraints
   status: confirmed
@@ -7925,6 +7830,157 @@ issues:
   audit_key: root:native-test-runner
   area: verification/tooling
 archive:
+- id: MIST-008
+  title: Inject semantic defaults into uninitialized user-constructor storage
+  status: implemented
+  summary: Explicit user constructors inject semantic defaults into uninitialized defaultable instance storage. Same-type struct delegation preserves witnesses and initializes declaration storage once; default(T) remains on the separate synthesized route.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=declaration-shape-checks].tasks[10]
+    line_at_baseline: 2183
+    lead_excerpt: Defaultability10.1 default injection missing for fields, auto-properties, enums and
+      constructed slots without initializers in user constructors.
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: executed frozen-main CLI run and source inspection; no test-suite execution
+    sources:
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/DefaultWitnesses.cs
+      selector: public static void EmitInitializers
+      line: 154
+    - file: Source/Mist/ProgramAnalysis/Rules/DefiniteAssignmentAnalyzer.cs
+      selector: private static List<object> Unassigned
+      line: 76
+    probes:
+    - project: /private/tmp/mist-reconcile-analysis-probes/candidate-default-constructor-injection
+      results_file: /private/tmp/mist-reconcile-analysis-probes/results-second.json
+      observed: exit134; NullReferenceException
+  - revision: MIST-008 completion commit containing this archive entry, based on 8908ff91d5d85c7e05ea19fff9ad5db30d9426b4
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - DefaultWitnesses.EmitInitializers injects existing semantic StorageZero values for absent instance storage, including real backing-storage/get-only properties, after stored witness assignments. Written initializers retain declaration/deferred evaluation; containing default-block overrides are ignored on this route.
+    - RefinedZero checks the closed substituted storage type before injection. Class base construction handles its own slots; flattened struct storage resolves ancestor paths. ConstructorEmitter keeps same-type struct chains as native this(...) clauses, preserving default witness forwarding and once-only declaration initializers.
+    - Added 21 Tier 2 ConstructorDefaultEmissionTests cases; updated the existing Tier 2 struct delegation anchor. Documentation and seven compiler-generated book C# tabs reflect constructor-entry defaults.
+    verification:
+    - Final integration checkout based on 8908ff91d5d85c7e05ea19fff9ad5db30d9426b4; git submodule update --init --recursive executed. Storm HEAD and recorded gitlink both b4e5853ccca45623e59fcdb9ee0afd6e90e836ce.
+    - 'Current-main baseline 4f018a0d79b8a8231545edd9a7f32edf917a8e6b: exact MIST-008 and MIST-009 CLI probes exited 134 with NullReferenceException; MIST-010 exited 1 with MIST_CS_ERROR for inaccessible Base.Base().'
+    - 'Focused ledger TestResults/ledger/20261011-164010: 392/392 passed; constructor storage, accessibility, binding, defaultability and emission anchors. Review checkpoint ledger 20261011-164647: 109/109 passed. Summaries and empty failures.txt inspected.'
+    - 'Pre-integration full ledgers 20261011-164128 and 20261011-165222: 10128/10128 and 10140/10140 passed respectively; all four assemblies completed, failures.txt empty. These precede the concurrent local-binding integration and do not stand in for its final gate.'
+    - 'Final integrated full regression: LEDGER_NO_BUILD=1 NUGET_HTTP_CACHE_PATH=/tmp/mist-constructors-nuget-cache UseSharedCompilation=false tools/test-ledger/run.sh; 10203/10203 passed, 0 failed, 0 skipped; TestResults/ledger/20261011-165815. summary.txt, failures.txt and TRX inspected; AllFeaturesV2 and Testing passed. No interrupted run or observed macOS watcher stall; polling override not used.'
+    - 'dotnet build Mist.slnx after integration: 0 warnings, 0 errors; /tmp/mist-constructors-integrated-build.log. Task-local NuGet cache and UseSharedCompilation=false avoid the first sandboxed baseline attempt''s cache/compiler-server access errors; no warning suppression.'
+    - 'dotnet format Mist.slnx --verify-no-changes --no-restore: exit 0 after integration; /tmp/mist-constructors-integrated-format.log. git diff --check passed.'
+    - 'Fresh final CLI probes: MIST-008 prints 7 and exits 0; MIST-009 and its one-sided branch control exit 1 with MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED; MIST-010 exits 1 with MIST_PA_INACCESSIBLE_MEMBER at the written empty base() chain. Invalid fresh projects produce no consumer project.'
+    - 'Batched scratch acceptance: 34 expected output lines matched under Mist run and independently MSBuild-built consumer runtime; class/struct storage, designated enum, optional absence, closed generic slots, default witnesses, auto/get-only/backed properties, constructor assignment branches, initializer precedence, public/protected/private-this chains, per-owner initialization, native generic struct delegation, once-only field/property initializers and new/default separation. /tmp/mist-constructor-contracts/acceptance; out/ remains scratch.'
+    - 'Generated consumer builds inspected: exact MIST-008 out/Probe.csproj has 0 warnings/errors. Broader generic acceptance artifact has 0 errors and 9 nullable warnings (6 CS8603, 3 CS8618); these unchecked compatibility/part-constructor routes are retained as open MIST-207, outside this packet''s CLR projection scope. Parameterless inherited factory CS0108 is resolved separately in MIST-206.'
+    - SnippetEmitter regenerated 14 default-keyword pairs (4 updated) and 3 inheritance pairs (3 updated), 0 failures. After integrating main it regenerated both folders again; resulting checked-in C# reflects the integrated compiler.
+    limitations:
+    - Included constructor initialization, definite assignment and written-chain accessibility obligations are discharged. Existing unconstrained/unchecked CLR generic compatibility policy is not expanded; nullable artifact residue stays open as MIST-207.
+  related:
+  - emitter default-value-synthesis
+  - backlog/general.md constructor injection
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-028
+  area: analysis
+- id: MIST-009
+  title: Do not let default block entries satisfy constructor assignment
+  status: implemented
+  summary: Constructor assignment uses written initializers or the stored type's admitted semantic default. A containing default-block entry no longer excuses missing assignments to nondefaultable storage; every-path flow and this-chain delegation remain valid.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=declaration-shape-checks].tasks[10]
+    line_at_baseline: 2183
+    lead_excerpt: Definite assignment counts a default block entry as an answer inside a constructor,
+      which never runs the block.
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/DefiniteAssignmentAnalyzer.cs
+      selector: StorageDefaults.HasDefault
+      line: 79
+    - file: Source/Mist/ProgramModel/Construction/Defaultability.cs
+      selector: return entry is not null ||
+      line: 185
+  - revision: MIST-009 completion commit containing this archive entry, based on 8908ff91d5d85c7e05ea19fff9ad5db30d9426b4
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - StorageDefaults.HasConstructorDefault separates storage initializers/type defaults and refinement admission from whole-type default-block answers. DefiniteAssignmentAnalyzer uses that constructor-only decision and excludes static constructor bodies from instance obligations.
+    - Default-block value and type-binding entries do not discharge nondefaultable storage. Existing flow intersection refuses empty/one-sided bodies, admits all-branch assignment and written initializers, and relies on independently checked this-chain targets.
+    - Added 16 Tier 1 constructor storage default decisions and 27 new Tier 2 flow cases, retaining seven existing cases. Field, class/struct, auto/get-only/bodied backing storage, refinement and static/computed controls are covered.
+    verification:
+    - Final integration checkout based on 8908ff91d5d85c7e05ea19fff9ad5db30d9426b4; git submodule update --init --recursive executed. Storm HEAD and recorded gitlink both b4e5853ccca45623e59fcdb9ee0afd6e90e836ce.
+    - 'Current-main baseline 4f018a0d79b8a8231545edd9a7f32edf917a8e6b: exact MIST-008 and MIST-009 CLI probes exited 134 with NullReferenceException; MIST-010 exited 1 with MIST_CS_ERROR for inaccessible Base.Base().'
+    - 'Focused ledger TestResults/ledger/20261011-164010: 392/392 passed; constructor storage, accessibility, binding, defaultability and emission anchors. Review checkpoint ledger 20261011-164647: 109/109 passed. Summaries and empty failures.txt inspected.'
+    - 'Pre-integration full ledgers 20261011-164128 and 20261011-165222: 10128/10128 and 10140/10140 passed respectively; all four assemblies completed, failures.txt empty. These precede the concurrent local-binding integration and do not stand in for its final gate.'
+    - 'Final integrated full regression: LEDGER_NO_BUILD=1 NUGET_HTTP_CACHE_PATH=/tmp/mist-constructors-nuget-cache UseSharedCompilation=false tools/test-ledger/run.sh; 10203/10203 passed, 0 failed, 0 skipped; TestResults/ledger/20261011-165815. summary.txt, failures.txt and TRX inspected; AllFeaturesV2 and Testing passed. No interrupted run or observed macOS watcher stall; polling override not used.'
+    - 'dotnet build Mist.slnx after integration: 0 warnings, 0 errors; /tmp/mist-constructors-integrated-build.log. Task-local NuGet cache and UseSharedCompilation=false avoid the first sandboxed baseline attempt''s cache/compiler-server access errors; no warning suppression.'
+    - 'dotnet format Mist.slnx --verify-no-changes --no-restore: exit 0 after integration; /tmp/mist-constructors-integrated-format.log. git diff --check passed.'
+    - 'Fresh final CLI probes: MIST-008 prints 7 and exits 0; MIST-009 and its one-sided branch control exit 1 with MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED; MIST-010 exits 1 with MIST_PA_INACCESSIBLE_MEMBER at the written empty base() chain. Invalid fresh projects produce no consumer project.'
+    - 'Batched scratch acceptance: 34 expected output lines matched under Mist run and independently MSBuild-built consumer runtime; class/struct storage, designated enum, optional absence, closed generic slots, default witnesses, auto/get-only/backed properties, constructor assignment branches, initializer precedence, public/protected/private-this chains, per-owner initialization, native generic struct delegation, once-only field/property initializers and new/default separation. /tmp/mist-constructor-contracts/acceptance; out/ remains scratch.'
+    - 'Generated consumer builds inspected: exact MIST-008 out/Probe.csproj has 0 warnings/errors. Broader generic acceptance artifact has 0 errors and 9 nullable warnings (6 CS8603, 3 CS8618); these unchecked compatibility/part-constructor routes are retained as open MIST-207, outside this packet''s CLR projection scope. Parameterless inherited factory CS0108 is resolved separately in MIST-206.'
+    - SnippetEmitter regenerated 14 default-keyword pairs (4 updated) and 3 inheritance pairs (3 updated), 0 failures. After integrating main it regenerated both folders again; resulting checked-in C# reflects the integrated compiler.
+    limitations:
+    - Included constructor initialization, definite assignment and written-chain accessibility obligations are discharged. Existing unconstrained/unchecked CLR generic compatibility policy is not expanded; nullable artifact residue stays open as MIST-207.
+  related:
+  - constructor injection/defaultability
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-029
+  area: analysis
+- id: MIST-010
+  title: Check accessibility of explicit constructor chains
+  status: implemented
+  summary: Written empty or argument-taking constructor chains retain their selected target and receive source accessibility checks before C# emission. Existing implicit chains, overload selection and argument compatibility are preserved.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=declaration-shape-checks].tasks[11]
+    line_at_baseline: 2391
+    lead_excerpt: 'Explicit `: base()` to a private base constructor is judged by nothing.'
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: current CLI probes executed, plus source inspection; no test-suite execution claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/AccessibilityAnalyzer.cs
+      selector: case NewExpression
+      line: 51
+    - file: Source/Mist/ProgramAnalysis/ImplicitChains.cs
+      selector: 'ChainKind: ConstructorChainKind.None'
+      line: 39
+    probes:
+    - project: /private/tmp/mist-reconcile-analysis-probes/candidate-explicit-base-private
+      results_file: /private/tmp/mist-reconcile-analysis-probes/results-second.json
+  - revision: MIST-010 completion commit containing this archive entry, based on 8908ff91d5d85c7e05ea19fff9ad5db30d9426b4
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - AccessibilityAnalyzer judges the bound constructor selected for written this/base chains with existing AccessDomains and reports MIST_PA_INACCESSIBLE_MEMBER at ChainNode. Public/protected base and private same-declaring-type this access remain admitted; implicit-chain diagnostics stay unchanged.
+    - 'BodyBinder no longer skips empty argument lists: BindConstructorCall retains the existing overload selection for base()/this(), so accessibility can inspect the actual target without re-selection. Constructorless bases retain their existing no-selection behavior.'
+    - Added 17 Tier 1/2 chain accessibility cases and five Tier 2 empty-chain binder cases, including generic base domains, internal assemblies, source anchoring and retained argument/selection data.
+    verification:
+    - Final integration checkout based on 8908ff91d5d85c7e05ea19fff9ad5db30d9426b4; git submodule update --init --recursive executed. Storm HEAD and recorded gitlink both b4e5853ccca45623e59fcdb9ee0afd6e90e836ce.
+    - 'Current-main baseline 4f018a0d79b8a8231545edd9a7f32edf917a8e6b: exact MIST-008 and MIST-009 CLI probes exited 134 with NullReferenceException; MIST-010 exited 1 with MIST_CS_ERROR for inaccessible Base.Base().'
+    - 'Focused ledger TestResults/ledger/20261011-164010: 392/392 passed; constructor storage, accessibility, binding, defaultability and emission anchors. Review checkpoint ledger 20261011-164647: 109/109 passed. Summaries and empty failures.txt inspected.'
+    - 'Pre-integration full ledgers 20261011-164128 and 20261011-165222: 10128/10128 and 10140/10140 passed respectively; all four assemblies completed, failures.txt empty. These precede the concurrent local-binding integration and do not stand in for its final gate.'
+    - 'Final integrated full regression: LEDGER_NO_BUILD=1 NUGET_HTTP_CACHE_PATH=/tmp/mist-constructors-nuget-cache UseSharedCompilation=false tools/test-ledger/run.sh; 10203/10203 passed, 0 failed, 0 skipped; TestResults/ledger/20261011-165815. summary.txt, failures.txt and TRX inspected; AllFeaturesV2 and Testing passed. No interrupted run or observed macOS watcher stall; polling override not used.'
+    - 'dotnet build Mist.slnx after integration: 0 warnings, 0 errors; /tmp/mist-constructors-integrated-build.log. Task-local NuGet cache and UseSharedCompilation=false avoid the first sandboxed baseline attempt''s cache/compiler-server access errors; no warning suppression.'
+    - 'dotnet format Mist.slnx --verify-no-changes --no-restore: exit 0 after integration; /tmp/mist-constructors-integrated-format.log. git diff --check passed.'
+    - 'Fresh final CLI probes: MIST-008 prints 7 and exits 0; MIST-009 and its one-sided branch control exit 1 with MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED; MIST-010 exits 1 with MIST_PA_INACCESSIBLE_MEMBER at the written empty base() chain. Invalid fresh projects produce no consumer project.'
+    - 'Batched scratch acceptance: 34 expected output lines matched under Mist run and independently MSBuild-built consumer runtime; class/struct storage, designated enum, optional absence, closed generic slots, default witnesses, auto/get-only/backed properties, constructor assignment branches, initializer precedence, public/protected/private-this chains, per-owner initialization, native generic struct delegation, once-only field/property initializers and new/default separation. /tmp/mist-constructor-contracts/acceptance; out/ remains scratch.'
+    - 'Generated consumer builds inspected: exact MIST-008 out/Probe.csproj has 0 warnings/errors. Broader generic acceptance artifact has 0 errors and 9 nullable warnings (6 CS8603, 3 CS8618); these unchecked compatibility/part-constructor routes are retained as open MIST-207, outside this packet''s CLR projection scope. Parameterless inherited factory CS0108 is resolved separately in MIST-206.'
+    - SnippetEmitter regenerated 14 default-keyword pairs (4 updated) and 3 inheritance pairs (3 updated), 0 failures. After integrating main it regenerated both folders again; resulting checked-in C# reflects the integrated compiler.
+    limitations:
+    - Included constructor initialization, definite assignment and written-chain accessibility obligations are discharged. Existing unconstrained/unchecked CLR generic compatibility policy is not expanded; nullable artifact residue stays open as MIST-207.
+  related:
+  - emitter constructor chains
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-033
+  area: analysis
 - id: MIST-015
   title: Suppress derivative generic local-function diagnostics
   status: implemented

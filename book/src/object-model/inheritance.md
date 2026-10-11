@@ -40,7 +40,7 @@ When a derived class has a constructor, it must forward the required arguments t
 {{#endtab }}
 {{#endtabs }}
 
-`GuideDog` extends `Dog`, which itself extends `Animal` — forming a three-level hierarchy. The `GuideDog` constructor chains to `Dog`'s constructor via `: base(name, age, breed)`, which in turn chains to `Animal`'s constructor. Each level initializes its own fields while delegating the rest upward.
+`GuideDog` extends `Dog`, which itself extends `Animal` — forming a three-level hierarchy. The `GuideDog` constructor chains to `Dog`'s constructor via `: base(name, age, breed)`, which in turn chains to `Animal`'s constructor. Each level initializes its own fields while delegating the rest upward. A written `base(...)` chain must target an accessible constructor: public and protected base constructors are available to a derived type, while a private base constructor is refused at the chain in Mist source. A `this(...)` chain can call a private constructor of the same declaring type. The compiler retains the selected overload and checks its arguments before C# emission.
 
 ## Methods in Derived Classes
 

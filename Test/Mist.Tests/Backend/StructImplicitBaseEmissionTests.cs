@@ -103,7 +103,8 @@ public sealed class StructImplicitBaseEmissionTests
 
         var text = Emit(dial);
 
-        Assert.Contains("this = new Dial(4);", text, StringComparison.Ordinal);
+        Assert.Contains("public Dial() : this(4)", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("this = new Dial", text, StringComparison.Ordinal);
         Assert.Equal(1, Count(text, "__Meter_ctor();"));
         Assert.Contains("__Meter_ctor();\n        face = 3;", text, StringComparison.Ordinal);
     }

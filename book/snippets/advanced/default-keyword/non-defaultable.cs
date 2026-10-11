@@ -9,6 +9,8 @@ public class DatabaseConnection
 
     public DatabaseConnection(string connStr, int timeout)
     {
+        this.ConnectionString = "";
+        this.Timeout = default(int);
         this.ConnectionString = connStr;
         this.Timeout = timeout;
     }

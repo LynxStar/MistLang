@@ -9,6 +9,8 @@ public class Config
 
     public Config(string env)
     {
+        this.Environment = "";
+        this.MaxRetries = default(int);
         this.Environment = env;
         this.MaxRetries = 3;
     }

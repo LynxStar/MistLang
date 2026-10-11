@@ -362,36 +362,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-042
   area: analysis
-- id: MIST-013
-  title: Propagate readonly parameter tier through deep member receivers
-  status: confirmed
-  summary: ReadonlyAnalyzer special cases receiver LocalReferenceExpression with readonly Parameter; deep
-    member chains do not match these checks. Getter-call permissiveness is already accepted and excluded
-    from this missing depth enforcement.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=ownership-borrow-checking].tasks[2]
-    line_at_baseline: 3747
-    lead_excerpt: 'A readonly parameter''s constraint reaches one member deep: `counter.Bump()` and `counter.Count
-      = 5` are judged, `counter.Inner.Bump()` is not, since the chain''s tier is a question for ThisTiers
-      rather than for a syntactic root. A getter on a readonly parameter is admitted, as Req 14 names
-      none.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/ReadonlyAnalyzer.cs
-      selector: 'case InvocationExpression { Receiver: MemberAccessExpression { Receiver: LocalReferenceExpression
-        { Local.Parameter.Modifier:'
-      line: 137
-  related: []
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-056
-  area: analysis
 - id: MIST-014
   title: Resolve extension receiver members in symbolic where bounds
   status: confirmed
@@ -452,73 +422,6 @@ issues:
   priority: P2
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-076
-  area: analysis
-- id: MIST-017
-  title: Check readonly IFormattable behavior through generic closures
-  status: confirmed
-  summary: 'Concrete closed Box<int> formatting already refuses a mutable IFormattable.ToString in a readonly
-    method. The live residue is an open nominally constrained T: readonly Read<T>(T item) where T:IFormattable
-    formats a mutable Box<int>, is admitted and mutates N. Preserve the concrete control and judge the
-    callback promise through the existing symbolic constraint rather than guessing a hidden runtime type.'
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=purity-checking].tasks[4]
-    line_at_baseline: 5130
-    lead_excerpt: 'OPEN CATEGORY: readonly formatting. Only holes of Mist types that implement IFormattable
-      are judged in readonly contexts. A type parameter instantiated with an impure Mist IFormattable
-      stays unjudged; judging it refused samples/OpenUnions.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/ReadonlyInference.Triggers.cs
-      selector: private bool FormatWrites
-      line: 32
-  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
-    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
-    source: 'using Standard; using System; namespace Probe; public class Box<T> : IFormattable { public
-      int N; public string ToString(string format, IFormatProvider provider) { this.N = this.N + 1; return
-      "box"; } } public class Program { public static readonly string Read<T>(T item) where T : IFormattable
-      { return $"{item}"; } public static void Main() { var x = new Box<int>(); Standard.Console.WriteLine(Read(x));
-      Standard.Console.WriteLine(x.N); } }
-
-      '
-    manifest: 'name = "Probe"
-
-      namespace_root = "Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 0
-    observed: 'box
-
-      1
-
-      '
-    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
-      described in the summary; no broader unknown-domain behavior is claimed.
-  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
-    verification: executed positive diagnostic control
-    source: 'using Standard; using System; namespace Probe; public class Box<T> : IFormattable { public
-      int N; public string ToString(string format, IFormatProvider provider) { this.N = this.N + 1; return
-      "box"; } } public class Program { public static readonly string Read(Box<int> item) { return $"{item}";
-      } public static void Main() { Standard.Console.WriteLine(Read(new Box<int>())); } }
-
-      '
-    exit_code: 1
-    observed: '/private/tmp/mist-oct11-analysis-probes/generic-formattable-fixed/Program.mist(1,289):
-      error MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE: Cannot call ''ToString'' from readonly method ''Read'':
-      it is not readonly. A non-readonly call requires a local member on an owned receiver.
-
-      '
-  related:
-  - CLR callback/purity generic instantiations
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-082
   area: analysis
 - id: MIST-019
   title: Expose a dependent alias parameter by the alias-declared name
@@ -922,31 +825,6 @@ issues:
   - user-defined indexers
   priority_rationale: Current reproducible wrong behavior; correctness work.
   audit_key: backend:backend-range-sliceable
-  area: backend
-- id: MIST-030
-  title: Preserve a valid readonly newtype modifier when cloning its source
-  status: confirmed
-  summary: 'readonly on a newtype over a mutable class/struct does not reach the cloned type: ConcreteTypeBuilder.BuildDeclaration
-    preserves only newtype accessibility. This is distinct from undefined owned/affine alias policies.'
-  source_refs:
-  - file: backlog/classic-retirement.md
-    selector: residual Valid but not carried
-    line_at_baseline: 337
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: 'Source-only: frozen retirement records the valid modifier contract and actual clone path;
-      newtype construction delegates the cloning to ConcreteTypeBuilder.'
-    source_symbols:
-    - file: Source/Mist/ProgramModel/Construction/Types/ConcreteTypeBuilder.cs
-      symbol: Accessibility = ModifierBuilder.Build(newtypeDeclaration
-      line: 60
-  related:
-  - purity Deferred 2
-  - newtype modifier cloning
-  priority_rationale: Current source-established wrong behavior; correctness work.
-  audit_key: backend:backend-readonly-newtype
   area: backend
 - id: MIST-031
   title: Distinguish sized constituents that share a CLR array representation
@@ -2851,6 +2729,21 @@ issues:
     line: 136
     observed: Current declaration-selection path searches admissible operators; builtin result rules already
       exist.
+  - kind: executed CLI probe
+    revision: 0998bc6e
+    date: '2026-10-11'
+    source: "using Standard; using System; namespace Probe;\npublic class Box<T> : IFormattable { public int\
+      \ N; public string ToString(string format, IFormatProvider provider) { this.N = this.N + 1; return \"\
+      box\"; } }\npublic class Tag<T> { public T Held; public Tag(T held) { this.Held = held; } public static\
+      \ string operator +(Tag<T> tag, Tag<T> other) { return $\"{tag.Held}\"; } }\npublic class Program {\n\
+      \  public static readonly string Peek(Tag<Box<int>> t) { return t + t; }\n  public static readonly string\
+      \ Calm(Tag<int> t) { return t + t; }\n  public static void Main() { var x = new Box<int>(); Standard.Console.WriteLine(Peek(new\
+      \ Tag<Box<int>>(x))); Standard.Console.WriteLine(x.N); }\n}\n"
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: MIST_PA_OPERATOR_NOT_APPLICABLE at both `t + t`, for operands Tag<Box<int>> and Tag<int>. A user
+      operator declared on a generic type is not applicable to that type's constructions; found while probing
+      MIST-017, whose readonly formatting follows such an operator's closing once the binder admits it.
   related:
   - emitter185 generic operator residue
   - analysis operator capability
@@ -7227,7 +7120,409 @@ issues:
   priority_rationale: Language contract needs resolution before selecting behavior.
   audit_key: backend:discarded-linear-result
   area: backend
+- id: MIST-209
+  title: Decide how readonly formatting judges a value whose static type hides a Mist IFormattable
+  status: decision
+  summary: A readonly context formats a value by its static type. A value typed by a Mist abstract type, object
+    or unknown is admitted even when its runtime object is a Mist IFormattable whose ToString mutates. Judging
+    it needs a policy, not a fix.
+  source_refs: []
+  evidence:
+  - revision: 0998bc6e
+    date: '2026-10-11'
+    kind: executed CLI probe and source inspection
+    source: "using Standard; using System; namespace Probe;\npublic abstract IShown { }\npublic class Loud\
+      \ : IShown, IFormattable { public int N; public string ToString(string format, IFormatProvider provider)\
+      \ { this.N = this.N + 1; return \"loud\"; } }\npublic class Program {\n  public static readonly string\
+      \ Peek(IShown s) { return $\"{s}\"; }\n  public static void Main() { var l = new Loud(); Standard.Console.WriteLine(Peek(l));\
+      \ Standard.Console.WriteLine(l.N); }\n}\n"
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    stdout: 'loud
+
+      1
+
+      '
+    sources:
+    - file: Source/Mist/ProgramAnalysis/FormattingCallbacks.cs
+      selector: private IEnumerable<FormatStep> ReachLeaf
+    detail: MistInvariant.Text calls ToString(null, InvariantCulture) on any runtime IFormattable, so the static
+      type does not bound the callback. Mist recompiles the whole program and has no overriding, so every Mist
+      type that can stand behind a Mist abstract type is visible; a CLR object behind object or unknown is not.
+      A wider union prints its carrier and calls nothing, so it is not part of this question.
+    options:
+    - Meet every Mist IFormattable type that can stand behind the static type, as an abstract slot's promise
+      meets its implementations, refusing when one mutates.
+    - Refuse formatting such a value in a readonly context, as the purity judge's FormatsByType does for a
+      pure one.
+    - Keep judging the static type only, and document that formatting an abstract-typed value is unchecked.
+  related:
+  - MIST-017
+  priority: P3
+  priority_rationale: Soundness gap in rare code shapes; the choice changes which programs compile.
+  area: analysis
+- id: MIST-210
+  title: Name an indexer apart from a member called Item in emitted C#
+  status: confirmed
+  summary: A type with an indexer and a field, property or method named Item emits C# whose indexer takes the
+    default metadata name Item, so Roslyn refuses the program as MIST_CS_ERROR CS0102. The program is valid
+    Mist and should compile.
+  source_refs: []
+  evidence:
+  - revision: 0998bc6e
+    date: '2026-10-11'
+    kind: executed CLI probe; found incidentally while probing MIST-017
+    source: "using Standard; using System; namespace Probe;\npublic class Shelf<T> { public T Item; public\
+      \ Shelf(T item) { this.Item = item; } public string this[int index] { get { return $\"{this.Item}\";\
+      \ } } }\npublic class Program {\n  public static void Main() { Standard.Console.WriteLine(new Shelf<int>(4)[0]);\
+      \ }\n}\n"
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'out/Probe/Program.cs: error MIST_CS_ERROR: The type ''Shelf<T>'' already contains a definition
+      for ''Item'''
+    sources:
+    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/IndexerEmitter.cs
+      selector: writer.WriteLine($"{modifiers}{type} this[{parameters}]");
+    detail: Renaming the field makes the same program print. A fix needs an IndexerName that every indexer of
+      the type shares and that collides with nothing the type or its bases declare, and must keep implementations
+      of abstract and CLR indexers matching.
+  related: []
+  priority: P3
+  priority_rationale: Valid program refused by the generated C#; rare member name.
+  area: backend
+- id: MIST-211
+  title: Keep regex full-match decision tests independent of wall-clock load
+  status: unverified
+  summary: A Tier 1 regex full-match decision answered undecided instead of refused during one loaded full run
+    and passed on an isolated rerun. LiteralPredicates bounds each match with a 100 ms wall-clock MatchLimit and
+    answers null on RegexMatchTimeoutException, so a test asserting a decided answer can observe machine load.
+    Attribution is not confirmed.
+  source_refs: []
+  evidence:
+  - revision: 0998bc6e
+    date: '2026-10-11'
+    kind: source inspection
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Refinements/LiteralPredicates.cs
+      selector: private static readonly TimeSpan MatchLimit
+    - file: Test/Mist.Tests/ProgramAnalysis/RegexFullMatchDecisionTests.cs
+      selector: AnInputWithCharactersThePatternLeavesUnconsumed_IsRefused
+  related:
+  - MIST-158
+  priority: P3
+  priority_rationale: Intermittent false red in the full regression; no product defect claimed.
+  area: verification/tooling
+  observations:
+  - kind: intermittent_test_failure
+    source_revision: ac960e26
+    test: 'Mist.Tests.ProgramAnalysis.RegexFullMatchDecisionTests.AnInputWithCharactersThePatternLeavesUnconsumed_IsRefused(body:
+      "(?x)abc #c", input: "abcx")'
+    file: Test/Mist.Tests/ProgramAnalysis/RegexFullMatchDecisionTests.cs
+    discovered: '2026-10-11'
+    symptom: 'Assert.False() Failure: Expected False, Actual null. 1 of 10475 tests failed; all other assemblies
+      and tests passed.'
+    cause: unknown
+    evidence: 'Failing run: UseSharedCompilation=false DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh
+      at ac960e26, the readonly-capability packet''s pre-integration head on 262ac0c1 (landed rebased as 2c969194),
+      TestResults/ledger/20261011-173242; Mist.Tests
+      took 1617s against 454s for the preceding full run at 5f14e048 (20261011-171713, all 10291 passed), and
+      env.txt lists 51 other dotnet processes. Passing run: LEDGER_NO_BUILD=1 tools/test-ledger/run.sh Test/Mist.Tests
+      --filter FullyQualifiedName~RegexFullMatchDecisionTests on the same binaries, 28/28,
+      TestResults/ledger/20261011-180056. The test file is unmodified and the packet''s changes do not reach
+      LiteralPredicates. For this well-formed, case-sensitive pattern the only nondeterministic null path is the
+      MatchLimit timeout; the run cannot show which path answered.'
+- id: MIST-212
+  title: Annotate a Mist IFormattable implementation with the interface's nullable parameters
+  status: confirmed
+  summary: A Mist class implementing System.IFormattable emits ToString(string format, IFormatProvider provider),
+    whose parameters the interface declares nullable, so each implementer's generated consumer warns CS8767
+    twice. Output is unaffected; the generated C# should match the implemented member's annotations.
+  source_refs: []
+  evidence:
+  - revision: 0998bc6e
+    date: '2026-10-11'
+    kind: executed generated consumer builds; found incidentally while verifying MIST-017
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet build
+      <scratch-project>/out/Probe.csproj --no-incremental --disable-build-servers
+    observed: 'The MIST-017 admission probe (five Mist IFormattable implementers, two generic) runs correctly
+      and its consumer builds with 0 errors and 14 warnings, CS8767 for format and provider at each of the five
+      ToString sites. A project generated by the compiler at 4f018a0d with one Mist IFormattable implementer
+      shows the same CS8767 pair, so it predates the readonly packet.'
+    sources:
+    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/ParameterEmitter.cs
+      selector: Emit
+    detail: The MIST-017 packet repro source in that record's evidence reproduces it with one implementer.
+      No warning is suppressed.
+  related:
+  - MIST-017
+  priority: P3
+  priority_rationale: Generated consumer warning only; no runtime defect.
+  area: backend
 archive:
+- id: MIST-013
+  title: Propagate readonly parameter tier through deep member receivers
+  status: implemented
+  summary: A readonly value parameter refuses mutable calls, field writes and nonreadonly property and indexer
+    setters through instance field and property chains of any depth, naming the reached receiver. Reads,
+    readonly calls and setters, getter calls, plain parameters, readonly-ref call/setter policy and readonly
+    owned-instance exceptions are unchanged.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=ownership-borrow-checking].tasks[2]
+    line_at_baseline: 3747
+    lead_excerpt: 'A readonly parameter''s constraint reaches one member deep: `counter.Bump()` and `counter.Count
+      = 5` are judged, `counter.Inner.Bump()` is not, since the chain''s tier is a question for ThisTiers
+      rather than for a syntactic root. A getter on a readonly parameter is admitted, as Req 14 names
+      none.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/ReadonlyAnalyzer.cs
+      selector: 'case InvocationExpression { Receiver: MemberAccessExpression { Receiver: LocalReferenceExpression
+        { Local.Parameter.Modifier:'
+      line: 137
+  - revision: MIST-013 completion commit containing this archive entry, based on feb16e31
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - 'f033db0c fix(analysis): ReadonlyParameterReceivers.RootOf walks a receiver through non-static field
+      and property member accesses to the readonly value parameter it starts from. ReadonlyAnalyzer''s
+      call, field-write, property-setter and indexer-setter sites use it at any depth; the indexer-setter
+      check now runs beside the other parameter checks, because the indexed-write branch otherwise absorbed
+      a field-rooted receiver outside readonly frames. The ref filter of the direct checks is kept: calls and
+      setters through a readonly ref parameter stay with its reference rules, field writes are refused.'
+    - The three readonly-parameter descriptors take a receiver description. A direct receiver reads exactly
+      as before; a deep one reads "'item.Nested', reached through readonly parameter 'item'".
+    - Tier 1 ReadonlyParameterReceiverDecisionTests (16 cases) cover direct, readonly-ref, two- and three-level,
+      property and mixed chains, plain-parameter, local, static-member and call-result roots, and the receiver
+      description. Tier 2 ReadonlyParameterReceiverTests (22 cases) analyze hand-built bodies for refusals with
+      exact messages and columns, unchanged direct messages, readonly-ref field writes, admitted reads,
+      readonly calls, getter calls and readonly setters, plain-parameter chains, readonly-ref calls and
+      setters, and one complaint inside a readonly member.
+    - '46e309fc docs(book): the readonly contexts chapter gains a Readonly Parameters section with the compiled
+      snippet advanced/readonly-contexts/readonly-parameter and the two refusals it describes.'
+    verification:
+    - 'Baseline 4f018a0d: the packet repro exits 0 printing 9.'
+    - 'Final CLI repro exits 1: MIST_PA_READONLY_PARAMETER_CALLS_MUTABLE "Cannot call ''Bump'' on ''item.Nested'',
+      reached through readonly parameter ''item'': it is not readonly." and MIST_PA_FIELD_ASSIGNED_ON_READONLY_PARAMETER
+      "Cannot assign to field ''N'' of ''item.Nested'', reached through readonly parameter ''item''."'
+    - 'Deeper probe: item.Mid.Deep.Bump(), item.Mid.View.N = 3 (field reached through a property) and
+      item.Nested.Level = 4 are each refused naming their receiver. Control probe exits 0 printing 22 and 1:
+      reads and a readonly call through a readonly parameter, the same mutations through a plain parameter,
+      and a mutating call through a readonly ref struct parameter.'
+    - 'Focused ledgers inspected (summary.txt, empty failures.txt): per-task runs of 105/105, 234/234, 1092/1092 and 1212/1212 over the readonly, purity, formatting, newtype, clone, modifier-placement and extension filters, and TestResults/ledger/20261011-181020 with 1438/1438 including operators after the last change. Mutation runs failed exactly the expected tests and the sources were restored and rebuilt.'
+    - 'Full regression: UseSharedCompilation=false DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh at 0998bc6e on feb16e31, 10619/10619 passed (Mist.Tests 9606, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852, Storm.ConsumerIntegration.Tests 46), TestResults/ledger/20261011-182926; summary.txt, empty failures.txt and TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. Earlier full run at 5f14e048 on fa284197 passed 10291/10291 (20261011-171713). The run at the pre-integration head ac960e26 (20261011-173242) failed one RegexFullMatchDecisionTests case and is retained as an observation on MIST-211. The polling watcher setting was a precaution (env.txt does not record environment variables); no watcher stall was observed and no run was interrupted.'
+    - 'dotnet build Mist.slnx at 0998bc6e: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes --no-restore: exit 0. git diff --check: passed. git submodule update --init --recursive; Storm HEAD and recorded gitlink both b4e5853ccca45623e59fcdb9ee0afd6e90e836ce. SnippetEmitter over advanced/readonly-contexts and type-system/newtypes after integrating main: 17 pairs unchanged, 0 failed.'
+    limitations:
+    - Only the syntactic chain is followed. A local copied from the chain, a call's result, an array element or
+      an extension property is not, by the packet's alias-escape exclusion. Getter calls on a readonly parameter
+      stay admitted (accepted policy), as does an element write through a readonly array parameter, the existing
+      tested admission ReadonlyContextDecisionTests Gauge.Fill.
+  related: []
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-056
+  area: analysis
+- id: MIST-017
+  title: Check readonly IFormattable behavior through generic closures
+  status: implemented
+  summary: 'A type parameter a readonly context formats (interpolation or string concatenation, through
+    optionals, tuples, constructed formatters and unmarked generic callees) is judged at every closing the
+    binder records and at each closed extension call: a mutating Mist IFormattable there is refused as
+    MIST_PA_READONLY_CONTEXT_FORMATS_MUTABLE. Readonly frames and readonly inference refuse an unmarked generic
+    member closed with one at the call. Readonly and inferred-readonly formatter closures stay admitted.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=purity-checking].tasks[4]
+    line_at_baseline: 5130
+    lead_excerpt: 'OPEN CATEGORY: readonly formatting. Only holes of Mist types that implement IFormattable
+      are judged in readonly contexts. A type parameter instantiated with an impure Mist IFormattable
+      stays unjudged; judging it refused samples/OpenUnions.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/ReadonlyInference.Triggers.cs
+      selector: private bool FormatWrites
+      line: 32
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
+    source: 'using Standard; using System; namespace Probe; public class Box<T> : IFormattable { public
+      int N; public string ToString(string format, IFormatProvider provider) { this.N = this.N + 1; return
+      "box"; } } public class Program { public static readonly string Read<T>(T item) where T : IFormattable
+      { return $"{item}"; } public static void Main() { var x = new Box<int>(); Standard.Console.WriteLine(Read(x));
+      Standard.Console.WriteLine(x.N); } }
+
+      '
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: 'box
+
+      1
+
+      '
+    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
+      described in the summary; no broader unknown-domain behavior is claimed.
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: executed positive diagnostic control
+    source: 'using Standard; using System; namespace Probe; public class Box<T> : IFormattable { public
+      int N; public string ToString(string format, IFormatProvider provider) { this.N = this.N + 1; return
+      "box"; } } public class Program { public static readonly string Read(Box<int> item) { return $"{item}";
+      } public static void Main() { Standard.Console.WriteLine(Read(new Box<int>())); } }
+
+      '
+    exit_code: 1
+    observed: '/private/tmp/mist-oct11-analysis-probes/generic-formattable-fixed/Program.mist(1,289):
+      error MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE: Cannot call ''ToString'' from readonly method ''Read'':
+      it is not readonly. A non-readonly call requires a local member on an owned receiver.
+
+      '
+  - revision: MIST-017 completion commit containing this archive entry, based on feb16e31
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - '428a068b fix(analysis): FormattingCallbacks names the formatting sites (holes and string concatenation
+      operands, now one consumer for ReadonlyAnalyzer and ReadonlyInference), the uses that close a member''s
+      type parameters, the steps a formatted type reaches (an open type parameter, or each Mist ToString through
+      unmarked formatter closures), and each member''s formatted type parameters as a least fixed point over
+      the unmarked generic members it calls. Declared-readonly callees and formatters are not followed.'
+    - A type parameter a readonly context formats is a promise. ReadonlyAnalyzer judges it at every
+      ConstructorConstraintClosures closing and open closing, following an open closing to the forwarding
+      parameter, and reports the new MIST_PA_READONLY_CONTEXT_FORMATS_MUTABLE at the closing node with the
+      argument, parameter, readonly context and the type whose ToString is not readonly. A readonly context
+      calling an unmarked generic member whose closing reaches a mutating formatter reports
+      MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE ToString at the call; ReadonlyInference counts the same callbacks.
+    - '2c969194 fix(analysis): uses close inherited members through the receiver''s base path (and implicit calls
+      through the enclosing type''s), only type parameters in scope are collected or promised, a closed extension
+      copy''s BlockClosing closes block parameters and each such call is judged as a closing, and optionals and
+      tuples are formatted through their value and elements while a wider union is not.'
+    - '0998bc6e fix(analysis): indexer getters, user operators and conversions on generic types are uses closed by
+      their receiver or operand.'
+    - Tests, all hand-built. Tier 1 FormattingCallbackDecisionTests (19 cases) cover sites, use closings
+      (receiver, method, getter, indexer, operator, inherited and implicit base paths), in-scope decisions and
+      reach of open, optional, tuple, wider-union, non-generic and declared-readonly formatters. Tier 2
+      FormattingCallbackTests (7 cases), ReadonlyFormattingClosingTests (27 cases) and
+      ReadonlyInferenceFormattingTests (7 cases) cover the fixed point, the analyzer's refusals with
+      columns and messages, admissions, one complaint for a declared callee, inherited, unbound-parameter,
+      extension-block, optional, tuple and indexer shapes, and inference agreement.
+    - '46e309fc docs(book): the readonly contexts chapter gains Readonly Generics and Formatting with the
+      compiled snippet advanced/readonly-contexts/readonly-generic-formatting.'
+    verification:
+    - 'Baseline 4f018a0d: the packet repro exits 0 printing box and 1; the closed Read(Box<int>) control exits 1
+      with MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE.'
+    - 'Final CLI repro exits 1 with MIST_PA_READONLY_CONTEXT_FORMATS_MUTABLE "Cannot use ''Box<int>'' as type
+      argument ''T'': readonly method ''Read'' formats it, and the ''ToString'' of ''Box<int>'' is not readonly."
+      at Read(x). The closed Read(Box<int>) control is unchanged.'
+    - 'Refusal probes, each at its source closing or call: unconstrained T; T : IFormattable through concatenation;
+      a direct non-generic formatter; Wrapper<Box<int>> naming Box<int>; forwarding through Wrap<U> naming U;
+      new Keep<Box<int>> for a readonly class formatting K; T? and a concrete Box<int>? hole; an inherited
+      unmarked Base<T>.Show on a Derived : Base<Box<int>> receiver; a readonly and an unmarked generic
+      extension block member closed by a Holder<Box<int>> receiver; an unmarked Show<T>(box) and a
+      Wrapper<Box<int>> hole inside a readonly method; a readonly Open<T> passing T to an unmarked Show.
+      Inference agreement: an unmarked Through() calling Show(box) is not readonly, so a readonly caller of
+      Through is refused.'
+    - 'Admission probe prints all 11 lines: readonly and inferred-readonly formatters, int and string closings,
+      unmarked Show(box) mutating to 1, forwarding with a readonly formatter, Keep<Calm>, Keep<int>, Wrapper<Calm>
+      and Wrapper<int>. A wider union Box<int> | int prints its carrier and calls nothing at runtime.'
+    - Mutation checks fail the expected tests with the closing judgment, the inference's use-following, the in-scope
+      guard or the block-closing observation removed.
+    - 'Focused ledgers inspected (summary.txt, empty failures.txt): per-task runs of 105/105, 234/234, 1092/1092 and 1212/1212 over the readonly, purity, formatting, newtype, clone, modifier-placement and extension filters, and TestResults/ledger/20261011-181020 with 1438/1438 including operators after the last change. Mutation runs failed exactly the expected tests and the sources were restored and rebuilt.'
+    - 'Full regression: UseSharedCompilation=false DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh at 0998bc6e on feb16e31, 10619/10619 passed (Mist.Tests 9606, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852, Storm.ConsumerIntegration.Tests 46), TestResults/ledger/20261011-182926; summary.txt, empty failures.txt and TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. Earlier full run at 5f14e048 on fa284197 passed 10291/10291 (20261011-171713). The run at the pre-integration head ac960e26 (20261011-173242) failed one RegexFullMatchDecisionTests case and is retained as an observation on MIST-211. The polling watcher setting was a precaution (env.txt does not record environment variables); no watcher stall was observed and no run was interrupted.'
+    - 'dotnet build Mist.slnx at 0998bc6e: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes --no-restore: exit 0. git diff --check: passed. git submodule update --init --recursive; Storm HEAD and recorded gitlink both b4e5853ccca45623e59fcdb9ee0afd6e90e836ce. SnippetEmitter over advanced/readonly-contexts and type-system/newtypes after integrating main: 17 pairs unchanged, 0 failed.'
+    limitations:
+    - Judgment is by static type, as for a concrete hole. A value typed by a Mist abstract type, object or unknown
+      whose runtime object is a mutating IFormattable is not judged; that policy is recorded as MIST-209.
+    - An unmarked generic member reached through a foreach enumerator, an extension property, a clone or an exit
+      drop is not followed through its closing, and readonly inference does not close an implicit inherited call
+      made inside a property accessor.
+  related:
+  - CLR callback/purity generic instantiations
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-082
+  area: analysis
+- id: MIST-030
+  title: Preserve a valid readonly newtype modifier when cloning its source
+  status: implemented
+  summary: 'A readonly newtype over a class or struct clones its source as a readonly type. The clone takes
+    readonly from every newtype declaration along its clone chain, so its members, storage, emission and
+    cloned bodies follow the ordinary readonly class/struct rules. Sources and plain newtypes stay mutable.'
+  source_refs:
+  - file: backlog/classic-retirement.md
+    selector: residual Valid but not carried
+    line_at_baseline: 337
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: 'Source-only: frozen retirement records the valid modifier contract and actual clone path;
+      newtype construction delegates the cloning to ConcreteTypeBuilder.'
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Construction/Types/ConcreteTypeBuilder.cs
+      symbol: Accessibility = ModifierBuilder.Build(newtypeDeclaration
+      line: 60
+  - revision: MIST-030 completion commit containing this archive entry, based on feb16e31
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - 'ee590adc fix(newtypes): ConcreteTypeBuilder.BuildDeclaration overlays IsReadonly from NewtypeCloner.DeclaresReadonly,
+      which reads ReadonlyModifierModifierNode off each newtype declaration along the clone chain (a clone''s
+      immediate source clone may not be built yet). Accessibility still comes from the newtype; the source''s
+      other modifiers are kept; misplaced pure/local promises do not reach a clone. Members inherit readonly
+      through ModifierBuilder.ForMember, so the existing readonly analyzer, CloneDiagnostics relocation and
+      readonly emission apply unchanged.'
+    - Tier 1 NewtypeReadonlyDeclarationTests (6 cases) and Tier 3 NewtypeCloneTests (4 new cases) assert the
+      clone, its fields and inferred-readonly method carry readonly, keep internal accessibility and sealed,
+      reach a clone of a readonly clone, and leave the source and a plain newtype mutable.
+    - '46e309fc docs(book): the newtypes chapter describes a readonly newtype with the compiled snippet
+      type-system/newtypes/readonly-newtype.'
+    verification:
+    - Checkout based on fa284197 then rebased onto feb16e31; git submodule update --init --recursive executed;
+      Storm HEAD and recorded gitlink both b4e5853ccca45623e59fcdb9ee0afd6e90e836ce.
+    - 'Baseline 4f018a0d: the packet repro exits 0 printing 5.'
+    - 'Final CLI repro exits 1: MIST_PA_READONLY_FIELD_ASSIGNED at copy.N = 5 and MIST_PM_NEWTYPE_CLONE_INVALID
+      at the newtype naming Bump, the same pair an ordinary readonly class and struct report.'
+    - 'Admissible acceptance program (readonly newtype over a class with constructor initialization, field
+      reads and an inferred readonly method; over a struct; a plain newtype over a readonly struct clone; copy
+      conversions both ways; a plain newtype written mutably) prints 5, 7, 8, 4, 4, 10, 8. Its generated
+      out/Probe.csproj builds with 0 warnings and 0 errors: the clones emit readonly fields, `public readonly
+      struct`, and the plain newtype keeps writable fields. A newtype over a readonly class newtype converts
+      by copy both ways and prints 19 C, 19 C, 21 C.'
+    - Mutation check: without the overlay line the two readonly-positive NewtypeCloneTests fail.
+    - 'Focused ledgers inspected (summary.txt, empty failures.txt): per-task runs of 105/105, 234/234, 1092/1092 and 1212/1212 over the readonly, purity, formatting, newtype, clone, modifier-placement and extension filters, and TestResults/ledger/20261011-181020 with 1438/1438 including operators after the last change. Mutation runs failed exactly the expected tests and the sources were restored and rebuilt.'
+    - 'Full regression: UseSharedCompilation=false DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh at 0998bc6e on feb16e31, 10619/10619 passed (Mist.Tests 9606, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852, Storm.ConsumerIntegration.Tests 46), TestResults/ledger/20261011-182926; summary.txt, empty failures.txt and TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. Earlier full run at 5f14e048 on fa284197 passed 10291/10291 (20261011-171713). The run at the pre-integration head ac960e26 (20261011-173242) failed one RegexFullMatchDecisionTests case and is retained as an observation on MIST-211. The polling watcher setting was a precaution (env.txt does not record environment variables); no watcher stall was observed and no run was interrupted.'
+    - 'dotnet build Mist.slnx at 0998bc6e: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes --no-restore: exit 0. git diff --check: passed. git submodule update --init --recursive; Storm HEAD and recorded gitlink both b4e5853ccca45623e59fcdb9ee0afd6e90e836ce. SnippetEmitter over advanced/readonly-contexts and type-system/newtypes after integrating main: 17 pairs unchanged, 0 failed.'
+    limitations:
+    - Only readonly is carried; local, local readonly, pure, owned and substructural promises on newtypes remain
+      the purity spec's Deferred 2 and the excluded policies. Clone conversion and provenance are unchanged.
+  related:
+  - purity Deferred 2
+  - newtype modifier cloning
+  priority_rationale: Current source-established wrong behavior; correctness work.
+  audit_key: backend:backend-readonly-newtype
+  area: backend
 - id: MIST-024
   title: Replace subtree drop elision for linear parameters and fields
   status: implemented

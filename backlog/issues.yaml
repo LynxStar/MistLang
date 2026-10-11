@@ -1186,114 +1186,6 @@ issues:
     than inventing tuple nominal identity.
   audit_key: binding:provider-03
   area: binding
-- id: MIST-050
-  title: Rule literals overlapping pattern tokens can never match
-  status: confirmed
-  summary: DeclaredTokenSpelling only reuses exact string/inline-fragment spelling, so literals admitted
-    by regex/class tokens get a later synthetic token that loses lexical priority. This is source-backed
-    at pinned Storm; current audit did not execute an independent generated grammar. Hidden-token spelling
-    is already refused and is excluded.
-  source_refs:
-  - file: backlog/storm.md
-    selector: A literal that a pattern token also admits
-    lead_excerpt: '- A literal that a pattern token also admits still never matches, its synthetic token
-      losing the'
-    line_at_baseline: 269
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: b4e5853ccca45623e59fcdb9ee0afd6e90e836ce
-    file: Source/Storm.SourceGenerator/IR/GrammarIRLowering.cs
-    selector: internal static TokenIR? DeclaredTokenSpelling
-    line: 501
-    observed: Reuses only exact Spells(pattern,literal) matches in default mode; Spells handles StringLiteralIR/InlineFragmentIR.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: backlog/storm.md
-    selector: token IDENT = [a-z]+
-    line: 270
-    observed: Tracked prior independent grammar evidence on fixed generator; not a new execution in this
-      audit.
-  related:
-  - Storm literal token/lexer priority
-  priority: P2
-  priority_rationale: Supported literal syntax can be impossible to parse when a pattern token wins.
-  audit_key: binding:storm-03
-  area: binding
-- id: MIST-051
-  title: Namespaced rule identity is lost during lookup/lowering/emission
-  status: confirmed
-  summary: Namespaced declarations are keyed/lowered under simple and qualified names, while unqualified
-    lookup inside imported grammar can bind a root homonym; qualified RuleIR names are emitted into parser
-    identifiers. Current audit inspected those code paths; prior tracker independently reproduced invalid
-    parser output. No new compiler experiment was run.
-  source_refs:
-  - file: backlog/storm.md
-    selector: The last row. `LookupByName`
-    lead_excerpt: '- The last row. `LookupByName` sends the namespaced file''s unqualified `Foo` to the
-      root rule, which'
-    line_at_baseline: 510
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: b4e5853ccca45623e59fcdb9ee0afd6e90e836ce
-    file: Source/Storm.SourceGenerator/IR/GrammarIRLowering.cs
-    selector: var ruleShells = new Dictionary<string, RuleIR>
-    line: 138
-    observed: Root rules use decl.Name; namespaced rules add another shell keyed qualified kvp.Key.
-  - kind: source_inspection
-    revision: b4e5853ccca45623e59fcdb9ee0afd6e90e836ce
-    file: Source/Storm.SourceGenerator/Emit/ParserEmitter.cs
-    selector: _Parse
-    line: 230
-    observed: Parser method naming interpolates RuleIR names.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: backlog/storm.md
-    selector: Neither version yields a compilable parser
-    line: 513
-    observed: 513
-  related:
-  - general Storm namespace lead
-  priority: P2
-  priority_rationale: Supported imported namespace grammar cannot reliably resolve homonyms or emit legal
-    identifiers.
-  audit_key: binding:storm-05
-  area: binding
-- id: MIST-052
-  title: Ordinary unreachable alternatives use warning severity rather than required error
-  status: confirmed
-  summary: For ordinary alternatives, ReachabilityPass emits STORM_UNREACHABLE_ALTERNATIVE as Warning
-    although compiler-architecture requirement7.2 calls for Error. Scope this confirmed contract mismatch
-    to ordinary alternatives. Inline-rule-prefix requirement5.3 specifically prescribes STORM0006 WARNING,
-    conflicting with the general architecture statement; reconcile that inline policy under storm-04 before
-    changing it.
-  source_refs:
-  - file: backlog/storm.md
-    selector: requirement 7.2 says an unreachable
-    lead_excerpt: '- `mist-compiler-architecture` requirement 7.2 says an unreachable alternative is an
-      Error that'
-    line_at_baseline: 459
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: b4e5853ccca45623e59fcdb9ee0afd6e90e836ce
-    file: Source/Storm.SourceGenerator/Validate/ReachabilityPass.cs
-    selector: StormDiagnosticSeverity.Warning
-    line: 52
-    observed: Both ordinary/inline diagnostics are warnings.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: .kiro/specs/mist-compiler-architecture/requirements.md
-    selector: unreachable
-    line: 146
-    observed: Requirement document contains diagnostic severity contract; task checklists excluded.
-  related: []
-  priority: P3
-  priority_rationale: Diagnostic contract mismatch, even if repository warning gate currently prevents
-    publication.
-  audit_key: binding:storm-06
-  area: binding
 - id: MIST-053
   title: Revalidate projected System.Object as the classifier top type
   status: unverified
@@ -4455,6 +4347,15 @@ issues:
     selector: public
     line: 14
     observed: Existing tests pin inline-specific policy; inspected implementation, not rerun.
+  - revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    repository: LynxStar/StormLang
+    date: '2026-10-11'
+    kind: boundary implemented by MIST-052; decision unchanged
+    detail: Ordinary unreachable alternatives are now STORM0006 Error. A finding an inline block decides - the shadowed
+      alternative expanding through one, an earlier inline block credited with success on its prefix, or an arm compared
+      by FIRST-k - still reports the warning inline-rule-prefix requirement 5 prescribes, through AlternativeShadowing's
+      ThroughInlineBlock flag. Neither the prefix-success assumption nor FIRST-k arm comparison changed; this policy
+      decision remains open.
   related:
   - general Storm reachability history
   priority: P2
@@ -7268,7 +7169,340 @@ issues:
   priority: P3
   priority_rationale: Generated consumer warning only; no runtime defect.
   area: backend
+- id: MIST-215
+  title: Reconcile effective declaration order with requirement 6.8
+  status: decision
+  summary: 'Compiler-architecture requirement 6.8 and its design orders token tie-breaking as root declarations
+    first, then unnamespaced imports, then namespaced-only declarations. StormGrammar has always placed each file''s
+    unnamespaced imports ahead of its own declarations, and Mist depends on it: tokens.storm declares IDENTIFIER after
+    importing the keyword files, so a literal reading of requirement 6.8 would let IDENTIFIER win every keyword tie.
+    Decide whether to amend the requirement to the implemented order or change the order and Mist''s grammar
+    together.'
+  source_refs: []
+  evidence:
+  - revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    repository: LynxStar/StormLang
+    date: '2026-10-11'
+    kind: source inspection during MIST-051
+    sources:
+    - file: Source/Storm.SourceGenerator/Resolve/StormGrammar.cs
+      selector: unnamespaced imports first (in import-appearance order)
+    - file: Source/Storm.SourceGenerator/Resolve/ImportScope.cs
+      selector: Merge
+    - file: Source/Mist/Grammar/tokens/tokens.storm
+      selector: token IDENTIFIER
+    - file: .kiro/specs/mist-compiler-architecture/requirements.md
+      selector: Requirement 6.8
+    detail: StormGrammarTests.Build_DeclarationOrder_* pin the implemented order. The Storm grammar semantics packet
+      preserved it, as it requires Mist's token priorities to stay unchanged; no order change was made.
+  related:
+  - MIST-051
+  priority: P3
+  priority_rationale: Contract text and long-standing behaviour disagree; behaviour is correct for Mist.
+  audit_key: binding:storm-declaration-order
+  area: binding
 archive:
+- id: MIST-213
+  title: Inline a token a token expression names instead of matching its name's text
+  status: implemented
+  summary: Compiler-architecture requirement 3.7 lets a token expression reference another token. Validation accepted
+    the reference, but lowering inlined only fragments and turned any other name into a literal of the name, so
+    token NUM = DIGIT+ with DIGIT a token lexed the text DIGIT. A token now inlines a token it names as it inlines a
+    fragment, mode-scoped per lexer-modes requirement 5.5; a cycle or a name it cannot inline is refused.
+  source_refs: []
+  evidence:
+  - revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    repository: LynxStar/StormLang
+    date: '2026-10-11'
+    kind: incidental implementation and executed verification
+    reproduction: 'At Storm d38a9e9 (lowering unchanged since b4e5853), token DIGIT = [0-9]; token NUM = DIGIT+;
+      rule N = NUM; passed NameResolutionPass with no diagnostic and lowered NUM''s repeated element to
+      StringLiteralIR "DIGIT".'
+    implementation:
+    - 'Storm 776f4ef31cfd5aa6abc66db270fffa6a0b48ad6c: GrammarIRLowering collects token declarations beside fragments
+      as inlinable patterns, resolves them in the token''s mode before the default mode, and reports a cycle or a name
+      it cannot inline as STORM0008 instead of producing a literal of the name.'
+    - 'Tier 1 GrammarIRLoweringTests: a token naming a token inlines its pattern; a token cycle and a token of another
+      mode are refused. Mist''s grammar has no token-to-token reference (128 tokens, 6 fragments), so its lexer is
+      unchanged.'
+    verification:
+    - Covered by the MIST-050/051/052 verification recorded on those archive entries (Storm 910/910, Mist surface
+      byte-identical, focused and full ledgers).
+    limits: A reference across modes stays refused, as lexer-modes requirement 5.5 scopes a mode's patterns.
+  related:
+  - MIST-050
+  priority: P2
+  priority_rationale: Silent wrong lexing of a supported construct; incidental to the Storm grammar semantics packet.
+  audit_key: binding:storm-token-references
+  area: binding
+- id: MIST-214
+  title: Report STORM0014 only for a pop on a default-mode token
+  status: implemented
+  summary: ModeValidationPass walked the effective declarations, which also list each mode's own tokens, so the token
+    that pops a mode was warned as a default-mode pop whenever no mode pushed default, breaking zero-warning builds
+    of grammars whose modes simply return. A mode's own declarations are now excluded.
+  source_refs: []
+  evidence:
+  - revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    repository: LynxStar/StormLang
+    date: '2026-10-11'
+    kind: incidental implementation and executed verification
+    reproduction: 'At Storm 961bff9 (ModeValidationPass unchanged since b4e5853), a root grammar with token OPEN =
+      "{" => push Inner; mode Inner { token CLOSE = "}" => pop; } hidden token STRAY = "!" => pop; reported STORM0014
+      at line 4 (CLOSE, inside the mode) as well as line 6 (STRAY). Mist escapes it only because its interpolation
+      mode pushes default.'
+    implementation:
+    - 'Storm fda8588cbca096985d4bad72a9dc25c29011a72c: ValidatePopFromDefault skips every mode''s own declarations by
+      identity, as its comment already stated.'
+    - Tier 1 ModeValidationPassTests (the class had no tests) cover a pop inside its mode, a default-mode pop, and a
+      default-mode pop another mode returns to.
+    verification:
+    - Covered by the MIST-050/051/052 verification recorded on those archive entries.
+    limits: Warning text and severity are unchanged.
+  related:
+  - MIST-051
+  priority: P3
+  priority_rationale: False warning that breaks zero-warning consumer builds; incidental to the Storm packet.
+  audit_key: binding:storm-pop-from-default
+  area: binding
+- id: MIST-050
+  title: Rule literals overlapping pattern tokens can never match
+  status: implemented
+  summary: A rule literal names the token the lexer produces for its whole text, the earliest default-mode token
+    accepting it. An exact spelling is reused as before; a regex, class or fragment token is reused with the literal
+    as the lexeme the parser requires, so a longer lexeme is never split. A synthetic token remains only for text no
+    declared token accepts. Token priorities and Mist's generated sources are unchanged.
+  source_refs:
+  - file: backlog/storm.md
+    selector: A literal that a pattern token also admits
+    lead_excerpt: '- A literal that a pattern token also admits still never matches, its synthetic token
+      losing the'
+    line_at_baseline: 269
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: b4e5853ccca45623e59fcdb9ee0afd6e90e836ce
+    file: Source/Storm.SourceGenerator/IR/GrammarIRLowering.cs
+    selector: internal static TokenIR? DeclaredTokenSpelling
+    line: 501
+    observed: Reuses only exact Spells(pattern,literal) matches in default mode; Spells handles StringLiteralIR/InlineFragmentIR.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: backlog/storm.md
+    selector: token IDENT = [a-z]+
+    line: 270
+    observed: Tracked prior independent grammar evidence on fixed generator; not a new execution in this
+      audit.
+  - revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    repository: LynxStar/StormLang
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - 'Storm 0d53e6cefad77e97249af7039d49860954f43c37: IR/LiteralTokens.cs runs a combined NFA of the declared
+      non-synthetic default-mode tokens over the literal and takes the lowest accepting declaration index, the
+      tie-break SubsetConstructor gives the generated DFA. A token spelling the literal exactly is reused as a plain
+      TokenRefIR; a pattern token is reused with TokenRefIR.Text, and ParserEmitter compares kind and lexeme for
+      element, token-choice and predicate matches. Inline-arm dispatch stays by kind. A literal whose token is hidden
+      reaches the existing hidden-token refusal.'
+    - 'Storm 83410653c7d722868a5001d2ef71e6692ec012b3: an unlabelled pattern-carried literal keeps the property name
+      its synthetic token gave it (__SYNTH_if) beside the pattern token''s own property.'
+    - 'Tests, RuleLiteralTokenReuseTests: Tier 1 rows for exact, hidden, fragment, duplicate, other-mode and synthetic
+      spellings, a pattern, a fragment pattern, a hidden pattern, a pattern declared before the exact spelling and
+      text accepted only within longer text; a Tier 3 lowering row (IDENT carries "if"); Tier 4 generated-parser rows:
+      Word accepts if and refuses iffy (no split), Name still parses if as IDENT, Zero accepts 0 through the fragment
+      pattern NUM, Guarded (&"if") and Choice ("if" | "of") refuse the wrong lexeme, the parsed token equals the
+      lexer''s IDENT token, and the unlabelled literal keeps its property. Mutations dropping the lexeme requirement,
+      or only the token-choice site''s, were caught.'
+    reproduction: 'At b4e5853 (git archive copy) the grammar token IDENT = [a-z]+; fragment DIGIT = [0-9]; token NUM
+      = DIGIT+; rule Word = keyword:"if"; rule Zero = "0"; lowered and compiled with Roslyn has tokens
+      IDENT,NUM,__SYNTH_if,__SYNTH_0, and ParseWord on "if" and ParseZero on "0" both return null.'
+    verification:
+    - 'Storm (LynxStar/StormLang main 83410653c7d722868a5001d2ef71e6692ec012b3, fast-forward from b4e5853): dotnet
+      build Storm.slnx 0 warnings/0 errors; dotnet test Storm.slnx --no-build 910 passed, 0 failed (852 at b4e5853);
+      dotnet format Storm.slnx --verify-no-changes and git diff --check passed.'
+    - 'Consumer surface: the generator driver run over Source/Mist/Grammar with StormNodeOriginType
+      Mist.Common.Source.NodeOrigin produced byte-identical Mist.Ast/Lexer/Parser and Storm.Runtime sources at
+      b4e5853 and 83410653, with no generator diagnostic; the Mist build''s obj copies match apart from the UTF-8
+      byte-order mark the build writes. dotnet build Mist.slnx at the pin: 0 warnings, 0 errors.'
+    - 'Focused ledger TestResults/ledger/20261011-182102 (GeneratedAstFidelity|ParserAst|NodeOrigin|Storm): Storm
+      910/910, Storm.ConsumerIntegration 46/46, Mist.Tests 10/10; summary.txt inspected, failures.txt empty.'
+    - 'Final full ledger TestResults/ledger/20261011-182309 at 092c1c3f (this pin on main 99a3b42c): UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh, test exit 0 after 1387s; Storm.ConsumerIntegration 46/46, Mist.CLI 115/115, Storm.SourceGenerator 910/910, Mist.Tests 9452/9452; its dotnet build Mist.slnx had 0 warnings and 0 errors; summary.txt inspected, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed and AllFeaturesV2_ParsesWithinPerformanceTarget measured 2.46s. Rebased onto feb16e31 (lifetimes, book and backlog commits, no grammar, Storm or project change), ledger 20261011-184749 at 5fcc2a66: build 0 warnings/0 errors; Storm 910/910, consumer 46/46 and 14 Mist tests including both system tests and the parse-performance test passed; failures.txt empty; Mist''s generated sources unchanged. Rebased again onto 2e7fa17b (packet 22 analysis, newtype, book and backlog commits, no grammar, Storm or project change), ledger 20261011-185600 at fd3dd06e: build 0 warnings/0 errors; the same 970 tests passed; failures.txt empty; generated sources unchanged.'
+    - 'Earlier full ledger TestResults/ledger/20261011-172910 (head 262ac0c1 with the Storm tree before review
+      follow-ups): 10418 passed, 1 failed - MemoizationCorrectnessAndPerformanceTests.AllFeaturesV2_ParsesWithinPerformanceTarget
+      under cross-worktree contention; recorded on ARCH-135 and passing alone in ledger 20261011-175710.'
+    - 'Independent read-only review of the Storm change set found one confirmed severity defect and five lower-confidence
+      issues; all six were fixed in da7d118, 4260d1f and 83410653 before publication, with regression tests.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check passed on the Mist closeout.'
+    limits: Only default-mode tokens compete, as before. A literal accepted by a hidden pattern token is now refused
+      with the existing hidden-token diagnostic instead of receiving a synthetic token that could never be lexed.
+  related:
+  - Storm literal token/lexer priority
+  priority: P2
+  priority_rationale: Supported literal syntax can be impossible to parse when a pattern token wins.
+  audit_key: binding:storm-03
+  area: binding
+- id: MIST-051
+  title: Namespaced rule identity is lost during lookup/lowering/emission
+  status: implemented
+  summary: Namespaced imports keep one identity per declaration through resolution, validation, lowering, parser
+    and AST naming, trait and mode emission and memoization. Names resolve in the declaring file; a qualified
+    declaration generates an underscore-joined identifier numbered past root names and the types they generate,
+    keeping its qualified name for diagnostics. Root names and Mist's generated API are unchanged.
+  source_refs:
+  - file: backlog/storm.md
+    selector: The last row. `LookupByName`
+    lead_excerpt: '- The last row. `LookupByName` sends the namespaced file''s unqualified `Foo` to the
+      root rule, which'
+    line_at_baseline: 510
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: b4e5853ccca45623e59fcdb9ee0afd6e90e836ce
+    file: Source/Storm.SourceGenerator/IR/GrammarIRLowering.cs
+    selector: var ruleShells = new Dictionary<string, RuleIR>
+    line: 138
+    observed: Root rules use decl.Name; namespaced rules add another shell keyed qualified kvp.Key.
+  - kind: source_inspection
+    revision: b4e5853ccca45623e59fcdb9ee0afd6e90e836ce
+    file: Source/Storm.SourceGenerator/Emit/ParserEmitter.cs
+    selector: _Parse
+    line: 230
+    observed: Parser method naming interpolates RuleIR names.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: backlog/storm.md
+    selector: Neither version yields a compilable parser
+    line: 513
+    observed: 513
+  - revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    repository: LynxStar/StormLang
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - 'Storm d38a9e9e67bb8088519c7d351546871d8b2a1916: Resolve/ImportScope builds each file''s scope (its declarations
+      merged with its unnamespaced imports, plus aliases); EffectiveNames names every declaration once, root-scope
+      ones by their own names and the rest by the first alias path breadth first (nested imports nest, two aliases of
+      one file share it); DeclarationRewriter renames every reference, trait binding, composed trait, trait field type
+      and push target to the effective name of what it means in the declaring file and reports names that mean nothing
+      in a namespaced file there (STORM0004/STORM0013 with that file''s path). Lowering no longer re-adds namespaced
+      declarations under simple names; IR/EmittedNames keeps root names and generates qualified ones as
+      underscore-joined identifiers; RuleIR/TokenIR keep DisplayName for diagnostics; TraitIRBuilder and lexer modes
+      use the same identifiers; LeftRecursionPass reads effective names.'
+    - 'Storm 0058d2736ffb16c6dcddc74d6253eee95ca2d083: a renamed mode''s and trait''s placeholder body names the
+      qualified name. Storm 4260d1f74fecf27c56900d985e0d1abcf06a4760: a namespaced declaration resolves in its
+      declaring file''s own scope whichever alias reaches it first; a namespaced mode default is still STORM0015;
+      allocation also reserves node, alternative, inline-arm and trait-interface types (root L_ alternative of Foo
+      against L.Foo, root IL_Marked against trait L.Marked).'
+    - 'Tests: Tier 1 NamespacedImportTests (own homonym versus root homonym, nested import hidden from the root, two
+      aliases, plainly and namespaced imports of one file, imported fragments/modes/traits including validation,
+      undefined plain and qualified names reported in the imported file, duplicate in an imported scope with both
+      sites, left recursion through the imported graph both ways, emitted and display names, import-order
+      independence, reserved default mode, derived-type collisions); Tier 4 NamespacedImportParserTests through
+      StormIncrementalGenerator with no diagnostic (homonym parse, root L_Foo beside generated L_Foo2, two aliases,
+      nested O.I, memoized imported rule, namespaced inline block, trait interface IL_MarkedNode, namespaced lexer mode,
+      entry-point names). StormGrammarTests'' order row now expects NS.NamespacedToken; NullableLeftRecursionTests models
+      effective names.'
+    reproduction: 'The new Tier 1 and Tier 4 cases run against Storm 0d53e6c, whose resolver is b4e5853''s: all 17
+      failed (the filter''s 5 passes were existing tests). Imported bodies printed as rule Foo = C; rule Bar = Foo, two aliases duplicated Foo and C,
+      nested imports and undefined imported names were dropped, LeftRecursionPass reported Foo -> L.Bar -> ... and
+      missed L.Foo -> L.Foo, and lowering failed on I.Leaf; without the nested import the generated parser failed to
+      compile (CS1514, CS1003, CS1513, CS1022, CS0116).'
+    verification:
+    - 'Storm (LynxStar/StormLang main 83410653c7d722868a5001d2ef71e6692ec012b3, fast-forward from b4e5853): dotnet
+      build Storm.slnx 0 warnings/0 errors; dotnet test Storm.slnx --no-build 910 passed, 0 failed (852 at b4e5853);
+      dotnet format Storm.slnx --verify-no-changes and git diff --check passed.'
+    - 'Consumer surface: the generator driver run over Source/Mist/Grammar with StormNodeOriginType
+      Mist.Common.Source.NodeOrigin produced byte-identical Mist.Ast/Lexer/Parser and Storm.Runtime sources at
+      b4e5853 and 83410653, with no generator diagnostic; the Mist build''s obj copies match apart from the UTF-8
+      byte-order mark the build writes. dotnet build Mist.slnx at the pin: 0 warnings, 0 errors.'
+    - 'Focused ledger TestResults/ledger/20261011-182102 (GeneratedAstFidelity|ParserAst|NodeOrigin|Storm): Storm
+      910/910, Storm.ConsumerIntegration 46/46, Mist.Tests 10/10; summary.txt inspected, failures.txt empty.'
+    - 'Final full ledger TestResults/ledger/20261011-182309 at 092c1c3f (this pin on main 99a3b42c): UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh, test exit 0 after 1387s; Storm.ConsumerIntegration 46/46, Mist.CLI 115/115, Storm.SourceGenerator 910/910, Mist.Tests 9452/9452; its dotnet build Mist.slnx had 0 warnings and 0 errors; summary.txt inspected, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed and AllFeaturesV2_ParsesWithinPerformanceTarget measured 2.46s. Rebased onto feb16e31 (lifetimes, book and backlog commits, no grammar, Storm or project change), ledger 20261011-184749 at 5fcc2a66: build 0 warnings/0 errors; Storm 910/910, consumer 46/46 and 14 Mist tests including both system tests and the parse-performance test passed; failures.txt empty; Mist''s generated sources unchanged. Rebased again onto 2e7fa17b (packet 22 analysis, newtype, book and backlog commits, no grammar, Storm or project change), ledger 20261011-185600 at fd3dd06e: build 0 warnings/0 errors; the same 970 tests passed; failures.txt empty; generated sources unchanged.'
+    - 'Earlier full ledger TestResults/ledger/20261011-172910 (head 262ac0c1 with the Storm tree before review
+      follow-ups): 10418 passed, 1 failed - MemoizationCorrectnessAndPerformanceTests.AllFeaturesV2_ParsesWithinPerformanceTarget
+      under cross-worktree contention; recorded on ARCH-135 and passing alone in ledger 20261011-175710.'
+    - 'Independent read-only review of the Storm change set found one confirmed severity defect and five lower-confidence
+      issues; all six were fixed in da7d118, 4260d1f and 83410653 before publication, with regression tests.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check passed on the Mist closeout.'
+    limits: A file reached through several aliases is generated once under the first path reaching it, breadth first,
+      and both spellings resolve to it. The root and files it imports plainly keep sharing one name set. The R6.8
+      declaration-order deviation Mist relies on is preserved and recorded as MIST-215.
+  related:
+  - general Storm namespace lead
+  priority: P2
+  priority_rationale: Supported imported namespace grammar cannot reliably resolve homonyms or emit legal
+    identifiers.
+  audit_key: binding:storm-05
+  area: binding
+- id: MIST-052
+  title: Ordinary unreachable alternatives use warning severity rather than required error
+  status: implemented
+  summary: A proved unreachable ordinary alternative is STORM0006 Error and the generator publishes no sources. A
+    finding an inline block decides, as the shadowed alternative, as an earlier alternative credited with prefix
+    success, or among an inline block's arms, keeps the inline-rule-prefix warning, which MIST-148 still owns.
+  source_refs:
+  - file: backlog/storm.md
+    selector: requirement 7.2 says an unreachable
+    lead_excerpt: '- `mist-compiler-architecture` requirement 7.2 says an unreachable alternative is an
+      Error that'
+    line_at_baseline: 459
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: b4e5853ccca45623e59fcdb9ee0afd6e90e836ce
+    file: Source/Storm.SourceGenerator/Validate/ReachabilityPass.cs
+    selector: StormDiagnosticSeverity.Warning
+    line: 52
+    observed: Both ordinary/inline diagnostics are warnings.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: .kiro/specs/mist-compiler-architecture/requirements.md
+    selector: unreachable
+    line: 146
+    observed: Requirement document contains diagnostic severity contract; task checklists excluded.
+  - revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    repository: LynxStar/StormLang
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - 'Storm 72c61a10b463a55d53630dbf030a704ae9c69fef: AlternativeShadowing proofs carry ThroughInlineBlock, set where
+      the shadowed alternative expands through an inline block or an earlier inline block is credited with success on
+      its prefix; ReachabilityPass reports Error without it and Warning with it. StormIncrementalGenerator already stops
+      on a validation Error.'
+    - 'Storm da7d11834186e1ae66b1e81d883d2c6bf1106974: an inline-only proof keeps deepening for an ordinary one, and an
+      undecided sub-proof no longer sets the flag (inline P | A B | A B and (Q B | A) | A are errors).'
+    - 'Tests: Tier 1 AlternativeShadowingTests ordinary cases assert Error; inline boundary rows (earlier inline block,
+      shadowed inline block, rule whose body is an inline block, consulted failing inline block, ordinary winner beside
+      an inline one, ordinary winner decided past the prefix, undecided inline branch beside a decided winner);
+      ValidationPassTests rows renamed to Error; Tier 4 GeneratorPipelineTests: an ordinary duplicate withholds all
+      generated sources, an inline-sibling warning publishes them. Existing InlineBlockReachabilityTests keep Warning.
+      A mutation forcing Error everywhere failed seven inline rows.'
+    verification:
+    - 'Storm (LynxStar/StormLang main 83410653c7d722868a5001d2ef71e6692ec012b3, fast-forward from b4e5853): dotnet
+      build Storm.slnx 0 warnings/0 errors; dotnet test Storm.slnx --no-build 910 passed, 0 failed (852 at b4e5853);
+      dotnet format Storm.slnx --verify-no-changes and git diff --check passed.'
+    - 'Consumer surface: the generator driver run over Source/Mist/Grammar with StormNodeOriginType
+      Mist.Common.Source.NodeOrigin produced byte-identical Mist.Ast/Lexer/Parser and Storm.Runtime sources at
+      b4e5853 and 83410653, with no generator diagnostic; the Mist build''s obj copies match apart from the UTF-8
+      byte-order mark the build writes. dotnet build Mist.slnx at the pin: 0 warnings, 0 errors.'
+    - 'Focused ledger TestResults/ledger/20261011-182102 (GeneratedAstFidelity|ParserAst|NodeOrigin|Storm): Storm
+      910/910, Storm.ConsumerIntegration 46/46, Mist.Tests 10/10; summary.txt inspected, failures.txt empty.'
+    - 'Final full ledger TestResults/ledger/20261011-182309 at 092c1c3f (this pin on main 99a3b42c): UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 DOTNET_USE_POLLING_FILE_WATCHER=1 tools/test-ledger/run.sh, test exit 0 after 1387s; Storm.ConsumerIntegration 46/46, Mist.CLI 115/115, Storm.SourceGenerator 910/910, Mist.Tests 9452/9452; its dotnet build Mist.slnx had 0 warnings and 0 errors; summary.txt inspected, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed and AllFeaturesV2_ParsesWithinPerformanceTarget measured 2.46s. Rebased onto feb16e31 (lifetimes, book and backlog commits, no grammar, Storm or project change), ledger 20261011-184749 at 5fcc2a66: build 0 warnings/0 errors; Storm 910/910, consumer 46/46 and 14 Mist tests including both system tests and the parse-performance test passed; failures.txt empty; Mist''s generated sources unchanged. Rebased again onto 2e7fa17b (packet 22 analysis, newtype, book and backlog commits, no grammar, Storm or project change), ledger 20261011-185600 at fd3dd06e: build 0 warnings/0 errors; the same 970 tests passed; failures.txt empty; generated sources unchanged.'
+    - 'Earlier full ledger TestResults/ledger/20261011-172910 (head 262ac0c1 with the Storm tree before review
+      follow-ups): 10418 passed, 1 failed - MemoizationCorrectnessAndPerformanceTests.AllFeaturesV2_ParsesWithinPerformanceTarget
+      under cross-worktree contention; recorded on ARCH-135 and passing alone in ledger 20261011-175710.'
+    - 'Independent read-only review of the Storm change set found one confirmed severity defect and five lower-confidence
+      issues; all six were fixed in da7d118, 4260d1f and 83410653 before publication, with regression tests.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check passed on the Mist closeout.'
+    limits: Inline FIRST-k arm comparison, the inline prefix-success assumption and the inline warning severity are
+      unchanged and remain MIST-148. Proof depth and prefix limits are unchanged, so an alternative beyond them is not
+      reported.
+  related: []
+  priority: P3
+  priority_rationale: Diagnostic contract mismatch, even if repository warning gate currently prevents
+    publication.
+  audit_key: binding:storm-06
+  area: binding
 - id: MIST-013
   title: Propagate readonly parameter tier through deep member receivers
   status: implemented
@@ -15414,6 +15648,16 @@ archive:
         it; the failure message would now show that as GC pause or CPU rather than as a bare number.
 
         '
+    - date: '2026-10-11'
+      detail: 'Mist.Tests.Integration.MemoizationCorrectnessAndPerformanceTests.AllFeaturesV2_ParsesWithinPerformanceTarget,
+        1 of 10419 in full-solution ledger TestResults/ledger/20261011-172910 (head 262ac0c1 with the Storm grammar-semantics
+        working tree): "lex+parse took 496.50s, exceeding the 15-second regression ceiling (150 files)", GC pause 8.01s,
+        1 gen2 collection, 430 MB allocated by this thread, 84.88s CPU across the whole test process; Mist.Tests took
+        1622s against 249s in the preceding main ledger. env.txt records three other worktrees'' full Mist.Tests runs and
+        their builds beside it; load average reached 58 on 18 CPUs. The generated Mist lexer and parser were
+        byte-identical to the pinned generator''s. The same binaries alone, ledger 20261011-175710: 2.26s wall, 0.65s GC
+        pause, the same 430 MB, 2.00s process CPU, passed. Cause: cross-worktree CPU contention, as the 2026-09-14 entry
+        anticipated; not a compiler regression. The next full ledger, TestResults/ledger/20261011-182309 at 092c1c3f, passed it at 2.46s wall with 1.05s GC pause among 10523 passed.'
     legacy_id: property-tests-fail-together-under-full-suite
     status_at_import: fixed
   - kind: intermittent_test_failure

@@ -62,7 +62,7 @@ internal static class DefaultEmitter
         }
 
         SeparateMember(writer, ref anyEmitted);
-        var hiding = HidesParameterlessFactory(type) ? "new " : "";
+        var hiding = HidesInheritedFactory(type) ? "new " : "";
         writer.WriteLine($"public {hiding}static {self} {DefaultSynthesis.FactoryName}({string.Join(", ", DefaultWitnesses.FactoryParameters(type))})");
         using(writer.Block())
         {
@@ -71,24 +71,46 @@ internal static class DefaultEmitter
         }
     }
 
-    private static bool HidesParameterlessFactory(ConcreteType type)
+    private static bool HidesInheritedFactory(ConcreteType type)
     {
-        if(type is not ClassType || DefaultWitnesses.FactoryParameters(type).Count != 0)
+        if(type is not ClassType)
         {
             return false;
         }
+
+        var signature = FactorySignature(type).ToList();
+        var path = new List<ConstructedType>();
+        var seen = new HashSet<ConcreteType>(ReferenceEqualityComparer.Instance);
 
         for(var written = type.BaseType;
             written is not null && Defaultability.DeclarationOf(written) is ClassType { Assembly.Kind: not MistAssemblyKind.Ambient } ancestor;
             written = ancestor.BaseType)
         {
-            if(DefaultSynthesis.IsDefaultable(ancestor) && DefaultWitnesses.FactoryParameters(ancestor).Count == 0)
+            if(!seen.Add(ancestor))
+            {
+                break;
+            }
+
+            if(written is ConstructedType construction)
+            {
+                path.Add(construction);
+            }
+
+            using var through = TypeEmitter.Substituting(path);
+            if(DefaultSynthesis.IsDefaultable(ancestor)
+                && signature.SequenceEqual(FactorySignature(ancestor)))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private static IEnumerable<string> FactorySignature(ConcreteType type)
+    {
+        return DefaultWitnesses.Of(type).Select(parameter => $"System.Func<{TypeNameEmitter.Emit(parameter)}>")
+            .Concat(ConstructorWitnesses.Parameters(ConstructorWitnesses.Stored(type)).Select(parameter => parameter[..parameter.LastIndexOf(' ')]));
     }
 
     public static void EmitImplicitConstruction(ConcreteType type, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted)

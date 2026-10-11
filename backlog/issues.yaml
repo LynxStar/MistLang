@@ -2193,7 +2193,7 @@ issues:
     - file: Source/Mist/ProgramAnalysis/Flow/LocalLifetimes.cs
       symbol: private static Dictionary<LocalVariable
       line: 107
-  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 99a3b42c0e87ea15b216b4988fb9fc41936e706c
     date: '2026-10-11'
     kind: per-form validation, implementation and executed verification
     dispositions:
@@ -3719,7 +3719,7 @@ issues:
     - file: Source/Mist/ProgramAnalysis/Flow/LocalLifetimes.cs
       symbol: Parameter
       line: 189
-  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 99a3b42c0e87ea15b216b4988fb9fc41936e706c
     date: '2026-10-11'
     kind: executed CLI probe
     detail: 'Lambda parameters are plain parameters: Func<Token, int> f = (Token t) => t.Id; f(new Token(1))
@@ -7216,7 +7216,7 @@ issues:
     rule (drop-semantics 6.1). A discarded task is already awaited at scope exit.
   source_refs: []
   evidence:
-  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 99a3b42c0e87ea15b216b4988fb9fc41936e706c
     kind: executed CLI probe
     detail: 'public static Token Make(int id){return new Token(id);} ... Make(1); Console.WriteLine("end");
       prints only end. Found while writing samples/ResourceTransfer; the sample binds and drops the result
@@ -7263,7 +7263,7 @@ archive:
     - file: Source/Mist/Backends/CSharpTranspiler/Lowering/DropInsertion.cs
       symbol: FieldsOwedBy
       line: 163
-  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 99a3b42c0e87ea15b216b4988fb9fc41936e706c
     date: '2026-10-11'
     kind: implementation and executed verification
     implementation:
@@ -7387,7 +7387,7 @@ archive:
         1
 
         '
-  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 99a3b42c0e87ea15b216b4988fb9fc41936e706c
     date: '2026-10-11'
     kind: implementation and executed verification
     implementation:
@@ -7449,7 +7449,7 @@ archive:
     - file: Source/Mist/Backends/CSharpTranspiler/Lowering/LifetimeLowering.cs
       symbol: MistOwnership.Handed
       line: 102
-  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 39c2d35720bd9b62825fbde5792559547d074665
+  - revision: packet 23 path-sensitive resource transfer commit containing this entry, based on 99a3b42c0e87ea15b216b4988fb9fc41936e706c
     date: '2026-10-11'
     kind: validation, implementation and executed verification
     validation:

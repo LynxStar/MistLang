@@ -54,9 +54,11 @@ Array literals use bracket syntax. The compiler infers the element type and size
 {{#endtab }}
 {{#endtabs }}
 
+When element types differ, inference uses a unique supported common type: numeric widening, a shared nominal base, or an established implicit conversion target. Element order does not change the inferred type. Incompatible types or several equally suitable targets require an explicit annotation; inference does not invent a union or an `unknown` target.
+
 ### Empty Arrays
 
-An empty array literal `[]` requires an explicit type annotation since the compiler can't infer the element type from zero elements. Use `T[0]` to express that the size is known to be zero:
+An empty array literal `[]` requires an array target because it has no elements to infer from. A variable annotation, return type, or selected method or constructor parameter can supply that target. Use `T[0]` to express that the size is known to be zero:
 
 {{#tabs }}
 {{#tab name="Mist" }}

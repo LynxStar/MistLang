@@ -102,7 +102,7 @@ internal sealed partial class ContextCalls
                     Record(element.Node, element.Value, add, ContextBinding.TypesOf(add), frame);
                     break;
 
-                case ObjectInitializerAssignment { Member: PropertyResult { Property.Setter: { } setter } } element:
+                case ObjectInitializerAssignment { IsTargetFailed: false, Member: PropertyResult { Property.Setter: { } setter } } element:
                     Record(element.Node, element.Value, setter, [], frame);
                     break;
 
@@ -131,7 +131,7 @@ internal sealed partial class ContextCalls
 
                     break;
 
-                case PropertySubpattern { Member: PropertyResult { Property.Getter: { } getter } } subpattern:
+                case PropertySubpattern { IsMemberFailed: false, Member: PropertyResult { Property.Getter: { } getter } } subpattern:
                     Record(subpattern.Node, about: null, getter, [], frame);
                     break;
 

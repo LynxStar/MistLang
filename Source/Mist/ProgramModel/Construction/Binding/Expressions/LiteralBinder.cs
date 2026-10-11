@@ -215,6 +215,12 @@ internal static class LiteralBinder
         if(elementType is null && elements.Count > 0)
         {
             elementType = CommonElementType(elements, node, context);
+            if(elementType is null || elements.All(PriorFailure.Of))
+            {
+                return new ErrorExpression(node, elements);
+            }
+
+            elements = elements.ConvertAll(element => ImplicitConversions.At(element, elementType, context.ProgramModel.TypeInterner));
         }
 
         if(elementType is null)
@@ -245,27 +251,16 @@ internal static class LiteralBinder
         return null;
     }
 
-    /// <summary>
-    /// The common type of an array literal's elements. Type identity in the program
-    /// model is the identity of the interned type instance, so a single distinct
-    /// element type is the common type. Differing types have no common type: there is
-    /// no conversion or numeric promotion infrastructure to widen them yet, so this
-    /// reports rather than guessing.
-    /// </summary>
-    private static IMistType CommonElementType(List<Expression> elements, SyntaxNode node, BuilderContext context)
+    private static IMistType? CommonElementType(List<Expression> elements, SyntaxNode node, BuilderContext context)
     {
-        var candidate = elements[0].Type;
-
-        foreach(var element in elements)
+        var common = CommonTypeInference.Infer(elements, context.Resolver.LookupWellKnown, context.ProgramModel.TypeInterner);
+        if(common is null)
         {
-            if(!ReferenceEquals(element.Type, candidate))
-            {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.ArrayLiteralNoCommonElementType, node, null, candidate.Name, element.Type.Name);
-                return ErrorType.Instance;
-            }
+            var (first, other) = CommonTypeInference.Disagreement(elements);
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.ArrayLiteralNoCommonElementType, node, null, first.Name, other.Name);
         }
 
-        return candidate;
+        return common;
     }
 }

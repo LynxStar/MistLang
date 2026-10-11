@@ -101,7 +101,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
 
                 break;
 
-            case ObjectInitializerAssignment entry when frame.IsReadonly:
+            case ObjectInitializerAssignment { IsTargetFailed: false } entry when frame.IsReadonly:
                 JudgeEntry(entry, frame, context, inference);
                 break;
 
@@ -223,7 +223,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                 JudgeGetter(extension.Property, extension, frame, context, inference);
                 break;
 
-            case PropertySubpattern { Member: PropertyResult { Property: { } tested } } subpattern when frame.IsReadonly:
+            case PropertySubpattern { IsMemberFailed: false, Member: PropertyResult { Property: { } tested } } subpattern when frame.IsReadonly:
                 if(!inference.IsReadonlyGetter(tested))
                 {
                     context.Report(

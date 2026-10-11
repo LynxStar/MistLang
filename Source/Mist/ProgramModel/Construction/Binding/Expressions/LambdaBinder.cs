@@ -237,32 +237,66 @@ internal static class LambdaBinder
     /// </summary>
     internal static IMistType? InferredReturnType(Block body, SyntaxNode node, BuilderContext context)
     {
-        IMistType? candidate = null;
-
-        foreach(var returned in Returns(body))
+        var values = Returns(body).Select(returned => returned.Value).OfType<Expression>().ToList();
+        if(values.Count == 0)
         {
-            if(returned.Value is not { } value)
-            {
-                continue;
-            }
-
-            if(candidate is null)
-            {
-                candidate = value.Type;
-                continue;
-            }
-
-            if(!ReferenceEquals(candidate, value.Type))
-            {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.LambdaReturnsNoCommonType, node, null,
-                    candidate.Name, value.Type.Name);
-
-                return ErrorType.Instance;
-            }
+            return null;
         }
 
-        return candidate;
+        var common = CommonTypeInference.Infer(values, context.Resolver.LookupWellKnown, context.ProgramModel.TypeInterner);
+        if(common is null)
+        {
+            var (first, other) = CommonTypeInference.Disagreement(values);
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.LambdaReturnsNoCommonType, node, null, first.Name, other.Name);
+            return ErrorType.Instance;
+        }
+
+        if(common is not ErrorType)
+        {
+            _ = SettleReturns(body, common, context);
+        }
+
+        return common;
+    }
+
+    private static Statement SettleReturns(Statement statement, IMistType target, BuilderContext context)
+    {
+        switch(statement)
+        {
+            case ReturnStatement returned:
+                var returnTarget = returned.TargetType ?? target;
+                return new ReturnStatement(
+                    returned.Value is { } value ? ImplicitConversions.At(value, returnTarget, context.ProgramModel.TypeInterner) : null,
+                    returnTarget, returned.IsRef);
+
+            case Block block:
+                block.Statements = block.Statements.Select(nested => SettleReturns(nested, target, context)).ToList();
+                break;
+
+            case IfStatement branch:
+                return new IfStatement(
+                    branch.Condition, (Block)SettleReturns(branch.ThenBranch, target, context),
+                    branch.ElseBranch is { } otherwise ? SettleReturns(otherwise, target, context) : null, branch.ConditionBinds);
+
+            case WhileStatement loop:
+                _ = SettleReturns(loop.Body, target, context);
+                break;
+
+            case ForStatement loop:
+                _ = SettleReturns(loop.Body, target, context);
+                break;
+
+            case ForEachStatement loop:
+                _ = SettleReturns(loop.Body, target, context);
+                break;
+
+            case WithBlockStatement scoped:
+                _ = SettleReturns(scoped.Body, target, context);
+                break;
+        }
+
+        return statement;
     }
 
     /// <summary>
@@ -323,6 +357,14 @@ internal static class LambdaBinder
 
             case ForEachStatement loop:
                 foreach(var inner in Returns(loop.Body))
+                {
+                    yield return inner;
+                }
+
+                break;
+
+            case WithBlockStatement scoped:
+                foreach(var inner in Returns(scoped.Body))
                 {
                     yield return inner;
                 }

@@ -15,6 +15,11 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// </summary>
 internal static class Indexability
 {
+    internal static bool RefusesElement(IMistType receiverType, IReadOnlyList<Indexer> indexers)
+    {
+        return MemberResolution.AnswersMembers(receiverType) && ArrayElement(receiverType) is null && indexers.Count == 0;
+    }
+
     public static bool IsRange(IMistType type)
     {
         return type.FullyQualifiedName == WellKnownTypes.Range.FullyQualifiedName;

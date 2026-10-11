@@ -342,6 +342,11 @@ internal static partial class PurityJudge
 
         private Origin JudgeSubpattern(PropertySubpattern subpattern, Origin scrutinee, Expression about, IMistType holderType)
         {
+            if(subpattern.IsMemberFailed)
+            {
+                return Origin.Own;
+            }
+
             switch(subpattern.Member)
             {
                 case FieldResult { Field: var field }:

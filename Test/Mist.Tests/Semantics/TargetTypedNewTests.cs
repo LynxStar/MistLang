@@ -197,19 +197,15 @@ public sealed class TargetTypedNewTests : IDisposable
         Assert.Equal(2, creation.Constructor.ParametersList.Count);
     }
 
-    /// <summary>
-    /// The two shapes that leave nothing to target. A <c>var</c> has no declared type to be the target,
-    /// and an argument to a call with several candidates of the right arity has no single parameter to
-    /// be it -- picking one would need the argument types, and this argument is one of them.
-    /// </summary>
     [Theory]
-    [InlineData("var loose = new(1);")]
-    [InlineData("var wide = Sink.Wide(new(1));")]
-    public void WithNothingToTarget_TheConstructionIsRefused(string statement)
+    [InlineData("var loose = new(1);", NoTargetId)]
+    [InlineData("var wide = Sink.Wide(new(1));", "MIST_PM_AMBIGUOUS_OVERLOAD")]
+    public void AnUnsettledConstruction_ReportsTheOwningFailure(string statement, string diagnosticId)
     {
         var diagnostics = BuildRun(statement);
 
-        _ = Assert.Single(Errors(diagnostics, NoTargetId));
+        _ = Assert.Single(Errors(diagnostics, diagnosticId));
+        _ = Assert.Single(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
     }
 
     /// <summary>

@@ -66,13 +66,18 @@ internal static class ExpressionBinder
 
                 value = ImplicitConversions.At(value, valueTarget, context.ProgramModel.TypeInterner);
 
-                return new AssignmentExpression(expression, target, value, value.Type, isCoalescing);
+                return new AssignmentExpression(expression, target, value, AssignmentResultType(target, value, isCoalescing), isCoalescing);
             }
 
             return new UnresolvedExpression(expression);
         }
 
         return OperatorBinder.BindVoidCoalescing(assignment.Target, ctx, context);
+    }
+
+    internal static IMistType AssignmentResultType(Expression storage, Expression convertedValue, bool isCoalescing)
+    {
+        return isCoalescing ? convertedValue.Type : storage.Type;
     }
 
     internal static Expression BindPrimary(PrimaryNode node, BindingContext ctx, BuilderContext context)
@@ -403,7 +408,7 @@ internal static class ExpressionBinder
             argumentList, ConstructorsOf(type), ctx, context, type as ConstructedType);
 
         var choice = SelectConstructor(
-            type, arguments, ArgumentBinder.RefFlags(argumentList), node, new LambdaTrials(ctx, context), context);
+            type, arguments, ArgumentBinder.RefFlags(argumentList), node, new LambdaTrials(ctx, context), new ContextualExpressionTrials(ctx, context), context);
 
         var settled = choice.FailureExpression is not null
             ? arguments
@@ -434,6 +439,7 @@ internal static class ExpressionBinder
         IReadOnlyList<bool> argumentIsRef,
         Storm.Runtime.SyntaxNode node,
         ILambdaTrials lambdas,
+        IContextualExpressionTrials contextual,
         BuilderContext context)
     {
         var constructed = type as ConstructedType;
@@ -446,7 +452,7 @@ internal static class ExpressionBinder
 
         var choice = OverloadResolution.Select(
             concrete.ConstructorsList, arguments, constructed, null, context.ProgramModel.TypeInterner,
-            argumentIsRef, lambdas: lambdas);
+            argumentIsRef, lambdas: lambdas, contextual: contextual);
 
         if(choice.Selected is null)
         {

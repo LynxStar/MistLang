@@ -20,6 +20,8 @@ public sealed class InitializerTargetBindingTests
     [Theory]
     [InlineData("Size", typeof(FieldResult))]
     [InlineData("Count", typeof(PropertyResult))]
+    [InlineData("PrivateSize", typeof(FieldResult))]
+    [InlineData("ClosedCount", typeof(PropertyResult))]
     public void AFieldOrPropertyIsAssignedWithoutComplaint(string name, Type member)
     {
         var f = new BindingFragments();
@@ -30,6 +32,7 @@ public sealed class InitializerTargetBindingTests
         Assert.IsType(member, bound.Member);
         Assert.Same(f.Built.Type("Int32"), bound.TargetType);
         Assert.Same(f.Built.Type("Int32"), bound.Value.Type);
+        Assert.False(bound.IsTargetFailed);
         Assert.Empty(f.Diagnostics.ToImmutableArray());
     }
 
@@ -84,12 +87,62 @@ public sealed class InitializerTargetBindingTests
         Assert.Empty(f.Diagnostics.ToImmutableArray());
     }
 
+    [Theory]
+    [InlineData("GlobalSize", typeof(FieldResult), "MIST_PM_INITIALIZER_TARGET_NOT_INSTANCE")]
+    [InlineData("GlobalCount", typeof(PropertyResult), "MIST_PM_INITIALIZER_TARGET_NOT_INSTANCE")]
+    [InlineData("Reset", typeof(MethodGroupResult), "MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE")]
+    public void ADeclaredStaticMemberIsRetainedAndRefusedAtItsEntry(string name, Type member, string diagnosticId)
+    {
+        var f = new BindingFragments();
+        var entry = Named(name, 24, BlockPath);
+
+        var bound = Assert.Single(ObjectInitializerBinder.Bind(Block(entry), Widget(f), f.Binding, f.Builder));
+
+        Assert.IsType(member, bound.Member);
+        Assert.Null(bound.TargetType);
+        Assert.True(bound.IsTargetFailed);
+        var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
+        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(BlockPath, diagnostic.CompilationUnitPath);
+        Assert.Equal(TargetSpan, diagnostic.Location);
+    }
+
+    [Fact]
+    public void AnEnumVariantIsRetainedAndRefusedAsStorage()
+    {
+        var f = new BindingFragments();
+        var colour = HandBuiltModel.Enum("Colour", f.Built.Type("Int32"));
+        colour.MembersList.Add(new EnumMember("Red", false, null));
+
+        var bound = Assert.Single(ObjectInitializerBinder.Bind(Block(Named("Red", 24, BlockPath)), colour, f.Binding, f.Builder));
+
+        _ = Assert.IsType<EnumMemberResult>(bound.Member);
+        Assert.Null(bound.TargetType);
+        Assert.True(bound.IsTargetFailed);
+        var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
+        Assert.Equal("MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE", diagnostic.Id.Value);
+        Assert.Equal(TargetSpan, diagnostic.Location);
+    }
+
     private static ClassType Widget(BindingFragments f)
     {
         var intType = f.Built.Type("Int32");
         var widget = HandBuiltModel.Class("Widget");
         widget.FieldsList.Add(new Field("Size", intType, OwnershipKind.Unrestricted, DeclarationFragments.Public) { DeclaringType = widget });
         widget.PropertiesList.Add(new Property("Count", intType, DeclarationFragments.Public) { DeclaringType = widget });
+        widget.FieldsList.Add(new Field("PrivateSize", intType, OwnershipKind.Unrestricted,
+            DeclarationFragments.Public with { Accessibility = Accessibility.Private, IsReadonly = true })
+        { DeclaringType = widget });
+        widget.PropertiesList.Add(new Property("ClosedCount", intType, DeclarationFragments.Public)
+        {
+            DeclaringType = widget,
+            Getter = new PropertyAccessor { IsAuto = true },
+            Setter = new PropertyAccessor { IsAuto = true, Accessibility = Accessibility.Private },
+        });
+        var staticModifiers = DeclarationFragments.Public with { IsStatic = true };
+        widget.FieldsList.Add(new Field("GlobalSize", intType, OwnershipKind.Unrestricted, staticModifiers) { DeclaringType = widget });
+        widget.PropertiesList.Add(new Property("GlobalCount", intType, staticModifiers) { DeclaringType = widget });
+        widget.MethodsList.Add(new Method("Reset", f.Built.Type("Void"), [], staticModifiers) { DeclaringType = widget });
         widget.FieldsList.Add(new Field("Weight", intType, OwnershipKind.Unrestricted, DeclarationFragments.Public) { DeclaringType = widget });
         _ = BindingFragments.Member(widget, "Weight", intType);
         _ = BindingFragments.Member(widget, "Resize", f.Built.Type("Void"));

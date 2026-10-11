@@ -11,10 +11,7 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 /// Binds <c>a[x]</c>, which yields an element or a sub-sequence depending on what <c>x</c> IS, so the
 /// receiver alone cannot type it -- <c>numbers[1]</c> and <c>numbers[1..3]</c> differ in result type.
 /// An element access into a receiver that declares indexers selects one by the index, as a call selects
-/// a method by its arguments, and is refused as a call is when none or several could take it. An index
-/// into a receiver with no indexer at all keeps answering <see cref="ErrorType"/> silently, where a range
-/// that slices nothing is reported: it has no C# to write and would reach emission as a slice of an
-/// error type.
+/// a method by its arguments, and is refused as a call is when none or several could take it.
 /// </summary>
 internal static class IndexBinder
 {
@@ -22,6 +19,11 @@ internal static class IndexBinder
         IndexSuffixPostfixSuffixNode node, Expression receiver, BindingContext ctx, BuilderContext context)
     {
         var index = ExpressionBinder.BindExpression(node.Index, ctx, context);
+
+        if(PriorFailure.Of(receiver) || PriorFailure.Of(index))
+        {
+            return new ErrorExpression(node, [receiver, index]);
+        }
 
         if(Indexability.IsRange(index.Type))
         {
@@ -32,7 +34,24 @@ internal static class IndexBinder
 
         if(indexers.Count == 0)
         {
-            return new IndexExpression(node, receiver, index, Indexability.ArrayElement(receiver.Type) ?? ErrorType.Instance);
+            if(Indexability.ArrayElement(receiver.Type) is { } element)
+            {
+                return new IndexExpression(node, receiver, index, element);
+            }
+
+            if(!Indexability.RefusesElement(receiver.Type, indexers))
+            {
+                return new IndexExpression(node, receiver, index, ErrorType.Instance);
+            }
+
+            if(FailureDependency.NeedsAnalysis(receiver) || FailureDependency.NeedsAnalysis(index))
+            {
+                var pending = context.Diagnostics.Withhold(() => ReportNotIndexable(receiver.Type, node, context));
+                return new ErrorExpression(node, [receiver, index], pending.Single());
+            }
+
+            ReportNotIndexable(receiver.Type, node, context);
+            return new ErrorExpression(node, [receiver, index]);
         }
 
         var choice = Indexability.Select(indexers, receiver.Type, index, context);
@@ -69,6 +88,12 @@ internal static class IndexBinder
             ParameterType = parameterTypes is [var slot] && !Indexability.IsIndex(index.Type) ? slot : null,
             FromEnd = fromEnd,
         };
+    }
+
+    private static void ReportNotIndexable(IMistType receiverType, IndexSuffixPostfixSuffixNode node, BuilderContext context)
+    {
+        context.Diagnostics.ReportAtNode(
+            ProgramModelDiagnostics.ReceiverNotIndexable, node, null, TypeDisplay.Mist(receiverType));
     }
 
     private static IMistType SliceType(IMistType receiverType, IndexSuffixPostfixSuffixNode node, BuilderContext context)

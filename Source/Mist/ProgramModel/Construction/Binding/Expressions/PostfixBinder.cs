@@ -17,11 +17,18 @@ internal static class PostfixBinder
 {
     internal static Expression BindPostfix(PostfixNode node, BindingContext ctx, BuilderContext context)
     {
-        var result = ExpressionBinder.BindPrimary(node.Target, ctx, context);
-
-        foreach(var suffix in node.Suffix)
+        Expression result;
+        using(ctx.PushTargetType(node.Suffix.Length == 0 ? ctx.TargetType : null, node.Suffix.Length == 0 && ctx.TargetTypeIsFailed))
         {
-            result = BindPostfixSuffix(suffix, result, ctx, context);
+            result = ExpressionBinder.BindPrimary(node.Target, ctx, context);
+        }
+
+        for(var i = 0; i < node.Suffix.Length; i++)
+        {
+            using(ctx.PushTargetType(i == node.Suffix.Length - 1 ? ctx.TargetType : null, i == node.Suffix.Length - 1 && ctx.TargetTypeIsFailed))
+            {
+                result = BindPostfixSuffix(node.Suffix[i], result, ctx, context);
+            }
         }
 
         // A group is born inside this walk, so this is the last point that still knows one went
@@ -243,9 +250,9 @@ internal static class PostfixBinder
 
         var resultType = ctx.TargetType ?? CommonArmType(arms, node, context);
 
-        if(resultType is ErrorType)
+        if(resultType is null || arms.All(arm => PriorFailure.Of(arm.Result)))
         {
-            return new ErrorExpression(node);
+            return new ErrorExpression(node, [new SwitchExpression(node, scrutinee, arms, resultType ?? ErrorType.Instance)]);
         }
 
         var converted = arms.ConvertAll(arm => new SwitchArm(
@@ -291,37 +298,19 @@ internal static class PostfixBinder
         return new SwitchArm(node, pattern, guard, ExpressionBinder.BindExpression(node.Result, ctx, context));
     }
 
-    private static IMistType CommonArmType(
+    private static IMistType? CommonArmType(
         IReadOnlyList<SwitchArm> arms, Storm.Runtime.SyntaxNode node, BuilderContext context)
     {
-        IMistType? candidate = null;
-
-        foreach(var arm in arms)
+        var values = arms.Select(arm => arm.Result).ToList();
+        var common = CommonTypeInference.Infer(values, context.Resolver.LookupWellKnown, context.ProgramModel.TypeInterner);
+        if(common is null)
         {
-            // An arm whose result failed to bind was reported where it failed, and pairing it with a
-            // sound arm would report that same failure again as a disagreement between them.
-            if(arm.Result.Type is ErrorType)
-            {
-                continue;
-            }
-
-            if(candidate is null)
-            {
-                candidate = arm.Result.Type;
-                continue;
-            }
-
-            if(!ReferenceEquals(arm.Result.Type, candidate))
-            {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.SwitchArmsNoCommonType, node, null,
-                    candidate.Name, arm.Result.Type.Name);
-
-                return ErrorType.Instance;
-            }
+            var (first, other) = CommonTypeInference.Disagreement(values);
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.SwitchArmsNoCommonType, node, null, first.Name, other.Name);
         }
 
-        return candidate ?? ErrorType.Instance;
+        return common;
     }
 
     /// <summary>
@@ -356,7 +345,7 @@ internal static class PostfixBinder
 
         var choice = OverloadResolution.Select(
             group.Candidates, bound, group.ReceiverConstructed, typeArguments, interner,
-            ArgumentBinder.RefFlags(arguments), group.Paths, new LambdaTrials(ctx, context));
+            ArgumentBinder.RefFlags(arguments), group.Paths, new LambdaTrials(ctx, context), new ContextualExpressionTrials(ctx, context));
 
         if(choice.Selected is not { } selected)
         {

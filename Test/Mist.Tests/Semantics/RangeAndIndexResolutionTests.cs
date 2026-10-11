@@ -119,19 +119,6 @@ public sealed class RangeAndIndexResolutionTests : ProgramModelProbe
         _ = Assert.Single(Errors(diagnostics, "MIST_PM_RECEIVER_NOT_SLICEABLE"));
     }
 
-    /// <summary>
-    /// An INDEX that resolves nothing stays silent where a range does not. The asymmetry is deliberate:
-    /// a missing indexer is a member that might simply not be declared, while a range that resolves
-    /// nothing has no C# to write at all.
-    /// </summary>
-    [Fact]
-    public void IndexingAReceiverWithNoIndexerReportsNothing()
-    {
-        var diagnostics = BuildRun("var bad = g[1];");
-
-        Assert.Empty(Errors(diagnostics, "MIST_PM_RECEIVER_NOT_SLICEABLE"));
-    }
-
     private (bool HasStart, bool HasEnd) Bounds(string statement)
     {
         var range = InitializerOf<RangeExpression>(statement);

@@ -69,8 +69,8 @@ internal static class StableMembers
             PropertyReferenceExpression { Property: var property } => IsStable(property, reading, purity),
             MemberAccessExpression { Member: FieldResult { Field: var field } } => field.Modifiers.IsReadonly,
             MemberAccessExpression { Member: PropertyResult { Property: var property } } => IsStable(property, reading, purity),
-            PropertySubpattern { Member: FieldResult { Field: var field } } => field.Modifiers.IsReadonly,
-            PropertySubpattern { Member: PropertyResult { Property: var property } } => IsStable(property, reading, purity),
+            PropertySubpattern { IsMemberFailed: false, Member: FieldResult { Field: var field } } => field.Modifiers.IsReadonly,
+            PropertySubpattern { IsMemberFailed: false, Member: PropertyResult { Property: var property } } => IsStable(property, reading, purity),
             BinaryExpression { Operator.Modifiers.IsIntrinsic: false } or UnaryExpression { Operator.Modifiers.IsIntrinsic: false } => false,
             CastExpression { Operator.Modifiers.IsIntrinsic: false } or ImplicitConversionExpression { Operator.Modifiers.IsIntrinsic: false } => false,
             MemberAccessExpression or PropertySubpattern or BinaryExpression or UnaryExpression or CastExpression

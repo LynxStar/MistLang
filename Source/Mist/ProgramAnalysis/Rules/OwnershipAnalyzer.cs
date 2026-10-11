@@ -331,7 +331,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
                     return state;
 
                 case { Kind: FlowStepKind.Evaluate, Node: NewExpression creation }:
-                    state = creation.Initializer.Aggregate(state, (kept, entry) => Keep(kept, entry.Value, $"'{entry.MemberName}'", partOnly: false));
+                    state = creation.Initializer.Where(entry => !entry.IsTargetFailed).Aggregate(state, (kept, entry) => Keep(kept, entry.Value, $"'{entry.MemberName}'", partOnly: false));
                     return MoveArguments(state, creation.Arguments, creation.Constructor?.ParametersList);
 
                 case { Kind: FlowStepKind.Evaluate, Node: ArrayLiteralExpression literal }:

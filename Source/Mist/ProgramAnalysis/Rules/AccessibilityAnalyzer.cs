@@ -36,11 +36,11 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
                     Judge(context, index, index.Node, [index], "this[]", indexer.Modifiers, declaring);
                     break;
 
-                case ObjectInitializerAssignment { MemberName: { } name, Member: { } member } entry:
+                case ObjectInitializerAssignment { IsTargetFailed: false, MemberName: { } name, Member: { } member } entry:
                     JudgeStorage(context, entry, entry.Node, [], name, member);
                     break;
 
-                case PropertySubpattern subpattern:
+                case PropertySubpattern { IsMemberFailed: false } subpattern:
                     JudgeStorage(context, subpattern, subpattern.Node, [], subpattern.MemberName, subpattern.Member);
                     break;
 
@@ -146,7 +146,7 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
         {
             var (at, name, member) = node switch
             {
-                PropertySubpattern subpattern => (subpattern.Node, subpattern.MemberName, subpattern.Member),
+                PropertySubpattern { IsMemberFailed: false } subpattern => (subpattern.Node, subpattern.MemberName, subpattern.Member),
                 MemberAccessExpression { Member: { } found } access => (access.Node, access.MemberName, found),
                 _ => (null, "", null),
             };

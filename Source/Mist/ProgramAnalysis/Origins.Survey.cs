@@ -73,7 +73,7 @@ internal sealed partial class Origins
                     MarkHanded(allocation.Arguments, allocation.Constructor?.ParametersList);
                     break;
 
-                case ObjectInitializerAssignment entry:
+                case ObjectInitializerAssignment { IsTargetFailed: false } entry:
                     MarkEscaped(entry.Value);
                     break;
 

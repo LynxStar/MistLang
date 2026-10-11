@@ -51,7 +51,8 @@ internal static class ObjectInitializerBinder
         }
 
         var memberName = named.Name.Lexeme;
-        var (target, found) = ResolveTarget(type, memberName, named, context);
+        var lookup = ResolveTarget(type, memberName, named, context);
+        var (target, found) = lookup;
 
         Expression value;
 
@@ -63,7 +64,7 @@ internal static class ObjectInitializerBinder
         value = ImplicitConversions.At(
             NewtypeLiterals.Admit(value, target, context.ProgramModel.TypeInterner)!, target, context.ProgramModel.TypeInterner);
 
-        bound.Add(new ObjectInitializerAssignment(named, memberName, value, target, member: found));
+        bound.Add(new ObjectInitializerAssignment(named, memberName, value, target, member: found) { IsTargetFailed = lookup.Reported });
     }
 
     /// <summary>
@@ -127,7 +128,7 @@ internal static class ObjectInitializerBinder
 
         if(lookup.Type is null)
         {
-            ReportNotStorage(lookup.Found, type, memberName, node, context);
+            return lookup with { Reported = lookup.Reported || ReportNotStorage(lookup.Found, type, memberName, node, context) };
         }
 
         return lookup;
@@ -139,12 +140,20 @@ internal static class ObjectInitializerBinder
     /// <see cref="MemberResolution"/> already, and a negative test would claim a member is not
     /// storage when the real complaint is that there are two of it.
     /// </summary>
-    private static void ReportNotStorage(
+    private static bool ReportNotStorage(
         LookupResult found, IMistType type, string memberName, SyntaxNode node, BuilderContext context)
     {
-        if(found is MethodGroupResult or TypeResult)
+        if(MemberResolution.IsStaticStorage(found))
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.InitializerTargetNotInstance, node, null, type.Name, memberName);
+            return true;
+        }
+        else if(found is MethodGroupResult or TypeResult or EnumMemberResult)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.InitializerTargetNotAssignable, node, null, type.Name, memberName);
+            return true;
         }
+
+        return false;
     }
 }

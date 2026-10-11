@@ -41,6 +41,7 @@ internal static class IdentifierBinder
             TypeResult type => new TypeReferenceExpression(node, type.Type),
             MethodGroupResult { Methods.Count: > 0 } group => new MethodGroupExpression(node, null, name, group.Methods, null) { Paths = group.Paths },
             NamespaceResult ns => new NamespaceReferenceExpression(node, ns.NamespaceName),
+            AmbiguousResult ambiguous => ReportAmbiguous(node, name, ambiguous, context),
 
             // Matched on its own rather than folded into the fallthrough below, which still covers
             // results the binder cannot represent yet -- an enum variant named bare, among them.
@@ -65,6 +66,15 @@ internal static class IdentifierBinder
 
         // ErrorExpression, not UnresolvedExpression: the name will not resolve on a later pass, and
         // the emitter must not report a second time for the same cause.
+        return new ErrorExpression(node);
+    }
+
+    private static Expression ReportAmbiguous(
+        IdentifierExpressionPrimaryNode node, string name, AmbiguousResult ambiguous, BuilderContext context)
+    {
+        context.Diagnostics.ReportAtNode(
+            ProgramModelDiagnostics.AmbiguousIdentifier, node, null, name, MemberResolution.Describe(ambiguous));
+
         return new ErrorExpression(node);
     }
 }

@@ -190,11 +190,11 @@ internal sealed partial class PurityInference
                 Note(extension.Property);
                 break;
 
-            case ObjectInitializerAssignment { Member: PropertyResult found }:
+            case ObjectInitializerAssignment { IsTargetFailed: false, Member: PropertyResult found }:
                 Note(found.Property);
                 break;
 
-            case PropertySubpattern { Member: PropertyResult found }:
+            case PropertySubpattern { IsMemberFailed: false, Member: PropertyResult found }:
                 Note(found.Property);
                 break;
 

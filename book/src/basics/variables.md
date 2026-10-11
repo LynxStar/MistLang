@@ -44,6 +44,8 @@ An inferred declaration or a loop declaration named `_` evaluates its initialize
 
 Ordinary typed discard declarations are currently refused by the parser; the typed local binder handles discard identities, but the source grammar does not yet admit that spelling.
 
+An ordinary assignment used inside another expression produces the type of the storage it writes, after any implicit conversion. Assigning an `int` value to a `long` local therefore produces a `long` result, which `var` also infers as `long`. The same rule applies to fields, properties, and indexers, and the value being assigned is evaluated once. [Void-coalescing assignment](../type-system/optional-types.md) is a statement and cannot be used as a subexpression.
+
 ## Scoping Rules
 
 Variables in Mist are scoped to the enclosing block, delimited by `{` and `}`. A variable declared inside a block is not accessible outside that block.

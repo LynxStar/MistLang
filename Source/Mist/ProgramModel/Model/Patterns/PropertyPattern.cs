@@ -25,4 +25,7 @@ internal sealed class PropertyPattern(
     public override LocalVariable? Binding { get; } = binding;
 }
 
-internal sealed record PropertySubpattern(SyntaxNode Node, string MemberName, Pattern Pattern, IMistType MemberType, LookupResult Member);
+internal sealed record PropertySubpattern(SyntaxNode Node, string MemberName, Pattern Pattern, IMistType MemberType, LookupResult Member)
+{
+    public bool IsMemberFailed { get; init; }
+}

@@ -78,7 +78,7 @@ internal static partial class PatternBinder
                 return null;
             }
 
-            subpatterns.Add(new PropertySubpattern(subpattern, memberName, bound, memberType, found));
+            subpatterns.Add(new PropertySubpattern(subpattern, memberName, bound, memberType, found) { IsMemberFailed = memberFailed });
         }
 
         var binding = node.Name is { } name
@@ -96,7 +96,14 @@ internal static partial class PatternBinder
         SyntaxNode node,
         BuilderContext context)
     {
-        if(found is MethodGroupResult or TypeResult)
+        if(MemberResolution.IsStaticStorage(found))
+        {
+            context.Diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.PatternSubpatternNotInstance, node, null, matched.Name, memberName);
+            return true;
+        }
+
+        if(found is MethodGroupResult or TypeResult or EnumMemberResult)
         {
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.PatternSubpatternNotStorage, node, null, matched.Name, memberName);

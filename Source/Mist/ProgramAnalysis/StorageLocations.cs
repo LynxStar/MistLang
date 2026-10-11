@@ -20,7 +20,7 @@ internal static class StorageLocations
         return expression switch
         {
             LocalReferenceExpression or FieldReferenceExpression or BackingFieldReferenceExpression or ThisExpression
-                or ElementReadExpression or ErrorExpression or UnresolvedExpression or UnboundLambdaExpression => null,
+                or ElementReadExpression or ErrorExpression or UnresolvedExpression or UnboundLambdaExpression or UnboundContextualExpression => null,
             MemberAccessExpression { Member: FieldResult found } access => found.Field.Modifiers.IsStatic || !ThisTiers.IsValue(Requirement.Unrefined(access.Receiver.Type))
                 ? null
                 : NotALocation(access.Receiver) is { } holder ? $"a field of {holder}" : null,

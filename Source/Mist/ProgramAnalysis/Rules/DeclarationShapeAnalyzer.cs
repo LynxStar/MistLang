@@ -281,7 +281,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
         foreach(var subpattern in (predicate as PropertyPattern)?.Subpatterns ?? [])
         {
-            if(!StableMembers.IsStable(subpattern.Member, purity))
+            if(!subpattern.IsMemberFailed && !StableMembers.IsStable(subpattern.Member, purity))
             {
                 yield return subpattern;
             }

@@ -63,11 +63,11 @@ internal sealed class AccessorAnalyzer : IProgramAnalyzer
                     Judge(context, Use.Of(context, reference), Slot.Of(reference.Property), ConstructionAt(context, reference, reference.Property, nested));
                     break;
 
-                case ObjectInitializerAssignment { Member: PropertyResult { Property: var property } } entry:
+                case ObjectInitializerAssignment { IsTargetFailed: false, Member: PropertyResult { Property: var property } } entry:
                     Judge(context, new Use(entry, entry.Node, [], AccessDirection.Write), Slot.Of(property), Construction.Init);
                     break;
 
-                case PropertySubpattern { Member: PropertyResult { Property: var property } } subpattern:
+                case PropertySubpattern { IsMemberFailed: false, Member: PropertyResult { Property: var property } } subpattern:
                     Judge(context, new Use(subpattern, subpattern.Node, [], AccessDirection.Read), Slot.Of(property), Construction.None);
                     break;
             }

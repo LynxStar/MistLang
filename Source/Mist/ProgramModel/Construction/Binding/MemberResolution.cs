@@ -111,12 +111,12 @@ internal static class MemberResolution
     public static StorageLookup ResolveStorage(
         IMistType type, string memberName, SyntaxNode node, BuilderContext context)
     {
-        var (found, constructed, reported) = Resolve(type, memberName, MemberVisibility.InstanceOnly, node, context);
+        var (found, constructed, reported) = Resolve(type, memberName, MemberVisibility.InstanceAndStatic, node, context);
 
         var memberType = found switch
         {
-            FieldResult field => field.Field.Type,
-            PropertyResult property => property.Property.Type,
+            FieldResult { Field.Modifiers.IsStatic: false } field => field.Field.Type,
+            PropertyResult { Property.Modifiers.IsStatic: false } property => property.Property.Type,
             _ => null,
         };
 
@@ -132,6 +132,29 @@ internal static class MemberResolution
                     context.ProgramModel.TypeInterner),
             found)
         { Reported = reported };
+    }
+
+    internal static bool IsStaticStorage(LookupResult found)
+    {
+        return found is FieldResult { Field.Modifiers.IsStatic: true } or PropertyResult { Property.Modifiers.IsStatic: true };
+    }
+
+    internal static string Describe(AmbiguousResult ambiguous)
+    {
+        return string.Join(", ", ambiguous.Candidates.Select(candidate => candidate switch
+        {
+            FieldResult field => $"field '{Qualified(field.DeclaringType, field.Field.Name)}'",
+            PropertyResult property => $"property '{Qualified(property.DeclaringType, property.Property.Name)}'",
+            MethodGroupResult group => string.Join(", ", group.Methods.Select(method => $"method '{Qualified(method.DeclaringType, method.Name)}'")),
+            TypeResult type => $"type '{type.Type.FullyQualifiedName}'",
+            EnumMemberResult member => $"variant '{Qualified(member.DeclaringType, member.Member.Name)}'",
+            _ => candidate.ToString(),
+        }));
+    }
+
+    private static string Qualified(IMistType? type, string memberName)
+    {
+        return type is null ? memberName : $"{type.FullyQualifiedName}.{memberName}";
     }
 
     public static bool AnswersMembers(IMistType type)
@@ -175,7 +198,7 @@ internal static class MemberResolution
             case AmbiguousResult ambiguous:
                 context.Diagnostics.ReportAtNode(
                     ProgramModelDiagnostics.AmbiguousMember, node, null,
-                    written, memberName, ambiguous.Candidates.Count);
+                    written, memberName, Describe(ambiguous));
                 return true;
 
             default:

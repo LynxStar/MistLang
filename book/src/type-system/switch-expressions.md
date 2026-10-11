@@ -23,6 +23,8 @@ A switch expression is written as `value switch { arms }`, where each arm maps a
 
 The switch expression evaluates `num` against each arm in order. The first arm whose pattern matches determines the result.
 
+When a parenthesized switch is the receiver of a member access or call, its arms determine the receiver's type before the member is resolved. A switch whose arms produce strings can therefore produce an `int` through `.Length` in an explicitly typed local, return, or argument. The expected type applies to that final member result. When the switch itself supplies the value to a typed position, its arms bind against that position's target type.
+
 ## Constant Pattern Arms
 
 Constant patterns match a specific literal value — integers, strings, or booleans. Each arm compares the scrutinee against the constant and produces the corresponding result.

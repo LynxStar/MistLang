@@ -112,6 +112,7 @@ internal static class BodyWalker
         add<TypeReferenceExpression>(_ => []);
         add<UnaryExpression>(e => [e.Operand]);
         add<UnboundLambdaExpression>(_ => []);
+        add<UnboundContextualExpression>(_ => []);
         add<UnresolvedExpression>(_ => []);
         add<VoidLiteralExpression>(_ => []);
 

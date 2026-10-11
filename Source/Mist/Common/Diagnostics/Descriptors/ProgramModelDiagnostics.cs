@@ -131,14 +131,19 @@ public static class ProgramModelDiagnostics
         "'{0}' has no member named '{1}'.");
 
     /// <summary>
-    /// A member name matched two different kinds of declaration -- a field and a method, say -- so
-    /// there is no single thing it could mean.
+    /// A member name matched several equally close declarations, so no single declaration answers it.
     /// </summary>
     public static readonly DiagnosticDescriptor AmbiguousMember = new(
         new DiagnosticId("MIST_PM_AMBIGUOUS_MEMBER"),
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
-        "The member '{1}' on '{0}' is ambiguous between {2} declarations of different kinds.");
+        "The member '{1}' on '{0}' is ambiguous between {2}.");
+
+    public static readonly DiagnosticDescriptor AmbiguousIdentifier = new(
+        new DiagnosticId("MIST_PM_AMBIGUOUS_IDENTIFIER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The identifier '{0}' is ambiguous between {1}.");
 
     /// <summary>An unrecognized type reference AST node was encountered.</summary>
     public static readonly DiagnosticDescriptor UnknownTypeRefNode = new(
@@ -538,6 +543,12 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'{1}' on '{0}' is not a field or a property, so a property pattern cannot match against it.");
 
+    public static readonly DiagnosticDescriptor PatternSubpatternNotInstance = new(
+        new DiagnosticId("MIST_PM_PATTERN_SUBPATTERN_NOT_INSTANCE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{1}' on '{0}' is static, so a property pattern cannot match against it.");
+
     /// <summary>
     /// A tuple pattern spells a different number of elements than the tuple it matches against holds.
     /// Reported rather than deferred because the arity is what pairs each element pattern with the
@@ -560,17 +571,17 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "'{0}' is not a tuple, so a tuple pattern has no elements to match against it.");
 
-    /// <summary>
-    /// A range was used to index a receiver that yields no sub-sequence. Reported rather than answered
-    /// with an error type, which is what the INDEX case still does: an index that resolves nothing
-    /// names an indexer that might simply be missing, while a range that resolves nothing has no C# to
-    /// write at all, so leaving it silent would emit an element access typed as an error.
-    /// </summary>
     public static readonly DiagnosticDescriptor ReceiverNotSliceable = new(
         new DiagnosticId("MIST_PM_RECEIVER_NOT_SLICEABLE"),
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "'{0}' cannot be sliced by a range. Only an array or a string yields a sub-sequence.");
+
+    public static readonly DiagnosticDescriptor ReceiverNotIndexable = new(
+        new DiagnosticId("MIST_PM_RECEIVER_NOT_INDEXABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{0}' cannot be indexed because it declares no indexer and is not an array.");
 
     /// <summary>
     /// An Index reaches an int indexer, and a list pattern reads its elements, only at positions counted
@@ -801,6 +812,12 @@ public static class ProgramModelDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "'{1}' on '{0}' is not a field or a property, so an initializer block cannot assign to it.");
+
+    public static readonly DiagnosticDescriptor InitializerTargetNotInstance = new(
+        new DiagnosticId("MIST_PM_INITIALIZER_TARGET_NOT_INSTANCE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{1}' on '{0}' is static, so an initializer block cannot assign to it.");
 
     /// <summary>
     /// An initializer block element is a bare expression, which is C#'s collection-initializer form.

@@ -111,7 +111,7 @@ internal sealed partial class Origins
                 or AnonymousObjectExpression or StackallocExpression or LambdaExpression
                 or DefaultExpression or LiteralExpression or RegexLiteralExpression or InterpolatedStringExpression
                 or VoidLiteralExpression or RangeExpression or TypeLiteralExpression or ErrorExpression
-                or UnresolvedExpression or UnboundLambdaExpression => Origin.Own,
+                or UnresolvedExpression or UnboundLambdaExpression or UnboundContextualExpression => Origin.Own,
             TypeReferenceExpression or NamespaceReferenceExpression or MethodGroupExpression
                 or MethodReferenceExpression or FunctionReferenceExpression => Origin.External,
             InvocationExpression call when ReturnsOwned(call) => OfOwnedReturn(call),

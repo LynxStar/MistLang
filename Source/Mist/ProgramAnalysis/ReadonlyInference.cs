@@ -207,7 +207,7 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
         return Triggers(node, member, callees) || node switch
         {
             AssignmentExpression assignment => Deconstructions.Pairs(assignment).Any(pair => Writes(pair.Target, origins, member) || StoresUnowned(origins, pair.Target, pair.Value)),
-            ObjectInitializerAssignment entry => StoresUnowned(origins, entry) || EntryWrites(entry, callees),
+            ObjectInitializerAssignment { IsTargetFailed: false } entry => StoresUnowned(origins, entry) || EntryWrites(entry, callees),
             IndexExpression { Indexer: { } indexer } indexed =>
                 CountWrites(indexed.FromEnd, origins.Of(indexed.Receiver), callees)
                 || (!OwnLocalCallee(indexer.Getter, indexer.Modifiers, origins.Of(indexed.Receiver))
@@ -236,7 +236,7 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
             ExtensionPropertyAccessExpression { Property: { } extended } extension =>
                 !OwnLocalCallee(extended.Getter, extended.Modifiers, origins.Of(extension.Receiver))
                 && UnprovenGetter(extended.Getter, extended.Modifiers, extended.DeclaringType, callees),
-            PropertySubpattern { Member: PropertyResult { Property: { } tested } } =>
+            PropertySubpattern { IsMemberFailed: false, Member: PropertyResult { Property: { } tested } } =>
                 UnprovenGetter(tested.Getter, tested.Modifiers, tested.DeclaringType, callees),
             ForEachStatement loop => LoopWrites(loop, origins, callees),
             _ => false,

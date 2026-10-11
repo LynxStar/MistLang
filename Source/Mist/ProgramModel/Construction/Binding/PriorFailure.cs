@@ -31,7 +31,12 @@ internal static class PriorFailure
             FunctionReferenceExpression reference => LocalFunctionBinder.IsRejected(reference.Method) || (reference.Receiver is { } receiver && Of(receiver)),
             MemberAccessExpression access => access.IsFailed || Of(access.Receiver),
             IndexExpression index => Of(index.Receiver) || Of(index.Index),
+            AssignmentExpression assignment => Of(assignment.Target) || Of(assignment.Value),
+            NewExpression creation => creation.Arguments.Any(Of) || creation.Initializer.Any(entry => entry.IsTargetFailed || Of(entry.Value)),
             ImplicitConversionExpression conversion => Of(conversion.Operand),
+            ArrayLiteralExpression array => array.Elements.Any(Of),
+            SwitchExpression selection => Of(selection.Scrutinee)
+                || selection.Arms.Any(arm => Of(arm.Result) || (arm.Guard is { } guard && Of(guard))),
             UnaryExpression unary => Of(unary.Operand),
             BinaryExpression binary => Of(binary.Left) || Of(binary.Right),
             _ => false,

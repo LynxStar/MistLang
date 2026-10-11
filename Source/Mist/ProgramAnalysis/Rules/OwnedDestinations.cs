@@ -71,7 +71,7 @@ internal static class OwnedDestinations
 
                 break;
 
-            case ObjectInitializerAssignment { Add: null } entry when !storesJudgedByPurity && Destination(entry.Member) is { } destination:
+            case ObjectInitializerAssignment { IsTargetFailed: false, Add: null } entry when !storesJudgedByPurity && Destination(entry.Member) is { } destination:
                 Require(context, entry.Value, destination, method, origins);
                 break;
 

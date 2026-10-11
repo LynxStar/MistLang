@@ -439,6 +439,11 @@ internal static partial class PurityJudge
 
         private void JudgeInitializerEntry(ObjectInitializerAssignment entry)
         {
+            if(entry.IsTargetFailed)
+            {
+                return;
+            }
+
             if(entry.Add is { } add)
             {
                 var promise = JudgeCall(add, Origin.Own, $"call '{add.Name}'", entry.Node, [entry.Value]);

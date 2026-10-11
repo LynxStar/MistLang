@@ -119,7 +119,7 @@ A block lambda has a brace-delimited body with statements. Use `return` to produ
 {{#endtab }}
 {{#endtabs }}
 
-Block lambdas can contain any statements — conditionals, loops, variable declarations, and multiple return paths. All return paths must produce the same type.
+Block lambdas can contain any statements — conditionals, loops, variable declarations, and multiple return paths. When the return type is inferred, the return expressions must share a unique supported common type. Numeric widening, shared nominal bases, and established implicit conversion targets use the same inference as array elements and switch arms. Returns inside a nested lambda or local function belong to that callable, not the enclosing lambda. An explicit function target supplies the result type directly.
 
 ## Type Inference
 

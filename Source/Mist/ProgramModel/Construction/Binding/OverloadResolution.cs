@@ -45,7 +45,8 @@ internal static class OverloadResolution
         TypeInterner interner,
         IReadOnlyList<bool>? argumentIsRef = null,
         IReadOnlyDictionary<T, IReadOnlyList<ConstructedType>>? paths = null,
-        ILambdaTrials? lambdas = null)
+        ILambdaTrials? lambdas = null,
+        IContextualExpressionTrials? contextual = null)
         where T : class, IOverload
     {
         var receiverSubstitution = TypeSubstitution.ForReceiver(receiver);
@@ -121,15 +122,15 @@ internal static class OverloadResolution
             return Winner(closed[0]);
         }
 
-        var applicable = closed.FindAll(candidate => IsApplicable(candidate, arguments, argumentIsRef, interner, lambdas));
+        var applicable = closed.FindAll(candidate => IsApplicable(candidate, arguments, argumentIsRef, interner, lambdas, contextual));
 
         if(applicable.Count == 0)
         {
             // A lambda that binds under none of the candidates the other arguments admit is broken in
             // itself rather than evidence against one of them, so where those arguments leave exactly
             // one, it is chosen and binding the lambda against it reports what is wrong with the body.
-            return lambdas is not null
-                && closed.FindAll(candidate => IsApplicable(candidate, arguments, argumentIsRef, interner, lambdas: null)) is [var only]
+            return (lambdas is not null || contextual is not null)
+                && closed.FindAll(candidate => IsApplicable(candidate, arguments, argumentIsRef, interner, lambdas: null, contextual: null)) is [var only]
                     ? Winner(only)
                     : new OverloadChoice<T> { Selected = null, Unresolvable = Methods(closed) };
         }
@@ -382,19 +383,20 @@ internal static class OverloadResolution
         IReadOnlyList<Expression> arguments,
         IReadOnlyList<bool>? argumentIsRef,
         TypeInterner interner,
-        ILambdaTrials? lambdas)
+        ILambdaTrials? lambdas,
+        IContextualExpressionTrials? contextual)
         where T : class, IOverload
     {
         for(var i = 0; i < arguments.Count; i++)
         {
             if(argumentIsRef is not null
                 && i < argumentIsRef.Count
-                && argumentIsRef[i] != candidate.Method.ParametersList[i].Modifier.IsRef)
+                && argumentIsRef[i] != candidate.Method.ParametersList[ValuePack.SlotOf(candidate.Method.ParametersList, arguments.Count, i)].Modifier.IsRef)
             {
                 return false;
             }
 
-            var parameter = ParameterType(candidate, i, interner);
+            var parameter = ParameterType(candidate, i, arguments, interner);
 
             // A method group has no type to convert FROM, so applicability is the conversion itself:
             // whether one of its overloads is the function this parameter asks for. Asked here because
@@ -403,6 +405,16 @@ internal static class OverloadResolution
             if(arguments[i] is MethodGroupExpression group)
             {
                 if(!MethodGroupConversion.Accepts(group, parameter, interner))
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if(arguments[i] is UnboundContextualExpression expression)
+            {
+                if(contextual is not null && !contextual.Fits(expression, parameter))
                 {
                     return false;
                 }
@@ -444,8 +456,8 @@ internal static class OverloadResolution
 
         for(var i = 0; i < arguments.Count; i++)
         {
-            var leftParameter = ParameterType(left, i, interner);
-            var rightParameter = ParameterType(right, i, interner);
+            var leftParameter = ParameterType(left, i, arguments, interner);
+            var rightParameter = ParameterType(right, i, arguments, interner);
             var argument = arguments[i] is UnboundLambdaExpression lambda && lambdas is not null
                 ? lambdas.ComparedType(lambda, leftParameter, rightParameter)
                 : arguments[i].Type;
@@ -463,7 +475,7 @@ internal static class OverloadResolution
             }
         }
 
-        return strictlyBetterSomewhere || BeatsOnSignature(left, right, arguments.Count, interner);
+        return strictlyBetterSomewhere || BeatsOnSignature(left, right, arguments, interner);
     }
 
     /// <summary>
@@ -484,18 +496,18 @@ internal static class OverloadResolution
     /// </para>
     /// </summary>
     private static bool BeatsOnSignature<T>(
-        Applicant<T> left, Applicant<T> right, int count, TypeInterner interner)
+        Applicant<T> left, Applicant<T> right, IReadOnlyList<Expression> arguments, TypeInterner interner)
         where T : class, IOverload
     {
-        for(var i = 0; i < count; i++)
+        for(var i = 0; i < arguments.Count; i++)
         {
-            if(!ConversionRelation.IsIdentity(ParameterType(left, i, interner), ParameterType(right, i, interner)))
+            if(!ConversionRelation.IsIdentity(ParameterType(left, i, arguments, interner), ParameterType(right, i, arguments, interner)))
             {
                 return false;
             }
         }
 
-        return MoreSpecificSignature(left.Method, right.Method, count);
+        return MoreSpecificSignature(left.Method, right.Method, arguments.Count);
     }
 
     internal static bool MoreSpecificSignature(IOverload left, IOverload right, int count)
@@ -512,7 +524,9 @@ internal static class OverloadResolution
 
         for(var i = 0; i < count; i++)
         {
-            var comparison = CompareSpecificity(left.ParametersList[i].Type, right.ParametersList[i].Type);
+            var leftSlot = ValuePack.SlotOf(left.ParametersList, count, i);
+            var rightSlot = ValuePack.SlotOf(right.ParametersList, count, i);
+            var comparison = CompareSpecificity(left.ParametersList[leftSlot].Type, right.ParametersList[rightSlot].Type);
 
             if(comparison > 0)
             {
@@ -633,9 +647,17 @@ internal static class OverloadResolution
         return leftToRight == rightToLeft ? 0 : leftToRight ? -1 : 1;
     }
 
-    private static IMistType ParameterType<T>(Applicant<T> candidate, int index, TypeInterner interner)
+    private static IMistType ParameterType<T>(Applicant<T> candidate, int index, IReadOnlyList<Expression>? arguments, TypeInterner interner)
         where T : class, IOverload
     {
-        return candidate.Substitution.Apply(candidate.Method.ParametersList[index].Type, interner);
+        var parameters = ValuePack.Expand(candidate.Method.ParametersList, candidate.Substitution, interner);
+        var count = arguments?.Count ?? parameters.Count;
+        var parameter = parameters[ValuePack.SlotOf(parameters, count, index)];
+        var target = ValuePack.ElementOf(parameter) is { } element
+            && (count != parameters.Count || arguments?[index] is UnboundLambdaExpression)
+                ? element
+                : parameter.Type;
+
+        return candidate.Substitution.Apply(target, interner);
     }
 }

@@ -350,6 +350,11 @@ internal static class TypeArgumentInference
         var absorbed = ValuePack.Absorbed(
             parameters, [.. arguments.Select(ValuePack.AbsorbedAs)], flattened);
 
+        if(absorbed.Any(type => type is UnboundContextualType))
+        {
+            return;
+        }
+
         var domain = pack.Domain ?? pack;
         Record(pack, interner.LiftPack(domain, new TypePackValue(absorbed)),
             method.TypeParametersList, bounds);
@@ -363,7 +368,7 @@ internal static class TypeArgumentInference
     private static void MatchArgument(
         IMistType declared, Expression argument, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds)
     {
-        if(argument is VoidLiteralExpression)
+        if(argument is VoidLiteralExpression or UnboundContextualExpression)
         {
             return;
         }

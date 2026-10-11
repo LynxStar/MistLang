@@ -58,6 +58,8 @@ internal sealed class ObjectInitializerAssignment(
 
     public LookupResult? Member { get; } = member;
 
+    public bool IsTargetFailed { get; init; }
+
     /// <summary>
     /// The <c>Add</c> overload a collection element resolved to. Recorded because emission writes
     /// the element back as C#'s own initializer syntax and lets Roslyn resolve Add AGAIN -- so

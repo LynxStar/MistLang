@@ -6,7 +6,7 @@ namespace Mist.ProgramModel.Model.Expressions;
 /// <summary>
 /// An assignment expression (<c>target = value</c>), or its coalescing form
 /// (<c>target ??= value</c>), which assigns only when the target holds absence.
-/// The <see cref="Type"/> is the type of the assigned value.
+/// Ordinary assignments carry the storage result type; coalescing statements carry the present value type.
 /// </summary>
 internal sealed class AssignmentExpression(
     SyntaxNode node,

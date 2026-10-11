@@ -73,6 +73,7 @@ internal static class ArgumentBinder
         BuilderContext context,
         bool settlesMethodGroups = false,
         bool defersLambdas = false,
+        bool defersContextual = false,
         PackSlot? absorbing = null,
         IReadOnlyList<bool>? targetFailures = null)
     {
@@ -89,6 +90,12 @@ internal static class ArgumentBinder
             if(defersLambdas && expressions[i] is LambdaFormExpressionNode { Lambda: { } lambda })
             {
                 bound.Add(new UnboundLambdaExpression(lambda));
+                continue;
+            }
+
+            if(defersContextual && !(targetFailures is not null && i < targetFailures.Count && targetFailures[i]) && NeedsTarget(expressions[i]))
+            {
+                bound.Add(new UnboundContextualExpression(expressions[i]));
                 continue;
             }
 
@@ -131,6 +138,24 @@ internal static class ArgumentBinder
         }
 
         return value;
+    }
+
+    private static bool NeedsTarget(ExpressionNode expression)
+    {
+        SyntaxNode? node = expression;
+        while(node is not null and not PostfixNode)
+        {
+            var children = node.Children().Where(child => child is not null).Take(2).ToList();
+            node = children.Count == 1 ? children[0] : null;
+        }
+
+        return node is PostfixNode { Suffix.Length: 0 } value && value.Target switch
+        {
+            TargetTypedNewExpressionPrimaryNode or DefaultLiteralExpressionPrimaryNode => true,
+            ArrayLiteralExpressionPrimaryNode { Elements: null } => true,
+            ParenthesizedExpressionPrimaryNode parenthesized => NeedsTarget(parenthesized.Inner),
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -281,6 +306,7 @@ internal static class ArgumentBinder
             argumentList, targets, ctx, context,
             settlesMethodGroups: settled,
             defersLambdas: settled && candidates.Count > 0 && !candidates.Any(candidate => ValuePack.FlattenedSlot(candidate.ParametersList) is not null),
+            defersContextual: candidates.Count > 0 && (sole is null || (typeArguments is null && sole.TypeParametersList.Count > 0)),
             absorbing: sole is null ? null : Absorbing(sole, inferring: typeArguments is null),
             targetFailures: targetFailures);
     }
@@ -295,7 +321,7 @@ internal static class ArgumentBinder
 
     /// <summary>
     /// The arguments the call left unsettled, bound against the parameter the chosen overload gives each:
-    /// a lambda exactly as it would have been bound had that been the only candidate, and a group
+    /// a lambda exactly as it would have been bound had that been the only candidate, and a target-dependent expression against the selected slot, and a group
     /// converted by <see cref="MethodGroupConversion"/>. Where nothing was chosen the selection has
     /// reported why, and a lambda is left as a failure rather than bound against nothing.
     /// </summary>
@@ -307,15 +333,32 @@ internal static class ArgumentBinder
         BuilderContext context)
     {
         var interner = context.ProgramModel.TypeInterner;
-        var lambdasBound = arguments
-            .Select((argument, i) => argument is not UnboundLambdaExpression lambda
-                ? argument
-                : parameters is not null && i < parameters.Count
-                    ? LambdaTrials.BindAgainst(lambda, substitution.Apply(parameters[i].Type, interner), ctx, context)
-                    : new ErrorExpression(lambda.Node))
-            .ToList();
+        var effective = parameters is null ? null : ValuePack.Expand(parameters, substitution, interner);
+        var contextuallyBound = arguments.Select((argument, i) =>
+        {
+            if(argument is not UnboundLambdaExpression and not UnboundContextualExpression)
+            {
+                return argument;
+            }
 
-        return MethodGroupConversion.Settle(lambdasBound, parameters, substitution, context);
+            if(effective is null || effective.Count == 0)
+            {
+                return new ErrorExpression(argument.Node);
+            }
+
+            var parameter = effective[ValuePack.SlotOf(effective, arguments.Count, i)];
+            var target = ValuePack.ElementOf(parameter) is { } element
+                && (arguments.Count != effective.Count || argument is UnboundLambdaExpression)
+                    ? element
+                    : parameter.Type;
+            target = substitution.Apply(target, interner);
+
+            return argument is UnboundLambdaExpression lambda
+                ? LambdaTrials.BindAgainst(lambda, target, ctx, context)
+                : ContextualExpressionTrials.BindAgainst((UnboundContextualExpression)argument, target, ctx, context, parameter.IsFailed);
+        }).ToList();
+
+        return MethodGroupConversion.Settle(contextuallyBound, parameters, substitution, context);
     }
 
     /// <summary>
@@ -323,7 +366,8 @@ internal static class ArgumentBinder
     /// call states, or null where none or several do. Several cannot be narrowed here: choosing between
     /// them needs the argument types, which are what this is about to produce. An argument that cannot be
     /// bound WITHOUT a target therefore survives untyped and the selection settles it -- a method group
-    /// (<see cref="MethodGroupConversion"/>) or a lambda (<see cref="UnboundLambdaExpression"/>), which a
+    /// (<see cref="MethodGroupConversion"/>), lambda (<see cref="UnboundLambdaExpression"/>), or contextual
+    /// value (<see cref="UnboundContextualExpression"/>), which a
     /// sole GENERIC candidate leaves untyped too, its parameter types waiting on the type arguments.
     /// </summary>
     private static T? SoleByArity<T>(
@@ -369,12 +413,17 @@ internal static class ArgumentBinder
 
         var expressions = argumentList.GetAllExpressions();
         var targets = new List<IMistType>(expressions.Length);
+        var effective = ValuePack.Expand(parameters, substitution, interner);
+        if(!ValuePack.AcceptsCount(effective, expressions.Length))
+        {
+            return [];
+        }
 
         for(var i = 0; i < expressions.Length; i++)
         {
-            var parameter = parameters[ValuePack.SlotOf(parameters, expressions.Length, i)];
+            var parameter = effective[ValuePack.SlotOf(effective, expressions.Length, i)];
             var target = ValuePack.ElementOf(parameter) is { } element
-                && (expressions.Length != parameters.Count || expressions[i] is LambdaFormExpressionNode)
+                && (expressions.Length != effective.Count || expressions[i] is LambdaFormExpressionNode)
                     ? element
                     : parameter.Type;
 

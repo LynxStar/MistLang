@@ -112,13 +112,9 @@ internal sealed class CandidateSet
         foreach(var kind in new[] { CandidateKind.Type, CandidateKind.Field, CandidateKind.Property, CandidateKind.Other })
         {
             var nearest = NearestOfKind(kind);
-            if(nearest.Count == 1)
+            foreach(var candidate in nearest)
             {
-                survivors.Add((nearest[0], DepthOf(kind)));
-            }
-            else if(nearest.Count > 1)
-            {
-                return new AmbiguousResult(nearest);
+                survivors.Add((candidate, DepthOf(kind)));
             }
         }
 

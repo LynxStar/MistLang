@@ -50,7 +50,7 @@ Target-typed `new` works anywhere the compiler can determine a target type:
 - **Field initializer** — inferred from the field's declared type
 - **Local variable with explicit type** — inferred from the variable's type annotation
 - **Return statement** — inferred from the method's return type
-- **Method argument** — inferred from the parameter type
+- **Method or constructor argument** — inferred from the selected parameter type, including `this` and `base` constructor chains
 - **Assignment** — inferred from the target variable's declared type
 
 {{#tabs }}
@@ -65,6 +65,8 @@ Target-typed `new` works anywhere the compiler can determine a target type:
 ```
 {{#endtab }}
 {{#endtabs }}
+
+When overloads share an argument count, the compiler considers the known arguments and binds each `new()`, `default`, or empty array argument against the candidate parameter. A unique applicable overload supplies the final target. A genuine tie reports overload ambiguity. A bare `new()` does not by itself infer an unknown generic type parameter.
 
 Notice in the emitted C# that the compiler fills in the full type name (`new Point(...)`) at every call site — the output is identical to writing the type explicitly.
 

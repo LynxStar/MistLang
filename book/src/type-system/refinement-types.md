@@ -168,7 +168,7 @@ Beyond named refinement types, Mist supports **ad-hoc refinement constraints** â
 
 ### Method Parameter Constraints
 
-A `where` clause on a method parameter constrains which values can be passed at that call site. The compiler verifies literals and known values at compile time.
+A `where` clause on a method parameter constrains which values can be passed at that call site. The compiler verifies literals and known values at compile time. The predicate itself is checked where it is declared, whether or not the method is ever called: a relational predicate needs a type with an ordering, and a constant predicate needs a constant some value of the type could equal, so `where key not 18` on a `string` parameter is an error at the declaration rather than a constraint no argument can ever satisfy.
 
 {{#tabs }}
 {{#tab name="Mist" }}

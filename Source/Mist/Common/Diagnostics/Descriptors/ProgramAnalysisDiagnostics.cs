@@ -160,6 +160,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "A relational refinement predicate cannot constrain '{0}': its type '{1}' supports no comparison operators.");
 
+    public static readonly DiagnosticDescriptor RefinementConstantMismatch = new(
+        new DiagnosticId("MIST_PA_REFINEMENT_CONSTANT_MISMATCH"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The refinement predicate on '{0}' compares a constant of type '{1}' with a value of type '{2}', which no value of '{2}' can equal or be ordered against.");
+
     public static readonly DiagnosticDescriptor RefinementOverMutableMember = new(
         new DiagnosticId("MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER"),
         DiagnosticSeverity.Error,

@@ -42,7 +42,7 @@ Constant patterns match a specific literal value — integers, strings, or boole
 {{#endtab }}
 {{#endtabs }}
 
-Integer and string constants require a `_` catch-all arm to ensure exhaustiveness — the compiler can't prove that a finite set of constants covers all possible values. Boolean switches with both `true` and `false` arms are exhaustive without a catch-all.
+String constants require a `_` catch-all arm to ensure exhaustiveness — a finite set of constants never covers every string. Over an integer, a `char`, a `bool` or an enum the compiler searches the arms' value sets exactly: constant arms alone leave a gap, and the warning names a value no arm matches, but relational arms that partition the type (`< 0`, `0`, `> 0`) are exhaustive without a catch-all, as are boolean switches with both `true` and `false` arms. An optional scrutinee such as `bool?` also needs its `void` case: `true` and `false` arms cover only the present values.
 
 ## Regex Pattern Arms
 
@@ -170,7 +170,7 @@ Tuple positional patterns match tuple elements by position using parenthesized s
 {{#endtab }}
 {{#endtabs }}
 
-Each arm's pattern is a tuple positional pattern that tests both elements of `coord`. The switch evaluates arms top-to-bottom — the first matching pattern determines the result. A catch-all arm using `(var _, var _)` ensures exhaustiveness when earlier arms don't cover all possible values.
+Each arm's pattern is a tuple positional pattern that tests both elements of `coord`. The switch evaluates arms top-to-bottom — the first matching pattern determines the result. A catch-all arm using `(var _, var _)` ensures exhaustiveness when earlier arms don't cover all possible values. Without one, the compiler checks the product of the element domains: over `(bool, bool)`, arms `(true, _)` and `(false, true)` leave `(false, false)` uncovered and the switch is reported with that cell named, while arms that together cover every combination — including relational partitions of integer elements such as the nine quadrant cells — are exhaustive. An element whose pattern the compiler cannot read, such as a property pattern, still needs a catch-all.
 
 ## Tuple Positional Patterns in Switch Arms
 

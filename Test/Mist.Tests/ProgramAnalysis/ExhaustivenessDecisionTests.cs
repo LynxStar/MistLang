@@ -1,7 +1,7 @@
-// Tier 3 (Component): switch shapes ExhaustivenessAnalyzer deliberately leaves unreported. A tuple
-// may need range reasoning to prove coverage, guards are not evaluated, and enum variants form a
-// closed domain. The analyzer reports only missing cases it proves; switch severity remains MIST-106
-// in backlog/issues.yaml.
+// Tier 3 (Component): switch shapes ExhaustivenessAnalyzer admits over a real model -- relational
+// partitions and finite products it proves complete, guards it does not evaluate, and the closed enum
+// domain -- plus the two findings whose arm shapes only the binder can vouch for: value arms over an
+// optional and literal elements of a tuple pattern. Switch severity remains MIST-106 in backlog/issues.yaml.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
@@ -34,7 +34,7 @@ public sealed class ExhaustivenessDecisionTests : ProgramModelProbe
         """;
 
     [Fact]
-    public void ATupleOverRelationalArms_IsNotJudged()
+    public void ATupleOverACompleteRelationalPartition_IsExhaustive()
     {
         AssertSilent(
             "var q = (x, y) switch { (0, 0) => 0, (> 0, > 0) => 1, (< 0, > 0) => 2, (< 0, < 0) => 3, "
@@ -42,9 +42,30 @@ public sealed class ExhaustivenessDecisionTests : ProgramModelProbe
     }
 
     [Fact]
-    public void RelationalArmsOverAnInt_AreNotJudged()
+    public void ACompleteRelationalPartitionOfAnInt_IsExhaustive()
     {
         AssertSilent("var sign = x switch { < 0 => -1, 0 => 0, > 0 => 1 };");
+    }
+
+    [Theory]
+    [InlineData("bool? ob = true; var f = ob switch { true => 1, false => 2, void => 3 };")]
+    [InlineData("bool? ob = true; var g = ob switch { true or void => 1, false => 2 };")]
+    [InlineData("var h = (flag, flag) switch { (true, _) => 1, (false, true) => 2, (false, false) => 3 };")]
+    [InlineData("var i = (flag, flag) switch { (var a, var b) when a => 1, (_, _) => 2 };")]
+    [InlineData("Color c = Color.Red; var j = (c, flag) switch { (Color.Red, _) => 1, (Color.Green, _) => 2, (Color.Blue, true) => 3, (Color.Blue, false) => 4 };")]
+    public void AFiniteProductOrOptionalEveryArmSetCovers_IsExhaustive(string statement)
+    {
+        AssertSilent(statement);
+    }
+
+    [Theory]
+    [InlineData("bool? ob = true; var r = ob switch { true => 1, false => 2 };", "void")]
+    [InlineData("var q = (flag, flag) switch { (true, _) => 1, (false, true) => 2 };", "(false, false)")]
+    public void AMissingCaseOnlyTheBinderCanShape_IsReported(string statement, string witness)
+    {
+        var finding = Assert.Single(Analyse(statement));
+
+        Assert.Contains(witness, finding.Message, StringComparison.Ordinal);
     }
 
     [Fact]

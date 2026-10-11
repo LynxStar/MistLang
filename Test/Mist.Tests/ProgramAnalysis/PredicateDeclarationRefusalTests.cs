@@ -36,6 +36,12 @@ public sealed class PredicateDeclarationRefusalTests
     [InlineData("refinement-not-comparable-struct-with-operators", "MIST_PA_REFINEMENT_NOT_COMPARABLE")]
     [InlineData("refinement-not-comparable-struct-without-operators", "MIST_PA_REFINEMENT_NOT_COMPARABLE")]
     [InlineData("refinement-not-comparable-type-parameter", "MIST_PA_REFINEMENT_NOT_COMPARABLE")]
+    [InlineData("refinement-constant-mismatch-alias-string", "MIST_PA_REFINEMENT_CONSTANT_MISMATCH")]
+    [InlineData("refinement-constant-mismatch-bool", "MIST_PA_REFINEMENT_CONSTANT_MISMATCH")]
+    [InlineData("refinement-constant-mismatch-disjunction", "MIST_PA_REFINEMENT_CONSTANT_MISMATCH")]
+    [InlineData("refinement-constant-mismatch-negated-string", "MIST_PA_REFINEMENT_CONSTANT_MISMATCH")]
+    [InlineData("refinement-constant-mismatch-relational-string-bound", "MIST_PA_REFINEMENT_CONSTANT_MISMATCH")]
+    [InlineData("refinement-constant-mismatch-string", "MIST_PA_REFINEMENT_CONSTANT_MISMATCH")]
     [InlineData("refinement-over-a-clr-property", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER")]
     [InlineData("refinement-over-a-getter-computed-from-a-mutable-field", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER")]
     [InlineData("refinement-over-a-getter-matching-a-mutable-field", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER")]
@@ -60,7 +66,8 @@ public sealed class PredicateDeclarationRefusalTests
     [InlineData("where-pattern-over-a-mutable-member", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER")]
     public void RefusesNamedCase(string name, string expected)
     {
-        var fragment = name.StartsWith("refinement-not-comparable-", StringComparison.Ordinal) ? Misordered(name) : Unstable(name);
+        var fragment = name.StartsWith("refinement-not-comparable-", StringComparison.Ordinal) ? Misordered(name)
+            : name.StartsWith("refinement-constant-mismatch-", StringComparison.Ordinal) ? Mismatched(name) : Unstable(name);
         var diagnostic = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
         Assert.Equal(expected, diagnostic.Id.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
@@ -86,6 +93,66 @@ public sealed class PredicateDeclarationRefusalTests
             }, owner, []);
         Alias(fragment, owner, Property(owner, integer, member));
         Assert.Empty(fragment.Run(new DeclarationShapeAnalyzer()));
+    }
+
+    [Theory]
+    [InlineData("int-constant")]
+    [InlineData("string-constant")]
+    [InlineData("bool-constant")]
+    [InlineData("type-parameter")]
+    [InlineData("symbolic-bound")]
+    [InlineData("optional")]
+    public void CompatibleConstantPredicateIsSilent(string name)
+    {
+        var fragment = new DeclarationFragments();
+        var integer = fragment.Built.Type("Int32");
+        var owner = fragment.Class("Sink");
+        var constrained = name switch
+        {
+            "string-constant" => fragment.Built.Type("String"),
+            "bool-constant" => fragment.Built.Type("Boolean"),
+            "type-parameter" => DeclarationFragments.Parameter(owner, owner.Scope, "K"),
+            "optional" => fragment.Built.Interner.GetOrCreateUnionType([integer, fragment.Built.Type("Void")]),
+            _ => integer,
+        };
+        Expression bound = name switch
+        {
+            "string-constant" => HandBuiltModel.Literal(constrained, "a"),
+            "bool-constant" => HandBuiltModel.Literal(constrained, true),
+            "symbolic-bound" => new FieldReferenceExpression(HandBuiltModel.Node(), new Field("Bound", integer, default, new MemberModifiers { IsReadonly = true })),
+            _ => HandBuiltModel.Literal(integer, 18L),
+        };
+        var refined = HandBuiltModel.Refined(constrained);
+        refined.Predicate = new NegatedPattern(HandBuiltModel.Node(), constrained,
+            new ComparisonPattern(HandBuiltModel.Node(30), constrained, name == "symbolic-bound" ? ComparisonKind.LessThan : ComparisonKind.Equal, bound));
+        owner.MethodsList.Add(new Method("Take", integer, [new Parameter("value", refined)], DeclarationFragments.Public) { Body = HandBuiltModel.Block() });
+
+        Assert.Empty(fragment.Run(new DeclarationShapeAnalyzer()));
+    }
+
+    private static DeclarationFragments Mismatched(string name)
+    {
+        var fragment = new DeclarationFragments();
+        var integer = fragment.Built.Type("Int32");
+        var text = fragment.Built.Type("String");
+        var owner = fragment.Class("Sink");
+        var relational = name.Contains("relational", StringComparison.Ordinal);
+        var constrained = name.Contains("bool", StringComparison.Ordinal) ? fragment.Built.Type("Boolean") : relational ? integer : text;
+        Pattern predicate = new ComparisonPattern(HandBuiltModel.Node(30), constrained, relational ? ComparisonKind.GreaterThan : ComparisonKind.Equal,
+            relational ? HandBuiltModel.Literal(text, "a") : HandBuiltModel.Literal(integer, 18L));
+
+        if(name.Contains("negated", StringComparison.Ordinal))
+        {
+            predicate = new NegatedPattern(HandBuiltModel.Node(), constrained, predicate);
+        }
+        else if(name.Contains("disjunction", StringComparison.Ordinal))
+        {
+            predicate = new DisjunctionPattern(HandBuiltModel.Node(), constrained,
+                [new ComparisonPattern(HandBuiltModel.Node(), constrained, ComparisonKind.Equal, HandBuiltModel.Literal(text, "a")), predicate]);
+        }
+
+        Attach(fragment, owner, constrained, predicate, name);
+        return fragment;
     }
 
     private static DeclarationFragments Misordered(string name)

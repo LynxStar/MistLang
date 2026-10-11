@@ -70,10 +70,14 @@ maintenance:
 issues:
 - id: MIST-001
   title: Add tuple-product exhaustiveness reasoning
-  status: confirmed
-  summary: Missing() does not compute tuple products; unbounded/tuple inputs only use OnlyConstants. Existing
-    range reasoning has not become an exhaustiveness customer. Needs finite coverage and refusal cases
-    without guessing on unsupported predicates.
+  status: decision
+  summary: Finite product and interval coverage is implemented as of 2026-10-11. Over (bool, bool) the arms (true, _)
+    and (false, true) report the missing (false, false), enum products and integral partitions with a gap name
+    a witness, nested tuples are searched to any depth, and the seven-arm quadrant switch in
+    samples/TuplePatternMatching is proven exhaustive rather than merely unrefused. What remains is the policy
+    conflict between tuple-pattern-matching Requirement 3.5, which demands one universal unguarded tuple arm,
+    and switch-expressions Requirement 6.1, which admits collective coverage. The implementation follows 6.1,
+    as the banked sample requires, and does not settle it.
   source_refs:
   - file: backlog/analysis-v2-capability-progression.yaml
     selector: rules[id=exhaustiveness-checking].tasks[2]
@@ -93,37 +97,74 @@ issues:
     - file: Source/Mist/ProgramAnalysis/Refinements/MatchedValues.cs
       selector: IntegralDomain
       line: 18
+  - revision: this packet's landing commit, based on 4f018a0d
+    date: '2026-10-11'
+    kind: implementation and executed verification of the bounded missing-witness obligation
+    implementation:
+    - Source/Mist/ProgramAnalysis/Rules/FiniteCoverage.cs reads each unguarded arm as a box of Admitted sets
+      over the scrutinee's leaves -- a tuple's elements to any depth, a bool, an enum, an integral or a char
+      -- and searches the leaf domains for a cell inside no box. An arm it cannot read (a property pattern,
+      a type test of another type, a relational enum element) ends the search with no verdict, so a witness
+      is a value no unguarded arm could match. A leaf with no domain (string, class, unknown) takes only a
+      catch-all and is spelled `_`.
+    - Source/Mist/ProgramAnalysis/Refinements/MatchedValues.cs gains Admits and Domain, the exhaustiveness
+      reading (an enum is its variants by declaration position); Covered keeps the unreachability domain
+      exactly as before.
+    - Source/Mist/ProgramAnalysis/Rules/ExhaustivenessAnalyzer.cs routes every non-union scrutinee through
+      FiniteCoverage and keeps the former constant-only fallback when it has no verdict, so scalar bool and
+      enum messages are unchanged, a relational partition of an int is proven complete, and constant-only
+      arms over an int now name concrete witnesses. MIST_PA_SWITCH_NOT_EXHAUSTIVE keeps its descriptor and
+      Warning severity (MIST-106 untouched).
+    verification:
+    - 'Executed CLI probes on the rebuilt compiler (dotnet run --project Source/Mist.CLI --no-build -- run
+      <scratch> --quiet): the planning reproduction over (bool, bool) warns "Missing cases: (false, false)"
+      and exits 0; (Color, Color) with (Red, _), (Green, _), (Blue, Red), (Blue, Green) warns "(Blue, Blue)";
+      (int, int) with (< 0, _) and (> 0, _) warns "(0, _)"; ((bool, bool), bool) with three arms warns
+      "((false, false), false)"; n switch { 1, 2 } warns "0, 3"; a char switch warns "''\u0000'', ''b''".
+      The seven-arm quadrant switch, < 0 / 0 / > 0 over an int, (true, _)/(false, true)/(false, false),
+      an enum-by-bool product, and (var p, var q) when p with (_, _) all compile silently and run.'
+    - 'Tier 1 Test/Mist.Tests/ProgramAnalysis/ExhaustivenessRefusalTests.cs: 15 refusal rows asserting the
+      exact witness list, 13 covering-or-unreadable rows asserting silence (the quadrant partition, all-catch-all
+      and binding tuple arms, a property-pattern element, a relational enum element, a guarded cell covered by a
+      later unguarded arm), 10 catch-all completion rows; Tier 2 rows report the switch site and name a tuple
+      and an optional witness. Tier 3 ExhaustivenessDecisionTests: the quadrant and int partitions are now
+      proven exhaustive, five finite-product/optional admissions and two binder-shaped refusals added.'
+    - 'dotnet build Mist.slnx -p:UseSharedCompilation=false after the change: 0 warnings, 0 errors.'
+    - 'tools/test-ledger/run.sh Test/Mist.Tests over the analysis filter (Exhaustiveness*, Pattern*, Refinement*,
+      SequenceLength*, RangeLengthFacts*, PredicateDeclaration*, PredicateCompatibility*, CallLengthFacts*,
+      DeclarationShapeDecision*, IntrinsicIndex*, SpanLength*, UnaryRefinement*, EnumRefinement*): 991 tests,
+      989 passed; the 2 failures were defects in two new test rows (a witness-order expectation, and a row
+      asserting IsRefused false for a misordered string predicate that is correctly refused for ordering),
+      both corrected; ledger TestResults/ledger/20261011-170757, summary.txt and failures.txt inspected.
+      Rerun of ExhaustivenessRefusalTests and PredicateCompatibilityDecisionTests: 52/52, ledger
+      TestResults/ledger/20261011-170905.'
+    - 'dotnet format Mist.slnx --verify-no-changes: exit 0 after fixing three findings (one continuation
+      indent, two explicit locals, one unused using). git diff --check: clean.'
+    - 'tools/test-ledger/run.sh (full Mist.slnx, build 0 warnings 0 errors, MSB3026 x0): 10119 tests passed,
+      0 failed, 0 skipped -- Mist.Tests 9106, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852,
+      Storm.ConsumerIntegration.Tests 46; AllFeaturesV2_CompilesRunsAndMatchesBaseline passed with no new
+      sample warning. Ledger TestResults/ledger/20261011-171310; summary.txt, env.txt and the empty
+      failures.txt inspected. Run on this branch at 4f018a0d plus this change, before the rebase onto main.'
+    - 'After rebasing onto main 262ac0c1 (which brought the local-binding, contextual-expression and
+      constructor-initialization packets), dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format
+      Mist.slnx --verify-no-changes: exit 0; every acceptance probe above reproduced unchanged on the rebased
+      binaries; LEDGER_NO_BUILD=1 tools/test-ledger/run.sh: 10445 tests passed, 0 failed, 0 skipped --
+      Mist.Tests 9432, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852, Storm.ConsumerIntegration.Tests
+      46. Ledger TestResults/ledger/20261011-172138; summary.txt and the empty failures.txt inspected.'
+    limits:
+    - Guarded arms never cover (switch-expressions 6.5, tuple-positional-switch-patterns 4.3) and no guard is
+      evaluated; a tuple cell reached only through a guarded arm is reported. Nothing is reported for an arm
+      the search cannot read.
+    - The search gives no verdict past 512 boxes or 20,000 visited cells, and names at most eight witnesses
+      per switch, except that a wholly uncovered bool or enum first element lists every value.
+    - The complete-partition versus universal-arm policy (Requirements 3.5 and 6.1) is the retained residue;
+      no policy was invented either way.
   related:
   - emitter pattern/exhaustiveness analysis tasks
   priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  priority_rationale: Bounded missing-witness obligation discharged 2026-10-11; the open item is the universal-arm
+    versus collective-coverage policy, a language decision rather than a proof gap.
   audit_key: analysis:analysis-004
-  area: analysis
-- id: MIST-002
-  title: Report missing void in value-covered optional switches
-  status: confirmed
-  summary: Union Missing() uses MightMatch; non-TypeTest patterns can match every constituent, so true/false
-    value arms suppress the missing void finding. Source-only reconfirmation of the retained bool? gap.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=exhaustiveness-checking].tasks[3]
-    line_at_baseline: 387
-    lead_excerpt: 'An optional scrutinee covered by value arms -- `bool?` with true and false and no void
-      -- is silent: a value arm counts as possibly matching every constituent. Sound, and a missed finding.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/ExhaustivenessAnalyzer.cs
-      selector: private static bool MightMatch
-      line: 125
-  related: []
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-005
   area: analysis
 - id: MIST-003
   title: Model CLR optional arguments before enforcing projected call/index types
@@ -222,41 +263,6 @@ issues:
   priority: P2
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-013
-  area: analysis
-- id: MIST-006
-  title: Validate equality refinement constants against declaration domain
-  status: confirmed
-  summary: CheckPredicate calls Comparability.Misordered (ordering) and StableMembers but lacks equality
-    constant/domain compatibility. Current string `where key not 18` declares successfully then reports
-    CONSTRAINT_UNPROVEN at call; declaration behavior is still wrong under the cited accepted-domain requirement.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=declaration-shape-checks].tasks[6]
-    line_at_baseline: 2143
-    lead_excerpt: 'An equality refinement predicate whose constant cannot belong to the base is admitted
-      at the declaration and can then be discharged by nobody, so every use is refused instead -- the
-      sibling of the relational rule this order already holds, missing its half. Measured 2026-09-16 on
-      both pipelines: `Ne(string key) where key not 18` is admitted at the declaration on v2 and on classic,
-      and `Ne("x")` is …'
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: current CLI probes executed, plus source inspection; no test-suite execution claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
-      selector: private static void CheckPredicate
-      line: 252
-    - file: Source/Mist/ProgramAnalysis/Comparability.cs
-      selector: Misordered
-      line: 37
-    probes:
-    - project: /private/tmp/mist-reconcile-analysis-probes/candidate-equality-refinement
-      results_file: /private/tmp/mist-reconcile-analysis-probes/results.json
-  related:
-  - adhoc-refinement-constraints requirements11.6
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-021
   area: analysis
 - id: MIST-007
   title: Reject duplicate operator and conversion signatures
@@ -1163,81 +1169,6 @@ issues:
   area: backend
   merged_audit_keys:
   - analysis:analysis-093
-- id: MIST-035
-  title: Preserve explicitly sized lengths on direct call results
-  status: confirmed
-  summary: A direct call explicitly returning int[3] loses its declared length in Lengths.OfCall and Make()[2]
-    is refused as MIST_PA_INDEX_UNPROVEN. Reconfirmed on current main; preserve the declared size as the
-    fallback without adding inference for unknown/unsized method return lengths.
-  source_refs:
-  - file: backlog/general.md
-    selector: section[34] A sized array type's length written with `_` or a suffix reads as 0
-    line_at_baseline: 1106
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe
-    detail: 'Scalar length parsing/domain member access is delivered. Residual direct-call indexing may
-      lose the type-carried size: Lengths.Of selects OfCall, whose fallback returns null instead of Typed(invocation.Type).
-      Not freshly executed.'
-    source_symbols: []
-    probes:
-    - path: /private/tmp/mist-backend-reconcile-probes/length_member
-      source: 'using Standard;
-
-        namespace Probe;
-
-        public class Program { public static void Main() { var x = new int[3]; Console.WriteLine(x.Length.ToString());
-        int[] y = new int[5]; Console.WriteLine(y.Length.ToString()); } }
-
-        '
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/length_member
-        --quiet
-      exit_code: 0
-      output: '3
-
-        5
-
-        '
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe by coordinator
-    source: using Standard; namespace Probe; public class Program { public static int[3] Make() { return
-      new int[3]; } public static void Main() { Console.WriteLine(Make()[2]); } }
-    manifest: 'name = "DirectSizedCall"
-
-      namespace_root = "Probe"
-
-      '
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run <probe-directory> --quiet
-    exit_code: 1
-    observed: 'MIST_PA_INDEX_UNPROVEN: Index 2 is not proven within the bounds of int[3], needing >= 0
-      and < Length.'
-    expected: The declared int[3] result already guarantees a length of three; the in-bounds index should
-      be admitted and print 0.
-  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
-    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
-    source: using Standard; namespace Probe; public class Program { public static int[3] Make() { return
-      new int[3]; } public static void Main() { Console.WriteLine(Make()[2]); } }
-    manifest: 'name = "Probe"
-
-      namespace_root = "Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: '/private/tmp/mist-plan-20261011-root-probes/sized-call/Program.mist(1,161): error MIST_PA_INDEX_UNPROVEN:
-      Index ''2'' is not proven within the bounds of ''int[3]'', which needs >= 0 and < Length.
-
-      '
-    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
-      described in the summary; no broader unknown-domain behavior is claimed.
-  related:
-  - general historical leads
-  priority_rationale: Current executed probe violates the declared sized result contract; no interprocedural
-    unsized-return inference is required.
-  audit_key: backend:general-34
-  area: backend
-  priority: P2
 - id: MIST-037
   title: Local declaration discards become real named bindings
   status: confirmed
@@ -15635,6 +15566,288 @@ archive:
       '
     legacy_id: mass-standard-namespace-not-found-stale-binaries
     status_at_import: open
+- id: MIST-002
+  title: Report missing void in value-covered optional switches
+  status: implemented
+  summary: Value arms over an optional no longer count as matching void. A constant arm might match a constituent
+    only when Comparability.Compares says some value of it could equal the constant, and no constant is void,
+    so `bool? b switch { true => 1, false => 2 }` is reported with void as the missing case; an unguarded `void` arm, a
+    `true or void` disjunction or a catch-all completes it. Guarded arms keep their existing treatment.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=exhaustiveness-checking].tasks[3]
+    line_at_baseline: 387
+    lead_excerpt: 'An optional scrutinee covered by value arms -- `bool?` with true and false and no void
+      -- is silent: a value arm counts as possibly matching every constituent. Sound, and a missed finding.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/ExhaustivenessAnalyzer.cs
+      selector: private static bool MightMatch
+      line: 125
+  - revision: this packet's landing commit, based on 4f018a0d
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - Source/Mist/ProgramAnalysis/Rules/ExhaustivenessAnalyzer.cs MightMatch reads a ComparisonPattern through
+      Comparability.Compares against the constituent and never against void; type tests keep identity matching
+      and every other pattern still counts as possibly matching.
+    - Source/Mist/ProgramAnalysis/Comparability.cs holds the shared constant-compatibility question
+      (HoldsConstant, Compares) that PatternAnalyzer.ComparisonFinding also asks, so a body pattern and this
+      rule cannot disagree.
+    verification:
+    - 'Executed CLI probe: the planning reproduction `Pick(bool? b) => b switch { true => 1, false => 2 }`
+      now warns "MIST_PA_SWITCH_NOT_EXHAUSTIVE ... Missing cases: void" and exits 0 printing 1; `string? s
+      switch { "a" => 1, "b" => 2 }` warns "void"; `true => 1, false => 2, void => 3`, `true or void => 1,
+      false => 2`, and `void when b is void => 3` are silent.'
+    - 'Tier 1 ExhaustivenessRefusalTests rows optional-bool-covered-only-by-values ("void"),
+      optional-string-covered-only-by-constants ("void"), optional-bool-with-a-void-arm,
+      optional-bool-with-void-in-a-disjunction and union-constituent-partially-covered-by-a-constant; Tier 2
+      site row for the optional; Tier 3 ExhaustivenessDecisionTests binder-shaped refusal `bool? ob switch
+      { true, false }` and admissions with a void arm and a void disjunction.'
+    - 'dotnet build Mist.slnx -p:UseSharedCompilation=false after the change: 0 warnings, 0 errors.'
+    - 'tools/test-ledger/run.sh Test/Mist.Tests over the analysis filter (Exhaustiveness*, Pattern*, Refinement*,
+      SequenceLength*, RangeLengthFacts*, PredicateDeclaration*, PredicateCompatibility*, CallLengthFacts*,
+      DeclarationShapeDecision*, IntrinsicIndex*, SpanLength*, UnaryRefinement*, EnumRefinement*): 991 tests,
+      989 passed; the 2 failures were defects in two new test rows (a witness-order expectation, and a row
+      asserting IsRefused false for a misordered string predicate that is correctly refused for ordering),
+      both corrected; ledger TestResults/ledger/20261011-170757, summary.txt and failures.txt inspected.
+      Rerun of ExhaustivenessRefusalTests and PredicateCompatibilityDecisionTests: 52/52, ledger
+      TestResults/ledger/20261011-170905.'
+    - 'dotnet format Mist.slnx --verify-no-changes: exit 0 after fixing three findings (one continuation
+      indent, two explicit locals, one unused using). git diff --check: clean.'
+    - 'tools/test-ledger/run.sh (full Mist.slnx, build 0 warnings 0 errors, MSB3026 x0): 10119 tests passed,
+      0 failed, 0 skipped -- Mist.Tests 9106, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852,
+      Storm.ConsumerIntegration.Tests 46; AllFeaturesV2_CompilesRunsAndMatchesBaseline passed with no new
+      sample warning. Ledger TestResults/ledger/20261011-171310; summary.txt, env.txt and the empty
+      failures.txt inspected. Run on this branch at 4f018a0d plus this change, before the rebase onto main.'
+    - 'After rebasing onto main 262ac0c1 (which brought the local-binding, contextual-expression and
+      constructor-initialization packets), dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format
+      Mist.slnx --verify-no-changes: exit 0; every acceptance probe above reproduced unchanged on the rebased
+      binaries; LEDGER_NO_BUILD=1 tools/test-ledger/run.sh: 10445 tests passed, 0 failed, 0 skipped --
+      Mist.Tests 9432, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852, Storm.ConsumerIntegration.Tests
+      46. Ledger TestResults/ledger/20261011-172138; summary.txt and the empty failures.txt inspected.'
+    limits:
+    - A constituent reached only through a guarded arm stays unreported, as ExhaustivenessDecisionTests
+      AConstituentReachedOnlyThroughAGuard_IsNotReported pins; a partially covered constituent is not reported.
+  related: []
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-005
+  area: analysis
+- id: MIST-006
+  title: Validate equality refinement constants against declaration domain
+  status: implemented
+  summary: An equality or inequality predicate whose constant no value of the constrained type could equal is
+    refused where it is declared, called or not, as MIST_PA_REFINEMENT_CONSTANT_MISMATCH, through negation and
+    logical composition included; a relational predicate whose constant has no ordering is refused the same way,
+    while ordering refusals keep MIST_PA_REFINEMENT_NOT_COMPARABLE. Comparability.IsRefused covers the new
+    refusal, so the call site raises no second complaint.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=declaration-shape-checks].tasks[6]
+    line_at_baseline: 2143
+    lead_excerpt: 'An equality refinement predicate whose constant cannot belong to the base is admitted
+      at the declaration and can then be discharged by nobody, so every use is refused instead -- the
+      sibling of the relational rule this order already holds, missing its half. Measured 2026-09-16 on
+      both pipelines: `Ne(string key) where key not 18` is admitted at the declaration on v2 and on classic,
+      and `Ne("x")` is …'
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: current CLI probes executed, plus source inspection; no test-suite execution claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
+      selector: private static void CheckPredicate
+      line: 252
+    - file: Source/Mist/ProgramAnalysis/Comparability.cs
+      selector: Misordered
+      line: 37
+    probes:
+    - project: /private/tmp/mist-reconcile-analysis-probes/candidate-equality-refinement
+      results_file: /private/tmp/mist-reconcile-analysis-probes/results.json
+  - revision: this packet's landing commit, based on 4f018a0d
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - Source/Mist/ProgramAnalysis/Comparability.cs gains Mismatched (the declaration-side walk), Compares,
+      HoldsConstant, IsConstant and IsIndeterminate; PatternAnalyzer.ComparisonFinding now asks the same
+      helpers, so the body and declaration judgments share one home. IsRefused includes a mismatched predicate.
+    - Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs CheckPredicate reports
+      MIST_PA_REFINEMENT_CONSTANT_MISMATCH at the comparison node, after the existing ordering check;
+      Source/Mist/Common/Diagnostics/Descriptors/ProgramAnalysisDiagnostics.cs declares the descriptor
+      (Error).
+    verification:
+    - 'Executed CLI probe: the planning reproduction `Ne(string key) where key not 18` with `Ne("x")` now
+      reports only MIST_PA_REFINEMENT_CONSTANT_MISMATCH at the declaration (column of the `18`), exit 1, with
+      no MIST_PA_CONSTRAINT_UNPROVEN at the call. A sixteen-method probe refused exactly `where key not 18`
+      on a string, `where b 1` on a bool, `where s ("a" or 18)` on a string and `where n > "a"` on an int,
+      and admitted `where s not ""`, `where b true`, `where b not false`, `where d 0.5`, `where c ''a''`,
+      `where t Tone.High`, `where a 30` on a refined int, `where n (1 or 2)`, `where l 3`, `where b not 300`
+      on a byte and `where key not 18` on a type parameter.'
+    - 'Tier 1 Test/Mist.Tests/ProgramAnalysis/PredicateCompatibilityDecisionTests.cs: nine compatibility rows
+      over Comparability.Mismatched and IsRefused, a misordered-not-mismatched fact, and a fact that a type
+      parameter, a symbolic bound, an optional and an enum variant are not mismatched. Tier 2
+      PredicateDeclarationRefusalTests: six refusal rows (string, bool, negated, disjunction, alias, relational
+      string bound) asserting the id and the comparison column, and six compatible admissions. Tier 3
+      DeclarationShapeDecisionTests: five new Bounded admissions over bool, double, char, enum and byte
+      constants, with MIST_PA_REFINEMENT_CONSTANT_MISMATCH added to the ids it watches.'
+    - 'dotnet build Mist.slnx -p:UseSharedCompilation=false after the change: 0 warnings, 0 errors.'
+    - 'tools/test-ledger/run.sh Test/Mist.Tests over the analysis filter (Exhaustiveness*, Pattern*, Refinement*,
+      SequenceLength*, RangeLengthFacts*, PredicateDeclaration*, PredicateCompatibility*, CallLengthFacts*,
+      DeclarationShapeDecision*, IntrinsicIndex*, SpanLength*, UnaryRefinement*, EnumRefinement*): 991 tests,
+      989 passed; the 2 failures were defects in two new test rows (a witness-order expectation, and a row
+      asserting IsRefused false for a misordered string predicate that is correctly refused for ordering),
+      both corrected; ledger TestResults/ledger/20261011-170757, summary.txt and failures.txt inspected.
+      Rerun of ExhaustivenessRefusalTests and PredicateCompatibilityDecisionTests: 52/52, ledger
+      TestResults/ledger/20261011-170905.'
+    - 'dotnet format Mist.slnx --verify-no-changes: exit 0 after fixing three findings (one continuation
+      indent, two explicit locals, one unused using). git diff --check: clean.'
+    - 'tools/test-ledger/run.sh (full Mist.slnx, build 0 warnings 0 errors, MSB3026 x0): 10119 tests passed,
+      0 failed, 0 skipped -- Mist.Tests 9106, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852,
+      Storm.ConsumerIntegration.Tests 46; AllFeaturesV2_CompilesRunsAndMatchesBaseline passed with no new
+      sample warning. Ledger TestResults/ledger/20261011-171310; summary.txt, env.txt and the empty
+      failures.txt inspected. Run on this branch at 4f018a0d plus this change, before the rebase onto main.'
+    - 'After rebasing onto main 262ac0c1 (which brought the local-binding, contextual-expression and
+      constructor-initialization packets), dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format
+      Mist.slnx --verify-no-changes: exit 0; every acceptance probe above reproduced unchanged on the rebased
+      binaries; LEDGER_NO_BUILD=1 tools/test-ledger/run.sh: 10445 tests passed, 0 failed, 0 skipped --
+      Mist.Tests 9432, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852, Storm.ConsumerIntegration.Tests
+      46. Ledger TestResults/ledger/20261011-172138; summary.txt and the empty failures.txt inspected.'
+    limits:
+    - Compatibility is the conversion classifier's answer plus the int-literal-against-a-comparable rule,
+      exactly as a body pattern is judged; whether a compatible constant lies within the type's value range
+      (`where b not 300` on a byte) is not asked here.
+  related:
+  - adhoc-refinement-constraints requirements11.6
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-021
+  area: analysis
+- id: MIST-035
+  title: Preserve explicitly sized lengths on direct call results
+  status: implemented
+  summary: Lengths.OfCall falls back to the call's declared result type, so `Make()[2]` on an `int[3]` result
+    is admitted and prints 0 while `Make()[3]` is MIST_PA_INDEX_OUT_OF_BOUNDS, exactly as a typed local; an
+    alias of a sized result and from-end indexes are covered, and an `int[]` result still gains no length.
+  source_refs:
+  - file: backlog/general.md
+    selector: section[34] A sized array type's length written with `_` or a suffix reads as 0
+    line_at_baseline: 1106
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe
+    detail: 'Scalar length parsing/domain member access is delivered. Residual direct-call indexing may
+      lose the type-carried size: Lengths.Of selects OfCall, whose fallback returns null instead of Typed(invocation.Type).
+      Not freshly executed.'
+    source_symbols: []
+    probes:
+    - path: /private/tmp/mist-backend-reconcile-probes/length_member
+      source: 'using Standard;
+
+        namespace Probe;
+
+        public class Program { public static void Main() { var x = new int[3]; Console.WriteLine(x.Length.ToString());
+        int[] y = new int[5]; Console.WriteLine(y.Length.ToString()); } }
+
+        '
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/length_member
+        --quiet
+      exit_code: 0
+      output: '3
+
+        5
+
+        '
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe by coordinator
+    source: using Standard; namespace Probe; public class Program { public static int[3] Make() { return
+      new int[3]; } public static void Main() { Console.WriteLine(Make()[2]); } }
+    manifest: 'name = "DirectSizedCall"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run <probe-directory> --quiet
+    exit_code: 1
+    observed: 'MIST_PA_INDEX_UNPROVEN: Index 2 is not proven within the bounds of int[3], needing >= 0
+      and < Length.'
+    expected: The declared int[3] result already guarantees a length of three; the in-bounds index should
+      be admitted and print 0.
+  - revision: 8390675bd27f8e683c50664a94b4bc728daa7007
+    verification: CLI probe executed during 2026-10-11 workstream planning; not a test-suite pass
+    source: using Standard; namespace Probe; public class Program { public static int[3] Make() { return
+      new int[3]; } public static void Main() { Console.WriteLine(Make()[2]); } }
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '/private/tmp/mist-plan-20261011-root-probes/sized-call/Program.mist(1,161): error MIST_PA_INDEX_UNPROVEN:
+      Index ''2'' is not proven within the bounds of ''int[3]'', which needs >= 0 and < Length.
+
+      '
+    limits: Portable source is embedded; planning scratch paths are not required. Working controls are
+      described in the summary; no broader unknown-domain behavior is claimed.
+  - revision: this packet's landing commit, based on 4f018a0d
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - Source/Mist/ProgramAnalysis/Refinements/Lengths.cs OfCall returns Typed(invocation.Type) where it returned
+      null, and uses it as the fallback when a recognised copy or slice operation has no flow fact; the
+      recognised operations, aliases and slice arithmetic are otherwise unchanged. No body-derived return
+      length is inferred.
+    verification:
+    - 'Executed CLI probe: the planning reproduction `Make()[2]` now prints 0 and exits 0; `Make()[3]` is
+      "MIST_PA_INDEX_OUT_OF_BOUNDS: Index 3 is outside the bounds of ''int[3]'', which needs >= 0 and <= 2".
+      `Aliased()[2]` through `type Three = int[3]`, `Make()[^1]` and `Make()[^3]` are admitted; `Loose()[2]`
+      on an `int[]` result stays MIST_PA_INDEX_UNPROVEN. The scratch project''s out/Probe.csproj built with 0
+      warnings and 0 errors.'
+    - 'Tier 1 Test/Mist.Tests/ProgramAnalysis/CallLengthFactsTests.cs: sized Array, Span and ReadOnlySpan
+      results give their exact length, unsized ones give none, an alias of a sized result gives its length.
+      Tier 2 RefinementIndexRefusalTests rows sized-call-index-out-of-bounds and unsized-call-index-unproven.
+      Tier 3 RefinementDecisionTests admission `Helpers.Three()[2] + Helpers.Three()[^3]`.
+      SequenceLengthDecisionTests.UserMethods_DoNotManufactureLengthFacts still passes: a user method returning
+      `int[]` proves nothing.'
+    - 'dotnet build Mist.slnx -p:UseSharedCompilation=false after the change: 0 warnings, 0 errors.'
+    - 'tools/test-ledger/run.sh Test/Mist.Tests over the analysis filter (Exhaustiveness*, Pattern*, Refinement*,
+      SequenceLength*, RangeLengthFacts*, PredicateDeclaration*, PredicateCompatibility*, CallLengthFacts*,
+      DeclarationShapeDecision*, IntrinsicIndex*, SpanLength*, UnaryRefinement*, EnumRefinement*): 991 tests,
+      989 passed; the 2 failures were defects in two new test rows (a witness-order expectation, and a row
+      asserting IsRefused false for a misordered string predicate that is correctly refused for ordering),
+      both corrected; ledger TestResults/ledger/20261011-170757, summary.txt and failures.txt inspected.
+      Rerun of ExhaustivenessRefusalTests and PredicateCompatibilityDecisionTests: 52/52, ledger
+      TestResults/ledger/20261011-170905.'
+    - 'dotnet format Mist.slnx --verify-no-changes: exit 0 after fixing three findings (one continuation
+      indent, two explicit locals, one unused using). git diff --check: clean.'
+    - 'tools/test-ledger/run.sh (full Mist.slnx, build 0 warnings 0 errors, MSB3026 x0): 10119 tests passed,
+      0 failed, 0 skipped -- Mist.Tests 9106, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852,
+      Storm.ConsumerIntegration.Tests 46; AllFeaturesV2_CompilesRunsAndMatchesBaseline passed with no new
+      sample warning. Ledger TestResults/ledger/20261011-171310; summary.txt, env.txt and the empty
+      failures.txt inspected. Run on this branch at 4f018a0d plus this change, before the rebase onto main.'
+    - 'After rebasing onto main 262ac0c1 (which brought the local-binding, contextual-expression and
+      constructor-initialization packets), dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format
+      Mist.slnx --verify-no-changes: exit 0; every acceptance probe above reproduced unchanged on the rebased
+      binaries; LEDGER_NO_BUILD=1 tools/test-ledger/run.sh: 10445 tests passed, 0 failed, 0 skipped --
+      Mist.Tests 9432, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 852, Storm.ConsumerIntegration.Tests
+      46. Ledger TestResults/ledger/20261011-172138; summary.txt and the empty failures.txt inspected.'
+    limits:
+    - Only the declared result type is read; a method declared `int[]` whose body always returns three elements
+      is not inferred to (MIST-012 and body-derived lengths remain excluded).
+  related:
+  - general historical leads
+  priority_rationale: Current executed probe violates the declared sized result contract; no interprocedural
+    unsized-return inference is required.
+  audit_key: backend:general-34
+  area: backend
+  priority: P2
 sources:
 - file: backlog/analysis-v2-capability-progression.yaml
   disposition: deleted_after_reconciliation; historical provenance only

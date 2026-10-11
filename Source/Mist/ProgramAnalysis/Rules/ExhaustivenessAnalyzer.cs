@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
@@ -11,13 +12,16 @@ namespace Mist.ProgramAnalysis.Rules;
 /// <summary>
 /// A switch expression some value of its scrutinee reaches no arm of.
 /// <para>
-/// IT REPORTS ONLY WHAT THE MODEL PROVES: a case is named missing when no arm could match it at all,
-/// never merely because this rule cannot see how the arms cover it. Not caution for its own sake --
-/// samples/TuplePatternMatching switches over (int, int) with nine relational arms and no catch-all,
-/// and is exhaustive, but deciding so needs range reasoning this rule does not have. A rule that guessed
-/// would refuse a working program. So no tuple arm is ever counted as covering, a partially covered
-/// union constituent is not reported, and anything unbounded -- a tuple included -- is reported only
-/// when every arm is guarded or a constant, since finitely many constants cannot cover it.
+/// IT REPORTS ONLY WHAT THE MODEL PROVES: a case is named missing when no unguarded arm could match it,
+/// never merely because this rule cannot see how the arms cover it. Over a bool, an enum, an integral or a
+/// tuple of them, <see cref="FiniteCoverage"/> searches the arms' value sets for a cell they leave --
+/// samples/TuplePatternMatching switches over (int, int) with seven relational arms and no catch-all, and
+/// is proven exhaustive rather than merely unrefused -- and gives no verdict when an arm has no reading,
+/// which leaves anything unbounded reported only when every arm is guarded or a constant, since finitely
+/// many constants cannot cover it. A union's constituent is missing when no arm, guarded or not, could
+/// match a value of it: a type test of another constituent cannot, nor can a constant no value of the
+/// constituent equals, which is how value arms over an optional leave `void` missing; a partially covered
+/// constituent is not reported.
 /// </para>
 /// </summary>
 internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
@@ -28,23 +32,23 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
     {
         foreach(var node in context.Nodes)
         {
-            if(node is SwitchExpression switchExpression && Finding(switchExpression) is { } descriptor)
+            if(node is SwitchExpression switchExpression && Missing(switchExpression, context.Model.TypeInterner) is { Count: > 0 } missing)
             {
                 context.Report(
-                    descriptor,
+                    ProgramAnalysisDiagnostics.SwitchNotExhaustive,
                     switchExpression.Node,
                     [switchExpression.Scrutinee],
-                    string.Join(", ", Missing(switchExpression)!));
+                    string.Join(", ", missing));
             }
         }
     }
 
-    internal static DiagnosticDescriptor? Finding(SwitchExpression switchExpression)
+    internal static DiagnosticDescriptor? Finding(SwitchExpression switchExpression, TypeInterner? interner = null)
     {
-        return Missing(switchExpression) is { Count: > 0 } ? ProgramAnalysisDiagnostics.SwitchNotExhaustive : null;
+        return Missing(switchExpression, interner) is { Count: > 0 } ? ProgramAnalysisDiagnostics.SwitchNotExhaustive : null;
     }
 
-    private static IReadOnlyList<string>? Missing(SwitchExpression switchExpression)
+    internal static IReadOnlyList<string>? Missing(SwitchExpression switchExpression, TypeInterner? interner = null)
     {
         var scrutinee = switchExpression.Scrutinee.Type;
         var arms = switchExpression.Arms;
@@ -63,15 +67,11 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
 
         return scrutinee switch
         {
-            _ when scrutinee.FullyQualifiedName == WellKnownTypes.Boolean.FullyQualifiedName
-                => MissingValues(unguarded, ["true", "false"], BoolCase),
-            EnumType enumType
-                => MissingValues(unguarded, [.. enumType.MembersList.Select(member => member.Name)], VariantCase),
             UnionType union
                 => [.. union.Constituents
-                    .Where(constituent => !Flatten(arms.Select(arm => arm.Pattern)).Any(pattern => MightMatch(pattern, constituent)))
+                    .Where(constituent => !Flatten(arms.Select(arm => arm.Pattern)).Any(pattern => MightMatch(pattern, constituent, interner)))
                     .Select(TypeDisplay.Mist)],
-            _ => OnlyConstants(arms) ? ["_"] : null,
+            _ => FiniteCoverage.Missing(scrutinee, unguarded) ?? (OnlyConstants(arms) ? ["_"] : null),
         };
     }
 
@@ -82,49 +82,14 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
                 && ConversionRelation.IsIdentity(test.NarrowedType, scrutinee));
     }
 
-    private static IReadOnlyList<string>? MissingValues(
-        List<Pattern> unguarded, IReadOnlyList<string> cases, Func<Pattern, string?> caseOf)
-    {
-        var covered = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach(var pattern in unguarded)
-        {
-            if(caseOf(pattern) is not { } value)
-            {
-                return null;
-            }
-
-            _ = covered.Add(value);
-        }
-
-        return [.. cases.Where(value => !covered.Contains(value))];
-    }
-
-    private static string? BoolCase(Pattern pattern)
+    private static bool MightMatch(Pattern pattern, IMistType constituent, TypeInterner? interner)
     {
         return pattern switch
         {
-            ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: true } } => "true",
-            ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: false } } => "false",
-            _ => null,
+            TypeTestPattern test => ConversionRelation.IsIdentity(test.Constituent ?? test.NarrowedType, constituent),
+            ComparisonPattern comparison => !OptionalUnion.IsVoid(constituent) && Comparability.Compares(comparison, constituent, interner),
+            _ => true,
         };
-    }
-
-    private static string? VariantCase(Pattern pattern)
-    {
-        return pattern is ComparisonPattern
-        {
-            Kind: ComparisonKind.Equal, Bound: MemberAccessExpression { Type: EnumType } variant,
-        }
-            ? variant.MemberName
-            : null
-            ;
-    }
-
-    private static bool MightMatch(Pattern pattern, IMistType constituent)
-    {
-        return pattern is not TypeTestPattern test
-            || ConversionRelation.IsIdentity(test.Constituent ?? test.NarrowedType, constituent);
     }
 
     private static bool OnlyConstants(IReadOnlyList<SwitchArm> arms)

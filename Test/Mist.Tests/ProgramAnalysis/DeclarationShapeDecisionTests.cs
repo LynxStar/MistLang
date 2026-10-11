@@ -22,7 +22,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED", "MIST_PA_NOT_DEFAULTABLE", "MIST_PA_FIELD_HAS_NO_DEFAULT",
         "MIST_PA_BASE_NOT_DEFAULTABLE", "MIST_PA_PROPERTY_HAS_NO_DEFAULT", "MIST_PA_REFINEMENT_ZERO_NOT_ADMITTED",
         "MIST_PA_OPERATOR_NOT_PUBLIC", "MIST_PA_OPERATOR_UNPAIRED", "MIST_PA_LOGICAL_OPERATOR_DECLARED",
-        "MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE", "MIST_PA_REFINEMENT_NOT_COMPARABLE",
+        "MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE", "MIST_PA_REFINEMENT_NOT_COMPARABLE", "MIST_PA_REFINEMENT_CONSTANT_MISMATCH",
         "MIST_PA_DUPLICATE_SIGNATURE", "MIST_PA_MEMBER_REDECLARATION", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER",
         "MIST_PA_BASE_CTOR_UNSATISFIED",
     ];
@@ -205,7 +205,12 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
             public int Loud(Tone t) where t >= Tone.High { return 1; }
             public int Aged(Adult a) where a >= 30 { return 1; }
             public int Truth(bool b) where b true { return 1; }
+            public int Denied(bool b) where b not false { return 1; }
             public int Text(string s) where s not "" { return 1; }
+            public int Real(double d) where d 0.5 { return 1; }
+            public int Letter(char c) where c 'a' { return 1; }
+            public int Named(Tone t) where t Tone.High { return 1; }
+            public int Narrow(byte b) where b not 300 { return 1; }
             public int this[int i] where i >= 0 { get { return i; } }
         }
 
@@ -557,6 +562,11 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     [InlineData("NonEmpty n = \"x\";")]
     [InlineData("int loud = new Bounded().Loud(Tone.High);")]
     [InlineData("int aged = new Bounded().Aged(40);")]
+    [InlineData("int denied = new Bounded().Denied(true);")]
+    [InlineData("int real = new Bounded().Real(0.5);")]
+    [InlineData("int letter = new Bounded().Letter('a');")]
+    [InlineData("int named = new Bounded().Named(Tone.High);")]
+    [InlineData("int narrow = new Bounded().Narrow(1);")]
     [InlineData("var ranged = new Ranged<int>();")]
     [InlineData("var sized = new Sized<3>();")]
     [InlineData("var flagged = new Flagged<true>();")]

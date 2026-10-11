@@ -1,7 +1,8 @@
-// Tier 1: finite missing cases and unbounded constant-only switches are judged directly.
+// Tier 1: finite missing cases, product witnesses and unbounded constant-only switches are judged directly.
 
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -13,25 +14,41 @@ public sealed class ExhaustivenessRefusalTests
 {
     [Theory]
     [Trait("Tier", "1")]
-    [InlineData("bool-missing-a-value")]
-    [InlineData("enum-missing-a-variant")]
-    [InlineData("only-a-guarded-catch-all")]
-    [InlineData("only-constants-over-an-unbounded-type")]
-    [InlineData("union-missing-a-constituent")]
-    public void MissingCaseKeepsItsDiagnostic(string caseName)
+    [InlineData("bool-missing-a-value", "false")]
+    [InlineData("enum-missing-a-variant", "Blue")]
+    [InlineData("int-constants-only", "0, 3")]
+    [InlineData("negated-bool-leaves-its-value", "true")]
+    [InlineData("nested-tuple-missing-a-cell", "((false, false), false)")]
+    [InlineData("only-a-guarded-catch-all", "_")]
+    [InlineData("only-constants-over-an-unbounded-type", "_")]
+    [InlineData("optional-bool-covered-only-by-values", "void")]
+    [InlineData("optional-string-covered-only-by-constants", "void")]
+    [InlineData("tuple-cell-reached-only-through-a-guard", "(false, false)")]
+    [InlineData("tuple-of-bools-missing-a-cell", "(false, false)")]
+    [InlineData("tuple-of-enums-missing-a-cell", "(Blue, Blue)")]
+    [InlineData("tuple-of-ints-with-a-gap", "(0, _)")]
+    [InlineData("tuple-with-only-guarded-arms", "(false, _), (true, _)")]
+    [InlineData("union-missing-a-constituent", "string")]
+    public void MissingCaseKeepsItsDiagnosticAndNamesAWitness(string caseName, string witnesses)
     {
         var expression = Switch(caseName);
         var finding = ExhaustivenessAnalyzer.Finding(expression);
         Assert.Equal("MIST_PA_SWITCH_NOT_EXHAUSTIVE", finding?.Id.Value);
         Assert.Equal(Mist.Common.Diagnostics.DiagnosticSeverity.Warning, finding?.DefaultSeverity);
+        Assert.Equal(witnesses, string.Join(", ", ExhaustivenessAnalyzer.Missing(expression)!));
     }
 
     [Theory]
     [Trait("Tier", "1")]
     [InlineData("bool-missing-a-value")]
     [InlineData("enum-missing-a-variant")]
+    [InlineData("int-constants-only")]
+    [InlineData("nested-tuple-missing-a-cell")]
     [InlineData("only-a-guarded-catch-all")]
     [InlineData("only-constants-over-an-unbounded-type")]
+    [InlineData("optional-bool-covered-only-by-values")]
+    [InlineData("tuple-of-bools-missing-a-cell")]
+    [InlineData("tuple-of-ints-with-a-gap")]
     [InlineData("union-missing-a-constituent")]
     public void UnguardedCatchAllCompletesEachSwitch(string caseName)
     {
@@ -41,16 +58,39 @@ public sealed class ExhaustivenessRefusalTests
         Assert.Null(ExhaustivenessAnalyzer.Finding(complete));
     }
 
-    [Fact]
-    [Trait("Tier", "2")]
-    public void ReportsTheSwitchSiteAndNamesTheMissingValue()
+    [Theory]
+    [Trait("Tier", "1")]
+    [InlineData("nested-tuple-fully-covered")]
+    [InlineData("optional-bool-with-a-void-arm")]
+    [InlineData("optional-bool-with-void-in-a-disjunction")]
+    [InlineData("relational-partition-of-an-int")]
+    [InlineData("tuple-cell-covered-by-a-later-unguarded-arm")]
+    [InlineData("tuple-of-all-catch-alls")]
+    [InlineData("tuple-of-an-enum-and-a-bool")]
+    [InlineData("tuple-of-bindings")]
+    [InlineData("tuple-of-bools-fully-enumerated")]
+    [InlineData("tuple-partition-of-relational-arms")]
+    [InlineData("tuple-with-a-relational-enum-element")]
+    [InlineData("tuple-with-an-unreadable-element")]
+    [InlineData("union-constituent-partially-covered-by-a-constant")]
+    public void ACoveringOrUnreadableArmSetIsNotReported(string caseName)
     {
-        var input = Switch("bool-missing-a-value");
+        Assert.Null(ExhaustivenessAnalyzer.Finding(Switch(caseName)));
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData("bool-missing-a-value", "false")]
+    [InlineData("optional-bool-covered-only-by-values", "void")]
+    [InlineData("tuple-of-bools-missing-a-cell", "(false, false)")]
+    public void ReportsTheSwitchSiteAndNamesTheMissingValue(string caseName, string witness)
+    {
+        var input = Switch(caseName);
         var diagnostics = new HandBuiltModel().Analyze(new ExhaustivenessAnalyzer(), input);
         var finding = Assert.Single(diagnostics);
         Assert.Equal("MIST_PA_SWITCH_NOT_EXHAUSTIVE", finding.Id.Value);
         Assert.Equal(31, finding.Location.Start.Column);
-        Assert.Contains("false", finding.Message, StringComparison.Ordinal);
+        Assert.Contains(witness, finding.Message, StringComparison.Ordinal);
     }
 
     private static SwitchExpression Switch(string caseName)
@@ -59,9 +99,18 @@ public sealed class ExhaustivenessRefusalTests
         var boolean = model.Type("Boolean");
         var integer = model.Type("Int32");
         var text = model.Type("String");
+        var nothing = model.Type("Void");
         var color = HandBuiltModel.Enum("Color", integer);
         color.MembersList.AddRange([new EnumMember("Red", false, null), new EnumMember("Green", false, null), new EnumMember("Blue", false, null)]);
         var union = model.Interner.GetOrCreateUnionType([integer, text]);
+        var optionalBool = model.Interner.GetOrCreateUnionType([boolean, nothing]);
+        var optionalText = model.Interner.GetOrCreateUnionType([text, nothing]);
+        var bools = model.Interner.GetOrCreateTupleType([boolean, boolean]);
+        var colors = model.Interner.GetOrCreateTupleType([color, color]);
+        var ints = model.Interner.GetOrCreateTupleType([integer, integer]);
+        var mixed = model.Interner.GetOrCreateTupleType([color, boolean]);
+        var nested = model.Interner.GetOrCreateTupleType([bools, boolean]);
+        var guard = HandBuiltModel.Literal(boolean, true);
         IMistType input;
         IReadOnlyList<SwitchArm> arms;
 
@@ -75,20 +124,56 @@ public sealed class ExhaustivenessRefusalTests
             return new ComparisonPattern(HandBuiltModel.Node(), type, ComparisonKind.Equal, HandBuiltModel.Literal(type, value));
         }
 
+        ComparisonPattern compare(ComparisonKind kind, long value)
+        {
+            return new ComparisonPattern(HandBuiltModel.Node(), integer, kind, HandBuiltModel.Literal(integer, value));
+        }
+
+        ComparisonPattern variant(string name, ComparisonKind kind = ComparisonKind.Equal)
+        {
+            return new ComparisonPattern(HandBuiltModel.Node(), color, kind, new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(color), name, color));
+        }
+
+        CatchAllPattern any(IMistType type, string? binding = null)
+        {
+            return new CatchAllPattern(HandBuiltModel.Node(), type, binding is null ? null : new LocalVariable(binding, type));
+        }
+
+        TuplePattern tuple(IMistType type, params Pattern[] elements)
+        {
+            return new TuplePattern(HandBuiltModel.Node(), elements, type, null, null);
+        }
+
+        TypeTestPattern absent()
+        {
+            return new TypeTestPattern(HandBuiltModel.Node(), nothing, null) { TestsAbsence = true };
+        }
+
         switch(caseName)
         {
             case "bool-missing-a-value":
                 input = boolean;
                 arms = [arm(constant(boolean, true))];
                 break;
+            case "negated-bool-leaves-its-value":
+                input = boolean;
+                arms = [arm(new NegatedPattern(HandBuiltModel.Node(), boolean, constant(boolean, true)))];
+                break;
             case "enum-missing-a-variant":
                 input = color;
-                arms = [.. new[] { "Red", "Green" }.Select(name => arm(new ComparisonPattern(HandBuiltModel.Node(), color, ComparisonKind.Equal,
-                    new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(color), name, color))))];
+                arms = [arm(variant("Red")), arm(variant("Green"))];
                 break;
             case "only-a-guarded-catch-all":
                 input = integer;
-                arms = [arm(new CatchAllPattern(HandBuiltModel.Node(), integer, null), HandBuiltModel.Literal(boolean, true))];
+                arms = [arm(any(integer), guard)];
+                break;
+            case "int-constants-only":
+                input = integer;
+                arms = [arm(constant(integer, 1L)), arm(constant(integer, 2L))];
+                break;
+            case "relational-partition-of-an-int":
+                input = integer;
+                arms = [arm(compare(ComparisonKind.LessThan, 0)), arm(constant(integer, 0L)), arm(compare(ComparisonKind.GreaterThan, 0))];
                 break;
             case "only-constants-over-an-unbounded-type":
                 input = text;
@@ -97,6 +182,133 @@ public sealed class ExhaustivenessRefusalTests
             case "union-missing-a-constituent":
                 input = union;
                 arms = [arm(new TypeTestPattern(HandBuiltModel.Node(), integer, null, integer))];
+                break;
+            case "union-constituent-partially-covered-by-a-constant":
+                input = union;
+                arms = [arm(constant(union, 3L)), arm(new TypeTestPattern(HandBuiltModel.Node(), text, null, text))];
+                break;
+            case "optional-bool-covered-only-by-values":
+                input = optionalBool;
+                arms = [arm(constant(optionalBool, true)), arm(constant(optionalBool, false))];
+                break;
+            case "optional-bool-with-a-void-arm":
+                input = optionalBool;
+                arms = [arm(constant(optionalBool, true)), arm(constant(optionalBool, false)), arm(absent())];
+                break;
+            case "optional-bool-with-void-in-a-disjunction":
+                input = optionalBool;
+                arms = [arm(new DisjunctionPattern(HandBuiltModel.Node(), optionalBool, [constant(optionalBool, true), absent()])), arm(constant(optionalBool, false))];
+                break;
+            case "optional-string-covered-only-by-constants":
+                input = optionalText;
+                arms = [arm(constant(optionalText, "a")), arm(constant(optionalText, "b"))];
+                break;
+            case "tuple-of-bools-missing-a-cell":
+                input = bools;
+                arms = [arm(tuple(bools, constant(boolean, true), any(boolean))), arm(tuple(bools, constant(boolean, false), constant(boolean, true)))];
+                break;
+            case "tuple-of-bools-fully-enumerated":
+                input = bools;
+                arms =
+                [
+                    arm(tuple(bools, constant(boolean, true), any(boolean))),
+                    arm(tuple(bools, constant(boolean, false), constant(boolean, true))),
+                    arm(tuple(bools, constant(boolean, false), constant(boolean, false))),
+                ];
+                break;
+            case "tuple-cell-reached-only-through-a-guard":
+                input = bools;
+                arms =
+                [
+                    arm(tuple(bools, constant(boolean, true), any(boolean))),
+                    arm(tuple(bools, constant(boolean, false), constant(boolean, true))),
+                    arm(tuple(bools, constant(boolean, false), constant(boolean, false)), guard),
+                ];
+                break;
+            case "tuple-cell-covered-by-a-later-unguarded-arm":
+                input = bools;
+                arms =
+                [
+                    arm(tuple(bools, constant(boolean, true), any(boolean))),
+                    arm(tuple(bools, constant(boolean, false), any(boolean, "q")), guard),
+                    arm(tuple(bools, constant(boolean, false), constant(boolean, false))),
+                    arm(tuple(bools, constant(boolean, false), constant(boolean, true))),
+                ];
+                break;
+            case "tuple-with-only-guarded-arms":
+                input = bools;
+                arms = [arm(tuple(bools, any(boolean, "a"), any(boolean, "b")), guard)];
+                break;
+            case "tuple-of-all-catch-alls":
+                input = bools;
+                arms = [arm(tuple(bools, any(boolean), any(boolean)))];
+                break;
+            case "tuple-of-bindings":
+                input = bools;
+                arms = [arm(tuple(bools, any(boolean, "a"), any(boolean, "b")))];
+                break;
+            case "tuple-with-an-unreadable-element":
+                input = bools;
+                arms = [arm(tuple(bools, constant(boolean, true), any(boolean))), arm(tuple(bools, new PropertyPattern(HandBuiltModel.Node(), boolean, []), any(boolean)))];
+                break;
+            case "tuple-of-enums-missing-a-cell":
+                input = colors;
+                arms =
+                [
+                    arm(tuple(colors, variant("Red"), any(color))),
+                    arm(tuple(colors, variant("Green"), any(color))),
+                    arm(tuple(colors, variant("Blue"), variant("Red"))),
+                    arm(tuple(colors, variant("Blue"), variant("Green"))),
+                ];
+                break;
+            case "tuple-with-a-relational-enum-element":
+                input = colors;
+                arms = [arm(tuple(colors, variant("Red", ComparisonKind.GreaterThan), any(color)))];
+                break;
+            case "tuple-of-an-enum-and-a-bool":
+                input = mixed;
+                arms =
+                [
+                    arm(tuple(mixed, variant("Red"), any(boolean))),
+                    arm(tuple(mixed, variant("Green"), any(boolean))),
+                    arm(tuple(mixed, variant("Blue"), constant(boolean, true))),
+                    arm(tuple(mixed, variant("Blue"), constant(boolean, false))),
+                ];
+                break;
+            case "tuple-of-ints-with-a-gap":
+                input = ints;
+                arms = [arm(tuple(ints, compare(ComparisonKind.LessThan, 0), any(integer))), arm(tuple(ints, compare(ComparisonKind.GreaterThan, 0), any(integer)))];
+                break;
+            case "tuple-partition-of-relational-arms":
+                input = ints;
+                arms =
+                [
+                    arm(tuple(ints, constant(integer, 0L), constant(integer, 0L))),
+                    arm(tuple(ints, compare(ComparisonKind.GreaterThan, 0), compare(ComparisonKind.GreaterThan, 0))),
+                    arm(tuple(ints, compare(ComparisonKind.LessThan, 0), compare(ComparisonKind.GreaterThan, 0))),
+                    arm(tuple(ints, compare(ComparisonKind.LessThan, 0), compare(ComparisonKind.LessThan, 0))),
+                    arm(tuple(ints, compare(ComparisonKind.GreaterThan, 0), compare(ComparisonKind.LessThan, 0))),
+                    arm(tuple(ints, constant(integer, 0L), any(integer))),
+                    arm(tuple(ints, any(integer), constant(integer, 0L))),
+                ];
+                break;
+            case "nested-tuple-missing-a-cell":
+                input = nested;
+                arms =
+                [
+                    arm(tuple(nested, tuple(bools, constant(boolean, true), any(boolean)), any(boolean))),
+                    arm(tuple(nested, tuple(bools, constant(boolean, false), constant(boolean, true)), any(boolean))),
+                    arm(tuple(nested, tuple(bools, constant(boolean, false), constant(boolean, false)), constant(boolean, true))),
+                ];
+                break;
+            case "nested-tuple-fully-covered":
+                input = nested;
+                arms =
+                [
+                    arm(tuple(nested, tuple(bools, constant(boolean, true), any(boolean)), any(boolean))),
+                    arm(tuple(nested, tuple(bools, constant(boolean, false), constant(boolean, true)), any(boolean))),
+                    arm(tuple(nested, tuple(bools, constant(boolean, false), constant(boolean, false)), any(boolean))),
+                ];
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(caseName));

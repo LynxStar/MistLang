@@ -1,15 +1,19 @@
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// The domain is the input's unrefined type, as much as the emitted switch shows Roslyn, so nothing is refused
-/// that C# would run. An enum has none, its arms emitted as equality guards C# never judges, nor a ulong, whose
-/// range is not a set of longs; a refined type test over a refined base has no reading, emission testing only
-/// the outermost predicate.
+/// What a pattern admits of an input, as a set over the input's unrefined domain. Two questions are
+/// asked here, with two domains. Unreachability (<see cref="Covered"/>) asks what the emitted switch
+/// shows Roslyn, so nothing is refused that C# would run: an enum has no domain there, its arms
+/// emitted as equality guards C# never judges, nor a ulong, whose range is not a set of longs, nor a
+/// refined type test over a refined base, emission testing only the outermost predicate.
+/// Exhaustiveness (<see cref="Admits"/>) asks what values exist, so an enum is its variants, each
+/// standing at its position in the declaration.
 /// </summary>
 internal static class MatchedValues
 {
@@ -17,11 +21,7 @@ internal static class MatchedValues
     {
         if(IntegralDomain(input) is { } domain)
         {
-            return Covered(earlier, later, input, new Algebra<Admitted>(
-                domain, Admitted.Nothing,
-                (left, right) => left.And(right), (left, right) => left.Or(right), values => values.Not().And(domain),
-                (values, other) => values.IsSubsetOf(other),
-                comparison => Requirement.Of(comparison) is { Bounds.Length: 0 } requirement ? requirement.Values.And(domain) : null));
+            return Covered(earlier, later, input, Integral(domain));
         }
 
         return RealRequirement.KindOf(input) is { } kind
@@ -30,6 +30,32 @@ internal static class MatchedValues
                 (left, right) => left.And(right), (left, right) => left.Or(right), values => values.Not(),
                 (values, other) => values.IsSubsetOf(other),
                 comparison => RealRequirement.Of(comparison, kind)));
+    }
+
+    public static Admitted? Domain(IMistType input)
+    {
+        return IntegralDomain(input) ?? (Requirement.Unrefined(input) is EnumType enumType ? Variants(enumType) : null);
+    }
+
+    public static Admitted? Admits(Pattern pattern, IMistType input)
+    {
+        if(IntegralDomain(input) is { } domain)
+        {
+            return Read(pattern, input, Integral(domain));
+        }
+
+        if(Requirement.Unrefined(input) is not EnumType enumType)
+        {
+            return null;
+        }
+
+        var variants = Variants(enumType);
+
+        return Read(pattern, input, new Algebra<Admitted>(
+            variants, Admitted.Nothing,
+            (left, right) => left.And(right), (left, right) => left.Or(right), values => values.Not().And(variants),
+            (values, other) => values.IsSubsetOf(other),
+            comparison => Variant(enumType, comparison)));
     }
 
     private static bool Covered<T>(IEnumerable<Pattern> earlier, Pattern later, IMistType input, Algebra<T> algebra)
@@ -86,6 +112,32 @@ internal static class MatchedValues
     private static bool SameDomain(IMistType tested, IMistType input)
     {
         return Requirement.Unrefined(tested).FullyQualifiedName == Requirement.Unrefined(input).FullyQualifiedName;
+    }
+
+    private static Algebra<Admitted> Integral(Admitted domain)
+    {
+        return new Algebra<Admitted>(
+            domain, Admitted.Nothing,
+            (left, right) => left.And(right), (left, right) => left.Or(right), values => values.Not().And(domain),
+            (values, other) => values.IsSubsetOf(other),
+            comparison => Requirement.Of(comparison) is { Bounds.Length: 0 } requirement ? requirement.Values.And(domain) : null);
+    }
+
+    private static Admitted Variants(EnumType enumType)
+    {
+        return Admitted.Between(0, enumType.MembersList.Count - 1);
+    }
+
+    private static Admitted? Variant(EnumType enumType, ComparisonPattern comparison)
+    {
+        if(comparison is not { Kind: ComparisonKind.Equal, Bound: MemberAccessExpression { Type: EnumType named } access }
+            || named.FullyQualifiedName != enumType.FullyQualifiedName)
+        {
+            return null;
+        }
+
+        var index = enumType.MembersList.FindIndex(member => member.Name == access.MemberName);
+        return index < 0 ? null : Admitted.Exactly(index);
     }
 
     private static Admitted? IntegralDomain(IMistType input)

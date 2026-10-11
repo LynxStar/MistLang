@@ -175,6 +175,7 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
             public static string Pick(string s) { return s; }
             public static string Choose(int x) where x < 50 { Console.WriteLine(x); return Helpers.Pick(x); }
             public static AdultAge Grown() { return 30; }
+            public static int[3] Three() { return new int[3]; }
             public static int Sum(int[] items) { int s = 0; for(int i = 0; i < items.Length; i = i + 1) { s = s + items[i]; } return s; }
             public static int Sized(int[] items, int i) { if(i >= 0 && i < items.Length) { return items[i]; } return 0; }
             public static int Narrowed(int x) where x >= 0 { Percentage p = 0; if(x <= 100) { p = x; } return p; }
@@ -255,6 +256,7 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     [InlineData("var d = [[1, 2], [3, 4]]; for(int i = 0; i < d.Length; i = i + 1) { Console.WriteLine(d[i][0]); }")]
     [InlineData("var d = [[1, 2], [3, 4]]; int s = 0; for(int i = 0; i < d.Length; i = i + 1) { for(int j = 0; j < d[i].Length; j = j + 1) { s = s + d[i][j]; } }")]
     [InlineData("var d = [1, 2]; for(int i = 0; i < d.Length; i = i + 1) { Console.WriteLine(d[i]); }")]
+    [InlineData("Console.WriteLine(Helpers.Three()[2] + Helpers.Three()[^3]);")]
     public void AnIndexTheFlowProves_IsAdmitted(string statement)
     {
         AssertSilent(statement);

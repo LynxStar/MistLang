@@ -210,7 +210,7 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
             return ProgramAnalysisDiagnostics.PureFunctionTypeUntestable;
         }
 
-        if(tested is UnknownType && !IsIndeterminate(input))
+        if(tested is UnknownType && !Comparability.IsIndeterminate(input))
         {
             return ProgramAnalysisDiagnostics.PatternNarrowsToUnknown;
         }
@@ -222,7 +222,7 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
             return ProgramAnalysisDiagnostics.PatternNeverMatches;
         }
 
-        if(OptionalUnion.IsVoid(tested) || input is UnionType || tested is UnionType || IsIndeterminate(input) || IsIndeterminate(tested))
+        if(OptionalUnion.IsVoid(tested) || input is UnionType || tested is UnionType || Comparability.IsIndeterminate(input) || Comparability.IsIndeterminate(tested))
         {
             return null;
         }
@@ -244,27 +244,19 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
 
     internal static DiagnosticDescriptor? ComparisonFinding(ComparisonPattern comparison, IMistType input, TypeInterner interner)
     {
-        if(IsIndeterminate(input) || input is UnionType || comparison.Bound.Type is ErrorType)
+        if(Comparability.IsIndeterminate(input) || input is UnionType || comparison.Bound.Type is ErrorType)
         {
             return null;
         }
 
-        if(!IsConstant(comparison.Bound))
+        if(!Comparability.IsConstant(comparison.Bound))
         {
             return ProgramAnalysisDiagnostics.PatternBoundNotConstant;
         }
 
         if(comparison.Kind == ComparisonKind.Equal)
         {
-            var kind = ConversionClassifier.Classify(comparison.Bound.Type, input, interner);
-            var reverse = ConversionClassifier.Classify(input, comparison.Bound.Type, interner);
-
-            if(kind is ConversionKind.None && reverse is ConversionKind.None && !Fits(comparison.Bound, input))
-            {
-                return ProgramAnalysisDiagnostics.PatternConstantMismatch;
-            }
-
-            return null;
+            return Comparability.HoldsConstant(input, comparison.Bound, interner) ? null : ProgramAnalysisDiagnostics.PatternConstantMismatch;
         }
 
         if(!Comparability.Supports(input))
@@ -370,28 +362,6 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
     private static IMistType Definition(IMistType type)
     {
         return type is ConstructedType constructed ? constructed.Definition : type;
-    }
-
-    private static bool IsIndeterminate(IMistType type)
-    {
-        return type is TypeParameter or UnknownType or UnknownValueType or ErrorType or NotProjectedType or LiftedType or SpreadType
-            || (type is ITupleType tuple && tuple.ElementTypes.Any(element => element is SpreadType));
-    }
-
-    private static bool IsConstant(Expression bound)
-    {
-        return bound switch
-        {
-            LiteralExpression => true,
-            UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operand: LiteralExpression } => true,
-            MemberAccessExpression { Type: EnumType } => true,
-            _ => false,
-        };
-    }
-
-    private static bool Fits(Expression bound, IMistType input)
-    {
-        return bound.Type.FullyQualifiedName == WellKnownTypes.Int32.FullyQualifiedName && Comparability.Supports(input);
     }
 
     private static IReadOnlyList<IMistType>? Elements(IMistType type)

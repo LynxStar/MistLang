@@ -19,7 +19,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// something that is not a field, an operator that is not public, is declared without its pair, is a
 /// logical operator off Boolean, or takes no parameter of the type declaring it, a refinement predicate
 /// -- every one <see cref="DeclaredPredicates"/> finds -- that orders a type <see cref="Comparability"/>
-/// gives no order or reads a member <see cref="StableMembers"/> does not vouch for, a method,
+/// gives no order, compares a constant no value of the type could equal, so that nothing could ever
+/// discharge it, or reads a member <see cref="StableMembers"/> does not vouch for, a method,
 /// constructor or indexer repeating an earlier one's signature on its type, a member hiding one its
 /// type inherits, which Mist admits only as an overload, and a constructor writing no chain to a base
 /// <see cref="ImplicitChains"/> finds nothing to run in, and a dependent parameter named like a member its
@@ -256,6 +257,13 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             Report(
                 context, comparison.Node, ProgramAnalysisDiagnostics.RefinementNotComparable,
                 constrained, TypeDisplay.Mist(comparison.NarrowedType));
+        }
+
+        if(Comparability.Mismatched(predicate, context.Model.TypeInterner) is { } mismatched)
+        {
+            Report(
+                context, mismatched.Node, ProgramAnalysisDiagnostics.RefinementConstantMismatch,
+                constrained, TypeDisplay.Mist(mismatched.Bound.Type), TypeDisplay.Mist(mismatched.NarrowedType));
         }
 
         foreach(var unstable in UnstableMembers(predicate, purity))

@@ -47,6 +47,7 @@ public sealed class RefinementIndexRefusalTests
     [InlineData("span-index-after-receiver-write", "MIST_PA_INDEX_UNPROVEN")]
     [InlineData("span-index-at-length-guard", "MIST_PA_INDEX_UNPROVEN")]
     [InlineData("span-index-past-nonempty-guard", "MIST_PA_INDEX_UNPROVEN")]
+    [InlineData("sized-call-index-out-of-bounds", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
     [InlineData("span-index-without-lower-bound", "MIST_PA_INDEX_UNPROVEN")]
     [InlineData("stored-index-from-end-zero-is-not-an-element", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
     [InlineData("unguarded-constant-index-into-parameter", "MIST_PA_INDEX_UNPROVEN")]
@@ -55,6 +56,7 @@ public sealed class RefinementIndexRefusalTests
     [InlineData("unproven-index", "MIST_PA_INDEX_UNPROVEN")]
     [InlineData("unproven-symbolic-index", "MIST_PA_INDEX_UNPROVEN")]
     [InlineData("unproven-symbolic-upper-bound", "MIST_PA_INDEX_UNPROVEN")]
+    [InlineData("unsized-call-index-unproven", "MIST_PA_INDEX_UNPROVEN")]
     public void IndexProofMustSurviveThePath(string name, string expected)
     {
         var h = new HandBuiltRefinements();
@@ -93,6 +95,11 @@ public sealed class RefinementIndexRefusalTests
             case "from-end-index-write-out-of-bounds": index = h.Back(h.Literal(0L)); break;
             case "stored-index-from-end-zero-is-not-an-element":
                 var stored = HandBuiltRefinements.Local(h.Index, "edge"); statements.Add(HandBuiltRefinements.Give(stored, h.Back(h.Literal(0L)))); index = stored; break;
+            case "sized-call-index-out-of-bounds":
+            case "unsized-call-index-unproven":
+                var sizedCall = name.StartsWith("sized", StringComparison.Ordinal);
+                array = new InvocationExpression(HandBuiltModel.Node(), h.Literal(0L), [], h.Sequence("Array", sizedCall ? 3L : null), null, []);
+                index = h.Literal(sizedCall ? 3L : 2L); break;
             case "unguarded-constant-index-into-parameter": index = h.Literal(0L); break;
             case "unguarded-from-end-index-into-parameter": index = h.Back(h.Literal(1L)); break;
             case "refined-index-not-implied": index = HandBuiltRefinements.Local(h.Between(h.Int, 0L, 9L, "Digit")); break;

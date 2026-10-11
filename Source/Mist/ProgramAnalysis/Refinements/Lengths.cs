@@ -72,10 +72,10 @@ internal static class Lengths
         var receiver = invocation.Receiver is MemberAccessExpression access ? access.Receiver : null;
         return (SequenceLengths.Of(invocation, receiver), invocation.Arguments) switch
         {
-            (SequenceLengthOperation.Preserved, []) => Of(receiver, tracked, ranges),
-            (SequenceLengthOperation.Slice, [_, var count]) => Constant(count),
-            (SequenceLengthOperation.Slice, [var start]) => Shorten(Of(receiver, tracked, ranges), Constant(start)),
-            _ => null,
+            (SequenceLengthOperation.Preserved, []) => Of(receiver, tracked, ranges) ?? Typed(invocation.Type),
+            (SequenceLengthOperation.Slice, [_, var count]) => Constant(count) ?? Typed(invocation.Type),
+            (SequenceLengthOperation.Slice, [var start]) => Shorten(Of(receiver, tracked, ranges), Constant(start)) ?? Typed(invocation.Type),
+            _ => Typed(invocation.Type),
         };
     }
 

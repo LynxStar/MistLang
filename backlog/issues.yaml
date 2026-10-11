@@ -1481,7 +1481,7 @@ issues:
       }
     artifact: /private/tmp/mist-reconcile-binding-probes/discards
     observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''_'' is already declared in this scope.'
-  - revision: local binding contracts completion commit containing this evidence, based on 4f018a0d79b8a8231545edd9a7f32edf917a8e6b
+  - revision: 447218b22a0183ea33169fb2ecf9b697e05a5421
     date: '2026-10-11'
     kind: implementation and executed acceptance verification
     implementation:
@@ -7949,7 +7949,7 @@ archive:
     probes:
     - project: /private/tmp/mist-reconcile-analysis-probes/candidate-generic-local-cascade
       results_file: /private/tmp/mist-reconcile-analysis-probes/results.json
-  - revision: local binding contracts completion commit containing this evidence, based on 4f018a0d79b8a8231545edd9a7f32edf917a8e6b
+  - revision: 447218b22a0183ea33169fb2ecf9b697e05a5421
     date: '2026-10-11'
     kind: implementation and executed acceptance verification
     implementation:
@@ -8013,7 +8013,7 @@ archive:
       var x = 2; Console.WriteLine(x); } } }
     artifact: /private/tmp/mist-reconcile-binding-probes/foreach-shadow
     observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''x'' is already declared in this scope.'
-  - revision: local binding contracts completion commit containing this evidence, based on 4f018a0d79b8a8231545edd9a7f32edf917a8e6b
+  - revision: 447218b22a0183ea33169fb2ecf9b697e05a5421
     date: '2026-10-11'
     kind: implementation and executed acceptance verification
     implementation:
@@ -8078,7 +8078,7 @@ archive:
       var x = 2; Console.WriteLine(x); } } }
     artifact: /private/tmp/mist-reconcile-binding-probes/foreach-shadow
     observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''x'' is already declared in this scope.'
-  - revision: local binding contracts completion commit containing this evidence, based on 4f018a0d79b8a8231545edd9a7f32edf917a8e6b
+  - revision: 447218b22a0183ea33169fb2ecf9b697e05a5421
     date: '2026-10-11'
     kind: implementation and executed acceptance verification
     implementation:
@@ -8149,7 +8149,7 @@ archive:
       t = new(); } }
     artifact: /private/tmp/mist-reconcile-binding-probes/for-control
     observed: 'Build succeeded  0 error(s), 0 warning(s)  Total: 2.09s'
-  - revision: local binding contracts completion commit containing this evidence, based on 4f018a0d79b8a8231545edd9a7f32edf917a8e6b
+  - revision: 447218b22a0183ea33169fb2ecf9b697e05a5421
     date: '2026-10-11'
     kind: implementation and executed acceptance verification
     implementation:

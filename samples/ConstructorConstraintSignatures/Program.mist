@@ -1,7 +1,8 @@
 // ConstructorConstraintSignatures -- parameterized constructor constraints whose signature names a type
 // parameter: `new(A)`, `new(int, A)`, `new(Box<A>)`, on a type and on a method. Widget closes several of
 // them with different arguments, and one closing needs the same `(int)` constructor a plain `new(int)`
-// constraint does. Runs on the experimental pipeline only: classic cannot resolve a type parameter in a
+// constraint does. The generic Box closes `new(int)` and `new(A)` through its own `Box(V held)`, a static
+// member reaching its factory. Runs on the experimental pipeline only: classic cannot resolve a type parameter in a
 // constructor constraint (MIST_CONSTRAINT_0008), so this sample is referenced from AllFeaturesV2 alone.
 
 using Standard;
@@ -75,6 +76,14 @@ public class Boxed<T, A> where T : new(Box<A>)
     }
 }
 
+public class Spawner<T> where T : new(int)
+{
+    public static T Spawn(int size)
+    {
+        return new T(size);
+    }
+}
+
 public class Builder
 {
     public static T Build<T, A>(A arg) where T : new(A)
@@ -96,6 +105,9 @@ public class Program
         Console.WriteLine($"Boxed<Widget, int>:      {new Boxed<Widget, int>().Make(8).Note}");
         Console.WriteLine($"Build<Widget, int>:      {Builder.Build<Widget, int>(9).Note}");
         Console.WriteLine($"Build<Widget, string>:   {Builder.Build<Widget, string>("b").Note}");
+        Console.WriteLine($"Sized<Box<int>>:         Box {new Sized<Box<int>>().Make(10).Held}");
+        Console.WriteLine($"Factory<Box<string>, string>: Box {new Factory<Box<string>, string>().Make("g").Held}");
+        Console.WriteLine($"Spawner<Box<int>>.Spawn: Box {Spawner<Box<int>>.Spawn(12).Held}");
     }
 
     public static void Main(string[] args)

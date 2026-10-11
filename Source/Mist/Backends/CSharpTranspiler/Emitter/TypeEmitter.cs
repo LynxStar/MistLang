@@ -349,13 +349,13 @@ internal static class TypeEmitter
 
             foreach(var (witness, i) in closedConstraints.Select((witness, i) => (witness, i)))
             {
-                if(closedConstraints.Take(i).Any(earlier => ConstraintClosureMap.Same(earlier.Closed, witness.Closed)))
+                if(closedConstraints.Take(i).Any(earlier => ConstraintClosureMap.Same(earlier.Factory, witness.Factory)))
                 {
                     continue;
                 }
 
                 SeparateMember(writer, ref anyEmitted);
-                EmitConstraintFactory(type, witness.Closed, writer);
+                EmitConstraintFactory(type, witness, writer);
             }
 
             foreach(var nested in type.NestedTypes.OfType<DeclaredType>())
@@ -426,11 +426,11 @@ internal static class TypeEmitter
     /// needing a way to invoke a type parameter's constructor.
     /// </summary>
     private static void EmitConstraintFactory(
-        MemberType type, IReadOnlyList<IMistType> signature, CSharpWriter writer)
+        MemberType type, ConstructorWitness witness, CSharpWriter writer)
     {
         var self = EmitTypeName(type);
-        var parameters = ConstructorConstraintInterfaces.Parameters(signature);
-        var arguments = ConstructorConstraintInterfaces.Arguments(signature);
+        var parameters = ConstructorConstraintInterfaces.Parameters(witness.Factory);
+        var arguments = ConstructorConstraintInterfaces.Arguments(witness);
 
         writer.WriteLine($"public static {self} {ConstructorConstraintInterfaces.MemberName}({parameters})");
         using(writer.Block())
@@ -475,7 +475,7 @@ internal static class TypeEmitter
 
         foreach(var witness in closedConstraints)
         {
-            bases.Add(ConstructorConstraintInterfaces.Closed(witness.Signature, witness.Closed, EmitTypeName(type)));
+            bases.Add(ConstructorConstraintInterfaces.Closed(witness.Signature, witness.Factory, EmitTypeName(type)));
         }
 
         return bases.Count > 0 ? $" : {string.Join(", ", bases)}" : "";

@@ -1,5 +1,7 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
@@ -41,7 +43,7 @@ internal sealed class ConstraintClosureMap
                 continue;
             }
 
-            map.Add(definition, new ConstructorWitness(closure.Signature, closure.Closed));
+            map.Add(definition, new ConstructorWitness(closure.Signature, closure.Closed, Declared(definition, closure.TypeArgument, closure.Closed)));
         }
 
         return map;
@@ -60,7 +62,7 @@ internal sealed class ConstraintClosureMap
             byDefinition[definition] = witnesses;
         }
 
-        if(!witnesses.Any(existing => Same(existing.Closed, witness.Closed)
+        if(!witnesses.Any(existing => Same(existing.Factory, witness.Factory)
             && ConstructorConstraintInterfaces.InterfaceName(existing.Signature) == ConstructorConstraintInterfaces.InterfaceName(witness.Signature)))
         {
             witnesses.Add(witness);
@@ -71,6 +73,25 @@ internal sealed class ConstraintClosureMap
     {
         return left.Count == right.Count
             && !left.Where((type, i) => type.FullyQualifiedName != right[i].FullyQualifiedName).Any();
+    }
+
+    /// <summary>
+    /// The parameter types of the constructor a closure selects, as its own declaration writes them: a
+    /// constructed generic closes through its definition, whose factory can name only the definition's
+    /// parameters. Selected as the constraint rule admits one, by identity once the closure substitutes
+    /// them; the closed signature where no constructor is written.
+    /// </summary>
+    private static IReadOnlyList<IMistType> Declared(MemberType definition, IMistType typeArgument, IReadOnlyList<IMistType> closed)
+    {
+        var substitution = TypeSubstitution.ForReceiver(typeArgument as ConstructedType);
+
+        return (definition as ConcreteType)?.ConstructorsList.Find(constructor =>
+            !constructor.Modifiers.IsStatic
+            && constructor.Modifiers.Accessibility == Accessibility.Public
+            && constructor.ParametersList.Count == closed.Count
+            && constructor.ParametersList.Select((parameter, i) =>
+                ConversionRelation.IsIdentity(substitution.Apply(parameter.Type, interner: null), closed[i])).All(same => same))
+            ?.ParametersList.ConvertAll(parameter => parameter.Type) ?? closed;
     }
 
     /// <summary>
@@ -89,5 +110,8 @@ internal sealed class ConstraintClosureMap
 }
 
 /// <param name="Signature">The declaration's, which names the interface.</param>
-/// <param name="Closed">The same signature as a closing use fills it: the interface's arguments and the factory's parameters.</param>
-internal sealed record ConstructorWitness(IReadOnlyList<IMistType> Signature, IReadOnlyList<IMistType> Closed);
+/// <param name="Closed">The same signature as a closing use fills it.</param>
+internal sealed record ConstructorWitness(IReadOnlyList<IMistType> Signature, IReadOnlyList<IMistType> Closed, IReadOnlyList<IMistType> Declared)
+{
+    public IReadOnlyList<IMistType> Factory { get; } = [.. Signature.Select((type, i) => ConstructorConstraintInterfaces.IsOpen(type) ? Declared[i] : Closed[i])];
+}

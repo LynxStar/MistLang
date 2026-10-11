@@ -79,6 +79,20 @@ internal static class ConstructorConstraintInterfaces
         return string.Join(", ", signature.Select((_, i) => $"arg{i}"));
     }
 
+    /// <summary>
+    /// What a closed position of the interface passes to a constructor written over its definition's own
+    /// parameters, as <c>Crate(X held)</c> answers <c>new(int)</c> for <c>Crate of int</c>. C# cannot see
+    /// that the closure fixed X to int, so the value is converted through object, which the constraint
+    /// rule makes exact: it admits the constructor only when the closing substitution makes the types identical.
+    /// </summary>
+    public static string Arguments(ConstructorWitness witness)
+    {
+        return string.Join(", ", witness.Factory.Select((type, i) =>
+            !ReferenceEquals(type, witness.Declared[i]) && IsOpen(witness.Declared[i])
+                ? $"({TypeNameEmitter.Emit(witness.Declared[i])})(object)arg{i}"
+                : $"arg{i}"));
+    }
+
     private static string Suffix(IReadOnlyList<IMistType> signature)
     {
         return string.Join("_", signature.Select((type, i) =>
@@ -90,7 +104,7 @@ internal static class ConstructorConstraintInterfaces
         return Enumerable.Range(0, signature.Count).Where(i => IsOpen(signature[i]));
     }
 
-    private static bool IsOpen(IMistType type)
+    public static bool IsOpen(IMistType type)
     {
         return TypeParameterReach.Collect(type).Count > 0;
     }

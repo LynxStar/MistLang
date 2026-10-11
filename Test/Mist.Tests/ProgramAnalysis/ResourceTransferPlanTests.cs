@@ -43,6 +43,20 @@ public sealed class ResourceTransferPlanTests
         Assert.Equal(LifetimeRelease.None, Release(passed, HandBuiltModel.Block(Run(f.Call(f.Take, Ref(passed))))));
     }
 
+    [Fact]
+    public void AParameterLeftByAnEarlyReturnOrMovedIntoALocalIsReleasedByWhoeverHoldsIt()
+    {
+        var returning = Owned("t", f.Token);
+        var moving = Owned("t", f.Token);
+        var destination = f.Local("u");
+        var early = f.Function("Early", HandBuiltModel.Block(f.If(HandBuiltModel.Block(new ReturnStatement(null, null))), Run(DropOf(Ref(returning)))), returning);
+        var moved = f.Function("Moved", HandBuiltModel.Block(Declare(destination, Ref(moving)), Run(f.Call(f.Risky))), moving);
+        var movedPlan = LocalLifetimes.Plan(moved.Body!, moved);
+
+        Assert.Equal(LifetimeRelease.Guarded, LocalLifetimes.Plan(early.Body!, early).ReleaseOf(returning));
+        Assert.Equal([LifetimeRelease.None, LifetimeRelease.AtExit], [movedPlan.ReleaseOf(moving), movedPlan.ReleaseOf(destination)]);
+    }
+
     /// <summary>
     /// The inner local shares the parameter's name and nothing else, so dropping it neither releases nor
     /// moves the parameter.

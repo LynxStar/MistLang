@@ -40,9 +40,7 @@ When the type is clear from the initializer expression, you can use `var` to let
 
 The inferred type is determined at compile time — `message` is a `string`, `total` is an `int`, and `origin` is a `Point`. Using `var` reduces repetition without sacrificing type safety.
 
-An inferred declaration or a loop declaration named `_` evaluates its initializer without introducing a name that later expressions can read. Several discard declarations can appear in the same scope. Initializer validation, ownership, and scope-exit cleanup follow the same rules as named declarations.
-
-Ordinary typed discard declarations are currently refused by the parser; the typed local binder handles discard identities, but the source grammar does not yet admit that spelling.
+A typed, inferred, or loop declaration named `_` evaluates its initializer without introducing a name that later expressions can read. Several discard declarations can appear in the same scope. Initializer validation, ownership, and scope-exit cleanup follow the same rules as named declarations.
 
 An ordinary assignment used inside another expression produces the type of the storage it writes, after any implicit conversion. Assigning an `int` value to a `long` local therefore produces a `long` result, which `var` also infers as `long`. The same rule applies to fields, properties, and indexers, and the value being assigned is evaluated once. [Void-coalescing assignment](../type-system/optional-types.md) is a statement and cannot be used as a subexpression.
 

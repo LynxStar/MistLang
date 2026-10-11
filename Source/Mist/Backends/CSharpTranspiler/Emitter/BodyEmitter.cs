@@ -704,6 +704,10 @@ internal static class BodyEmitter
 
         writer.Append(";");
         writer.AppendLine();
+        if(local.IsDiscard)
+        {
+            writer.WriteLine($"_ = {LocalNames.Of(local)};");
+        }
     }
 
     /// <summary>
@@ -943,9 +947,23 @@ internal static class BodyEmitter
         writer.Append("; ");
 
         // Condition
+        var discard = (forStmt.Initializer as LocalDeclarationStatement)?.Local;
+        if(discard is { IsDiscard: true })
+        {
+            writer.Append($"{LocalNames.Of(discard)} is var _");
+            if(forStmt.Condition is not null)
+            {
+                writer.Append(" && (");
+            }
+        }
+
         if(forStmt.Condition is not null)
         {
             EmitExpression(forStmt.Condition, writer, diagnostics);
+            if(discard is { IsDiscard: true })
+            {
+                writer.Append(")");
+            }
         }
 
         writer.Append("; ");

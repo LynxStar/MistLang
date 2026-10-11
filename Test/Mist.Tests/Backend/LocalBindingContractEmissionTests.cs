@@ -57,13 +57,16 @@ public sealed class LocalBindingContractEmissionTests
         Assert.Equal(
             """
             int __discard_1 = Sink.Record(1);
+            _ = __discard_1;
             int __discard_2 = Sink.Record(2);
-            for (int __discard_3 = Sink.Record(3); false; )
+            _ = __discard_2;
+            for (int __discard_3 = Sink.Record(3); __discard_3 is var _ && (false); )
             {
             }
             foreach (int __discard_4 in new int[] { 4 })
             {
                 int __discard_5 = Sink.Record(5);
+                _ = __discard_5;
             }
             """.ReplaceLineEndings("\n"),
             Emit(body));
@@ -78,9 +81,11 @@ public sealed class LocalBindingContractEmissionTests
         Assert.Equal(
             """
             Token __discard_1 = new Token(1);
+            _ = __discard_1;
             try
             {
                 Token __discard_2 = new Token(2);
+                _ = __discard_2;
                 try
                 {
                 }
@@ -95,6 +100,22 @@ public sealed class LocalBindingContractEmissionTests
             }
             """.ReplaceLineEndings("\n"),
             Emit(HandBuiltModel.Block(Declare(first, f.New(1)), Declare(second, f.New(2)))));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ConstantDiscardsAreReadWithoutReevaluatingTheirInitializers(bool conditionless)
+    {
+        var ordinary = Declare(Discard(f.Int32), HandBuiltModel.Literal(f.Int32, 3L));
+        var counted = Declare(Discard(f.Int32), HandBuiltModel.Literal(f.Int32, 0L));
+        var loop = new ForStatement(counted,
+            conditionless ? null : HandBuiltModel.Literal(f.Boolean, false), null, HandBuiltModel.Block());
+        var condition = conditionless ? "__discard_2 is var _" : "__discard_2 is var _ && (false)";
+
+        Assert.Equal($"int __discard_1 = 3;\n_ = __discard_1;\n"
+            + $"for (int __discard_2 = 0; {condition}; )\n{{\n}}",
+            Emit(HandBuiltModel.Block(ordinary, loop)));
     }
 
     [Fact]
@@ -165,6 +186,7 @@ public sealed class LocalBindingContractEmissionTests
         Assert.Equal(
             """
             int __discard_1 = 0;
+            _ = __discard_1;
             (int _, int kept) = (1, 2);
             bool matched = 3 is var _;
             """.ReplaceLineEndings("\n"),

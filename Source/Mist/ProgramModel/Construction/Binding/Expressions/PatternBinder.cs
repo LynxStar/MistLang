@@ -139,7 +139,7 @@ internal static partial class PatternBinder
                     if(tested is NamedTupleType namedTuple)
                     {
                         return BindNamedTupleDeconstruction(
-                            node, namedTuple, typePattern.Name, scrutineeType, bindingsPermitted, ctx, context, failed);
+                            typePattern, namedTuple, typePattern.Name, scrutineeType, bindingsPermitted, ctx, context, failed);
                     }
 
                     var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context, failed);
@@ -528,7 +528,7 @@ internal static partial class PatternBinder
     /// </para>
     /// </summary>
     private static Pattern BindNamedTupleDeconstruction(
-        PrimaryPatternNode node,
+        TypePatternPrimaryPatternNode node,
         NamedTupleType namedTuple,
         Token name,
         IMistType scrutineeType,
@@ -538,14 +538,20 @@ internal static partial class PatternBinder
     {
         var elementTypes = namedTuple.Underlying.ElementTypes;
         var elements = new List<Pattern>(elementTypes.Count);
+        var elementSites = node.Type.First is TupleSingleTypeRefSingleTypeRefNode tuple
+            ? new List<TupleTypeElementNode> { tuple.First, tuple.Rest }.Concat(tuple.TupleTypeElements).ToList()
+            : null;
 
         for(var i = 0; i < elementTypes.Count; i++)
         {
             var elementName = i < namedTuple.ElementNames.Count ? namedTuple.ElementNames[i] : null;
+            var elementSite = elementSites is not null && i < elementSites.Count ? elementSites[i] : null;
 
             var elementBinding = elementName is null
                 ? null
-                : DeclareNamed(node, elementName, elementTypes[i], bindingsPermitted, ctx, context, scrutineeFailed)
+                : DeclareNamed(
+                    elementSite ?? (SyntaxNode)node, elementName, elementTypes[i], bindingsPermitted, ctx, context, scrutineeFailed,
+                    elementSite?.Name?.Span)
                 ;
 
             elements.Add(new CatchAllPattern(node, elementTypes[i], elementBinding));

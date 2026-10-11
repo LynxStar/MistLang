@@ -52,16 +52,24 @@ internal static class LocalFunctionBinder
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.LocalFunctionGeneric, node, null, name);
         }
 
+        var scope = node.TypeParams is { } typeParameters
+            ? new RejectedLocalFunctionScope(ctx.Scope, typeParameters)
+            : (Scope)ctx.Scope;
         var parameters = new ParameterBuilder(context.Resolver, context.Attributes, context.Diagnostics)
-            .Resolve(node.Parameters, ctx.Scope);
-        var declaredReturn = context.Resolver.Resolve(node.ReturnType, ctx.Scope);
-        var returnType = modifiers.IsAsync ? context.Resolver.ConstructTask(declaredReturn) : declaredReturn;
+            .Resolve(node.Parameters, scope);
+        var declaredReturn = context.Resolver.ResolveWithFailure(node.ReturnType, scope);
+        if(scope is RejectedLocalFunctionScope rejected)
+        {
+            rejected.ReturnTypeIsFailed = declaredReturn.IsFailed;
+        }
+
+        var returnType = modifiers.IsAsync ? context.Resolver.ConstructTask(declaredReturn.Type) : declaredReturn.Type;
 
         var function = new Method(name, returnType, parameters, modifiers)
         {
             DeclarationNode = node,
             Body = new Block(node.Body),
-            Scope = ctx.Scope,
+            Scope = scope,
         };
 
         if(node.TypeParams is null)
@@ -110,12 +118,13 @@ internal static class LocalFunctionBinder
     public static Statement BindBody(LocalFunctionDeclarationNode node, BindingContext ctx, BuilderContext context)
     {
         var function = ctx.Scope.LocalFunctions[node];
-        var scope = new BodyScope(ctx.Scope);
+        var scope = new BodyScope(function.Scope);
         var parameters = function.ParametersList.ConvertAll(BodyBinder.ParameterLocal);
 
         foreach(var parameter in parameters)
         {
-            scope.DeclareLocal(parameter, context.Diagnostics);
+            var declaration = parameter.Parameter!.DeclarationNode;
+            scope.DeclareLocal(parameter, declaration ?? (Storm.Runtime.SyntaxNode)node, context.Diagnostics, declaration?.Name.Span);
         }
 
         var isAsync = function.Modifiers.IsAsync;
@@ -128,10 +137,16 @@ internal static class LocalFunctionBinder
         {
             IsAsyncContext = isAsync,
             EnclosingMethod = function,
+            ReturnTypeIsFailed = function.Scope is RejectedLocalFunctionScope { ReturnTypeIsFailed: true },
         };
 
         BodyBinder.BindNestedBlock(function.Body!, scope, bodyCtx, context, returnType);
 
         return new LocalFunctionStatement(function, parameters);
+    }
+
+    internal static bool IsRejected(Method function)
+    {
+        return function.Scope is RejectedLocalFunctionScope;
     }
 }

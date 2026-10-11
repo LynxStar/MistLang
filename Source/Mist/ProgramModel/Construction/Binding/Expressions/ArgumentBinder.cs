@@ -73,7 +73,8 @@ internal static class ArgumentBinder
         BuilderContext context,
         bool settlesMethodGroups = false,
         bool defersLambdas = false,
-        PackSlot? absorbing = null)
+        PackSlot? absorbing = null,
+        IReadOnlyList<bool>? targetFailures = null)
     {
         if(argumentList is null)
         {
@@ -95,7 +96,7 @@ internal static class ArgumentBinder
 
             // Pushed even when null, so that an enclosing target type stops here rather than
             // reaching an argument it has nothing to say about.
-            using(ctx.PushTargetType(target))
+            using(ctx.PushTargetType(target, targetFailures is not null && i < targetFailures.Count && targetFailures[i]))
             using(ctx.PushMethodGroupSettlement(settlesMethodGroups ? ValueOf(expressions[i]) : null))
             {
                 Add(
@@ -269,6 +270,9 @@ internal static class ArgumentBinder
         }
 
         var targets = sole is null ? null : Targets(sole.ParametersList, argumentList, substitution, interner);
+        var targetFailures = sole is null
+            ? null
+            : Enumerable.Range(0, count).Select(index => sole.ParametersList[ValuePack.SlotOf(sole.ParametersList, count, index)].IsFailed).ToArray();
 
         var settled = sole is null
             || (typeArguments is null && sole.TypeParametersList.Count > 0 && ValuePack.FlattenedSlot(sole.ParametersList) is null);
@@ -277,7 +281,8 @@ internal static class ArgumentBinder
             argumentList, targets, ctx, context,
             settlesMethodGroups: settled,
             defersLambdas: settled && candidates.Count > 0 && !candidates.Any(candidate => ValuePack.FlattenedSlot(candidate.ParametersList) is not null),
-            absorbing: sole is null ? null : Absorbing(sole, inferring: typeArguments is null));
+            absorbing: sole is null ? null : Absorbing(sole, inferring: typeArguments is null),
+            targetFailures: targetFailures);
     }
 
     private static PackSlot? Absorbing(Method sole, bool inferring)

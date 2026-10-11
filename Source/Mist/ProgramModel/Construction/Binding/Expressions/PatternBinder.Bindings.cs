@@ -24,7 +24,7 @@ internal static partial class PatternBinder
     {
         return name.Kind == (int)TokenKind.DISCARD
             ? null
-            : DeclareNamed(node, name.Lexeme, type, bindingsPermitted, ctx, context, scrutineeFailed)
+            : DeclareNamed(node, name.Lexeme, type, bindingsPermitted, ctx, context, scrutineeFailed, name.Span)
             ;
     }
 
@@ -34,7 +34,7 @@ internal static partial class PatternBinder
         IMistType type,
         bool bindingsPermitted,
         BindingContext ctx,
-        BuilderContext context, bool scrutineeFailed)
+        BuilderContext context, bool scrutineeFailed, SourceSpan? nameSpan = null)
     {
         if(!bindingsPermitted)
         {
@@ -45,7 +45,7 @@ internal static partial class PatternBinder
         }
 
         var local = new LocalVariable(name, type) { IsFailed = scrutineeFailed };
-        ctx.Scope.DeclareLocal(local, context.Diagnostics);
+        ctx.Scope.DeclareLocal(local, node, context.Diagnostics, nameSpan);
 
         return local;
     }

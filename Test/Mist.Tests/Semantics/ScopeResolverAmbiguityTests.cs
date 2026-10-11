@@ -479,7 +479,7 @@ public sealed class ScopeResolverAmbiguityTests
 
         var innerScope = new BodyScope(outerScope);
         var varX = new LocalVariable("x", ErrorType.Instance);
-        innerScope.DeclareLocal(varX, diagnostics);
+        innerScope.DeclareLocal(varX, MakeDummyNode(), diagnostics);
 
         var result = innerScope.Lookup(new LookupRequest("x", MemberVisibility.InstanceAndStatic, MakeDummyNode()));
 
@@ -499,7 +499,7 @@ public sealed class ScopeResolverAmbiguityTests
 
         var outerScope = new BodyScope(AssemblyScopeOf(context));
         var varX = new LocalVariable("x", ErrorType.Instance);
-        outerScope.DeclareLocal(varX, diagnostics);
+        outerScope.DeclareLocal(varX, MakeDummyNode(), diagnostics);
 
         var innerScope = new MemberScope(outerScope);
         var typeX = new ClassType("x", "Test", new Scope(null), null, null);

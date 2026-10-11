@@ -1,4 +1,5 @@
 using System.Globalization;
+using SourceSpan = Storm.Runtime.SourceSpan;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.Common.Diagnostics;
@@ -19,7 +20,18 @@ public static class DiagnosticBagExtensions
         string? analyzerName,
         params ReadOnlySpan<object?> args)
     {
-        var (path, location, _) = DiagnosticHelper.ResolveLocation(node);
+        bag.ReportAtNode(descriptor, node, node.Span, analyzerName, args);
+    }
+
+    public static void ReportAtNode(
+        this DiagnosticBag bag,
+        DiagnosticDescriptor descriptor,
+        SyntaxNode node,
+        SourceSpan span,
+        string? analyzerName,
+        params ReadOnlySpan<object?> args)
+    {
+        var (path, location, _) = DiagnosticHelper.ResolveLocation(node, span);
 
         var message = args.Length > 0
             ? string.Format(CultureInfo.InvariantCulture, descriptor.MessageTemplate, args.ToArray())

@@ -1,3 +1,4 @@
+using Mist.Generated;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
@@ -19,6 +20,8 @@ internal sealed class Parameter(
     public ParameterModifier Modifier { get; } = modifier;
 
     internal bool IsFailed { get; set; }
+
+    public ParameterNode? DeclarationNode { get; init; }
 
     /// <summary>
     /// Declared with <c>params</c>, so the call site supplies a flat comma-separated list where this

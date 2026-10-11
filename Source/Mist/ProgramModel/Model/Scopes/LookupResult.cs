@@ -16,7 +16,8 @@ internal sealed record VariableResult(LocalVariable Variable) : LookupResult;
 /// See <see cref="FieldResult.BaseConstructions"/>; empty for everything but a nested type reached
 /// through a base of the type the lookup started from.
 /// </param>
-internal sealed record TypeResult(IMistType Type, IReadOnlyList<ConstructedType>? BaseConstructions = null) : LookupResult;
+internal sealed record TypeResult(
+    IMistType Type, IReadOnlyList<ConstructedType>? BaseConstructions = null, bool IsFailed = false) : LookupResult;
 
 /// <summary>Overload resolution is deferred to the invocation site.</summary>
 internal sealed record MethodGroupResult(

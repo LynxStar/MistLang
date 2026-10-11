@@ -10,6 +10,7 @@ using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using StormSyntaxNode = Storm.Runtime.SyntaxNode;
+using StormToken = Storm.Runtime.Token;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
@@ -35,7 +36,8 @@ internal static class StatementBinder
             UninitializedVariableStatementStatementNode uninitialized => BindUninitialized(
                 uninitialized.UninitializedVariable, ctx, context),
             WithVarBlockStatementStatementNode withVarBlock => BindWithBinding(
-                withVarBlock.WithVarBlockStatement.Name.Lexeme,
+                withVarBlock.WithVarBlockStatement,
+                withVarBlock.WithVarBlockStatement.Name,
                 withVarBlock.WithVarBlockStatement.Initializer,
                 withVarBlock.WithVarBlockStatement.Body,
                 withVarBlock.WithVarBlockStatement.Body.Statements,
@@ -67,7 +69,7 @@ internal static class StatementBinder
             IsReadonly = IsReadonlyBinding(hasReadonlyModifier: false, node.OwnershipSpecifier),
         };
 
-        ctx.Scope.DeclareLocal(local, context.Diagnostics);
+        ctx.Scope.DeclareLocal(local, node, context.Diagnostics, node.Name.Span);
         return new LocalDeclarationStatement(local, initializer: null);
     }
 
@@ -94,14 +96,16 @@ internal static class StatementBinder
         return node switch
         {
             WithVarDeclarationStatementStatementNode declaration => BindWithBinding(
-                declaration.WithVarDeclaration.Name.Lexeme,
+                declaration.WithVarDeclaration,
+                declaration.WithVarDeclaration.Name,
                 declaration.WithVarDeclaration.Initializer,
                 enclosingNode,
                 rest,
                 ctx,
                 context),
             WithTypedDeclarationStatementStatementNode typed => BindWithBinding(
-                typed.WithTypedDeclaration.Name.Lexeme,
+                typed.WithTypedDeclaration,
+                typed.WithTypedDeclaration.Name,
                 typed.WithTypedDeclaration.Initializer,
                 enclosingNode,
                 rest,
@@ -112,6 +116,7 @@ internal static class StatementBinder
             // The discard and push forms scope nothing, so they name no local; they differ only in
             // whether the key was written or is the value's own.
             WithDiscardDeclarationStatementStatementNode discard => BindWithBinding(
+                discard.WithDiscardDeclaration,
                 name: null,
                 discard.WithDiscardDeclaration.Initializer,
                 enclosingNode,
@@ -121,6 +126,7 @@ internal static class StatementBinder
                 context.Resolver.ResolveWithFailure(discard.WithDiscardDeclaration.Type, ctx.Scope)),
 
             WithPushStatementStatementNode push => BindWithBinding(
+                push.WithPushStatement,
                 name: null,
                 push.WithPushStatement.Value,
                 enclosingNode,
@@ -146,7 +152,8 @@ internal static class StatementBinder
     /// </para>
     /// </summary>
     private static Statement BindWithBinding(
-        string? name,
+        StormSyntaxNode declaration,
+        StormToken? name,
         ExpressionNode initializer,
         BlockNode bodyNode,
         IReadOnlyList<StatementNode> body,
@@ -154,32 +161,32 @@ internal static class StatementBinder
         BuilderContext context,
         TypeResolution? keyType = null)
     {
-        var value = BindKeyed(initializer, keyType?.Type, ctx, context);
+        var value = BindKeyed(initializer, keyType?.Type, ctx, context, keyType?.IsFailed == true);
         var scope = new BodyScope(ctx.Scope);
         LocalVariable? local = null;
 
-        if(name is not null)
+        if(name is { } named)
         {
-            local = new LocalVariable(name, keyType?.Type ?? value.Type) { IsFailed = keyType?.IsFailed == true || PriorFailure.Of(value), FailureSource = value, IsContextBound = true };
-            scope.DeclareLocal(local, context.Diagnostics);
+            local = new LocalVariable(named.Lexeme, keyType?.Type ?? value.Type) { IsFailed = keyType?.IsFailed == true || PriorFailure.Of(value), FailureSource = value, IsContextBound = true };
+            scope.DeclareLocal(local, declaration, context.Diagnostics, named.Span);
         }
 
         var block = BodyBinder.BindStatementList(bodyNode, body, scope, ctx, context);
         return new WithBlockStatement(value, block, local, keyType?.Type);
     }
 
-    private static Expression BindKeyed(ExpressionNode initializer, IMistType? keyType, BindingContext ctx, BuilderContext context)
+    private static Expression BindKeyed(
+        ExpressionNode initializer, IMistType? keyType, BindingContext ctx, BuilderContext context, bool isFailed = false)
     {
-        if(keyType is null)
-        {
-            return ExpressionBinder.BindExpression(initializer, ctx, context);
-        }
-
         Expression value;
-
-        using(ctx.PushTargetType(keyType))
+        using(ctx.PushTargetType(keyType, isFailed))
         {
             value = ExpressionBinder.BindExpression(initializer, ctx, context);
+        }
+
+        if(keyType is null)
+        {
+            return value;
         }
 
         var interner = context.ProgramModel.TypeInterner;
@@ -233,69 +240,43 @@ internal static class StatementBinder
 
     private static Statement BindVariableDeclaration(VariableDeclarationStatementStatementNode statement, BindingContext ctx, BuilderContext context)
     {
-        switch(statement.VariableDeclaration)
+        return statement.VariableDeclaration switch
         {
-            case TypedVariableDeclarationVariableDeclarationStatementNode typed:
-                {
-                    var resolution = context.Resolver.ResolveWithFailure(typed.Type, ctx.Scope);
-                    var declaredType = resolution.Type;
+            TypedVariableDeclarationVariableDeclarationStatementNode typed => BindLocalDeclaration(
+                                typed, typed.Name, typed.Initializer,
+                                context.Resolver.ResolveWithFailure(typed.Type, ctx.Scope),
+                                typed.OwnershipSpecifier, typed.ReadonlyModifier is not null, ctx, context),
+            InferredVariableDeclarationVariableDeclarationStatementNode inferred => BindLocalDeclaration(
+                                inferred, inferred.Name, inferred.Initializer, null,
+                                inferred.OwnershipSpecifier, inferred.ReadonlyModifier is not null, ctx, context),
+            VarTupleDeconstructionVariableDeclarationStatementNode inferredTuple => BindInferredDeconstruction(inferredTuple, ctx, context),
+            TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple => BindTypedDeconstruction(typedTuple, ctx, context),
+            _ => new UnsupportedStatement(statement),
+        };
+    }
 
-                    Expression? initializer = null;
-                    if(typed.Initializer is not null)
-                    {
-                        using(ctx.PushTargetType(declaredType))
-                        {
-                            initializer = ExpressionBinder.BindExpression(typed.Initializer, ctx, context);
-                        }
-
-                        initializer = ImplicitConversions.At(
-                            NewtypeLiterals.Admit(initializer, declaredType, context.ProgramModel.TypeInterner)!,
-                            declaredType,
-                            context.ProgramModel.TypeInterner);
-                    }
-
-                    var ownership = MemberTypeBuilder.ResolveOwnership(typed.OwnershipSpecifier);
-                    var local = new LocalVariable(typed.Name.Lexeme, declaredType)
-                    {
-                        IsRef = MemberTypeBuilder.IsRefSpecifier(typed.OwnershipSpecifier),
-                        IsReadonly = IsReadonlyBinding(typed.ReadonlyModifier is not null, typed.OwnershipSpecifier),
-                        Ownership = ownership,
-                        IsFailed = resolution.IsFailed || (initializer is not null && PriorFailure.Of(initializer)),
-                        FailureSource = initializer,
-                    };
-                    ctx.Scope.DeclareLocal(local, context.Diagnostics);
-                    return new LocalDeclarationStatement(
-                        local,
-                        initializer is null ? null : OwnedProvenance.At(ownership, initializer));
-                }
-
-            case InferredVariableDeclarationVariableDeclarationStatementNode inferred:
-                {
-                    var initializer = ExpressionBinder.BindExpression(inferred.Initializer, ctx, context);
-                    var inferredType = initializer.Type;
-                    var inferredOwnership = MemberTypeBuilder.ResolveOwnership(inferred.OwnershipSpecifier);
-                    var local = new LocalVariable(inferred.Name.Lexeme, inferredType)
-                    {
-                        IsRef = MemberTypeBuilder.IsRefSpecifier(inferred.OwnershipSpecifier),
-                        IsReadonly = IsReadonlyBinding(inferred.ReadonlyModifier is not null, inferred.OwnershipSpecifier),
-                        Ownership = inferredOwnership,
-                        IsFailed = PriorFailure.Of(initializer),
-                        FailureSource = initializer,
-                    };
-                    ctx.Scope.DeclareLocal(local, context.Diagnostics);
-                    return new LocalDeclarationStatement(
-                        local, OwnedProvenance.At(inferredOwnership, initializer));
-                }
-
-            case VarTupleDeconstructionVariableDeclarationStatementNode inferredTuple:
-                return BindInferredDeconstruction(inferredTuple, ctx, context);
-
-            case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
-                return BindTypedDeconstruction(typedTuple, ctx, context);
-
-            default:
-                return new UnsupportedStatement(statement);
+    private static LocalDeclarationStatement BindLocalDeclaration(
+        StormSyntaxNode node, StormToken name, ExpressionNode? initializerNode, TypeResolution? declared,
+        OwnershipSpecifierNode? specifier, bool hasReadonlyModifier, BindingContext ctx, BuilderContext context)
+    {
+        Expression? initializer = null;
+        if(initializerNode is not null)
+        {
+            initializer = BindKeyed(initializerNode, declared?.Type, ctx, context, declared?.IsFailed == true);
         }
+
+        var ownership = MemberTypeBuilder.ResolveOwnership(specifier);
+        var local = new LocalVariable(name.Lexeme, declared?.Type ?? initializer!.Type)
+        {
+            IsDiscard = name.Lexeme == "_",
+            IsRef = MemberTypeBuilder.IsRefSpecifier(specifier),
+            IsReadonly = IsReadonlyBinding(hasReadonlyModifier, specifier),
+            Ownership = ownership,
+            IsFailed = declared?.IsFailed == true || (initializer is not null && PriorFailure.Of(initializer)),
+            FailureSource = initializer,
+        };
+        ctx.Scope.DeclareLocal(local, node, context.Diagnostics, name.Span);
+        return new LocalDeclarationStatement(local, initializer is null ? null : OwnedProvenance.At(ownership, initializer));
     }
 
     /// <summary>
@@ -318,7 +299,7 @@ internal static class StatementBinder
                 IsFailed = elementTypes is null
                     || (initializer is TupleLiteralExpression literal && PriorFailure.Of(literal.Elements[i])),
             };
-            ctx.Scope.DeclareLocal(local, context.Diagnostics);
+            ctx.Scope.DeclareLocal(local, node, context.Diagnostics, names[i].Span);
             targets.Add(local);
         }
 
@@ -359,7 +340,7 @@ internal static class StatementBinder
                 IsFailed = resolutions[i].IsFailed || elementTypes is null
                     || (initializer is TupleLiteralExpression literal && PriorFailure.Of(literal.Elements[i])),
             };
-            ctx.Scope.DeclareLocal(local, context.Diagnostics);
+            ctx.Scope.DeclareLocal(local, elementNodes[i], context.Diagnostics, elementNodes[i].Name.Span);
             targets.Add(local);
         }
 
@@ -413,7 +394,7 @@ internal static class StatementBinder
         }
 
         Expression value;
-        using(ctx.PushTargetType(ctx.ReturnType))
+        using(ctx.PushTargetType(ctx.ReturnType, ctx.ReturnTypeIsFailed))
         {
             value = ExpressionBinder.BindExpression(returnStatement.Value, ctx, context);
         }
@@ -524,22 +505,14 @@ internal static class StatementBinder
         switch(node)
         {
             case ForInitializerVariableDeclarationForInitializerNode typed:
-                {
-                    var resolution = context.Resolver.ResolveWithFailure(typed.VariableDeclaration, forScope);
-                    var declaredType = resolution.Type;
-                    var init = ExpressionBinder.BindExpression(typed.Initializer, ctx, context);
-                    var local = new LocalVariable(typed.Name.Lexeme, declaredType) { IsFailed = resolution.IsFailed || PriorFailure.Of(init), FailureSource = init };
-                    forScope.DeclareLocal(local, context.Diagnostics);
-                    return new LocalDeclarationStatement(local, init);
-                }
+                return BindLocalDeclaration(
+                    typed, typed.Name, typed.Initializer,
+                    context.Resolver.ResolveWithFailure(typed.VariableDeclaration, forScope),
+                    null, false, ctx, context);
 
             case ForInitializerVarDeclarationForInitializerNode varDecl:
-                {
-                    var init = ExpressionBinder.BindExpression(varDecl.Initializer, ctx, context);
-                    var local = new LocalVariable(varDecl.Name.Lexeme, init.Type) { IsFailed = PriorFailure.Of(init), FailureSource = init };
-                    forScope.DeclareLocal(local, context.Diagnostics);
-                    return new LocalDeclarationStatement(local, init);
-                }
+                return BindLocalDeclaration(
+                    varDecl, varDecl.Name, varDecl.Initializer, null, null, false, ctx, context);
 
             case ForInitializerExpressionForInitializerNode expr:
                 {
@@ -560,7 +533,7 @@ internal static class StatementBinder
 
         IMistType variableType;
         Expression collection;
-        string variableName;
+        StormToken variableName;
         BlockNode bodyNode;
         bool failed;
         switch(node)
@@ -570,7 +543,7 @@ internal static class StatementBinder
                 variableType = resolution.Type;
                 collection = ExpressionBinder.BindExpression(typed.Collection, ctx, context);
                 failed = resolution.IsFailed || PriorFailure.Of(collection);
-                variableName = typed.Name.Lexeme;
+                variableName = typed.Name;
                 bodyNode = typed.Body;
                 break;
 
@@ -586,7 +559,7 @@ internal static class StatementBinder
 
                 failed = variableType is ErrorType
                     && (collection.Type is not ErrorType || PriorFailure.Of(collection));
-                variableName = varForeach.Name.Lexeme;
+                variableName = varForeach.Name;
                 bodyNode = varForeach.Body;
                 break;
 
@@ -599,11 +572,11 @@ internal static class StatementBinder
 
         // Read-only as C#'s iteration variable is. A loop whose element converts emits its variable as an
         // ordinary local, so Roslyn cannot be the one to refuse a reassignment.
-        var variable = new LocalVariable(variableName, variableType) { IsReadonly = true, IsFailed = failed };
-        foreachScope.DeclareLocal(variable, context.Diagnostics);
+        var variable = new LocalVariable(variableName.Lexeme, variableType) { IsDiscard = variableName.Lexeme == "_", IsReadonly = true, IsFailed = failed };
+        foreachScope.DeclareLocal(variable, node, context.Diagnostics, variableName.Span);
 
         var body = new Block(bodyNode);
-        BodyBinder.BindNestedBlock(body, foreachScope, ctx, context);
+        BodyBinder.BindNestedBlock(body, new BodyScope(foreachScope), ctx, context);
 
         var conversion = EnumerableElement.Of(collection.Type) is { } element
             ? ImplicitConversions.At(new ElementReadExpression(collection.Node, element), variableType, context.ProgramModel.TypeInterner) as ImplicitConversionExpression

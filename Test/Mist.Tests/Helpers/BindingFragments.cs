@@ -133,7 +133,7 @@ internal sealed class BindingFragments
     public Expression Local(string name, IMistType type, bool failed = false)
     {
         var local = new LocalVariable(name, type) { IsFailed = failed };
-        Scope.DeclareLocal(local, Diagnostics);
+        Scope.DeclareLocal(local, HandBuiltModel.Node(30), Diagnostics);
         return new LocalReferenceExpression(HandBuiltModel.Node(30), local);
     }
 

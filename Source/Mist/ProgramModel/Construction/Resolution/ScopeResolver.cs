@@ -875,6 +875,11 @@ internal sealed partial class ScopeResolver
         switch(result)
         {
             case TypeResult typeResult:
+                if(typeResult.IsFailed)
+                {
+                    MarkResolutionFailure();
+                }
+
                 context.ProgramModel.TypeNamings.Record(typeResult.Type, scope, locationNode);
                 return typeResult.Type;
 

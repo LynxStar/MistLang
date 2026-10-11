@@ -141,3 +141,5 @@ modifier is accepted and means nothing: a local function is visible exactly wher
 
 A local function may be `async`, with the same meaning the modifier has on a method. It cannot
 declare type parameters, and it takes no modifier but an accessibility one, `static` or `async`.
+
+An unsupported generic local-function declaration owns the diagnostic for its unbound type parameters and rejected signature calls. Independent errors in its body and call arguments still report at their own sites.

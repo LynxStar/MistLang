@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -12,12 +13,16 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// enclosing block or the parameter list holds; C# refuses that (CS0136) whichever of the two comes
 /// first in the text, so the inner local is renamed apart once per body and every site that spells a
 /// local reads the map. Siblings keep their names, since C# allows one name in two blocks that do not
-/// contain each other, and a body emitted with no map active is spelled as written. A local function's
+/// contain each other. Hidden discard locals keep distinct names even with no map active. A local function's
 /// name is a local of the block that declares it and is renamed by the same rule; a type's method is
 /// never in the map.
 /// </summary>
 internal static class LocalNames
 {
+    private static readonly ConditionalWeakTable<LocalVariable, string> Discards = new();
+
+    private static long nextDiscard;
+
     [ThreadStatic]
     private static Dictionary<LocalVariable, string>? active;
 
@@ -37,7 +42,14 @@ internal static class LocalNames
 
     public static string Of(LocalVariable local)
     {
-        return active is { } map && map.TryGetValue(local, out var name) ? name : local.Name;
+        if(active is { } map && map.TryGetValue(local, out var name))
+        {
+            return name;
+        }
+
+        return local.IsDiscard
+            ? Discards.GetValue(local, _ => $"__discard_{Interlocked.Increment(ref nextDiscard)}")
+            : local.Name;
     }
 
     public static string Of(Method function)
@@ -86,7 +98,11 @@ internal static class LocalNames
 
         foreach(var (local, scope) in declared.Locals)
         {
-            if(local.Name != "_" && Shadows(local.Name, scope))
+            if(local.IsDiscard)
+            {
+                locals[local] = Apart("__discard", taken);
+            }
+            else if(local.Name != "_" && Shadows(local.Name, scope))
             {
                 locals[local] = Apart(local.Name, taken);
             }
@@ -132,7 +148,11 @@ internal static class LocalNames
 
     private static void Declare(LocalVariable local, Scope scope, Declared declared)
     {
-        _ = scope.Names.Add(local.Name);
+        if(!local.IsDiscard)
+        {
+            _ = scope.Names.Add(local.Name);
+        }
+
         declared.Locals.Add((local, scope));
     }
 

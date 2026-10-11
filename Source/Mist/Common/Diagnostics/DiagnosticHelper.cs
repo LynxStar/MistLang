@@ -14,9 +14,10 @@ public static class DiagnosticHelper
     /// Chains through SyntheticOrigin references until a ParsedOrigin is found.
     /// </summary>
     public static (string Path, LinePositionSpan Location, string? SyntheticContext)
-        ResolveLocation(Storm.Runtime.SyntaxNode node)
+        ResolveLocation(Storm.Runtime.SyntaxNode node, Storm.Runtime.SourceSpan? span = null)
     {
         var origin = node.Origin;
+        var sourceSpan = span ?? node.Span;
 
         if(origin is null or TestOrigin)
         {
@@ -25,13 +26,13 @@ public static class DiagnosticHelper
 
         if(origin is ParsedOrigin parsed)
         {
-            var location = ComputeLocation(parsed.Source, node.Span);
+            var location = ComputeLocation(parsed.Source, sourceSpan);
             return (parsed.Source.Path, location, null);
         }
 
         if(origin is SyntheticOrigin synthetic)
         {
-            return ResolveSyntheticChain(synthetic, node.Span);
+            return ResolveSyntheticChain(synthetic, sourceSpan);
         }
 
         return ("<unknown>", default, null);

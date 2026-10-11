@@ -94,7 +94,7 @@ public sealed class FailedOverloadRetentionBindingTests
         _ = f.Local("owner", OverloadedOwner(f));
         var source = new MemberAccessExpression(HandBuiltModel.Node(11), HandBuiltModel.Literal(UnknownType.Instance), "Length", ErrorType.Instance);
         var local = new LocalVariable("value", ErrorType.Instance) { FailureSource = source };
-        f.Scope.DeclareLocal(local, f.Diagnostics);
+        f.Scope.DeclareLocal(local, source.Node, f.Diagnostics);
 
         var error = Assert.IsType<ErrorExpression>(Bind(f, "call", BindingFragments.Expression(BindingFragments.Identifier("value"))));
 

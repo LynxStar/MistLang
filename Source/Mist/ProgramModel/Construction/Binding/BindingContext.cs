@@ -24,11 +24,15 @@ internal sealed class BindingContext
     /// </summary>
     public IMistType? ReturnType { get; set; }
 
+    public bool ReturnTypeIsFailed { get; set; }
+
     /// <summary>
     /// The type the current expression is expected to produce, or null when
     /// there is no target.
     /// </summary>
     public IMistType? TargetType { get; set; }
+
+    public bool TargetTypeIsFailed { get; private set; }
 
     public bool InLambda { get; set; }
 
@@ -77,6 +81,7 @@ internal sealed class BindingContext
     public BindingContext(BodyScope scope, IMistType? returnType, BindingContext enclosing)
         : this(scope, returnType ?? enclosing.ReturnType)
     {
+        ReturnTypeIsFailed = ReferenceEquals(ReturnType, enclosing.ReturnType) && enclosing.ReturnTypeIsFailed;
         EnclosingProperty = enclosing.EnclosingProperty;
         EnclosingMethod = enclosing.EnclosingMethod;
         IsAsyncContext = enclosing.IsAsyncContext;
@@ -88,9 +93,9 @@ internal sealed class BindingContext
     /// restoring the previous value on dispose. Prevents forgetting to restore
     /// and scopes the target type visually to exactly where it applies.
     /// </summary>
-    public TargetTypeScope PushTargetType(IMistType? type)
+    public TargetTypeScope PushTargetType(IMistType? type, bool isFailed = false)
     {
-        return new TargetTypeScope(this, type);
+        return new TargetTypeScope(this, type, isFailed);
     }
 
     public MethodGroupSettlementScope PushMethodGroupSettlement(PostfixNode? settled)
@@ -107,16 +112,21 @@ internal sealed class BindingContext
         private readonly BindingContext ctx;
         private readonly IMistType? previous;
 
-        public TargetTypeScope(BindingContext ctx, IMistType? type)
+        private readonly bool previousFailure;
+
+        public TargetTypeScope(BindingContext ctx, IMistType? type, bool isFailed)
         {
             this.ctx = ctx;
             previous = ctx.TargetType;
+            previousFailure = ctx.TargetTypeIsFailed;
             ctx.TargetType = type;
+            ctx.TargetTypeIsFailed = isFailed;
         }
 
         public void Dispose()
         {
             ctx.TargetType = previous;
+            ctx.TargetTypeIsFailed = previousFailure;
         }
     }
 

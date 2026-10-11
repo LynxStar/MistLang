@@ -37,6 +37,7 @@ internal static class IdentifierBinder
             {
                 BaseConstructions = property.BaseConstructions,
             },
+            TypeResult { IsFailed: true } => new ErrorExpression(node),
             TypeResult type => new TypeReferenceExpression(node, type.Type),
             MethodGroupResult { Methods.Count: > 0 } group => new MethodGroupExpression(node, null, name, group.Methods, null) { Paths = group.Paths },
             NamespaceResult ns => new NamespaceReferenceExpression(node, ns.NamespaceName),

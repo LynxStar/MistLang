@@ -18,7 +18,7 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 /// </summary>
 internal static class LambdaBinder
 {
-    private readonly record struct DeclaredParameter(string Name, TypeReferenceNode? Type, SyntaxNode Node);
+    private readonly record struct DeclaredParameter(string Name, TypeReferenceNode? Type, SyntaxNode Node, SourceSpan? NameSpan);
 
     internal static Expression Bind(LambdaExpressionNode node, BindingContext ctx, BuilderContext context)
     {
@@ -363,7 +363,7 @@ internal static class LambdaBinder
             }
 
             var local = new LocalVariable(declared[i].Name, type) { IsFailed = resolution?.IsFailed == true };
-            scope.DeclareLocal(local, context.Diagnostics);
+            scope.DeclareLocal(local, declared[i].Node, context.Diagnostics, declared[i].NameSpan);
             parameters.Add(local);
         }
 
@@ -374,7 +374,7 @@ internal static class LambdaBinder
     {
         if(parameterList is SingleImplicitParamLambdaParameterListNode single)
         {
-            return [new DeclaredParameter(single.Name.Lexeme, null, single)];
+            return [new DeclaredParameter(single.Name.Lexeme, null, single, single.Name.Span)];
         }
 
         if(parameterList is not ParenthesizedLambdaParamsLambdaParameterListNode { Params: { } list })
@@ -389,10 +389,10 @@ internal static class LambdaBinder
             declared.Add(parameter switch
             {
                 TypedLambdaParamLambdaParamNode typed =>
-                    new DeclaredParameter(typed.Name.Lexeme, typed.Type, typed),
+                    new DeclaredParameter(typed.Name.Lexeme, typed.Type, typed, typed.Name.Span),
                 UntypedLambdaParamLambdaParamNode untyped =>
-                    new DeclaredParameter(untyped.Name.Lexeme, null, untyped),
-                _ => new DeclaredParameter("", null, parameter),
+                    new DeclaredParameter(untyped.Name.Lexeme, null, untyped, untyped.Name.Span),
+                _ => new DeclaredParameter("", null, parameter, null),
             });
         }
 

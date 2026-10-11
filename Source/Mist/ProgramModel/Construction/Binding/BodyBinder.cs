@@ -25,7 +25,9 @@ internal static class BodyBinder
         var bodyScope = new BodyScope(method.Scope);
         foreach(var parameter in method.ParametersList)
         {
-            bodyScope.DeclareLocal(ParameterLocal(parameter), context.Diagnostics);
+            bodyScope.DeclareLocal(
+                ParameterLocal(parameter), parameter.DeclarationNode ?? method.DeclarationNode ?? method.Body!.Node,
+                context.Diagnostics, parameter.DeclarationNode?.Name.Span);
         }
 
         // A `with Type name` clause binds like a parameter and differs only in where the value comes
@@ -35,7 +37,9 @@ internal static class BodyBinder
         foreach(var binding in method.ContextBindingsList)
         {
             bodyScope.DeclareLocal(
-                new LocalVariable(binding.Identifier, binding.ContextType) { IsContextBound = true }, context.Diagnostics);
+                new LocalVariable(binding.Identifier, binding.ContextType) { IsContextBound = true },
+                binding.Node ?? method.DeclarationNode ?? method.Body!.Node, context.Diagnostics,
+                (binding.Node as ContextWithClauseWithClauseNode)?.Name.Span);
         }
 
         // A constructor chain's arguments are bound in the same scope as the body, since
@@ -180,15 +184,18 @@ internal static class BodyBinder
         }
 
         var bodyScope = new BodyScope(new MethodScope(typeScope) { IsStatic = isStatic });
+        var accessorNode = accessor.Body?.Node ?? accessor.ExpressionBody!.Node;
 
         foreach(var parameter in parameters)
         {
-            bodyScope.DeclareLocal(ParameterLocal(parameter), context.Diagnostics);
+            bodyScope.DeclareLocal(
+                ParameterLocal(parameter), parameter.DeclarationNode ?? accessorNode, context.Diagnostics,
+                parameter.DeclarationNode?.Name.Span);
         }
 
         if(isSetter)
         {
-            bodyScope.DeclareLocal(new LocalVariable(ValueParameterName, valueType), context.Diagnostics);
+            bodyScope.DeclareLocal(new LocalVariable(ValueParameterName, valueType), accessorNode, context.Diagnostics);
         }
 
         // A getter's `return` carries the value; a setter has nothing to return, so it gets no

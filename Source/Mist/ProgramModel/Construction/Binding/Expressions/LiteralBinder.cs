@@ -205,6 +205,11 @@ internal static class LiteralBinder
             }
         }
 
+        if(ctx.TargetTypeIsFailed)
+        {
+            return new ErrorExpression(node, elements);
+        }
+
         var elementType = targetElementType;
 
         if(elementType is null && elements.Count > 0)

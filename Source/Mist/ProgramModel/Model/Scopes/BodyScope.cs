@@ -2,6 +2,8 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using SourceSpan = Storm.Runtime.SourceSpan;
+using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramModel.Model.Scopes;
 
@@ -73,18 +75,17 @@ internal sealed class BodyScope(Scope parent) : Scope(parent)
     /// Declares a local or parameter. Errors only if THIS scope already declares the name -- an
     /// outer scope declaring it is shadowing, not a conflict.
     /// </summary>
-    public void DeclareLocal(LocalVariable local, DiagnosticBag diagnostics)
+    public void DeclareLocal(LocalVariable local, SyntaxNode declaration, DiagnosticBag diagnostics, SourceSpan? nameSpan = null)
     {
+        if(local.IsDiscard)
+        {
+            return;
+        }
+
         if(functions.ContainsKey(local.Name) || !locals.TryAdd(local.Name, local))
         {
-            diagnostics.Add(new Diagnostic(
-                ProgramModelDiagnostics.DuplicateLocalVariable.Id,
-                ProgramModelDiagnostics.DuplicateLocalVariable.DefaultSeverity,
-                ProgramModelDiagnostics.DuplicateLocalVariable.Stage,
-                string.Format(ProgramModelDiagnostics.DuplicateLocalVariable.MessageTemplate, local.Name),
-                Location: default,
-                CompilationUnitPath: "<unknown>",
-                AnalyzerName: null));
+            diagnostics.ReportAtNode(
+                ProgramModelDiagnostics.DuplicateLocalVariable, declaration, nameSpan ?? declaration.Span, null, local.Name);
         }
     }
 

@@ -162,6 +162,11 @@ internal static class ExpressionBinder
     private static Expression BindBareDefault(
         DefaultLiteralExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
+        if(ctx.TargetTypeIsFailed)
+        {
+            return new ErrorExpression(node);
+        }
+
         if(ctx.TargetType is not { } target || target is ErrorType)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.DefaultNeedsTargetType, node, null);
@@ -302,6 +307,11 @@ internal static class ExpressionBinder
     private static Expression BindTargetTypedNew(
         TargetTypedNewExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
+        if(ctx.TargetTypeIsFailed)
+        {
+            return new ErrorExpression(node, [BindConstruction(node, ctx.TargetType ?? ErrorType.Instance, node.Arguments, node.Initializer, ctx, context)]);
+        }
+
         if(ctx.TargetType is not { } target || target is ErrorType)
         {
             context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.TargetTypedNewNeedsTargetType, node, null);

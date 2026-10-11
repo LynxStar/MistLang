@@ -57,6 +57,8 @@ The `for` loop provides a compact syntax for counted iteration. It takes an init
 
 The initializer declares a loop variable scoped to the `for` block. The condition is evaluated before each iteration, and the iterator runs after each iteration completes.
 
+A typed initializer in a `for` header supplies its declared type to the value, including target-typed construction, `default`, and empty array literals. It uses the same implicit conversions and ownership rules as an ordinary typed local. A `var` initializer infers its type without a declared target.
+
 ## Foreach Loops
 
 The `foreach` loop iterates over each element in a collection. You declare the element type and name, followed by `in` and the collection expression. The collection expression must implement `IEnumerable<TElement>` from the Standard namespace — the compiler verifies this at compile time and infers the iteration variable's type from the resolved `TElement`.
@@ -74,7 +76,7 @@ The `foreach` loop iterates over each element in a collection. You declare the e
 {{#endtab }}
 {{#endtabs }}
 
-The loop variable is scoped to the `foreach` block and takes on the value of each element in sequence.
+The iteration binding is readonly and takes on the value of each element in sequence. The body has its own child scope: it can shadow the iteration name, and reads after that declaration refer to the body local. Sibling loops have independent scopes. A discard iteration name evaluates the collection and visits its elements without introducing a readable `_` binding.
 
 ### User-Defined Enumerables
 

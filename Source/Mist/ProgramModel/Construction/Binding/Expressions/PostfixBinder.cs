@@ -32,6 +32,11 @@ internal static class PostfixBinder
         // frontend.
         if(result is MethodGroupExpression group)
         {
+            if(group.Candidates.Count > 0 && group.Candidates.All(LocalFunctionBinder.IsRejected))
+            {
+                return new ErrorExpression(group.Node, [group]);
+            }
+
             if(ReferenceEquals(ctx.SettledMethodGroup, node) || node is { Suffix.Length: 0, Target: ParenthesizedExpressionPrimaryNode })
             {
                 return group;
@@ -337,6 +342,12 @@ internal static class PostfixBinder
         if(group is null)
         {
             return BindFunctionInvocation(node, receiver, arguments, ctx, context);
+        }
+
+        if(group.Candidates.Count > 0 && group.Candidates.All(LocalFunctionBinder.IsRejected))
+        {
+            var retained = ArgumentBinder.Bind(arguments, group.Candidates, ctx, context, group.ReceiverConstructed, group.Paths);
+            return new ErrorExpression(node, [receiver, .. retained]);
         }
 
         var bound = ArgumentBinder.Bind(

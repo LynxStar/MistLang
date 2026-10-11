@@ -106,7 +106,12 @@ internal sealed class ParameterBuilder
                 ? ByRefDirection.None
                 : isReadonly ? ByRefDirection.In : ByRefDirection.Ref);
 
-        var parameter = new Parameter(name, resolution.Type, modifier) { IsFlattened = param.ParamsModifier is not null, IsFailed = resolution.IsFailed };
+        var parameter = new Parameter(name, resolution.Type, modifier)
+        {
+            IsFlattened = param.ParamsModifier is not null,
+            IsFailed = resolution.IsFailed,
+            DeclarationNode = param,
+        };
         attributeBuilder.Build(param.Attributes, parameter.DeclaredAttributesList, scope);
 
         return parameter;

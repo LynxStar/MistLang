@@ -25,8 +25,10 @@ internal static class PriorFailure
             ErrorExpression error => error.IsReported,
             LocalReferenceExpression reference => reference.Local.IsFailed,
             InvocationExpression call => Of(call.Receiver) || call.Arguments.Any(Of),
-            MethodGroupExpression { Receiver: { } receiver } => Of(receiver),
-            FunctionReferenceExpression { Receiver: { } receiver } => Of(receiver),
+            MethodGroupExpression group => (group.Candidates.Count > 0 && group.Candidates.All(LocalFunctionBinder.IsRejected))
+                || (group.Receiver is { } receiver && Of(receiver)),
+            MethodReferenceExpression reference => LocalFunctionBinder.IsRejected(reference.Method),
+            FunctionReferenceExpression reference => LocalFunctionBinder.IsRejected(reference.Method) || (reference.Receiver is { } receiver && Of(receiver)),
             MemberAccessExpression access => access.IsFailed || Of(access.Receiver),
             IndexExpression index => Of(index.Receiver) || Of(index.Index),
             ImplicitConversionExpression conversion => Of(conversion.Operand),

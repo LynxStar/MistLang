@@ -510,38 +510,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-069
   area: analysis
-- id: MIST-015
-  title: Suppress derivative generic local-function diagnostics
-  status: confirmed
-  summary: Frozen T Same<T>(T x) produces LOCAL_FUNCTION_GENERIC, two UNRESOLVED_TYPE and TYPE_ARGUMENT_COUNT_MISMATCH.
-    It remains four complaints for one unsupported generic local declaration; failed-expression tree work
-    did not close this declaration cascade.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=refinement-proving].tasks[8]
-    line_at_baseline: 4819
-    lead_excerpt: 'Generic extension methods now retain their block and method type arguments through
-      emission, including dependent parameters, as Main''s carrier checks verify (2026-09-26). The earlier
-      extension `where` investigation also found unrelated remaining binder gaps: a `using` naming no
-      namespace reaches Roslyn on v2 (MIST_CS_ERROR) where classic is MIST_UNDEFINED_NAMESPACE. A generic
-      local function that U…'
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: current CLI probes executed, plus source inspection; no test-suite execution claimed
-    sources:
-    - file: Source/Mist/ProgramModel/Construction/Binding/LocalFunctionBinder.cs
-      selector: internal static class
-      line: 22
-    probes:
-    - project: /private/tmp/mist-reconcile-analysis-probes/candidate-generic-local-cascade
-      results_file: /private/tmp/mist-reconcile-analysis-probes/results.json
-  related:
-  - program-model-body-tasks generic local functions
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-071
-  area: analysis
 - id: MIST-016
   title: Bind and substitute other-parameter/dependent symbolic bounds
   status: confirmed
@@ -1486,56 +1454,10 @@ issues:
   audit_key: backend:general-34
   area: backend
   priority: P2
-- id: MIST-036
-  title: Duplicate local diagnostics lack source location
-  status: confirmed
-  summary: BodyScope.DeclareLocal still emits Location default and CompilationUnitPath <unknown>. Recover
-    the declaration site once; this is one observable diagnostic requirement, not a separate origin task
-    per local form.
-  source_refs:
-  - file: backlog/program-model-body-tasks.yaml
-    selector: duplicate-local detection
-    lead_excerpt: '    - [~] duplicate-local detection within a scope (diagnostic) -- MISSING: a source
-      location. RegisterLocal reports DuplicateLocalVariable with `Location: default` and CompilationUnitPath
-      "<unknown>"'
-    line_at_baseline: 139
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Model/Scopes/BodyScope.cs
-    selector: public void DeclareLocal
-    line: 76
-    observed: The duplicate branch constructs a Diagnostic with default Location and <unknown> path.
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/discards
-    exit_code: 1
-    source: using Standard; public class Program { public static void Main() { var _ = 1; var _ = 2; }
-      }
-    artifact: /private/tmp/mist-reconcile-binding-probes/discards
-    observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''_'' is already declared in this scope.'
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/foreach-shadow
-    exit_code: 1
-    source: using Standard; public class Program { public static void Main() { foreach(var x in [1]) {
-      var x = 2; Console.WriteLine(x); } } }
-    artifact: /private/tmp/mist-reconcile-binding-probes/foreach-shadow
-    observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''x'' is already declared in this scope.'
-  related:
-  - body locals_and_scopes
-  - general diagnostic-delivery work
-  priority: P2
-  priority_rationale: Diagnostics cannot identify the offending declaration; affects all duplicate-local
-    sites.
-  audit_key: binding:bind-01
-  area: binding
 - id: MIST-037
   title: Local declaration discards become real named bindings
   status: confirmed
-  summary: Ordinary declarations read Name.Lexeme and declare _ like any other local. Repeated var _ produces
-    a duplicate-local refusal. Do not conflate this with pattern discards, already handled by PatternBinder.
+  summary: Inferred ordinary and typed/inferred loop discards have hidden semantic identities without source lookup. Ordinary typed discard syntax remains unaccepted by current grammar; its narrow grammar correction awaits scope authorization.
   source_refs:
   - file: backlog/program-model-body-tasks.yaml
     selector: discard `_` handling
@@ -1559,104 +1481,35 @@ issues:
       }
     artifact: /private/tmp/mist-reconcile-binding-probes/discards
     observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''_'' is already declared in this scope.'
+  - revision: local binding contracts completion commit containing this evidence, based on 4f018a0d79b8a8231545edd9a7f32edf917a8e6b
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - 'LocalVariable.IsDiscard preserves bound local/lifetime identity while BodyScope excludes source-name registration. Shared declaration binding evaluates and validates values; LocalNames reserves distinct collision-safe hidden C# names and keeps established tuple/pattern spelling.'
+    - 'Tier 1 registration/name decisions and Tier 2 LocalBindingContractBinderTests/EmissionTests cover repeated discards, absent lookup, one initializer call per declaration, distinct for/foreach identities, conversion retention and existing cleanup. Hand-built ordinary typed declaration fragments bind correctly.'
+    - 'Fresh accepted runtime probe prints initializer markers 1 through 7 once in order, plus the expected shadow/capture, sibling-loop and pattern/deconstruction controls. hidden-cleanup prints 2 then 1, retaining reverse-order exactly-once linear drop. All three generated consumers (accepted, hidden-cleanup, for-conversions) build with zero warnings/errors; scratch output remains untracked.'
+    - 'Loop discard with incompatible string initializer still reports MIST_PA_NO_IMPLICIT_CONVERSION at the value. Reading _ in source is refused by expression grammar; direct scope lookup is NotFound.'
+    - 'Executed baseline ordinary typed int _ = 3 fails MIST_PARSE_INCOMPLETE: VariableDeclarationStatement typed branch admits IDENTIFIER only, while inferred/loop branches admit DISCARD. Packet simultaneously requires ordinary typed discards and excludes grammar changes. Asked for the one-token grammar correction; no answer/authorization received before this partial closeout. Grammar/pin remain unchanged.'
+    verification:
+    - 'Focused ledger TestResults/ledger/20261011-164518: 161 passed, zero failed; summary.txt
+      and failures.txt inspected. Initial ledger 20261011-164346 retained 158 passed / 2 failed
+      in new tests: numeric widening retains its operand rather than recording an operator node,
+      and Mist arity lookup uses T<> rather than CLR backtick spelling. Test assumptions corrected
+      before the passing rebuild; no intermittent or unexplained failure claimed.'
+    - 'Full ledger TestResults/ledger/20261011-164700: dotnet build Mist.slnx, zero warnings/errors;
+      10108 tests passed, zero failures/skips (Mist.Tests 9095, CLI 115, Storm 852, consumer 46).
+      summary.txt and failures.txt inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and
+      Testing_RunsUnderTheTestCommand passed. No polling-file-watcher workaround or interrupted run.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check passed. Build uses
+      UseSharedCompilation=false and NUGET_HTTP_CACHE_PATH=/private/tmp/mist-local-binding-nuget
+      to avoid initial sandboxed compiler-server/cache permission failures; no warnings suppressed.'
+    - 'Submodule update --init --recursive executed; checked-out Storm commit matches recorded
+      b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin. Main revalidated at the stated base; no classic
+      implementation read and no generic-local support or ownership/shadowing policy introduced.'
   related: []
   priority: P2
   priority_rationale: Bounded remaining language behavior or diagnostic consistency.
   audit_key: binding:bind-02
-  area: binding
-- id: MIST-038
-  title: Foreach body lacks an independent shadowing scope
-  status: confirmed
-  summary: The iteration variable and the body are bound in the same BodyScope, contrary to the binder's
-    general rule that an outer local may be shadowed. The body-level same-name declaration currently duplicates
-    the iterator. This is a source/scope inconsistency; no new global shadowing policy is inferred.
-  source_refs:
-  - file: backlog/program-model-body-tasks.yaml
-    selector: nested block scopes
-    lead_excerpt: '    - [~] nested block scopes (child scope per block; shadowing rules) -- MISSING:
-      foreach. Block/if-then/while/for-body each get `new Scope(...)` and shadowing works via the parent
-      walk, but BindForEach passes foreachScope itself as the body scope, so the iteration variable and
-      body locals share one scope'
-    line_at_baseline: 138
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/StatementBinder.cs
-    selector: private static ForEachStatement BindForEach
-    line: 557
-    observed: Declares iteration local in foreachScope and passes the same scope directly to BindNestedBlock.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Model/Scopes/BodyScope.cs
-    selector: outer scope declaring
-    line: 74
-    observed: DeclareLocal deliberately permits shadowing an outer scope.
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/foreach-shadow
-    exit_code: 1
-    source: using Standard; public class Program { public static void Main() { foreach(var x in [1]) {
-      var x = 2; Console.WriteLine(x); } } }
-    artifact: /private/tmp/mist-reconcile-binding-probes/foreach-shadow
-    observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''x'' is already declared in this scope.'
-  related: []
-  priority: P3
-  priority_rationale: Observable inconsistency limited to foreach bodies.
-  audit_key: binding:bind-03
-  area: binding
-- id: MIST-039
-  title: Typed for initializers do not contextually target their value
-  status: confirmed
-  summary: A typed for initializer resolves its declared type but binds the initializer without PushTargetType
-    or the declaration's implicit-conversion pipeline. new() fails there although the same ordinary typed
-    declaration succeeds. Check the complete owning requirement rather than count new/default/empty-array
-    variants separately.
-  source_refs:
-  - file: backlog/program-model-body-tasks.yaml
-    selector: 'ForStatement:'
-    lead_excerpt: '    - [x] ForStatement: initializer (typed-var-decl / var-decl / expression), condition,
-      iterator, own for-scope -- all three ForInitializer alternatives handled. NOTE: initializer variables
-      get no target-type push, unlike statement-level typed declarations'
-    line_at_baseline: 356
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/program-model-body-tasks.yaml
-    selector: variable-declaration target type
-    lead_excerpt: '    - [x] variable-declaration target type -- TypedVariableDeclaration only; for-initializers
-      do not push'
-    line_at_baseline: 577
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/StatementBinder.cs
-    selector: case ForInitializerVariableDeclarationForInitializerNode
-    line: 526
-    observed: Binds typed.Initializer without targeting declaredType; typed statement path targets and
-      converts.
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/for-target
-    exit_code: 1
-    source: using Standard; public class Thing {} public class Program { public static void Main() { for(Thing
-      t = new(); false; ) {} } }
-    artifact: /private/tmp/mist-reconcile-binding-probes/for-target
-    observed: '/private/tmp/mist-reconcile-binding-probes/for-target/Program.mist(1,104): error MIST_PM_TARGET_TYPED_NEW_NO_TARGET:
-      The type of ''new(...)'' cannot be determined at this position. Name it, as in ''new Point(...)''.'
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/for-control
-    exit_code: 0
-    source: using Standard; public class Thing {} public class Program { public static void Main() { Thing
-      t = new(); } }
-    artifact: /private/tmp/mist-reconcile-binding-probes/for-control
-    observed: 'Build succeeded  0 error(s), 0 warning(s)  Total: 2.09s'
-  related:
-  - target_typing
-  - emitter for-statement capability
-  priority: P2
-  priority_rationale: Bounded remaining language behavior or diagnostic consistency.
-  audit_key: binding:bind-04
   area: binding
 - id: MIST-040
   title: Best common type inference stops at identity
@@ -8072,6 +7925,261 @@ issues:
   audit_key: root:native-test-runner
   area: verification/tooling
 archive:
+- id: MIST-015
+  title: Suppress derivative generic local-function diagnostics
+  status: implemented
+  summary: Rejected generic local signatures carry declaration-owned type/call failure provenance. Generic local functions remain unsupported; independent body, signature and argument errors still report.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=refinement-proving].tasks[8]
+    line_at_baseline: 4819
+    lead_excerpt: 'Generic extension methods now retain their block and method type arguments through
+      emission, including dependent parameters, as Main''s carrier checks verify (2026-09-26). The earlier
+      extension `where` investigation also found unrelated remaining binder gaps: a `using` naming no
+      namespace reaches Roslyn on v2 (MIST_CS_ERROR) where classic is MIST_UNDEFINED_NAMESPACE. A generic
+      local function that U…'
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: current CLI probes executed, plus source inspection; no test-suite execution claimed
+    sources:
+    - file: Source/Mist/ProgramModel/Construction/Binding/LocalFunctionBinder.cs
+      selector: internal static class
+      line: 22
+    probes:
+    - project: /private/tmp/mist-reconcile-analysis-probes/candidate-generic-local-cascade
+      results_file: /private/tmp/mist-reconcile-analysis-probes/results.json
+  - revision: local binding contracts completion commit containing this evidence, based on 4f018a0d79b8a8231545edd9a7f32edf917a8e6b
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - 'RejectedLocalFunctionScope supplies failed ErrorType only for declared generic names; signature parameters and return targets retain positive resolution failure. Rejected calls bind arguments through existing candidate targeting without validating the rejected signature.'
+    - 'Tier 1 RejectedLocalFunctionDecisionTests and Tier 2 RejectedLocalFunctionBindingTests cover source ownership, independent missing names/types, ordinary lambda targets, nested new/default/array returns and arguments, empty unfinished groups, nongeneric hoisting/recursion/captures/shadowing and local-function parameter/local collisions.'
+    - 'Fresh generic-local CLI probe reports exactly MIST_PM_LOCAL_FUNCTION_GENERIC at Program.mist(1,68). generic-independent additionally reports only its independent absent and missing identifiers; no unbound T or type-argument-count cascade.'
+    verification:
+    - 'Focused ledger TestResults/ledger/20261011-164518: 161 passed, zero failed; summary.txt
+      and failures.txt inspected. Initial ledger 20261011-164346 retained 158 passed / 2 failed
+      in new tests: numeric widening retains its operand rather than recording an operator node,
+      and Mist arity lookup uses T<> rather than CLR backtick spelling. Test assumptions corrected
+      before the passing rebuild; no intermittent or unexplained failure claimed.'
+    - 'Full ledger TestResults/ledger/20261011-164700: dotnet build Mist.slnx, zero warnings/errors;
+      10108 tests passed, zero failures/skips (Mist.Tests 9095, CLI 115, Storm 852, consumer 46).
+      summary.txt and failures.txt inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and
+      Testing_RunsUnderTheTestCommand passed. No polling-file-watcher workaround or interrupted run.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check passed. Build uses
+      UseSharedCompilation=false and NUGET_HTTP_CACHE_PATH=/private/tmp/mist-local-binding-nuget
+      to avoid initial sandboxed compiler-server/cache permission failures; no warnings suppressed.'
+    - 'Submodule update --init --recursive executed; checked-out Storm commit matches recorded
+      b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin. Main revalidated at the stated base; no classic
+      implementation read and no generic-local support or ownership/shadowing policy introduced.'
+  related:
+  - program-model-body-tasks generic local functions
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-071
+  area: analysis
+- id: MIST-036
+  title: Duplicate local diagnostics lack source location
+  status: implemented
+  summary: All actual local registration routes retain declaration origins and report duplicate names at the repeated token with the originating source path. Outer shadowing and duplicate-function ownership remain intact.
+  source_refs:
+  - file: backlog/program-model-body-tasks.yaml
+    selector: duplicate-local detection
+    lead_excerpt: '    - [~] duplicate-local detection within a scope (diagnostic) -- MISSING: a source
+      location. RegisterLocal reports DuplicateLocalVariable with `Location: default` and CompilationUnitPath
+      "<unknown>"'
+    line_at_baseline: 139
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Model/Scopes/BodyScope.cs
+    selector: public void DeclareLocal
+    line: 76
+    observed: The duplicate branch constructs a Diagnostic with default Location and <unknown> path.
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/discards
+    exit_code: 1
+    source: using Standard; public class Program { public static void Main() { var _ = 1; var _ = 2; }
+      }
+    artifact: /private/tmp/mist-reconcile-binding-probes/discards
+    observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''_'' is already declared in this scope.'
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/foreach-shadow
+    exit_code: 1
+    source: using Standard; public class Program { public static void Main() { foreach(var x in [1]) {
+      var x = 2; Console.WriteLine(x); } } }
+    artifact: /private/tmp/mist-reconcile-binding-probes/foreach-shadow
+    observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''x'' is already declared in this scope.'
+  - revision: local binding contracts completion commit containing this evidence, based on 4f018a0d79b8a8231545edd9a7f32edf917a8e6b
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - 'BodyScope requires a declaration node; optional name span uses the exact source token through ReportAtNode and DiagnosticHelper. ParameterBuilder retains ParameterNode, and method/accessor/context aliases, lambda parameters, tuple declarations and pattern bindings forward their owning sites.'
+    - 'Tier 1 LocalBindingContractRegistrationTests and Tier 2 LocalBindingContractOriginBindingTests prove exact path, line/column/end span at the second token, typed/inferred locals, method parameters/locals, loop shadow/duplicate controls, lambdas and named tuple/pattern sites. Local-function collision coverage lives in RejectedLocalFunctionBindingTests.'
+    - 'Fresh multiline duplicate CLI probe reports one MIST_PM_DUPLICATE_LOCAL at Program.mist(3,5). Direct tests assert full repeated-name span. Duplicate local-function diagnostic descriptor/owning declaration and nested block shadowing are preserved.'
+    verification:
+    - 'Focused ledger TestResults/ledger/20261011-164518: 161 passed, zero failed; summary.txt
+      and failures.txt inspected. Initial ledger 20261011-164346 retained 158 passed / 2 failed
+      in new tests: numeric widening retains its operand rather than recording an operator node,
+      and Mist arity lookup uses T<> rather than CLR backtick spelling. Test assumptions corrected
+      before the passing rebuild; no intermittent or unexplained failure claimed.'
+    - 'Full ledger TestResults/ledger/20261011-164700: dotnet build Mist.slnx, zero warnings/errors;
+      10108 tests passed, zero failures/skips (Mist.Tests 9095, CLI 115, Storm 852, consumer 46).
+      summary.txt and failures.txt inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and
+      Testing_RunsUnderTheTestCommand passed. No polling-file-watcher workaround or interrupted run.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check passed. Build uses
+      UseSharedCompilation=false and NUGET_HTTP_CACHE_PATH=/private/tmp/mist-local-binding-nuget
+      to avoid initial sandboxed compiler-server/cache permission failures; no warnings suppressed.'
+    - 'Submodule update --init --recursive executed; checked-out Storm commit matches recorded
+      b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin. Main revalidated at the stated base; no classic
+      implementation read and no generic-local support or ownership/shadowing policy introduced.'
+  related:
+  - body locals_and_scopes
+  - general diagnostic-delivery work
+  priority: P2
+  priority_rationale: Diagnostics cannot identify the offending declaration; affects all duplicate-local
+    sites.
+  audit_key: binding:bind-01
+  area: binding
+- id: MIST-038
+  title: Foreach body lacks an independent shadowing scope
+  status: implemented
+  summary: Foreach bodies have a child lexical scope beneath their readonly iteration binding. Body shadows/captures resolve to their own identities and emit distinct C# names.
+  source_refs:
+  - file: backlog/program-model-body-tasks.yaml
+    selector: nested block scopes
+    lead_excerpt: '    - [~] nested block scopes (child scope per block; shadowing rules) -- MISSING:
+      foreach. Block/if-then/while/for-body each get `new Scope(...)` and shadowing works via the parent
+      walk, but BindForEach passes foreachScope itself as the body scope, so the iteration variable and
+      body locals share one scope'
+    line_at_baseline: 138
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/StatementBinder.cs
+    selector: private static ForEachStatement BindForEach
+    line: 557
+    observed: Declares iteration local in foreachScope and passes the same scope directly to BindNestedBlock.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Model/Scopes/BodyScope.cs
+    selector: outer scope declaring
+    line: 74
+    observed: DeclareLocal deliberately permits shadowing an outer scope.
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/foreach-shadow
+    exit_code: 1
+    source: using Standard; public class Program { public static void Main() { foreach(var x in [1]) {
+      var x = 2; Console.WriteLine(x); } } }
+    artifact: /private/tmp/mist-reconcile-binding-probes/foreach-shadow
+    observed: 'error MIST_PM_DUPLICATE_LOCAL: A variable named ''x'' is already declared in this scope.'
+  - revision: local binding contracts completion commit containing this evidence, based on 4f018a0d79b8a8231545edd9a7f32edf917a8e6b
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - 'BindForEach registers the iteration binding in foreachScope and binds the body in new BodyScope(foreachScope), matching existing LocalNames header/body walking and the established outer-shadowing invariant.'
+    - 'Tier 2 LocalBindingContractBinderTests and EmissionTests cover collection/iterator/body identity, inner blocks, sibling loops, distinct C# spelling and body local-function captures/hoisting. Registration origin tests retain body duplicate refusal.'
+    - 'Fresh accepted probe confirms body shadow/capture reads (7, 7, 9), independent sibling iteration and valid pattern/deconstruction controls; generated out/Probe.csproj builds cleanly. foreach-readonly reports one MIST_PA_READONLY_LOCAL_REASSIGNED at the assignment.'
+    verification:
+    - 'Focused ledger TestResults/ledger/20261011-164518: 161 passed, zero failed; summary.txt
+      and failures.txt inspected. Initial ledger 20261011-164346 retained 158 passed / 2 failed
+      in new tests: numeric widening retains its operand rather than recording an operator node,
+      and Mist arity lookup uses T<> rather than CLR backtick spelling. Test assumptions corrected
+      before the passing rebuild; no intermittent or unexplained failure claimed.'
+    - 'Full ledger TestResults/ledger/20261011-164700: dotnet build Mist.slnx, zero warnings/errors;
+      10108 tests passed, zero failures/skips (Mist.Tests 9095, CLI 115, Storm 852, consumer 46).
+      summary.txt and failures.txt inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and
+      Testing_RunsUnderTheTestCommand passed. No polling-file-watcher workaround or interrupted run.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check passed. Build uses
+      UseSharedCompilation=false and NUGET_HTTP_CACHE_PATH=/private/tmp/mist-local-binding-nuget
+      to avoid initial sandboxed compiler-server/cache permission failures; no warnings suppressed.'
+    - 'Submodule update --init --recursive executed; checked-out Storm commit matches recorded
+      b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin. Main revalidated at the stated base; no classic
+      implementation read and no generic-local support or ownership/shadowing policy introduced.'
+  related: []
+  priority: P3
+  priority_rationale: Observable inconsistency limited to foreach bodies.
+  audit_key: binding:bind-03
+  area: binding
+- id: MIST-039
+  title: Typed for initializers do not contextually target their value
+  status: implemented
+  summary: Typed for initializers use the ordinary-local target, newtype/implicit conversions, ownership provenance and failure pipeline. Inferred initializers have no invented target.
+  source_refs:
+  - file: backlog/program-model-body-tasks.yaml
+    selector: 'ForStatement:'
+    lead_excerpt: '    - [x] ForStatement: initializer (typed-var-decl / var-decl / expression), condition,
+      iterator, own for-scope -- all three ForInitializer alternatives handled. NOTE: initializer variables
+      get no target-type push, unlike statement-level typed declarations'
+    line_at_baseline: 356
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/program-model-body-tasks.yaml
+    selector: variable-declaration target type
+    lead_excerpt: '    - [x] variable-declaration target type -- TypedVariableDeclaration only; for-initializers
+      do not push'
+    line_at_baseline: 577
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/StatementBinder.cs
+    selector: case ForInitializerVariableDeclarationForInitializerNode
+    line: 526
+    observed: Binds typed.Initializer without targeting declaredType; typed statement path targets and
+      converts.
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/for-target
+    exit_code: 1
+    source: using Standard; public class Thing {} public class Program { public static void Main() { for(Thing
+      t = new(); false; ) {} } }
+    artifact: /private/tmp/mist-reconcile-binding-probes/for-target
+    observed: '/private/tmp/mist-reconcile-binding-probes/for-target/Program.mist(1,104): error MIST_PM_TARGET_TYPED_NEW_NO_TARGET:
+      The type of ''new(...)'' cannot be determined at this position. Name it, as in ''new Point(...)''.'
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/for-control
+    exit_code: 0
+    source: using Standard; public class Thing {} public class Program { public static void Main() { Thing
+      t = new(); } }
+    artifact: /private/tmp/mist-reconcile-binding-probes/for-control
+    observed: 'Build succeeded  0 error(s), 0 warning(s)  Total: 2.09s'
+  - revision: local binding contracts completion commit containing this evidence, based on 4f018a0d79b8a8231545edd9a7f32edf917a8e6b
+    date: '2026-10-11'
+    kind: implementation and executed acceptance verification
+    implementation:
+    - 'Ordinary typed/inferred locals and typed/inferred for initializers share BindLocalDeclaration and BindKeyed. BindingContext carries reported target/return failure while its scoped target guard restores both type and failure ownership; narrow primary/array recovery retains independent expression children.'
+    - 'Tier 2 LocalBindingContractBinderTests cover new/default/empty-array targets, numeric widening and declared conversions, untargeted var initializers, failed target/initializer recovery and repeated hidden locals. Existing target-typed-new, declared-type-failure and ownership regression controls pass.'
+    - 'Fresh accepted probe binds typed Thing/new(), int[]/[] and int/default for initializers. for-conversions runs numeric widening and a user-declared implicit operator (stdout 1 then 3); generated consumer builds cleanly.'
+    - 'for-incompatible reports one MIST_PA_NO_IMPLICIT_CONVERSION at the initializer value. Missing declared type with new/default/[] reports one MIST_PM_UNRESOLVED_TYPE each; missing initializer reports one unresolved identifier, and inferred var/new() still reports missing target.'
+    verification:
+    - 'Focused ledger TestResults/ledger/20261011-164518: 161 passed, zero failed; summary.txt
+      and failures.txt inspected. Initial ledger 20261011-164346 retained 158 passed / 2 failed
+      in new tests: numeric widening retains its operand rather than recording an operator node,
+      and Mist arity lookup uses T<> rather than CLR backtick spelling. Test assumptions corrected
+      before the passing rebuild; no intermittent or unexplained failure claimed.'
+    - 'Full ledger TestResults/ledger/20261011-164700: dotnet build Mist.slnx, zero warnings/errors;
+      10108 tests passed, zero failures/skips (Mist.Tests 9095, CLI 115, Storm 852, consumer 46).
+      summary.txt and failures.txt inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and
+      Testing_RunsUnderTheTestCommand passed. No polling-file-watcher workaround or interrupted run.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check passed. Build uses
+      UseSharedCompilation=false and NUGET_HTTP_CACHE_PATH=/private/tmp/mist-local-binding-nuget
+      to avoid initial sandboxed compiler-server/cache permission failures; no warnings suppressed.'
+    - 'Submodule update --init --recursive executed; checked-out Storm commit matches recorded
+      b4e5853ccca45623e59fcdb9ee0afd6e90e836ce pin. Main revalidated at the stated base; no classic
+      implementation read and no generic-local support or ownership/shadowing policy introduced.'
+  related:
+  - target_typing
+  - emitter for-statement capability
+  priority: P2
+  priority_rationale: Bounded remaining language behavior or diagnostic consistency.
+  audit_key: binding:bind-04
+  area: binding
 - id: MIST-018
   title: Mention owned receiver alternative in readonly mutable-call diagnostic
   status: implemented

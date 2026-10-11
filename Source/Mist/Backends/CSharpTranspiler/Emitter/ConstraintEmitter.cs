@@ -26,6 +26,17 @@ internal static class ConstraintEmitter
     {
         writer.Indent();
 
+        foreach(var line in Lines(typeParameters, liftSlots))
+        {
+            writer.WriteLine(line);
+        }
+
+        writer.Dedent();
+    }
+
+    public static List<string> Lines(IReadOnlyList<TypeParameter> typeParameters, bool liftSlots)
+    {
+        var lines = new List<string>();
         var constrained = liftSlots
             ? typeParameters.Concat(SlotLift.Synthesized(typeParameters))
             : typeParameters;
@@ -46,15 +57,14 @@ internal static class ConstraintEmitter
 
             if(parts.Count > 0)
             {
-                writer.WriteLine(
-                    $"where {DependentCarrierNames.Parameter(parameter)} : {string.Join(", ", parts)}");
+                lines.Add($"where {DependentCarrierNames.Parameter(parameter)} : {string.Join(", ", parts)}");
             }
         }
 
-        writer.Dedent();
+        return lines;
     }
 
-    private static List<string> Parts(TypeParameter parameter, bool liftSlots)
+    public static List<string> Parts(TypeParameter parameter, bool liftSlots)
     {
         var kinds = new List<string>();
         var types = new List<string>();

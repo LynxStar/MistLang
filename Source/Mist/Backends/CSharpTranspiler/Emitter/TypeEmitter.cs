@@ -341,6 +341,7 @@ internal static class TypeEmitter
             {
                 ConformanceEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 AsyncSlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
+                ConstraintSlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 SlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 PackSlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 IteratorBoilerplateEmitter.Emit(concrete, writer, ref anyEmitted);
@@ -524,14 +525,31 @@ internal static class TypeEmitter
     internal static void EmitInterfaceMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var signature = MethodEmitter.EmitSignature(method, diagnostics);
+        var constraints = MethodEmitter.ConstraintLines(method);
 
         if(method.Body is null)
         {
-            writer.WriteLine($"{signature};");
+            writer.WriteLine(constraints.Count == 0 ? $"{signature};" : signature);
+            writer.Indent();
+
+            for(var i = 0; i < constraints.Count; i++)
+            {
+                writer.WriteLine(i == constraints.Count - 1 ? $"{constraints[i]};" : constraints[i]);
+            }
+
+            writer.Dedent();
             return;
         }
 
         writer.WriteLine($"{(method.Modifiers.IsAsync ? "async " : "")}{signature}");
+        writer.Indent();
+
+        foreach(var constraint in constraints)
+        {
+            writer.WriteLine(constraint);
+        }
+
+        writer.Dedent();
         using(writer.Block())
         {
             EmitDefaultBody(method, writer, diagnostics);

@@ -102,6 +102,11 @@ internal static class MethodEmitter
         return $"{returnType} {qualifiedName ?? name}{typeParams}({string.Join(", ", parts)})";
     }
 
+    internal static List<string> ConstraintLines(Method method)
+    {
+        return ConstraintEmitter.Lines(Declared(method), liftSlots: true);
+    }
+
     private static List<TypeParameter> Declared(Method method)
     {
         return Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList)

@@ -440,12 +440,12 @@ Each top-level alternative of a `rule` may be labeled with `as <Name>`. If any a
 
 - String literals: `"fn"`, `"->"`.
 - Character classes: `[a-zA-Z_]`, `[^"\\]`.
-- References to other tokens and fragments.
+- References to other tokens and fragments. Either one's pattern is inlined, looked up in the referring token's mode before the default mode.
 
 `RuleExpr` additionally supports (R3.8):
 
 - References to tokens and to other rules.
-- Anonymous string literals, which desugar to implicit token references matching that exact literal text. The generator materializes these as synthetic, hidden-from-the-grammar-author token kinds during lowering.
+- Anonymous string literals, which desugar to implicit token references matching that exact literal text. The literal names the token the lexer produces for its text: the earliest default-mode token whose pattern accepts the whole text (R4.6, R4.7). A token spelled exactly like the literal is reused as is; when the token is a pattern, such as an identifier token for the literal `"if"`, the parser also requires the token's lexeme to equal the literal, so a longer lexeme of that pattern is never split to force it and token priorities are unchanged. Only text no declared token accepts is materialized as a synthetic, hidden-from-the-grammar-author token kind during lowering.
 
 ### Imports
 
@@ -473,6 +473,7 @@ Resolution algorithm:
    - Start with the root file's declarations in declaration order.
    - Append, in DFS-pre-order of first visit, declarations contributed by each unnamespaced import's file (recursively merged).
    - Namespaced imports' declarations are stored under a qualified name table keyed by `<Namespace>.<Name>` and are accessible only via qualified reference (R6.4).
+   - The root and the files it reaches through unnamespaced imports share one name set. Every name inside a file reached only through a namespaced import means what it means in that file: its own declarations, merged with its unnamespaced imports, and its own namespaced imports, which nest under its namespace (`<Namespace>.<Inner>.<Name>`). A name that means nothing there is reported against that file rather than resolved in the root. Each declaration has one effective name — its own for one the root sees, otherwise the first namespace path reaching it — so a file imported under two namespaces, or both plainly and under a namespace, contributes its declarations once.
 5. Duplicate-name check (R6.5): if two unnamespaced declarations share the same name across the unnamespaced namespace, emit `STORM_DUPLICATE_NAME` with both source locations and fail.
 6. The resulting **declaration order** used for token tiebreaking (R4.7) is exactly the order produced by step 4: root first, unnamespaced imports in import-appearance order, then namespaced-only declarations last (R6.8).
 
@@ -482,7 +483,7 @@ Over the effective grammar (R7):
 
 1. **Name resolution** — every reference to a rule/token/fragment resolves to a declaration, including via qualified names for namespaced imports. Unresolved → `STORM_UNDEFINED_REFERENCE` (R7.1). Fragments referenced from `RuleExpr` is rejected here too (fragments are lexer-only; R4.5).
 2. **Left-recursion check** — build the rule-call graph. Detect direct and indirect left-recursion. If found and not expressible as the generator's supported left-recursion-elimination form (see "Generated parser architecture"), emit `STORM_LEFT_RECURSION` with the cycle path and fail (R7.3).
-3. **Reachability / unreachable-alternative check** — for each `rule`, statically check that no alternative is shadowed by an earlier alternative under PEG ordered-choice semantics (R7.2, R5.2). This uses the LL(*) lookahead sets computed for code generation; if alternative *k*'s lookahead set is a subset of the union of alternatives *1..k-1*'s lookahead sets, alternative *k* is unreachable. Emit `STORM_UNREACHABLE_ALTERNATIVE` with Error severity and fail the build.
+3. **Reachability / unreachable-alternative check** — for each `rule`, statically check that no alternative is shadowed by an earlier alternative under PEG ordered-choice semantics (R7.2, R5.2). This uses the LL(*) lookahead sets computed for code generation; if alternative *k*'s lookahead set is a subset of the union of alternatives *1..k-1*'s lookahead sets, alternative *k* is unreachable. Emit `STORM_UNREACHABLE_ALTERNATIVE` with Error severity and fail the build. A finding an inline block takes part in follows inline-rule-prefix requirement 5 instead and stays a warning.
 4. ~~**Ambiguity check** — Removed. Overlapping FIRST sets are expected and correct under PEG ordered-choice semantics. The former `STORM_AMBIGUOUS_RULE` (STORM0007) diagnostic has been removed.~~
 
 ### Diagnostic ID summary
@@ -605,6 +606,7 @@ Each concrete node overrides `SyntaxNode.Children()` to yield child nodes in sou
 
 - Rule `Foo` → `FooNode`.
 - Named alternative `as Bar` inside rule `Foo` → `BarFooNode` at the same namespace level. Collision avoidance appends a numeric suffix if needed.
+- A rule, token, trait or mode reached only through a namespaced import keeps its qualified name in diagnostics and is generated under its parts joined by underscores, numbered past any identifier already taken: `Lib.Foo` → `Lib_FooNode` and `ParseLib_Foo`, or `ParseLib_Foo2` when the root itself declares `Lib_Foo`. Root names are never renamed, so a namespaced import cannot move the root grammar's generated API.
 - Field label `name:Element` → property `Name` on the generated node type.
 
 ## Mist Pipeline Stage Contracts

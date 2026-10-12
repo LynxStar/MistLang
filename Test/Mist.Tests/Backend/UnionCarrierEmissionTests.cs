@@ -125,6 +125,63 @@ public sealed class UnionCarrierEmissionTests
             Statement(new LocalDeclarationStatement(new LocalVariable("value", SizedUnion), Reference("numbers", ArrayOf(IntegerType, null)))));
     }
 
+    [Fact]
+    public void ACarrierOfRefinementsOverOneBase_GivesEachItsOwnTagAccessorsAndFactory()
+    {
+        var (small, big) = Refinements();
+        var emitted = Carrier(new UnionType([big, small]));
+        const string name = "Union_Int32_Big_Gt100_Int32_Small_Lt10";
+
+        Assert.Contains("public bool IsInt32_Big_Gt100 => _tag == 1;", emitted);
+        Assert.Contains("public bool IsInt32_Small_Lt10 => _tag == 2;", emitted);
+        Assert.Contains(" AsInt32_Small_Lt10OrNull => _tag == 2 ? (int)_value : null;", emitted);
+        Assert.Contains($"public static {name} FromInt32_Big_Gt100(int value)\n        => new {name}(1, value);", emitted);
+        Assert.Contains($"public static {name} FromInt32_Small_Lt10(int value)\n        => new {name}(2, value);", emitted);
+        Assert.DoesNotContain("implicit operator", emitted);
+    }
+
+    [Fact]
+    public void WideningARefinedCarrier_KeepsEachRefinementsTag_EvenWhereTheyShareADeclaredName()
+    {
+        var (small, big) = Refinements();
+        var h = new HandBuiltRefinements();
+        var below = h.Refine(IntegerType, ComparisonKind.LessThan, -100L, "Split");
+        var above = h.Refine(IntegerType, ComparisonKind.GreaterThan, 100L, "Split");
+
+        Assert.Contains(
+            "=> value.IsInt32_Big_Gt100 ? new Union_Int32_Big_Gt100_Int32_Small_Lt10_String(1, value.AsInt32_Big_Gt100) "
+            + ": new Union_Int32_Big_Gt100_Int32_Small_Lt10_String(2, value.AsInt32_Small_Lt10);",
+            Carrier(new UnionType([big, small, StringType]), new UnionType([big, small])));
+        Assert.Contains(
+            "=> value.IsInt32_Split_LtNeg100 ? new Union_Int32_Split_Gt100_Int32_Split_LtNeg100_String(2, value.AsInt32_Split_LtNeg100) "
+            + ": new Union_Int32_Split_Gt100_Int32_Split_LtNeg100_String(1, value.AsInt32_Split_Gt100);",
+            Carrier(new UnionType([above, below, StringType]), new UnionType([below, above])));
+    }
+
+    [Fact]
+    public void ARefinedValue_EntersAndIsRetrievedThroughItsOwnRefinement()
+    {
+        var (small, big) = Refinements();
+        var either = new UnionType([big, small]);
+        var bound = new LocalVariable("s", small);
+        var narrowed = new TypeTestPattern(HandBuiltModel.Node(), small, bound, small, small.Predicate);
+        const string name = "Union_Int32_Big_Gt100_Int32_Small_Lt10";
+
+        Assert.Equal($"{name} value = {name}.FromInt32_Small_Lt10(small);",
+            Statement(new LocalDeclarationStatement(new LocalVariable("value", either), Reference("small", small))));
+        Assert.Equal($"return {name}.FromInt32_Big_Gt100(big);", Statement(new ReturnStatement(Reference("big", big), either)));
+        Assert.Equal("value.AsInt32_Small_Lt10OrNull is int and < 10 and var s",
+            PropertyPatternEmissionTests.Emit(new IsPatternExpression(HandBuiltModel.Node(), Reference("value", either), narrowed, BooleanType)));
+        Assert.Equal("value.AsInt32_Small_Lt10OrNull",
+            PropertyPatternEmissionTests.Emit(new AsExpression(HandBuiltModel.Node(), Reference("value", either), small, AsConversionKind.UnionExtraction, small, OptionalOf(small))));
+    }
+
+    private static (RefinedType Small, RefinedType Big) Refinements()
+    {
+        var h = new HandBuiltRefinements();
+        return (h.Refine(IntegerType, ComparisonKind.LessThan, 10L, "Small"), h.Refine(IntegerType, ComparisonKind.GreaterThan, 100L, "Big"));
+    }
+
     private static string Carrier(UnionType union, params UnionType[] narrower)
     {
         var carriers = narrower.Append(union).ToDictionary(UnionCarrierNames.CarrierName);

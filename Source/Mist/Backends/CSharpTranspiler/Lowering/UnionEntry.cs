@@ -29,7 +29,7 @@ internal static class UnionEntry
             return null;
         }
 
-        return $"{UnionCarrierNames.CarrierName(union)}.{UnionCarrierNames.EntryFactory(constituent)}";
+        return $"{UnionCarrierNames.CarrierName(union)}.{UnionCarrierNames.EntryFactory(constituent, union)}";
     }
 
     public static IReadOnlyList<IMistType>? Elements(IMistType? slot, TupleLiteralExpression literal)
@@ -104,7 +104,7 @@ internal static class UnionEntry
     {
         var normalized = ConversionClassifier.Normalized(from, interner: null);
 
-        if(union.Constituents.Where(constituent => ConversionRelation.IsIdentity(normalized, Unaliased(constituent))).ToList() is [var identical])
+        if(union.Constituents.Where(constituent => ReferenceEquals(normalized, Unaliased(constituent)) || ConversionRelation.IsIdentity(normalized, Unaliased(constituent))).ToList() is [var identical])
         {
             return identical;
         }

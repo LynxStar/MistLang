@@ -105,6 +105,8 @@ The `is AdultAge validAge` expression validates the predicate `>= 18` against `u
 
 A refinement of another refinement is tested whole. With `type Positive = int > 0;` and `type SmallPositive = Positive < 10;`, the test `x is SmallPositive` checks `> 0` as well as `< 10`, so it rejects `-1` and `10` and accepts `1`, and inside the branch `x` is known to be a `SmallPositive`.
 
+Refinements of one base stay apart in a union. With `type Small = int < 10;` and `type Big = int > 100;`, a `Small` value assigned to a `Small | Big` is held as a `Small`, and `value is Small s` gives `s` the type `Small`, ready to pass where a `Small` is required.
+
 ## Pattern Matching — Narrowing and Widening
 
 Refinement types integrate with Mist's flow-sensitive type narrowing. When a branch condition implies a refinement predicate, the compiler narrows the variable's type within that branch. Widening in the opposite direction — from a refinement type back to its base type — is always valid since a refined value is always a valid value of the base type.

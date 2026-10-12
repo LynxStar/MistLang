@@ -1,6 +1,8 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
+using Mist.Tests.Helpers;
 using static Mist.Tests.Backend.SizedSequenceTypes;
 
 namespace Mist.Tests.Backend;
@@ -82,11 +84,47 @@ public sealed class UnionEntryTests
     }
 
     [Fact]
+    public void ARefinedValue_EntersThroughTheFactoryOfItsOwnRefinement()
+    {
+        var (small, big) = Refinements();
+        var either = new UnionType([big, small]);
+        const string carrier = "Union_Int32_Big_Gt100_Int32_Small_Lt10";
+
+        Assert.Equal($"{carrier}.FromInt32_Small_Lt10", UnionEntry.Factory(small, either));
+        Assert.Equal($"{carrier}.FromInt32_Big_Gt100", UnionEntry.Factory(big, new UnionType([small, big])));
+        Assert.Equal($"{carrier}.FromInt32_Small_Lt10", UnionEntry.Factory(AliasOf("Tiny", small), AliasOf("Either", either)));
+    }
+
+    [Fact]
+    public void ARefinementBesideItsOwnBase_IsChosenByIdentity()
+    {
+        var (small, _) = Refinements();
+        var beside = new UnionType([IntegerType, small]);
+
+        Assert.Equal("Union_Int32_Int32_Small_Lt10.FromInt32_Small_Lt10", UnionEntry.Factory(small, beside));
+        Assert.Equal("Union_Int32_Int32_Small_Lt10.FromInt32", UnionEntry.Factory(IntegerType, beside));
+    }
+
+    [Fact]
+    public void AnUnrefinedValue_IsGivenNoRefinementItCouldEnter()
+    {
+        var (small, big) = Refinements();
+
+        Assert.Null(UnionEntry.Factory(IntegerType, new UnionType([small, big])));
+    }
+
+    [Fact]
     public void NoCarrierEntry_LowersNothing()
     {
         Assert.Null(UnionEntry.Factory(Three, null));
         Assert.Null(UnionEntry.Factory(Three, Three));
         Assert.Null(UnionEntry.Factory(Three, OptionalOf(Three)));
         Assert.Null(UnionEntry.Factory(Sized, new UnionType([Three, Five, StringType])));
+    }
+
+    private static (RefinedType Small, RefinedType Big) Refinements()
+    {
+        var h = new HandBuiltRefinements();
+        return (h.Refine(IntegerType, ComparisonKind.LessThan, 10L, "Small"), h.Refine(IntegerType, ComparisonKind.GreaterThan, 100L, "Big"));
     }
 }

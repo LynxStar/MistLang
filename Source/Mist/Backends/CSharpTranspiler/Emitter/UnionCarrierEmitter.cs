@@ -27,7 +27,7 @@ internal static class UnionCarrierEmitter
 
             for(var i = 0; i < union.Constituents.Count; i++)
             {
-                EmitAccessors(union.Constituents[i], i + 1, writer);
+                EmitAccessors(union, union.Constituents[i], i + 1, writer);
             }
 
             for(var i = 0; i < union.Constituents.Count; i++)
@@ -46,7 +46,7 @@ internal static class UnionCarrierEmitter
 
                 var arms = narrow.Constituents.Select((constituent, i) =>
                 {
-                    var constituentName = UnionCarrierNames.ConstituentName(constituent);
+                    var constituentName = UnionCarrierNames.ConstituentName(constituent, narrow);
                     var rewrapped = $"new {name}({TagOf(union, constituent)}, value.As{constituentName})";
                     return i == narrow.Constituents.Count - 1 ? rewrapped : $"value.Is{constituentName} ? {rewrapped}";
                 });
@@ -58,9 +58,9 @@ internal static class UnionCarrierEmitter
         }
     }
 
-    private static void EmitAccessors(IMistType constituent, int tag, CSharpWriter writer)
+    private static void EmitAccessors(UnionType union, IMistType constituent, int tag, CSharpWriter writer)
     {
-        var constituentName = UnionCarrierNames.ConstituentName(constituent);
+        var constituentName = UnionCarrierNames.ConstituentName(constituent, union);
         var typeName = TypeNameEmitter.Emit(constituent);
 
         writer.WriteBlankLine();
@@ -73,7 +73,7 @@ internal static class UnionCarrierEmitter
         writer.WriteBlankLine();
         writer.WriteLine(
             $"public {TypeNameEmitter.EmitOptional(constituent)} "
-            + $"{UnionCarrierNames.NarrowingAccessor(constituent)} "
+            + $"{UnionCarrierNames.NarrowingAccessor(constituent, union)} "
             + $"=> _tag == {tag} ? ({typeName})_value : null;");
     }
 
@@ -83,7 +83,7 @@ internal static class UnionCarrierEmitter
 
         writer.WriteBlankLine();
         writer.WriteLine(UnionEntry.SharesSpelling(union, constituent)
-            ? $"public static {name} {UnionCarrierNames.EntryFactory(constituent)}({typeName} value)"
+            ? $"public static {name} {UnionCarrierNames.EntryFactory(constituent, union)}({typeName} value)"
             : $"public static implicit operator {name}({typeName} value)");
         writer.WriteLine($"    => new {name}({tag}, value);");
     }
@@ -96,9 +96,12 @@ internal static class UnionCarrierEmitter
 
     private static int TagOf(UnionType union, IMistType constituent)
     {
+        var name = UnionCarrierNames.ConstituentName(constituent, union);
+
         for(var i = 0; i < union.Constituents.Count; i++)
         {
-            if(union.Constituents[i].FullyQualifiedName == constituent.FullyQualifiedName)
+            if(union.Constituents[i].FullyQualifiedName == constituent.FullyQualifiedName
+                && UnionCarrierNames.ConstituentName(union.Constituents[i], union) == name)
             {
                 return i + 1;
             }

@@ -2006,7 +2006,7 @@ internal static class BodyEmitter
         }
 
         EmitSubExpression(isPattern.Scrutinee, PrefixPrecedence, writer, diagnostics);
-        writer.Append($".{UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent))} is {text}");
+        writer.Append($".{UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent), union)} is {text}");
 
         if(hoisted.Count > 0)
         {
@@ -2129,7 +2129,7 @@ internal static class BodyEmitter
             return;
         }
 
-        writer.Append($"{{ {UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent))}: ");
+        writer.Append($"{{ {UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent), union)}: ");
         EmitPattern(pattern, 0, hoisted, writer, diagnostics);
         writer.Append(" }");
     }
@@ -2183,8 +2183,8 @@ internal static class BodyEmitter
             return;
         }
 
-        var accessor = asExpression.Constituent is { } constituent
-            ? $".{UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent))}"
+        var accessor = asExpression.Constituent is { } constituent && TypeNameEmitter.Closed(asExpression.Operand.Type) is UnionType carrier
+            ? $".{UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent), carrier)}"
             : null
             ;
 

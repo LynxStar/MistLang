@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.Backends.Contracts;
 using Mist.Driver;
 using Mist.Driver.Contracts;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Integration;
 
@@ -29,9 +30,9 @@ public sealed class EndToEndCompilationTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private static CompilerDriver CreateRealDriver()
+    private static CompilerDriver CreateDriver()
     {
-        return new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
+        return new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser(), ambientTypes: _ => StubAmbientTypeSource.Instance);
     }
 
     private CompilerOptions MakeOptions(params string[] sourcePaths)
@@ -49,7 +50,7 @@ public sealed class EndToEndCompilationTests : IDisposable
     [Fact]
     public void FullPipeline_WithNonExistentFile_ProducesFileErrorDiagnostic()
     {
-        var driver = CreateRealDriver();
+        var driver = CreateDriver();
         var options = MakeOptions("/nonexistent/path/test.mist");
 
         var result = driver.Compile(options);

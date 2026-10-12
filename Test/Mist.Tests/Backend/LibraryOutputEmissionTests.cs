@@ -4,6 +4,7 @@ using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
@@ -46,7 +47,7 @@ public sealed class LibraryOutputEmissionTests : IDisposable
 
     private static CompilerResult Compile(string projectDir, ProjectOutputType outputType, string? entryPoint = null)
     {
-        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser(), ambientTypes: _ => StubAmbientTypeSource.Instance);
         var name = Path.GetFileName(projectDir);
 
         return driver.Compile(new CompilerOptions(

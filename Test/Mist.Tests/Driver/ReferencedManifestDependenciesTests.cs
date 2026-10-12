@@ -4,6 +4,7 @@ using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Driver;
 
@@ -15,6 +16,11 @@ namespace Mist.Tests.Driver;
 /// framework its files use is green on its own and unresolved the moment another project
 /// references it. The orchestrators are where that was visible, and only as a refusal three stages
 /// later. The project file is asserted here too because nothing in the compiler reads it back.
+/// </para>
+/// <para>
+/// The program names nothing from the framework. That resolved assemblies reach the provider and
+/// Roslyn is <see cref="Integration.ResolvedPackagesReachV2CompilationTests"/>' claim; this one is
+/// made by resolution running for the reference at all, and by the project file carrying it.
 /// </para>
 /// </summary>
 [Trait("Tier", "4")]
@@ -67,8 +73,7 @@ public sealed class ReferencedManifestDependenciesTests : IDisposable
             {
                 public static void Show()
                 {
-                    var qs = new Microsoft.AspNetCore.Http.QueryString("?id=42");
-                    Console.WriteLine($"query={qs.Value}");
+                    Console.WriteLine("shown");
                 }
             }
             """);
@@ -93,7 +98,7 @@ public sealed class ReferencedManifestDependenciesTests : IDisposable
             }
             """);
 
-        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser(), ambientTypes: _ => StubAmbientTypeSource.Instance);
 
         var outputDir = Path.Combine(appDir, "out");
         var result = driver.Compile(new CompilerOptions(

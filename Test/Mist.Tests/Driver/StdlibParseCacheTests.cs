@@ -7,6 +7,7 @@ using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Lexing.Contracts;
 using Mist.Parsing;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Driver;
 
@@ -14,13 +15,13 @@ public sealed class StdlibParseCacheTests : IDisposable
 {
     private readonly string scratchDir = Path.Combine(Path.GetTempPath(), $"mist-stdlib-parse-cache-{Guid.NewGuid():N}");
 
-    public StdlibParseCacheTests()
-    {
-        _ = Directory.CreateDirectory(scratchDir);
-    }
-
     public void Dispose()
     {
+        if(!Directory.Exists(scratchDir))
+        {
+            return;
+        }
+
         try
         {
             Directory.Delete(scratchDir, recursive: true);
@@ -58,6 +59,7 @@ public sealed class StdlibParseCacheTests : IDisposable
 
     private CompilerOptions WriteProgram()
     {
+        _ = Directory.CreateDirectory(scratchDir);
         var sourcePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(sourcePath, "namespace X;\npublic class Y { }\n");
         return new CompilerOptions(
@@ -72,7 +74,7 @@ public sealed class StdlibParseCacheTests : IDisposable
 
     private static CompilerDriver CreateDriver(ILexer lexer, StdlibParseCache cache)
     {
-        return new CompilerDriver(lexer, new MistParser(), cache);
+        return new CompilerDriver(lexer, new MistParser(), cache, ambientTypes: _ => StubAmbientTypeSource.Instance);
     }
 
     private sealed class RejectingLexer : ILexer

@@ -14,6 +14,7 @@ using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Driver;
 
@@ -76,7 +77,8 @@ public sealed class PackageResolutionStageTests : IDisposable
         return new CompilerDriver(
             new Mist.Lexing.MistLexer(),
             new Mist.Parsing.MistParser(),
-            spy);
+            spy,
+            ambientTypes: _ => StubAmbientTypeSource.Instance);
     }
 
     private CompilerOptions CreateOptions(
@@ -395,7 +397,7 @@ public sealed class PackageResolutionStageTests : IDisposable
 
     private static CompilerDriver CreateDriver(Timeline timeline)
     {
-        return new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser(), timeline, timeline);
+        return new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser(), timeline, timeline, ambientTypes: _ => StubAmbientTypeSource.Instance);
     }
 
     private sealed class Timeline : ICompilationProgressReporter, IResolutionDiagnosticListener

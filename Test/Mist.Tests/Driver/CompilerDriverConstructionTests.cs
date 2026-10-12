@@ -5,17 +5,18 @@ using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Driver;
 
-[Trait("Tier", "1")]
+[Trait("Tier", "4")]
 public sealed class CompilerDriverConstructionTests
 {
     [Fact]
     public void CleanDriver_RejectsABackendOtherThanCSharpBeforeLoading()
     {
         var reporter = new RecordingReporter();
-        var driver = new CompilerDriver(new UnusedLexer(), new UnusedParser(), reporter);
+        var driver = new CompilerDriver(new UnusedLexer(), new UnusedParser(), reporter, ambientTypes: _ => StubAmbientTypeSource.Instance);
 
         var result = driver.Compile(Options(new BackendId("llvm")));
 

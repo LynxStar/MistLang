@@ -5,6 +5,7 @@ using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Driver;
 
@@ -27,7 +28,7 @@ public sealed class CompilerDriverGlobalUsingsTests : IDisposable
         }
         """;
 
-    private static readonly CompilerDriver Driver = new(new MistLexer(), new MistParser());
+    private static readonly CompilerDriver Driver = new(new MistLexer(), new MistParser(), ambientTypes: _ => StubAmbientTypeSource.Instance);
 
     private readonly string scratchDir = Path.Combine(Path.GetTempPath(), "mist-gu-driver-" + Guid.NewGuid().ToString("N"));
 

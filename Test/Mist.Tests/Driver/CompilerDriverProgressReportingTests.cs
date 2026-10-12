@@ -39,7 +39,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
     private static CompilerDriver CreateDriver(RecordingProgressReporter reporter)
     {
-        return new CompilerDriver(new MistLexer(), new MistParser(), reporter);
+        return new CompilerDriver(new MistLexer(), new MistParser(), reporter, ambientTypes: _ => StubAmbientTypeSource.Instance);
     }
 
     private CompilerOptions CreateOptionsForSource(string source, string fileName = "Program.mist")
@@ -134,7 +134,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
     {
         var reporter = new RecordingProgressReporter();
         var listener = new CountingListener();
-        var driver = new CompilerDriver(new MistLexer(), new MistParser(), reporter, listener);
+        var driver = new CompilerDriver(new MistLexer(), new MistParser(), reporter, listener, ambientTypes: _ => StubAmbientTypeSource.Instance);
         var options = CreateOptionsForSource(ValidProgram);
 
         var result = driver.Compile(options);

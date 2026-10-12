@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.Backends.Contracts;
 using Mist.Driver;
 using Mist.Driver.Contracts;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Driver;
 
@@ -16,7 +17,8 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
 {
     private static readonly CompilerDriver SharedDriver = new(
         new Mist.Lexing.MistLexer(),
-        new Mist.Parsing.MistParser());
+        new Mist.Parsing.MistParser(),
+        ambientTypes: _ => StubAmbientTypeSource.Instance);
 
     private readonly string scratchDir;
 

@@ -3,6 +3,7 @@ using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Integration;
 
@@ -95,7 +96,7 @@ public sealed class FunctionTypeBridgeTests : IDisposable
         var sourcePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(sourcePath, source);
 
-        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser());
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser(), ambientTypes: _ => StubAmbientTypeSource.Instance);
 
         var result = driver.Compile(new CompilerOptions(
             ProjectFolder: scratchDir,

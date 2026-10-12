@@ -93,7 +93,7 @@ public sealed class StandardPipelineProgressSeamTests : IDisposable
         var sourcePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(sourcePath, source);
 
-        var driver = new CompilerDriver(new MistLexer(), new MistParser(), reporter);
+        var driver = new CompilerDriver(new MistLexer(), new MistParser(), reporter, ambientTypes: _ => StubAmbientTypeSource.Instance);
 
         return driver.Compile(new CompilerOptions(
             ProjectFolder: scratchDir,

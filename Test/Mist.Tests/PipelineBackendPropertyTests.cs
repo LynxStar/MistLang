@@ -6,6 +6,7 @@ using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Lexing.Contracts;
 using Mist.Parsing;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests;
 
@@ -29,7 +30,7 @@ public class PipelineBackendPropertyTests
         var errorLexer = new ErrorLexer();
         var parser = new MistParser();
 
-        var driver = new CompilerDriver(errorLexer, parser);
+        var driver = new CompilerDriver(errorLexer, parser, ambientTypes: _ => StubAmbientTypeSource.Instance);
 
         // Create a temp source file
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist_test_{Guid.NewGuid():N}");

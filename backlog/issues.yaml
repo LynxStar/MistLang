@@ -277,38 +277,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-013
   area: analysis
-- id: MIST-007
-  title: Reject duplicate operator and conversion signatures
-  status: confirmed
-  summary: DeclaredMembers uses IOverload methods/indexers, while CheckOperators checks publicness, owner
-    operand and complements, without duplicate operator/cast checks. Historical operator/conversion duplicate
-    leads remain source-confirmed; no current CLI duplicate probe executed.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=declaration-shape-checks].tasks[7]
-    line_at_baseline: 2156
-    lead_excerpt: 'Two operators of one signature, and two conversions between one pair of types, are
-      not refused. Measured 2026-09-15 on a struct Money: `operator +(Money a, Money b)` declared twice
-      is MIST_SM_0020 on classic and MIST_CS_ERROR on v2, and `implicit operator int(Money m)` twice is
-      MIST_SB_0043 with SM_0020 on classic and MIST_CS_ERROR on v2. Neither Operator nor CastOperator
-      is an IOverload, so Overl…'
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
-      selector: private static void CheckOperators
-      line: 221
-    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
-      selector: private static IEnumerable<Member>
-      line: 363
-  related:
-  - emitter operator/cast declarations
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-022
-  area: analysis
 - id: MIST-012
   title: Extend switch-arm containment across unsupported value domains
   status: confirmed
@@ -452,33 +420,6 @@ issues:
   priority_rationale: Current source-established wrong behavior; correctness work.
   audit_key: backend:backend-iterator-ancestors
   area: backend
-- id: MIST-026
-  title: Reject operator modifiers outside the specified public static form
-  status: confirmed
-  summary: sealed/readonly/owned/affine operator declarations are accepted although standard-library 4.2
-    permits only public static; ref-return operator rejection is already delivered.
-  source_refs:
-  - file: backlog/classic-retirement.md
-    selector: residual `sealed`, `readonly`, `owned`
-    line_at_baseline: 340
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: 'Source-only: DeclarationModifierPlacement specifically handles async type declarations and
-      ref operators, not the enumerated non-ref operator modifiers. No new per-modifier probe was run.'
-    source_symbols:
-    - file: Source/Mist/ProgramModel/Construction/Members/DeclarationModifierPlacement.cs
-      symbol: Operator
-      line: 30
-    - file: .kiro/specs/standard-library/requirements.md
-      symbol: any other modifier combination on an operator
-      line: 100
-  related:
-  - analysis modifier legality
-  priority_rationale: Current source-established wrong behavior; correctness work.
-  audit_key: backend:backend-operator-modifiers
-  area: backend
 - id: MIST-029
   title: Support both specified user-defined sliceable protocols
   status: confirmed
@@ -548,69 +489,6 @@ issues:
   priority_rationale: Current reproducible wrong behavior; correctness work.
   audit_key: backend:backend-range-sliceable
   area: backend
-- id: MIST-034
-  title: Retain universal parameterless ToString beside user overloads
-  status: confirmed
-  summary: A Mist IFormattable class declaring only ToString(string,IFormatProvider) loses the universal
-    zero-argument callable surface. The explicit ToString() call is refused on arity.
-  source_refs:
-  - file: backlog/general.md
-    selector: section An explicit `ToString()` is refused
-    line_at_baseline: 1143
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=purity-checking].tasks[15]
-    line_at_baseline: 5191
-    lead_excerpt: Explicit ToString() refused on a Mist class declaring only ToString(string,IFormatProvider).
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe
-    detail: The valid fixture imports System then implements bare IFormattable; CLI emits MIST_PM_NO_APPLICABLE_OVERLOAD
-      for zero arguments while only the two-argument overload is considered. Earlier fixtures spelling
-      a qualified base interface failed parsing and are excluded.
-    source_symbols: []
-    probes:
-    - path: /private/tmp/mist-backend-reconcile-probes/formatter_overload2
-      source: 'using Standard;
-
-        using System;
-
-        namespace Probe;
-
-        public class Temp : IFormattable { public string ToString(string f, IFormatProvider p) { return
-        "formatted"; } } public class Program { public static void Main() { Console.WriteLine(new Temp().ToString());
-        } }
-
-        '
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/formatter_overload2
-        --quiet
-      exit_code: 1
-      output: '/private/tmp/mist-backend-reconcile-probes/formatter_overload2/Program.mist(3,1): error
-        MIST_PARSE_INCOMPLETE: Parser did not consume all input. Unparseable content begins at line 3.
-
-        '
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/IntegerLiterals.cs
-      selector: internal static class
-      line: 11
-    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/LiteralBinder.cs
-      selector: internal static class
-      line: 14
-    - file: Source/Mist/ProgramModel/Construction/Resolution/ScopeResolver.cs
-      selector: unsigned > long.MaxValue
-      line: 818
-  related:
-  - universal member lookup
-  - program-model body member resolution
-  - backlog/general.md formatted-only class ToString
-  priority_rationale: Current reproducible wrong behavior; correctness work.
-  audit_key: backend:backend-universal-tostring-overload
-  area: backend
-  merged_audit_keys:
-  - analysis:analysis-093
 - id: MIST-045
   title: Qualified base type references do not parse
   status: confirmed
@@ -1228,54 +1106,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-064
   area: analysis
-- id: MIST-066
-  title: Revalidate static extension member callability
-  status: unverified
-  summary: Retained static extension call lead is separate from completed generic extension emission.
-    No current static-extension CLI probe executed; route belongs to binding member visibility and emission.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=refinement-proving].tasks[8]
-    line_at_baseline: 4819
-    lead_excerpt: 'Generic extension methods now retain their block and method type arguments through
-      emission, including dependent parameters, as Main''s carrier checks verify (2026-09-26). The earlier
-      extension `where` investigation also found unrelated remaining binder gaps: a `using` naming no
-      namespace reaches Roslyn on v2 (MIST_CS_ERROR) where classic is MIST_UNDEFINED_NAMESPACE. A generic
-      local function that U…'
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=111,id=extension-block-declaration].tasks[0]
-    lead_excerpt: 'A STATIC member of a generic block cannot be called with type arguments: `Box<Animal>.Make<int>(1)`
-      over `<T> extension(Box<T> self) { public static int Make<U>(U item) }` is MIST_PM_METHOD_GROUP_NOT_CONVERTED
-      on v2, measured 2026-09-26, so no call reaches its carrier.
-
-      '
-    line_at_baseline: 7618
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramModel/Construction/Binding/ExtensionLookup.cs
-      selector: private static bool Permits
-      line: 258
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols:
-    - file: Source/Mist/ProgramModel/Construction/Binding/TypeArgumentInference.cs
-      symbol: TypeArgumentInference
-      line: 13
-  related:
-  - program-model-body-tasks static extension members
-  - emitter capability extension-block-declaration
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-072
-  area: analysis
-  merged_audit_keys:
-  - backend:emitter-111-tasks-0
 - id: MIST-067
   title: Specify Span to ReadOnlySpan conversion
   status: unverified
@@ -6697,6 +6527,12 @@ issues:
       selector: Emit
     detail: The MIST-017 packet repro source in that record's evidence reproduces it with one implementer.
       No warning is suppressed.
+  - revision: 63fc8dbddb1487698859dbd78f178517b2f532d3
+    date: '2026-10-11'
+    kind: executed generated consumer recurrence during MIST-034 acceptance
+    command: dotnet run --project Source/Mist.CLI --no-build -- run /private/tmp/mist-27-probes/formattable_tostring --quiet; dotnet build /private/tmp/mist-27-probes/formattable_tostring/out/Probe.csproj --no-incremental
+    observed: 'Zero-argument and explicit formatting calls print formatted/formatted after the MIST-034 lookup fix; the exact nonnullable source fixture consumer builds with 0 errors and 2 CS8767 warnings, one for format and one for provider, matching the already recorded annotation gap. No warning is suppressed. This is packet 28 work and is not duplicated by packet 27.'
+    source: 'using Standard; using System; using System.Globalization; namespace Probe; public class Temp:IFormattable{public string ToString(string format,IFormatProvider provider){return "formatted";}} public class Program{public static void Main(){var t=new Temp(); Console.WriteLine(t.ToString()); Console.WriteLine(t.ToString("explicit",CultureInfo.InvariantCulture));}}'
   related:
   - MIST-017
   priority: P3
@@ -6862,6 +6698,257 @@ issues:
   area: binding
 
 archive:
+- id: MIST-007
+  title: Reject duplicate operator and conversion signatures
+  status: implemented
+  summary: Operators now reject repeated symbol/parameter signatures, and conversions reject repeated same-kind source-target pairs, at the later source declaration with the first location identified. Valid signature distinctions and failed-type suppression remain intact.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=declaration-shape-checks].tasks[7]
+    line_at_baseline: 2156
+    lead_excerpt: 'Two operators of one signature, and two conversions between one pair of types, are
+      not refused. Measured 2026-09-15 on a struct Money: `operator +(Money a, Money b)` declared twice
+      is MIST_SM_0020 on classic and MIST_CS_ERROR on v2, and `implicit operator int(Money m)` twice is
+      MIST_SB_0043 with SM_0020 on classic and MIST_CS_ERROR on v2. Neither Operator nor CastOperator
+      is an IOverload, so Overl…'
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
+      selector: private static void CheckOperators
+      line: 221
+    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
+      selector: private static IEnumerable<Member>
+      line: 363
+  - revision: 63fc8dbddb1487698859dbd78f178517b2f532d3
+    date: '2026-10-11'
+    kind: packet 27 implementation and verified closeout
+    base_revision: 5ff1b65b05ac02d5a6c4626ab7be9adc72a809f1
+    storm_pin: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - CallableSignatureDecision uses the existing OverloadSignature normalization for operator symbol and parameter signatures, independent of return type; casts compare kind and normalized source-target pair.
+    - DeclarationShapeAnalyzer owns MIST_PA_DUPLICATE_OPERATOR_SIGNATURE and MIST_PA_DUPLICATE_CAST_OPERATOR, anchored at each later declaration and identifying the first source declaration.
+    - Tier 1 CallableDeclarationContractTests and Tier 2 CallableDeclarationContractAnalysisTests cover names, ownership, refinements, unary/binary arity, symbols, parameter types/ref passing, cast kinds/pairs, source locations and failed nested parameter types.
+    acceptance:
+    - 'Fresh duplicate_operator, duplicate_operator_return, duplicate_implicit and duplicate_explicit CLI probes each exit 1 with one source finding before backend compilation, at the later declaration, naming the earlier path/line/column. Logs: /private/tmp/mist-27-probes/<case>/run.log.'
+    - 'operator_controls runs with output 1/2: unary/binary minus, differing plus parameter types, pure plus, implicit Money-to-int and explicit Money-to-long remain admitted; dotnet build out/Probe.csproj --no-incremental has 0 warnings/errors. failing_parameter_types reports only two MIST_PM_UNRESOLVED_TYPE findings for two Missing parameter spellings, no duplicate cascade.'
+    limitations:
+    - 'The same-kind cast contract does not add a ban on an implicit/explicit pair. Operator conformance/discovery and ref operator parameter lowering remain excluded under MIST-058, MIST-060 and MIST-079.'
+    verification:
+    - 'Focused ledger TestResults/ledger/20261011-224812: 460/460 passed; its solution build had 0 warnings and 0 errors. summary.txt and empty failures.txt inspected. The initial focused ledger TestResults/ledger/20261011-224404 passed 459/460; its new affine registration fixture wrote affine twice and independently triggered the existing conflicting-discipline owner. The fixture now writes one modifier; the production conflict rule is preserved.'
+    - 'Full regression TestResults/ledger/20261011-230417 on the bundle implementation plus 4c15ea93 incidental cleanup: 10926/10926 passed, no failures or skips; fresh dotnet build Mist.slnx had 0 warnings and 0 errors. summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache, UseSharedCompilation=false and DOTNET_CLI_USE_MSBUILD_SERVER=0, with DOTNET_USE_POLLING_FILE_WATCHER=1 after the documented macOS stall was observed.'
+    - 'Initial full ledger TestResults/ledger/20261011-225558 was interrupted by SIGTERM after 434s: its build had 0 warnings/errors; consumer 46/46, CLI 115/115 and Storm 910/910 passed, while Mist.Tests has no TRX and test.log/failures.txt show no failure before interruption. allfeatures-managed-stack.txt confirms FileConfigurationProvider and recursive ChangeTokenRegistration callbacks while Main waits. The interrupted run is retained and the polling watcher is used for the complete rerun.'
+    - 'Final dotnet format Mist.slnx --verify-no-changes and git diff --check passed. The original sandbox build hit NuGet cache access warnings and shared-compiler CS2012; a forced restore with a writable HTTP cache and disabled shared compilation resolved the environment failures without suppressions. An obsolete import after the constructed-member helper extraction was removed to satisfy IDE0005; no bound or emitted behavior changed.'
+  related:
+  - emitter operator/cast declarations
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-022
+  area: analysis
+- id: MIST-026
+  title: Reject operator modifiers outside the specified public static form
+  status: implemented
+  summary: Source placement refuses sealed, readonly, owned and affine operator modifiers while preserving public static, pure and Standard intrinsic forms and existing singular missing-static, async and ref-return owners.
+  source_refs:
+  - file: backlog/classic-retirement.md
+    selector: residual `sealed`, `readonly`, `owned`
+    line_at_baseline: 340
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: 'Source-only: DeclarationModifierPlacement specifically handles async type declarations and
+      ref operators, not the enumerated non-ref operator modifiers. No new per-modifier probe was run.'
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Construction/Members/DeclarationModifierPlacement.cs
+      symbol: Operator
+      line: 30
+    - file: .kiro/specs/standard-library/requirements.md
+      symbol: any other modifier combination on an operator
+      line: 100
+  - revision: 63fc8dbddb1487698859dbd78f178517b2f532d3
+    date: '2026-10-11'
+    kind: packet 27 implementation and verified closeout
+    base_revision: 5ff1b65b05ac02d5a6c4626ab7be9adc72a809f1
+    storm_pin: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - DeclarationModifierPlacement owns syntax-based operator modifier refusals; implicit readonly metadata from pure operators remains permitted. Readonly ref operators retain only their existing ref-return owner.
+    - Four MIST_PM modifier descriptors anchor the operator declaration; Tier 1 placement and Tier 2 registration fragments cover every enumerated modifier, accepted pure/intrinsic metadata, deduplication and locations.
+    acceptance:
+    - 'Fresh operator_sealed, operator_readonly, operator_owned and operator_affine CLI probes each exit 1 with one corresponding MIST_PM modifier finding anchored at the declaration. operator_missing_static, operator_async and operator_ref retain one existing finding each. Logs: /private/tmp/mist-27-probes/<case>/run.log.'
+    - 'operator_controls accepts public pure static declarations and builds its generated consumer with 0 warnings/errors; full regression preserves Standard intrinsic public pure static declarations, complement, owner-operand, accessibility and supported emission controls.'
+    limitations:
+    - 'No static abstract/conformance operator feature or ref operator parameter refusal/lowering policy is introduced; MIST-058, MIST-060 and MIST-079 remain outside this closure.'
+    verification:
+    - 'Focused ledger TestResults/ledger/20261011-224812: 460/460 passed; its solution build had 0 warnings and 0 errors. summary.txt and empty failures.txt inspected. The initial focused ledger TestResults/ledger/20261011-224404 passed 459/460; its new affine registration fixture wrote affine twice and independently triggered the existing conflicting-discipline owner. The fixture now writes one modifier; the production conflict rule is preserved.'
+    - 'Full regression TestResults/ledger/20261011-230417 on the bundle implementation plus 4c15ea93 incidental cleanup: 10926/10926 passed, no failures or skips; fresh dotnet build Mist.slnx had 0 warnings and 0 errors. summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache, UseSharedCompilation=false and DOTNET_CLI_USE_MSBUILD_SERVER=0, with DOTNET_USE_POLLING_FILE_WATCHER=1 after the documented macOS stall was observed.'
+    - 'Initial full ledger TestResults/ledger/20261011-225558 was interrupted by SIGTERM after 434s: its build had 0 warnings/errors; consumer 46/46, CLI 115/115 and Storm 910/910 passed, while Mist.Tests has no TRX and test.log/failures.txt show no failure before interruption. allfeatures-managed-stack.txt confirms FileConfigurationProvider and recursive ChangeTokenRegistration callbacks while Main waits. The interrupted run is retained and the polling watcher is used for the complete rerun.'
+    - 'Final dotnet format Mist.slnx --verify-no-changes and git diff --check passed. The original sandbox build hit NuGet cache access warnings and shared-compiler CS2012; a forced restore with a writable HTTP cache and disabled shared compilation resolved the environment failures without suppressions. An obsolete import after the constructed-member helper extraction was removed to satisfy IDE0005; no bound or emitted behavior changed.'
+  related:
+  - analysis modifier legality
+  priority_rationale: Current source-established wrong behavior; correctness work.
+  audit_key: backend:backend-operator-modifiers
+  area: backend
+- id: MIST-034
+  title: Retain universal parameterless ToString beside user overloads
+  status: implemented
+  summary: Own formatting overloads retain the visible universal zero-argument ToString candidate; own and inherited zero-argument implementations, selected overload identity, generic inherited paths and invariant formatting are preserved.
+  source_refs:
+  - file: backlog/general.md
+    selector: section An explicit `ToString()` is refused
+    line_at_baseline: 1143
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=purity-checking].tasks[15]
+    line_at_baseline: 5191
+    lead_excerpt: Explicit ToString() refused on a Mist class declaring only ToString(string,IFormatProvider).
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe
+    detail: The valid fixture imports System then implements bare IFormattable; CLI emits MIST_PM_NO_APPLICABLE_OVERLOAD
+      for zero arguments while only the two-argument overload is considered. Earlier fixtures spelling
+      a qualified base interface failed parsing and are excluded.
+    source_symbols: []
+    probes:
+    - path: /private/tmp/mist-backend-reconcile-probes/formatter_overload2
+      source: 'using Standard;
+
+        using System;
+
+        namespace Probe;
+
+        public class Temp : IFormattable { public string ToString(string f, IFormatProvider p) { return
+        "formatted"; } } public class Program { public static void Main() { Console.WriteLine(new Temp().ToString());
+        } }
+
+        '
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/formatter_overload2
+        --quiet
+      exit_code: 1
+      output: '/private/tmp/mist-backend-reconcile-probes/formatter_overload2/Program.mist(3,1): error
+        MIST_PARSE_INCOMPLETE: Parser did not consume all input. Unparseable content begins at line 3.
+
+        '
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/IntegerLiterals.cs
+      selector: internal static class
+      line: 11
+    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/LiteralBinder.cs
+      selector: internal static class
+      line: 14
+    - file: Source/Mist/ProgramModel/Construction/Resolution/ScopeResolver.cs
+      selector: unsigned > long.MaxValue
+      line: 818
+  - revision: 63fc8dbddb1487698859dbd78f178517b2f532d3
+    date: '2026-10-11'
+    kind: packet 27 implementation and verified closeout
+    base_revision: 5ff1b65b05ac02d5a6c4626ab7be9adc72a809f1
+    storm_pin: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - MemberResolution widens only an own ToString method group lacking a nongeneric instance zero-argument declaration; ExtensionLookup supplies only visible universal unknown-block zero-argument instance candidates and preserves own member paths.
+    - Tier 2 UniversalToStringExtensionLookupTests and UniversalToStringInvariantCultureEmissionTests cover own one/two-argument formats, own/inherited zero declarations, generic inherited substitutions, class/primitive/unknown receivers, namespace visibility, static lookup, unrelated-name precedence and invariant lowering.
+    acceptance:
+    - 'Fresh plain_tostring prints Probe.Temp/explicit; formattable_tostring prints formatted/formatted. Both zero and explicit formatting arities run. Generated consumers build with 0 errors; plain has 0 warnings and the exact IFormattable fixture has the two pre-existing CS8767 annotations tracked by MIST-212 (packet 28), retained there as fresh evidence.'
+    - 'own_zero_tostring prints own/explicit/2.5/2.5, preserving direct own selection and primitive/unknown invariant controls. After incidental cleanup 4c15ea93, its generated consumer builds with 0 warnings/errors: MethodEmitter writes new for a concrete source nongeneric instance zero-argument ToString to acknowledge existing CLR hiding, without introducing override dispatch. Tier 2 ToStringDeclarationEmissionTests cover class/struct/native base and formatting/generic/static/interface/ambient/extension controls.'
+    limitations:
+    - 'MIST-212 remains open for native implemented-slot nullable parameter annotations, owned by packet 28. General CLR-versus-extension shadowing policy under MIST-069 is unchanged.'
+    verification:
+    - 'Focused ledger TestResults/ledger/20261011-224812: 460/460 passed; its solution build had 0 warnings and 0 errors. summary.txt and empty failures.txt inspected. The initial focused ledger TestResults/ledger/20261011-224404 passed 459/460; its new affine registration fixture wrote affine twice and independently triggered the existing conflicting-discipline owner. The fixture now writes one modifier; the production conflict rule is preserved.'
+    - 'Full regression TestResults/ledger/20261011-230417 on the bundle implementation plus 4c15ea93 incidental cleanup: 10926/10926 passed, no failures or skips; fresh dotnet build Mist.slnx had 0 warnings and 0 errors. summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache, UseSharedCompilation=false and DOTNET_CLI_USE_MSBUILD_SERVER=0, with DOTNET_USE_POLLING_FILE_WATCHER=1 after the documented macOS stall was observed.'
+    - 'Initial full ledger TestResults/ledger/20261011-225558 was interrupted by SIGTERM after 434s: its build had 0 warnings/errors; consumer 46/46, CLI 115/115 and Storm 910/910 passed, while Mist.Tests has no TRX and test.log/failures.txt show no failure before interruption. allfeatures-managed-stack.txt confirms FileConfigurationProvider and recursive ChangeTokenRegistration callbacks while Main waits. The interrupted run is retained and the polling watcher is used for the complete rerun.'
+    - 'Final dotnet format Mist.slnx --verify-no-changes and git diff --check passed. The original sandbox build hit NuGet cache access warnings and shared-compiler CS2012; a forced restore with a writable HTTP cache and disabled shared compilation resolved the environment failures without suppressions. An obsolete import after the constructed-member helper extraction was removed to satisfy IDE0005; no bound or emitted behavior changed.'
+  related:
+  - MIST-212
+  - universal member lookup
+  - program-model body member resolution
+  - backlog/general.md formatted-only class ToString
+  priority_rationale: Current reproducible wrong behavior; correctness work.
+  audit_key: backend:backend-universal-tostring-overload
+  area: backend
+  merged_audit_keys:
+  - analysis:analysis-093
+- id: MIST-066
+  title: Revalidate static extension member callability
+  status: implemented
+  summary: Named constructed receiver static extension calls bind the selected callable and preserve closed block arguments followed by explicit or inferred method arguments through carrier emission, including nongeneric methods in generic blocks.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=refinement-proving].tasks[8]
+    line_at_baseline: 4819
+    lead_excerpt: 'Generic extension methods now retain their block and method type arguments through
+      emission, including dependent parameters, as Main''s carrier checks verify (2026-09-26). The earlier
+      extension `where` investigation also found unrelated remaining binder gaps: a `using` naming no
+      namespace reaches Roslyn on v2 (MIST_CS_ERROR) where classic is MIST_UNDEFINED_NAMESPACE. A generic
+      local function that U…'
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=111,id=extension-block-declaration].tasks[0]
+    lead_excerpt: 'A STATIC member of a generic block cannot be called with type arguments: `Box<Animal>.Make<int>(1)`
+      over `<T> extension(Box<T> self) { public static int Make<U>(U item) }` is MIST_PM_METHOD_GROUP_NOT_CONVERTED
+      on v2, measured 2026-09-26, so no call reaches its carrier.
+
+      '
+    line_at_baseline: 7618
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramModel/Construction/Binding/ExtensionLookup.cs
+      selector: private static bool Permits
+      line: 258
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Construction/Binding/TypeArgumentInference.cs
+      symbol: TypeArgumentInference
+      line: 13
+  - revision: 63fc8dbddb1487698859dbd78f178517b2f532d3
+    date: '2026-10-11'
+    kind: packet 27 implementation and verified closeout
+    base_revision: 5ff1b65b05ac02d5a6c4626ab7be9adc72a809f1
+    storm_pin: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - Grammar and ExpressionBinder route the full Box<T>.Make<U>(arguments) expression through GenericTypeMemberBinder, using existing PostfixBinder member/invocation selection and Method/SourceDeclaration/ClosedBlock/BlockClosing metadata.
+    - ExtensionBlockEmitter.CallTypeArguments preserves a selected closed block even when the method has no own type arguments. Existing carrier selection, async promotion, projected CLR ordinal merging and hidden argument ordering remain intact.
+    - Tier 2 StaticExtensionInvocationBindingTests and expanded StaticExtensionCarrierCallTests cover generic/nongeneric blocks and methods, explicit/inferred calls, two receiver instantiations, exact source identity, namespace visibility, own static shadowing, receiver-instance refusal and async promotion; two Tier 4 parser/printer seam cases preserve separate receiver/method arguments. Existing constructor/default witness controls pass.
+    - Constructed receiver binding is extracted into a small helper, keeping PostfixBinder below 700 lines; the pretty-printer now retains both constructed member accesses and explicit generic calls.
+    acceptance:
+    - 'Fresh static_explicit prints 1 and emits Probe.BoxExtensions_Program_0.Make<Probe.Animal, int>(1); static_nongeneric_method prints 1 and emits the closed carrier Make<int>(1). Both generated consumers build with 0 warnings/errors.'
+    - 'static_controls prints 1/1/3/4/5/closed/6/inferred/7 for explicit/inferred method arguments, nongeneric blocks, independent int/long/string receiver closings and own static precedence. static_namespace_visible prints 8, while static_namespace_hidden source-refuses the member; static_receiver_refused reports one unresolved self owner. All admitted generated consumers build with 0 warnings/errors. Logs and generated source: /private/tmp/mist-27-probes/<case>/.'
+    limitations:
+    - 'All static receiver fixtures use resolved named types. Primitive keyword static lookup belongs to packet 26; hidden context/default/constructor witness contracts remain packet 29 work, with no new public API here. MIST-069 and MIST-089 policies are unchanged.'
+    verification:
+    - 'Focused ledger TestResults/ledger/20261011-224812: 460/460 passed; its solution build had 0 warnings and 0 errors. summary.txt and empty failures.txt inspected. The initial focused ledger TestResults/ledger/20261011-224404 passed 459/460; its new affine registration fixture wrote affine twice and independently triggered the existing conflicting-discipline owner. The fixture now writes one modifier; the production conflict rule is preserved.'
+    - 'Full regression TestResults/ledger/20261011-230417 on the bundle implementation plus 4c15ea93 incidental cleanup: 10926/10926 passed, no failures or skips; fresh dotnet build Mist.slnx had 0 warnings and 0 errors. summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache, UseSharedCompilation=false and DOTNET_CLI_USE_MSBUILD_SERVER=0, with DOTNET_USE_POLLING_FILE_WATCHER=1 after the documented macOS stall was observed.'
+    - 'Initial full ledger TestResults/ledger/20261011-225558 was interrupted by SIGTERM after 434s: its build had 0 warnings/errors; consumer 46/46, CLI 115/115 and Storm 910/910 passed, while Mist.Tests has no TRX and test.log/failures.txt show no failure before interruption. allfeatures-managed-stack.txt confirms FileConfigurationProvider and recursive ChangeTokenRegistration callbacks while Main waits. The interrupted run is retained and the polling watcher is used for the complete rerun.'
+    - 'Final dotnet format Mist.slnx --verify-no-changes and git diff --check passed. The original sandbox build hit NuGet cache access warnings and shared-compiler CS2012; a forced restore with a writable HTTP cache and disabled shared compilation resolved the environment failures without suppressions. An obsolete import after the constructed-member helper extraction was removed to satisfy IDE0005; no bound or emitted behavior changed.'
+  related:
+  - program-model-body-tasks static extension members
+  - emitter capability extension-block-declaration
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-072
+  area: analysis
+  merged_audit_keys:
+  - backend:emitter-111-tasks-0
+  observations:
+  - kind: verification_interruption
+    test: Mist.Tests.Integration.SamplesCompileAndMatchBaselineTest.AllFeaturesV2_CompilesRunsAndMatchesBaseline
+    file: Test/Mist.Tests/Integration/SamplesCompileAndMatchBaselineTest.cs
+    discovered: '2026-10-11'
+    symptom: 'AllFeaturesV2 runtime stalls in ASP.NET configuration reload callback recursion on macOS; the first full suite is deliberately interrupted after 434s and retains no Mist.Tests TRX.'
+    cause: 'Known environment file-watcher callback recursion, confirmed by managed stack; DOTNET_USE_POLLING_FILE_WATCHER=1 is the documented workaround. No compiler or sample behavior is changed.'
+    evidence:
+    - 'TestResults/ledger/20261011-225558/summary.txt and failures.txt inspected before rerun; no test failure reported. allfeatures-managed-stack.txt retains the FileConfigurationProvider/ChangeTokenRegistration stack.'
+    - 'Full rerun TestResults/ledger/20261011-230417 passes with the polling watcher; its summary, failures and TRX are inspected.'
 - id: MIST-215
   title: Reconcile effective declaration order with requirement 6.8
   status: implemented

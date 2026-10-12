@@ -1,6 +1,5 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;

@@ -57,6 +57,35 @@ internal static class ClrNullability
         return false;
     }
 
+    /// <summary>
+    /// A value type's flag, its own or its context's, was written for the references around it or for the
+    /// T it closes.
+    /// </summary>
+    public static bool ParameterIsNullable(ParameterInfo parameter)
+    {
+        var type = parameter.ParameterType.IsByRef ? parameter.ParameterType.GetElementType()! : parameter.ParameterType;
+
+        if(type.IsValueType)
+        {
+            return false;
+        }
+
+        if(FirstFlag(CustomAttributes(parameter), NullableAttribute) is { } stated)
+        {
+            return stated == Nullable;
+        }
+
+        foreach(var scope in Scopes(parameter.Member))
+        {
+            if(FirstFlag(scope, NullableContextAttribute) is { } context)
+            {
+                return context == Nullable;
+            }
+        }
+
+        return false;
+    }
+
     private static IEnumerable<IEnumerable<CustomAttributeData>> Scopes(MemberInfo member)
     {
         yield return CustomAttributes(member);

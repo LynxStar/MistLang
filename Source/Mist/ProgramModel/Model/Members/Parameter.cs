@@ -39,6 +39,11 @@ internal sealed class Parameter(
     public bool HasNativeDefault { get; init; }
 
     /// <summary>
+    /// <see cref="Type"/> stays non-optional when this is set; see <see cref="Construction.Binding.ClrInboundLifting"/>.
+    /// </summary>
+    public bool ClrDeclaresNullable { get; init; }
+
+    /// <summary>
     /// The attributes applied to this parameter.
     /// </summary>
     public List<AttributeData> AttributesList { get; } = [];

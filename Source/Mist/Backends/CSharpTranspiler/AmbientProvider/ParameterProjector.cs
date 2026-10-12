@@ -55,6 +55,7 @@ internal static class ParameterProjector
             {
                 IsFlattened = IsParams(param) && ParamsCollection.ElementOf(paramType) is not null,
                 HasNativeDefault = HasDefault(param),
+                ClrDeclaresNullable = ClrNullability.ParameterIsNullable(param),
             };
             AttributeProjector.Project(param, projected.AttributesList, scope, resolver);
             parameters.Add(projected);

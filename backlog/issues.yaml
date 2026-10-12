@@ -1024,10 +1024,11 @@ issues:
   area: analysis
 - id: MIST-061
   title: Revalidate borrowed call while a frozen lease exists
-  status: unverified
-  summary: Flow checks receiver mutation under frozen leases, but JudgeArguments only tests Owned parameter
-    moves; the exact borrowed-call case needs a current probe. Register labels adoption a decision; retain
-    unverified behavior with that policy context.
+  status: decision
+  summary: 'The frozen-lease borrowed-call behavior remains admitted, but choosing a repair is explicitly
+    deferred: ownership-v2 Requirement 9.8 requires refusal while OwnershipDecisionTests identifies MIST-061
+    as unresolved and banks Helpers.Borrow(owner) during a frozen lease. Reconcile that policy before
+    changing admission; this is not an automatic implementation task.'
   source_refs:
   - file: backlog/analysis-v2-capability-progression.yaml
     selector: rules[id=ownership-borrow-checking].tasks[1]
@@ -1048,10 +1049,20 @@ issues:
     - file: Source/Mist/ProgramAnalysis/Rules/OwnershipAnalyzer.cs
       selector: Has(state, receiver.Local, Lease.Frozen)
       line: 440
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: current contract and banked decision test inspected
+    sources:
+    - file: .kiro/specs/ownership-v2/requirements.md
+      selector: Requirement 9.8 frozen lease mutable borrow refusal
+    - file: Test/Mist.Tests/ProgramAnalysis/OwnershipDecisionTests.cs
+      selector: explicit unresolved policy header and ALeaseOrLendClassicAdmits_IsAdmitted
+      line: 336
   related:
   - ownership-v2 requirement9.8
   priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  priority_rationale: Explicit unresolved conflict between the formal frozen-lease rule and the retained
+    decision admission; preserve as a product decision.
   audit_key: analysis:analysis-055
   area: analysis
 - id: MIST-062
@@ -1679,35 +1690,6 @@ issues:
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:backend-variadic-residual-shapes
   area: backend
-- id: MIST-082
-  title: Revalidate inference under mutually converting argument types
-  status: unverified
-  summary: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-    behavior; no missing test name is used as evidence of a defect.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=55,id=type-argument-inference].tasks[5]
-    lead_excerpt: OPEN, a divergence from C#. Where several bounds each qualify -- two types each declaring
-      an implicit operator into the other, Celsius and Fahrenheit -- fixing takes the first in argument
-      order, so the answer turns on the order; C# reports CS0411. Not refused, because the classifier
-      also answers "each within the other" for a function type and the CLR delegate of the same shape,
-      which are one type,…
-    line_at_baseline: 2862
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols:
-    - file: Source/Mist/ProgramModel/Construction/Binding/TypeArgumentInference.cs
-      symbol: TypeArgumentInference
-      line: 13
-  related:
-  - emitter capability type-argument-inference
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-055-tasks-5
-  area: backend
 - id: MIST-083
   title: Revalidate initializer duplicate names and nested or unknown targets
   status: unverified
@@ -1741,59 +1723,6 @@ issues:
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:emitter-064-analysis_phase_tasks-0
   area: backend
-- id: MIST-084
-  title: Revalidate references to nested aliases and newtypes
-  status: unverified
-  summary: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-    behavior; no missing test name is used as evidence of a defect.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=66,id=nested-type-declarations].analysis_phase_tasks[0]
-    lead_excerpt: 'Report a nested newtype or type alias that something references. Both are ERASED at
-      the C# level, which is what classic does too, so a reference to one emits a name nothing declares
-      and Roslyn reports it against generated code. Not an emission bug -- there is no C# for an erased
-      type -- but the program is wrong and nothing says so in Mist terms.
-
-      '
-    line_at_baseline: 3789
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols: []
-  related:
-  - emitter capability nested-type-declarations
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-066-analysis_phase_tasks-0
-  area: backend
-- id: MIST-085
-  title: Revalidate void-to-unit method-group adaptation
-  status: unverified
-  summary: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-    behavior; no missing test name is used as evidence of a defect.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=80,id=void-unit-type].tasks[2]
-    lead_excerpt: 'Wrap rather than convert where a unit-returning method is used as a function value,
-      since Func<Standard.Void> cannot bind a void-returning method. Waits on lambdas and method-group
-      conversion, orders 104 to 109.
-
-      '
-    line_at_baseline: 4961
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols: []
-  related:
-  - emitter capability void-unit-type
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-080-tasks-2
-  area: backend
 - id: MIST-086
   title: Revalidate member filtering for readonly generic storage
   status: unverified
@@ -1819,31 +1748,6 @@ issues:
   - emitter capability unknown-covariant-generic-widening
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:emitter-082-tasks-0
-  area: backend
-- id: MIST-087
-  title: Revalidate widening a readonly generic struct to unknown
-  status: unverified
-  summary: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-    behavior; no missing test name is used as evidence of a defect.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=82,id=unknown-covariant-generic-widening].tasks[1]
-    lead_excerpt: Report a struct generic widened at an unknown position. The relation already declines
-      it, but declining is not reporting and there is NOWHERE to report from -- v2 checks the assignability
-      of no declaration anywhere, which is the same absence that let the class case through untested.
-      A site has to exist before the diagnostic can.
-    line_at_baseline: 5286
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols: []
-  related:
-  - emitter capability unknown-covariant-generic-widening
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-082-tasks-1
   area: backend
 - id: MIST-088
   title: Revalidate enum conversion to a union underlying type
@@ -6915,6 +6819,7 @@ issues:
   - language rules belong in the frontend
   priority_rationale: Invalid program reaches the target compiler.
   area: binding
+
 archive:
 - id: MIST-215
   title: Reconcile effective declaration order with requirement 6.8
@@ -17060,6 +16965,249 @@ archive:
   audit_key: backend:general-34
   area: backend
   priority: P2
+- id: MIST-082
+  title: Revalidate inference under mutually converting argument types
+  status: implemented
+  summary: 'The historical request for a C#-style ambiguity refusal is superseded by the delivered Mist
+    contract: type-argument-inference Requirement 3.5 explicitly selects the first qualifying bound in
+    argument order, including user-declared implicit conversions. Current Dominant implements that rule;
+    order dependence is specified behavior.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=55,id=type-argument-inference].tasks[5]
+    lead_excerpt: OPEN, a divergence from C#. Where several bounds each qualify -- two types each declaring
+      an implicit operator into the other, Celsius and Fahrenheit -- fixing takes the first in argument
+      order, so the answer turns on the order; C# reports CS0411. Not refused, because the classifier
+      also answers "each within the other" for a function type and the CLR delegate of the same shape,
+      which are one type,…
+    line_at_baseline: 2862
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Construction/Binding/TypeArgumentInference.cs
+      symbol: TypeArgumentInference
+      line: 13
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: current accepted contract and source inspected; no mutual-conversion-specific test pass
+      claimed
+    sources:
+    - file: .kiro/specs/type-argument-inference/requirements.md
+      selector: Requirement 3.5
+      line: 72
+    - file: Source/Mist/ProgramModel/Construction/Binding/TypeArgumentInference.cs
+      selector: Dominant uses ordered bounds.Find with implicit applicability
+      line: 552
+  related:
+  - emitter capability type-argument-inference
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-055-tasks-5
+  area: backend
+  closure:
+    date: '2026-10-11'
+    verification_revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    disposition: 'The historical request for a C#-style ambiguity refusal is superseded by the delivered
+      Mist contract: type-argument-inference Requirement 3.5 explicitly selects the first qualifying bound
+      in argument order, including user-declared implicit conversions. Current Dominant implements that
+      rule; order dependence is specified behavior.'
+    limits: Closes the original historical lead. No new compiler implementation or full-suite pass is
+      claimed.
+- id: MIST-084
+  title: Revalidate references to nested aliases and newtypes
+  status: implemented
+  summary: Nested aliases resolve and emit their underlying type, and nested newtypes resolve and emit
+    their supported clone rather than an undeclared erased name. Fresh Outer.Alias and Outer.Age programs
+    print 2 and 3. The original blanket missing-name/source-refusal lead no longer applies.
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=66,id=nested-type-declarations].analysis_phase_tasks[0]
+    lead_excerpt: 'Report a nested newtype or type alias that something references. Both are ERASED at
+      the C# level, which is what classic does too, so a reference to one emits a name nothing declares
+      and Roslyn reports it against generated code. Not an emission bug -- there is no C# for an erased
+      type -- but the program is wrong and nothing says so in Mist terms.
+
+      '
+    line_at_baseline: 3789
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols: []
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: executed CLI probe during workstream planning; not a full-suite pass
+    source: using Standard; namespace Probe; public class Outer { public type Alias=int; } public class
+      Program { public static void Main() { Outer.Alias n=2; Console.WriteLine(n); } }
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: '2
+
+      '
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: executed CLI probe during workstream planning; not a full-suite pass
+    source: using Standard; namespace Probe; public class Outer { public type Age=new int; } public class
+      Program { public static void Main() { Outer.Age n=(Outer.Age)3; Console.WriteLine(n); } }
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: '3
+
+      '
+  related:
+  - emitter capability nested-type-declarations
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-066-analysis_phase_tasks-0
+  area: backend
+  closure:
+    date: '2026-10-11'
+    verification_revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    disposition: Nested aliases resolve and emit their underlying type, and nested newtypes resolve and
+      emit their supported clone rather than an undeclared erased name. Fresh Outer.Alias and Outer.Age
+      programs print 2 and 3. The original blanket missing-name/source-refusal lead no longer applies.
+    limits: Closes the original historical lead. No new compiler implementation or full-suite pass is
+      claimed.
+- id: MIST-085
+  title: Revalidate void-to-unit method-group adaptation
+  status: implemented
+  summary: A void-returning Mist method adapts to func<void> as an invocable function value. Fresh action=Ping
+    followed by action() prints ping; the historical direct Func<Standard.Void>-to-native-void mismatch
+    is no longer observed.
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=80,id=void-unit-type].tasks[2]
+    lead_excerpt: 'Wrap rather than convert where a unit-returning method is used as a function value,
+      since Func<Standard.Void> cannot bind a void-returning method. Waits on lambdas and method-group
+      conversion, orders 104 to 109.
+
+      '
+    line_at_baseline: 4961
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols: []
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: executed CLI probe during workstream planning; not a full-suite pass
+    source: using Standard; namespace Probe; public class Program { public static void Ping() { Console.WriteLine("ping");
+      } public static void Main() { func<void> action=Ping; action(); } }
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: 'ping
+
+      '
+  related:
+  - emitter capability void-unit-type
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-080-tasks-2
+  area: backend
+  closure:
+    date: '2026-10-11'
+    verification_revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    disposition: A void-returning Mist method adapts to func<void> as an invocable function value. Fresh
+      action=Ping followed by action() prints ping; the historical direct Func<Standard.Void>-to-native-void
+      mismatch is no longer observed.
+    limits: Closes the original historical lead. No new compiler implementation or full-suite pass is
+      claimed.
+- id: MIST-087
+  title: Revalidate widening a readonly generic struct to unknown
+  status: implemented
+  summary: Readonly generic structs cannot widen an argument to unknown, and that mismatch is now refused
+    at the Mist initializer with MIST_PA_NO_IMPLICIT_CONVERSION. The same-type Box<int> control is admitted
+    and prints 3. The original missing source-refusal lead is closed; class view filtering MIST-086 remains
+    separate.
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=82,id=unknown-covariant-generic-widening].tasks[1]
+    lead_excerpt: Report a struct generic widened at an unknown position. The relation already declines
+      it, but declining is not reporting and there is NOWHERE to report from -- v2 checks the assignability
+      of no declaration anywhere, which is the same absence that let the class case through untested.
+      A site has to exist before the diagnostic can.
+    line_at_baseline: 5286
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols: []
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: executed CLI probe during workstream planning; not a full-suite pass
+    source: using Standard; namespace Probe; public readonly struct Box<T>{public T Value;public Box(T
+      value){Value=value;}} public class Program{public static void Main(){Box<unknown> x=new Box<int>(3);Console.WriteLine("accepted");}}
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_PA_NO_IMPLICIT_CONVERSION: Cannot implicitly convert type ''Box<int>'' to ''Box<unknown>''.
+
+      '
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: executed CLI probe during workstream planning; not a full-suite pass
+    source: using Standard; namespace Probe; public readonly struct Box<T>{public T Value;public Box(T
+      value){Value=value;}} public class Program{public static void Main(){Box<int> x=new Box<int>(3);Console.WriteLine(x.Value);}}
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: '3
+
+      '
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    verification: source inspected
+    sources:
+    - file: Source/Mist/ProgramModel/Construction/Binding/ConversionRelation.cs
+      selector: WidensToUnknownArguments requires ClassType
+      line: 231
+    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
+      selector: Analyze checks LocalDeclarationStatement initializer
+      line: 31
+  related:
+  - emitter capability unknown-covariant-generic-widening
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-082-tasks-1
+  area: backend
+  closure:
+    date: '2026-10-11'
+    verification_revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    disposition: Readonly generic structs cannot widen an argument to unknown, and that mismatch is now
+      refused at the Mist initializer with MIST_PA_NO_IMPLICIT_CONVERSION. The same-type Box<int> control
+      is admitted and prints 3. The original missing source-refusal lead is closed; class view filtering
+      MIST-086 remains separate.
+    limits: Closes the original historical lead. No new compiler implementation or full-suite pass is
+      claimed.
+
 sources:
 - file: backlog/analysis-v2-capability-progression.yaml
   disposition: deleted_after_reconciliation; historical provenance only

@@ -100,6 +100,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot derive from sealed type '{0}'.");
 
+    public static readonly DiagnosticDescriptor CyclicInheritance = new(
+        new DiagnosticId("MIST_PA_CYCLIC_INHERITANCE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "The base '{1}' of '{0}' forms an inheritance cycle.");
+
     public static readonly DiagnosticDescriptor NewtypeOverSealedType = new(
         new DiagnosticId("MIST_PA_NEWTYPE_OVER_SEALED_TYPE"),
         DiagnosticSeverity.Error,

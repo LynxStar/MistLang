@@ -112,7 +112,7 @@ You can also use property initializer blocks when constructing objects with `new
 {{#endtab }}
 {{#endtabs }}
 
-The `new Config { Timeout = 60, Verbose = true }` syntax creates an instance and then assigns the listed properties. This works with both `set` and `init` accessors. Each value is checked against its member's type the way an assignment is, including the member's refinement. A block whose elements name no member, as in `new Bag { 1, 2 }`, is a collection initializer: each element is passed to an `Add` method, and the compiler selects the overload and judges the element against its parameters.
+The `new Config { Timeout = 60, Verbose = true }` syntax creates an instance and then assigns the listed properties. This works with both `set` and `init` accessors. Each value is checked against its member's type the way an assignment is, including the member's refinement. A block assigns each member at most once: `new Config { Timeout = 60, Timeout = 90 }` is refused at the second `Timeout` with `MIST_PA_INITIALIZER_MEMBER_REPEATED`, while a nested `new` inside a value has a block of its own. A block whose elements name no member, as in `new Bag { 1, 2 }`, is a collection initializer: each element is passed to an `Add` method, and the compiler selects the overload and judges the element against its parameters.
 
 ## Accessor Modifiers
 

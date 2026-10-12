@@ -32,6 +32,7 @@ internal static class ProgramAnalysisRunner
         new RegexAnalyzer(),
         new PositionAnalyzer(),
         new AccessorAnalyzer(),
+        new InitializerAnalyzer(),
         new DefiniteAssignmentAnalyzer(),
         new StampabilityAnalyzer(),
         new OwnershipAnalyzer(),

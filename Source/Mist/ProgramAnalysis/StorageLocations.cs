@@ -49,9 +49,11 @@ internal static class StorageLocations
         return target switch
         {
             PropertyReferenceExpression or ExtensionPropertyAccessExpression or IndexExpression { Indexer.Modifiers.IsRef: true } => null,
+            SpreadExpression spread => NotAssignable(spread.Operand),
             MemberAccessExpression { Member: PropertyResult { Property: var property } } access
                 => CopiedHolder(property.Modifiers.IsStatic, access.Receiver) is { } holder ? $"a property of {holder}" : null,
             IndexExpression { Indexer: not null } index => CopiedHolder(isStatic: false, index.Receiver) is { } holder ? $"the indexer of {holder}" : null,
+            IndexExpression index when !Indexability.IsRange(index.Index.Type) && !IsText(index.Receiver.Type) => null,
             TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true } dependent } => $"dependent parameter '{dependent.Name}'",
             TypeReferenceExpression type => $"the type '{TypeDisplay.Mist(type.ReferencedType)}'",
             TypeLiteralExpression type => $"the type '{TypeDisplay.Mist(type.ReferencedType)}'",
@@ -59,6 +61,11 @@ internal static class StorageLocations
             TupleLiteralExpression => "a tuple literal",
             _ => NotALocation(target),
         };
+    }
+
+    private static bool IsText(IMistType receiver)
+    {
+        return Requirement.Unrefined(receiver).FullyQualifiedName == WellKnownTypes.String.FullyQualifiedName;
     }
 
     private static string? CopiedHolder(bool isStatic, Expression receiver)

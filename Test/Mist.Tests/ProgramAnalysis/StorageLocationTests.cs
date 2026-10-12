@@ -67,6 +67,8 @@ public sealed class StorageLocationTests
     [InlineData("struct-result-ref-indexer")]
     [InlineData("struct-this")]
     [InlineData("failed")]
+    [InlineData("intrinsic-element")]
+    [InlineData("spread-of-a-field")]
     public void AnAssignmentMayWriteStorageOrAnAccessor(string shape)
     {
         Assert.Null(StorageLocations.NotAssignable(Assigned(shape)));
@@ -86,6 +88,7 @@ public sealed class StorageLocationTests
     [InlineData("dependent-parameter", "dependent parameter 'N'")]
     [InlineData("class-this", "'this'")]
     [InlineData("tuple", "a tuple literal")]
+    [InlineData("spread-of-a-call", "the result of 'Abs'")]
     public void AnAssignmentToAValueNamesWhatItWrites(string shape, string expected)
     {
         Assert.Equal(expected, StorageLocations.NotAssignable(Assigned(shape)));
@@ -156,6 +159,9 @@ public sealed class StorageLocationTests
             "struct-result-ref-indexer" => IndexedOn(origin, new MemberModifiers { IsRef = true }),
             "struct-this" => new ThisExpression(HandBuiltModel.Node(), point),
             "failed" => new ErrorExpression(HandBuiltModel.Node()),
+            "intrinsic-element" => Element(holder, HandBuiltModel.Literal(integer, 1L)),
+            "spread-of-a-field" => new SpreadExpression(HandBuiltModel.Node(), Shaped("field"), integer),
+            "spread-of-a-call" => new SpreadExpression(HandBuiltModel.Node(), Shaped("value-call"), integer),
             "struct-result-property" => PropertyOf(origin, length),
             "struct-result-indexer" => IndexedOn(origin, default),
             "type-name" => new TypeReferenceExpression(HandBuiltModel.Node(), holder),

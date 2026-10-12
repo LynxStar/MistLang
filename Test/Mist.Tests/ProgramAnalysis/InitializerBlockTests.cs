@@ -27,6 +27,34 @@ public sealed class InitializerBlockTests
         Assert.Equal(repeated, string.Join(",", found));
     }
 
+    [Theory]
+    [Trait("Tier", "1")]
+    [InlineData("Value,+,Count,+", "1,3")]
+    [InlineData("+,Value,+,!Count", "1,3")]
+    [InlineData("+,+", "")]
+    [InlineData("Value,Count", "")]
+    public void AnEntryOfTheOtherKindThanTheBlocksFirstIsMixed(string entries, string mixed)
+    {
+        var block = entries.Split(',').Select(Entry).ToList();
+
+        var found = InitializerAnalyzer.Mixed(block).Select(entry => block.IndexOf(entry));
+
+        Assert.Equal(mixed, string.Join(",", found));
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void AMixedEntryIsRefusedAtItself()
+    {
+        var creation = Box(Entry("Count", offset: 10), Entry("+", offset: 24));
+
+        var diagnostic = Assert.Single(model.Analyze(new InitializerAnalyzer(), creation));
+
+        Assert.Equal("MIST_PA_INITIALIZER_KINDS_MIXED", diagnostic.Id.Value);
+        Assert.Contains("this entry adds a collection element, but the block's first entry assigns 'Count'", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal(25, diagnostic.Location.Start.Column);
+    }
+
     [Fact]
     [Trait("Tier", "2")]
     public void ARepeatedMemberIsRefusedAtItsRepetition()

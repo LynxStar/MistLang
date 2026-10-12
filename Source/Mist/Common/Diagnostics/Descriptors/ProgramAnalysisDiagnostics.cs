@@ -418,6 +418,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Member '{0}' is assigned more than once in this initializer block.");
 
+    public static readonly DiagnosticDescriptor InitializerKindsMixed = new(
+        new DiagnosticId("MIST_PA_INITIALIZER_KINDS_MIXED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "An initializer block either assigns members or adds collection elements, not both: this entry {0}, but the block's first entry {1}. Do it in a statement after the construction instead.");
+
     public static readonly DiagnosticDescriptor LocalReadBeforeAssignment = new(
         new DiagnosticId("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT"),
         DiagnosticSeverity.Error,

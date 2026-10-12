@@ -4,9 +4,10 @@ using Mist.ProgramModel.Model.Expressions;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// An initializer block assigns each member once (property-initializers Requirement 6), judged block by
-/// block, so a nested construction's block answers only for itself. An entry whose target the binder
-/// could not resolve to storage already has its complaint and is not counted.
+/// An initializer block assigns each member once (property-initializers Requirement 6), and either assigns
+/// members or adds collection elements, since one block emits as one C# initializer and C# has no form that
+/// does both. Each is judged block by block, so a nested construction's block answers only for itself. An
+/// entry whose target the binder could not resolve to storage already has its complaint and is not counted.
 /// </summary>
 internal sealed class InitializerAnalyzer : IProgramAnalyzer
 {
@@ -25,7 +26,23 @@ internal sealed class InitializerAnalyzer : IProgramAnalyzer
             {
                 context.Report(ProgramAnalysisDiagnostics.InitializerMemberRepeated, repeated.Node, [], repeated.MemberName!);
             }
+
+            foreach(var stray in Mixed(creation.Initializer))
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.InitializerKindsMixed, stray.Node, [], Does(stray), Does(creation.Initializer[0]));
+            }
         }
+    }
+
+    public static IEnumerable<ObjectInitializerAssignment> Mixed(IReadOnlyList<ObjectInitializerAssignment> block)
+    {
+        return block.Where(entry => (entry.MemberName is null) != (block[0].MemberName is null));
+    }
+
+    private static string Does(ObjectInitializerAssignment entry)
+    {
+        return entry.MemberName is { } member ? $"assigns '{member}'" : "adds a collection element";
     }
 
     public static IEnumerable<ObjectInitializerAssignment> Repeated(IReadOnlyList<ObjectInitializerAssignment> block)

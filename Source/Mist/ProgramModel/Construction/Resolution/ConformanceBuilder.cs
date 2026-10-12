@@ -253,6 +253,7 @@ internal sealed class ConformanceBuilder
         {
             IsFlattened = parameter.IsFlattened,
             IsFailed = parameter.IsFailed,
+            HasNativeDefault = parameter.HasNativeDefault,
         };
 
         closed.AttributesList.AddRange(parameter.AttributesList);

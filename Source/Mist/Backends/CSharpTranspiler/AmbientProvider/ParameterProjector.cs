@@ -1,4 +1,5 @@
 using System.Reflection;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -50,12 +51,35 @@ internal static class ParameterProjector
                 return null;
             }
 
-            var projected = new Parameter(param.Name ?? "", paramType, BuildModifier(param));
+            var projected = new Parameter(param.Name ?? "", paramType, BuildModifier(param))
+            {
+                IsFlattened = IsParams(param) && ParamsCollection.ElementOf(paramType) is not null,
+                HasNativeDefault = HasDefault(param),
+            };
             AttributeProjector.Project(param, projected.AttributesList, scope, resolver);
             parameters.Add(projected);
         }
 
         return parameters;
+    }
+
+    internal static bool IsParams(ParameterInfo parameter)
+    {
+        const string paramArray = "System.ParamArrayAttribute";
+        const string paramCollection = "System.Runtime.CompilerServices.ParamCollectionAttribute";
+
+        return !parameter.ParameterType.IsByRef
+            && parameter.GetCustomAttributesData().Any(attribute => attribute.AttributeType.FullName is paramArray or paramCollection);
+    }
+
+    /// <summary>
+    /// Whether the CLR lets a call omit this parameter, the callee then supplying its default: a C#
+    /// default value, or a bare <c>[Optional]</c>. A params collection is omissible too, but as an empty
+    /// expanded form rather than a default.
+    /// </summary>
+    internal static bool HasDefault(ParameterInfo parameter)
+    {
+        return parameter.IsOptional && !IsParams(parameter);
     }
 
     /// <summary>

@@ -32,6 +32,13 @@ internal sealed class Parameter(
     public bool IsFlattened { get; internal set; }
 
     /// <summary>
+    /// Optional in the CLR metadata it was projected from, so a call may omit it from the end of its
+    /// argument list and the native callee supplies its default. Mist declares no such parameter, and the
+    /// default is never evaluated by the compiler.
+    /// </summary>
+    public bool HasNativeDefault { get; init; }
+
+    /// <summary>
     /// The attributes applied to this parameter.
     /// </summary>
     public List<AttributeData> AttributesList { get; } = [];

@@ -9,7 +9,8 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.ProgramAnalysis;
 
 // Tier 1: ArgumentTargets over directly built signatures. A signature is written as its parameters'
-// closed types with `params` on the flattened one, a call as its argument types with `...` for a spread
+// closed types with `params` on the flattened one and `=` after one with a native default, a call as its
+// argument types with `...` for a spread
 // the binder kept, and an answer as one type per argument with `-` where nothing pairs with it. `List<T>`
 // is a hand-built collection class, enumerable with an Add of T, standing for every params collection.
 [Trait("Tier", "1")]
@@ -49,6 +50,12 @@ public sealed class ArgumentTargetsTests
     [InlineData("Int32, params (Int32, String), Boolean", "Byte, Byte, Byte", "Int32, -, Boolean")]
     [InlineData("Int32, params (TArgs...), Boolean", "Byte, Byte, Byte, Byte", "Int32, -, -, Boolean")]
     [InlineData("Int32, params (TArgs...)", "Byte, ...", "Int32, -")]
+    [InlineData("Int32, String=", "Byte", "Int32")]
+    [InlineData("Int32, String=, Boolean=", "Byte", "Int32")]
+    [InlineData("Int32, String=, Boolean=", "Byte, String", "Int32, String")]
+    [InlineData("Int32, String=, Boolean=", "Byte, String, Byte", "Int32, String, Boolean")]
+    [InlineData("Int32=, params Int32[]", "", "")]
+    [InlineData("String, Int32=, params Int32[]", "String", "String")]
     public void EachArgumentPairsWithTheSlotOrTheElementItLandsIn(string signature, string arguments, string expected)
     {
         var (declared, closed) = Signature(signature);
@@ -61,6 +68,8 @@ public sealed class ArgumentTargetsTests
     [Theory]
     [InlineData("Int32, String", "Int32")]
     [InlineData("Int32, params Int32[], Boolean", "Int32")]
+    [InlineData("Int32, String=", "")]
+    [InlineData("Int32=, String", "Int32")]
     public void ACallThatDoesNotFillTheFixedParameters_PairsNothing(string signature, string arguments)
     {
         var (declared, closed) = Signature(signature);
@@ -114,8 +123,10 @@ public sealed class ArgumentTargetsTests
         foreach(var written in Split(signature))
         {
             var isParams = written.StartsWith("params ", StringComparison.Ordinal);
+            var hasDefault = written.EndsWith('=');
+            var type = isParams ? written[7..] : hasDefault ? written[..^1] : written;
 
-            declared.Add(new Parameter($"p{declared.Count}", Type(isParams ? written[7..] : written)) { IsFlattened = isParams });
+            declared.Add(new Parameter($"p{declared.Count}", Type(type)) { IsFlattened = isParams, HasNativeDefault = hasDefault });
         }
 
         return (declared, [.. declared.Select(parameter => parameter.Type)]);

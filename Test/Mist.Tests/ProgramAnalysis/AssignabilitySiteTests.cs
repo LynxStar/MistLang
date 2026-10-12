@@ -24,6 +24,7 @@ public sealed class AssignabilitySiteTests
     [InlineData("argument")]
     [InlineData("constructor-argument")]
     [InlineData("object-initializer")]
+    [InlineData("collection-element")]
     [InlineData("index")]
     [InlineData("projected-argument")]
     [InlineData("projected-constructor-argument")]
@@ -86,6 +87,11 @@ public sealed class AssignabilitySiteTests
             case "object-initializer":
                 root = new NewExpression(HandBuiltModel.Node(3), owner, [], null,
                     [new ObjectInitializerAssignment(HandBuiltModel.Node(3), "Count", value, integer)], []);
+                break;
+            case "collection-element":
+                var add = new Method("Add", input.Type("Void"), [new Parameter("item", integer)], default);
+                root = new NewExpression(HandBuiltModel.Node(3), owner, [], null,
+                    [new ObjectInitializerAssignment(HandBuiltModel.Node(3), null, value, null, add) { AddParameterTypes = [integer] }], []);
                 break;
             case "index":
                 root = new IndexExpression(HandBuiltModel.Node(3), target, value, integer) { ParameterType = integer };

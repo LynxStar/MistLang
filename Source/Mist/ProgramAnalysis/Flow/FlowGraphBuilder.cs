@@ -458,9 +458,16 @@ internal sealed class FlowGraphBuilder
             Expression expression => Expression(expression, current),
             InterpolatedStringHole hole => Expression(hole.Expression, current),
             InterpolatedStringText => current,
-            ObjectInitializerAssignment assignment => Expression(assignment.Value, current),
+            ObjectInitializerAssignment assignment => Entry(assignment, current),
             _ => throw new InvalidOperationException($"ICE: FlowGraphBuilder has no row for a {child.GetType().Name} beneath an expression."),
         };
+    }
+
+    private FlowBlock Entry(ObjectInitializerAssignment entry, FlowBlock current)
+    {
+        current = Expression(entry.Value, current);
+        current.Steps.Add(Evaluate(entry));
+        return current;
     }
 
     private FlowBlock Assignment(AssignmentExpression assignment, FlowBlock current)

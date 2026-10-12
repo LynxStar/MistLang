@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding.Expressions;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -124,6 +125,50 @@ public sealed class InitializerTargetBindingTests
         Assert.Equal(TargetSpan, diagnostic.Location);
     }
 
+    [Fact]
+    public void ACollectionElementRecordsItsAddAndTheParameterTypesClosedOverItsOwner()
+    {
+        var f = new BindingFragments();
+        var bag = HandBuiltModel.Class("Bag");
+        var item = new TypeParameter("T", 0, bag.Scope, bag);
+        bag.TypeParametersList.Add(item);
+        var add = BindingFragments.Member(bag, "Add", f.Built.Type("Void"), item);
+        var closed = f.Built.Interner.GetOrCreateConstructedType(bag, [f.Built.Type("Int32")]);
+
+        var bound = Assert.Single(ObjectInitializerBinder.Bind(Block(Element()), closed, f.Binding, f.Builder));
+
+        Assert.Same(add, bound.Add);
+        Assert.Same(f.Built.Type("Int32"), Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<IMistType>>(bound.AddParameterTypes)));
+        Assert.Null(bound.MemberName);
+        Assert.False(bound.IsTargetFailed);
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
+    [InlineData(false, "MIST_PM_UNRESOLVED_MEMBER")]
+    [InlineData(true, "MIST_PM_NOT_CALLABLE")]
+    public void AnElementWithNoAddMethodKeepsItsValueBehindOneRefusal(bool addIsAField, string diagnosticId)
+    {
+        var f = new BindingFragments();
+        var bag = HandBuiltModel.Class("Bag");
+        if(addIsAField)
+        {
+            bag.FieldsList.Add(new Field("Add", f.Built.Type("Int32"), OwnershipKind.Unrestricted, DeclarationFragments.Public) { DeclaringType = bag });
+        }
+
+        var element = Element(24, BlockPath);
+
+        var bound = Assert.Single(ObjectInitializerBinder.Bind(Block(element), bag, f.Binding, f.Builder));
+
+        Assert.Same(element, bound.Node);
+        Assert.True(bound.IsTargetFailed);
+        Assert.Null(bound.Add);
+        Assert.Same(f.Built.Type("Int32"), bound.Value.Type);
+        var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
+        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(TargetSpan, diagnostic.Location);
+    }
+
     private static ClassType Widget(BindingFragments f)
     {
         var intType = f.Built.Type("Int32");
@@ -164,7 +209,20 @@ public sealed class InitializerTargetBindingTests
         };
     }
 
-    private static PropertyInitializerBlockNode Block(params NamedPropertyAssignmentPropertyAssignmentNode[] assignments)
+    private static CollectionElementAssignmentPropertyAssignmentNode Element(int offset = 10, string path = "hand-built.mist")
+    {
+        var location = HandBuiltModel.Node(offset, path);
+        var value = BindingFragments.At<IntegerLiteralExpressionPrimaryNode>();
+        value.IntegerLiteral = BindingFragments.Token("1");
+        return new CollectionElementAssignmentPropertyAssignmentNode
+        {
+            Span = location.Span,
+            Origin = location.Origin,
+            Value = BindingFragments.Expression(value),
+        };
+    }
+
+    private static PropertyInitializerBlockNode Block(params PropertyAssignmentNode[] assignments)
     {
         return new PropertyInitializerBlockNode
         {

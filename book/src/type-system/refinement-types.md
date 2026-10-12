@@ -145,6 +145,8 @@ Refinement types can appear anywhere a regular type can — as variable types, m
 
 Parameters, variables, fields, and return types all rely on the same static analysis: a literal is evaluated against the predicate, a refined value is checked by implication, and any other value must first be narrowed by an `is` check or by a condition that proves the predicate. Nothing is deferred to runtime, so a call that cannot be proven is a compile error at the call site rather than an exception in the callee.
 
+Collection initializers are held to the same contracts. Each element of a collection initializer, such as `-1` in `new Bag { -1 }`, is an argument to the `Add` overload the compiler selected for it, so it must satisfy that overload's parameter types and `where` predicates. That includes a parameter type closed by the constructed owner, such as `T` in `Bag<Positive>`. Each element is judged where it is evaluated, before the next one runs, and a refused element is reported at that element.
+
 ## Arithmetic and Unary Results
 
 Built-in arithmetic on a refined value produces its base type. Unary negation follows the same rule: `-a` does not inherit the predicate attached to `a`. Logical not also produces the base `bool` when its operand has a Boolean refinement, because `!` can change a value that satisfies `true` into `false`.

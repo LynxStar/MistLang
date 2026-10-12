@@ -3,6 +3,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
@@ -89,11 +90,17 @@ internal static class ObjectInitializerBinder
         }
 
         var value = ExpressionBinder.BindExpression(expressionNode, ctx, context);
-        var (found, constructed, _) = MemberResolution.Resolve(
+        var (found, constructed, reported) = MemberResolution.Resolve(
             type, "Add", MemberVisibility.InstanceOnly, assignment, context, ctx.Scope);
 
         if(found is not MethodGroupResult { Methods.Count: > 0 } group)
         {
+            if(!reported && StorageType(found) is { } stored)
+            {
+                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.NotCallable, assignment, null, "Add", TypeDisplay.Mist(stored));
+            }
+
+            bound.Add(new ObjectInitializerAssignment(assignment, memberName: null, value, targetType: null) { IsTargetFailed = true });
             return;
         }
 
@@ -112,7 +119,20 @@ internal static class ObjectInitializerBinder
         var parameterTypes = choice.Selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner));
 
         bound.Add(new ObjectInitializerAssignment(
-            assignment, memberName: null, ImplicitConversions.AtParameters([value], choice.Selected, parameterTypes, interner)[0], targetType: null, choice.Selected));
+            assignment, memberName: null, ImplicitConversions.AtParameters([value], choice.Selected, parameterTypes, interner)[0], targetType: null, choice.Selected)
+        {
+            AddParameterTypes = parameterTypes,
+        });
+    }
+
+    private static IMistType? StorageType(LookupResult found)
+    {
+        return found switch
+        {
+            FieldResult field => field.Field.Type,
+            PropertyResult property => property.Property.Type,
+            _ => null,
+        };
     }
 
     private static ExpressionNode? Expression(PropertyAssignmentNode assignment)

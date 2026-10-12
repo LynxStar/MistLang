@@ -68,6 +68,8 @@ internal sealed class ObjectInitializerAssignment(
     /// </summary>
     public Method? Add { get; } = add;
 
+    public IReadOnlyList<IMistType>? AddParameterTypes { get; init; }
+
     public Expression Value { get; } = value;
 
     public IMistType? TargetType { get; } = targetType;

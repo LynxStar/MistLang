@@ -112,7 +112,7 @@ You can also use property initializer blocks when constructing objects with `new
 {{#endtab }}
 {{#endtabs }}
 
-The `new Config { Timeout = 60, Verbose = true }` syntax creates an instance and then assigns the listed properties. This works with both `set` and `init` accessors.
+The `new Config { Timeout = 60, Verbose = true }` syntax creates an instance and then assigns the listed properties. This works with both `set` and `init` accessors. A block whose elements name no member, as in `new Bag { 1, 2 }`, is a collection initializer: each element is passed to an `Add` method, and the compiler selects the overload and judges the element against its parameters.
 
 ## Accessor Modifiers
 

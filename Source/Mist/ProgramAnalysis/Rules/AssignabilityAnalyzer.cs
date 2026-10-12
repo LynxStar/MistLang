@@ -213,6 +213,10 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
             {
                 Check(context, entry.Value, target);
             }
+            else if(entry.Add is { } add)
+            {
+                CheckArguments(context, [entry.Value], entry.AddParameterTypes, add, entry.Node);
+            }
         }
     }
 

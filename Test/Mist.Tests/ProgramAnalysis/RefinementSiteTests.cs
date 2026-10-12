@@ -18,6 +18,7 @@ public sealed class RefinementSiteTests
     [InlineData("return")]
     [InlineData("call")]
     [InlineData("construction")]
+    [InlineData("collection-element")]
     [InlineData("cast")]
     [InlineData("index")]
     [InlineData("list-pattern")]
@@ -38,6 +39,10 @@ public sealed class RefinementSiteTests
                 var person = HandBuiltModel.Class("Person");
                 var constructor = new Constructor("Person", person, [new Parameter("age", adult)], new MemberModifiers());
                 root = new NewExpression(HandBuiltModel.Node(3), person, [value], constructor, [], [adult]); break;
+            case "collection-element":
+                var add = new Method("Add", h.Built.Type("Void"), [new Parameter("age", adult)], new MemberModifiers());
+                root = new NewExpression(HandBuiltModel.Node(3), HandBuiltModel.Class("Ages"), [], null,
+                    [new ObjectInitializerAssignment(HandBuiltModel.Node(3), null, value, null, add) { AddParameterTypes = [adult] }], []); break;
             case "cast": root = new CastExpression(HandBuiltModel.Node(24), h.Literal(7L, offset: 3), adult, [], adult); break;
             case "index":
                 root = h.At(h.Array(3L), h.Literal(3L, offset: 24), offset: 3);

@@ -368,7 +368,7 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
         {
             AssignmentExpression { Target: LocalReferenceExpression } => false,
             Expression expression => MayThrow(expression),
-            ReturnStatement or BreakStatement or LocalFunctionStatement => false,
+            ReturnStatement or BreakStatement or LocalFunctionStatement or ObjectInitializerAssignment => false,
             _ => true,
         };
     }

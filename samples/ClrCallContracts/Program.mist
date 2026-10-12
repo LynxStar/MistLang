@@ -1,0 +1,109 @@
+// ClrCallContracts -- a CLR member called the way C# calls it: Serialize's trailing options left to their
+// native default or supplied, AppendJoin's params collection taking a flat list or an array, AppendFormat
+// boxing each argument into its params object list, a params list teaching its element type, System.Object
+// taking any value, and foreach over types that reach IEnumerable and IEnumerator only through their own
+// abstracts, which still get the CLR iteration members.
+
+using Standard;
+
+namespace ClrCallContracts;
+
+public abstract ITicker : IEnumerator<int>
+{
+}
+
+public abstract ITickSource<T> : IEnumerable<T>
+{
+}
+
+public class Launch : ITickSource<int>
+{
+    public class Enumerator : ITicker
+    {
+        private int current;
+
+        public Enumerator(int from)
+        {
+            current = from + 1;
+        }
+
+        public int Current => current;
+
+        public bool MoveNext()
+        {
+            current = current - 1;
+            return current > 0;
+        }
+    }
+
+    private int from;
+
+    public Launch(int from)
+    {
+        this.from = from;
+    }
+
+    public Enumerator GetEnumerator()
+    {
+        return new Enumerator(from);
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static int Count<T>(params T[] items)
+    {
+        return items.Length;
+    }
+
+    public static string Describe(System.Object value)
+    {
+        return $"object {value}";
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== CLR Call Contracts ===");
+
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize<int>(3));
+        var options = new System.Text.Json.JsonSerializerOptions();
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize<int>(4, options));
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize("quoted"));
+
+        var builder = new System.Text.StringBuilder();
+        builder.AppendJoin("-", "a", "b", "c", "d", "e");
+        Console.WriteLine(builder.ToString());
+        string[] parts = ["x", "y", "z"];
+        var joined = new System.Text.StringBuilder();
+        joined.AppendJoin("+", parts);
+        Console.WriteLine(joined.ToString());
+
+        var formatted = new System.Text.StringBuilder();
+        formatted.AppendFormat("{0} and {1} and {2} and {3}", 1, "two", 3, true);
+        Console.WriteLine(formatted.ToString());
+
+        Console.WriteLine($"Count = {Count(1, 2, 3)}");
+        Console.WriteLine($"Count = {Count("one", "two")}");
+
+        System.Object number = 7;
+        System.Object text = "seven";
+        System.Object pair = (1, 2);
+        System.Object launch = new Launch(1);
+        Console.WriteLine(Describe(number));
+        Console.WriteLine(Describe(text));
+        Console.WriteLine(Describe(pair));
+        Console.WriteLine(launch is Launch);
+
+        foreach(var tick in new Launch(3))
+        {
+            Console.WriteLine($"  tick {tick}");
+        }
+
+        Console.WriteLine("=== CLR Call Contracts Done ===");
+    }
+}

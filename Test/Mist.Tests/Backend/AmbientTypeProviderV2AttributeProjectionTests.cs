@@ -1,5 +1,5 @@
-using System.Collections.Immutable;
-using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
@@ -11,14 +11,12 @@ using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.InteropFixtures;
-using ParameterModifier = Mist.ProgramModel.Model.Enums.ParameterModifier;
-using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Backend;
 
-public sealed class AmbientTypeProviderV2AttributeProjectionTests(
-    AmbientTypeProviderV2AttributeProjectionFixture fixture)
-    : IClassFixture<AmbientTypeProviderV2AttributeProjectionFixture>
+[Trait("Tier", "2")]
+public sealed class AmbientTypeProviderV2AttributeProjectionTests(AmbientTypeProviderV2InteropFixture fixture)
+    : IClassFixture<AmbientTypeProviderV2InteropFixture>
 {
     private const string MarkerAttributeName = "Mist.Tests.InteropFixtures.ProjectionMarkerAttribute";
     private const string InAttributeName = "System.Runtime.InteropServices.InAttribute";
@@ -28,7 +26,7 @@ public sealed class AmbientTypeProviderV2AttributeProjectionTests(
     [Fact]
     public void CustomAttribute_PreservesPositionalAndNamedArguments()
     {
-        var attribute = GetMarker(fixture.TargetType);
+        var attribute = GetMarker(Target);
 
         // Positional arguments preserve string, Type, enum, and array values.
         Assert.Equal(4, attribute.PositionalArguments.Count);
@@ -48,7 +46,7 @@ public sealed class AmbientTypeProviderV2AttributeProjectionTests(
     [Fact]
     public void CustomAttributes_ProjectAcrossAllSupportedMemberDestinations()
     {
-        var target = fixture.TargetType;
+        var target = Target;
         var destinations = new (IHasAttributes Target, string Label)[]
         {
             (target, "type"),
@@ -71,7 +69,7 @@ public sealed class AmbientTypeProviderV2AttributeProjectionTests(
     [Fact]
     public void CustomAttributes_ProjectAcrossAllSupportedParameterDestinations()
     {
-        var target = fixture.TargetType;
+        var target = Target;
         var parameters = new (Parameter Parameter, string Label)[]
         {
             (target.ConstructorsList.Single().ParametersList.Single(), "constructor-parameter"),
@@ -90,27 +88,23 @@ public sealed class AmbientTypeProviderV2AttributeProjectionTests(
     }
 
     [Fact]
-    public void ByRefParameters_RecordModifierAndOnlyStoreOutAttribute()
+    public void ByRefParameters_RecordTheirDirectionInTheModifier()
     {
-        var target = fixture.TargetType;
+        var target = Target;
         var inParameter = MethodParameter(target, nameof(AttributeProjectionTarget.ReadIn));
         var outParameter = MethodParameter(target, nameof(AttributeProjectionTarget.WriteOut));
         var refParameter = MethodParameter(target, nameof(AttributeProjectionTarget.Mutate));
         var valueParameter = MethodParameter(target, nameof(AttributeProjectionTarget.Transform));
 
-        // 'in' => readonly + ref. The convention lives entirely in the modifier; no attribute is stored.
+        // 'in' => readonly + ref. The convention lives entirely in the modifier.
         Assert.Equal(
             new ParameterModifier(IsReadonly: true, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.In),
             inParameter.Modifier);
-        Assert.DoesNotContain(inParameter.AttributesList, attribute =>
-            attribute.AttributeType.FullyQualifiedName is InAttributeName or OutAttributeName or IsReadOnlyAttributeName);
 
-        // 'out' => mutable ref. Only 'out' is stored as an attribute, since the modifier cannot distinguish it from plain 'ref'.
+        // 'out' => mutable ref.
         Assert.Equal(
             new ParameterModifier(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.Out),
             outParameter.Modifier);
-        Assert.Contains(outParameter.AttributesList, attribute =>
-            attribute.AttributeType.FullyQualifiedName == OutAttributeName);
 
         // THE TWO ROWS THAT DEFEAT A FLAG-ONLY READING. Both set the metadata In flag exactly as a
         // real 'in' does, and both are mutable refs requiring 'ref' at a call site. Only a readonly
@@ -132,17 +126,46 @@ public sealed class AmbientTypeProviderV2AttributeProjectionTests(
             new ParameterModifier(IsReadonly: true, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.In),
             refReadonly.Modifier);
 
-        // Plain 'ref' => mutable ref, no calling-convention attribute.
+        // Plain 'ref' => mutable ref.
         Assert.Equal(
             new ParameterModifier(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.Ref),
             refParameter.Modifier);
-        Assert.DoesNotContain(refParameter.AttributesList, attribute =>
-            attribute.AttributeType.FullyQualifiedName is InAttributeName or OutAttributeName or IsReadOnlyAttributeName);
 
         // By value => neither ref nor readonly. CLR never yields an ownership tier.
         Assert.Equal(
             new ParameterModifier(IsReadonly: false, IsRef: false, OwnershipKind.Unrestricted),
             valueParameter.Modifier);
+    }
+
+    /// <summary>
+    /// Only <c>out</c> is stored as an attribute, since the modifier cannot distinguish it from a plain
+    /// <c>ref</c>; in/ref/readonly are the modifier's alone. Judged with shells of the three attribute
+    /// types, which live only in the core library and so project from no fixture.
+    /// </summary>
+    [Theory]
+    [InlineData(nameof(AttributeProjectionTarget.ReadIn), false)]
+    [InlineData(nameof(AttributeProjectionTarget.WriteOut), true)]
+    [InlineData(nameof(AttributeProjectionTarget.Mutate), false)]
+    [InlineData(nameof(AttributeProjectionTarget.ReadRefReadonly), false)]
+    [InlineData(nameof(AttributeProjectionTarget.Transform), false)]
+    public void OnlyOutIsStoredAsAnAttribute(string methodName, bool storesOut)
+    {
+        var clrParameter = typeof(AttributeProjectionTarget).GetMethod(methodName)!.GetParameters().Single();
+        var shells = new Dictionary<string, DeclaredType>();
+        foreach(var attributeType in new[] { typeof(InAttribute), typeof(OutAttribute), typeof(IsReadOnlyAttribute) })
+        {
+            shells[attributeType.FullName!] = TypeProjector.CreateShell(attributeType, attributeType.Namespace!);
+        }
+
+        var resolver = new AmbientTypeResolver(shells, new Dictionary<string, IMistType>(), new TypeInterner(), new DiagnosticBag());
+        var projectedAttributes = new List<AttributeData>();
+
+        AttributeProjector.Project(clrParameter, projectedAttributes, new Scope(null), resolver);
+
+        var conventions = projectedAttributes
+            .Select(attribute => attribute.AttributeType.FullyQualifiedName)
+            .Where(name => name is InAttributeName or OutAttributeName or IsReadOnlyAttributeName);
+        Assert.Equal(storesOut ? [OutAttributeName] : [], conventions);
     }
 
     [Fact]
@@ -176,12 +199,15 @@ public sealed class AmbientTypeProviderV2AttributeProjectionTests(
     [Fact]
     public void ReadonlyStruct_UsesModifierWithoutCompilerInternalTypeAttribute()
     {
-        var target = fixture.ReadonlyStructType;
+        var target = Assert.IsType<StructType>(
+            fixture.Model.TypesByFQN[$"Mist.Tests.InteropFixtures.{nameof(ReadonlyAttributeProjectionTarget)}"]);
 
         Assert.True(target.IsReadonly);
         Assert.DoesNotContain(target.AttributesList, attribute =>
             attribute.AttributeType.FullyQualifiedName == IsReadOnlyAttributeName);
     }
+
+    private ClassType Target => fixture.Type(nameof(AttributeProjectionTarget));
 
     private static Parameter MethodParameter(ClassType target, string methodName)
     {
@@ -192,43 +218,5 @@ public sealed class AmbientTypeProviderV2AttributeProjectionTests(
     {
         return Assert.Single(target.Attributes, attribute =>
             attribute.AttributeType.FullyQualifiedName == MarkerAttributeName);
-    }
-}
-
-public sealed class AmbientTypeProviderV2AttributeProjectionFixture : IDisposable
-{
-    private readonly MetadataLoadContext metadataContext;
-    private readonly AmbientTypeProviderV2 provider;
-    private readonly ProgramModelClass programModel;
-
-    public AmbientTypeProviderV2AttributeProjectionFixture()
-    {
-        programModel = new ProgramModelClass();
-        AmbientProviderTestHelper.RegisterStandardTypes(programModel);
-
-        var runtimeDirectory = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-        var assemblyPaths = Directory.GetFiles(runtimeDirectory, "*.dll")
-            .Append(typeof(AttributeProjectionTarget).Assembly.Location)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToImmutableArray();
-        var resolver = new PathAssemblyResolver(assemblyPaths);
-        metadataContext = new MetadataLoadContext(resolver);
-        var loadedAssemblies = AmbientTypeProviderV2Factory.LoadAssemblies(
-            assemblyPaths,
-            metadataContext,
-            new DiagnosticBag());
-
-        provider = new AmbientTypeProviderV2(loadedAssemblies, null, new DiagnosticBag());
-        provider.BuildAndRegister(programModel);
-    }
-
-    internal ClassType TargetType => (ClassType)programModel.TypesByFQN["Mist.Tests.InteropFixtures.AttributeProjectionTarget"];
-
-    internal StructType ReadonlyStructType => (StructType)programModel.TypesByFQN["Mist.Tests.InteropFixtures.ReadonlyAttributeProjectionTarget"];
-
-    public void Dispose()
-    {
-        provider.Dispose();
-        metadataContext.Dispose();
     }
 }

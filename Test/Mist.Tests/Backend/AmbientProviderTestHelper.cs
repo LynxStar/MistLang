@@ -1,3 +1,6 @@
+using System.Reflection;
+using Mist.Backends.CSharpTranspiler.AmbientProvider;
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
@@ -15,6 +18,30 @@ namespace Mist.Tests.Backend;
 /// </summary>
 internal static class AmbientProviderTestHelper
 {
+    /// <summary>
+    /// A context that resolves over the runtime directory and <paramref name="besideTheRuntime"/> but
+    /// loads nothing until asked: a signature naming a BCL type still reads, and only what a caller loads
+    /// is held. A provider projects every exported type of every assembly it holds, and the runtime's are
+    /// hundreds of megabytes of model that no claim below Tier 5 is about.
+    /// </summary>
+    public static MetadataLoadContext RuntimeResolvingContext(params string[] besideTheRuntime)
+    {
+        var runtimeDirectory = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+        var resolvable = Directory.GetFiles(runtimeDirectory, "*.dll")
+            .Concat(besideTheRuntime)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        return new MetadataLoadContext(new PathAssemblyResolver(resolvable));
+    }
+
+    public static AmbientTypeProviderV2 ProviderOver(DiagnosticBag diagnostics, params string[] assemblyPaths)
+    {
+        var context = RuntimeResolvingContext(assemblyPaths);
+        var loaded = AmbientTypeProviderV2Factory.LoadAssemblies([.. assemblyPaths], context, diagnostics);
+
+        return new AmbientTypeProviderV2(loaded, context, diagnostics);
+    }
+
     /// <summary>
     /// Registers all Standard Library types needed by AmbientTypeProviderV2 into a
     /// test ProgramModel. Call this before <c>BuildAndRegister</c> to ensure all

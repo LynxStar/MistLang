@@ -1,4 +1,5 @@
-// Tier 3: metadata-only CLR identity retains builtin length contracts and excludes lookalikes.
+// Tier 3: metadata-only CLR identity retains builtin length contracts and excludes lookalikes. Each context
+// resolves over a directory and loads only the assemblies named, none of them projected.
 
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
@@ -8,6 +9,7 @@ using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Tests.Backend;
 
+[Trait("Tier", "3")]
 public sealed class ClrSequenceLengthTests
 {
     [Fact]
@@ -50,8 +52,7 @@ public sealed class ClrSequenceLengthTests
     [Fact]
     public void RuntimeAndMetadataDeclarations_HaveTheSameSupportedContract()
     {
-        var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-        using var context = new MetadataLoadContext(new PathAssemblyResolver(Directory.GetFiles(runtimeDir, "*.dll")));
+        using var context = AmbientProviderTestHelper.RuntimeResolvingContext();
         var rows = new (Type Host, string Name, int Count, SequenceLengthOperation Operation)[]
         {
             (typeof(Span<>), "Slice", 1, SequenceLengthOperation.Slice),

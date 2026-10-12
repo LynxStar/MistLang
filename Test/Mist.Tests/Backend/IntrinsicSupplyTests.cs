@@ -1,42 +1,41 @@
 // Tier 4 (Integration): the boundary between what Standard promises with `intrinsic` and what the C#
 // backend supplies. Every intrinsic declaration in the real Standard sources is classified against real
 // CLR metadata, so a promise the backend cannot keep fails here rather than as a Roslyn error in a
-// user's build. Metadata is read from the runtime the tests run on; no Roslyn compile, no process.
+// user's build. Metadata is read from the three runtime assemblies that back Standard's intrinsic types,
+// loaded and never projected; no Roslyn compile, no process.
 
-using System.Collections.Immutable;
-using System.Reflection;
+using System.Text.RegularExpressions;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
-using Mist.Driver;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
+[Trait("Tier", "4")]
 public sealed class IntrinsicSupplyTests : IDisposable
 {
-    private readonly MetadataLoadContext metadataContext;
-    private readonly ImmutableArray<LoadedAssemblyInfo> loaded;
+    private readonly AmbientTypeProviderV2 metadata;
 
     public IntrinsicSupplyTests()
     {
-        var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-        var assemblyPaths = Directory.GetFiles(runtimeDir, "*.dll").ToImmutableArray();
-
-        metadataContext = new MetadataLoadContext(new PathAssemblyResolver(assemblyPaths));
-        loaded = AmbientTypeProviderV2Factory.LoadAssemblies(assemblyPaths, metadataContext, new DiagnosticBag());
+        metadata = AmbientProviderTestHelper.ProviderOver(
+            new DiagnosticBag(),
+            typeof(object).Assembly.Location,
+            typeof(Console).Assembly.Location,
+            typeof(Regex).Assembly.Location);
     }
 
     public void Dispose()
     {
-        metadataContext.Dispose();
+        metadata.Dispose();
     }
 
     private Type? FindClrType(string fullName)
     {
-        return loaded.Select(assembly => assembly.MetadataAssembly.GetType(fullName)).FirstOrDefault(type => type is not null);
+        return metadata.FindClrType(fullName);
     }
 
     [Fact]

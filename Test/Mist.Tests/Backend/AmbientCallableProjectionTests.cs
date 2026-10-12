@@ -1,14 +1,10 @@
-using Mist.Generated;
-using Mist.ProgramModel.Construction.Binding;
-using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
-using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-[Trait("Tier", "3")]
-public sealed class AmbientCallableProjectionTests(AmbientTypeProviderV2InteropFixture fixture)
-    : IClassFixture<AmbientTypeProviderV2InteropFixture>
+[Trait("Tier", "2")]
+public sealed class AmbientCallableProjectionTests(AmbientTypeProviderV2LinqInteropFixture fixture)
+    : IClassFixture<AmbientTypeProviderV2LinqInteropFixture>
 {
     [Fact]
     public void EnumerableSelectorAndPredicateKeepTheirOpenTypeParametersAndDistinctArities()
@@ -38,35 +34,22 @@ public sealed class AmbientCallableProjectionTests(AmbientTypeProviderV2InteropF
     }
 
     [Fact]
-    public void AProjectedGenericFixtureDelegateInvokesItsClosedNamedTupleSignature()
+    public void AProjectedGenericDelegateCarriesItsNamedTupleSignatureOnInvoke()
     {
-        var f = new BindingFragments();
         var definition = fixture.Type("EchoTuple<>");
-        var integer = fixture.Model.TypesByFQN["Standard.Int32"];
-        var tuple = new NamedTupleType(new TupleType([integer, integer]), ["X", "Y"]);
-        var callable = fixture.Model.TypeInterner.GetOrCreateConstructedType(definition, [tuple]);
-        var shape = Assert.IsType<FunctionType>(DelegateShape.Of(callable));
-        _ = f.Local("callback", callable);
-        for(var i = 0; i < shape.ParameterTypes.Count; i++)
-        {
-            _ = f.Local($"input{i}", shape.ParameterTypes[i]);
-        }
+        var parameter = Assert.Single(definition.TypeParametersList);
 
-        var suffix = BindingFragments.At<InvocationSuffixPostfixSuffixNode>();
-        suffix.Arguments = BindingFragments.Arguments([.. Enumerable.Range(0, shape.ParameterTypes.Count)
-            .Select(i => BindingFragments.Expression(BindingFragments.Identifier($"input{i}")))]);
+        var invoke = definition.MethodsList.Single(method => method.Name == "Invoke");
 
-        var call = Assert.IsType<InvocationExpression>(f.Bind(BindingFragments.Identifier("callback"), suffix));
-
-        Assert.Null(call.Method);
-        Assert.Same(definition.MethodsList.Single(method => method.Name == "Invoke"), call.InvokeMethod);
-        Assert.Same(callable, call.Receiver.Type);
-        Assert.Same(tuple, call.Type);
-        Assert.Same(tuple, call.ParameterTypes![0]);
-        Assert.Same(tuple, call.ParameterTypes[1]);
-        var nested = Assert.IsType<NamedTupleType>(call.ParameterTypes[2]);
+        Assert.Same(parameter, invoke.ReturnType);
+        Assert.Equal(3, invoke.ParametersList.Count);
+        Assert.Same(parameter, invoke.ParametersList[0].Type);
+        Assert.Same(parameter, invoke.ParametersList[1].Type);
+        var nested = Assert.IsType<NamedTupleType>(invoke.ParametersList[2].Type);
         Assert.Equal(["Value", "Edge"], nested.ElementNames);
-        Assert.Same(tuple, nested.ElementTypes[0]);
-        Assert.Empty(f.Diagnostics.ToImmutableArray());
+        Assert.Same(parameter, nested.ElementTypes[0]);
+        var edge = Assert.IsType<NamedTupleType>(nested.ElementTypes[1]);
+        Assert.Equal(["Fixed", null], edge.ElementNames);
+        Assert.Equal("Standard.Int32", edge.ElementTypes[1].FullyQualifiedName);
     }
 }

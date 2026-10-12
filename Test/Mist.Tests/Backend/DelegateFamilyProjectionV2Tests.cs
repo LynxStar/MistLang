@@ -19,6 +19,7 @@ namespace Mist.Tests.Backend;
 /// Property test: for CLR Func/Action delegate family types, <see cref="AmbientTypeProviderV2.ResolveType"/>
 /// returns the correct Standard.Func definition or ConstructedType with proper type arguments.
 /// </summary>
+[Trait("Tier", "1")]
 public sealed class DelegateFamilyProjectionV2Tests : IDisposable
 {
     private readonly ProgramModelClass programModel;

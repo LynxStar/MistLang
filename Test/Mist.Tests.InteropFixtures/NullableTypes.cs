@@ -42,3 +42,8 @@ public class HasNullableMembers
         return new(1, 2);
     }
 }
+
+public interface IHasNullableSlots
+{
+    string Describe(string? format, SimpleClass? context);
+}

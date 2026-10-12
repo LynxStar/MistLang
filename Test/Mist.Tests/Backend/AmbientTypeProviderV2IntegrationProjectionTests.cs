@@ -3,39 +3,36 @@
 //
 // **Validates: Requirements 2.6, 2.8, 7.1**
 //
-// Load BCL assemblies, create AmbientTypeProviderV2, call ResolveType for known BCL types,
-// then verify projected types appear in programModel.Namespaces and are attributed to the
-// ambient assembly. No process spawning.
+// Project the interop fixture assembly, look projected types up the way ResolveType did, then verify
+// they appear in programModel.Namespaces and are attributed to the ambient assembly. No process spawning.
 //
 // The spec wording for Property 13 predates MistAssembly and still refers to a
 // TypeOrigin.Ambient assignment; the property is unchanged, only how it is expressed.
 
-using System.Collections.Immutable;
-using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
-using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
-using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
+using Mist.Tests.InteropFixtures;
+using Mist.Tests.InteropFixtures.ConstraintProjection;
 
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// Integration tests verifying that <see cref="AmbientTypeProviderV2.ResolveType"/>
-/// inserts projected types into <c>programModel.Namespaces[ns].Types[name]</c> and
+/// Verifies that projection inserts types into <c>programModel.Namespaces[ns].Types[name]</c> and
 /// attributes all projected types to the <see cref="MistAssemblyKind.Ambient"/> assembly.
 /// </summary>
-public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposable
+[Trait("Tier", "2")]
+public sealed class AmbientTypeProviderV2IntegrationProjectionTests(AmbientTypeProviderV2InteropFixture fixture)
+    : IClassFixture<AmbientTypeProviderV2InteropFixture>
 {
-    private readonly ProgramModelClass programModel;
-    private readonly AmbientTypeProviderV2 provider;
-    private readonly MetadataLoadContext metadataContext;
+    private const string Fixtures = "Mist.Tests.InteropFixtures";
+    private const string Constraints = "Mist.Tests.InteropFixtures.ConstraintProjection";
 
     private IMistType? LookupType(string namespaceName, string typeName)
     {
         // Check well-known type map first (aliases to Standard Library).
         if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
         {
-            if(programModel.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
+            if(fixture.Model.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
             {
                 return stdType;
             }
@@ -57,7 +54,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
             }
         }
 
-        if(programModel.TypesByFQN.TryGetValue($"{namespaceName}.{mistName}", out var type))
+        if(fixture.Model.TypesByFQN.TryGetValue($"{namespaceName}.{mistName}", out var type))
         {
             return type;
         }
@@ -65,58 +62,27 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
         return null;
     }
 
-    public AmbientTypeProviderV2IntegrationProjectionTests()
-    {
-        programModel = new ProgramModelClass();
-        AmbientProviderTestHelper.RegisterStandardTypes(programModel);
-
-        // Load real BCL assemblies via MetadataLoadContext.
-        var runtimePath = typeof(object).Assembly.Location;
-        var runtimeDir = Path.GetDirectoryName(runtimePath)!;
-        var assemblyPaths = Directory.GetFiles(runtimeDir, "*.dll").ToImmutableArray();
-
-        var resolver = new PathAssemblyResolver(assemblyPaths);
-        metadataContext = new MetadataLoadContext(resolver);
-
-        var loadedAssemblies = AmbientTypeProviderV2Factory.LoadAssemblies(assemblyPaths, metadataContext, new DiagnosticBag());
-
-        provider = new AmbientTypeProviderV2(loadedAssemblies, null, new DiagnosticBag());
-
-        // Eagerly build and register all ambient types.
-        provider.BuildAndRegister(programModel);
-    }
-
-    public void Dispose()
-    {
-        provider.Dispose();
-        metadataContext.Dispose();
-    }
-
     // ═══════════════════════════════════════════════════════════════════════
     // Property 6: Projection inserts into ProgramModel namespace
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void ResolveType_Console_InsertsIntoProgramModelNamespace()
+    public void ResolveType_Class_InsertsIntoProgramModelNamespace()
     {
-        // Act
-        var resolved = LookupType("System", "Console");
+        var resolved = LookupType(Fixtures, nameof(SimpleClass));
 
-        // Assert
         Assert.NotNull(resolved);
-        Assert.True(programModel.TypesByFQN.ContainsKey("System.Console"),
-            "ProgramModel should have 'System.Console' in TypesByFQN after resolving System.Console.");
+        Assert.True(fixture.Model.TypesByFQN.ContainsKey($"{Fixtures}.{nameof(SimpleClass)}"),
+            "ProgramModel should have the projected class in TypesByFQN after projection.");
     }
 
     [Fact]
-    public void ResolveType_Console_ReturnedTypeIsReferenceEqualToNamespaceEntry()
+    public void ResolveType_Class_ReturnedTypeIsReferenceEqualToNamespaceEntry()
     {
-        // Act
-        var resolved = LookupType("System", "Console");
+        var resolved = LookupType(Fixtures, nameof(SimpleClass));
 
-        // Assert
         Assert.NotNull(resolved);
-        var fromFQN = programModel.TypesByFQN["System.Console"];
+        var fromFQN = fixture.Model.TypesByFQN[$"{Fixtures}.{nameof(SimpleClass)}"];
 
         Assert.True(
             ReferenceEquals(resolved, fromFQN),
@@ -124,46 +90,40 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     }
 
     [Fact]
-    public void ResolveType_MemoryStream_InsertsIntoProgramModelNamespace()
+    public void ResolveType_TypeInANestedNamespace_InsertsIntoThatNamespace()
     {
-        // Act
-        var resolved = LookupType("System.IO", "MemoryStream");
+        var resolved = LookupType(Constraints, nameof(Methods));
 
-        // Assert
         Assert.NotNull(resolved);
-        Assert.True(programModel.TypesByFQN.ContainsKey("System.IO.MemoryStream"));
+        Assert.True(fixture.Model.TypesByFQN.ContainsKey($"{Constraints}.{nameof(Methods)}"));
     }
 
     [Fact]
-    public void ResolveType_GenericList_InsertsWithArityBearingName()
+    public void ResolveType_GenericBag_InsertsWithArityBearingName()
     {
-        // Act — generic types are stored with CLR arity suffix in the provider cache
-        // but registered with angle-bracket name in the namespace
-        var resolved = LookupType("System.Collections.Generic", "List`1");
+        // Generic types are stored with CLR arity suffix in the provider cache
+        // but registered with angle-bracket name in the namespace.
+        var resolved = LookupType(Fixtures, "Bag`1");
 
-        // Assert
         Assert.NotNull(resolved);
-        // Generic types are registered with angle-bracket notation
-        Assert.True(programModel.TypesByFQN.ContainsKey("System.Collections.Generic.List<>"),
-            "Generic List should be registered as 'System.Collections.Generic.List<>' in TypesByFQN.");
+        Assert.True(fixture.Model.TypesByFQN.ContainsKey($"{Fixtures}.Bag<>"),
+            "Generic Bag should be registered as 'Bag<>' in TypesByFQN.");
     }
 
     [Fact]
     public void ResolveType_MultipleTypes_AllInsertedIntoSameNamespace()
     {
-        // Act — resolve multiple types from the same namespace
-        var console = LookupType("System", "Console");
-        var environment = LookupType("System", "Environment");
-        var math = LookupType("System", "Math");
+        var simpleClass = LookupType(Fixtures, nameof(SimpleClass));
+        var simpleStruct = LookupType(Fixtures, nameof(SimpleStruct));
+        var simpleInterface = LookupType(Fixtures, nameof(ISimpleInterface));
 
-        // Assert
-        Assert.NotNull(console);
-        Assert.NotNull(environment);
-        Assert.NotNull(math);
+        Assert.NotNull(simpleClass);
+        Assert.NotNull(simpleStruct);
+        Assert.NotNull(simpleInterface);
 
-        Assert.True(programModel.TypesByFQN.ContainsKey("System.Console"));
-        Assert.True(programModel.TypesByFQN.ContainsKey("System.Environment"));
-        Assert.True(programModel.TypesByFQN.ContainsKey("System.Math"));
+        Assert.True(fixture.Model.TypesByFQN.ContainsKey($"{Fixtures}.{nameof(SimpleClass)}"));
+        Assert.True(fixture.Model.TypesByFQN.ContainsKey($"{Fixtures}.{nameof(SimpleStruct)}"));
+        Assert.True(fixture.Model.TypesByFQN.ContainsKey($"{Fixtures}.{nameof(ISimpleInterface)}"));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -171,29 +131,27 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void ResolveType_Console_HasAmbientAssembly()
+    public void ResolveType_Class_HasAmbientAssembly()
     {
-        // Act
-        var resolved = LookupType("System", "Console");
-
-        // Assert
-        Assert.NotNull(resolved);
-        Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
-    }
-
-    [Fact]
-    public void ResolveType_MemoryStream_HasAmbientAssembly()
-    {
-        var resolved = LookupType("System.IO", "MemoryStream");
+        var resolved = LookupType(Fixtures, nameof(SimpleClass));
 
         Assert.NotNull(resolved);
         Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
     }
 
     [Fact]
-    public void ResolveType_GenericList_HasAmbientAssembly()
+    public void ResolveType_TypeInANestedNamespace_HasAmbientAssembly()
     {
-        var resolved = LookupType("System.Collections.Generic", "List`1");
+        var resolved = LookupType(Constraints, nameof(Methods));
+
+        Assert.NotNull(resolved);
+        Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
+    }
+
+    [Fact]
+    public void ResolveType_GenericBag_HasAmbientAssembly()
+    {
+        var resolved = LookupType(Fixtures, "Bag`1");
 
         Assert.NotNull(resolved);
         Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
@@ -202,7 +160,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     [Fact]
     public void ResolveType_Interface_HasAmbientAssembly()
     {
-        var resolved = LookupType("System", "IDisposable");
+        var resolved = LookupType(Fixtures, nameof(ISimpleInterface));
 
         Assert.NotNull(resolved);
         Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
@@ -211,7 +169,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     [Fact]
     public void ResolveType_Struct_HasAmbientAssembly()
     {
-        var resolved = LookupType("System", "DateTime");
+        var resolved = LookupType(Fixtures, nameof(SimpleStruct));
 
         Assert.NotNull(resolved);
         Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
@@ -220,7 +178,7 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     [Fact]
     public void ResolveType_Enum_HasAmbientAssembly()
     {
-        var resolved = LookupType("System", "DayOfWeek");
+        var resolved = LookupType(Fixtures, nameof(SimpleEnum));
 
         Assert.NotNull(resolved);
         Assert.Equal(MistAssemblyKind.Ambient, resolved!.Assembly.Kind);
@@ -239,13 +197,13 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     }
 
     [Theory]
-    [InlineData("System", "Console")]
-    [InlineData("System", "Math")]
-    [InlineData("System", "Environment")]
-    [InlineData("System.IO", "MemoryStream")]
-    [InlineData("System.IO", "StreamReader")]
-    [InlineData("System", "DateTime")]
-    [InlineData("System", "DayOfWeek")]
+    [InlineData(Fixtures, nameof(SimpleClass))]
+    [InlineData(Fixtures, nameof(SimpleStruct))]
+    [InlineData(Fixtures, nameof(ISimpleInterface))]
+    [InlineData(Fixtures, nameof(SimpleEnum))]
+    [InlineData(Fixtures, nameof(HasNullableMembers))]
+    [InlineData(Fixtures, nameof(TupleSignatures))]
+    [InlineData(Constraints, nameof(Methods))]
     public void ResolveType_VariousTypes_AllHaveAmbientAssembly(string ns, string typeName)
     {
         var resolved = LookupType(ns, typeName);
@@ -255,24 +213,22 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests : IDisposabl
     }
 
     [Theory]
-    [InlineData("System", "Console")]
-    [InlineData("System.IO", "MemoryStream")]
-    [InlineData("System.Collections.Generic", "List`1")]
+    [InlineData(Fixtures, nameof(SimpleClass))]
+    [InlineData(Constraints, nameof(Methods))]
+    [InlineData(Fixtures, "Bag`1")]
     public void ResolveType_ProjectedType_InNamespaceIsReferenceEqual(string ns, string typeName)
     {
-        // Act
         var resolved = LookupType(ns, typeName);
 
-        // Assert
         Assert.NotNull(resolved);
 
         // For generic types, the registered name uses angle-bracket notation
         var registeredName = resolved!.Name;
         var fqn = $"{ns}.{registeredName}";
-        Assert.True(programModel.TypesByFQN.ContainsKey(fqn),
+        Assert.True(fixture.Model.TypesByFQN.ContainsKey(fqn),
             $"TypesByFQN should contain '{fqn}' after projection.");
 
-        var fromFQN = programModel.TypesByFQN[fqn];
+        var fromFQN = fixture.Model.TypesByFQN[fqn];
         Assert.True(
             ReferenceEquals(resolved, fromFQN),
             $"ResolveType result should be reference-equal to programModel.TypesByFQN[\"{fqn}\"].");

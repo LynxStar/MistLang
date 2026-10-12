@@ -4,7 +4,7 @@ namespace Mist.Tests.Backend;
 
 // What the real ambient provider reads off a compiled interface with a default member and two interfaces
 // restating it (Mist.Tests.InteropFixtures.DefaultInterfaceFixtures).
-[Trait("Tier", "3")]
+[Trait("Tier", "2")]
 public sealed class ClrDefaultInterfaceProjectionTests(AmbientTypeProviderV2InteropFixture fixture)
     : IClassFixture<AmbientTypeProviderV2InteropFixture>
 {

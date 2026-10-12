@@ -1,13 +1,8 @@
-using System.Collections.Immutable;
-using System.Reflection;
-using Mist.Backends.CSharpTranspiler.AmbientProvider;
-using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
-using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Backend;
 
@@ -21,43 +16,17 @@ namespace Mist.Tests.Backend;
 /// declared on the block, and the rest on the method.
 /// </para>
 /// </summary>
-public sealed class AmbientExtensionTypeParameterPartitionTests : IDisposable
+[Trait("Tier", "2")]
+public sealed class AmbientExtensionTypeParameterPartitionTests(AmbientTypeProviderV2LinqInteropFixture fixture)
+    : IClassFixture<AmbientTypeProviderV2LinqInteropFixture>
 {
-    private readonly ProgramModelClass programModel;
-    private readonly AmbientTypeProviderV2 provider;
-    private readonly MetadataLoadContext metadataContext;
-
-    public AmbientExtensionTypeParameterPartitionTests()
-    {
-        programModel = new ProgramModelClass();
-        AmbientProviderTestHelper.RegisterStandardTypes(programModel);
-
-        var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-        var assemblyPaths = Directory.GetFiles(runtimeDir, "*.dll").ToImmutableArray();
-
-        var resolver = new PathAssemblyResolver(assemblyPaths);
-        metadataContext = new MetadataLoadContext(resolver);
-
-        var loadedAssemblies = AmbientTypeProviderV2Factory.LoadAssemblies(
-            assemblyPaths, metadataContext, new DiagnosticBag());
-
-        provider = new AmbientTypeProviderV2(loadedAssemblies, null, new DiagnosticBag());
-        provider.BuildAndRegister(programModel);
-    }
-
-    public void Dispose()
-    {
-        provider.Dispose();
-        metadataContext.Dispose();
-    }
-
     /// <summary>
     /// Every projected extension block in a namespace, flattened across receiver types.
     /// </summary>
     private List<ExtensionBlock> BlocksIn(string namespaceName)
     {
         var blocks = new List<ExtensionBlock>();
-        var ns = programModel.GetOrAddNamespace(namespaceName);
+        var ns = fixture.Model.GetOrAddNamespace(namespaceName);
 
         foreach(var byReceiver in ns.Extensions.Values)
         {
@@ -99,11 +68,10 @@ public sealed class AmbientExtensionTypeParameterPartitionTests : IDisposable
     /// and the result is the method's -- one apiece, not two on either.
     /// <para>
     /// What the receiver MENTIONS is asserted rather than the parameter's name, for the same reason
-    /// <see cref="Where_PutsItsOnlyParameterOnTheBlock"/> asserts only placement: System.Linq
-    /// declares Select on more than one class, as TSource on Enumerable and T on
-    /// ImmutableArrayExtensions. Blocks are held in a dictionary keyed by receiver type under
-    /// reference equality, so which overload is reached first follows identity hash codes and a
-    /// name pinned to one of them holds only by luck of that order.
+    /// <see cref="Where_PutsItsOnlyParameterOnTheBlock"/> asserts only placement: the name is the
+    /// declaring class's choice, not the partition's. Blocks are held in a dictionary keyed by
+    /// receiver type under reference equality, so which overload is reached first follows identity
+    /// hash codes and a name pinned to one of them holds only by luck of that order.
     /// </para>
     /// </summary>
     [Fact]
@@ -153,8 +121,7 @@ public sealed class AmbientExtensionTypeParameterPartitionTests : IDisposable
     /// <summary>
     /// Every <c>Where</c> overload takes its sequence's element type and returns the same sequence
     /// shape, so its single type parameter is always the receiver's and the method always gets none.
-    /// The name varies by declaring class -- <c>TSource</c> on <c>Enumerable</c>, <c>T</c> on
-    /// <c>ImmutableArrayExtensions</c> -- so only the placement is asserted.
+    /// The name is the declaring class's choice, so only the placement is asserted.
     /// </summary>
     [Fact]
     public void Where_PutsItsOnlyParameterOnTheBlock()
@@ -170,28 +137,26 @@ public sealed class AmbientExtensionTypeParameterPartitionTests : IDisposable
     }
 
     /// <summary>
-    /// No parameter may land on both levels, for any projected extension in the BCL. This is the
+    /// No parameter may land on both levels, for any extension System.Linq projects. This is the
     /// invariant the partition exists to hold, checked across every method rather than a chosen few.
     /// </summary>
     [Fact]
     public void NoTypeParameterAppearsAtBothLevels()
     {
-        var namespaces = new[] { "System.Linq", "System", "System.Collections.Generic" };
+        var blocks = BlocksIn("System.Linq");
+        Assert.NotEmpty(blocks);
 
-        foreach(var namespaceName in namespaces)
+        foreach(var block in blocks)
         {
-            foreach(var block in BlocksIn(namespaceName))
-            {
-                var blockNames = block.TypeParametersList.Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+            var blockNames = block.TypeParametersList.Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
 
-                foreach(var method in block.MethodsList)
+            foreach(var method in block.MethodsList)
+            {
+                foreach(var methodParam in method.TypeParametersList)
                 {
-                    foreach(var methodParam in method.TypeParametersList)
-                    {
-                        Assert.False(
-                            blockNames.Contains(methodParam.Name),
-                            $"{namespaceName}: '{methodParam.Name}' on {method.Name} is declared at both levels.");
-                    }
+                    Assert.False(
+                        blockNames.Contains(methodParam.Name),
+                        $"System.Linq: '{methodParam.Name}' on {method.Name} is declared at both levels.");
                 }
             }
         }

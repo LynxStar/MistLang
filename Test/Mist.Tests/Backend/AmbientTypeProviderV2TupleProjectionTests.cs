@@ -1,10 +1,14 @@
+using Mist.Backends.CSharpTranspiler.AmbientProvider;
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.InteropFixtures;
 
 namespace Mist.Tests.Backend;
 
+[Trait("Tier", "2")]
 public sealed class AmbientTypeProviderV2TupleProjectionTests(AmbientTypeProviderV2InteropFixture fixture)
     : IClassFixture<AmbientTypeProviderV2InteropFixture>
 {
@@ -99,7 +103,6 @@ public sealed class AmbientTypeProviderV2TupleProjectionTests(AmbientTypeProvide
     }
 
     [Fact]
-    [Trait("Tier", "3")]
     public void DelegateInsideATuple_PreservesItsNamesAndTheFollowingSibling()
     {
         var filter = Assert.IsType<NamedTupleType>(Result(nameof(TupleSignatures.Filter)));
@@ -110,13 +113,27 @@ public sealed class AmbientTypeProviderV2TupleProjectionTests(AmbientTypeProvide
         Assert.Equal(["Low", "High"], Assert.IsType<NamedTupleType>(filter.ElementTypes[1]).ElementNames);
     }
 
+    /// <summary>
+    /// Made against the resolver with a shell of ValueTuple`1, because the fixture projection resolves
+    /// no core-library type and that definition lives nowhere else.
+    /// </summary>
     [Fact]
     public void OneElementTuple_StaysNominalBecauseMistTuplesHaveTwoOrMore()
     {
-        var single = Assert.IsType<ConstructedType>(Result(nameof(TupleSignatures.Single)));
+        var single = typeof(TupleSignatures).GetMethod(nameof(TupleSignatures.Single))!.ReturnType;
+        var definition = (MemberType)TypeProjector.CreateShell(typeof(ValueTuple<>), "System");
+        Assert.True(TypeParameterProjector.Initialize(definition, typeof(ValueTuple<>)));
+        var resolver = new AmbientTypeResolver(
+            new Dictionary<string, DeclaredType> { ["System.ValueTuple`1"] = definition },
+            new Dictionary<string, IMistType> { ["System.Int32"] = fixture.Model.TypesByFQN[Int] },
+            fixture.Model.TypeInterner,
+            new DiagnosticBag());
 
-        Assert.Equal("System.ValueTuple<>", single.Definition.FullyQualifiedName);
-        Assert.Equal(Int, single.TypeArguments[0].FullyQualifiedName);
+        var resolved = Assert.IsType<ConstructedType>(resolver.Resolve(single, new Scope(null)));
+
+        Assert.Same(definition, resolved.Definition);
+        Assert.Equal("System.ValueTuple<>", resolved.Definition.FullyQualifiedName);
+        Assert.Equal(Int, Assert.Single(resolved.TypeArguments).FullyQualifiedName);
     }
 
     private ClassType Signatures => fixture.Type(nameof(TupleSignatures));

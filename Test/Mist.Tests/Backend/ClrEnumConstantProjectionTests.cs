@@ -1,4 +1,3 @@
-using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
@@ -79,9 +78,7 @@ public sealed class ClrEnumConstantProjectionTests
     {
         // Read through a MetadataLoadContext, as the provider reads every assembly: nothing loaded there
         // can run or be initialized, so a projection that tried either throws here instead of passing.
-        var runtimeDirectory = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-        using var metadata = new MetadataLoadContext(new PathAssemblyResolver(
-            [.. Directory.GetFiles(runtimeDirectory, "*.dll"), fixture.Assembly.Location]));
+        using var metadata = AmbientProviderTestHelper.RuntimeResolvingContext(fixture.Assembly.Location);
         var clrType = metadata.LoadFromAssemblyPath(fixture.Assembly.Location).GetType(fixture.FullName!)!;
         var shell = Assert.IsType<EnumType>(TypeProjector.CreateShell(clrType, clrType.Namespace!));
         var resolver = new AmbientTypeResolver(

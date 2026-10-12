@@ -4,6 +4,7 @@ using Mist.Tests.InteropFixtures;
 
 namespace Mist.Tests.Backend;
 
+[Trait("Tier", "2")]
 public sealed class AmbientTypeProviderV2NullableProjectionTests(AmbientTypeProviderV2InteropFixture fixture)
     : IClassFixture<AmbientTypeProviderV2InteropFixture>
 {
@@ -35,10 +36,10 @@ public sealed class AmbientTypeProviderV2NullableProjectionTests(AmbientTypeProv
     }
 
     [Fact]
-    [Trait("Tier", "3")]
     public void ANullableReferenceParameter_IsFlaggedOnTheSlot_WithoutBeingWrapped()
     {
-        var slot = ((MemberType)fixture.Model.TypesByFQN["System.IFormattable"]).MethodsList.Single(method => method.Name == "ToString");
+        var slots = (MemberType)fixture.Model.TypesByFQN[$"Mist.Tests.InteropFixtures.{nameof(IHasNullableSlots)}"];
+        var slot = slots.MethodsList.Single(method => method.Name == nameof(IHasNullableSlots.Describe));
 
         Assert.All(slot.ParametersList, parameter => Assert.True(parameter.ClrDeclaresNullable));
         Assert.All(slot.ParametersList, parameter => Assert.IsNotType<UnionType>(parameter.Type));

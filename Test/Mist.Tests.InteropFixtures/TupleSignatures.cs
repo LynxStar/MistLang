@@ -80,9 +80,11 @@ public static class TupleSignatures
         return scores.Sum(entry => entry.Score);
     }
 
-    public static Dictionary<(int Row, int Column), (string Name, bool Occupied)> Grid()
+    public static Table<(int Row, int Column), (string Name, bool Occupied)> Grid()
     {
-        return new() { [(0, 1)] = ("rook", true) };
+        var grid = new Table<(int Row, int Column), (string Name, bool Occupied)>();
+        grid.Add((0, 1), ("rook", true));
+        return grid;
     }
 
     public static (int, int)[] Pairs(int count)

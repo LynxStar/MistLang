@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
+using Mist.Tests.InteropFixtures;
 
 namespace Mist.Tests.Backend;
 
@@ -8,44 +9,45 @@ namespace Mist.Tests.Backend;
 public sealed class TypeInspectorTests(TypeInspectorProjectionFixture projection)
     : IClassFixture<TypeInspectorProjectionFixture>
 {
-    [Fact]
-    public void Console_ReportsWhatTheProjectionExposesAndWhatItWithholds()
-    {
-        var lines = Report("System.Console");
+    private const string Fixtures = "Mist.Tests.InteropFixtures";
 
-        Assert.Equal("System.Console (class)", lines[0]);
-        Assert.Contains("    method WriteLine(string) -> void", lines);
-        Assert.Contains("    method GetHashCode() -> int [from System.Object]", lines);
-        Assert.Contains(lines, line => line.StartsWith("    method MemberwiseClone() -> ", StringComparison.Ordinal)
-            && line.EndsWith(" [protected] [from System.Object]", StringComparison.Ordinal));
-        Assert.Contains("    CancelKeyPress: HIDDEN: event", lines);
-        Assert.Contains("    Finalize: HIDDEN: finalizer [from System.Object]", lines);
+    [Fact]
+    public void Class_ReportsWhatTheProjectionExposesAndWhatItWithholds()
+    {
+        var lines = Report($"{Fixtures}.{nameof(Inspected)}");
+
+        Assert.Equal($"{Fixtures}.{nameof(Inspected)} (class)", lines[0]);
+        Assert.Contains("    method Write(string) -> void", lines);
+        Assert.Contains($"    method Tally() -> int [from {Fixtures}.{nameof(InspectionBase)}]", lines);
+        Assert.Contains($"    method Duplicate() -> InspectionBase [protected] [from {Fixtures}.{nameof(InspectionBase)}]", lines);
+        Assert.Contains("    Changed: HIDDEN: event", lines);
+        Assert.Contains("    Finalize: HIDDEN: finalizer", lines);
     }
 
     [Fact]
-    public void Encoding_WithholdsItsPointerOverloads_NamingTheType_AndKeepsTheOthers()
+    public void Codec_WithholdsItsPointerOverloads_NamingTheType_AndKeepsTheOthers()
     {
-        var lines = Report("System.Text.Encoding");
+        var lines = Report($"{Fixtures}.{nameof(Codec)}");
 
         Assert.Contains("    method GetBytes(string) -> byte[]", lines);
         Assert.Contains("    GetBytes: HIDDEN: signature uses System.Char*", lines);
     }
 
     [Fact]
-    public void List_ReportsItsIndexerAsMistDeclaresOne_AndWithholdsTheExplicitInterfaceOne()
+    public void Bag_ReportsItsIndexerAsMistDeclaresOne_AndWithholdsTheExplicitInterfaceOne()
     {
-        var lines = Report("System.Collections.Generic.List`1");
+        var lines = Report($"{Fixtures}.Bag`1");
 
         Assert.Contains("    indexer this[int]: T", lines);
-        Assert.Contains("    System.Collections.IList.Item: HIDDEN: non-public", lines);
+        Assert.Contains($"    {Fixtures}.{nameof(IKeyed)}.Item: HIDDEN: non-public", lines);
     }
 
     [Fact]
     public void Enum_WithholdsWhatItsProjectionDoesNotInherit()
     {
-        var lines = Report("System.DayOfWeek");
+        var lines = Report($"{Fixtures}.{nameof(SimpleEnum)}");
 
-        Assert.Equal("System.DayOfWeek (enum)", lines[0]);
+        Assert.Equal($"{Fixtures}.{nameof(SimpleEnum)} (enum)", lines[0]);
         Assert.DoesNotContain("  VISIBLE:", lines);
         Assert.Contains("    HasFlag: HIDDEN: not inherited in Mist [from System.Enum]", lines);
     }
@@ -77,7 +79,7 @@ public sealed class TypeInspectorProjectionFixture : IDisposable
     public TypeInspectorProjectionFixture()
     {
         var diagnostics = new DiagnosticBag();
-        Provider = AmbientTypeProviderV2Factory.Create("net10.0", [], diagnostics);
+        Provider = AmbientProviderTestHelper.ProviderOver(diagnostics, typeof(Inspected).Assembly.Location);
 
         if(!TypeInspector.ProjectBesideStandard(Provider, diagnostics))
         {

@@ -1,11 +1,6 @@
-using System.Collections.Immutable;
-using System.Reflection;
-using Mist.Backends.CSharpTranspiler.AmbientProvider;
-using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
-using Mist.ProgramModel.Model.Types;
-using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
+using Mist.Tests.InteropFixtures;
 
 namespace Mist.Tests.Backend;
 
@@ -19,58 +14,18 @@ namespace Mist.Tests.Backend;
 /// type says the wrap happened and says which constituent it added.
 /// </para>
 /// </summary>
-public sealed class ClrInboundOptionalProjectionTests : IDisposable
+[Trait("Tier", "2")]
+public sealed class ClrInboundOptionalProjectionTests(AmbientTypeProviderV2InteropFixture fixture)
+    : IClassFixture<AmbientTypeProviderV2InteropFixture>
 {
-    private readonly ProgramModelClass programModel;
-    private readonly AmbientTypeProviderV2 provider;
-    private readonly MetadataLoadContext metadataContext;
-    private readonly MemberType pathType;
-
-    public ClrInboundOptionalProjectionTests()
-    {
-        programModel = new ProgramModelClass();
-        AmbientProviderTestHelper.RegisterStandardTypes(programModel);
-
-        var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-        var assemblyPaths = Directory.GetFiles(runtimeDir, "*.dll").ToImmutableArray();
-
-        metadataContext = new MetadataLoadContext(new PathAssemblyResolver(assemblyPaths));
-
-        var loaded = AmbientTypeProviderV2Factory.LoadAssemblies(
-            assemblyPaths, metadataContext, new DiagnosticBag());
-
-        provider = new AmbientTypeProviderV2(loaded, null, new DiagnosticBag());
-
-        provider.BuildAndRegister(programModel);
-
-        pathType = (MemberType)programModel.TypesByFQN["System.IO.Path"];
-    }
-
-    public void Dispose()
-    {
-        provider.Dispose();
-        metadataContext.Dispose();
-    }
-
     /// <summary>
-    /// The string overload, System.IO.Path declaring a span twin of every member used here.
-    /// </summary>
-    private Method StringOverload(string name, int arity)
-    {
-        return pathType.MethodsList.Single(candidate =>
-            candidate.Name == name
-            && candidate.ParametersList.Count == arity
-            && candidate.ParametersList.All(parameter => !parameter.Type.FullyQualifiedName.Contains("Span")));
-    }
-
-    /// <summary>
-    /// <c>Path.GetDirectoryName(string?)</c> is annotated <c>string?</c>, which is the only reason
-    /// this one wraps -- <c>Path.Combine</c> declares its result non-null.
+    /// <c>GetNullableString</c> is annotated <c>string?</c>, which is the only reason this one wraps --
+    /// <c>ValueOrFallback</c> declares its result non-null.
     /// </summary>
     [Fact]
     public void ANullableClrReferenceReturn_ProjectsAsAUnionWithVoid()
     {
-        var union = Assert.IsAssignableFrom<IUnionType>(StringOverload("GetDirectoryName", 1).ReturnType);
+        var union = Assert.IsAssignableFrom<IUnionType>(Method(nameof(HasNullableMembers.GetNullableString)).ReturnType);
 
         Assert.Contains(union.Constituents, c => c.FullyQualifiedName == "Standard.Void");
         Assert.Contains(union.Constituents, c => c.FullyQualifiedName == "Standard.String");
@@ -84,7 +39,7 @@ public sealed class ClrInboundOptionalProjectionTests : IDisposable
     [Fact]
     public void ANonNullClrReferenceReturn_IsNotWrapped()
     {
-        var returnType = StringOverload("Combine", 2).ReturnType;
+        var returnType = Method(nameof(HasNullableMembers.ValueOrFallback)).ReturnType;
 
         Assert.False(
             returnType is IUnionType,
@@ -94,7 +49,7 @@ public sealed class ClrInboundOptionalProjectionTests : IDisposable
     [Fact]
     public void AClrValueTypeReturn_IsNotWrapped()
     {
-        var returnType = StringOverload("HasExtension", 1).ReturnType;
+        var returnType = Method(nameof(HasNullableMembers.GetPlainInt)).ReturnType;
 
         Assert.False(
             returnType is IUnionType,
@@ -110,22 +65,27 @@ public sealed class ClrInboundOptionalProjectionTests : IDisposable
     [Fact]
     public void AProjectedMember_IsMarkedAsClrProjected()
     {
-        Assert.True(StringOverload("Combine", 2).Modifiers.IsClrProjected);
+        Assert.True(Method(nameof(HasNullableMembers.ValueOrFallback)).Modifiers.IsClrProjected);
     }
 
     /// <summary>
-    /// The outbound half. GetDirectoryName takes a <c>string?</c>; Mist has no null to hand it, so
-    /// a union there would only give overload resolution more candidates to be ambiguous between.
+    /// The outbound half. <c>ValueOrFallback</c> takes a <c>string?</c>; Mist has no null to hand it,
+    /// so a union there would only give overload resolution more candidates to be ambiguous between.
     /// </summary>
     [Fact]
     public void AClrReferenceParameter_IsNotWrapped()
     {
-        var combine = StringOverload("GetDirectoryName", 1);
+        var fallback = Method(nameof(HasNullableMembers.ValueOrFallback));
 
         Assert.All(
-            combine.ParametersList,
+            fallback.ParametersList,
             parameter => Assert.False(
                 parameter.Type is IUnionType,
                 $"parameter '{parameter.Name}' projected as '{parameter.Type.FullyQualifiedName}'"));
+    }
+
+    private Method Method(string name)
+    {
+        return fixture.Type(nameof(HasNullableMembers)).MethodsList.Single(method => method.Name == name);
     }
 }

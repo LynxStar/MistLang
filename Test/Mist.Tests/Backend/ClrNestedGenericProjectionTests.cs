@@ -1,58 +1,24 @@
 // Tier 3 (Component): how a CLR nested generic type projects. The CLR repeats a declaring type's
-// parameters on the nested type, so List`1+Enumerator carries a T that is List's; projected as an
-// argument of the nested type it spelled `List<int>.Enumerator<int>`, and before that left Current
-// typed as an unsubstituted T. Asserted on the projected signature and its substitution, over the
-// runtime's real metadata. No Roslyn compile and no process spawning.
+// parameters on the nested type, so Bag`1+Enumerator carries a T that is Bag's, exactly as
+// List`1+Enumerator does; projected as an argument of the nested type it spelled `List<int>.Enumerator<int>`,
+// and before that left Current typed as an unsubstituted T. Asserted on the projected signature and its
+// substitution, over compiled metadata. No Roslyn compile and no process spawning.
 
-using System.Collections.Immutable;
-using System.Reflection;
-using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Backends.CSharpTranspiler.Emitter;
-using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
-using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Backend;
 
-public sealed class ClrNestedGenericProjectionTests : IDisposable
+[Trait("Tier", "3")]
+public sealed class ClrNestedGenericProjectionTests(AmbientTypeProviderV2InteropFixture fixture)
+    : IClassFixture<AmbientTypeProviderV2InteropFixture>
 {
-    private readonly ProgramModelClass programModel;
-    private readonly AmbientTypeProviderV2 provider;
-    private readonly MetadataLoadContext metadataContext;
-    private readonly ClassType list;
-    private readonly Method getEnumerator;
-
-    public ClrNestedGenericProjectionTests()
-    {
-        programModel = new ProgramModelClass();
-        AmbientProviderTestHelper.RegisterStandardTypes(programModel);
-
-        var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-        var assemblyPaths = Directory.GetFiles(runtimeDir, "*.dll").ToImmutableArray();
-
-        metadataContext = new MetadataLoadContext(new PathAssemblyResolver(assemblyPaths));
-
-        var loaded = AmbientTypeProviderV2Factory.LoadAssemblies(assemblyPaths, metadataContext, new DiagnosticBag());
-
-        provider = new AmbientTypeProviderV2(loaded, null, new DiagnosticBag());
-        provider.BuildAndRegister(programModel);
-
-        list = Assert.IsType<ClassType>(programModel.TypesByFQN["System.Collections.Generic.List<>"]);
-        getEnumerator = list.MethodsList.Single(method => method.Name == "GetEnumerator" && method.ParametersList.Count == 0);
-    }
-
-    public void Dispose()
-    {
-        provider.Dispose();
-        metadataContext.Dispose();
-    }
-
     [Fact]
     public void TheNestedDefinitionHasNoParametersOfItsOwn()
     {
-        var enumerator = Assert.Single(list.NestedTypes, nested => nested.Name == "Enumerator");
+        var enumerator = Assert.Single(Bag.NestedTypes, nested => nested.Name == "Enumerator");
 
         Assert.Empty(Assert.IsAssignableFrom<MemberType>(enumerator).TypeParametersList);
     }
@@ -60,24 +26,28 @@ public sealed class ClrNestedGenericProjectionTests : IDisposable
     [Fact]
     public void AReturnedNestedTypeCarriesTheEnclosingInstantiationNotAnArgument()
     {
-        var returned = Assert.IsType<ConstructedType>(getEnumerator.ReturnType);
+        var returned = Assert.IsType<ConstructedType>(GetEnumerator.ReturnType);
 
         Assert.Empty(returned.TypeArguments);
-        Assert.Same(list, Assert.IsType<ConstructedType>(returned.Enclosing).Definition);
+        Assert.Same(Bag, Assert.IsType<ConstructedType>(returned.Enclosing).Definition);
     }
 
     [Fact]
     public void TheReceiverSubstitutesThroughTheEnclosingAndSpellsAsCSharpDoes()
     {
-        var int32 = programModel.TypesByFQN["Standard.Int32"];
-        var listOfInt = programModel.TypeInterner.GetOrCreateConstructedType(list, [int32]);
-        var substitution = TypeSubstitution.ForReceiver(listOfInt);
+        var int32 = fixture.Model.TypesByFQN["Standard.Int32"];
+        var bagOfInt = fixture.Model.TypeInterner.GetOrCreateConstructedType(Bag, [int32]);
+        var substitution = TypeSubstitution.ForReceiver(bagOfInt);
 
-        var enumerator = Assert.IsType<ConstructedType>(substitution.Apply(getEnumerator.ReturnType, programModel.TypeInterner));
+        var enumerator = Assert.IsType<ConstructedType>(substitution.Apply(GetEnumerator.ReturnType, fixture.Model.TypeInterner));
         var current = Assert.IsAssignableFrom<MemberType>(enumerator.Definition).PropertiesList.Single(property => property.Name == "Current");
 
-        Assert.Equal("List<int>.Enumerator", TypeDisplay.Mist(enumerator));
-        Assert.Equal("System.Collections.Generic.List<int>.Enumerator", TypeNameEmitter.Emit(enumerator));
-        Assert.Same(int32, TypeSubstitution.ForReceiver(enumerator).Apply(current.Type, programModel.TypeInterner));
+        Assert.Equal("Bag<int>.Enumerator", TypeDisplay.Mist(enumerator));
+        Assert.Equal("Mist.Tests.InteropFixtures.Bag<int>.Enumerator", TypeNameEmitter.Emit(enumerator));
+        Assert.Same(int32, TypeSubstitution.ForReceiver(enumerator).Apply(current.Type, fixture.Model.TypeInterner));
     }
+
+    private ClassType Bag => fixture.Type("Bag<>");
+
+    private Method GetEnumerator => Bag.MethodsList.Single(method => method.Name == "GetEnumerator" && method.ParametersList.Count == 0);
 }

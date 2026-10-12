@@ -2,37 +2,34 @@
 //
 // **Validates: Requirements 6.3, 6.4**
 //
-// Load real BCL assemblies via MetadataLoadContext.
+// Project the interop fixture assembly.
 // Spawn parallel tasks resolving same type concurrently.
 // Verify all receive the same reference-equal instance.
 // NO process spawning. Use Task.Run for in-process parallelism.
 
-using System.Collections.Immutable;
-using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
-using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
-using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
+using Mist.Tests.InteropFixtures;
+using Mist.Tests.InteropFixtures.ConstraintProjection;
 
 namespace Mist.Tests.Backend;
 
 /// <summary>
 /// Concurrency test: verifies that parallel resolution produces the same
 /// reference-equal instance for both same-type and different-type scenarios.
-/// Uses real BCL assemblies loaded via <see cref="MetadataLoadContext"/>.
 /// </summary>
-public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
+[Trait("Tier", "2")]
+public sealed class AmbientTypeProviderV2ConcurrencyTests(AmbientTypeProviderV2InteropFixture fixture)
+    : IClassFixture<AmbientTypeProviderV2InteropFixture>
 {
-    private readonly ProgramModelClass programModel;
-    private readonly MetadataLoadContext metadataContext;
-    private readonly AmbientTypeProviderV2 provider;
+    private const string Fixtures = "Mist.Tests.InteropFixtures";
 
     private IMistType? LookupType(string namespaceName, string typeName)
     {
         // Check well-known type map first (aliases to Standard Library).
         if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
         {
-            if(programModel.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
+            if(fixture.Model.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
             {
                 return stdType;
             }
@@ -54,40 +51,12 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
             }
         }
 
-        if(programModel.TypesByFQN.TryGetValue($"{namespaceName}.{mistName}", out var type))
+        if(fixture.Model.TypesByFQN.TryGetValue($"{namespaceName}.{mistName}", out var type))
         {
             return type;
         }
 
         return null;
-    }
-
-    public AmbientTypeProviderV2ConcurrencyTests()
-    {
-        programModel = new ProgramModelClass();
-        AmbientProviderTestHelper.RegisterStandardTypes(programModel);
-
-        // Load real BCL assemblies via MetadataLoadContext
-        var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
-        var assemblyPaths = Directory.GetFiles(runtimeDir, "*.dll").ToImmutableArray();
-
-        var resolver = new PathAssemblyResolver(assemblyPaths);
-        metadataContext = new MetadataLoadContext(resolver);
-
-        var loaded = AmbientTypeProviderV2Factory.LoadAssemblies(assemblyPaths, metadataContext, new DiagnosticBag());
-
-        provider = new AmbientTypeProviderV2(
-            loaded,
-            metadataContext,
-            new DiagnosticBag());
-
-        // Eagerly build and register all ambient types.
-        provider.BuildAndRegister(programModel);
-    }
-
-    public void Dispose()
-    {
-        provider.Dispose();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -103,7 +72,7 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
         // Spawn parallel tasks all resolving the same type
         var tasks = Enumerable.Range(0, parallelism).Select(i => Task.Run(() =>
         {
-            results[i] = LookupType("System", "Console");
+            results[i] = LookupType(Fixtures, nameof(SimpleClass));
         }));
 
         await Task.WhenAll(tasks);
@@ -127,14 +96,13 @@ public sealed class AmbientTypeProviderV2ConcurrencyTests : IDisposable
     [Fact]
     public async Task ResolveType_ConcurrentAccessDifferentTypes_EachGetsDistinctReference()
     {
-        // Use well-known BCL types from different namespaces
         var typeRequests = new (string Namespace, string TypeName)[]
         {
-            ("System", "Console"),
-            ("System", "Math"),
-            ("System", "Environment"),
-            ("System", "GC"),
-            ("System.IO", "File"),
+            (Fixtures, nameof(SimpleClass)),
+            (Fixtures, nameof(SimpleStruct)),
+            (Fixtures, nameof(ISimpleInterface)),
+            (Fixtures, nameof(SimpleEnum)),
+            ($"{Fixtures}.ConstraintProjection", nameof(Methods)),
         };
 
         var results = new IMistType?[typeRequests.Length];

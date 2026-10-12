@@ -19,6 +19,7 @@ namespace Mist.Tests.Backend;
 /// Property test: for all 17 alias entries, <see cref="AmbientTypeProviderV2.ResolveType"/>
 /// returns the reference-equal Standard Library instance from the ProgramModel.
 /// </summary>
+[Trait("Tier", "1")]
 public sealed class AmbientTypeProviderV2AliasTests : IDisposable
 {
     private readonly ProgramModelClass programModel;

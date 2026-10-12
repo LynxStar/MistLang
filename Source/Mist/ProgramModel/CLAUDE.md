@@ -101,7 +101,7 @@ These do NOT need individual build+test cycles.
 
 ## Tests
 
-ProgramModel is tested like every other part of the compiler, by the testing philosophy, `.claude/skills/testing-philosophy/SKILL.md` (`/testing-philosophy`), strictly. There is no exemption: ProgramModel is not "exercised indirectly through end-to-end tests". One binder method is Tier 1; a binder's dispatch chain is Tier 2; `ProgramModelBuilder.Build` over a minimal source with the real ambient provider is Tier 3. A program compiled end to end is not a binder test, and a sample does not verify the binder.
+ProgramModel is tested like every other part of the compiler, by the testing philosophy, `.claude/skills/testing-philosophy/SKILL.md` (`/testing-philosophy`), strictly. There is no exemption: ProgramModel is not "exercised indirectly through end-to-end tests". One binder method is Tier 1; a binder's dispatch chain is Tier 2; `ProgramModelBuilder.Build` over a minimal source with a stub ambient provider is Tier 3; the provider that loads the reference assemblies is Tier 5 infrastructure outside its own area. A program compiled end to end is not a binder test, and a sample does not verify the binder.
 
 After a batch, build, then run the tests that cover what you changed (`--filter`).
 

@@ -36,6 +36,26 @@ Tests form a pyramid. The higher the tier, the more of the system it exercises, 
 
 ---
 
+## What a Tier May Cost
+
+Cost places a test as much as scope does. The expected impact of one test rises with the tier,
+and only Tiers 5 and 6 may be expensive:
+
+| Tier | Expected impact of one test |
+|---|---|
+| 1 Unit | Microseconds and kilobytes: the function and the values handed to it |
+| 2 Functional | Milliseconds, in memory: one module's own code |
+| 3 Component | Tens of milliseconds, in process: one domain's own collaborators |
+| 4 Integration | Under ten seconds: one seam, bounded |
+| 5 System | As slow as it needs to be: deep, rich and heavily involved, one whole program through compilation, processes and large external resources |
+| 6 Full system | As slow as it needs to be: deep, rich and heavily involved, the whole sample suite, once |
+
+A test that costs more than its tier allows is at the wrong tier, whatever its tag says: either
+the stage that owns the invariant takes a hand-built input, or the test moves up and counts
+against the higher tier's budget.
+
+---
+
 ### Tier 1: Unit
 
 **Purpose:** Verify a single function or method in isolation.
@@ -50,7 +70,7 @@ Tests form a pyramid. The higher the tier, the more of the system it exercises, 
 **Forbidden:**
 - Lexer, parser, or any upstream pipeline stage
 - File I/O, process spawning, Roslyn compilation
-- Real ambient provider, real scope resolver
+- Any collaborator that is not a pure value: a provider, a resolver, a file system
 
 **Example:** Testing that `EmitIntegerLiteral(3000000000, UInt32Type)` returns `"3000000000U"`. You construct the literal and the type directly, call the method, assert on the string.
 
@@ -84,21 +104,22 @@ Tests form a pyramid. The higher the tier, the more of the system it exercises, 
 
 **Purpose:** Verify a full phase/domain with real collaborators. This exercises an entire area -- does the ProgramModel builder work? Does the emitter produce correct source? -- using real dependencies within that domain.
 
-**Scope:** A complete pipeline phase, with real internal collaborators. The "light integration" tier: it stays within one domain but lets real dependencies participate. The ambient provider is real. The type interner is real. The scope chain is real.
+**Scope:** A complete pipeline phase, with real internal collaborators. The "light integration" tier: it stays within one domain and lets the domain's own dependencies participate within the tier's cost. A dependency whose cost belongs to Tier 5 -- one that loads a large external resource -- is stubbed here unless it is the subject of the test.
 
 **Allowed infrastructure:**
-- Real implementations of collaborators within the domain
-- Real ambient provider (when testing ProgramModel construction)
+- Real implementations of collaborators within the domain, within the tier's cost
+- A stub for any dependency whose cost belongs above this tier, carrying the few facts the test names
 - Hand-constructed inputs at the domain's entry point
 - Asserting on the domain's output (the model, the emitted source string)
 
 **Forbidden:**
 - Running pipeline stages outside the domain under test
 - Roslyn compilation or process execution
+- Loading a large external resource, outside the area that owns the loader
 - Asserting on stdout of an executed program
 - Property-based tests with > 50 iterations (these belong at Tier 1)
 
-**Example:** Feeding an AST (hand-constructed or parsed from a minimal source) into `ProgramModelBuilder.Build` with a real ambient provider, then inspecting the resulting model's types, methods, and bound expressions. Or: building a `ProgramModel` by hand and feeding it to `CSharpEmitterV2`, then asserting on the emitted `.cs` source strings without compiling them.
+**Example:** Feeding an AST (hand-constructed or parsed from a minimal source) into `ProgramModelBuilder.Build` with a stub ambient provider that registers the handful of CLR types the source names, then inspecting the resulting model's types, methods, and bound expressions. Or: building a `ProgramModel` by hand and feeding it to `CSharpEmitterV2`, then asserting on the emitted `.cs` source strings without compiling them.
 
 **Quantity:** Moderate. Tens.
 
@@ -122,6 +143,7 @@ Boundaries in the pipeline:
 - Running exactly the stages under test (not more)
 - Roslyn compilation (only if the boundary being tested is emitter -> compiler)
 - Process execution (only if the boundary being tested is compiler -> runtime)
+- A collaborator whose cost belongs to Tier 5 only when the seam cannot be proved with a stub; most seams can
 
 **Forbidden:**
 - Exercising boundaries not under test (if testing AST -> ProgramModel, do not also compile and run)

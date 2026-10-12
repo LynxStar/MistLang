@@ -123,6 +123,10 @@ infrastructure at hand pick the tier.
 | 5 System | One sample, whole pipeline | Sparse, justified per test | More than one test per sample; generated programs; coverage a lower tier already has |
 | 6 Full system | `AllFeaturesV2` | Exactly 1, ever | A second orchestrator |
 
+Cost rises with the tier and only Tiers 5 and 6 may be expensive: a collaborator that loads a
+large external resource, runs a compiler or starts a process is stubbed below Tier 5 unless the
+test lives in the area that owns it. The skill's "What a Tier May Cost" table is the budget.
+
 Every new or migrated test must declare its tier in runnable test metadata. With xUnit, use
 `[Trait("Tier", "1")]` through `[Trait("Tier", "6")]`: exactly one effective tier per test.
 Tag a class only when every test in it shares that tier; use method traits for mixed classes.

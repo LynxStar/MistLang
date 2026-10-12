@@ -235,10 +235,12 @@ issues:
   audit_key: analysis:analysis-011
   area: analysis
 - id: MIST-005
-  title: Refuse valued returns from void bodies and top-level statements at source
+  title: Judge void and top-level returns at their source contracts
   status: confirmed
-  summary: Assignability intentionally skips void targets, and current void-method probe still reaches
-    Roslyn MIST_CS_ERROR. Top-level counterpart remains source-only/unexercised within this grouped obligation.
+  summary: Valued non-unit returns in void bodies still reach Roslyn because assignability skips void
+    targets. Top-level integer returns are explicitly valid process exit codes (top-level-statements Requirement
+    7.1), and bare return exits with zero; only non-integer top-level returns require a source type error.
+    Do not use the historical broad valued-return wording to reject valid scripts.
   source_refs:
   - file: backlog/analysis-v2-capability-progression.yaml
     selector: rules[id=assignability-core].tasks[5]
@@ -258,6 +260,17 @@ issues:
     probes:
     - project: /private/tmp/mist-reconcile-analysis-probes/candidate-void-return
       results_file: /private/tmp/mist-reconcile-analysis-probes/results.json
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: contract and executed void-body probe inspected; workstream 33 carries focused top-level
+      controls
+    sources:
+    - file: .kiro/specs/top-level-statements/requirements.md
+      selector: Requirement 7.1–7.3
+      line: 100
+    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
+      selector: return branch skips void target
+      line: 39
   related:
   - emitter declaration/return shape
   priority: P2
@@ -790,10 +803,11 @@ issues:
   area: binding
 - id: MIST-053
   title: Revalidate projected System.Object as the classifier top type
-  status: unverified
-  summary: Register retains a CLR Object versus Mist unknown distinction. Classifier source does not by
-    itself establish every ambient normalization route; no current projected Object probe executed. Audit
-    this together with projected argument enforcement before calling it a defect.
+  status: confirmed
+  summary: A current explicit System.Object local initialized with int is refused as MIST_PA_NO_IMPLICIT_CONVERSION.
+    Native top/boxing-target conversion is missing along this route. Repair the specific native target
+    normalization/conversion contract alongside CLR callable enforcement; do not turn every projected
+    class into unknown or silently discard ownership/ref-safety guarantees.
   source_refs:
   - file: backlog/analysis-v2-capability-progression.yaml
     selector: rules[id=assignability-core].tasks[7]
@@ -813,10 +827,23 @@ issues:
     - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
       selector: 'callee is { Modifiers.IsClrProjected: true }'
       line: 177
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: executed CLI probe during workstream planning; not a full-suite pass
+    source: using Standard; namespace Probe; public class Program{public static void Main(){System.Object
+      value=3;Console.WriteLine(value);}}
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_PA_NO_IMPLICIT_CONVERSION: int cannot implicitly convert to Object at the local initializer.'
   related:
   - CLR projected call/index arguments
   priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  priority_rationale: Current executed native top/boxing target mismatch; bounded CLR conversion work.
   audit_key: analysis:analysis-015
   area: analysis
 - id: MIST-054
@@ -6722,33 +6749,47 @@ issues:
   area: backend
 - id: MIST-217
   title: Emit positional tuple patterns with untyped elements over unknown
-  status: confirmed
-  summary: A positional pattern whose elements include a discard or var, tested against an unknown scrutinee,
-    is admitted by binding and refused by emission with MIST_BE_UNSUPPORTED_EXPRESSION at every width. With
-    every element typed, the same pattern emits a ValueTuple type test; over a statically tuple-typed scrutinee
-    the discard works.
+  status: decision
+  summary: Current binding admits unknown-scrutinee positional tuple patterns (typed elements work, discard/var
+    reaches backend unsupported-expression), but tuple-pattern-matching Requirements 4.1 and 8.1 explicitly
+    require a tuple static scrutinee. No newer explicit unknown positional-pattern exception or banked
+    sample was found. Reconcile that admission contract before extending runtime matching; do not invent
+    a policy from binder admission alone.
   source_refs: []
   evidence:
-  - revision: '16c0621fac6bc440d4ab60281fea9a178fc2153d'
+  - revision: 16c0621fac6bc440d4ab60281fea9a178fc2153d
     date: '2026-10-11'
     kind: executed CLI probes
     probes:
-    - source: 'unknown pair = (1, "s"); if(pair is (int one, _)) { Console.WriteLine(one); }'
+    - source: unknown pair = (1, "s"); if(pair is (int one, _)) { Console.WriteLine(one); }
       observed: error MIST_BE_UNSUPPORTED_EXPRESSION at the is expression
-    - source: 'unknown pair = (1, "s"); if(pair is (int one, var rest)) { Console.WriteLine(one); }'
+    - source: unknown pair = (1, "s"); if(pair is (int one, var rest)) { Console.WriteLine(one); }
       observed: error MIST_BE_UNSUPPORTED_EXPRESSION at the is expression
-    - source: '(int, string) pair = (1, "s"); if(pair is (int one, _)) { Console.WriteLine(one); }'
+    - source: (int, string) pair = (1, "s"); if(pair is (int one, _)) { Console.WriteLine(one); }
       observed: prints 1
-    - source: 'unknown nine = (1,2,3,4,5,6,7,8,"i"); if(nine is (int a1, int a2, int a3, int a4, int a5,
-        int a6, int a7, int eighth, string ninth)) { ... }'
+    - source: unknown nine = (1,2,3,4,5,6,7,8,"i"); if(nine is (int a1, int a2, int a3, int a4, int a5,
+        int a6, int a7, int eighth, string ninth)) { ... }
       observed: runs; the fully typed pattern emits System.ValueTuple with Rest nesting
-    expected: An untyped element needs a test C# can spell for any element type at that position (for example
-      an ITuple length test with per-element patterns); the admitted program should not reach an emission
-      refusal.
+    expected: An untyped element needs a test C# can spell for any element type at that position (for
+      example an ITuple length test with per-element patterns); the admitted program should not reach
+      an emission refusal.
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: current requirement and binder exception inspected
+    sources:
+    - file: .kiro/specs/tuple-pattern-matching/requirements.md
+      selector: Requirement 4.1 non-tuple refusal; Requirement 8.1 source diagnostic
+      line: 76
+    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/PatternBinder.cs
+      selector: BindTuplePattern exempts UnknownType from non-tuple refusal
+      line: 353
+    limits: Existing executed backend-refusal evidence is retained; it does not choose the source admission
+      policy.
   related:
   - MIST-043 wide tuple type tests
   priority: P3
-  priority_rationale: Admitted program refused with a clear backend diagnostic; typed elements are a workaround.
+  priority_rationale: Resolve the explicit non-tuple requirement versus existing unknown positional-pattern
+    admission before changing semantics.
   area: backend
 - id: MIST-218
   title: Bridge a weaker generic slot answer whose default or constructor witnesses differ

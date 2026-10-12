@@ -1,6 +1,8 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -16,6 +18,7 @@ public sealed class IteratorBoilerplateEmissionTests
     private const string NonGenericGetEnumerator = "System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();";
 
     private static readonly MistAssembly Source = new("Probe", MistAssemblyKind.Self);
+    private static readonly MemberModifiers Public = new() { Accessibility = Accessibility.Public };
 
     private readonly HandBuiltModel built = new();
     private readonly AbstractType enumerator = Protocol("IEnumerator<>");
@@ -106,19 +109,91 @@ public sealed class IteratorBoilerplateEmissionTests
         Assert.Empty(Emit(Conformer(shape)));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AConformerDeclaringDispose_KeepsItInPlaceOfTheAdapter(bool inherited)
+    {
+        var protocol = Closed(enumerator, built.Type("Int32"));
+        var cursor = Conformer(inherited ? Abstract("ICursor", protocol) : protocol);
+        _ = Declare(cursor, "Dispose", Public);
+
+        Assert.Equal([ObjectCurrent, Reset], Emit(cursor));
+    }
+
+    [Fact]
+    public void AConformerDeclaringReset_KeepsItInPlaceOfTheRefusal()
+    {
+        var cursor = Conformer(Abstract("ICursor", Closed(enumerator, built.Type("Int32"))));
+        _ = Declare(cursor, "Reset", Public);
+
+        Assert.Equal([ObjectCurrent, Dispose], Emit(cursor));
+    }
+
+    [Fact]
+    public void ADerivedConformerWhoseBaseClassDeclaresDispose_InheritsItInPlaceOfTheAdapter()
+    {
+        var resource = HandBuiltModel.Class("Resource");
+        _ = Declare(resource, "Dispose", Public);
+        var cursor = Conformer(Abstract("ICursor", Closed(enumerator, built.Type("Int32"))));
+        cursor.BaseType = resource;
+
+        Assert.Equal([ObjectCurrent, Reset], Emit(cursor));
+    }
+
+    [Fact]
+    public void AMemberEmittedIntoTheConformerWithoutBeingDeclaredOnIt_KeepsItInPlaceOfTheAdapter()
+    {
+        var cursor = Conformer(Closed(enumerator, built.Type("Int32")));
+        var flattened = Declare(HandBuiltModel.Class("Base"), "Dispose", Public with { Accessibility = Accessibility.Private });
+
+        Assert.Equal([ObjectCurrent, Reset], Emit(cursor, [flattened]));
+    }
+
+    [Theory]
+    [InlineData("parameterized")]
+    [InlineData("generic")]
+    [InlineData("private on the base class")]
+    public void AMemberThatNeitherCollidesNorImplementsDispose_LeavesTheAdapter(string shape)
+    {
+        var resource = HandBuiltModel.Class("Resource");
+        var cursor = Conformer(Closed(enumerator, built.Type("Int32")));
+        cursor.BaseType = resource;
+        var onBase = shape == "private on the base class";
+
+        var dispose = Declare(onBase ? resource : cursor, "Dispose", onBase ? Public with { Accessibility = Accessibility.Private } : Public);
+        if(shape == "parameterized")
+        {
+            dispose.ParametersList.Add(new Parameter("disposing", built.Type("Boolean")));
+        }
+        else if(shape == "generic")
+        {
+            dispose.TypeParametersList.Add(new TypeParameter("T", 0, new Scope(cursor.Scope), declaringType: null));
+        }
+
+        Assert.Equal([ObjectCurrent, Reset, Dispose], Emit(cursor));
+    }
+
     private static string GenericGetEnumerator(string element)
     {
         return $"System.Collections.Generic.IEnumerator<{element}> System.Collections.Generic.IEnumerable<{element}>.GetEnumerator() => GetEnumerator();";
     }
 
-    private static List<string> Emit(ClassType conformer)
+    private static List<string> Emit(ClassType conformer, IReadOnlyList<Method>? declared = null)
     {
         var writer = new CSharpWriter();
         var any = false;
 
-        IteratorBoilerplateEmitter.Emit(conformer, writer, ref any);
+        IteratorBoilerplateEmitter.Emit(conformer, declared ?? conformer.MethodsList, writer, ref any);
 
         return writer.ToString().Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0).ToList();
+    }
+
+    private Method Declare(ClassType owner, string name, MemberModifiers modifiers)
+    {
+        var method = new Method(name, built.Type("Void"), [], modifiers) { DeclaringType = owner };
+        owner.MethodsList.Add(method);
+        return method;
     }
 
     private static AbstractType Protocol(string name)

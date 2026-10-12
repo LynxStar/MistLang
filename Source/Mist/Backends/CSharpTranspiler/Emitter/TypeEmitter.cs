@@ -344,7 +344,7 @@ internal static class TypeEmitter
                 ConstraintSlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 SlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 PackSlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
-                IteratorBoilerplateEmitter.Emit(concrete, writer, ref anyEmitted);
+                IteratorBoilerplateEmitter.Emit(concrete, methods, writer, ref anyEmitted);
             }
 
             foreach(var (witness, i) in closedConstraints.Select((witness, i) => (witness, i)))

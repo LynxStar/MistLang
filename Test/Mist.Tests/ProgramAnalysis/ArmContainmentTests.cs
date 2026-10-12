@@ -21,6 +21,7 @@ public sealed class ArmContainmentTests
     [InlineData("carrier-constituent-twice")]
     [InlineData("carrier-refined-constituent-twice")]
     [InlineData("carrier-empty-property-pattern-after-constituent")]
+    [InlineData("carrier-derived-test-after-its-whole-constituent")]
     [InlineData("tuple-product")]
     [InlineData("tuple-covered-only-by-arms-together")]
     [InlineData("tuple-catch-all-after-every-box")]
@@ -43,6 +44,7 @@ public sealed class ArmContainmentTests
     [InlineData("optional-reference-value-unread")]
     [InlineData("carrier-catch-all-after-every-constituent")]
     [InlineData("carrier-other-constituent")]
+    [InlineData("carrier-derived-test-covers-part-of-a-constituent")]
     [InlineData("tuple-partial")]
     [InlineData("tuple-gap-between-arms")]
     [InlineData("tuple-unreadable-element")]
@@ -164,6 +166,8 @@ public sealed class ArmContainmentTests
                 => (carrier, [test(big, big)], new PropertyPattern(HandBuiltModel.Node(), big, [], typeTest: (TypeTestPattern)test(big, big))),
             "carrier-catch-all-after-every-constituent" => (carrier, [test(small, small), test(big, big)], any(carrier)),
             "carrier-other-constituent" => (carrier, [test(small, small)], test(big, big)),
+            "carrier-derived-test-covers-part-of-a-constituent" => (animals, [test(dog, animal)], test(animal, animal)),
+            "carrier-derived-test-after-its-whole-constituent" => (animals, [test(animal, animal)], test(dog, animal)),
             "tuple-product" => (pair, [tuple(pair, equal(truth, true), any(truth))], tuple(pair, equal(truth, true), equal(truth, false))),
             "tuple-covered-only-by-arms-together"
                 => (numbers, [tuple(numbers, compare(integer, ComparisonKind.GreaterThan, 0), any(integer)),

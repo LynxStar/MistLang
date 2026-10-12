@@ -301,10 +301,10 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         return earlier switch
         {
             CatchAllPattern => true,
-            TypeTestPattern { Refinement: null } wide when later is TypeTestPattern narrow
+            TypeTestPattern { Refinement: null } wide when later is TypeTestPattern narrow && ReferenceEquals(narrow.Constituent, wide.Constituent)
                 => IsAlways(
-                    ConversionClassifier.Normalized(narrow.Constituent ?? narrow.NarrowedType, interner),
-                    ConversionClassifier.Normalized(wide.Constituent ?? wide.NarrowedType, interner),
+                    ConversionClassifier.Normalized(narrow.NarrowedType, interner),
+                    ConversionClassifier.Normalized(wide.NarrowedType, interner),
                     new HashSet<string>(StringComparer.Ordinal)),
             ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: { } first } }
                 when later is ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: { } second } }

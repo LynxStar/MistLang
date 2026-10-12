@@ -25,8 +25,13 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 internal static class SlotLift
 {
     /// <summary>
-    /// The slots that become type parameters on the emitted interface, in declaration order. That
-    /// order is the whole agreement between the declaration and its implementors' base lists.
+    /// The slots that become type parameters on the emitted interface: the abstract's own in
+    /// declaration order, then those of every abstract it inherits in reach order. That order is the
+    /// whole agreement between the declaration and its implementors' base lists. An inherited slot
+    /// is lifted again because C# gives a derived interface no parameter of its base's; it is named
+    /// once because <see cref="TypeSlots.Filler"/> matches a filler by name, so two same-named slots
+    /// from different contracts can only ever be filled by one nested type, and an own slot shadows
+    /// an inherited one as it does in Mist's scope.
     /// </summary>
     public static IReadOnlyList<TypeSlot> Lifted(IMistType type)
     {
@@ -35,16 +40,30 @@ internal static class SlotLift
             return [];
         }
 
-        var lifted = new List<TypeSlot>(abstractType.TypeSlotsList.Count);
-        foreach(var slot in abstractType.TypeSlotsList)
+        var lifted = new List<TypeSlot>();
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        Collect(abstractType, lifted, names);
+
+        foreach(var (_, inherited, _) in AbstractInheritance.Reached(abstractType.BaseAbstractTypes, interner: null))
         {
-            if(slot.TypeParametersList.Count == 0)
+            if(!ClrProjection.Projects(inherited))
             {
-                lifted.Add(slot);
+                Collect(inherited, lifted, names);
             }
         }
 
         return lifted;
+    }
+
+    private static void Collect(AbstractType abstractType, List<TypeSlot> lifted, HashSet<string> names)
+    {
+        foreach(var slot in abstractType.TypeSlotsList)
+        {
+            if(slot.TypeParametersList.Count == 0 && names.Add(MistType.StripArity(slot.Name)))
+            {
+                lifted.Add(slot);
+            }
+        }
     }
 
     public static IEnumerable<IMistType> Reached(MemberType type)
@@ -128,9 +147,10 @@ internal static class SlotLift
 
     /// <summary>
     /// The base-list entry for <paramref name="abstractRef"/> as reached from
-    /// <paramref name="conformer"/>, with the filler for each lifted slot appended to whatever type
-    /// arguments were already written. Null when the abstract lifts nothing, or when a filler is
-    /// missing, leaving the entry to be spelled as it always was -- which
+    /// <paramref name="conformer"/>, with the argument for each lifted slot appended to whatever type
+    /// arguments were already written: the filler a concrete conformer declares, or the same-named
+    /// parameter a derived abstract lifted for itself. Null when the abstract lifts nothing, or when
+    /// an argument is missing, leaving the entry to be spelled as it always was -- which
     /// the conformance rule has already refused by then.
     /// </summary>
     public static IMistType? Base(IMistType abstractRef, MemberType conformer)
@@ -149,15 +169,26 @@ internal static class SlotLift
 
         foreach(var slot in lifted)
         {
-            if(Filler(slot, conformer) is not { } filler)
+            if(Argument(slot, conformer) is not { } argument)
             {
                 return null;
             }
 
-            arguments.Add(filler);
+            arguments.Add(argument);
         }
 
         return new ConstructedType(Definition(abstractRef), arguments);
+    }
+
+    private static IMistType? Argument(TypeSlot slot, MemberType conformer)
+    {
+        if(conformer is not AbstractType)
+        {
+            return Filler(slot, conformer);
+        }
+
+        var name = MistType.StripArity(slot.Name);
+        return Lifted(conformer).FirstOrDefault(own => MistType.StripArity(own.Name) == name);
     }
 
     /// <summary>

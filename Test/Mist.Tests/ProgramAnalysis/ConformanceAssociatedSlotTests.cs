@@ -6,8 +6,9 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 2: ConformanceAnalyzer over a hand-built `abstract IBag { type Element; Element Get(); T Pick<T>(T value); }`
-// and one conformer, whose nested alias, when it has one, is `type Element = string`.
+// Tier 2: ConformanceAnalyzer over a hand-built `abstract IBag { type Element; Element Get(); T Pick<T>(T value); }`,
+// reached directly or through `abstract INamedBag : IBag`, and one conformer, whose nested alias, when it has
+// one, is `type Element = string`.
 [Trait("Tier", "2")]
 public sealed class ConformanceAssociatedSlotTests
 {
@@ -43,7 +44,22 @@ public sealed class ConformanceAssociatedSlotTests
         Assert.All(findings, finding => Assert.Contains("requires 'IShow' of type parameter 'U'", finding.Message, StringComparison.Ordinal));
     }
 
-    private static DeclarationFragments Build(bool filled, out ClassType conformer, out AbstractType shown)
+    [Theory]
+    [InlineData(true, "")]
+    [InlineData(false, "MIST_PA_TYPE_SLOT_UNFILLED")]
+    public void AConformerOfADerivedAbstract_OwesTheSlotItInherits(bool filled, string expected)
+    {
+        var fragment = Build(filled, out var conformer, out _, throughDerived: true);
+        _ = DeclarationFragments.Method(conformer, "Get", fragment.Built.Type("String"));
+        Pick(conformer, constrained: null);
+
+        var findings = fragment.Run(new ConformanceAnalyzer());
+
+        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Id.Value)));
+        Assert.All(findings, finding => Assert.Contains("'IBag.Element'", finding.Message, StringComparison.Ordinal));
+    }
+
+    private static DeclarationFragments Build(bool filled, out ClassType conformer, out AbstractType shown, bool throughDerived = false)
     {
         var fragment = new DeclarationFragments();
         shown = fragment.Abstract("IShow");
@@ -54,9 +70,11 @@ public sealed class ConformanceAssociatedSlotTests
         var picked = new TypeParameter("T", 0, bag.Scope, bag);
         var pick = DeclarationFragments.Method(bag, "Pick", picked, picked);
         pick.TypeParametersList.Add(picked);
+        var named = fragment.Abstract("INamedBag");
+        named.BaseAbstractTypes.Add(bag);
 
         conformer = fragment.Class("Strings");
-        conformer.BaseAbstractTypes.Add(bag);
+        conformer.BaseAbstractTypes.Add(throughDerived ? named : bag);
 
         if(filled)
         {

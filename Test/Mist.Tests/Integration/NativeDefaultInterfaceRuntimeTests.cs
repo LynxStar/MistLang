@@ -21,7 +21,9 @@ public sealed class NativeDefaultInterfaceRuntimeTests(NativeDefaultInterfaceRun
     [Fact]
     public void AnUnansweredDefault_RunsAlikeDirectlyAndThroughTheInterface()
     {
-        Assert.Equal(["hello plain", "hello plain", "hello plain", "hello plain/hello plain", "hello polite", "hello polite"], fixture.Section("default"));
+        Assert.Equal(
+            ["hello plain", "hello plain", "hello plain", "hello plain/hello plain", "hello plain/hello plain", "hello polite", "hello polite"],
+            fixture.Section("default"));
     }
 
     [Fact]
@@ -54,6 +56,12 @@ public sealed class NativeDefaultInterfaceRuntimeFixture : IDisposable
             public string Name() { return "plain"; }
 
             public string Twice() { return Greet() + "/" + this.Greet(); }
+
+            public string Grouped()
+            {
+                func<string> greet = Greet;
+                return greet();
+            }
         }
 
         public class Polite : IPolite
@@ -91,6 +99,8 @@ public sealed class NativeDefaultInterfaceRuntimeFixture : IDisposable
                 IGreeter greeter = plain;
                 Console.WriteLine(greeter.Greet());
                 Console.WriteLine(plain.Twice());
+                func<string> grouped = plain.Greet;
+                Console.WriteLine(grouped() + "/" + plain.Grouped());
                 var polite = new Polite();
                 Console.WriteLine(polite.Greet());
                 Console.WriteLine(Greeters.Through(polite));

@@ -1599,10 +1599,22 @@ internal static class BodyEmitter
                 break;
 
             case FunctionReferenceExpression functionRef:
-                if(functionRef.Receiver is { } functionTarget)
+                if(functionRef.Receiver is { } functionTarget
+                    && NativeDefaultCall.ReceiverType(functionTarget.Type, functionRef.Method) is { } nativeTarget)
                 {
-                    EmitExpression(functionTarget, writer, diagnostics);
+                    writer.Append($"(({TypeNameEmitter.Emit(nativeTarget)})");
+                    EmitSubExpression(functionTarget, PrefixPrecedence, writer, diagnostics);
+                    writer.Append(").");
+                }
+                else if(functionRef.Receiver is { } plainTarget)
+                {
+                    EmitExpression(plainTarget, writer, diagnostics);
                     writer.Append(".");
+                }
+                else if(enclosingType is { } functionOwner
+                    && NativeDefaultCall.ReceiverType(functionOwner, functionRef.Method) is { } nativeOwner)
+                {
+                    writer.Append($"(({TypeNameEmitter.Emit(nativeOwner)}){ReceiverSpelling.This}).");
                 }
                 else
                 {

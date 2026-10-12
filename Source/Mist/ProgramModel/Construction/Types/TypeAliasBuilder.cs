@@ -87,6 +87,7 @@ internal sealed class TypeAliasBuilder
                 constituents.Add(ResolvePossiblyRefined(constituent, typeDef));
             }
 
+            context.ProgramModel.CompositeApplications.Record(CompositeKind.Union, constituents, refinableExpr, typeDef.Scope);
             SetAliasedType(typeDef, context.ProgramModel.TypeInterner.GetOrCreateUnionType(constituents));
             return;
         }

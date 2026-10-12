@@ -169,7 +169,7 @@ internal static class LiteralBinder
         var tupleType = context.ProgramModel.TypeInterner.GetOrCreateTupleType(
             elements.ConvertAll(element => element.Type));
 
-        return new TupleLiteralExpression(node, elements, elementNames, tupleType);
+        return new TupleLiteralExpression(node, elements, elementNames, tupleType) { IsTargetTyped = targets is not null };
     }
 
     /// <summary>
@@ -231,7 +231,7 @@ internal static class LiteralBinder
 
         // A literal's length is statically known: it is the element count.
         var arrayType = context.Resolver.ConstructArray(elementType, elements.Count);
-        return new ArrayLiteralExpression(node, elementType, elements, arrayType);
+        return new ArrayLiteralExpression(node, elementType, elements, arrayType) { IsTargetTyped = targetElementType is not null };
     }
 
     /// <summary>

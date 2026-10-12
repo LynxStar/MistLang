@@ -90,6 +90,7 @@ internal sealed partial class ScopeResolver
             constituents.Add(Resolve(singleRef, scope));
         }
 
+        context.ProgramModel.CompositeApplications.Record(CompositeKind.Union, constituents, typeRef, scope);
         return context.ProgramModel.TypeInterner.GetOrCreateUnionType(constituents);
     }
 
@@ -112,6 +113,7 @@ internal sealed partial class ScopeResolver
             ResolveTupleElement(additional, scope, elementTypes, elementNames);
         }
 
+        context.ProgramModel.CompositeApplications.Record(CompositeKind.Tuple, elementTypes, tupleRef, scope);
         var structural = context.ProgramModel.TypeInterner.GetOrCreateTupleType(elementTypes);
 
         if(elementNames.Exists(name => name is not null))
@@ -219,7 +221,15 @@ internal sealed partial class ScopeResolver
         // in a constructed Standard.Array<TValue, Length>.
         if(GetArrayRank(singleRef) is { } rank)
         {
-            inner = PackTypePositions.Indexed(inner, rank, singleRef, context.Diagnostics, MarkResolutionFailure) ?? ResolveArrayType(singleRef, inner);
+            if(PackTypePositions.Indexed(inner, rank, singleRef, context.Diagnostics, MarkResolutionFailure) is { } indexed)
+            {
+                inner = indexed;
+            }
+            else
+            {
+                context.ProgramModel.CompositeApplications.Record(CompositeKind.Array, [inner], singleRef, scope);
+                inner = ResolveArrayType(singleRef, inner);
+            }
         }
 
         if(HasOptionalToken(singleRef) && inner is not ErrorType)

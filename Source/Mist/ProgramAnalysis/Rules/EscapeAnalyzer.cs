@@ -3,7 +3,6 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
-using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
 
@@ -93,7 +92,7 @@ internal sealed class EscapeAnalyzer : IProgramAnalyzer
 
     private static (string? Kind, string Reason) Why(LocalVariable local)
     {
-        if((local.Type is ConstructedType constructed ? constructed.Definition : local.Type) is StructType { IsRef: true })
+        if(RefStructs.Is(local.Type))
         {
             return ("ref struct", "a ref struct cannot live on the heap");
         }

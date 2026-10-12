@@ -78,6 +78,8 @@ public sealed class ProgramModel : IProgramModel
 
     internal OptionalApplicationRegistry OptionalApplications { get; private set; } = new();
 
+    internal CompositeApplicationRegistry CompositeApplications { get; private set; } = new();
+
     internal TypeNamingRegistry TypeNamings { get; private set; } = new();
 
     /// <summary>
@@ -88,9 +90,9 @@ public sealed class ProgramModel : IProgramModel
     /// </summary>
     internal T Discarding<T>(Func<T> trial)
     {
-        var kept = (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications, TypeNamings);
-        (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications, TypeNamings) =
-            (new(), new(), new(), new(), new(), new());
+        var kept = (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications, CompositeApplications, TypeNamings);
+        (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications, CompositeApplications, TypeNamings) =
+            (new(), new(), new(), new(), new(), new(), new());
 
         try
         {
@@ -98,7 +100,7 @@ public sealed class ProgramModel : IProgramModel
         }
         finally
         {
-            (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications, TypeNamings) = kept;
+            (ConstructorConstraintClosures, VariadicUses, GenericCalls, TaskDrops, OptionalApplications, CompositeApplications, TypeNamings) = kept;
         }
     }
 

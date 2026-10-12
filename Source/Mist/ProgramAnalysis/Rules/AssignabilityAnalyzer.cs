@@ -274,7 +274,9 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 
     private static void Check(AnalysisContext context, Expression value, IMistType target, params Expression[] alsoAbout)
     {
-        if(Assignability.Judge(value, target, context.Model.TypeInterner) is { } descriptor
+        var interner = context.Model.TypeInterner;
+
+        if((Assignability.Judge(value, target, interner) ?? Assignability.Boxing(value.Type, target, interner)) is { } descriptor
             && !UnheldCopies.Report(context, value.Type, target, value.Node, [value, .. alsoAbout]))
         {
             context.Report(descriptor, value.Node, [value, .. alsoAbout], TypeDisplay.Mist(value.Type), TypeDisplay.Mist(target));
@@ -284,7 +286,9 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
     private static void Check(
         AnalysisContext context, IMistType from, IMistType to, SyntaxNode at, IReadOnlyList<Expression> about)
     {
-        if(Assignability.Judge(from, to, context.Model.TypeInterner) is { } descriptor
+        var interner = context.Model.TypeInterner;
+
+        if((Assignability.Judge(from, to, interner) ?? Assignability.Boxing(from, to, interner)) is { } descriptor
             && !UnheldCopies.Report(context, from, to, at, about))
         {
             context.Report(descriptor, at, about, TypeDisplay.Mist(from), TypeDisplay.Mist(to));

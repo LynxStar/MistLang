@@ -18,7 +18,8 @@ internal static class NewtypeLiterals
         if(value is ArrayLiteralExpression { ElementType: { } element } array && ConversionRelation.CloneSourceOf(element) is not null)
         {
             return new ArrayLiteralExpression(
-                array.Node, element, [.. array.Elements.Select(item => Admit(item, element, interner)!)], array.Type);
+                array.Node, element, [.. array.Elements.Select(item => Admit(item, element, interner)!)], array.Type)
+            { IsTargetTyped = array.IsTargetTyped };
         }
 
         if(value is null

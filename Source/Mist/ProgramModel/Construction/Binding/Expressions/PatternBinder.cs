@@ -308,7 +308,7 @@ internal static partial class PatternBinder
         BuilderContext context,
         bool isFailed = false)
     {
-        var refinement = BindRefinement(tested, ctx, context);
+        var refinement = ComposeRefinement(tested, node, refined => BindRefinement(refined, ctx, context));
 
         if(scrutineeType is not UnionType union || OptionalUnion.IsOptional(union))
         {

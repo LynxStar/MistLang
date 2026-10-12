@@ -1,6 +1,7 @@
 // Tier 1 decisions and Tier 2 walks distinguish impossible tests from indeterminate inputs.
 
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -135,6 +136,10 @@ public sealed class PatternRefusalTests
     [InlineData("conjunction-later")]
     [InlineData("type-test-before-relational")]
     [InlineData("refined-type-test")]
+    [InlineData("refined-over-refined")]
+    [InlineData("ulong-domain")]
+    [InlineData("ulong-beyond-long")]
+    [InlineData("optional-held-value")]
     [InlineData("byte-domain")]
     [InlineData("bool-domain")]
     [InlineData("char-range")]
@@ -158,10 +163,10 @@ public sealed class PatternRefusalTests
     [InlineData("symbolic-bound")]
     [InlineData("unreadable-later")]
     [InlineData("type-test-of-another-domain")]
-    [InlineData("refined-over-refined")]
+    [InlineData("refined-over-refined-below-its-base")]
     [InlineData("enum-has-no-domain")]
-    [InlineData("ulong-has-no-domain")]
-    [InlineData("optional-input")]
+    [InlineData("ulong-below-the-sign-boundary")]
+    [InlineData("optional-absence-reaches-catch-all")]
     [InlineData("unknown-input")]
     public void RelationalArmSomeValueStillReachesStaysSilent(string shape)
     {
@@ -427,8 +432,8 @@ public sealed class PatternRefusalTests
             "double-domain" or "nan-reaches-catch-all" => h.Double,
             "decimal-domain" => h.Built.Type("Decimal"),
             "enum-has-no-domain" => HandBuiltModel.Enum("Color", h.Int),
-            "ulong-has-no-domain" => h.Built.Type("UInt64"),
-            "optional-input" => new UnionType([h.Int, h.Built.Type("Void")]),
+            "ulong-domain" or "ulong-beyond-long" or "ulong-below-the-sign-boundary" => h.Built.Type("UInt64"),
+            "optional-held-value" or "optional-absence-reaches-catch-all" => new UnionType([h.Int, h.Built.Type("Void")]),
             "unknown-input" => UnknownType.Instance,
             _ => h.Int,
         };
@@ -447,12 +452,29 @@ public sealed class PatternRefusalTests
             return new ConjunctionPattern(HandBuiltModel.Node(), input, operands);
         }
 
+        Pattern unsigned(ComparisonKind kind, ulong bound)
+        {
+            return compare(kind, h.Literal(bound, input));
+        }
+
+        TypeTestPattern refined(RefinedType type)
+        {
+            return new TypeTestPattern(HandBuiltModel.Node(), type, null,
+                refinement: PatternBinder.ComposeRefinement(type, HandBuiltModel.Node(), declared => declared.Predicate));
+        }
+
         var adult = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 18, "AdultAge");
         var senior = HandBuiltRefinements.RefinePattern(adult, h.Compare(adult, ComparisonKind.GreaterThanOrEqual, 65), "Senior");
+        var young = HandBuiltRefinements.RefinePattern(adult, h.Compare(adult, ComparisonKind.LessThan, 30), "Young");
         var (earlier, later) = shape switch
         {
-            "strict-containment" or "long-domain" or "ulong-has-no-domain" or "optional-input" or "unknown-input"
+            "strict-containment" or "long-domain" or "ulong-domain" or "optional-held-value" or "unknown-input"
                 => (new[] { compare(ComparisonKind.GreaterThan, 0) }, compare(ComparisonKind.GreaterThan, 10)),
+            "ulong-beyond-long" => ([unsigned(ComparisonKind.GreaterThanOrEqual, 9223372036854775808UL)], unsigned(ComparisonKind.Equal, ulong.MaxValue)),
+            "ulong-below-the-sign-boundary"
+                => ([unsigned(ComparisonKind.GreaterThanOrEqual, 9223372036854775808UL)], unsigned(ComparisonKind.Equal, 9223372036854775807UL)),
+            "optional-absence-reaches-catch-all"
+                => ([compare(ComparisonKind.LessThan, 0), compare(ComparisonKind.GreaterThanOrEqual, 0)], new CatchAllPattern(HandBuiltModel.Node(), input, null)),
             "inclusive-endpoint" => ([compare(ComparisonKind.GreaterThanOrEqual, 0)], equal(0)),
             "exclusive-endpoint" => ([compare(ComparisonKind.GreaterThan, 0)], equal(0)),
             "constant-inside-interval" => ([both(compare(ComparisonKind.GreaterThan, 0), compare(ComparisonKind.LessThan, 10))], equal(5)),
@@ -465,7 +487,8 @@ public sealed class PatternRefusalTests
             "type-test-before-relational" => ([new TypeTestPattern(HandBuiltModel.Node(), h.Int, null)], compare(ComparisonKind.GreaterThan, 5)),
             "type-test-of-another-domain" => ([new TypeTestPattern(HandBuiltModel.Node(), h.Built.Type("Int64"), null)], equal(5)),
             "refined-type-test" => ([new TypeTestPattern(HandBuiltModel.Node(), adult, null, refinement: adult.Predicate)], equal(30)),
-            "refined-over-refined" => ([new TypeTestPattern(HandBuiltModel.Node(), senior, null, refinement: senior.Predicate)], equal(70)),
+            "refined-over-refined" => ([refined(senior)], equal(70)),
+            "refined-over-refined-below-its-base" => ([refined(young)], equal(5)),
             "byte-domain" => ([compare(ComparisonKind.GreaterThanOrEqual, 0)], new CatchAllPattern(HandBuiltModel.Node(), input, null)),
             "bool-domain" => ([equal(true), equal(false)], new CatchAllPattern(HandBuiltModel.Node(), input, null)),
             "char-range" => ([both(compare(ComparisonKind.GreaterThanOrEqual, 'a'), compare(ComparisonKind.LessThanOrEqual, 'z'))], equal('q')),

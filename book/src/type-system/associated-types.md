@@ -82,7 +82,7 @@ The slot's type parameters are independent of the enclosing abstract type's type
 
 ## Implementor Satisfaction
 
-A class or struct satisfies an associated type slot by providing a concrete nested type that matches the slot's name and satisfies its constraints. A slot with no type parameters of its own may also be filled by a nested type alias of that name, `public type Element = string;`, which fills it with the type the alias stands for:
+A class or struct satisfies an associated type slot by providing a concrete nested type that matches the slot's name and arity and satisfies its constraints. A slot may also be filled by a nested type alias of that name: `public type Element = string;` fills a slot with no type parameters with the type the alias stands for, and a generic alias of the slot's arity, `public type Holder<T> = Box<T>;`, fills a parameterized slot with a definition that every use expands over its own type argument and that is judged against the slot's bound as the expansion. An abstract that inherits from one declaring slots carries them too: a conformer of `abstract INamedBag : IBag` must fill `IBag`'s `Element` exactly as a direct conformer would, and a generic method constrained to `INamedBag` reaches the inherited slot.
 
 {{#tabs }}
 {{#tab name="Mist" }}

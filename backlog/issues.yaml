@@ -259,86 +259,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-042
   area: analysis
-- id: MIST-022
-  title: Preserve optional-reference context keys through generic consumers
-  status: confirmed
-  summary: Get<string?> with a T clause peeks the required string key. Fully known optional keys work;
-    propagate key identity through the erased generic consumer without changing value representation.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=176,id=structured-context].tasks[0]
-    lead_excerpt: Preserve optional-reference context identity through generic calls/receivers when an
-      argument is erased behind a type parameter. `static T Get<T>() with T value` called as `Get<string?>()`
-      still peeks the CLR string key rather than the optional-reference marker, despite analysis distinguishing
-      it. Fully known optional/nested key syntax encodes correctly, and value-optional keys retain CLR
-      Nullable…
-    line_at_baseline: 10707
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/classic-retirement.md
-    selector: residual generic consumer
-    line_at_baseline: 247
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=structured-context-checking].tasks[1]
-    line_at_baseline: 5803
-    lead_excerpt: OPTIONAL-REFERENCE ARGUMENTS ERASED BEHIND A GENERIC KEY REMAIN OPEN. `static T Get<T>()
-      with T value` called as `Get<string?>()` under an optional-string context still emits T as CLR string,
-      so its Peek<T> cannot recover the optional-reference marker. Fully known optional keys and their
-      nested tuple/callable structures encode correctly, and optional-value arguments retain their CLR
-      Nullable<T> id…
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe plus source inspection
-    detail: CLI prints required instead of optional; structured-context exact-key contract is requirements
-      5.1 and 5.6.
-    source_symbols:
-    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/ContextLowering.cs
-      symbol: public static object Peek
-      line: 67
-    - file: .kiro/specs/structured-context/requirements.md
-      symbol: exact nominal static type
-      line: 92
-    probes:
-    - path: /private/tmp/mist-backend-reconcile-probes/generic_context
-      source: 'using Standard;
-
-        namespace Probe;
-
-        public class Program { public static T Get<T>() with T value { return value; } public static void
-        Main() { string? opt = "optional"; with opt; with "required"; Console.WriteLine(Get<string?>());
-        } }
-
-        '
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/generic_context
-        --quiet
-      exit_code: 0
-      output: 'required
-
-        '
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection plus executed frozen-main reproduction by sibling backend auditor;
-      no tests rerun here
-    sources:
-    - file: Source/Mist/ProgramAnalysis/ContextKeys.cs
-      selector: public static bool IsOpen
-      line: 43
-    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/ContextLowering.cs
-      selector: internal static class
-      line: 19
-    probe_report: 'Backend auditor: Get<string?>() under with optional="optional" and with required="required"
-      returns "required"; parent merges canonical probe trace.'
-  related:
-  - analysis register context checking
-  - packet 10 context keys/entry
-  - emitter176 optional-reference keys
-  - backend inventory generic-context erasure
-  - classic-retirement contexts
-  priority_rationale: Current reproducible wrong behavior; correctness work.
-  audit_key: backend:backend-generic-context-key
-  area: backend
-  merged_audit_keys:
-  - analysis:analysis-102
 - id: MIST-029
   title: Support both specified user-defined sliceable protocols
   status: confirmed
@@ -5915,33 +5835,6 @@ issues:
   priority_rationale: Resolve the explicit non-tuple requirement versus existing unknown positional-pattern
     admission before changing semantics.
   area: backend
-- id: MIST-218
-  title: Bridge a weaker generic slot answer whose default or constructor witnesses differ
-  status: confirmed
-  summary: 'A slot whose method type parameter declares `default` or a constructor constraint carries witness parameters in the emitted interface; an answer that requires less has a different C# parameter list, so it implements nothing and Roslyn refuses the conformer. Mist admits the answer (MIST-011), and ConstraintSlotBridgeEmitter bridges only answers whose witnesses match.'
-  source_refs: []
-  evidence:
-  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
-    kind: executed CLI probe
-    detail: "abstract IMaker { string Make<T>(T value) where T : default; } answered by Make<U>(U value) fails MIST_CS_ERROR: 'Maker' does not implement interface member 'IMaker.Make<T>(Func<T>, T)'. The same failure predates the slot-constraint emission fix."
-  related:
-  - MIST-011
-  priority_rationale: Admitted program fails in Roslyn; bounded emission work.
-  area: backend
-- id: MIST-219
-  title: Lift associated type slots through a derived abstract
-  status: confirmed
-  summary: 'An abstract deriving from one with an associated type slot emits its base without the lifted slot argument, so `abstract INamedBag : IBag` over `abstract IBag { type Element; }` fails in Roslyn whatever fills the slot.'
-  source_refs: []
-  evidence:
-  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
-    kind: executed CLI probe
-    detail: "Strings : INamedBag filling Element with an alias or a nested class fails MIST_CS_ERROR: Using the generic type 'IBag<Element>' requires 1 type arguments, at `interface INamedBag : Probe.IBag`. Directly implementing IBag compiles and runs."
-  related:
-  - MIST-011
-  - associated type slot lifting
-  priority_rationale: Valid conformance fails in Roslyn.
-  area: backend
 - id: MIST-220
   title: Decide how an abstract with lifted associated slots is used as a value type
   status: decision
@@ -5955,22 +5848,6 @@ issues:
   - MIST-011
   priority_rationale: Language decision before implementation.
   area: language
-- id: MIST-221
-  title: Fill a parameterized associated slot with a generic nested alias
-  status: confirmed
-  summary: 'The associated-types glossary lets a type alias be a Concrete_Type_Member; TypeSlots.Filler accepts an alias only for a slot with no type parameters, so `public type Holder<T> = List<T>;` does not fill `type Holder<T>;`.'
-  source_refs: []
-  evidence:
-  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
-    kind: executed CLI probe plus source inspection
-    detail: "class Shelf : IShelf { public type Holder<T> = List<T>; } is MIST_PA_TYPE_SLOT_UNFILLED. The parameterized slot's constraint check and erasure would need the alias expanded per application."
-    source_symbols:
-    - file: Source/Mist/ProgramModel/Construction/TypeSlots.cs
-      symbol: 'TypeAlias { TypeParametersList.Count: 0 }'
-  related:
-  - MIST-011
-  priority_rationale: Specified filler form refused.
-  area: analysis
 - id: MIST-223
   title: Print a union value as the value it holds
   status: decision
@@ -6207,6 +6084,232 @@ issues:
   priority_rationale: Invalid program reaches the target compiler.
   area: binding
 archive:
+- id: MIST-238
+  title: Push the tests that load the .NET reference assemblies down to the tier that owns their invariant
+  status: implemented
+  summary: 'Delivered 2026-10-12: the 230 tests are at the tier that owns their invariant and the Mist.Tests host runs in about twenty seconds peaking near 2.3 GB; before, about 230 tests in Mist.Tests load all 167 assemblies of the .NET reference pack, through CompilerDriver.Compile, TypeInspector or an AmbientTypeProviderV2 fixture, to check one stage: 14 tagged Tier 1, 59 Tier 3, 56 Tier 4, the rest untagged. One such load is 256 to 512 MB of live heap, xUnit runs eighteen at once, and a full Mist.Tests host reaches 15 to 20 GB; two concurrent suites locked a 24 GB machine on 2026-10-11. The testing philosophy now states what a tier may cost: Tiers 1 to 3 run in microseconds to tens of milliseconds in process, Tier 4 under ten seconds, and only Tiers 5 and 6 may be heavy. Classify each of these tests honestly, then push it down to the stage that owns its invariant on a hand-built input or a stub provider; the provider area''s own tests project one small fixture assembly; the handful that genuinely need the reference assemblies are two or three assembly-resolution seams and a sparse set of Tier 5 system tests.'
+  source_refs: []
+  evidence:
+  - revision: docs(testing) State what each tier may cost, on the generic-context-keys branch based on dd0aa417
+    date: '2026-10-12'
+    kind: executed measurement and source inventory
+    detail: 'Each measurement ran one test host at a time with RSS sampled every 0.25 s. Per area on 18 threads: Backend (1990 tests) 7.8 GB, Integration (113) 7.6 GB, Driver (222) 2.5 GB, ProgramAnalysis (4690 hand-built tests) 1.2 GB, Lexing, Parsing, Construction and Generators under 0.3 GB. Last week''s revision 615808e1 measures the same (Integration 7.8 GB, Backend 7.6 GB), so no recent commit caused it. Under a 2 GB GC hard limit Integration and Backend die of OutOfMemoryException on 18 threads and pass on 1 thread (Integration peak 0.9 GB, 39 s), so nothing is retained across tests. AmbientExtensionTypeParameterPartitionTests (5 tests, 1 thread) peaks at 741 MB uncapped, passes under 512 MB and dies under 256 MB: one reference-pack projection. The whole assembly: 138 s and 20 GB peak at 18 threads, 84 s and 7.2 GB at 6. Declared tiers by static count: 2182 Tier 1, 2983 Tier 2, 349 Tier 3, 31 Tier 4, 2 Tier 5, 1 Tier 6, 4220 untagged.'
+    sources:
+    - file: Source/Mist/Driver/StandardPipeline.cs
+      selector: AmbientTypeProviderV2Factory.Create
+    - file: Source/Mist/Backends/CSharpTranspiler/AmbientProvider/AmbientTypeProviderV2.cs
+      selector: BuildAndRegister eagerly projects all CLR types
+    - file: Test/Mist.Tests/Backend/AmbientTypeProviderV2InteropFixture.cs
+      selector: Directory.GetFiles(runtimeDirectory, "*.dll")
+    inventory:
+    - 'Provider area, projecting the whole runtime directory (117): IntrinsicSupplyTests 24, AmbientTypeProviderV2IntegrationProjectionTests 22, InspectionReportTests 14 (tagged Tier 1), DelegateFamilyProjectionV2Tests 9, AmbientTypeProviderV2TupleProjectionTests 7, AmbientTypeProviderV2AttributeProjectionTests 6, AmbientExtensionTypeParameterPartitionTests 5, ClrInboundOptionalProjectionTests 5, TypeInspectorTests 5, ClrConstructedContainmentTests 4, AmbientTypeProviderV2IntegrationAliasTests 4, ClrNestedGenericProjectionTests 3, AmbientTypeProviderV2NullableProjectionTests 3, AmbientTypeProviderV2ConcurrencyTests 2, AmbientCallableProjectionTests 2, AmbientConstraintRegistrationTests 1, AmbientTypeProviderV2AliasTests 1. Right tier 2 or 3 over one fixture assembly.'
+    - 'Binding and analysis decisions built through the full provider (54): ExperimentalRepresentationIntegrationTests 21, CallabilityTests 20, SequenceLengthDecisionTests 10, ProjectedCallableOverloadSelectionTests 3. Right tier 1 or 2 on hand-built CLR-shaped types.'
+    - 'Driver and pipeline seams, full compile without execution (37): PackageResolutionStageTests 11, CompilerDriverProgressReportingTests 4, CompilerDriverGlobalUsingsTests 3, EntryPointManifestSeamTests 3, StandardPipelineProgressSeamTests 3, LibraryOutputEmissionTests 3, FunctionTypeBridgeTests 2, StdlibParseCacheTests 2, CompilerDriverConstructionTests 1, CompilerDriverReferenceIntegrationTests 1, ReferencedManifestDependenciesTests 1, EndToEndCompilationTests 1, ResolvedPackagesReachV2CompilationTests 1, PipelineBackendPropertyTests 1. Right tier 4 on a stub provider through a driver seam; only the assembly-resolution seams keep the real one.'
+    - 'Compile and run a program, asserting on its output (25): CloneConversionRuntimeTests 5, MonomorphEmissionTests 3, RefinementEmissionTests 3, RegexEmissionTests 3, ClrTupleSignatureRuntimeTests 3, UnitHoistingRuntimeTests 2, WithBlockEmissionTests 2, ClrDelegateLambdaTests 1, CultureInvariantEmissionTests 1, FieldInitializerRuntimeTests 1, GeneratedProjectNullabilityTests 1. Tier 5 by nature: bank each claim in the sample the orchestrator runs and retire the test, keeping only claims the orchestrator cannot make.'
+  - revision: refactor commits on the generic-context-keys branch landing with this entry, based on dd0aa417
+    date: '2026-10-12'
+    kind: implementation and executed verification
+    implementation:
+    - 'Provider area (117 tests): AmbientProviderTestHelper gains RuntimeResolvingContext and ProviderOver, so the interop fixture projects Mist.Tests.InteropFixtures.dll alone and three classes whose claims are about Enumerable add exactly System.Linq.dll; new fixture shapes in Test/Mist.Tests.InteropFixtures replace List, Dictionary, JsonSerializer, Path, Console, Encoding and IFormattable claims; classes tagged Tier 2 (projection chain) or 3 (TypeInspector, containment, nested generics, sequence lengths), IntrinsicSupplyTests Tier 4, DelegateFamilyProjectionV2Tests and AmbientTypeProviderV2AliasTests Tier 1 (no assembly loaded). AmbientTypeProviderV2IntegrationAliasTests deleted as a duplicate of AmbientTypeProviderV2AliasTests.'
+    - 'Decision tests (54): CallabilityTests rewritten at Tier 2 over PostfixBinder with hand-built types, ProjectedCallableOverloadSelectionTests at Tier 2 with hand-built LINQ-shaped extensions, SequenceLengthDecisionTests at Tier 1 over Lengths.Of, and ExperimentalRepresentationIntegrationTests replaced by DeclaredAccessibilityAndSealedTests (Tier 1, ModifierBuilder) and ClrShellAccessibilityAndSealedTests (Tier 1, TypeProjector.CreateShell over reflection); no invariant dropped.'
+    - 'Driver seams (37): IAmbientTypeSource (Driver/Contracts) is the pipeline''s Stage 4 source, taken from an optional factory on CompilerDriver and StandardPipeline defaulting to AmbientTypeProviderV2Factory.Create; StubAmbientTypeSource answers FindClrType from the host''s loaded runtime assemblies and projects nothing; every seam test uses it except ResolvedPackagesReachV2CompilationTests, whose claim is that a resolved package reaches the provider. CompilerDriverConstructionTests tagged Tier 4.'
+    - 'Compile-and-run tests (25 plus NativeDefaultInterfaceRuntimeTests): claims banked in NewtypeClones, Variadics, RefinementTypes, DropSemantics, DelegateFuncConversion, OptionalDefaultability, DefaultKeyword and VoidType (HoistingDemo), 53 baseline lines added and the four spec proof blocks realigned; eight files deleted; CultureInvariantEmissionTests, GeneratedProjectNullabilityTests, ClrTupleSignatureRuntimeTests and NativeDefaultInterfaceRuntimeTests stay as one-fact Tier 5 tests with one compile and one run each, the last two because their programs reference the C# interop fixture assembly no sample can reference.'
+    acceptance:
+    - 'Per-class peaks after (one thread, one host): AmbientExtensionTypeParameterPartitionTests 809 to 227 MB, AmbientTypeProviderV2IntegrationProjectionTests 816 to 227 MB, CallabilityTests 620 to 225 MB, ExperimentalRepresentationIntegrationTests 776 MB to 222 and 187 MB for its replacements, SequenceLengthDecisionTests 439 to 224 MB, ProjectedCallableOverloadSelectionTests 463 to 197 MB, PackageResolutionStageTests 741 to 295 MB, CompilerDriverProgressReportingTests 790 to 275 MB; the host idles at about 173 MB.'
+    - 'Remaining reference-pack loads inside the host: ResolvedPackagesReachV2CompilationTests (Tier 4 seam) and the four Tier 5 tests; AllFeaturesV2 loads it once in its own process.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format --verify-no-changes and git diff --check clean. Full regression through tools/test-ledger/run.sh on the integrated head (Storm 83410653), DOTNET_USE_POLLING_FILE_WATCHER=1 set preemptively, ledger TestResults/ledger/20261012-012232: test exit 0 after 22 s; 11617 passed, 0 failed, 0 skipped (Mist.Tests 10546 in 17 s, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46); summary.txt read, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed; the Mist.Tests host peaked at 2.4 GB sampled every second. Earlier full runs on this branch: 20261011-234333 passed every test (10940) before its host was killed by hand, 20261011-230942 passed all but three expectation pins since updated, and 20261012-011755 passed all but the four spec proof blocks realigned here. AllFeaturesV2 through the CLI is identical to the baseline (2399 lines) with empty stderr; SnippetEmitter: 405 pairs, 0 updated, 0 failed.'
+    limitations:
+    - 'CreateShells skipping a well-known name an assembly defines (ambient-type-provider-v2 Requirement 6.3) is no longer asserted below Tier 5 since AmbientTypeProviderV2IntegrationAliasTests went; every real compile exercises it, and AllFeaturesV2 would fail on a duplicate registration.'
+    - 'About 4,000 tests remain untagged; they are cheap (ProgramAnalysis, 4690 hand-built tests, peaks at 1.2 GB on 18 threads) and are classified as they are touched.'
+  related:
+  - testing philosophy, What a Tier May Cost
+  priority: P1
+  priority_rationale: The suite cannot run beside another session on a 24 GB machine, and the pyramid misreports where its cost sits.
+  area: testing
+
+- id: MIST-022
+  title: Preserve optional-reference context keys through generic consumers
+  status: implemented
+  summary: 'Delivered: a `with` clause whose key names a type parameter carries the key the caller closed it to as a hidden System.Type parameter, so Get<string?> with a T clause peeks the optional key and Get<string> the required one; value representation is unchanged.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=176,id=structured-context].tasks[0]
+    lead_excerpt: Preserve optional-reference context identity through generic calls/receivers when an
+      argument is erased behind a type parameter. `static T Get<T>() with T value` called as `Get<string?>()`
+      still peeks the CLR string key rather than the optional-reference marker, despite analysis distinguishing
+      it. Fully known optional/nested key syntax encodes correctly, and value-optional keys retain CLR
+      Nullable…
+    line_at_baseline: 10707
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/classic-retirement.md
+    selector: residual generic consumer
+    line_at_baseline: 247
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=structured-context-checking].tasks[1]
+    line_at_baseline: 5803
+    lead_excerpt: OPTIONAL-REFERENCE ARGUMENTS ERASED BEHIND A GENERIC KEY REMAIN OPEN. `static T Get<T>()
+      with T value` called as `Get<string?>()` under an optional-string context still emits T as CLR string,
+      so its Peek<T> cannot recover the optional-reference marker. Fully known optional keys and their
+      nested tuple/callable structures encode correctly, and optional-value arguments retain their CLR
+      Nullable<T> id…
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe plus source inspection
+    detail: CLI prints required instead of optional; structured-context exact-key contract is requirements
+      5.1 and 5.6.
+    source_symbols:
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/ContextLowering.cs
+      symbol: public static object Peek
+      line: 67
+    - file: .kiro/specs/structured-context/requirements.md
+      symbol: exact nominal static type
+      line: 92
+    probes:
+    - path: /private/tmp/mist-backend-reconcile-probes/generic_context
+      source: 'using Standard;
+
+        namespace Probe;
+
+        public class Program { public static T Get<T>() with T value { return value; } public static void
+        Main() { string? opt = "optional"; with opt; with "required"; Console.WriteLine(Get<string?>());
+        } }
+
+        '
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/generic_context
+        --quiet
+      exit_code: 0
+      output: 'required
+
+        '
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection plus executed frozen-main reproduction by sibling backend auditor;
+      no tests rerun here
+    sources:
+    - file: Source/Mist/ProgramAnalysis/ContextKeys.cs
+      selector: public static bool IsOpen
+      line: 43
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/ContextLowering.cs
+      selector: internal static class
+      line: 19
+    probe_report: 'Backend auditor: Get<string?>() under with optional="optional" and with required="required"
+      returns "required"; parent merges canonical probe trace.'
+  - revision: MIST-022 closure commit containing this entry, based on 5ff1b65b05ac02d5a6c4626ab7be9adc72a809f1
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'ContextKeyWitnesses (backend lowering): a with clause whose key ContextKeys.IsOpen gains a System.Type parameter __context_<ordinal> after the default and constructor witnesses; MethodEmitter.EmitSignature, ConstructorEmitter, ExtensionBlockEmitter and SlotBridgeEmitter declare it. A closed key keeps Peek<K>().'
+    - 'The body entry peeks by the parameter. Inside the body an open key ContextKeys.Same as an enclosing clause spells as that parameter, which a nested call forwards and a with block files under through MistContext.Push/Pop/Peek(System.Type) overloads; elsewhere an open key erases to typeof its CLR spelling.'
+    - 'Call sites supply the key the binder closed the clause to (InvocationExpression, NewExpression and FunctionReferenceExpression.ContextTypes) through DefaultWitnesses.MethodArguments, the new-expression witness list, this and base constructor chains closed through the base substitution, RespelledGroups lambdas and collection-initializer Add calls.'
+    - 'ConstraintSlotBridgeEmitter bridges an answer whose context channel is not its slot''s (T Read() with T value on IBox<T> answered by string? Read() with string? value on OptBox : IBox<string?>), forwarding only the keys the answer requires; equal channels emit no bridge.'
+    acceptance:
+    - 'CLI probe of the record''s reproduction prints optional then required. Matrix probes: generic method, nested forwarding, shadowing restored after pop, generic class receiver and constructor clause, extension receiver, method group reference, abstract generic dispatch, closed answer on IBox<string?>, int? against int, pure against plain function keys, optional tuple against tuple keys, this and base constructor chains and a struct constructor clause beside a stored default witness all read the exact key; each generated out/Probe.csproj builds with 0 warnings.'
+    - 'Tier 1 ContextKeyWitnessTests (ordinals, exempt members, spelling inside and outside a held scope); Tier 2 StructuredContextKeyEmissionTests (entry peek, push and pop by the parameter, closed clause unchanged), ConstraintSlotBridgeEmissionTests (open clause forwarded, closed answer bridged without the key), ExtensionCarrierEmissionTests and RestatedDefaultEntryEmissionTests; Tier 3 StructuredContextTests (call-site key, forwarded parameter, method group).'
+    - 'samples/StructuredContext section 19 is banked in AllFeaturesV2 (provenance recorded in samples/CLAUDE.md); .kiro/specs/structured-context/design.md and book/src/advanced/structured-context.md describe the channel.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format --verify-no-changes and git diff --check clean. Full regression through tools/test-ledger/run.sh on the integrated head (Storm 83410653), DOTNET_USE_POLLING_FILE_WATCHER=1 set preemptively, ledger TestResults/ledger/20261012-012232: test exit 0 after 22 s; 11617 passed, 0 failed, 0 skipped (Mist.Tests 10546 in 17 s, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46); summary.txt read, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed; the Mist.Tests host peaked at 2.4 GB sampled every second. Earlier full runs on this branch: 20261011-234333 passed every test (10940) before its host was killed by hand, 20261011-230942 passed all but three expectation pins since updated, and 20261012-011755 passed all but the four spec proof blocks realigned here. AllFeaturesV2 through the CLI is identical to the baseline (2399 lines) with empty stderr; SnippetEmitter: 405 pairs, 0 updated, 0 failed.'
+    limitations:
+    - 'A with block whose key is open in a body declaring no clause of that key files the value under the CLR-erased key: static string Erased<T>(T x) { with x; return Consumer.Read(); } over Consumer.Read() with string s, called as Erased<string?>("x") under with "required", returns "x" rather than "required". Consumers the block itself holds read consistently; the mismatch needs a closed-key consumer lifted to the caller whose key erases to the same CLR type. A clause on the method restores the exact key.'
+    - 'Members the target runs with no call written -- operators, conversions, Drop and Dispose, GetEnumerator and MoveNext, Clone -- carry no parameter and keep the erased Peek<T>().'
+  related:
+  - analysis register context checking
+  - packet 10 context keys/entry
+  - emitter176 optional-reference keys
+  - backend inventory generic-context erasure
+  - classic-retirement contexts
+  priority_rationale: Current reproducible wrong behavior; correctness work.
+  audit_key: backend:backend-generic-context-key
+  area: backend
+  merged_audit_keys:
+  - analysis:analysis-102
+- id: MIST-218
+  title: Bridge a weaker generic slot answer whose default or constructor witnesses differ
+  status: implemented
+  summary: 'Delivered: an explicit implementation bridges a generic answer whose default witnesses, constructor witnesses or context keys are not its slot''s, forwarding only what the answer requires, so `Make<T>(T) where T : default` answered by `Make<U>(U)` builds and is reached through the slot and directly.'
+  source_refs: []
+  evidence:
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    kind: executed CLI probe
+    detail: "abstract IMaker { string Make<T>(T value) where T : default; } answered by Make<U>(U value) fails MIST_CS_ERROR: 'Maker' does not implement interface member 'IMaker.Make<T>(Func<T>, T)'. The same failure predates the slot-constraint emission fix."
+  - revision: MIST-218 closure commit containing this entry, based on 5ff1b65b05ac02d5a6c4626ab7be9adc72a809f1
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'MethodEmitter.ForwardingArguments(slot, answer, closing) maps each hidden channel by identity: a default witness by position, a constructor witness by its signature under the renaming (synthesized as () => new T() where a struct promise entailed new()), a context key by ContextKeys.Same; surplus slot witnesses are left unforwarded. ForwardingTypeArguments(slot, answer) lifts the slots the answer reaches.'
+    - 'ConstraintSlotBridgeEmitter emits the explicit implementation whenever constraints or channels differ, non-generic slots included, and none when both agree; AsyncSlotBridgeEmitter and ConformanceEmitter forward through the same mapping.'
+    - 'ConstraintEmitter spells a constructor constraint''s product through TypeNameEmitter, so a renamed but equal new(int) constraint compares equal.'
+    acceptance:
+    - 'CLI probes: IMaker.Make<T>(T) where T : default answered by Make<U>(U) prints answer through the slot and directly; a new(int) slot answered by an unconstrained method, an answer inherited from a base class, a struct promise answered by where U : new(), and an equal default/default pair with no bridge emitted all print; the generated out/Probe.csproj builds with 0 warnings.'
+    - 'Tier 2 ConstraintSlotBridgeEmissionTests rows: new(Int32)/none bridged, new(Int32)/new(Int32) unbridged, default/none bridged, default/default unbridged, struct/new() synthesized.'
+    - 'samples/GenericAbstractMembers weak and struct maker lines are banked in AllFeaturesV2.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format --verify-no-changes and git diff --check clean. Full regression through tools/test-ledger/run.sh on the integrated head (Storm 83410653), DOTNET_USE_POLLING_FILE_WATCHER=1 set preemptively, ledger TestResults/ledger/20261012-012232: test exit 0 after 22 s; 11617 passed, 0 failed, 0 skipped (Mist.Tests 10546 in 17 s, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46); summary.txt read, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed; the Mist.Tests host peaked at 2.4 GB sampled every second. Earlier full runs on this branch: 20261011-234333 passed every test (10940) before its host was killed by hand, 20261011-230942 passed all but three expectation pins since updated, and 20261012-011755 passed all but the four spec proof blocks realigned here. AllFeaturesV2 through the CLI is identical to the baseline (2399 lines) with empty stderr; SnippetEmitter: 405 pairs, 0 updated, 0 failed.'
+    limitations:
+    - 'Pack slots (PackSlotBridgeEmitter) and erased-return slots (SlotBridgeEmitter) keep their own forwarding; only the context channel is added to the latter.'
+  related:
+  - MIST-011
+  priority_rationale: Admitted program fails in Roslyn; bounded emission work.
+  area: backend
+- id: MIST-219
+  title: Lift associated type slots through a derived abstract
+  status: implemented
+  summary: 'Delivered: a derived abstract lifts every zero-arity slot it inherits, own slots first then inherited ones in reach order and each name once, and passes its own lifted parameter to its base, so `abstract INamedBag : IBag` over `abstract IBag { type Element; }` emits `INamedBag<Element> : IBag<Element>` and a conformer `Strings : INamedBag<string>`.'
+  source_refs: []
+  evidence:
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    kind: executed CLI probe
+    detail: "Strings : INamedBag filling Element with an alias or a nested class fails MIST_CS_ERROR: Using the generic type 'IBag<Element>' requires 1 type arguments, at `interface INamedBag : Probe.IBag`. Directly implementing IBag compiles and runs."
+  - revision: MIST-219 closure commit containing this entry, based on 5ff1b65b05ac02d5a6c4626ab7be9adc72a809f1
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'SlotLift.Lifted yields an abstract''s own zero-arity slots in declaration order, then those of every abstract reached through AbstractInheritance.Reached in reach order, each stripped name once and skipping CLR-projected bases; SlotLift.Base passes a derived abstract''s own same-named lifted parameter to its base and a concrete conformer''s filler as before. Constraint, Synthesized, Fillers, TypeSlots.Closing and the bridge emitters derive from these and needed no change; AbstractInheritance.Reached is unchanged.'
+    acceptance:
+    - 'CLI probes: the record''s reproduction prints s, emitting interface INamedBag<Element> : Probe.IBag<Element> and class Strings : Probe.INamedBag<string>; a generic derived abstract (IKeyedBag<K, Element>), two-level inheritance, a diamond lifting E once, own-first ordering over several inherited slots, coinciding slot names sharing one parameter, and a generic method constrained to the derived abstract emitting Use<T, Element> with the call Use<Probe.Strings, string> all run.'
+    - 'Tier 1 SlotLiftInheritanceTests (lift order, base arguments, generic derived abstract, diamond, coinciding names and shadowing, restated bound, synthesized slot and call filler, CLR-projected base not lifted); Tier 2 ConformanceAssociatedSlotTests control: a conformer of the derived abstract leaving the inherited slot unfilled stays MIST_PA_TYPE_SLOT_UNFILLED.'
+    - 'samples/AssociatedTypes Pattern 13 (INamedProducer : IProducer conformed to by NamedProducer, and DescribeNamed<T> where T : INamedProducer) is banked in AllFeaturesV2; book/src/type-system/associated-types.md describes inherited slots.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format --verify-no-changes and git diff --check clean. Full regression through tools/test-ledger/run.sh on the integrated head (Storm 83410653), DOTNET_USE_POLLING_FILE_WATCHER=1 set preemptively, ledger TestResults/ledger/20261012-012232: test exit 0 after 22 s; 11617 passed, 0 failed, 0 skipped (Mist.Tests 10546 in 17 s, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46); summary.txt read, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed; the Mist.Tests host peaked at 2.4 GB sampled every second. Earlier full runs on this branch: 20261011-234333 passed every test (10940) before its host was killed by hand, 20261011-230942 passed all but three expectation pins since updated, and 20261012-011755 passed all but the four spec proof blocks realigned here. AllFeaturesV2 through the CLI is identical to the baseline (2399 lines) with empty stderr; SnippetEmitter: 405 pairs, 0 updated, 0 failed.'
+    limitations:
+    - 'Pre-existing and unchanged: a slot bound naming the base abstract''s own type parameter (IBoxFactory<T> { type Boxed : IWrapper<T>; }) is restated on a derived interface''s, or a synthesized method parameter''s, where clause unsubstituted, exactly as it already is for a method constrained to IBoxFactory<int> without inheritance.'
+    - 'MIST-220, an abstract with lifted slots used as a value type, remains a decision.'
+  related:
+  - MIST-011
+  - associated type slot lifting
+  priority_rationale: Valid conformance fails in Roslyn.
+  area: backend
+- id: MIST-221
+  title: Fill a parameterized associated slot with a generic nested alias
+  status: implemented
+  summary: 'Delivered: a nested generic alias of the slot''s name and arity fills a parameterized slot (associated-types glossary Concrete_Type_Member, requirement 3.9), judged against the slot''s bound by its expansion over the slot''s own parameters and expanded at each application; the bound-erasure strategy is unchanged.'
+  source_refs: []
+  evidence:
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    kind: executed CLI probe plus source inspection
+    detail: "class Shelf : IShelf { public type Holder<T> = List<T>; } is MIST_PA_TYPE_SLOT_UNFILLED. The parameterized slot's constraint check and erasure would need the alias expanded per application."
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Construction/TypeSlots.cs
+      symbol: 'TypeAlias { TypeParametersList.Count: 0 }'
+  - revision: MIST-221 closure commit containing this entry, based on 5ff1b65b05ac02d5a6c4626ab7be9adc72a809f1
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'TypeSlots.Filler accepts a nested TypeAlias whose stripped name and type-parameter count match the slot: an alias of no parameters still fills with the type it stands for; a generic one fills with itself, the definition each application expands over its own arguments.'
+    - 'ConformanceAnalyzer.CheckTypeSlots judges a generic alias filler by expanding it with the slot''s own type parameters as arguments (type Holder<T> = List<T> judged as List<T_slot> against the bound) and judges class and struct keyword bounds on the construction''s definition, so a violated bound on an alias is refused as on a nested generic class. SlotLift.Erased still erases a parameterized slot to its bound.'
+    acceptance:
+    - 'CLI probes: abstract IShelf { type Holder<T> : IHolder<T>; Holder<int> Make(); } filled by type Holder<T> = Box<T> runs, SlotBridgeEmitter emitting Probe.IHolder<int> Probe.IShelf.Make() => this.Make(); an alias to List<T> against IHolder<T> is MIST_PA_TYPE_SLOT_CONSTRAINT_NOT_SATISFIED with the nested-class diagnostic text; alias arity 0 or 2 for a <T> slot stays MIST_PA_TYPE_SLOT_UNFILLED; a cyclic alias reports only MIST_PM_CYCLIC_TYPE_ALIAS and terminates; alias forwarding and an alias inherited from a base class run with the bridge emitted.'
+    - 'Tier 1 TypeSlotFillerTests revised: a generic alias of the slot''s arity fills with itself, another arity or name does not, and a generic alias does not fill a slot of no parameters; Tier 2 ConformanceGenericAliasFillerTests (satisfied and violated nominal, class and struct bounds, arity controls).'
+    - 'samples/AssociatedTypes Pattern 13 (LabelConverter : IConverter<string> filling Converted<TOut> with type Converted<TOut> = Labelled<TOut>, applied through the concrete return and LabelConverter.Converted<int>) is banked in AllFeaturesV2; book/src/type-system/associated-types.md describes generic alias fillers.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format --verify-no-changes and git diff --check clean. Full regression through tools/test-ledger/run.sh on the integrated head (Storm 83410653), DOTNET_USE_POLLING_FILE_WATCHER=1 set preemptively, ledger TestResults/ledger/20261012-012232: test exit 0 after 22 s; 11617 passed, 0 failed, 0 skipped (Mist.Tests 10546 in 17 s, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46); summary.txt read, failures.txt empty; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed; the Mist.Tests host peaked at 2.4 GB sampled every second. Earlier full runs on this branch: 20261011-234333 passed every test (10940) before its host was killed by hand, 20261011-230942 passed all but three expectation pins since updated, and 20261012-011755 passed all but the four spec proof blocks realigned here. AllFeaturesV2 through the CLI is identical to the baseline (2399 lines) with empty stderr; SnippetEmitter: 405 pairs, 0 updated, 0 failed.'
+    limitations:
+    - 'The record''s literal reproduction declares type Holder<T>; with no bound. Analysis now accepts the alias filler, and the backend''s existing MIST_BE_UNBOUNDED_PARAMETERIZED_SLOT refuses the slot, since a parameterized slot erases to its bound; with a bound the program runs end to end.'
+  related:
+  - MIST-011
+  priority_rationale: Specified filler form refused.
+  area: analysis
 - id: MIST-062
   title: Establish per-field moves, leases and parent composite states
   status: implemented

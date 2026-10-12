@@ -16,7 +16,7 @@ public sealed class LocaleStartupTests
         var source = LocaleStartup.Source(Options(TargetPlatform.Windows, ProjectOutputType.Executable));
 
         Assert.NotNull(source);
-        Assert.StartsWith("using System;", source, StringComparison.Ordinal);
+        Assert.StartsWith("#nullable enable\r\nusing System;", source.ReplaceLineEndings("\r\n"), StringComparison.Ordinal);
         Assert.Contains("internal static class PosixLocale", source, StringComparison.Ordinal);
         Assert.Contains(
             "[System.Runtime.CompilerServices.ModuleInitializer]\r\n    internal static void Initialize()\r\n    {\r\n        PosixLocale.Apply();",

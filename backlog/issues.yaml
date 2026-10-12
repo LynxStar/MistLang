@@ -732,61 +732,6 @@ issues:
     decision admission; preserve as a product decision.
   audit_key: analysis:analysis-055
   area: analysis
-- id: MIST-062
-  title: Establish per-field moves, leases and parent composite states
-  status: unverified
-  summary: Ownership state keys are LocalVariable, not field paths. Retained Engine-field shapes were
-    not exercised on frozen main, and clone lowering can change which operation occurs. Current source
-    confirms lack of a general per-field lattice, not each historical sample verdict.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=ownership-borrow-checking].tasks[3]
-    line_at_baseline: 3752
-    lead_excerpt: 'Per-field jagged ownership (order 158): classic tracks only shared extraction. A move
-      out of an owned field, a lease on one, and the composite state of the parent are unmeasured because
-      every probe with clonable fields cloned instead; with Engine fields classic admits them all.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/OwnershipAnalyzer.cs
-      selector: ImmutableDictionary<LocalVariable, Moved> MovedBindings
-      line: 194
-  related:
-  - emitter158 jagged ownership
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-057
-  area: analysis
-- id: MIST-063
-  title: Judge this passed as an argument by receiver tier
-  status: unverified
-  summary: TierAnalyzer.JudgeLends only handles LocalReferenceExpression; ThisExpression is skipped. Source
-    omission is current but the exact expected argument transfer/lease policy needs validation.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=ownership-borrow-checking].tasks[6]
-    line_at_baseline: 3766
-    lead_excerpt: '`this` inside a method is given the method''s own tier when it is the receiver of an
-      explicit call, and owned inside a constructor; `this` passed as an argument is not judged.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/TierAnalyzer.cs
-      selector: arguments[i] is not LocalReferenceExpression argument
-      line: 93
-  related: []
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-060
-  area: analysis
 - id: MIST-067
   title: Specify Span to ReadOnlySpan conversion
   status: unverified
@@ -1288,66 +1233,6 @@ issues:
   - emitter capability ref-parameters-and-ref-locals
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:emitter-132-analysis_phase_tasks-2
-  area: backend
-- id: MIST-094
-  title: Revalidate implicit cloning into owned fields and field assignments
-  status: unverified
-  summary: OwnedDestinations.Require already validates destination/provenance contracts, but supported
-    local/parameter clone insertion does not establish field insertion. MemberBinder.BindInitializers
-    and ExpressionBinder assignment paths do not call OwnedProvenance.At. Preserve this distinct field-insertion
-    residue with a targeted current source/behavior confirmation before implementation; it is not closed
-    by analysis-053. No exact field clone probe was executed here.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=157,id=iclonable-implicit-clone].tasks[0]
-    lead_excerpt: 'Insert the clone at an owned FIELD, and at field ASSIGNMENT where the evidence asks
-      for provenance checking. samples/Ownership declares no owned field, so this is unmeasured rather
-      than known-broken.
-
-      '
-    line_at_baseline: 9937
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols: []
-  related:
-  - emitter capability iclonable-implicit-clone
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-157-tasks-0
-  area: backend
-- id: MIST-095
-  title: Revalidate ownership containment through nested generic wrappers
-  status: unverified
-  summary: DisciplineAnalyzer.JudgeContainer/JudgeField/Constrained already enforce direct containment
-    and directly constrained type-parameter fields. Revalidate only deep/nested generic wrapper completeness;
-    do not preserve a blanket missing containment-matrix claim. Source inspection supports core closure,
-    but no exact nested wrapper probe was executed.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=164,id=substructural-field-containment].analysis_phase_tasks[0]
-    lead_excerpt: 'The containment matrix itself: does the container''s drop guarantee subsume the field''s
-      requirement, at declaration time, through a constrained type parameter, and through nested generic
-      instantiations. Also the classification of CLR awaitables into the lattice.
-
-      '
-    line_at_baseline: 10215
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/DisciplineAnalyzer.cs
-      symbol: DisciplineAnalyzer
-      line: 20
-  related:
-  - emitter capability substructural-field-containment
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-164-analysis_phase_tasks-0
   area: backend
 - id: MIST-096
   title: Revalidate arguments of distant generic struct ancestors
@@ -6321,7 +6206,231 @@ issues:
   priority: P2
   priority_rationale: Invalid program reaches the target compiler.
   area: binding
+- id: MIST-237
+  title: Mist.Tests host crashed once mid-run with no failure recorded
+  status: unverified
+  summary: One full-suite run aborted with "Test host process crashed" after 8545 Mist.Tests passes and no recorded
+    failure; the immediate rerun of the same binaries passed all 9837. Cause unknown.
+  source_refs: []
+  evidence:
+  - revision: packet 32 closeout commit, working tree over 5ff1b65b
+    date: '2026-10-12'
+    verification: ledger inspection only
+    sources:
+    - file: TestResults/ledger/20261011-234352/test.log
+      selector: The active test run was aborted. Reason. Test host process crashed
+  observations:
+  - kind: intermittent_test_failure
+    test: unknown (the aborted Mist.Tests trx records 8545 passes and names no failing or running test)
+    file: unknown
+    discovered: '2026-10-12'
+    symptom: 'tools/test-ledger/run.sh reported "outcome: test exit 1 after 125s" with Storm.ConsumerIntegration 46,
+      Mist.CLI 115, Storm.SourceGenerator 910 and Mist.Tests 8545 all passed and 0 failed; test.log holds "The active
+      test run was aborted. Reason: Test host process crashed" and "Test Run Aborted." with no stack, and failures.txt
+      is empty. The previous full run on main recorded 9766 Mist.Tests cases, so roughly 1200 had not run.'
+    cause: unknown
+    evidence: 'Interrupted run TestResults/ledger/20261011-234352 (DOTNET_USE_POLLING_FILE_WATCHER=1, 18 cpus, no other
+      dotnet process recorded). Rerun of the same binaries, TestResults/ledger/20261012-003047: 9837 passed, 0 failed,
+      exit 0. A --blame rerun, ledger 20261012-002857, was stopped by the user after 105s before it reached the crash
+      or finished. The working tree carried packet 32 (per-field ownership places, this lends, owned-slot clones,
+      closed containment); whether the crash is theirs or environmental is not established, and the green rerun does
+      not close it.'
+  related: []
+  priority: P3
+  priority_rationale: A single unattributed host crash with a green rerun; record for the next sighting rather than
+    guess a cause.
+  audit_key: verification:mist-tests-host-crash-20261011
+  area: verification/tooling
 archive:
+- id: MIST-062
+  title: Establish per-field moves, leases and parent composite states
+  status: implemented
+  summary: 'Delivered: ownership state is keyed by place -- a local or an owned field path under a tracked local -- so moving, lending or restoring one owned field leaves its siblings usable, restricts the holder as a whole by the worst state beneath it, refuses a method call by the fields it touches, and a read of an owned field through a shared holder is cloned where clonable and refused where not.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=ownership-borrow-checking].tasks[3]
+    line_at_baseline: 3752
+    lead_excerpt: 'Per-field jagged ownership (order 158): classic tracks only shared extraction. A move
+      out of an owned field, a lease on one, and the composite state of the parent are unmeasured because
+      every probe with clonable fields cloned instead; with Engine fields classic admits them all.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/OwnershipAnalyzer.cs
+      selector: ImmutableDictionary<LocalVariable, Moved> MovedBindings
+      line: 194
+  - revision: packet 32 owned fields and receiver capabilities commit containing this entry, based on 5ff1b65b
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'Source/Mist/ProgramAnalysis/Rules/Place.cs: a Place is a local or an owned field reached from a tracked local through owned fields of changeable reference type; Place.Of, Nearest, Holds, Tracked, IsAncestorOf and RelativeTo.'
+    - 'Source/Mist/ProgramAnalysis/Rules/OwnershipFlow.cs and OwnershipFlow.Judge.cs replace the local-keyed lattice in OwnershipAnalyzer: Moved and Leases are keyed by Place; a declaration, local assignment, owned parameter, owned slot store, array literal element or with-owned call moves a field place; a frozen, borrowed or readonly ref declaration from a field place leases it until its block ends; an action on a place is judged against its own and its ancestors'' leases (ownership-v2 Requirement 7 truth table), then against the worst state below it for whole-object actions (Requirement 16.9 to 16.14, MIST_PA_COMPOSITE_STATE); a write to a moved field restores it and clears the states beneath it (16.16); a method call on a holder with a non-Live field consults ThisTiers.FieldUses, following explicit and implicit this-calls, and is refused where it reads or writes a moved or borrowed field or writes a frozen one (16.23 to 16.24, MIST_PA_FIELD_STATE_CALL); a refused read or call settles the field so one mistake is one complaint per path; joins and loop back-edges stay on FlowSolution and the LoopMove check now names the place.'
+    - 'OwnedDestinations.Require admits a field place moved out of a tracked holder into an owned parameter or slot, since the flow now tracks that move; the "owned field still holds it" refusal remains for this.Field and shared holders.'
+    - 'Keep marks a holder shared only for stores that are not moves (tuples, anonymous objects, plain fields, initializer entries); a declaration or local assignment from an owned field is the field''s move.'
+    - 'Owned-fields Requirement 2 through a shared holder: OwnedProvenance.SharedExtraction names the read; OwnedProvenance.At clones a clonable field read into an unrestricted or owned destination (2.3) and TierAnalyzer.JudgeExtraction refuses with MIST_PA_SHARED_EXTRACT every lease, ref or owned destination and every bare read of a changeable, non-clonable reference field into a declaration, a local assignment or an argument (2.4 to 2.6).'
+    - 'Diagnostics: MIST_PA_COMPOSITE_STATE and MIST_PA_FIELD_STATE_CALL added; MIST_PA_USE_AFTER_MOVE, MIST_PA_LEASE_VIOLATION and MIST_PA_LOOP_MOVE name a field path such as p.Left.'
+    acceptance:
+    - 'CLI probes over Pair { owned Engine Left, Right } with a non-clonable Engine: owned var taken = p.Left then p.Left.N is MIST_PA_USE_AFTER_MOVE on p.Left (the packet probe printed 1); the sibling read, a sibling method, p.Count, restoring p.Left = new Engine() and moving p whole after the restore all print; Consume(p) while Left is moved is one MIST_PA_COMPOSITE_STATE; Show(p) is refused as a whole read; p.ReadLeft() and a helper reaching Left are MIST_PA_FIELD_STATE_CALL while p.ReadRight() prints; frozen var f = p.Left admits writing Right, Count and freezing p whole, refuses p.Left = new Engine() and owned var q = p, and admits writing Left once the block ends; borrowed var b = p.Left refuses reading p.Left and admits p.Right; a move in one branch, a move inside a loop (MIST_PA_LOOP_MOVE) and a move in a loop followed by a restore (admitted) behave as for locals; frozen var f = p then owned var t = p.Left is refused on p; var alias = p.Left then p.Left is refused (16.7); readonly ref var r = p.Left refuses a later move.'
+    - 'CLI probes through a shared holder: var x = h.Item of a clonable Thing clones (mutating x leaves h.Item.N at 0, where main printed 8); var x = h.Item of a non-clonable Engine is MIST_PA_SHARED_EXTRACT (main printed 8).'
+    - 'Tier 2 OwnershipRefusalTests over OwnedFieldFragments: sixteen owned-field refusal rows, five shared-extract rows and ten admitted shapes; RefusalPointsAtTheUse rows for the move, the frozen write and the whole move; Tier 3 OwnershipDecisionTests.AnOwnedFieldReadOutOfAnOwnedHolder_IsAMoveOfThatField replaces the two stale admissions; PurityRoundFiveTests and PurityRoundFourTests expect the per-field verdicts (a whole move after a field read is MIST_PA_COMPOSITE_STATE; a field moved into another owned slot is admitted); Tier 1 OwnedProvenanceTests rows for the shared-holder clone; Tier 3 ImplicitCloneTests row for a shared versus owned holder read.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors with the four changes integrated.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check: passed.'
+    - 'Focused ledger TestResults/ledger/20261011-234352 (filter Ownership, OwnedProvenanceTests, PurityRoundFour/Five, ClrConstructedContainmentTests, ImplicitClone, ThisLend, Discipline, Purity, Readonly, Lifetime, Clone, Constraint, Tier): 1661 passed, 0 failed.'
+    - 'samples/AllFeaturesV2 run through the CLI: output identical to samples/__baselines__/AllFeaturesV2.out, zero diagnostics; Ownership, SubstructuralFieldDiscipline, DropSemantics, ResourceTransfer, Purity, ReadonlyLocals, NewtypeClones, OpenUnions, StackOnlyTypes, ReadonlyContexts and RefParameters each ran with zero diagnostics.'
+    - 'Full suites through tools/test-ledger/run.sh with DOTNET_USE_POLLING_FILE_WATCHER=1 set preemptively (no stall observed): TestResults/ledger/20261012-003047 on the pre-rebase tree over 5ff1b65b, 10908 passed, 0 failed (Mist.Tests 9837, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46), build 0 warnings; and TestResults/ledger/20261012-003705 on the rebased head 07fb578e over main 12feca82, 11618 passed, 0 failed (Mist.Tests 10547), summary.txt read, failures.txt empty, AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed, CLI probes were running beside it. The first full attempt, TestResults/ledger/20261011-234352, is retained as interrupted: the Mist.Tests host crashed after 8545 passes with no failure recorded, which MIST-237 holds as an unexplained observation; a --blame rerun (20261012-002857) was stopped before it finished. After the rebase the samples Ownership, SubstructuralFieldDiscipline, DropSemantics, ResourceTransfer, RefStructs and StackOnlyTypes ran with zero diagnostics and AllFeaturesV2 matched main''s updated baseline; the packet probes reproduced the same verdicts.'
+    limitations:
+    - 'Requirement 16.8, cloning instead of moving a field that is not Live, is a flow-dependent lowering the binder does not perform: reading a lent clonable field into a shared destination is refused as a move while lent, and the program writes .Clone() itself.'
+    - 'A clonable owned field read into an owned binding is cloned and stays Live, the contract already banked, while the same read into a shared binding is a move (16.7); a field whose type cannot change, such as string, is never tracked.'
+    - 'Places are rooted at tracked locals and parameters; the fields of this inside a method are not tracked per field, and a method that writes only plain fields needs no tier, so a frozen field''s Rev() is admitted (MIST-153).'
+    - 'Shared-holder reads are judged at declarations, local assignments and arguments; a return or tuple element of such a read is not judged.'
+    - 'Borrowing a local while a readonly ref lease stands is now refused for locals as well, per the truth table; reassigning a lent holder is still admitted, as a binding''s reassignment does not mutate the lent object.'
+  related:
+  - emitter158 jagged ownership
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-057
+  area: analysis
+- id: MIST-063
+  title: Judge this passed as an argument by receiver tier
+  status: implemented
+  summary: 'Delivered: this passed as an argument is judged against the method''s receiver tier -- owned in a constructor, the declared or inferred tier in a method -- and a method that lends this borrowed or frozen is inferred to need that tier, so a shared receiver cannot reach it.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=ownership-borrow-checking].tasks[6]
+    line_at_baseline: 3766
+    lead_excerpt: '`this` inside a method is given the method''s own tier when it is the receiver of an
+      explicit call, and owned inside a constructor; `this` passed as an argument is not judged.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/TierAnalyzer.cs
+      selector: arguments[i] is not LocalReferenceExpression argument
+      line: 93
+  - revision: packet 32 owned fields and receiver capabilities commit containing this entry, based on 5ff1b65b
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'ThisTiers.Inferred counts this lent to a borrowed or frozen parameter of any call or construction as a demand of that tier (owned-fields Requirement 17.7 composed across a lend); ThisTiers.LendTier is the one reading of a parameter''s lend tier.'
+    - 'TierAnalyzer.JudgeLend judges a ThisExpression argument with ThisTiers.Provided(this, enclosing member): owned in a constructor, the declared or inferred tier in a method; value-type receivers are exempt; every call with a signature, instance, static or callable, and every construction is judged through InvocationExpression.Parameters.'
+    - 'MIST_PA_INCOMPATIBLE_LEND carries the lent name whole, so a local still reads "frozen variable ''e''" and this reads "frozen ''this''".'
+    acceptance:
+    - 'The packet probe, public void Bad() with frozen { Borrow(this); }, is MIST_PA_INCOMPATIBLE_LEND "Cannot pass frozen ''this'' to borrowed parameter ''x''" at the argument and MIST_PA_THIS_TIER_INSUFFICIENT at the declaration, where it printed 9; with readonly ref lending to a frozen parameter is refused the same way.'
+    - 'A constructor lending this borrowed, a method with borrowed lending it borrowed and frozen, a method with frozen lending it frozen and passing it to a plain parameter, and a struct receiver all print; public void Lend() { Borrow(this); } infers borrowed, so static void Via(Cell c) { c.Lend(); } is MIST_PA_THIS_TIER_MISMATCH where it was admitted.'
+    - 'Tier 2 OwnershipRefusalTests.ThisLentPastItsDeclaredTier_IsRefusedAtTheLendAndTheDeclaration and the this-lend admitted rows over OwnedFieldFragments; Tier 2 ThisLendInferenceTests for the inferred tier per parameter tier, the struct exemption and FieldUses through a helper.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors with the four changes integrated.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check: passed.'
+    - 'Focused ledger TestResults/ledger/20261011-234352 (filter Ownership, OwnedProvenanceTests, PurityRoundFour/Five, ClrConstructedContainmentTests, ImplicitClone, ThisLend, Discipline, Purity, Readonly, Lifetime, Clone, Constraint, Tier): 1661 passed, 0 failed.'
+    - 'samples/AllFeaturesV2 run through the CLI: output identical to samples/__baselines__/AllFeaturesV2.out, zero diagnostics; Ownership, SubstructuralFieldDiscipline, DropSemantics, ResourceTransfer, Purity, ReadonlyLocals, NewtypeClones, OpenUnions, StackOnlyTypes, ReadonlyContexts and RefParameters each ran with zero diagnostics.'
+    - 'Full suites through tools/test-ledger/run.sh with DOTNET_USE_POLLING_FILE_WATCHER=1 set preemptively (no stall observed): TestResults/ledger/20261012-003047 on the pre-rebase tree over 5ff1b65b, 10908 passed, 0 failed (Mist.Tests 9837, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46), build 0 warnings; and TestResults/ledger/20261012-003705 on the rebased head 07fb578e over main 12feca82, 11618 passed, 0 failed (Mist.Tests 10547), summary.txt read, failures.txt empty, AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed, CLI probes were running beside it. The first full attempt, TestResults/ledger/20261011-234352, is retained as interrupted: the Mist.Tests host crashed after 8545 passes with no failure recorded, which MIST-237 holds as an unexplained observation; a --blame rerun (20261012-002857) was stopped before it finished. After the rebase the samples Ownership, SubstructuralFieldDiscipline, DropSemantics, ResourceTransfer, RefStructs and StackOnlyTypes ran with zero diagnostics and AllFeaturesV2 matched main''s updated baseline; the packet probes reproduced the same verdicts.'
+    limitations:
+    - 'A method whose declared tier is below a lend is reported at the lend and at the declaration, exactly as a call through this already is; collapsing the two is a change to the receiver rule as well.'
+    - 'A readonly ref parameter neither constrains nor is inferred from a lend, since a plain local lent readonly ref is an admission OwnershipDecisionTests banks; this passed to an owned parameter remains OwnedDestinations'' refusal unless the method is with owned.'
+    - 'MIST-061 is unchanged: a borrowed call on a frozen lender is still admitted.'
+  related: []
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-060
+  area: analysis
+- id: MIST-094
+  title: Revalidate implicit cloning into owned fields and field assignments
+  status: implemented
+  summary: 'Delivered: a non-owned clonable source is cloned once where it reaches an owned field, property or local -- a declaration or field initializer, a constructor or method assignment, an object initializer entry -- and never where the destination is a reference or already holds an owned value.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=157,id=iclonable-implicit-clone].tasks[0]
+    lead_excerpt: 'Insert the clone at an owned FIELD, and at field ASSIGNMENT where the evidence asks
+      for provenance checking. samples/Ownership declares no owned field, so this is unmeasured rather
+      than known-broken.
+
+      '
+    line_at_baseline: 9937
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols: []
+  - revision: packet 32 owned fields and receiver capabilities commit containing this entry, based on 5ff1b65b
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'OwnedProvenance.At takes the destination tier and whether it is a reference; OwnedProvenance.OwnershipOf reads the tier a store promises off its target (owned field, owned property, owned backing field, a local''s declared tier) and off an initializer entry''s resolved member.'
+    - 'ExpressionBinder adapts every non-coalescing assignment''s converted value to its slot''s tier after the implicit conversion is selected; MemberBinder adapts field, property and default-block initializers; ObjectInitializerBinder adapts named entries; StatementBinder and AtParameters pass the ref-ness of the binding or parameter so a reference is never cloned.'
+    acceptance:
+    - 'The packet probe, Holder(Thing x) { this.Item = x; } over a clonable Thing, compiles and prints 0 where it was MIST_PA_OWNED_SOURCE_NOT_OWNED; a method assignment, an object initializer entry, a direct field assignment and a field initializer from a static each print 0, and the generated Program.cs carries exactly one .Clone() per site (Init = Shared.Clone(), this.Item = x.Clone(), { Item = shared.Clone() }, h.Item = shared.Clone()); dotnet build out/Probe.csproj --no-incremental: 0 warnings.'
+    - 'shared.Clone(), an owned-returning Make(), new Thing() and an owned local are not cloned a second time; owned var copy; copy = shared; prints 0; a non-clonable Engine parameter into an owned field stays MIST_PA_OWNED_SOURCE_NOT_OWNED naming the field and the parameter.'
+    - 'Tier 1 OwnedProvenanceTests.AStoreIsReadAtTheTierItsSlotPromises and the shared-holder rows; Tier 3 ImplicitCloneTests rows for an owned field assignment, an owned local assignment, four sources needing no clone, an initializer entry and a field initializer.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors with the four changes integrated.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check: passed.'
+    - 'Focused ledger TestResults/ledger/20261011-234352 (filter Ownership, OwnedProvenanceTests, PurityRoundFour/Five, ClrConstructedContainmentTests, ImplicitClone, ThisLend, Discipline, Purity, Readonly, Lifetime, Clone, Constraint, Tier): 1661 passed, 0 failed.'
+    - 'samples/AllFeaturesV2 run through the CLI: output identical to samples/__baselines__/AllFeaturesV2.out, zero diagnostics; Ownership, SubstructuralFieldDiscipline, DropSemantics, ResourceTransfer, Purity, ReadonlyLocals, NewtypeClones, OpenUnions, StackOnlyTypes, ReadonlyContexts and RefParameters each ran with zero diagnostics.'
+    - 'Full suites through tools/test-ledger/run.sh with DOTNET_USE_POLLING_FILE_WATCHER=1 set preemptively (no stall observed): TestResults/ledger/20261012-003047 on the pre-rebase tree over 5ff1b65b, 10908 passed, 0 failed (Mist.Tests 9837, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46), build 0 warnings; and TestResults/ledger/20261012-003705 on the rebased head 07fb578e over main 12feca82, 11618 passed, 0 failed (Mist.Tests 10547), summary.txt read, failures.txt empty, AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed, CLI probes were running beside it. The first full attempt, TestResults/ledger/20261011-234352, is retained as interrupted: the Mist.Tests host crashed after 8545 passes with no failure recorded, which MIST-237 holds as an unexplained observation; a --blame rerun (20261012-002857) was stopped before it finished. After the rebase the samples Ownership, SubstructuralFieldDiscipline, DropSemantics, ResourceTransfer, RefStructs and StackOnlyTypes ran with zero diagnostics and AllFeaturesV2 matched main''s updated baseline; the packet probes reproduced the same verdicts.'
+    limitations:
+    - 'A coalescing assignment (??=) is not adapted; a write through a ref local whose referent is an owned slot is not cloned, and OwnedDestinations refuses a non-owned source there; a return value and a tuple element are not adapted.'
+  related:
+  - emitter capability iclonable-implicit-clone
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-157-tasks-0
+  area: backend
+- id: MIST-095
+  title: Revalidate ownership containment through nested generic wrappers
+  status: implemented
+  summary: 'Delivered: the containment matrix is judged at the closings a program writes, so an unconstrained type parameter field admitted at the declaration cannot hold a linear or affine value through Box<Resource>, a nested Wrapper<Resource>, a generic alias or a forwarded constrained parameter, while constrained parameters stay governed by their constraints.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=164,id=substructural-field-containment].analysis_phase_tasks[0]
+    lead_excerpt: 'The containment matrix itself: does the container''s drop guarantee subsume the field''s
+      requirement, at declaration time, through a constrained type parameter, and through nested generic
+      instantiations. Also the classification of CLR awaitables into the lattice.
+
+      '
+    line_at_baseline: 10215
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/DisciplineAnalyzer.cs
+      symbol: DisciplineAnalyzer
+      line: 20
+  - revision: packet 32 owned fields and receiver capabilities commit containing this entry, based on 5ff1b65b
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'Source/Mist/ProgramAnalysis/Rules/ClosedContainment.cs, run by DisciplineAnalyzer: at every closing the program writes, the fields of the closed definition whose declared type is an unconstrained type parameter are judged by the matrix against what the closing put in them (a forwarded parameter counts as its constraint); a field whose type is a construction mentioning the parameters is followed, substituted, as a nested closing; a generic alias closing is followed to its aliased construction; each closed field is reported once. DisciplineAnalyzer.Reason, Constrained, Display and Capitalised are the shared matrix.'
+    - 'ConstraintClosureRegistry.RecordType records a closing for every parameter of a generic alias, not only stampable or dependent ones, so Wrap<Resource> over type Wrap<T> = Box<T> is a judged site.'
+    acceptance:
+    - 'The packet probe, new Box<Box<Resource>>(new Box<Resource>(r)) over struct Box<T> { T Item; } and linear Resource, is one MIST_PA_FIELD_DISCIPLINE_CONTAINMENT "Unrestricted type ''Box<Resource>'' cannot contain linear field ''Item''" where it printed made; Box<Once> written twice is reported once.'
+    - 'Box<int>, LinearBox<Resource>, AffineBox<Resource> and AffineBox<Once> print, so a constrained parameter stays governed by its constraint and linear still satisfies affine; new Wrapper<Resource>() over Wrapper<T> { Box<T> Inner; } is refused with the route "reached from ''Wrapper<Resource>'' through field ''Inner''"; type Boxed = Box<Resource> and Wrap<Resource> over a generic alias are refused; Outer<U> where U : linear { Box<U> Inner; } is refused at the open closing; samples/SubstructuralFieldDiscipline, with AffineBoxWithLinear, runs with zero diagnostics.'
+    - 'Tier 2 OwnershipRefusalTests rows linear-argument-closing-an-unconstrained-field, linear-argument-reaching-an-unconstrained-field-through-a-wrapper and linear-argument-closing-a-generic-alias, with plain-argument-closing-an-unconstrained-field and linear-argument-closing-an-affine-constrained-field admitted, over OwnershipDeclarations.Closings.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors with the four changes integrated.'
+    - 'dotnet format Mist.slnx --verify-no-changes and git diff --check: passed.'
+    - 'Focused ledger TestResults/ledger/20261011-234352 (filter Ownership, OwnedProvenanceTests, PurityRoundFour/Five, ClrConstructedContainmentTests, ImplicitClone, ThisLend, Discipline, Purity, Readonly, Lifetime, Clone, Constraint, Tier): 1661 passed, 0 failed.'
+    - 'samples/AllFeaturesV2 run through the CLI: output identical to samples/__baselines__/AllFeaturesV2.out, zero diagnostics; Ownership, SubstructuralFieldDiscipline, DropSemantics, ResourceTransfer, Purity, ReadonlyLocals, NewtypeClones, OpenUnions, StackOnlyTypes, ReadonlyContexts and RefParameters each ran with zero diagnostics.'
+    - 'Full suites through tools/test-ledger/run.sh with DOTNET_USE_POLLING_FILE_WATCHER=1 set preemptively (no stall observed): TestResults/ledger/20261012-003047 on the pre-rebase tree over 5ff1b65b, 10908 passed, 0 failed (Mist.Tests 9837, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46), build 0 warnings; and TestResults/ledger/20261012-003705 on the rebased head 07fb578e over main 12feca82, 11618 passed, 0 failed (Mist.Tests 10547), summary.txt read, failures.txt empty, AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed, CLI probes were running beside it. The first full attempt, TestResults/ledger/20261011-234352, is retained as interrupted: the Mist.Tests host crashed after 8545 passes with no failure recorded, which MIST-237 holds as an unexplained observation; a --blame rerun (20261012-002857) was stopped before it finished. After the rebase the samples Ownership, SubstructuralFieldDiscipline, DropSemantics, ResourceTransfer, RefStructs and StackOnlyTypes ran with zero diagnostics and AllFeaturesV2 matched main''s updated baseline; the packet probes reproduced the same verdicts.'
+    limitations:
+    - 'A construction reached only by substitution through a generic method''s body (Make<T>(T x) returning new Box<T>(x), called with a linear argument) is not a recorded closing and is not judged, which is the registry''s documented policy for closures reached through substitution; a nested type of a generic enclosing declaration is not followed.'
+    - 'CLR containers and the Task and ValueTask classification are unchanged.'
+  related:
+  - emitter capability substructural-field-containment
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-164-analysis_phase_tasks-0
+  area: backend
 - id: MIST-234
   title: Prove a named initializer entry against its member's refinement
   status: implemented

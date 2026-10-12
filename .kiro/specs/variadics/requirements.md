@@ -488,6 +488,17 @@ public class Program
         var sumEmpty = SumAll();
         Console.WriteLine($"sumEmpty={sumEmpty}");
 
+        // PROOF: one family closed at several widths, two closings of the same width among them and the
+        //        one and zero widths C#'s tuple syntax cannot spell; a variadic abstract reached at a second
+        //        width through the family naming it; a variadic method called flat at the one and zero widths.
+        var twoWide = new Tup<int, string>();
+        var alsoTwoWide = new Tup<bool, char>();
+        var oneWide = new Tup<bool>();
+        var zeroWide = new Tup();
+        Console.WriteLine($"widths={twoWide.Count()}{alsoTwoWide.Count()}{oneWide.Count()}{zeroWide.Count()}");
+        ICountable<char> single = new Tup<char>();
+        Console.WriteLine($"abstractCountOne={single.Count()} describeOne={Describe(5)} describeZero={Describe()}");
+
         Console.WriteLine("=== Variadics Done ===");
     }
 
@@ -590,6 +601,8 @@ area=7
 abstractCount=3
 sum=10
 sumEmpty=0
+widths=2210
+abstractCountOne=1 describeOne=1 describeZero=0
 === Variadics Done ===
 ```
 

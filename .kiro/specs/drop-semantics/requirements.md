@@ -528,7 +528,21 @@ public class Program
             Console.WriteLine($"  Reassigned to FileHandle({f.GetFd()})");
         }
 
+        // ─── 12. Affine: with block drops on early return ────────────────
+        Console.WriteLine("--- 12. Affine: with block drops on early return ---");
+        LeaveEarly();
+        Console.WriteLine("  LeaveEarly returned");
+
         Console.WriteLine("=== Drop Semantics Done ===");
+    }
+
+    public static void LeaveEarly()
+    {
+        with(new AuthToken("early"))
+        {
+            Console.WriteLine("  Inside with-block, returning early");
+            return;
+        }
     }
 
     public static void DropWhen(int fd, bool early)
@@ -613,5 +627,9 @@ public class Program
   FileHandle(64).Drop() called
   Reassigned to FileHandle(65)
   FileHandle(65).Drop() called
+--- 12. Affine: with block drops on early return ---
+  Inside with-block, returning early
+  AuthToken(early).Drop() called - consumed
+  LeaveEarly returned
 === Drop Semantics Done ===
 ```

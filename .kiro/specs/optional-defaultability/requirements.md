@@ -298,6 +298,76 @@ public class OptionalHolder
     public int? MaybeValue;
 }
 
+// ─── Defaults through generics ───────────────────────────────────────────────
+// PROOF: a field of type T takes T's own default, default block included, under new, default(T),
+//        new T() and new T(int); `where T : default` builds a fresh one on every default(T)
+public class Box<T>
+{
+    public T Value;
+}
+
+public class Widget
+{
+    public int Value;
+
+    default {
+        Value = 7
+    }
+}
+
+public class Creator<T> where T : new()
+{
+    public T Create()
+    {
+        return new T();
+    }
+}
+
+public class Builder<T> where T : new(int)
+{
+    public T Create(int value)
+    {
+        return new T(value);
+    }
+}
+
+public class Initializing<T> where T : Widget, new()
+{
+    public T Create(int value)
+    {
+        return new T() { Value = value };
+    }
+}
+
+public class Defaults<T> where T : default
+{
+    public T Get()
+    {
+        return default(T);
+    }
+}
+
+public class Chosen<T> where T : default
+{
+    public int Value;
+    public T Child;
+
+    public Chosen(int value)
+    {
+        Value = value;
+        Child = default(T);
+    }
+
+    public T Get()
+    {
+        return default(T);
+    }
+
+    default {
+        Value = 4
+    }
+}
+
 // ─── Default block type binding ──────────────────────────────────────────────
 // PROOF: an abstract-typed field has no default of its own, so the block names the
 //        concrete type to build for it: `field : ConcreteType`
@@ -423,6 +493,25 @@ public class Program
         Console.WriteLine($"  primary={scene.Primary.Describe()}");
         Console.WriteLine($"  secondary={scene.Secondary.Describe()}");
 
+        Console.WriteLine("--- Defaults Through Generics ---");
+        var fresh = new Box<Widget>();
+        var other = default(Box<Widget>);
+        fresh.Value.Value = 9;
+        Console.WriteLine($"  new Box<Widget>(): {fresh.Value.Value} default(Box<Widget>): {other.Value.Value}");
+        var creator = new Creator<Box<Widget>>();
+        Console.WriteLine($"  new T() at Box<Widget>: {creator.Create().Value.Value}");
+        var built = new Builder<Chosen<Widget>>().Create(11);
+        Console.WriteLine($"  new T(11) at Chosen<Widget>: {built.Value} child={built.Child.Value}");
+        var initialized = new Initializing<Widget>().Create(13);
+        Console.WriteLine($"  new T() with initializer: {initialized.Value}");
+        var defaults = new Defaults<Widget>();
+        var first = defaults.Get();
+        first.Value = 12;
+        Console.WriteLine($"  default(T) twice: {first.Value} then {defaults.Get().Value}");
+        var chosen = new Chosen<string>(8);
+        var zero = default(Chosen<string>);
+        Console.WriteLine($"  constructed: {chosen.Value} defaulted: {zero.Value} default(string): [{chosen.Get()}]");
+
         Console.WriteLine("Done!");
     }
 }
@@ -452,6 +541,13 @@ public class Program
   layers=3
   primary=Circle(Radius=7, Label=primary)
   secondary=Square(Side=0)
+--- Defaults Through Generics ---
+  new Box<Widget>(): 9 default(Box<Widget>): 7
+  new T() at Box<Widget>: 7
+  new T(11) at Chosen<Widget>: 11 child=7
+  new T() with initializer: 13
+  default(T) twice: 12 then 7
+  constructed: 8 defaulted: 4 default(string): []
 Done!
 ```
 

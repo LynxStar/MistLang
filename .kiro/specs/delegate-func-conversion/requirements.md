@@ -219,6 +219,11 @@ public class Program
         var positives = numbers.FindAll(x => x > 0);
         Console.WriteLine($"positives.Count={positives?.Count}");
 
+        // PROOF: Lambda → ambient System.Action<T> (List<T>.ForEach)
+        // The parameter is unannotated, so its type is read off the CLR delegate the method takes.
+        var few = new List<int> { 10, 20 };
+        few.ForEach(item => Console.WriteLine($"item={item}"));
+
         // PROOF: Method group → Named_Delegate (Predicate<int>)
         // Passing a method group where Predicate<int> is expected.
         var alsoPositives = numbers.FindAll(IsPositive);
@@ -274,6 +279,8 @@ public class Program
 ```
 === DelegateFuncConversion Sample ===
 positives.Count=3
+item=10
+item=20
 alsoPositives.Count=3
 sortedFirst=5
 evens.Count=3

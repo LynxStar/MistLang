@@ -9,32 +9,24 @@ using Mist.Tests.InteropFixtures;
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Tier 4, the boundary from a native interface default to the program that runs it. Selection binds a
-/// call on a Mist conformer to the interface's member, but C# gives a class none of its interfaces'
-/// members, so only running the emitted program shows the direct call reaches the default the interface
-/// call does, the most specific restatement included, and that a conformer's own member wins both ways.
+/// Tier 5, one compile and one run: a Mist conformer of a native interface with default members, which
+/// the orchestrator cannot claim because its interfaces live in the C# interop fixture assembly no sample
+/// can reference. Selection binds a call on the conformer to the interface's member, but C# gives a class
+/// none of its interfaces' members, so only running the emitted program shows the direct call reaches the
+/// default the interface call does, the most specific restatement included, and that a conformer's own
+/// member wins both ways.
 /// </summary>
-[Trait("Tier", "4")]
+[Trait("Tier", "5")]
 public sealed class NativeDefaultInterfaceRuntimeTests(NativeDefaultInterfaceRuntimeFixture fixture)
     : IClassFixture<NativeDefaultInterfaceRuntimeFixture>
 {
     [Fact]
-    public void AnUnansweredDefault_RunsAlikeDirectlyAndThroughTheInterface()
+    public void ADefaultAnAnswerAndARestatement_RunAlikeDirectlyAndThroughTheInterface()
     {
         Assert.Equal(
             ["hello plain", "hello plain", "hello plain", "hello plain/hello plain", "hello plain/hello plain", "hello polite", "hello polite"],
             fixture.Section("default"));
-    }
-
-    [Fact]
-    public void AConformersOwnMember_WinsDirectlyAndThroughTheInterface()
-    {
         Assert.Equal(["custom loud", "custom loud", "strict answer", "strict answer"], fixture.Section("answered"));
-    }
-
-    [Fact]
-    public void ARestatedDefault_IsTheOneBothRoutesRun()
-    {
         Assert.Equal(["HELLO shouter", "HELLO shouter"], fixture.Section("restated"));
     }
 }

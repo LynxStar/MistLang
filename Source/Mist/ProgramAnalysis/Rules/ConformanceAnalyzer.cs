@@ -328,17 +328,24 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                 continue;
             }
 
+            // A generic alias is judged as the slot's own use of it: its target with the alias's
+            // parameters standing for the slot's, which is what every application expands to.
+            var judged = filler is TypeAlias { AliasedType: { } aliased } alias
+                ? TypeSubstitution.ForParameters(alias.TypeParametersList, slot.TypeParametersList).Apply(aliased, context.Model.TypeInterner)
+                : filler;
+            var kind = judged is ConstructedType constructed ? constructed.Definition : judged;
+
             foreach(var constraint in slot.ConstraintsList)
             {
                 var (satisfied, spelling) = constraint switch
                 {
                     TypeConstraint typed => (
-                        ConversionClassifier.Classify(filler, substitution.Apply(typed.ConstraintType, context.Model.TypeInterner), context.Model.TypeInterner)
+                        ConversionClassifier.Classify(judged, substitution.Apply(typed.ConstraintType, context.Model.TypeInterner), context.Model.TypeInterner)
                             is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified,
                         TypeDisplay.Mist(typed.ConstraintType)),
-                    KeywordConstraint { Kind: TypeParameterConstraintKind.Class } => (filler is not StructType, "class"),
-                    KeywordConstraint { Kind: TypeParameterConstraintKind.Struct } => (filler is not ClassType, "struct"),
-                    KeywordConstraint { Kind: TypeParameterConstraintKind.Stampable } => (Stampability.IsStampable(filler), "stampable"),
+                    KeywordConstraint { Kind: TypeParameterConstraintKind.Class } => (kind is not StructType, "class"),
+                    KeywordConstraint { Kind: TypeParameterConstraintKind.Struct } => (kind is not ClassType, "struct"),
+                    KeywordConstraint { Kind: TypeParameterConstraintKind.Stampable } => (Stampability.IsStampable(judged), "stampable"),
                     _ => (true, ""),
                 };
 

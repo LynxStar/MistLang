@@ -896,6 +896,12 @@ strBox.Unwrap()=boxed
 strResult.Value=converted-42
 strResult.Transform(0)=converted-42
 intResult.Value=70
+--- Inherited Slot And Alias Filler ---
+named:Named(via-derived)
+named=Named(generic)
+label.Value=label-abc
+label.Transform(x)=label-abc
+count.Value=4
 --- Associated Types Done ---
 --- Iterators ---
 --- Array Foreach ---

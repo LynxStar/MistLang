@@ -7,7 +7,7 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Semantics;
 
 // Tier 1: TypeSlots over an abstract IBag declaring `type Element;` and `type Pair<T>;`, filled by types
-// nested in hand-built conformers.
+// and aliases nested in hand-built conformers.
 [Trait("Tier", "1")]
 public sealed class TypeSlotFillerTests
 {
@@ -34,12 +34,34 @@ public sealed class TypeSlotFillerTests
     }
 
     [Fact]
-    public void ANestedAlias_DoesNotFillAParameterizedSlot()
+    public void ANestedGenericAlias_OfTheSlotsArity_FillsAParameterizedSlotWithItself()
     {
         var conformer = Conformer("Pairs");
-        Nest(conformer, Alias("Pair", built.Type("String")));
+        var alias = Alias("Pair<>", built.Type("String"), "T");
+        Nest(conformer, alias);
+
+        Assert.Same(alias, TypeSlots.Filler(pair, conformer));
+    }
+
+    [Theory]
+    [InlineData("Pair", "")]
+    [InlineData("Pair<,>", "T,U")]
+    [InlineData("Pairs<>", "T")]
+    public void ANestedAlias_OfAnotherArityOrName_DoesNotFillAParameterizedSlot(string name, string parameters)
+    {
+        var conformer = Conformer("Pairs");
+        Nest(conformer, Alias(name, built.Type("String"), parameters.Split(',', StringSplitOptions.RemoveEmptyEntries)));
 
         Assert.Null(TypeSlots.Filler(pair, conformer));
+    }
+
+    [Fact]
+    public void ANestedGenericAlias_DoesNotFillASlotOfNoTypeParameters()
+    {
+        var conformer = Conformer("Strings");
+        Nest(conformer, Alias("Element<>", built.Type("String"), "T"));
+
+        Assert.Null(TypeSlots.Filler(element, conformer));
     }
 
     [Fact]
@@ -83,9 +105,16 @@ public sealed class TypeSlotFillerTests
         return HandBuiltModel.Class(name);
     }
 
-    private static TypeAlias Alias(string name, MistType aliased)
+    private static TypeAlias Alias(string name, MistType aliased, params string[] parameters)
     {
-        return new TypeAlias(name, "Probe", new Scope(null), null, null!) { AliasedType = aliased };
+        var alias = new TypeAlias(name, "Probe", new Scope(null), null, null!) { AliasedType = aliased };
+
+        foreach(var parameter in parameters)
+        {
+            alias.TypeParametersList.Add(new TypeParameter(parameter, alias.TypeParametersList.Count, alias.Scope, alias));
+        }
+
+        return alias;
     }
 
     private static void Nest(MistType owner, MistType nested)

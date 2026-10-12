@@ -6,9 +6,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction;
 
 /// <summary>
-/// An associated type slot and what fills it: the nested type on the conformer, or on a base of it,
-/// with the slot's name and arity, or for a slot of no type parameters the type a nested alias of that
-/// name stands for (associated-types glossary, Concrete_Type_Member). Held here rather than in the
+/// An associated type slot and what fills it: the nested type or alias on the conformer, or on a base
+/// of it, with the slot's name and arity (associated-types glossary, Concrete_Type_Member). An alias
+/// of no type parameters fills the slot with the type it stands for; a generic one fills it with
+/// itself, the definition a use site expands over its own arguments. Held here rather than in the
 /// backend's lift because both the lowering and the conformance rule ask the same question, and two
 /// answers would drift.
 /// </summary>
@@ -40,11 +41,11 @@ internal static class TypeSlots
                 return member;
             }
 
-            if(nested is TypeAlias { TypeParametersList.Count: 0, AliasedType: { } aliased } alias
-                && slot.TypeParametersList.Count == 0
-                && alias.Name == name)
+            if(nested is TypeAlias { AliasedType: { } aliased } alias
+                && alias.TypeParametersList.Count == slot.TypeParametersList.Count
+                && MistType.StripArity(alias.Name) == name)
             {
-                return aliased;
+                return alias.TypeParametersList.Count == 0 ? aliased : alias;
             }
         }
 

@@ -367,9 +367,55 @@ public class IntConverter : IConverter<int> {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pattern 13: Inherited slot and generic alias filler
+// A derived abstract inherits its base's slot, and a class conforming to the
+// derived abstract fills it; a generic method constrained to the derived abstract
+// reaches the inherited slot too. A parameterized slot is filled by a generic
+// nested alias, which each use expands over its own type argument.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+public abstract INamedProducer : IProducer {
+    string Name();
+}
+
+public class NamedProducer : INamedProducer {
+    public class Output : IStringable {
+        public string Value;
+        public Output(string value) { Value = value; }
+        public string Stringify() { return $"Named({Value})"; }
+    }
+    public Output Produce(string value) {
+        return new Output(value);
+    }
+    public string Name() {
+        return "named";
+    }
+}
+
+public class Labelled<TOut> : ITransform<string, TOut> {
+    public TOut Value;
+    public Labelled(TOut v) { Value = v; }
+    public TOut Transform(string input) { return Value; }
+}
+
+public class LabelConverter : IConverter<string> {
+    public type Converted<TOut> = Labelled<TOut>;
+    public Converted<string> ConvertToString(string input) {
+        return new Labelled<string>($"label-{input}");
+    }
+    public Converted<int> ConvertToInt(string input) {
+        return new Labelled<int>(input.Length);
+    }
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 public class Program {
+    public static string DescribeNamed<T>(T producer) where T : INamedProducer {
+        return producer.Name() + "=" + producer.Produce("generic").Stringify();
+    }
+
     public static void RunDemo() {
         Console.WriteLine("--- Associated Types ---");
 
@@ -471,6 +517,17 @@ public class Program {
         Console.WriteLine($"strResult.Transform(0)={strResult.Transform(0)}");
         var intResult = converter.ConvertToInt(7);
         Console.WriteLine($"intResult.Value={intResult.Value}");
+
+        Console.WriteLine("--- Inherited Slot And Alias Filler ---");
+        var named = new NamedProducer();
+        Console.WriteLine($"{named.Name()}:{named.Produce("via-derived").Stringify()}");
+        Console.WriteLine(DescribeNamed(named));
+        var labels = new LabelConverter();
+        var label = labels.ConvertToString("abc");
+        Console.WriteLine($"label.Value={label.Value}");
+        Console.WriteLine($"label.Transform(x)={label.Transform("x")}");
+        LabelConverter.Converted<int> count = labels.ConvertToInt("abcd");
+        Console.WriteLine($"count.Value={count.Value}");
 
         Console.WriteLine("--- Associated Types Done ---");
     }

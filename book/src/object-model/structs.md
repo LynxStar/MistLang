@@ -108,12 +108,15 @@ The compiler rejects any attempt to store a ref struct value in a location that 
 |-----------|-------------------|
 | Field in a non-ref-struct class or struct | The containing object lives on the heap |
 | Property type in a non-ref-struct | Same reason — the backing storage is heap-allocated |
+| Static field, or static property with storage, in any type | Static storage lives on the heap |
 | Generic type argument (e.g., `List<Span<int>>`) | Generic containers are heap-allocated |
 | Union type constituent (e.g., `Span<int> \| string`) | Unions are boxed |
 | Optional type (e.g., `Span<int>?`) | Optionals map to `Nullable<T>`, which requires boxing |
-| Assignment to an abstract type variable | Abstract type assignment boxes the value |
+| Tuple element (e.g., `(Span<int>, int)`) | A tuple holds its elements as type arguments |
+| Array element (e.g., `Span<int>[]`) | An array keeps its elements on the heap |
+| Assignment, argument, return or cast to an abstract type or `unknown` | The conversion boxes the value |
 
-Note that a ref struct **can** declare that it implements an abstract type (e.g., `ref struct Foo : IBar`). The restriction applies at the usage site — you cannot assign a ref struct value to an abstract-type-typed variable or pass it where an abstract type is expected.
+A union, tuple or array is refused where it is written, so a union declared through a type alias is refused once, at the alias. Note that a ref struct **can** declare that it implements an abstract type (e.g., `ref struct Foo : IBar`). The restriction applies at the usage site — you cannot assign a ref struct value to an abstract-type-typed variable or pass it where an abstract type is expected.
 
 ### Span Types and `stackalloc`
 

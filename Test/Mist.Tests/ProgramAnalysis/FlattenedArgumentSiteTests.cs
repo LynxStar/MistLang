@@ -81,9 +81,12 @@ public sealed class FlattenedArgumentSiteTests
     }
 
     [Fact]
-    public void AClrProjectedCallee_IsNotJudged()
+    public void AClrProjectedCallee_IsJudgedAsASourceCalleeIs()
     {
-        Assert.Empty(Analyze(Call("array", "String, String, String", isClrProjected: true)));
+        var diagnostic = Assert.Single(Analyze(Call("array", "Int32, String, Boolean", isClrProjected: true)));
+
+        Assert.Equal(11, diagnostic.Location.Start.Column);
+        Assert.Contains("'string' to 'int'", diagnostic.Message);
     }
 
     [Fact]

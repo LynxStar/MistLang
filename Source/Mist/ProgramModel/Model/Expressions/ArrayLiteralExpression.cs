@@ -24,5 +24,7 @@ internal sealed class ArrayLiteralExpression(
     /// </summary>
     public IReadOnlyList<Expression> Elements { get; } = elements;
 
+    public bool IsTargetTyped { get; init; }
+
     public override IMistType Type { get; } = type;
 }

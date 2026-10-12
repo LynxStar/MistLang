@@ -344,6 +344,7 @@ internal static class TypeArgumentInference
 
         if(ValuePack.PackParameterOf(parameters[flattened]) is not { } pack)
         {
+            InferCollected(receiver.Apply(parameters[flattened].Type, interner), arguments, parameters, flattened, method.TypeParametersList, bounds);
             return;
         }
 
@@ -358,6 +359,36 @@ internal static class TypeArgumentInference
         var domain = pack.Domain ?? pack;
         Record(pack, interner.LiftPack(domain, new TypePackValue(absorbed)),
             method.TypeParametersList, bounds);
+    }
+
+    private static void InferCollected(
+        IMistType collection,
+        IReadOnlyList<Expression> arguments,
+        IReadOnlyList<Parameter> parameters,
+        int flattened,
+        IReadOnlyList<TypeParameter> typeParameters,
+        List<IMistType>[] bounds)
+    {
+        if(ParamsCollection.ElementOf(collection) is not { } element)
+        {
+            return;
+        }
+
+        if(arguments.Count == parameters.Count
+            && arguments[flattened] is not (UnboundLambdaExpression or MethodGroupExpression)
+            && ParamsCollection.IsHandedWhole(arguments[flattened].Type))
+        {
+            MatchArgument(collection, arguments[flattened], typeParameters, bounds);
+            return;
+        }
+
+        for(var i = flattened; i < arguments.Count - (parameters.Count - flattened - 1); i++)
+        {
+            if(arguments[i] is not (UnboundLambdaExpression or MethodGroupExpression))
+            {
+                MatchArgument(element, arguments[i], typeParameters, bounds);
+            }
+        }
     }
 
     // An argument teaches a type parameter through the PRESENT constituent of an optional slot --

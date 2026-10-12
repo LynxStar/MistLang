@@ -141,7 +141,7 @@ internal static class Indexability
             yield return baseType;
         }
 
-        foreach(var abstractBase in member.BaseAbstractTypes)
+        foreach(var abstractBase in member.BaseAbstractTypes.Where(abstractBase => TypeMemberLookup.Searches(member, abstractBase)))
         {
             yield return abstractBase;
         }

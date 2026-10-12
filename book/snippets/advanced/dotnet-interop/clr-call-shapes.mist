@@ -1,0 +1,26 @@
+using Standard;
+using System.Text;
+using System.Text.Json;
+
+public class Program
+{
+    public static string Describe(System.Object value)
+    {
+        return $"object {value}";
+    }
+
+    public static void Main(string[] args)
+    {
+        Console.WriteLine(JsonSerializer.Serialize<int>(3));
+        Console.WriteLine(JsonSerializer.Serialize<int>(4, new JsonSerializerOptions()));
+
+        var builder = new StringBuilder();
+        builder.AppendJoin("-", "a", "b", "c");
+        builder.AppendFormat(" {0}+{1}", 1, 2);
+        Console.WriteLine(builder.ToString());
+
+        System.Object boxed = 7;
+        Console.WriteLine(Describe(boxed));
+        Console.WriteLine(Describe((1, "one")));
+    }
+}

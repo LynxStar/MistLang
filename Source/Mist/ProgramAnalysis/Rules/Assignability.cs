@@ -45,6 +45,23 @@ internal static class Assignability
             ;
     }
 
+    /// <summary>
+    /// A ref struct converted to what is not one -- an interface it implements, or the top type -- only by
+    /// boxing, which ref-structs Requirement 3.11 refuses where the conversion happens. Kept apart from
+    /// <see cref="Judge(IMistType, IMistType, TypeInterner, Int128?)"/>, which answers whether a conversion
+    /// exists at all and is asked that by overload pairing too. A union is left alone: one holding a ref
+    /// struct is refused where it is written.
+    /// </summary>
+    public static DiagnosticDescriptor? Boxing(IMistType from, IMistType to, TypeInterner interner)
+    {
+        return RefStructs.Is(from)
+            && !RefStructs.Is(to)
+            && Unrefined(to) is not (UnionType or TypeParameter)
+            && ConversionClassifier.Classify(from, to, interner) == ConversionKind.Implicit
+                ? ProgramAnalysisDiagnostics.RefStructBoxed
+                : null;
+    }
+
     public static DiagnosticDescriptor? JudgeSelection(int implicitOperatorCount)
     {
         return implicitOperatorCount > 1 ? ProgramAnalysisDiagnostics.AmbiguousImplicitConversion : null;

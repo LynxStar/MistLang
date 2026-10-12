@@ -23,6 +23,9 @@ public sealed class AssignabilitySiteTests
     [InlineData("constructor-argument")]
     [InlineData("object-initializer")]
     [InlineData("index")]
+    [InlineData("projected-argument")]
+    [InlineData("projected-constructor-argument")]
+    [InlineData("projected-index")]
     [InlineData("coalesce")]
     [InlineData("switch-arm")]
     [InlineData("array-element")]
@@ -77,6 +80,19 @@ public sealed class AssignabilitySiteTests
                 break;
             case "index":
                 root = new IndexExpression(HandBuiltModel.Node(3), target, value, integer) { ParameterType = integer };
+                break;
+            case "projected-argument":
+                root = new InvocationExpression(HandBuiltModel.Node(3), target, [value], integer, Projected(integer), [integer]);
+                break;
+            case "projected-constructor-argument":
+                root = new NewExpression(HandBuiltModel.Node(3), owner, [value], new Constructor("Holder", owner, [new Parameter("value", integer)], new MemberModifiers { IsClrProjected = true }), [], [integer]);
+                break;
+            case "projected-index":
+                root = new IndexExpression(HandBuiltModel.Node(3), target, value, integer)
+                {
+                    ParameterType = integer,
+                    Indexer = new Indexer(integer, [new Parameter("key", integer)], new MemberModifiers { IsClrProjected = true }),
+                };
                 break;
             case "coalesce":
                 root = new CoalesceExpression(HandBuiltModel.Node(3), HandBuiltModel.Literal(optional), value, integer);
@@ -170,10 +186,8 @@ public sealed class AssignabilitySiteTests
     }
 
     [Theory]
-    [InlineData("clr-call")]
     [InlineData("unpaired-call")]
     [InlineData("elementless-params-call")]
-    [InlineData("clr-index")]
     [InlineData("from-end-index")]
     [InlineData("void-return")]
     [InlineData("failed-target")]
@@ -184,16 +198,11 @@ public sealed class AssignabilitySiteTests
         var value = HandBuiltModel.Literal(input.Type("String"), "bad");
         var receiver = HandBuiltModel.Literal(integer);
         var parameter = new Parameter("value", integer) { IsFlattened = site == "elementless-params-call" };
-        var method = new Method("Take", integer, [parameter], new MemberModifiers { IsClrProjected = site == "clr-call" });
+        var method = new Method("Take", integer, [parameter], default);
         object root = site switch
         {
-            "clr-call" or "elementless-params-call" => new InvocationExpression(HandBuiltModel.Node(), receiver, [value], integer, method, [integer]),
+            "elementless-params-call" => new InvocationExpression(HandBuiltModel.Node(), receiver, [value], integer, method, [integer]),
             "unpaired-call" => new InvocationExpression(HandBuiltModel.Node(), receiver, [value], integer, method, []),
-            "clr-index" => new IndexExpression(HandBuiltModel.Node(), receiver, value, integer)
-            {
-                ParameterType = integer,
-                Indexer = new Indexer(integer, [parameter], new MemberModifiers { IsClrProjected = true }),
-            },
             "from-end-index" => new IndexExpression(HandBuiltModel.Node(), receiver, value, integer),
             "void-return" => new ReturnStatement(value, input.Type("Void")),
             "failed-target" => new AssignmentExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(ErrorType.Instance), value, integer),
@@ -212,5 +221,10 @@ public sealed class AssignabilitySiteTests
         var diagnostic = Assert.Single(input.Model.Analyze(new AssignabilityAnalyzer(), root));
 
         Assert.Contains("'int' to 'string'", diagnostic.Message);
+    }
+
+    private static Method Projected(ClassType parameterType)
+    {
+        return new Method("Take", parameterType, [new Parameter("value", parameterType)], new MemberModifiers { IsClrProjected = true });
     }
 }

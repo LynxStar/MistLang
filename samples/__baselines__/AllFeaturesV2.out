@@ -2306,3 +2306,20 @@ eight levels: 8
   Token(26) released
   Maybe leaving
 === Resource Transfer Done ===
+=== CLR Call Contracts ===
+3
+4
+"quoted"
+a-b-c-d-e
+x+y+z
+1 and two and 3 and True
+Count = 3
+Count = 2
+object 7
+object seven
+object (1, 2)
+True
+  tick 3
+  tick 2
+  tick 1
+=== CLR Call Contracts Done ===

@@ -106,7 +106,8 @@ internal static class OverloadResolution
             }
             else
             {
-                closed.Add(new Applicant<T>(candidate, substitution));
+                closed.Add(new Applicant<T>(
+                    candidate, substitution, CallForm.Of(ValuePack.Expand(candidate.ParametersList, substitution, interner), arguments)));
             }
         }
 
@@ -150,7 +151,7 @@ internal static class OverloadResolution
         return new OverloadChoice<T> { Selected = null, Ambiguous = Methods(maximal) };
     }
 
-    private sealed record Applicant<T>(T Method, TypeSubstitution Substitution)
+    private sealed record Applicant<T>(T Method, TypeSubstitution Substitution, CallForm Form = default)
         where T : class, IOverload;
 
     /// <summary>
@@ -507,6 +508,12 @@ internal static class OverloadResolution
             }
         }
 
+        if((left.Method.TypeParametersList.Count > 0) == (right.Method.TypeParametersList.Count > 0)
+            && CallForm.Prefer(left.Form, right.Form) is var form and not 0)
+        {
+            return form < 0;
+        }
+
         return MoreSpecificSignature(left.Method, right.Method, arguments.Count);
     }
 
@@ -653,10 +660,7 @@ internal static class OverloadResolution
         var parameters = ValuePack.Expand(candidate.Method.ParametersList, candidate.Substitution, interner);
         var count = arguments?.Count ?? parameters.Count;
         var parameter = parameters[ValuePack.SlotOf(parameters, count, index)];
-        var target = ValuePack.ElementOf(parameter) is { } element
-            && (count != parameters.Count || arguments?[index] is UnboundLambdaExpression)
-                ? element
-                : parameter.Type;
+        var target = ValuePack.ElementOf(parameter) is { } element && candidate.Form.Expanded ? element : parameter.Type;
 
         return candidate.Substitution.Apply(target, interner);
     }

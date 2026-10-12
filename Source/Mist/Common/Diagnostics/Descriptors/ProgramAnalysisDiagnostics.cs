@@ -538,6 +538,42 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Ref struct '{0}' cannot be a type argument.");
 
+    public static readonly DiagnosticDescriptor RefStructProperty = new(
+        new DiagnosticId("MIST_PA_REF_STRUCT_PROPERTY"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Ref struct '{0}' cannot be a property of '{1}', which is not a ref struct.");
+
+    public static readonly DiagnosticDescriptor RefStructStaticStorage = new(
+        new DiagnosticId("MIST_PA_REF_STRUCT_STATIC_STORAGE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Ref struct '{0}' cannot be stored statically in '{1}': static storage lives on the heap.");
+
+    public static readonly DiagnosticDescriptor RefStructUnionConstituent = new(
+        new DiagnosticId("MIST_PA_REF_STRUCT_UNION_CONSTITUENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Ref struct '{0}' cannot be a union constituent: a union value can be boxed, and a ref struct cannot leave the stack.");
+
+    public static readonly DiagnosticDescriptor RefStructOptional = new(
+        new DiagnosticId("MIST_PA_REF_STRUCT_OPTIONAL"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Ref struct '{0}' cannot be optional: an optional value can be boxed, and a ref struct cannot leave the stack.");
+
+    public static readonly DiagnosticDescriptor RefStructElement = new(
+        new DiagnosticId("MIST_PA_REF_STRUCT_ELEMENT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Ref struct '{0}' cannot be {1}: {2}.");
+
+    public static readonly DiagnosticDescriptor RefStructBoxed = new(
+        new DiagnosticId("MIST_PA_REF_STRUCT_BOXED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Ref struct '{0}' cannot be converted to '{1}': the conversion would box it, and a ref struct cannot leave the stack.");
+
     public static readonly DiagnosticDescriptor FieldAssignedInReadonlyMember = new(
         new DiagnosticId("MIST_PA_FIELD_ASSIGNED_IN_READONLY_MEMBER"),
         DiagnosticSeverity.Error,
@@ -626,7 +662,25 @@ public static partial class ProgramAnalysisDiagnostics
         new DiagnosticId("MIST_PA_STACK_SPAN_RETURNED"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
-        "A stackalloc-backed span cannot be returned: it would escape its stack frame.");
+        "This '{0}' refers to {1}, so it cannot be returned: it would outlive its stack frame.");
+
+    public static readonly DiagnosticDescriptor StackSpanStored = new(
+        new DiagnosticId("MIST_PA_STACK_SPAN_STORED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "This '{0}' refers to {1}, so it cannot be stored in {2}: {3}.");
+
+    public static readonly DiagnosticDescriptor StackSpanPassed = new(
+        new DiagnosticId("MIST_PA_STACK_SPAN_PASSED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "This '{0}' refers to {1}, so it cannot be passed to '{2}' alongside {3}, which '{2}' could store it in: {4}.");
+
+    public static readonly DiagnosticDescriptor RefReturnEscapes = new(
+        new DiagnosticId("MIST_PA_REF_RETURN_ESCAPES"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot return {0} by reference: it refers to {1}, which does not outlive the call.");
 
     public static readonly DiagnosticDescriptor CapturedBinding = new(
         new DiagnosticId("MIST_PA_CAPTURED_BINDING"),

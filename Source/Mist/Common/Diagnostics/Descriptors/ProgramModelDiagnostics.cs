@@ -756,6 +756,12 @@ public static class ProgramModelDiagnostics
         "Cannot infer the element type of '{0}' because it is not an array and conforms to no IEnumerable. Iterate a sequence, or state the element type in place of 'var'.");
 
     /// <summary>An empty array literal appears where no target array type supplies the element type.</summary>
+    public static readonly DiagnosticDescriptor RefLocalNeedsInitializer = new(
+        new DiagnosticId("MIST_PM_REF_LOCAL_NEEDS_INITIALIZER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "Ref local '{0}' must be declared with an initializer: a reference names the storage it aliases where it is declared.");
+
     public static readonly DiagnosticDescriptor EmptyArrayLiteralNeedsTargetType = new(
         new DiagnosticId("MIST_PM_EMPTY_ARRAY_LITERAL_NO_TARGET"),
         DiagnosticSeverity.Error,

@@ -34,6 +34,18 @@ public sealed class AmbientTypeProviderV2NullableProjectionTests(AmbientTypeProv
         Assert.Equal("Standard.String", outbound.Type.FullyQualifiedName);
     }
 
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ANullableReferenceParameter_IsFlaggedOnTheSlot_WithoutBeingWrapped()
+    {
+        var slot = ((MemberType)fixture.Model.TypesByFQN["System.IFormattable"]).MethodsList.Single(method => method.Name == "ToString");
+
+        Assert.All(slot.ParametersList, parameter => Assert.True(parameter.ClrDeclaresNullable));
+        Assert.All(slot.ParametersList, parameter => Assert.IsNotType<UnionType>(parameter.Type));
+        Assert.Equal([true, false], Method(nameof(HasNullableMembers.ValueOrFallback)).ParametersList.Select(parameter => parameter.ClrDeclaresNullable));
+        Assert.False(Method(nameof(HasNullableMembers.DoubleOrDefault)).ParametersList.Single().ClrDeclaresNullable);
+    }
+
     private Method Method(string name)
     {
         return fixture.Type(nameof(HasNullableMembers)).MethodsList.Single(method => method.Name == name);

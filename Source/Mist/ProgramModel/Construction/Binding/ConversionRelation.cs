@@ -28,6 +28,8 @@ internal static class ConversionRelation
 
     private static readonly string[] BaseDelegateNames = ["System.Delegate", "System.MulticastDelegate"];
 
+    private const string ClrRootName = "System.Object";
+
     public static bool IsImplicit(IMistType from, IMistType to)
     {
         return IsWithin(Unrefined(from), Unrefined(to)) || CastOperatorSelection.Implicit(from, to, interner: null).Count > 0;
@@ -189,7 +191,8 @@ internal static class ConversionRelation
 
     /// <summary>
     /// Compared by name rather than by reference, since interning holds for most pairs but not every
-    /// construction path. One hole survives <see cref="IsIndeterminate"/>: a constructed type
+    /// construction path, and with tuple element names dropped at every depth, since they are not part
+    /// of a type's identity. One hole survives <see cref="IsIndeterminate"/>: a constructed type
     /// interpolates its arguments' names, so the same lifted value over an int and over a byte compares
     /// equal here.
     /// </summary>
@@ -203,7 +206,41 @@ internal static class ConversionRelation
             return false;
         }
 
-        return string.Equals(left.FullyQualifiedName, right.FullyQualifiedName, StringComparison.Ordinal);
+        return SameName(left, right);
+    }
+
+    private static bool SameName(IMistType left, IMistType right)
+    {
+        left = Structural(left);
+        right = Structural(right);
+
+        if(string.Equals(left.FullyQualifiedName, right.FullyQualifiedName, StringComparison.Ordinal)
+            || (left is DeclaredType { ClrMetadataName: { } leftRuntime }
+                && right is DeclaredType { ClrMetadataName: { } rightRuntime }
+                && string.Equals(leftRuntime, rightRuntime, StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        return (left, right) switch
+        {
+            (ConstructedType leftConstructed, ConstructedType rightConstructed) =>
+                SameName(leftConstructed.Definition, rightConstructed.Definition)
+                && SameEnclosing(leftConstructed.Enclosing, rightConstructed.Enclosing)
+                && SameNames(leftConstructed.TypeArguments, rightConstructed.TypeArguments),
+            (ITupleType leftTuple, ITupleType rightTuple) => SameNames(leftTuple.ElementTypes, rightTuple.ElementTypes),
+            _ => false,
+        };
+    }
+
+    private static bool SameEnclosing(ConstructedType? left, ConstructedType? right)
+    {
+        return left is null ? right is null : right is not null && SameName(left, right);
+    }
+
+    private static bool SameNames(IReadOnlyList<IMistType> left, IReadOnlyList<IMistType> right)
+    {
+        return left.Count == right.Count && left.Zip(right).All(pair => SameName(pair.First, pair.Second));
     }
 
     /// <summary>
@@ -308,10 +345,15 @@ internal static class ConversionRelation
     /// representation to widen, an error type would launder a failure into a resolution, and a method
     /// group is a set of signatures awaiting selection rather than something to convert.
     /// </para>
+    /// <para>
+    /// The projected CLR <c>System.Object</c> contains the same values, every one of which boxes or
+    /// already is a reference to it once emitted. It stays a type of its own: neither it nor unknown is
+    /// identical to the other, and nothing narrower is reached from it.
+    /// </para>
     /// </summary>
     private static bool WidensToUnknown(IMistType from, IMistType to)
     {
-        return to is UnknownType
+        return (to is UnknownType || (to is ClassType && to.FullyQualifiedName == ClrRootName))
             && from is not (ErrorType or MethodGroupType or UnboundLambdaType or NotProjectedType)
             && !OptionalUnion.IsVoid(from)
             ;

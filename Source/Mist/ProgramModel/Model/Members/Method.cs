@@ -64,6 +64,13 @@ internal class Method(
     public Block? Body { get; init; }
 
     /// <summary>
+    /// A projected interface member whose CLR declaration carries its own body, so a conformer may leave it
+    /// to the native default. Kept apart from <see cref="Body"/>, which only Mist source fills and nothing
+    /// may fabricate for a member the compiler never reads the source of.
+    /// </summary>
+    public bool HasNativeBody { get; init; }
+
+    /// <summary>
     /// The ownership specifier on the return type, if any.
     /// </summary>
     public OwnershipKind ReturnOwnership { get; init; }

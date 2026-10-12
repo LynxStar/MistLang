@@ -330,7 +330,9 @@ internal static class TypeEmitter
                 DropEmitter.Emit(concrete, writer, ref anyEmitted);
             }
 
-            foreach(var inherited in concrete is null ? [] : DefaultMemberDuplication.For(concrete, methods))
+            var restated = concrete is null ? [] : DefaultMemberDuplication.For(concrete, methods);
+
+            foreach(var inherited in restated)
             {
                 using var through = Substituting(inherited.Path);
                 SeparateMember(writer, ref anyEmitted);
@@ -344,7 +346,8 @@ internal static class TypeEmitter
                 ConstraintSlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 SlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
                 PackSlotBridgeEmitter.Emit(concrete, writer, diagnostics, ref anyEmitted);
-                IteratorBoilerplateEmitter.Emit(concrete, writer, ref anyEmitted);
+                IteratorBoilerplateEmitter.Emit(
+                    concrete, [.. methods, .. restated.ConvertAll(entry => entry.Method)], writer, ref anyEmitted);
             }
 
             foreach(var (witness, i) in closedConstraints.Select((witness, i) => (witness, i)))

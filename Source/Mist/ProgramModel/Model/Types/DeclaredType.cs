@@ -39,6 +39,13 @@ internal abstract class DeclaredType : MistType
     public string NamespaceName { get; }
 
     /// <summary>
+    /// The CLR type this declaration is at runtime, by metadata name, where the ambient provider knows
+    /// it: a projected type's own, or the one a Standard intrinsic emits as. Two declarations naming one
+    /// runtime type are one type to <see cref="Construction.Binding.ConversionRelation"/>.
+    /// </summary>
+    public string? ClrMetadataName { get; internal set; }
+
+    /// <summary>
     /// Nesting wins over the namespace: a nested type hangs off its declaring type, whose own
     /// qualified name already carries the namespace.
     /// </summary>

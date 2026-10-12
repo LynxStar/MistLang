@@ -111,6 +111,7 @@ internal sealed class CSharpEmitterV2
         using var supply = IntrinsicSupply.Enter((ProgramModel.Model.ProgramModel)programModel, clrType);
         using var specialization = UnionSpecialization.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var ceiling = DelegateCeiling.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
+        using var nullability = NativeSlotNullability.Enter((ProgramModel.Model.ProgramModel)programModel);
 
         (monomorphs, variadicUses) = MonomorphSet.Discover((ProgramModel.Model.ProgramModel)programModel);
 

@@ -23,6 +23,11 @@ internal static class ArgumentTargets
     {
         if(Absorbed(declared, closed, arguments) is not { } slot)
         {
+            if(declared is not null && declared.Count == closed.Count && ValuePack.OmittedDefaults(declared, arguments.Count) > 0)
+            {
+                return ValuePack.AcceptsCount(declared, arguments.Count) ? [.. closed.Take(arguments.Count)] : null;
+            }
+
             return declared is null || ValuePack.FlattenedSlot(declared) is null
                 ? closed.Count == arguments.Count ? closed : null
                 : null;

@@ -123,12 +123,17 @@ Because `stackalloc` memory lives on the current stack frame, the resulting span
 | Pass the span as a method argument | ✅ |
 | Iterate with `foreach` | ✅ |
 | Slice and use the result locally | ✅ |
-| Return the span from the method | ❌ |
+| Store in a ref struct local that was itself declared from stack memory | ✅ |
+| Return the span, a slice of it, or a ref struct holding it | ❌ |
+| Return a `ref` to one of its elements | ❌ |
+| Store it in a local declared from heap memory or from nothing | ❌ |
+| Store it in a parameter, in a field of `this`, or in a field of a ref struct declared from heap memory | ❌ |
+| Pass it to a method that could store it in such a ref struct (a non-`readonly` method of one, or one taking it by `ref`) | ❌ |
 | Store in a field of a heap object | ❌ |
 | Store in a static variable | ❌ |
 | Capture in a lambda or closure | ❌ |
 
-If a stackalloc-backed span escapes the frame (via return, field store, or any other heap-reachable path), the compiler rejects the program with a diagnostic identifying the offending expression.
+The backing travels with the value: a slice, a ref struct constructed from the span, a field read from such a ref struct, a `switch` arm and a pattern binding all carry it. A ref struct local keeps the lifetime its declaration gave it, as C# requires, so a local declared from heap memory cannot later take a stackalloc-backed span even if it never leaves the method; declare it from `stackalloc` instead. If a stackalloc-backed span escapes the frame, the compiler rejects the program at the offending expression: `MIST_PA_STACK_SPAN_RETURNED` for a return, `MIST_PA_STACK_SPAN_STORED` for a store, `MIST_PA_STACK_SPAN_PASSED` for a call that could store it.
 
 Note that spans received as method **parameters** or obtained from `AsSpan()` on arrays are *not* frame-restricted — they reference heap memory and can be used freely within the existing ref-struct rules.
 

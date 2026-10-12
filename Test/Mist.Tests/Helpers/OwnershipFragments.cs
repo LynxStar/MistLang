@@ -217,7 +217,8 @@ internal sealed class OwnershipFragments
     {
         if(name.StartsWith("stack-span-", StringComparison.Ordinal))
         {
-            var span = model.Interner.GetOrCreateConstructedType(model.Type("Span<,>"), [model.Type("Int32")]);
+            var definition = new StructType("Span", "Standard", new Scope(null), null, null) { Modifiers = new MemberModifiers { IsRef = true } };
+            var span = model.Interner.GetOrCreateConstructedType(definition, [model.Type("Int32")]);
             var stackLocal = new LocalVariable("s", span);
             var allocation = new StackallocExpression(HandBuiltModel.Node(), model.Type("Int32"), HandBuiltModel.Literal(model.Type("Int32"), 4L), span);
             var statements = new List<Statement> { new LocalDeclarationStatement(stackLocal, allocation) };

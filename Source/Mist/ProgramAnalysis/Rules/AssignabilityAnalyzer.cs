@@ -12,10 +12,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// <summary>
 /// A value at a position that expects a type it cannot implicitly become: one question, <see cref="Assignability"/>, asked at every position the binder gave a
 /// target type to, and reported at the value, since the value is what has to change. An argument is
-/// judged against what <see cref="ArgumentTargets"/> pairs it with, and not on a CLR-projected member,
-/// whose optional parameters the model does not represent yet, so the overload it names can be one
-/// Roslyn will not choose. An index is judged against
-/// the indexer it selected, an intrinsic one included, and not into a CLR-projected indexer, for that reason.
+/// judged against what <see cref="ArgumentTargets"/> pairs it with, a CLR-projected callee's included,
+/// and an index against the indexer it selected, an intrinsic or projected one included.
 /// </summary>
 internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 {
@@ -47,7 +45,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     CheckConstruction(context, creation);
                     break;
 
-                case IndexExpression { ParameterType: { } parameter } index when PairsWithIndex(index.Indexer):
+                case IndexExpression { ParameterType: { } parameter } index:
                     Check(context, index.Index, parameter);
                     break;
 
@@ -173,7 +171,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
     private static void CheckArguments(
         AnalysisContext context, IReadOnlyList<Expression> arguments, IReadOnlyList<IMistType>? parameters, Method? callee, SyntaxNode? call)
     {
-        if(parameters is null || callee is { Modifiers.IsClrProjected: true })
+        if(parameters is null)
         {
             return;
         }
@@ -203,11 +201,6 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                 Check(context, arguments[i], target);
             }
         }
-    }
-
-    private static bool PairsWithIndex(Indexer? indexer)
-    {
-        return indexer is not { Modifiers.IsClrProjected: true };
     }
 
     private static void CheckConstruction(AnalysisContext context, NewExpression creation)
@@ -274,7 +267,9 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 
     private static void Check(AnalysisContext context, Expression value, IMistType target, params Expression[] alsoAbout)
     {
-        if(Assignability.Judge(value, target, context.Model.TypeInterner) is { } descriptor
+        var interner = context.Model.TypeInterner;
+
+        if((Assignability.Judge(value, target, interner) ?? Assignability.Boxing(value.Type, target, interner)) is { } descriptor
             && !UnheldCopies.Report(context, value.Type, target, value.Node, [value, .. alsoAbout]))
         {
             context.Report(descriptor, value.Node, [value, .. alsoAbout], TypeDisplay.Mist(value.Type), TypeDisplay.Mist(target));
@@ -284,7 +279,9 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
     private static void Check(
         AnalysisContext context, IMistType from, IMistType to, SyntaxNode at, IReadOnlyList<Expression> about)
     {
-        if(Assignability.Judge(from, to, context.Model.TypeInterner) is { } descriptor
+        var interner = context.Model.TypeInterner;
+
+        if((Assignability.Judge(from, to, interner) ?? Assignability.Boxing(from, to, interner)) is { } descriptor
             && !UnheldCopies.Report(context, from, to, at, about))
         {
             context.Report(descriptor, at, about, TypeDisplay.Mist(from), TypeDisplay.Mist(to));

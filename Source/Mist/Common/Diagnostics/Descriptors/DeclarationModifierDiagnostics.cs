@@ -33,4 +33,10 @@ public static class DeclarationModifierDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
         "The 'affine' modifier is not valid on an operator declaration.");
+
+    public static readonly DiagnosticDescriptor RefOnField = new(
+        new DiagnosticId("MIST_PM_REF_ON_FIELD"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The 'ref' modifier is not valid on a field: a reference is a stack-only alias, so no field can store one. Declare the field by value, or take the reference as a ref local where it is used.");
 }

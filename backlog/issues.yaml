@@ -166,40 +166,6 @@ issues:
     versus collective-coverage policy, a language decision rather than a proof gap.
   audit_key: analysis:analysis-004
   area: analysis
-- id: MIST-003
-  title: Model CLR optional arguments before enforcing projected call/index types
-  status: confirmed
-  summary: CheckArguments returns for IsClrProjected; PairsWithIndex likewise excludes projected indexers.
-    The source-only omission survives. Optional/params metadata and selection fidelity must precede removing
-    the skip.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=assignability-core].tasks[2]
-    line_at_baseline: 1290
-    lead_excerpt: 'CLR optional parameters are not representable, so arity can select an overload Roslyn
-      will not; until they are, no argument to a CLR-projected member is judged, and the `UseNpgsql` call
-      in samples/CSharpInteropV2 is the case to prove it on. An index into a CLR-projected indexer is
-      not judged either: `d[1]` over `Dictionary<string, int>` reaches Roslyn (measured 2026-09-15).
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
-      selector: 'callee is { Modifiers.IsClrProjected: true }'
-      line: 177
-    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
-      selector: private static bool PairsWithIndex
-      line: 209
-  related:
-  - emitter CLR optional params
-  - backlog/general.md CLR indexer
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-010
-  area: analysis
 - id: MIST-004
   title: Judge collection-initializer Add refinement and parameter constraints
   status: confirmed
@@ -450,36 +416,6 @@ issues:
   area: backend
   merged_audit_keys:
   - analysis:analysis-102
-- id: MIST-023
-  title: Supply CLR iteration boilerplate through inherited abstract protocols
-  status: confirmed
-  summary: IteratorBoilerplateEmitter recognizes only interfaces yielded by TypeSlots.Reached, which returns
-    direct bases/conformances. A user abstract inheriting IEnumerable/IEnumerator therefore does not trigger
-    the CLR adapters its conformer owes.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=115,id=iterator-protocol-via-associated-type]
-    line_at_baseline: 7826
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: 'Source-only: complete TypeSlots.Reached walk is direct-only, and IteratorBoilerplateEmitter
-      matches only the two exact protocol definitions. No current inherited-protocol runtime fixture was
-      run.'
-    source_symbols:
-    - file: Source/Mist/ProgramModel/Construction/TypeSlots.cs
-      symbol: IEnumerable<IMistType> Reached
-      line: 14
-    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/IteratorBoilerplateEmitter.cs
-      symbol: foreach(var reached
-      line: 26
-  related:
-  - abstract conformance
-  - associated type slot lifting
-  priority_rationale: Current source-established wrong behavior; correctness work.
-  audit_key: backend:backend-iterator-ancestors
-  area: backend
 - id: MIST-029
   title: Support both specified user-defined sliceable protocols
   status: confirmed
@@ -585,40 +521,6 @@ issues:
   priority_rationale: Missing metadata value capability; no executed consuming constant fold failure asserted.
   audit_key: binding:provider-01
   area: binding
-- id: MIST-048
-  title: CLR interface default bodies are not marked as default implementations
-  status: confirmed
-  summary: Projected nonabstract interface methods carry attributes but no body/default availability marker.
-    ConformanceAnalyzer accepts an unanswered default slot only when slot.Body is non-null, so default
-    implementation availability is not delivered by projection. This is source-confirmed; end-to-end fixture
-    remains to be authored/revalidated.
-  source_refs:
-  - file: backlog/provider-tasks.yaml
-    selector: default implementation detection
-    lead_excerpt: '      - [ ] default implementation detection'
-    line_at_baseline: 262
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/Backends/CSharpTranspiler/AmbientProvider/MethodProjector.cs
-    selector: var projected = new Method
-    line: 101
-    observed: Creates method/signature/modifiers without Body/default-body metadata.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramAnalysis/Rules/ConformanceAnalyzer.cs
-    selector: if(slot.Body is not null
-    line: 108
-    observed: Unanswered method is exempt only for known source Body/default or unresolved mapping.
-  related:
-  - emitter abstract conformance/defaults
-  - analysis conformance
-  priority: P2
-  priority_rationale: CLR interface members with usable defaults can be mistaken for mandatory implementation
-    slots.
-  audit_key: binding:provider-02
-  area: binding
 - id: MIST-049
   title: Tuple names on CLR base/interface/constraint signatures are missing
   status: confirmed
@@ -661,51 +563,6 @@ issues:
     than inventing tuple nominal identity.
   audit_key: binding:provider-03
   area: binding
-- id: MIST-053
-  title: Revalidate projected System.Object as the classifier top type
-  status: confirmed
-  summary: A current explicit System.Object local initialized with int is refused as MIST_PA_NO_IMPLICIT_CONVERSION.
-    Native top/boxing-target conversion is missing along this route. Repair the specific native target
-    normalization/conversion contract alongside CLR callable enforcement; do not turn every projected
-    class into unknown or silently discard ownership/ref-safety guarantees.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=assignability-core].tasks[7]
-    line_at_baseline: 1306
-    lead_excerpt: 'A CLR `System.Object` parameter or local is not a top type to the classifier; invisible
-      today only because every CLR-projected callee is skipped.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramModel/Construction/Binding/ConversionRelation.cs
-      selector: DropsPurity
-      line: 99
-    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
-      selector: 'callee is { Modifiers.IsClrProjected: true }'
-      line: 177
-  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
-    date: '2026-10-11'
-    verification: executed CLI probe during workstream planning; not a full-suite pass
-    source: using Standard; namespace Probe; public class Program{public static void Main(){System.Object
-      value=3;Console.WriteLine(value);}}
-    manifest: 'name = "Probe"
-
-      namespace_root = "Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: 'MIST_PA_NO_IMPLICIT_CONVERSION: int cannot implicitly convert to Object at the local initializer.'
-  related:
-  - CLR projected call/index arguments
-  priority: P2
-  priority_rationale: Current executed native top/boxing target mismatch; bounded CLR conversion work.
-  audit_key: analysis:analysis-015
-  area: analysis
 - id: MIST-054
   title: Validate purity of setters run by default synthesis
   status: unverified
@@ -1007,55 +864,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-060
   area: analysis
-- id: MIST-064
-  title: Extend stack-backed span escape checking to stores
-  status: unverified
-  summary: EscapeAnalyzer.JudgeStackSpans only scans returns, following local declarations and Slice.
-    Field/collection storage escapes are not separately judged, but ref-struct storage rules may reject
-    first. Validate a reachable store route before a concrete fix.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=ownership-borrow-checking].tasks[8]
-    line_at_baseline: 3771
-    lead_excerpt: 'The stackalloc escape rule covers a return, directly or through a local or a Slice.
-      A span stored into a field or collection escapes too and is unmeasured: the field form is refused
-      first as a ref struct field.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=140,id=stackalloc].analysis_phase_tasks[1]
-    lead_excerpt: 'The escape rule: a stackalloc-backed span may be passed down but must not escape. Classic
-      has FrameEscapeAnalyzer for this and v2 runs no analyzers. StackOnlyTypes exercises the permitted
-      direction only, so nothing measures the refusal either way.
-
-      '
-    line_at_baseline: 9033
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
-      selector: foreach(var returned in nodes.OfType<ReturnStatement>())
-      line: 55
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: 'Source-only: EscapeAnalyzer.JudgeStackSpans examines ReturnStatements. Analysis auditor explicitly
-      could not substantiate field/collection escapes by an executed probe.'
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
-      symbol: JudgeStackSpans
-      line: 24
-  related:
-  - emitter ref/span escape
-  - analysis register span escape
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-062
-  area: analysis
-  merged_audit_keys:
-  - backend:backend-stack-span-escape-positions
 - id: MIST-067
   title: Specify Span to ReadOnlySpan conversion
   status: unverified
@@ -1438,40 +1246,6 @@ issues:
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:backend-ref-operator-parameter
   area: backend
-- id: MIST-080
-  title: Diagnose escaping local ref returns at Mist source
-  status: unverified
-  summary: The ref-return escape lead remains separate from lvalue admissibility. Existing EscapeAnalyzer
-    handles stack spans and lambda capture, while position checks establish lvalues; the local ref return
-    lifetime case needs a current refusal probe.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=132,id=ref-parameters-and-ref-locals].analysis_phase_tasks[0]
-    lead_excerpt: 'ESCAPE ANALYSIS for a ref return. `ref int Bad() { int x = 1; return ref x; }` now
-      emits, and Roslyn refuses it with CS8168 against the GENERATED file. That is a badly-sited diagnostic
-      rather than a silent miscompile, and strictly better than the wrong answer this capability used
-      to produce -- but it is the one place emitting made the message worse than refusing did.
-
-      '
-    line_at_baseline: 8654
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: 'Source-only: current EscapeAnalyzer does not establish general ref-return referent lifetime.
-      Historical CS8168 example was not executed on this baseline.'
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
-      symbol: JudgeStackSpans
-      line: 24
-    - file: Source/Mist/ProgramAnalysis/Rules/PositionAnalyzer.cs
-      symbol: ref return
-      line: 12
-  related:
-  - analysis register ref escapes
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:backend-ref-return-lifetimes
-  area: backend
 - id: MIST-081
   title: Recheck specific variadic shapes outside the delivered constraint/specialization closeout
   status: unverified
@@ -1624,67 +1398,6 @@ issues:
   - emitter capability ref-parameters-and-ref-locals
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:emitter-132-analysis_phase_tasks-2
-  area: backend
-- id: MIST-092
-  title: Revalidate source refusal or lowering of ref fields
-  status: unverified
-  summary: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-    behavior; no missing test name is used as evidence of a defect.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=132,id=ref-parameters-and-ref-locals].tasks[1]
-    lead_excerpt: 'Refuse or emit a ref FIELD. `FieldDeclaration` carries an ownership specifier and `ref`
-      on it lands on MemberModifiers.IsRef exactly as a method''s does, so `ref int F;` is still dropped
-      silently -- the last member of this family that is. Out of this capability''s name and untouched
-      by it, and now the only one left, which makes it more conspicuous than before rather than less.
-
-      '
-    line_at_baseline: 8654
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/PositionAnalyzer.cs
-      symbol: PositionAnalyzer
-      line: 20
-  related:
-  - emitter capability ref-parameters-and-ref-locals
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-132-tasks-1
-  area: backend
-- id: MIST-093
-  title: Revalidate deep composite and alias ref-struct legality
-  status: unverified
-  summary: Direct ref-struct fields, generic argument positions and capture/return escape checks already
-    exist. Revalidate deep composite/alias position completeness rather than wholesale absence of field/parameter/return/foreach/local
-    checks. No targeted deep position fixture was executed in this pass.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=138,id=ref-struct-declarations].analysis_phase_tasks[1]
-    lead_excerpt: 'Propagate ref-struct-ness into legality checks at every position used -- field, parameter,
-      return, foreach and local. A ref struct FIELD is the one with two answers: legal inside another
-      ref struct, which RefStructs.NestedRefStruct exercises and Roslyn accepts, and CS8345 inside a class,
-      which nothing in Mist currently refuses ahead of the C# compiler.
-
-      '
-    line_at_baseline: 8928
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
-      symbol: DeclarationShapeAnalyzer
-      line: 30
-  related:
-  - emitter capability ref-struct-declarations
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-138-analysis_phase_tasks-1
   area: backend
 - id: MIST-094
   title: Revalidate implicit cloning into owned fields and field assignments
@@ -6383,39 +6096,6 @@ issues:
       TestResults/ledger/20261011-180056. The test file is unmodified and the packet''s changes do not reach
       LiteralPredicates. For this well-formed, case-sensitive pattern the only nondeterministic null path is the
       MatchLimit timeout; the run cannot show which path answered.'
-- id: MIST-212
-  title: Annotate a Mist IFormattable implementation with the interface's nullable parameters
-  status: confirmed
-  summary: A Mist class implementing System.IFormattable emits ToString(string format, IFormatProvider provider),
-    whose parameters the interface declares nullable, so each implementer's generated consumer warns CS8767
-    twice. Output is unaffected; the generated C# should match the implemented member's annotations.
-  source_refs: []
-  evidence:
-  - revision: 0998bc6e
-    date: '2026-10-11'
-    kind: executed generated consumer builds; found incidentally while verifying MIST-017
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet build
-      <scratch-project>/out/Probe.csproj --no-incremental --disable-build-servers
-    observed: 'The MIST-017 admission probe (five Mist IFormattable implementers, two generic) runs correctly
-      and its consumer builds with 0 errors and 14 warnings, CS8767 for format and provider at each of the five
-      ToString sites. A project generated by the compiler at 4f018a0d with one Mist IFormattable implementer
-      shows the same CS8767 pair, so it predates the readonly packet.'
-    sources:
-    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/ParameterEmitter.cs
-      selector: Emit
-    detail: The MIST-017 packet repro source in that record's evidence reproduces it with one implementer.
-      No warning is suppressed.
-  - revision: 63fc8dbddb1487698859dbd78f178517b2f532d3
-    date: '2026-10-11'
-    kind: executed generated consumer recurrence during MIST-034 acceptance
-    command: dotnet run --project Source/Mist.CLI --no-build -- run /private/tmp/mist-27-probes/formattable_tostring --quiet; dotnet build /private/tmp/mist-27-probes/formattable_tostring/out/Probe.csproj --no-incremental
-    observed: 'Zero-argument and explicit formatting calls print formatted/formatted after the MIST-034 lookup fix; the exact nonnullable source fixture consumer builds with 0 errors and 2 CS8767 warnings, one for format and one for provider, matching the already recorded annotation gap. No warning is suppressed. This is packet 28 work and is not duplicated by packet 27.'
-    source: 'using Standard; using System; using System.Globalization; namespace Probe; public class Temp:IFormattable{public string ToString(string format,IFormatProvider provider){return "formatted";}} public class Program{public static void Main(){var t=new Temp(); Console.WriteLine(t.ToString()); Console.WriteLine(t.ToString("explicit",CultureInfo.InvariantCulture));}}'
-  related:
-  - MIST-017
-  priority: P3
-  priority_rationale: Generated consumer warning only; no runtime defect.
-  area: backend
 - id: MIST-217
   title: Emit positional tuple patterns with untyped elements over unknown
   status: decision
@@ -6593,7 +6273,7 @@ issues:
   status: confirmed
   summary: 'Storm.SourceGenerator.Tests.NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem
     fails on a Windows checkout with core.autocrlf=true: the grammar in its raw string literal carries CRLF, the qualified
-    mode text keeps it, and the expected lines use LF. Every other test passes there; on an LF checkout it passes. The
+    mode text keeps it, and the expected lines use LF. Every other test passes there; on an LF checkout it passes. The printer, not the checkout, supplies the CR (see the packet 31 evidence). The
     fix belongs to LynxStar/StormLang (normalize the compared text or pin LF for test sources) and a pin bump here.'
   source_refs: []
   evidence:
@@ -6604,11 +6284,132 @@ issues:
       20261011-234056 on unmodified main c178e4f63023347b99c7ffcf9f4215caade8c796 both fail it with Assert.Equal Collections differ at position 4, expected
       "mode L.Inner {\n" against actual "mode L.Inner {\r\n". Six worktrees on the host hold the test file with 251 CR
       bytes; the packet 25 closeout''s 910 of 910 Storm passes were on an LF host (polling-watcher setting recorded).'
+  - revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    date: '2026-10-11'
+    kind: executed full ledgers on a Windows host, and source inspection of the pinned Storm
+    detail: 'Packet 31 saw the same failure in full ledgers TestResults/ledger/20261011-233251 (at 639e1c0b), 20261011-234417 (at 08329e0d) and 20261011-235015 (at ab0c153bfe384811a0f08b1b8555f33ec21d1a31), and alone on a detached checkout of main c178e4f63023347b99c7ffcf9f4215caade8c796. The expected mode text in the test is an escaped "\n" literal, not a raw string, and the grammar under test is built in memory; the CR comes from StormPrettyPrinter.PrintModeDecl, which ends its lines with StringBuilder.AppendLine and so writes Environment.NewLine. An LF checkout on Windows would still fail; printing \n or normalizing the compared text in the test fixes it.'
+    source_symbols:
+    - file: Source/Storm.SourceGenerator/Frontend/StormPrettyPrinter.cs
+      symbol: PrintModeDecl
+      line: 129
+  - revision: 3a730938 on main 3e2f6e47
+    date: '2026-10-11'
+    kind: executed full and focused runs on a Windows host during packet 28
+    detail: 'Fails identically, expected "mode L.Inner {\n" against actual "mode L.Inner {\r\n", in full ledgers
+      20261011-225341, 20261011-232925, 20261011-233412 and 20261011-235419, 20261012-000032 and when run alone with a filter. Packet 28 does
+      not touch Storm; every other Storm test passes.'
   related:
   - packet 25 Storm grammar semantics (Storm 83410653)
   priority_rationale: A deterministic red full-suite result on Windows hosts hides real failures there.
   area: tooling
 
+- id: MIST-229
+  title: A generic-typed local declared without an initializer parses as an expression
+  status: confirmed
+  summary: '`List<int> s;` and `Span<int> s;` do not bind as declarations: the Statement rule tries UninitializedVariableDeclaration after ExpressionStatement, to keep `(ulong)a;` a cast, so a generic type name followed by a name parses as a chain of comparisons and every use reports MIST_PM_UNRESOLVED_IDENTIFIER. A non-generic `Holder h;` declares as expected.'
+  evidence:
+  - revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    date: '2026-10-11'
+    kind: executed CLI probe
+    source: 'using Standard; using System; namespace Probe; public class Program { public static void Main() { List<int> s; s = new List<int>(); Console.WriteLine(s.Count); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_PM_UNRESOLVED_IDENTIFIER: The name ''List'' could not be found in this scope; then the same for ''s'' at each use.'
+    source_symbols:
+    - file: Source/Mist/Grammar/Mist.storm
+      symbol: rule Statement, UninitializedVariableStatement alternative
+      line: 466
+  related:
+  - MIST-064
+  priority: P3
+  priority_rationale: A grammar ordering limit with a clear expected behaviour; a grammar change outside packet 31's scope.
+  area: parsing
+- id: MIST-230
+  title: Specify or refuse ref properties and indexers declared in Mist source
+  status: decision
+  summary: A `ref` modifier on a Mist property is accepted and erased at emission, so `public ref int Value { get { return ref this.store; } }` reaches Roslyn as a value property ("By-reference returns may only be used in methods that return by reference"). No spec decides whether ref-returning properties and indexers are a Mist feature to emit or a placement to refuse; ref fields are refused under ref-parameters Requirement 6.5 (MIST-092), and readonly ref methods await MIST-142.
+  evidence:
+  - revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    date: '2026-10-11'
+    kind: executed CLI probe
+    source: 'using Standard; using System; namespace Probe; public class Holder { private int store = 1; public ref int Value { get { return ref this.store; } } } public class Program { public static void Main() { var h = new Holder(); ref int r = h.Value; r = 5; Console.WriteLine(h.Value); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'Program.cs: error MIST_CS_ERROR: By-reference returns may only be used in methods that return by reference; and A non ref-returning property or indexer may not be used as an out or ref value.'
+  related:
+  - MIST-092
+  - MIST-142
+  priority_rationale: Language contract needs resolution before selecting behavior.
+  area: backend
+- id: MIST-231
+  title: Mark a user abstract's restatement of a CLR base interface member as hiding it
+  status: confirmed
+  summary: A user abstract over a CLR interface that declares a member of the same signature as one the CLR base
+    interface declares, such as a Dispose default on an abstract over IEnumerator<int>, is emitted as an interface member
+    without new, so the generated consumer warns CS0108. The program compiles and runs.
+  source_refs: []
+  evidence:
+  - revision: e7c379a4, the packet 28 head before its rebase; the same code is 3a730938 on main 3e2f6e47
+    date: '2026-10-11'
+    kind: executed CLI probe and generated consumer build
+    source: 'using Standard; namespace Probe; public abstract ICursor : IEnumerator<int> { void Dispose() { Console.WriteLine("default
+      disposed"); } } public class Cursor : ICursor { public int Current => 3; public bool MoveNext() { return false; } } public
+      class Program { public static void Main() { var c = new Cursor(); c.Dispose(); Console.WriteLine("ok"); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet build <scratch-project>/out/Probe.csproj --no-incremental
+    observed: 'Prints default disposed and ok. The consumer reports warning CS0108: ''ICursor.Dispose()'' hides inherited
+      member ''IDisposable.Dispose()''. Use the new keyword if hiding was intended.'
+    detail: Found while verifying MIST-023, whose adapters now keep such a default rather than duplicating it.
+  related:
+  - MIST-023
+  priority: P3
+  priority_rationale: Generated consumer warning only; no runtime defect.
+  area: backend
+- id: MIST-232
+  title: Annotate a type parameter answering a nullable native slot parameter
+  status: confirmed
+  summary: 'MIST-212 spells a by-value parameter nullable only where its closed type is a reference kind, so a Mist
+    generic answering a native slot over its own type parameter, Box<T> : IEquatable<T> with Equals(T other), keeps T and
+    the generated consumer warns CS8767 against IEquatable<T>.Equals(T? other). C# accepts T? for an unconstrained type
+    parameter; whether the emitter may spell one belongs with the optional-representation policy for type parameters.'
+  source_refs: []
+  evidence:
+  - revision: e7c379a4, the packet 28 head before its rebase; the same code is 3a730938 on main 3e2f6e47
+    date: '2026-10-11'
+    kind: executed CLI probe and generated consumer build
+    source: 'using Standard;using System; namespace Probe; public class Box<T> : IEquatable<T> { public readonly bool Equals(T
+      other) { return false; } } public class Program { public static void Main() { Standard.Console.WriteLine(new Box<string>().Equals("a"));
+      } }'
+    observed: 'Prints False. The consumer reports warning CS8767 for parameter ''other'' of ''bool Box<T>.Equals(T other)''
+      against ''bool IEquatable<T>.Equals(T? other)''.'
+  related:
+  - MIST-212
+  priority: P3
+  priority_rationale: Generated consumer warning only; no runtime defect.
+  area: backend
+- id: MIST-233
+  title: Decide how a nullable native callback input reaches Mist code
+  status: decision
+  summary: A native caller may pass null for a parameter its slot declares nullable, as the invariant formatter does for
+    IFormattable.ToString's format, while the Mist parameter answering it is a non-optional reference because CLR
+    reference inputs are deliberately not wrapped. A Mist body that dereferences it throws NullReferenceException at
+    runtime, and since MIST-212 the generated consumer warns CS8602 there. Resolving it needs a language decision
+    (narrowing, a guard, or wrapping native callback inputs), which packet 28 excluded.
+  source_refs: []
+  evidence:
+  - revision: e7c379a4, the packet 28 head before its rebase; the same code is 3a730938 on main 3e2f6e47
+    date: '2026-10-11'
+    kind: executed CLI probe and generated consumer build
+    source: 'using Standard;using System; namespace Probe; public class Formatter:IFormattable{public readonly string ToString(string
+      format,IFormatProvider provider){return $"len={format.Length}";}} public class Program{public static void Main(){Standard.Console.WriteLine(new
+      Formatter());}}'
+    observed: 'Unhandled exception. System.NullReferenceException: Object reference not set to an instance of an object.
+      The consumer reports warning CS8602: Dereference of a possibly null reference at format.Length.'
+  related:
+  - MIST-212
+  - ClrInboundLifting
+  priority: P2
+  priority_rationale: A runtime exception in a valid-looking program, blocked on a language policy choice.
+  area: language
 archive:
 - id: MIST-007
   title: Reject duplicate operator and conversion signatures
@@ -6930,6 +6731,718 @@ archive:
     evidence:
     - 'Recovered interrupted outcome using tools/test-ledger/failures.py; summary.txt and empty failures.txt inspected before rerun.'
     - 'Final rerun TestResults/ledger/20261011-234447: all four TRX and required system tests passed.'
+- id: MIST-003
+  title: Model CLR optional arguments before enforcing projected call/index types
+  status: implemented
+  summary: 'Delivered: projected CLR parameters carry their native call shape and projected calls and indexes
+    are judged. A parameter optional in metadata (a C# default or a bare [Optional]) has a native default, so a call
+    may stop short of trailing native defaults and the callee supplies them; a ParamArray or C# 13 ParamCollection
+    parameter over a recognised collection takes the homogeneous params convention. Selection orders candidates the
+    arguments cannot separate by C#''s tie-breaks, a homogeneous params slot teaches its element type, and
+    AssignabilityAnalyzer no longer skips CLR-projected callees or indexers.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=assignability-core].tasks[2]
+    line_at_baseline: 1290
+    lead_excerpt: 'CLR optional parameters are not representable, so arity can select an overload Roslyn
+      will not; until they are, no argument to a CLR-projected member is judged, and the `UseNpgsql` call
+      in samples/CSharpInteropV2 is the case to prove it on. An index into a CLR-projected indexer is
+      not judged either: `d[1]` over `Dictionary<string, int>` reaches Roslyn (measured 2026-09-15).
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
+      selector: 'callee is { Modifiers.IsClrProjected: true }'
+      line: 177
+    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
+      selector: private static bool PairsWithIndex
+      line: 209
+  - revision: MIST-003 completion, 1c27eeee on main 3e2f6e47, preceded by 45098172 and 11e09534
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - '1c27eeee feat(binding): ParameterProjector reads HasDefault and IsParams from metadata onto Parameter.HasNativeDefault
+      and IsFlattened, and every parameter copy carries them. ValuePack.AcceptsCount and OmittedDefaults admit calls that
+      omit trailing native defaults, including those before an empty params collection. CallForm records each applicant''s
+      normal or expanded form, collected count and omitted defaults, and CallForm.Prefer, after the non-generic check,
+      orders identical signatures: normal over expanded, fewer collected arguments, ParamsCollection.Compare (C# 13
+      ranking: ReadOnlySpan over Span over arrays and array interfaces, else the converting collection), then every
+      parameter supplied over a default. TypeArgumentInference infers a homogeneous params element. ArgumentBinder
+      and ArgumentTargets pair omitted-default calls. AssignabilityAnalyzer drops its IsClrProjected and PairsWithIndex
+      skips.'
+    - '11e09534 fix(conversion): judging projected calls exposed two false refusals. Identity drops tuple element names
+      at every depth (List<(string, int)> to List<(string Name, int Score)>, which ClrTupleSignatureRuntimeTests hit),
+      and DeclaredType.ClrMetadataName, set on every projected shell and on each ClrSpelling-listed Standard intrinsic,
+      makes Standard.List<T>, Type and Regex one type with the CLR types they emit as.'
+    - '45098172 (MIST-053) makes System.Object a real target and stops lookup entering a projected interface from a
+      projected class, which keeps d[1] and list.Add("s") source refusals once arguments are judged.'
+    - 'Tests. Tier 1 ClrCallShapeTests (null, primitive, enum and [Optional] defaults; params array and span; by-ref and
+      plain arrays), NativeCallFormTests (arity with omitted defaults, omitted counts, normal and expanded form, twelve
+      tie-break rows in both directions), ArgumentTargetsTests omission rows, RuntimeIdentityTests. Tier 2
+      NativeCallSelectionTests (Serialize-shaped candidates with omitted, supplied and explicit options and a missing
+      required argument; Combine-shaped fixed, array and span candidates over 0, 1, 2 and 5 strings and an array; wrong
+      elements; params T[] inference flat and whole; by-ref twins omitting a default; the defaults tie; an Object
+      competitor), AssignabilitySiteTests projected argument, constructor and index refusals, FlattenedArgumentSiteTests.
+      Tier 3 ClrCallableShapeProjectionTests over the runtime metadata.'
+    - '7bc7d1e8 banks samples/ClrCallContracts in AllFeaturesV2; b309191f adds the book''s Calling CLR Members section and
+      assembly-type-provider Requirements 5.10 and 7.7.'
+    verification:
+    - 'Packet repros at the final head: Serialize<int>(3) prints 3; Path.Combine("a","b","c","d","e") prints a\b\c\d\e
+      on Windows. The Dictionary<string,int> d[1] repro exits 1 with MIST_PA_NO_IMPLICIT_CONVERSION ''int'' to ''string''
+      against the selected this[TKey]; at planning it was MIST_PM_UNRESOLVABLE_OVERLOAD. Both are source refusals, so the
+      historical d[1] lead closes narrowly, as the packet directed.'
+    - 'Admission probe, exit 0: fixed (string, string) beside params string[] for two strings, params for three and none,
+      Count<T>(params T[]) over (1, 2, 3), Serialize<int>(3, options), Serialize("hi"), Path.Combine over an array, one
+      string and two, Path.Join over five, System.Console.WriteLine format params with mixed values, StringBuilder
+      AppendJoin and AppendFormat, List Add and Contains, System.Object locals, a Dictionary indexer set and TryGetValue
+      by ref, Math.Max and Round, Enumerable.Sum.'
+    - 'Refusal probe, exit 1, all MIST source diagnostics: Serialize<int>("x") and list.Add("s") MIST_PA_NO_IMPLICIT_CONVERSION;
+      Serialize<int>() MIST_PM_NO_APPLICABLE_OVERLOAD; Path.Combine("a", 3), Path.Join with an int element and
+      StringBuilder.Append(3, 4, 5) MIST_PM_UNRESOLVABLE_OVERLOAD; int back = a System.Object MIST_PA_NO_IMPLICIT_CONVERSION.
+      Nothing reaches Roslyn.'
+    - 'samples/CSharpInteropV2''s builder.UseNpgsql("...") leaves its trailing Action? to the native default and runs
+      unchanged in AllFeaturesV2, which proves the case the original lead named.'
+    - 'Final full regression at 3a730938 on main 3e2f6e47, after a fresh zero-warning build, LEDGER_NO_BUILD=1
+      tools/test-ledger/run.sh, TestResults/ledger/20261012-000032: Mist.Tests 10297/10297 (AllFeaturesV2_CompilesRunsAndMatchesBaseline,
+      Testing_RunsUnderTheTestCommand and GeneratedProjectNullabilityTests included), Mist.CLI.Tests 115/115,
+      Storm.ConsumerIntegration.Tests 46/46, Storm.SourceGenerator.Tests 909/910. The one Storm failure is the Windows line-ending test already
+      recorded as MIST-226. summary.txt and failures.txt inspected.'
+    - 'Earlier runs: at a26d861d on main a3ab12f2 (TestResults/ledger/20261011-235419), Mist.Tests 10176/10176 with the same
+      Mist.CLI, Storm.ConsumerIntegration and Storm results; at the first integration, 2945579e on main c178e4f6 (TestResults/ledger/20261011-233412), Mist.Tests
+      10077/10077, Mist.CLI.Tests 115/115, Storm.ConsumerIntegration.Tests 46/46 and Storm.SourceGenerator.Tests 909/910
+      with the same Storm failure; at b3321f62 on 5ff1b65b (20261011-232925), Mist.Tests 9928/9928. The first run of the
+      bundle (20261011-225341) failed ClrTupleSignatureRuntimeTests, which 11e09534 fixes, the three tests that pinned the
+      projected-call skip, which 1c27eeee updates deliberately, GeneratedProjectNullabilityTests, which main fixed as
+      MIST-227, and the Storm test.'
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check:
+      passed. Storm submodule HEAD and recorded gitlink both 83410653c7d722868a5001d2ef71e6692ec012b3. SnippetEmitter over
+      all of book/snippets at 2945579e: 406 pairs, 0 updated, 0 failed.'
+    limitations:
+    - A call omits native defaults only from the end of its argument list; Mist has no named arguments.
+    - A ParamCollection over a class collection is flattened only where ParamsCollection recognises its element during
+      projection; elsewhere the parameter is called in normal form.
+    - MIST_PM_NO_APPLICABLE_OVERLOAD's declared arities still list parameter counts, not the ranges native defaults and
+      params admit.
+  related:
+  - emitter CLR optional params
+  - backlog/general.md CLR indexer
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-010
+  area: analysis
+- id: MIST-053
+  title: Revalidate projected System.Object as the classifier top type
+  status: implemented
+  summary: 'Delivered: every value converts implicitly to the projected System.Object, with the exclusions unknown
+    has; it is not identical to unknown, and nothing narrower is reached from it implicitly. Member lookup no longer
+    enters a projected interface from a projected class or struct, so a member a CLR class implements only explicitly
+    is not reachable through the class and an unrelated projected type stays a nominal target.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=assignability-core].tasks[7]
+    line_at_baseline: 1306
+    lead_excerpt: 'A CLR `System.Object` parameter or local is not a top type to the classifier; invisible
+      today only because every CLR-projected callee is skipped.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramModel/Construction/Binding/ConversionRelation.cs
+      selector: DropsPurity
+      line: 99
+    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
+      selector: 'callee is { Modifiers.IsClrProjected: true }'
+      line: 177
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: executed CLI probe during workstream planning; not a full-suite pass
+    source: using Standard; namespace Probe; public class Program{public static void Main(){System.Object
+      value=3;Console.WriteLine(value);}}
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_PA_NO_IMPLICIT_CONVERSION: int cannot implicitly convert to Object at the local initializer.'
+  - revision: MIST-053 completion, 45098172 on main 3e2f6e47
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - '45098172 fix(conversion): ConversionRelation.WidensToUnknown admits the projected System.Object (a ClassType named
+      System.Object) as it admits unknown. Identity and the reverse direction are unchanged.'
+    - 'Making Object a target exposed a lookup fault: d[1] on Dictionary<string, int> selected IDictionary''s object
+      indexer and list.Add("s") on List<int> selected IList.Add(object), both admitted and then refused by Roslyn.
+      TypeMemberLookup.Searches keeps lookup and Indexability''s indexer walk from entering a projected interface from a
+      projected concrete type, as C# never searches a class''s interfaces; Standard''s source abstracts are still searched.'
+    - 'Tests. Tier 1 ClrObjectContainmentTests (primitive, class, tuple, optional, union, type parameter and function
+      values into Object and alike into unknown; void and error not; no reverse; no identity with unknown; an unrelated
+      projected class and a class merely named Object stay nominal; a specific target beats Object) and
+      ProjectedInterfaceLookupTests. Tier 2 NativeCallSelectionTests Object competitor rows. Tier 3
+      ClrCallableShapeProjectionTests: the Dictionary indexer and List.Add reach only the class.'
+    verification:
+    - 'Packet repro: System.Object value = 3; prints 3. samples/ClrCallContracts passes 7, "seven", (1, 2) and a class
+      to a System.Object parameter and local, and its line prints object 7, object seven, object (1, 2) and True.'
+    - 'Controls: int back = a System.Object value is MIST_PA_NO_IMPLICIT_CONVERSION, and (int)boxed is
+      MIST_PA_CAST_HAS_NO_CONVERSION directing to an is pattern. d[1] and list.Add("s") stay source refusals.
+      With projected calls judged (MIST-003), the full suite and AllFeaturesV2 report no new refusal of a valid
+      object-target API.'
+    - 'Final full regression at 3a730938 on main 3e2f6e47, after a fresh zero-warning build, LEDGER_NO_BUILD=1
+      tools/test-ledger/run.sh, TestResults/ledger/20261012-000032: Mist.Tests 10297/10297 (AllFeaturesV2_CompilesRunsAndMatchesBaseline,
+      Testing_RunsUnderTheTestCommand and GeneratedProjectNullabilityTests included), Mist.CLI.Tests 115/115,
+      Storm.ConsumerIntegration.Tests 46/46, Storm.SourceGenerator.Tests 909/910. The one Storm failure is the Windows line-ending test already
+      recorded as MIST-226. summary.txt and failures.txt inspected.'
+    - 'Earlier runs: at a26d861d on main a3ab12f2 (TestResults/ledger/20261011-235419), Mist.Tests 10176/10176 with the same
+      Mist.CLI, Storm.ConsumerIntegration and Storm results; at the first integration, 2945579e on main c178e4f6 (TestResults/ledger/20261011-233412), Mist.Tests
+      10077/10077, Mist.CLI.Tests 115/115, Storm.ConsumerIntegration.Tests 46/46 and Storm.SourceGenerator.Tests 909/910
+      with the same Storm failure; at b3321f62 on 5ff1b65b (20261011-232925), Mist.Tests 9928/9928. The first run of the
+      bundle (20261011-225341) failed ClrTupleSignatureRuntimeTests, which 11e09534 fixes, the three tests that pinned the
+      projected-call skip, which 1c27eeee updates deliberately, GeneratedProjectNullabilityTests, which main fixed as
+      MIST-227, and the Storm test.'
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check:
+      passed. Storm submodule HEAD and recorded gitlink both 83410653c7d722868a5001d2ef71e6692ec012b3. SnippetEmitter over
+      all of book/snippets at 2945579e: 406 pairs, 0 updated, 0 failed.'
+    limitations:
+    - Narrowing from System.Object is by an is pattern; an unboxing cast is refused as Mist refuses any cast no
+      conversion reaches.
+    - A ref struct reaching System.Object is now an implicit conversion that packet 31's Assignability.Boxing refuses at
+      source as MIST_PA_REF_STRUCT_BOXED (probe items.AsSpan() into a System.Object local, exit 1).
+  related:
+  - CLR projected call/index arguments
+  priority: P2
+  priority_rationale: Current executed native top/boxing target mismatch; bounded CLR conversion work.
+  audit_key: analysis:analysis-015
+  area: analysis
+- id: MIST-023
+  title: Supply CLR iteration boilerplate through inherited abstract protocols
+  status: implemented
+  summary: 'Delivered: IteratorBoilerplateEmitter walks the conformer''s direct roots through AbstractInheritance.Reached,
+    so a type reaching IEnumerable<T> or IEnumerator<T> only through user abstracts gets the CLR adapters, each once,
+    with the element from the reached protocol''s substitution. A Dispose or Reset the conformer, its base classes or
+    its restated defaults declare is kept instead of duplicated.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=115,id=iterator-protocol-via-associated-type]
+    line_at_baseline: 7826
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: 'Source-only: complete TypeSlots.Reached walk is direct-only, and IteratorBoilerplateEmitter
+      matches only the two exact protocol definitions. No current inherited-protocol runtime fixture was
+      run.'
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Construction/TypeSlots.cs
+      symbol: IEnumerable<IMistType> Reached
+      line: 14
+    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/IteratorBoilerplateEmitter.cs
+      symbol: foreach(var reached
+      line: 26
+  - revision: MIST-023 completion, e9f8766b, 923ab4b7 and ac170c4b on main 3e2f6e47
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - 'e9f8766b fix(emitter): IteratorBoilerplateEmitter iterates AbstractInheritance.Reached(SlotLift.Reached(type)),
+      privately, and takes the enumerable element from the closed reached protocol (IKeyed<int, string> over
+      IEnumerable<V> yields IEnumerable<string>). TypeSlots.Reached and SlotLift.Reached are unchanged and no traversal
+      API is published.'
+    - '923ab4b7 fix(emitter): the public Reset and Dispose adapters are skipped where the conformer declares an instance,
+      parameterless, non-generic method of that name, or a base class declares a public one; a direct conformer
+      declaring Dispose had failed CS0111 before this bundle.'
+    - 'ac170c4b fix(emitter): the restated defaults DefaultMemberDuplication supplies count as declared, so a Dispose
+      default on a user abstract over IEnumerator<int> is kept.'
+    - 'Tests. Tier 2 IteratorBoilerplateEmissionTests, 20 cases over hand-built models: inherited enumerator; inherited
+      enumerable with generic substitution; two-level and diamond inheritance and direct-plus-inherited lists emitting each
+      adapter once; direct conformers unchanged; unrelated abstracts none; declared, inherited, base-class, flattened
+      and restated Dispose or Reset kept; Dispose(bool), a generic Dispose and a private base Dispose do not suppress.'
+    verification:
+    - 'Packet repro (Cursor : ICursor, ICursor : IEnumerator<int>) prints ok; it failed with MIST_CS_ERROR for Reset,
+      object Current and Dispose at planning.'
+    - 'foreach probes over Numbers : INumbers with a nested Enumerator : ICursor, a struct enumerator reaching
+      IEnumerator<int> directly and through two abstracts, IWords : ISeq<string> and Table : IKeyed<int, string> print
+      every element; a declared, a base-class and an abstract-default Dispose each run when foreach ends.
+      samples/Iterators stdout and emitted C# are byte-identical before and after. samples/ClrCallContracts banks a
+      foreach over Launch : ITickSource<int> with an Enumerator : ITicker.'
+    - 'Final full regression at 3a730938 on main 3e2f6e47, after a fresh zero-warning build, LEDGER_NO_BUILD=1
+      tools/test-ledger/run.sh, TestResults/ledger/20261012-000032: Mist.Tests 10297/10297 (AllFeaturesV2_CompilesRunsAndMatchesBaseline,
+      Testing_RunsUnderTheTestCommand and GeneratedProjectNullabilityTests included), Mist.CLI.Tests 115/115,
+      Storm.ConsumerIntegration.Tests 46/46, Storm.SourceGenerator.Tests 909/910. The one Storm failure is the Windows line-ending test already
+      recorded as MIST-226. summary.txt and failures.txt inspected.'
+    - 'Earlier runs: at a26d861d on main a3ab12f2 (TestResults/ledger/20261011-235419), Mist.Tests 10176/10176 with the same
+      Mist.CLI, Storm.ConsumerIntegration and Storm results; at the first integration, 2945579e on main c178e4f6 (TestResults/ledger/20261011-233412), Mist.Tests
+      10077/10077, Mist.CLI.Tests 115/115, Storm.ConsumerIntegration.Tests 46/46 and Storm.SourceGenerator.Tests 909/910
+      with the same Storm failure; at b3321f62 on 5ff1b65b (20261011-232925), Mist.Tests 9928/9928. The first run of the
+      bundle (20261011-225341) failed ClrTupleSignatureRuntimeTests, which 11e09534 fixes, the three tests that pinned the
+      projected-call skip, which 1c27eeee updates deliberately, GeneratedProjectNullabilityTests, which main fixed as
+      MIST-227, and the Storm test.'
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check:
+      passed. Storm submodule HEAD and recorded gitlink both 83410653c7d722868a5001d2ef71e6692ec012b3. SnippetEmitter over
+      all of book/snippets at 2945579e: 406 pairs, 0 updated, 0 failed.'
+    limitations:
+    - A user abstract that restates a member of a CLR base interface, such as a Dispose default over IEnumerator<int>,
+      is emitted as an interface member hiding it, and the generated consumer warns CS0108; recorded as MIST-231.
+    - Adapters stay one per protocol kind, as before; a type reaching IEnumerable<int> and IEnumerable<string> gets
+      the first.
+  related:
+  - abstract conformance
+  - associated type slot lifting
+  priority_rationale: Current source-established wrong behavior; correctness work.
+  audit_key: backend:backend-iterator-ancestors
+  area: backend
+- id: MIST-048
+  title: CLR interface default bodies are not marked as default implementations
+  status: implemented
+  summary: 'Delivered: a projected interface method with its own CLR body is HasNativeBody, separate from Mist Body,
+    and an interface''s explicit restatements of inherited members are projected as NativeSlotOverrides. A conformer may
+    leave a slot whose single most specific declaration among its reached interfaces has a body; a direct call, an
+    implicit-this call or a function reference on the conformer is written through the interface, so both routes run
+    the same default and an exact user answer wins on both.'
+  source_refs:
+  - file: backlog/provider-tasks.yaml
+    selector: default implementation detection
+    lead_excerpt: '      - [ ] default implementation detection'
+    line_at_baseline: 262
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/Backends/CSharpTranspiler/AmbientProvider/MethodProjector.cs
+    selector: var projected = new Method
+    line: 101
+    observed: Creates method/signature/modifiers without Body/default-body metadata.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramAnalysis/Rules/ConformanceAnalyzer.cs
+    selector: if(slot.Body is not null
+    line: 108
+    observed: Unanswered method is exempt only for known source Body/default or unresolved mapping.
+  - revision: MIST-048 completion, 759c687c and 3a730938 on main 3e2f6e47
+    date: '2026-10-11'
+    kind: implementation and executed regression verification
+    implementation:
+    - '759c687c feat(conformance): MethodProjector marks a public, instance, non-abstract interface method HasNativeBody;
+      no Mist Body is fabricated and no native body is read. NativeSlotOverrides records an interface''s private
+      Ns.IBase.Member restatements against the slot they restate (body or reabstraction), matching by name and arity.
+      NativeDefaults.Answer applies the CLR most-specific rule over the slot and the restatements in the reached
+      interfaces; ConformanceAnalyzer exempts the slot only where that single declaration has a body. NativeDefaultCall
+      writes a call that selected a projected interface''s instance member on a class or struct receiver as
+      ((IFace)receiver).Member, closed as the receiver reaches it, for member access and implicit this.'
+    - '3a730938 fix(emitter): a function reference to such a member, plain.Greet or an implicit-this Greet, goes through
+      the same dispatch.'
+    - 'Native fixture: Mist.Tests.InteropFixtures.DefaultInterfaceFixtures, IGreeter { string Name(); string Greet()
+      default; static Bracket }, IShoutingGreeter restating Greet with a body, IStrictGreeter reabstracting it.'
+    - 'Tests. Tier 1 NativeDefaultsTests (own body or none, a derived body or reabstraction, the most derived deciding,
+      two disputing restatements, an unreached or other-slot restatement ignored) and NativeDefaultCallTests (direct,
+      through a source abstract, closed generic, and interface receivers, source abstracts, statics and own members
+      unaffected). Tier 2 NativeDefaultConformanceTests (admitted directly, through a source abstract and through a
+      restating body; a required slot, a reabstracted default, a disputed default and a static body all reported). Tier 3
+      ClrDefaultInterfaceProjectionTests over the compiled fixture. Tier 4 NativeDefaultInterfaceRuntimeTests: one compile
+      and run.'
+    verification:
+    - 'Tier 4 run: a conformer answering only Name prints hello plain directly, through Greeters.Through and through an
+      IGreeter local, through implicit and explicit this and through a function value; a conformer reaching IGreeter
+      through a Mist abstract prints hello polite both ways; a conformer''s own Greet wins both ways, as does Strict''s
+      answer to the reabstracted slot; IShoutingGreeter''s restated body runs both ways. Disabling the call dispatch, and
+      separately the function-reference dispatch, fails the compile with MIST_CS_ERROR for every direct call.'
+    - Requirement 16.7 and 14.8 in abstract-type-unification and assembly-type-provider 13.9 state the contract (b309191f).
+    - 'Final full regression at 3a730938 on main 3e2f6e47, after a fresh zero-warning build, LEDGER_NO_BUILD=1
+      tools/test-ledger/run.sh, TestResults/ledger/20261012-000032: Mist.Tests 10297/10297 (AllFeaturesV2_CompilesRunsAndMatchesBaseline,
+      Testing_RunsUnderTheTestCommand and GeneratedProjectNullabilityTests included), Mist.CLI.Tests 115/115,
+      Storm.ConsumerIntegration.Tests 46/46, Storm.SourceGenerator.Tests 909/910. The one Storm failure is the Windows line-ending test already
+      recorded as MIST-226. summary.txt and failures.txt inspected.'
+    - 'Earlier runs: at a26d861d on main a3ab12f2 (TestResults/ledger/20261011-235419), Mist.Tests 10176/10176 with the same
+      Mist.CLI, Storm.ConsumerIntegration and Storm results; at the first integration, 2945579e on main c178e4f6 (TestResults/ledger/20261011-233412), Mist.Tests
+      10077/10077, Mist.CLI.Tests 115/115, Storm.ConsumerIntegration.Tests 46/46 and Storm.SourceGenerator.Tests 909/910
+      with the same Storm failure; at b3321f62 on 5ff1b65b (20261011-232925), Mist.Tests 9928/9928. The first run of the
+      bundle (20261011-225341) failed ClrTupleSignatureRuntimeTests, which 11e09534 fixes, the three tests that pinned the
+      projected-call skip, which 1c27eeee updates deliberately, GeneratedProjectNullabilityTests, which main fixed as
+      MIST-227, and the Storm test.'
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check:
+      passed. Storm submodule HEAD and recorded gitlink both 83410653c7d722868a5001d2ef71e6692ec012b3. SnippetEmitter over
+      all of book/snippets at 2945579e: 406 pairs, 0 updated, 0 failed.'
+    limitations:
+    - Only methods are covered; a projected interface property or indexer with a default body is still a slot a
+      conformer must answer.
+    - A restatement is matched to its slot by name and arity; where two inherited overloads share both, nothing is
+      recorded and the inherited declaration decides.
+    - A protected interface default is not treated as a usable body, so a conformer must answer it.
+  related:
+  - emitter abstract conformance/defaults
+  - analysis conformance
+  priority: P2
+  priority_rationale: CLR interface members with usable defaults can be mistaken for mandatory implementation
+    slots.
+  audit_key: binding:provider-02
+  area: binding
+- id: MIST-212
+  title: Annotate a Mist IFormattable implementation with the interface's nullable parameters
+  status: implemented
+  summary: 'Delivered: projected CLR parameters record their C# nullable annotation, and a Mist member answering a
+    native slot, directly, through an inherited abstract, from a base class or by a with-block mapping, spells a
+    by-value reference parameter nullable where the slot does. The IFormattable implementer and generic, inherited and
+    IComparable controls build their generated consumers without CS8767.'
+  source_refs: []
+  evidence:
+  - revision: 0998bc6e
+    date: '2026-10-11'
+    kind: executed generated consumer builds; found incidentally while verifying MIST-017
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet build
+      <scratch-project>/out/Probe.csproj --no-incremental --disable-build-servers
+    observed: 'The MIST-017 admission probe (five Mist IFormattable implementers, two generic) runs correctly
+      and its consumer builds with 0 errors and 14 warnings, CS8767 for format and provider at each of the five
+      ToString sites. A project generated by the compiler at 4f018a0d with one Mist IFormattable implementer
+      shows the same CS8767 pair, so it predates the readonly packet.'
+    sources:
+    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/ParameterEmitter.cs
+      selector: Emit
+    detail: The MIST-017 packet repro source in that record's evidence reproduces it with one implementer.
+      No warning is suppressed.
+  - revision: MIST-212 completion, 1c77f1e8 on main 3e2f6e47
+    date: '2026-10-11'
+    kind: implementation and executed generated-consumer verification
+    implementation:
+    - '2945579e fix(emitter): ClrNullability.ParameterIsNullable reads a parameter''s own NullableAttribute, then its
+      member''s and type''s context; value types are never nullable. ParameterProjector stores it on
+      Parameter.ClrDeclaresNullable without changing the projected type, so an ordinary CLR reference input is still not
+      wrapped. NativeSlotNullability, entered for the whole program before emission, finds each answering member through
+      ConformanceAnswers, the conformance rule''s own selection, and ParameterEmitter writes T? for a by-value parameter
+      of reference kind answering a nullable slot parameter. MethodEmitter is untouched; with-block forwarders and async
+      bridges restating the slot take its flag.'
+    - 'Tests. Tier 1 ClrParameterNullabilityTests (10) and NativeSlotParameterSpellingTests (13); Tier 2
+      NativeSlotNullabilityEmissionTests (6); Tier 3 AmbientTypeProviderV2NullableProjectionTests IFormattable fact.'
+    - 'SnippetEmitter regenerated readonly-generic-formatting.cs, the one IFormattable book snippet; its output is
+      unchanged.'
+    verification:
+    - 'Packet repro at the final head prints x; dotnet build out/Probe.csproj --no-incremental: 0 warnings, 0 errors. At
+      planning it reported the CS8767 pair, plus three CS8669 from __Locale.g.cs that MIST-227 (18157046) removes.'
+    - 'Control at the final head, Box<T>, Pretty : IPretty over IFormattable, Derived : Base : IFormattable,
+      Pair : IComparable<Pair> and Count : IComparable<int>: prints box, pretty, base, 0, 5; the consumer builds with
+      0 warnings; ToString parameters are string? and IFormatProvider?, CompareTo(Probe.Pair? other) and
+      CompareTo(int other).'
+    - 'Agent probes before and after the change (all 0 errors): base 2 CS8767 to 0; generic 4 to 0; inherited 6 to 0;
+      slots 2 CS8767 and 2 CS8769 to 0; async 2 CS8769 to 0; mapped 1 CS8769 to 0; samples/CSharpInteropV2 and
+      AllFeaturesV2 emitted C# byte-identical.'
+    - 'Final full regression at 3a730938 on main 3e2f6e47, after a fresh zero-warning build, LEDGER_NO_BUILD=1
+      tools/test-ledger/run.sh, TestResults/ledger/20261012-000032: Mist.Tests 10297/10297 (AllFeaturesV2_CompilesRunsAndMatchesBaseline,
+      Testing_RunsUnderTheTestCommand and GeneratedProjectNullabilityTests included), Mist.CLI.Tests 115/115,
+      Storm.ConsumerIntegration.Tests 46/46, Storm.SourceGenerator.Tests 909/910. The one Storm failure is the Windows line-ending test already
+      recorded as MIST-226. summary.txt and failures.txt inspected.'
+    - 'Earlier runs: at a26d861d on main a3ab12f2 (TestResults/ledger/20261011-235419), Mist.Tests 10176/10176 with the same
+      Mist.CLI, Storm.ConsumerIntegration and Storm results; at the first integration, 2945579e on main c178e4f6 (TestResults/ledger/20261011-233412), Mist.Tests
+      10077/10077, Mist.CLI.Tests 115/115, Storm.ConsumerIntegration.Tests 46/46 and Storm.SourceGenerator.Tests 909/910
+      with the same Storm failure; at b3321f62 on 5ff1b65b (20261011-232925), Mist.Tests 9928/9928. The first run of the
+      bundle (20261011-225341) failed ClrTupleSignatureRuntimeTests, which 11e09534 fixes, the three tests that pinned the
+      projected-call skip, which 1c27eeee updates deliberately, GeneratedProjectNullabilityTests, which main fixed as
+      MIST-227, and the Storm test.'
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check:
+      passed. Storm submodule HEAD and recorded gitlink both 83410653c7d722868a5001d2ef71e6692ec012b3. SnippetEmitter over
+      all of book/snippets at 2945579e: 406 pairs, 0 updated, 0 failed.'
+    limitations:
+    - 'A Mist type parameter answering a nullable native slot parameter keeps T, so Box<T> : IEquatable<T> still warns
+      CS8767; recorded as MIST-232.'
+    - A Mist body dereferencing an annotated parameter warns CS8602 and throws when the native caller passes null, as
+      the invariant formatter does; how a nullable native callback input reaches Mist is the decision recorded as
+      MIST-233.
+    - A by-ref native slot parameter keeps its spelling, and a nested CLR type reads only its declaring type''s nullable
+      context.
+  - revision: 63fc8dbddb1487698859dbd78f178517b2f532d3
+    date: '2026-10-11'
+    kind: executed generated consumer recurrence during MIST-034 acceptance
+    command: dotnet run --project Source/Mist.CLI --no-build -- run /private/tmp/mist-27-probes/formattable_tostring
+      --quiet; dotnet build /private/tmp/mist-27-probes/formattable_tostring/out/Probe.csproj --no-incremental
+    observed: Zero-argument and explicit formatting calls print formatted/formatted after the MIST-034 lookup fix;
+      the exact nonnullable source fixture consumer builds with 0 errors and 2 CS8767 warnings, one for format and
+      one for provider, matching the already recorded annotation gap. No warning is suppressed. This is packet 28
+      work and is not duplicated by packet 27.
+    source: using Standard; using System; using System.Globalization; namespace Probe; public class Temp:IFormattable{public
+      string ToString(string format,IFormatProvider provider){return "formatted";}} public class Program{public static
+      void Main(){var t=new Temp(); Console.WriteLine(t.ToString()); Console.WriteLine(t.ToString("explicit",CultureInfo.InvariantCulture));}}
+  related:
+  - MIST-017
+  priority: P3
+  priority_rationale: Generated consumer warning only; no runtime defect.
+  area: backend
+- id: MIST-080
+  title: Diagnose escaping local ref returns at Mist source
+  status: implemented
+  summary: 'Delivered: a ref return is judged by its referent''s lifetime at Mist source. Returning by ref a local, a parameter passed by value, an alias of either, a field of a struct member''s own receiver or of a struct local or parameter, an element of stackalloc memory, or a ref-returning call lent such storage is refused with MIST_PA_REF_RETURN_ESCAPES at the returned expression. A ref parameter, a class instance field directly or through a ref local, a static field, an array element, an element of a caller''s span and a call lent only such storage stay returnable.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=132,id=ref-parameters-and-ref-locals].analysis_phase_tasks[0]
+    lead_excerpt: 'ESCAPE ANALYSIS for a ref return. `ref int Bad() { int x = 1; return ref x; }` now
+      emits, and Roslyn refuses it with CS8168 against the GENERATED file. That is a badly-sited diagnostic
+      rather than a silent miscompile, and strictly better than the wrong answer this capability used
+      to produce -- but it is the one place emitting made the message worse than refusing did.
+
+      '
+    line_at_baseline: 8654
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: 'Source-only: current EscapeAnalyzer does not establish general ref-return referent lifetime.
+      Historical CS8168 example was not executed on this baseline.'
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
+      symbol: JudgeStackSpans
+      line: 24
+    - file: Source/Mist/ProgramAnalysis/Rules/PositionAnalyzer.cs
+      symbol: ref return
+      line: 12
+  related:
+  - analysis register ref escapes
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:backend-ref-return-lifetimes
+  area: backend
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - c0f052105cf09eb68a2e8d33f01505491151e1c7
+    - 85a365f96d75e2dcde9706ac30124888ea386c6f
+    verification_revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - 'FrameScopes.Referent answers which frame storage a reference names, by C#''s ref-safe contexts: a local, a by-value parameter, a struct member''s receiver, stackalloc memory through a span element, and a ref-returning call or indexer as narrow as the narrowest reference it is lent or ref struct it is given. A class instance field, a static field and an array element name none.'
+    - 'FrameLifetimes, an IFlowLattice over the shared FlowGraph, fixes a ref local''s referent where it is declared, with every ref struct local''s scope, and keeps the narrower fact at a join. EscapeAnalyzer replays the solution at each `return ref`, in lambdas and local functions as their own frames.'
+    - 'Mist has no ref reassignment: `ref r = ref y;` is MIST_PARSE_INCOMPLETE, so a declaration is the only binding of a ref local and there is no reassignment to support.'
+    - 'A returned expression PositionAnalyzer already refuses -- not a location, or a readonly reference returned writably -- is skipped, so one mistake gets one complaint.'
+    acceptance:
+    - 'Packet reproduction `int x = 1; return ref x;` (Roslyn CS8168 against the generated file at the baseline) now reports MIST_PA_REF_RETURN_ESCAPES: "Cannot return ''x'' by reference: it refers to local ''x'', which does not outlive the call." The alias reproduction `ref int alias = x; return ref alias;` (CS8157) reports the same at ''alias''.'
+    - 'Control: the class instance Get() returning `ref this.Value` still prints 9 after `x = 9` through the returned alias.'
+    - 'CLI probe refusals: `ref int Bad1(int p) { return ref p; }`, `return ref Pick(ref n)` over a local, a ref local to an element of a stackalloc span, `return ref s.F` of a struct local, and `return ref this.F` in a struct member (CS8170 at the baseline, now "it refers to the receiver ''this'' of struct ''S''").'
+    - 'CLI probe admissions, run and printing 8, 4, 5, 9, 6, 10: a ref local to a class field, a ref local to a ref parameter, a static field, Pick(ref c.Value), a field of a ref struct parameter (`ref S s`) and an element of a span parameter. The generated out/Probe.csproj builds with dotnet build --no-incremental at 0 errors and 0 warnings.'
+    - 'Tests: Tier 1 FrameScopeDecisionTests (referent rows for local, by-value parameter, struct local field, struct receiver field, stack element, ref call over a local; and for ref parameter, class field, static field, array element, span parameter element, ref call over a ref parameter); Tier 2 FrameEscapeSiteTests (four refusal sites, four admissions, and no second complaint after PositionAnalyzer''s literal and readonly-alias refusals).'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors at ab0c153bfe384811a0f08b1b8555f33ec21d1a31. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh, all projects, at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 on Windows: test exit 1 with 11175 passed and 1 failed -- Mist.Tests 10105 of 10105, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46, Storm.SourceGenerator.Tests 909 of 910 -- after building Mist.slnx with 0 warnings and 0 errors. Ledger TestResults/ledger/20261011-235015; summary.txt and failures.txt inspected. The one failure is Storm.SourceGenerator.Tests.NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, which fails identically on pristine main c178e4f6 on Windows and is MIST-226, with this run''s evidence added there. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed.'
+    - 'The first full run, at 639e1c0b before rebasing onto packet 30 (TestResults/ledger/20261011-233251), also failed Mist.Tests.Integration.GeneratedProjectNullabilityTests.EmitterToMSBuild_TheGeneratedProjectRaisesNoNullableWarning; it failed identically on pristine main c178e4f6 on Windows. Packet 30 landed the same fix first (18157046, MIST-227), so this packet''s duplicate was dropped before publication, and the run at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 passes it.'
+    - 'AllFeaturesV2_CompilesRunsAndMatchesBaseline passed in that ledger, and a CLI run of AllFeaturesV2 before rebasing onto packets 26 and 30 matched samples/__baselines__/AllFeaturesV2.out line for line (2308 lines, exit 0); the RefStructs, StackOnlyTypes, RefParameters, ClrRefInterop, ClrRefReadonly, SizedSequencePatterns, ResourceTransfer, NamedAllocationElements and StampableTypes samples it composes raise none of the new diagnostics.'
+    - 'Each refused frame and ref-return shape was first confirmed a Roslyn error in a C# scratch library on net10.0 (CS8168, CS8157, CS8167, CS8169, CS8170, CS9075, CS8352, CS8353, CS8350), and each admitted control compiled there; each refused position shape was a Roslyn error (CS8345, the ValueTuple, Nullable and array-element refusals, the boxing conversions) in its probe''s generated project at the baseline.'
+    limitations:
+    - 'Mist source declares no readonly-ref return: `readonly ref` on a method is the open decision MIST-142, so only `ref` returns occur in bodies. The rule judges any `return ref`.'
+    - 'A field of a struct member''s own `this` is refused, as C# refuses it (CS8170); Requirement 6.3''s rationale -- the object''s storage outlives the call -- holds for a class receiver, which stays admitted.'
+    - 'MIST-091, the liveness of a ref local to a field or element across ownership moves, is untouched.'
+- id: MIST-064
+  title: Extend stack-backed span escape checking to stores
+  status: implemented
+  summary: 'Delivered: stack backing is carried through ref struct values and judged wherever it could outlive the frame. A ref struct built from, or holding, stackalloc memory -- through a constructor, a field, a slice, a conversion, a switch arm or a pattern binding -- is refused when returned (MIST_PA_STACK_SPAN_RETURNED), stored where it outlives the frame (MIST_PA_STACK_SPAN_STORED) or passed to a call that could store it there (MIST_PA_STACK_SPAN_PASSED), at the escaping expression. Frame-local holders, indexing, slicing, foreach and non-escaping calls stay admitted.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=ownership-borrow-checking].tasks[8]
+    line_at_baseline: 3771
+    lead_excerpt: 'The stackalloc escape rule covers a return, directly or through a local or a Slice.
+      A span stored into a field or collection escapes too and is unmeasured: the field form is refused
+      first as a ref struct field.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=140,id=stackalloc].analysis_phase_tasks[1]
+    lead_excerpt: 'The escape rule: a stackalloc-backed span may be passed down but must not escape. Classic
+      has FrameEscapeAnalyzer for this and v2 runs no analyzers. StackOnlyTypes exercises the permitted
+      direction only, so nothing measures the refusal either way.
+
+      '
+    line_at_baseline: 9033
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
+      selector: foreach(var returned in nodes.OfType<ReturnStatement>())
+      line: 55
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: 'Source-only: EscapeAnalyzer.JudgeStackSpans examines ReturnStatements. Analysis auditor explicitly
+      could not substantiate field/collection escapes by an executed probe.'
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
+      symbol: JudgeStackSpans
+      line: 24
+  related:
+  - emitter ref/span escape
+  - analysis register span escape
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-062
+  area: analysis
+  merged_audit_keys:
+  - backend:backend-stack-span-escape-positions
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - c0f052105cf09eb68a2e8d33f01505491151e1c7
+    - 85a365f96d75e2dcde9706ac30124888ea386c6f
+    verification_revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - 'FrameScopes.Value answers what frame storage a ref struct value refers to: stackalloc memory, or a local or by-value parameter a Mist ref struct constructor or method was lent by ref. A call, constructor, indexer, property or field read of a ref struct is as narrow as the narrowest ref struct it is given or reference it is lent, a switch or coalesce as its narrowest arm, a conversion as its operand.'
+    - 'FrameLifetimes fixes each ref struct local''s scope from its initializer, foreach collection, with value, deconstruction or pattern scrutinee, as C# does: a later assignment neither clears nor adds the backing. EscapeAnalyzer.Frames replays the solution and judges returns, getter expression bodies, lambda results, stores (FrameScopes.Destination: a local not declared stack-bound, a parameter, `this` or one of its fields, a field of a holder not declared stack-bound) and calls whose non-readonly receiver or ref ref-struct argument is such storage.'
+    - 'MIST_PA_STACK_SPAN_RETURNED keeps its id and now names the value''s type and what it refers to; StackSpanStored, StackSpanPassed and RefReturnEscapes are new.'
+    acceptance:
+    - 'Packet reproduction `return new Holder(x)` over `Span<int, 3> x = stackalloc int[3]` (two Roslyn CS8352/CS8350 errors at the baseline) now reports MIST_PA_STACK_SPAN_RETURNED at the return: "This ''Holder'' refers to stackalloc memory, so it cannot be returned: it would outlive its stack frame."'
+    - 'CLI probes refused, each once at the escaping expression: a Holder local returned; `new Outer(new Holder(x))` returned; `x.Slice(0, 2)` and a stack-declared alias returned; a span local declared from `arr.AsSpan()` then assigned stackalloc (STORED, CS8353 in C#); `Holder h; h = new Holder(st);` (STORED); a switch with a stack arm returned; `this.Data = s` in a ref struct method, `h.Data = st` on a heap-declared holder (STORED); `h.Put(st)` on that holder and `p.Put(st)` on a holder parameter (PASSED, CS8350 in C#); a stack span bound by `is Span<int, 3> three` and returned; a local function returning stackalloc; and `new Pin(ref n)` over a local returned ("refers to local ''n''").'
+    - 'CLI probe admissions run and print 18 and 2: a stack holder used locally, `Put` and a field store on it, a readonly method on a heap holder, SumSpan(stack), Slice used locally, a heap-backed holder returned, `Wrap(Span<int, 3> p)` returning `new Holder(p)`, a parameter span returned through a pattern binding, `new Pin(ref n)` over a ref parameter, and a lambda with its own stackalloc. The generated out/Probe.csproj builds with dotnet build --no-incremental at 0 errors and 0 warnings.'
+    - 'Tests: Tier 1 FrameScopeDecisionTests (value, destination, declaration, pattern binding and join rows); Tier 2 FrameEscapeSiteTests (holder returns including one reassigned from a heap span, a pattern binding, a lambda result, four store destinations, a call store, and admissions); OwnershipRefusalTests stack-span rows now over a ref struct Span; OwnershipDecisionTests admissions also hold the new ids silent.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors at ab0c153bfe384811a0f08b1b8555f33ec21d1a31. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh, all projects, at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 on Windows: test exit 1 with 11175 passed and 1 failed -- Mist.Tests 10105 of 10105, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46, Storm.SourceGenerator.Tests 909 of 910 -- after building Mist.slnx with 0 warnings and 0 errors. Ledger TestResults/ledger/20261011-235015; summary.txt and failures.txt inspected. The one failure is Storm.SourceGenerator.Tests.NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, which fails identically on pristine main c178e4f6 on Windows and is MIST-226, with this run''s evidence added there. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed.'
+    - 'The first full run, at 639e1c0b before rebasing onto packet 30 (TestResults/ledger/20261011-233251), also failed Mist.Tests.Integration.GeneratedProjectNullabilityTests.EmitterToMSBuild_TheGeneratedProjectRaisesNoNullableWarning; it failed identically on pristine main c178e4f6 on Windows. Packet 30 landed the same fix first (18157046, MIST-227), so this packet''s duplicate was dropped before publication, and the run at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 passes it.'
+    - 'AllFeaturesV2_CompilesRunsAndMatchesBaseline passed in that ledger, and a CLI run of AllFeaturesV2 before rebasing onto packets 26 and 30 matched samples/__baselines__/AllFeaturesV2.out line for line (2308 lines, exit 0); the RefStructs, StackOnlyTypes, RefParameters, ClrRefInterop, ClrRefReadonly, SizedSequencePatterns, ResourceTransfer, NamedAllocationElements and StampableTypes samples it composes raise none of the new diagnostics.'
+    - 'Each refused frame and ref-return shape was first confirmed a Roslyn error in a C# scratch library on net10.0 (CS8168, CS8157, CS8167, CS8169, CS8170, CS9075, CS8352, CS8353, CS8350), and each admitted control compiled there; each refused position shape was a Roslyn error (CS8345, the ValueTuple, Nullable and array-element refusals, the boxing conversions) in its probe''s generated project at the baseline.'
+    limitations:
+    - 'Scopes follow C#''s declaration-fixed contexts rather than a finer flow-sensitive model: a span local declared from heap memory may not later take stackalloc memory even when it never escapes (CS8353), since R8.4 forbids accepting what C# refuses. The stack-only design''s rule 2 is amended to say so.'
+    - 'CLR span-over-reference constructors such as ReadOnlySpan<T>(in T) are not reachable from Mist source (overload resolution selects the array constructor), so a reference captured that way is not modelled; a reference lent to a Mist ref struct constructor or method is.'
+    - 'An uninitialized generic ref struct local (`Span<int> s;`) does not parse as a declaration (MIST-229), so that route was verified with a non-generic holder.'
+    - 'Readonly exemption for the call rule reads the method''s readonly modifier and a readonly declaring struct; Mist''s own Span is a non-readonly intrinsic ref struct whose members take no ref struct argument.'
+- id: MIST-092
+  title: Revalidate source refusal or lowering of ref fields
+  status: implemented
+  summary: 'Delivered: `ref` on a field is refused at its declaration with MIST_PM_REF_ON_FIELD (ref-parameters Requirement 6.5), once per field whatever else it carries, in a class, a struct or a ref struct, static or not. FieldEmitter treats a ref field reaching emission as an internal error, so the modifier can no longer be erased silently. No ref-field feature is added.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=132,id=ref-parameters-and-ref-locals].tasks[1]
+    lead_excerpt: 'Refuse or emit a ref FIELD. `FieldDeclaration` carries an ownership specifier and `ref`
+      on it lands on MemberModifiers.IsRef exactly as a method''s does, so `ref int F;` is still dropped
+      silently -- the last member of this family that is. Out of this capability''s name and untouched
+      by it, and now the only one left, which makes it more conspicuous than before rather than less.
+
+      '
+    line_at_baseline: 8654
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/PositionAnalyzer.cs
+      symbol: PositionAnalyzer
+      line: 20
+  related:
+  - emitter capability ref-parameters-and-ref-locals
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-132-tasks-1
+  area: backend
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - 95c9efeea17b2c6619b2c560589a07fa1a846183
+    - 85a365f96d75e2dcde9706ac30124888ea386c6f
+    verification_revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - 'DeclarationModifierPlacement refuses (FieldDeclarationNode, RefModifierModifierNode) as it refuses ref on an operator. A field''s `ref` always lands on MemberModifiers.IsRef, because Modifier* takes it greedily ahead of the ownership specifier, so `readonly ref` and `ref readonly` reach the same refusal and Distinct reports it once.'
+    - 'FieldEmitter.Emit throws an internal error for a field whose modifiers carry IsRef.'
+    acceptance:
+    - 'The packet reproduction `public ref int Value;` printed 1 at the baseline; it now exits 1 with one MIST_PM_REF_ON_FIELD at the field.'
+    - 'CLI probe with `readonly ref` and `ref readonly` instance fields and a static ref field in a class, a ref field in a struct and one in a ref struct, plus an unrelated `string s = 5;`: five MIST_PM_REF_ON_FIELD, one per field, and the unrelated MIST_PA_NO_IMPLICIT_CONVERSION is still reported, so Stage 5 still runs.'
+    - 'Tier 1 DeclarationModifierPlacementTests: five refused field spellings and two admitted field modifiers (readonly, static). Tier 1 RefFieldEmissionTests: an instance and a static ref field are refused at emission and a value field is emitted.'
+    - 'Ordinary fields, ref returns, ref parameters and ref locals are unchanged: the RefParameters, ClrRefInterop and ClrRefReadonly lines of AllFeaturesV2 match the baseline.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors at ab0c153bfe384811a0f08b1b8555f33ec21d1a31. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh, all projects, at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 on Windows: test exit 1 with 11175 passed and 1 failed -- Mist.Tests 10105 of 10105, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46, Storm.SourceGenerator.Tests 909 of 910 -- after building Mist.slnx with 0 warnings and 0 errors. Ledger TestResults/ledger/20261011-235015; summary.txt and failures.txt inspected. The one failure is Storm.SourceGenerator.Tests.NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, which fails identically on pristine main c178e4f6 on Windows and is MIST-226, with this run''s evidence added there. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed.'
+    - 'The first full run, at 639e1c0b before rebasing onto packet 30 (TestResults/ledger/20261011-233251), also failed Mist.Tests.Integration.GeneratedProjectNullabilityTests.EmitterToMSBuild_TheGeneratedProjectRaisesNoNullableWarning; it failed identically on pristine main c178e4f6 on Windows. Packet 30 landed the same fix first (18157046, MIST-227), so this packet''s duplicate was dropped before publication, and the run at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 passes it.'
+    - 'AllFeaturesV2_CompilesRunsAndMatchesBaseline passed in that ledger, and a CLI run of AllFeaturesV2 before rebasing onto packets 26 and 30 matched samples/__baselines__/AllFeaturesV2.out line for line (2308 lines, exit 0); the RefStructs, StackOnlyTypes, RefParameters, ClrRefInterop, ClrRefReadonly, SizedSequencePatterns, ResourceTransfer, NamedAllocationElements and StampableTypes samples it composes raise none of the new diagnostics.'
+    - 'Each refused frame and ref-return shape was first confirmed a Roslyn error in a C# scratch library on net10.0 (CS8168, CS8157, CS8167, CS8169, CS8170, CS9075, CS8352, CS8353, CS8350), and each admitted control compiled there; each refused position shape was a Roslyn error (CS8345, the ValueTuple, Nullable and array-element refusals, the boxing conversions) in its probe''s generated project at the baseline.'
+    limitations:
+    - 'A `ref` property or indexer declared in Mist source has the same erasure at emission; no spec decides whether it is a feature, so it is recorded as the decision MIST-230.'
+- id: MIST-093
+  title: Revalidate deep composite and alias ref-struct legality
+  status: implemented
+  summary: 'Delivered: every heap position the ref-struct contract names is refused at Mist source, where it is written. A property of a ref struct type in a class or struct that is not a ref struct (3.6), static storage of one in any type, a generic type argument (3.7), a union constituent (3.8), an optional (3.9), a tuple or array element, and a conversion or type test that would box one (3.11) -- through aliases, generic alias closings and nested composites. Direct ref struct fields of ref structs, locals, parameters, returns and interface declarations stay admitted.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=138,id=ref-struct-declarations].analysis_phase_tasks[1]
+    lead_excerpt: 'Propagate ref-struct-ness into legality checks at every position used -- field, parameter,
+      return, foreach and local. A ref struct FIELD is the one with two answers: legal inside another
+      ref struct, which RefStructs.NestedRefStruct exercises and Roslyn accepts, and CS8345 inside a class,
+      which nothing in Mist currently refuses ahead of the C# compiler.
+
+      '
+    line_at_baseline: 8928
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
+      symbol: DeclarationShapeAnalyzer
+      line: 30
+  related:
+  - emitter capability ref-struct-declarations
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-138-analysis_phase_tasks-1
+  area: backend
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - 1fc8701ea6e98a79920d568ca39b68eaf14f577f
+    - ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    - 85a365f96d75e2dcde9706ac30124888ea386c6f
+    verification_revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - 'RefStructPositionAnalyzer takes the field and type-argument checks from DisciplineAnalyzer and adds RefStructPositions decisions for properties (MIST_PA_REF_STRUCT_PROPERTY) and static storage (MIST_PA_REF_STRUCT_STATIC_STORAGE), the optional registry (MIST_PA_REF_STRUCT_OPTIONAL), and composites (MIST_PA_REF_STRUCT_UNION_CONSTITUENT, MIST_PA_REF_STRUCT_ELEMENT). RefStructs.Is sees a ref struct through constructions, refinements and aliases for these rules and for EscapeAnalyzer''s capture rule.'
+    - 'The binder records each union, tuple and array it resolves, an alias''s union included, in CompositeApplicationRegistry, so a composite is judged once where it was written. ScopeResolver.ExpandAlias records a generic alias''s closing with only what the use closed its parameters by, in every union, tuple, array or type argument the alias body holds. TupleLiteralExpression and ArrayLiteralExpression record whether a target typed them, so an inferred literal is judged where it is formed and a target-typed one is left to its written target.'
+    - 'Assignability.Boxing refuses a ref struct converted to what is not one -- an abstract it implements or the top type -- with MIST_PA_REF_STRUCT_BOXED at every AssignabilityAnalyzer position, at an explicit cast or `as` in CastAnalyzer, and at an `is` or switch-arm type test. It is kept apart from Assignability.Judge, which overload pairing also asks whether a conversion exists.'
+    acceptance:
+    - 'Packet reproduction, a class auto-property `Span<int, 3> Data { get; set; }` (Roslyn CS8345 at the baseline), now reports MIST_PA_REF_STRUCT_PROPERTY at the property; the struct and aliased forms do too.'
+    - 'CLI probes now refused at source, each once (all reached Roslyn at the baseline): a static span field and a static auto-property in a ref struct; `Span<int> | string` in a local, a return type and an unused alias; `Cursor | int`; `Span<int>?` as a parameter and inside `List<...>`; `(Span<int>, int)` as a local type, a field type and an inferred `var t = (s, 1)`; `var arr = [s, s]`; `Opt<Span<int>>` over `type Opt<T> = T | string;`; `IThing t = cursor`, `(IThing)cursor`, `Use(cursor)` and `return new Cursor()` into IThing; `object o = cursor`; `Console.WriteLine(cursor)`; `cursor is IThing t`.'
+    - 'Controls: `List<Span<int>>` keeps its two existing type-argument complaints; a target-typed tuple literal adds none to its written type; `Array<Span<int>, 2> arr = [s, s]` gets one; `type Buf = Span<int>; Func<int> f = () => b.Length` keeps its capture refusal through the alias; Mist''s own `Span<T>` alias closing adds nothing.'
+    - 'Tests: Tier 1 RefStructPositionDecisionTests (predicate through constructions, refinements and aliases; field, property and static decisions; boxing and its admissions); Tier 1 CompositeClosingRecordTests; Tier 2 CompositeApplicationRecordingTests (union, tuple and array recorded once at their node); Tier 2 RefStructPositionSiteTests (written composites, optional, foreign and heap composites left alone, inferred and target-typed literals, storage sites, boxing at a local, a cast and type tests); OwnershipRefusalTests keeps the field and type-argument rows through the new analyzer.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors at ab0c153bfe384811a0f08b1b8555f33ec21d1a31. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh, all projects, at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 on Windows: test exit 1 with 11175 passed and 1 failed -- Mist.Tests 10105 of 10105, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46, Storm.SourceGenerator.Tests 909 of 910 -- after building Mist.slnx with 0 warnings and 0 errors. Ledger TestResults/ledger/20261011-235015; summary.txt and failures.txt inspected. The one failure is Storm.SourceGenerator.Tests.NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, which fails identically on pristine main c178e4f6 on Windows and is MIST-226, with this run''s evidence added there. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed.'
+    - 'The first full run, at 639e1c0b before rebasing onto packet 30 (TestResults/ledger/20261011-233251), also failed Mist.Tests.Integration.GeneratedProjectNullabilityTests.EmitterToMSBuild_TheGeneratedProjectRaisesNoNullableWarning; it failed identically on pristine main c178e4f6 on Windows. Packet 30 landed the same fix first (18157046, MIST-227), so this packet''s duplicate was dropped before publication, and the run at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 passes it.'
+    - 'AllFeaturesV2_CompilesRunsAndMatchesBaseline passed in that ledger, and a CLI run of AllFeaturesV2 before rebasing onto packets 26 and 30 matched samples/__baselines__/AllFeaturesV2.out line for line (2308 lines, exit 0); the RefStructs, StackOnlyTypes, RefParameters, ClrRefInterop, ClrRefReadonly, SizedSequencePatterns, ResourceTransfer, NamedAllocationElements and StampableTypes samples it composes raise none of the new diagnostics.'
+    - 'Each refused frame and ref-return shape was first confirmed a Roslyn error in a C# scratch library on net10.0 (CS8168, CS8157, CS8167, CS8169, CS8170, CS9075, CS8352, CS8353, CS8350), and each admitted control compiled there; each refused position shape was a Roslyn error (CS8345, the ValueTuple, Nullable and array-element refusals, the boxing conversions) in its probe''s generated project at the baseline.'
+    limitations:
+    - 'A ref struct passed to a CLR-projected callee''s object or abstract parameter is not judged at Mist source, because AssignabilityAnalyzer skips CLR-projected callees; that route belongs with MIST-053.'
+    - 'Function types such as `func<Span<int>, int>` stay admitted: they are not generic type arguments in Mist''s model, and .NET''s Func and Action allow ref struct type arguments (the probe runs and prints 2).'
+    - 'A storage-free property of ref struct type in a class is refused, because Requirement 3.6 and design Property 3 refuse any property there, although C# would accept it.'
+    - 'A composite formed only by inference -- a union inferred for switch arms, or a generic method''s substitution with no written site -- is not recorded; no such route was found reaching Roslyn.'
+- id: MIST-228
+  title: Refuse a ref local declared without an initializer
+  status: implemented
+  summary: 'Delivered: `ref int r;` is refused at the declaration with MIST_PM_REF_LOCAL_NEEDS_INITIALIZER (ref-parameters Requirement 5.7), for both ref spellings, and the local is marked failed so its later uses are not blamed for the same mistake.'
+  evidence:
+  - revision: 5ff1b65b05ac02d5a6c4626ab7be9adc72a809f1
+    date: '2026-10-11'
+    kind: executed CLI probe
+    source: 'using Standard; using System; namespace Probe; public class Program { public static void Main() { int y = 2; ref int r; r = y; Console.WriteLine(r); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'Program.cs: error MIST_CS_ERROR: A declaration of a by-reference variable must have an initializer; and Use of unassigned local variable ''r''.'
+  related:
+  - MIST-080
+  priority: P3
+  priority_rationale: Found while closing packet 31; a spec criterion that reached Roslyn.
+  area: binding
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - 9e08aacbe570203d3e0d732a83ed9c761f620e01
+    - 85a365f96d75e2dcde9706ac30124888ea386c6f
+    verification_revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    implementation:
+    - StatementBinder.BindUninitialized reports MIST_PM_REF_LOCAL_NEEDS_INITIALIZER at the declaration when its specifier is ref or readonly ref, and declares the local with IsFailed so PriorFailure silences its uses.
+    acceptance:
+    - The probe above now exits 1 with the single complaint at the declaration and nothing about `r = y` or the read.
+    - Tier 2 RefLocalInitializerBindingTests binds the declaration from hand-built nodes for both spellings, and an ordinary `int r;` with no diagnostic.
+    verification:
+    - Same full ledger as MIST-080 (TestResults/ledger/20261011-235015).
 - id: MIST-227
   title: Give the Windows locale runtime its nullable context
   status: implemented

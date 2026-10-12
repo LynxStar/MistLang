@@ -88,6 +88,6 @@ internal static class OwnershipDeclarations
                 break;
         }
 
-        return fragment.Run(new DisciplineAnalyzer());
+        return fragment.Run(name.StartsWith("ref-struct-", StringComparison.Ordinal) ? new RefStructPositionAnalyzer() : new DisciplineAnalyzer());
     }
 }

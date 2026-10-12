@@ -33,6 +33,7 @@ internal static class ExtensionSpecialization
             {
                 IsFlattened = parameter.IsFlattened,
                 IsFailed = parameter.IsFailed,
+                HasNativeDefault = parameter.HasNativeDefault,
             };
             closedParameter.AttributesList.AddRange(parameter.AttributesList);
             closedParameter.DeclaredAttributesList.AddRange(parameter.DeclaredAttributesList);

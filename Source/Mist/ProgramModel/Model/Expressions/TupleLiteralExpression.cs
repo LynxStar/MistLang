@@ -32,5 +32,7 @@ internal sealed class TupleLiteralExpression(
     /// </summary>
     public IReadOnlyList<string?> ElementNames { get; } = elementNames;
 
+    public bool IsTargetTyped { get; init; }
+
     public override IMistType Type { get; } = type;
 }

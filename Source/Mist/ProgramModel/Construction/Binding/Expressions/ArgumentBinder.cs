@@ -398,8 +398,7 @@ internal static class ArgumentBinder
     private static bool Fills(IReadOnlyList<Parameter> parameters, int argumentCount)
     {
         return parameters.Count == argumentCount
-            || (ValuePack.FlattenedSlot(parameters) is { } flattened
-                && ValuePack.ElementOf(parameters[flattened]) is not null
+            || ((ValuePack.FlattenedSlot(parameters) is not { } flattened || ValuePack.ElementOf(parameters[flattened]) is not null)
                 && ValuePack.AcceptsCount(parameters, argumentCount));
     }
 

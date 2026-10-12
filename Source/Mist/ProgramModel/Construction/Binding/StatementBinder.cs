@@ -62,10 +62,17 @@ internal static class StatementBinder
         UninitializedVariableDeclarationNode node, BindingContext ctx, BuilderContext context)
     {
         var resolution = context.Resolver.ResolveWithFailure(node.Type, ctx.Scope);
+        var isRef = MemberTypeBuilder.IsRefSpecifier(node.OwnershipSpecifier);
+
+        if(isRef)
+        {
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.RefLocalNeedsInitializer, node, null, node.Name.Lexeme);
+        }
+
         var local = new LocalVariable(node.Name.Lexeme, resolution.Type)
         {
-            IsFailed = resolution.IsFailed,
-            IsRef = MemberTypeBuilder.IsRefSpecifier(node.OwnershipSpecifier),
+            IsFailed = resolution.IsFailed || isRef,
+            IsRef = isRef,
             IsReadonly = IsReadonlyBinding(hasReadonlyModifier: false, node.OwnershipSpecifier),
         };
 

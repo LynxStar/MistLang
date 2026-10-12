@@ -41,6 +41,8 @@ internal static class TypeProjector
             _ => new ClassType(mistName, namespaceName, parentScope, declaringType, null!),
         };
 
+        shell.ClrMetadataName = clrType.FullName;
+
         if(shell is MemberType memberType)
         {
             var isStaticClass = clrType.IsAbstract && clrType.IsSealed;

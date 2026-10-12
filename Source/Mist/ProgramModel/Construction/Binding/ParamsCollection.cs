@@ -57,6 +57,57 @@ internal static class ParamsCollection
         return EnumerableElement.Of(argument) is not null;
     }
 
+    /// <summary>
+    /// Which of two collections better receives the same expanded arguments, as C# 13 ranks params
+    /// collections: a read-only span over a span, either span over an array or an interface an array
+    /// implements, both over the same element; and between two that are not spans, the one converting
+    /// to the other. Negative for <paramref name="left"/>, positive for <paramref name="right"/>.
+    /// </summary>
+    public static int Compare(IMistType left, IMistType right)
+    {
+        return IsBetter(left, right) ? -1 : IsBetter(right, left) ? 1 : 0;
+    }
+
+    private static bool IsBetter(IMistType left, IMistType right)
+    {
+        var (leftSpan, rightSpan) = (SpanKind(left), SpanKind(right));
+
+        if(leftSpan == 0 && rightSpan == 0)
+        {
+            return ConversionRelation.IsImplicit(Present(left), Present(right)) && !ConversionRelation.IsImplicit(Present(right), Present(left));
+        }
+
+        return SameElement(left, right)
+            && ((leftSpan == 2 && rightSpan == 1) || (leftSpan > 0 && rightSpan == 0 && IsArrayLike(Present(right))));
+    }
+
+    private static int SpanKind(IMistType type)
+    {
+        return Present(type) is ConstructedType { Definition.FullyQualifiedName: var name }
+            ? name == WellKnownTypes.ReadOnlySpan.FullyQualifiedName ? 2 : name == WellKnownTypes.Span.FullyQualifiedName ? 1 : 0
+            : 0;
+    }
+
+    private static bool IsArrayLike(IMistType type)
+    {
+        return Indexability.ArrayElement(type) is not null
+            || (type is ConstructedType constructed && InterfaceNames.Contains(constructed.Definition.FullyQualifiedName));
+    }
+
+    private static bool SameElement(IMistType left, IMistType right)
+    {
+        return ElementOf(left) is { } leftElement
+            && ElementOf(right) is { } rightElement
+            && ConversionRelation.IsIdentity(leftElement, rightElement);
+    }
+
+    private static IMistType Present(IMistType type)
+    {
+        var unaliased = type is TypeAlias { AliasedType: { } aliased } ? aliased : type;
+
+        return OptionalUnion.InnerType(unaliased) ?? unaliased;
+    }
+
     private static bool IsSpan(IMistType definition)
     {
         return definition.FullyQualifiedName == WellKnownTypes.Span.FullyQualifiedName

@@ -28,6 +28,7 @@ internal sealed class AnalysisModel
             [.. registry.OpenClosings.Where(closing => includes(closing.Node, closing.BoundIn))]);
         OptionalApplications = new ScopedOptionalApplications(
             [.. model.OptionalApplications.Applications.Where(application => includes(application.Node, application.BoundIn))]);
+        CompositeApplications = [.. model.CompositeApplications.Applications.Where(application => includes(application.Node, application.BoundIn))];
     }
 
     public TypeInterner TypeInterner { get; }
@@ -37,6 +38,8 @@ internal sealed class AnalysisModel
     public ScopedConstraintClosures ConstructorConstraintClosures { get; }
 
     public ScopedOptionalApplications OptionalApplications { get; }
+
+    public IReadOnlyList<CompositeApplication> CompositeApplications { get; }
 }
 
 internal sealed record ScopedConstraintClosures(IReadOnlyList<TypeArgumentClosing> Closings, IReadOnlyList<TypeArgumentClosing> OpenClosings)

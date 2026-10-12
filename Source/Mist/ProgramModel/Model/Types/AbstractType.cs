@@ -15,5 +15,12 @@ internal sealed class AbstractType(
 {
     public List<TypeSlot> TypeSlotsList { get; } = [];
 
+    /// <summary>
+    /// A projected interface's explicit restatements of slots it inherits: a body that supplies one, or a
+    /// reabstraction that withdraws the inherited default. The CLR keeps both private, so neither is a
+    /// member here, yet each settles whether a conformer reaching this interface must answer the slot.
+    /// </summary>
+    public List<(Members.Method Slot, bool IsAbstract)> NativeSlotOverridesList { get; } = [];
+
     IReadOnlyList<ITypeSlot> IAbstractType.TypeSlots => TypeSlotsList;
 }

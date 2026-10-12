@@ -1302,7 +1302,8 @@ internal static class BodyEmitter
                 // only the invocation knows which overload they fill -- and a dependent slot is
                 // spelled by its carrier rather than by its domain.
                 if(invocation.Receiver is MemberAccessExpression hiddenCallee
-                    && HiddenBaseCall.ReceiverType(hiddenCallee.Receiver.Type, invocation.Method) is { } baseType)
+                    && (HiddenBaseCall.ReceiverType(hiddenCallee.Receiver.Type, invocation.Method)
+                        ?? NativeDefaultCall.ReceiverType(hiddenCallee.Receiver.Type, invocation.Method)) is { } baseType)
                 {
                     EmitMemberAccess(hiddenCallee,
                         ExtensionBlockEmitter.CallTypeArguments(invocation.Method, hiddenCallee.TypeArguments),
@@ -1566,7 +1567,8 @@ internal static class BodyEmitter
 
             case MethodReferenceExpression methodRef:
                 if(enclosingType is { } enclosing
-                    && HiddenBaseCall.ReceiverType(enclosing, methodRef.Method) is { } baseOwner)
+                    && (HiddenBaseCall.ReceiverType(enclosing, methodRef.Method)
+                        ?? NativeDefaultCall.ReceiverType(enclosing, methodRef.Method)) is { } baseOwner)
                 {
                     writer.Append(methodRef.Method.Modifiers.IsStatic
                         ? TypeNameEmitter.Emit(baseOwner) + "."
@@ -1597,10 +1599,22 @@ internal static class BodyEmitter
                 break;
 
             case FunctionReferenceExpression functionRef:
-                if(functionRef.Receiver is { } functionTarget)
+                if(functionRef.Receiver is { } functionTarget
+                    && NativeDefaultCall.ReceiverType(functionTarget.Type, functionRef.Method) is { } nativeTarget)
                 {
-                    EmitExpression(functionTarget, writer, diagnostics);
+                    writer.Append($"(({TypeNameEmitter.Emit(nativeTarget)})");
+                    EmitSubExpression(functionTarget, PrefixPrecedence, writer, diagnostics);
+                    writer.Append(").");
+                }
+                else if(functionRef.Receiver is { } plainTarget)
+                {
+                    EmitExpression(plainTarget, writer, diagnostics);
                     writer.Append(".");
+                }
+                else if(enclosingType is { } functionOwner
+                    && NativeDefaultCall.ReceiverType(functionOwner, functionRef.Method) is { } nativeOwner)
+                {
+                    writer.Append($"(({TypeNameEmitter.Emit(nativeOwner)}){ReceiverSpelling.This}).");
                 }
                 else
                 {

@@ -3,17 +3,18 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
-using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// What may not leave where it lives: a span over stack memory returned from the frame that
-/// allocated it, and a binding a lambda or a local function would carry onto the heap -- a ref struct,
-/// an owned value whose transfer a closure cannot honour, or a lease bounded to the scope it was taken
-/// in, which for a readonly ref is also Roslyn's refusal of an `in` parameter inside a lambda.
+/// What may not leave where it lives: a ref struct tied to its frame by <see cref="FrameScopes"/> --
+/// returned, stored where it outlives the frame, or lent to a call beside storage that does -- a
+/// reference returned to storage the call does not outlive, and a binding a lambda or a local function
+/// would carry onto the heap -- a ref struct, an owned value whose transfer a closure cannot honour, or a
+/// lease bounded to the scope it was taken in, which for a readonly ref is also Roslyn's refusal of an
+/// `in` parameter inside a lambda.
 /// </summary>
-internal sealed class EscapeAnalyzer : IProgramAnalyzer
+internal sealed partial class EscapeAnalyzer : IProgramAnalyzer
 {
     public string Id => "ownership-borrow-checking";
 
@@ -21,7 +22,7 @@ internal sealed class EscapeAnalyzer : IProgramAnalyzer
     {
         foreach(var root in context.Bodies)
         {
-            JudgeStackSpans(context, root.Root);
+            JudgeFrames(context, root);
         }
 
         foreach(var node in context.Nodes)
@@ -37,39 +38,6 @@ internal sealed class EscapeAnalyzer : IProgramAnalyzer
                     break;
             }
         }
-    }
-
-    private static void JudgeStackSpans(AnalysisContext context, object root)
-    {
-        var stackBacked = new HashSet<LocalVariable>(ReferenceEqualityComparer.Instance);
-        var nodes = BodyWalker.DescendantsAndSelf(root).ToList();
-
-        foreach(var declaration in nodes.OfType<LocalDeclarationStatement>())
-        {
-            if(declaration.Initializer is { } initializer && IsStackBacked(initializer, stackBacked))
-            {
-                _ = stackBacked.Add(declaration.Local);
-            }
-        }
-
-        foreach(var returned in nodes.OfType<ReturnStatement>())
-        {
-            if(returned.Value is { } value && IsStackBacked(value, stackBacked))
-            {
-                context.Report(ProgramAnalysisDiagnostics.StackSpanReturned, value.Node, [value]);
-            }
-        }
-    }
-
-    private static bool IsStackBacked(Expression expression, HashSet<LocalVariable> stackBacked)
-    {
-        return expression switch
-        {
-            StackallocExpression => true,
-            LocalReferenceExpression local => stackBacked.Contains(local.Local),
-            InvocationExpression { Method.Name: "Slice", Receiver: MethodGroupExpression { Receiver: { } receiver } } => IsStackBacked(receiver, stackBacked),
-            _ => false,
-        };
     }
 
     private static void JudgeCaptures(
@@ -93,7 +61,7 @@ internal sealed class EscapeAnalyzer : IProgramAnalyzer
 
     private static (string? Kind, string Reason) Why(LocalVariable local)
     {
-        if((local.Type is ConstructedType constructed ? constructed.Definition : local.Type) is StructType { IsRef: true })
+        if(RefStructs.Is(local.Type))
         {
             return ("ref struct", "a ref struct cannot live on the heap");
         }

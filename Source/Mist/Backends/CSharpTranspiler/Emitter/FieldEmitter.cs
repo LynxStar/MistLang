@@ -34,6 +34,12 @@ internal static class FieldEmitter
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
+        if(modifiers.IsRef)
+        {
+            throw new InvalidOperationException(
+                $"ICE: ref field '{field.Name}' reached emission; {nameof(DeclarationModifierDiagnostics.RefOnField)} refuses it at its declaration.");
+        }
+
         // A readonly type's modifier reaches every field it declares rather than standing alone on the
         // declaration, and for two unrelated reasons. C# REFUSES a writable instance field on a
         // readonly struct (CS8340). And it has no `readonly class` at all, so on a class the field is

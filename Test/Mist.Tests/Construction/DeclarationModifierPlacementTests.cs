@@ -55,6 +55,20 @@ public sealed class DeclarationModifierPlacementTests
         Assert.Empty(DeclarationModifierPlacement.Refusals(Declaration("operator"), [.. written.Split(' ').Select(Modifier)]));
     }
 
+    [Theory]
+    [InlineData("public ref")]
+    [InlineData("public readonly ref")]
+    [InlineData("public ref readonly")]
+    [InlineData("public static ref")]
+    [InlineData("private static readonly ref")]
+    public void RefOnAFieldIsRefusedOnce(string written)
+    {
+        var refusal = Assert.Single(DeclarationModifierPlacement.Refusals(
+            Declaration("field"), [.. written.Split(' ').Select(Modifier)]));
+
+        Assert.Equal("MIST_PM_REF_ON_FIELD", refusal.Id.Value);
+    }
+
     [Fact]
     public void AModifierWrittenTwiceIsRefusedOnce()
     {
@@ -88,6 +102,8 @@ public sealed class DeclarationModifierPlacementTests
     [InlineData("method", "async")]
     [InlineData("local-function", "async")]
     [InlineData("method", "ref")]
+    [InlineData("field", "readonly")]
+    [InlineData("field", "static")]
     [InlineData("operator", "pure")]
     [InlineData("operator", "intrinsic")]
     public void ASpecifiedPlacementIsAdmitted(string declaration, string modifier)
@@ -138,6 +154,7 @@ public sealed class DeclarationModifierPlacementTests
         return modifier switch
         {
             "public" => new PublicModifierModifierNode(),
+            "private" => new PrivateModifierModifierNode(),
             "static" => new StaticModifierModifierNode(),
             "async" => new AsyncModifierModifierNode(),
             "readonly" => new ReadonlyModifierModifierNode(),

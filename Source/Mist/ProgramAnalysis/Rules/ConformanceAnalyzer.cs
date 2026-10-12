@@ -42,10 +42,12 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
             }
 
             var fillers = Fillers(concrete).ToList();
+            var reached = Reached(concrete.BaseAbstractTypes, context.Model.TypeInterner, concrete).ToList();
+            var definitions = reached.ConvertAll(each => each.Abstract);
 
-            foreach(var (abstractType, substitution) in Reached(concrete.BaseAbstractTypes, context.Model.TypeInterner, concrete))
+            foreach(var (abstractType, substitution) in reached)
             {
-                CheckSlots(context, inference, concrete, node, abstractType, substitution, fillers, mappings: null);
+                CheckSlots(context, inference, concrete, node, abstractType, substitution, fillers, mappings: null, definitions);
                 CheckTypeSlots(context, concrete, node, abstractType, substitution);
             }
 
@@ -67,9 +69,12 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                 continue;
             }
 
-            foreach(var (abstractType, substitution) in Reached([conformance.AbstractType], context.Model.TypeInterner, concrete))
+            var conformed = Reached([conformance.AbstractType], context.Model.TypeInterner, concrete).ToList();
+            var definitions = conformed.ConvertAll(each => each.Abstract);
+
+            foreach(var (abstractType, substitution) in conformed)
             {
-                CheckSlots(context, inference, concrete, conformance.DeclarationNode, abstractType, substitution, fillers, conformance);
+                CheckSlots(context, inference, concrete, conformance.DeclarationNode, abstractType, substitution, fillers, conformance, definitions);
                 CheckTypeSlots(context, concrete, conformance.DeclarationNode, abstractType, substitution);
             }
         }
@@ -77,7 +82,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
     private static void CheckSlots(
         AnalysisContext context, PurityInference inference, ConcreteType concrete, SyntaxNode at, AbstractType abstractType,
-        TypeSubstitution substitution, List<Filler> fillers, ConformanceDeclaration? mappings)
+        TypeSubstitution substitution, List<Filler> fillers, ConformanceDeclaration? mappings, IReadOnlyList<AbstractType> reached)
     {
         var interner = context.Model.TypeInterner;
 
@@ -111,7 +116,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                 continue;
             }
 
-            if(slot.Body is not null || mappings?.UnresolvedTargets.Contains(slot.Name) == true)
+            if(slot.Body is not null || NativeDefaults.Answer(slot, abstractType, reached) || mappings?.UnresolvedTargets.Contains(slot.Name) == true)
             {
                 continue;
             }

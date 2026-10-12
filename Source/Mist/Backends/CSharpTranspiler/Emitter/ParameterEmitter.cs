@@ -29,10 +29,19 @@ internal static class ParameterEmitter
                 AttributeEmitter.Inline(parameter.DeclaredAttributesList, diagnostics)
                 + $"{RefKeywords.For(parameter.Modifier.IsRef, parameter.Modifier.IsReadonly)}"
                 + Collects(parameter)
-                + $"{TypeNameEmitter.Emit(parameter.Type)} {spell?.Invoke(parameter) ?? parameter.Name}");
+                + $"{SpelledType(parameter, NativeSlotNullability.Declares(parameter))} {spell?.Invoke(parameter) ?? parameter.Name}");
         }
 
         return string.Join(", ", parts);
+    }
+
+    internal static string SpelledType(Parameter parameter, bool slotDeclaresNullable)
+    {
+        var closed = TypeNameEmitter.Closed(parameter.Type);
+
+        return slotDeclaresNullable && !parameter.Modifier.IsRef && TypeNameEmitter.IsReferenceKind(closed)
+            ? TypeNameEmitter.EmitOptional(closed)
+            : TypeNameEmitter.Emit(parameter.Type);
     }
 
     /// <summary>

@@ -36,6 +36,16 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
                     Refuse(context, cast);
                     break;
 
+                case CastExpression { ParameterType: null } cast
+                    when Assignability.Boxing(cast.Operand.Type, cast.TargetType, context.Model.TypeInterner) is { } boxed:
+                    context.Report(boxed, cast.Node, [cast, cast.Operand], TypeDisplay.Mist(cast.Operand.Type), TypeDisplay.Mist(cast.TargetType));
+                    break;
+
+                case AsExpression converted
+                    when Assignability.Boxing(converted.Operand.Type, converted.TargetType, context.Model.TypeInterner) is { } boxed:
+                    context.Report(boxed, converted.Node, [converted, converted.Operand], TypeDisplay.Mist(converted.Operand.Type), TypeDisplay.Mist(converted.TargetType));
+                    break;
+
                 case CastExpression cast when Tests(context, cast) && HidesPurity(cast.Operand.Type, cast.TargetType):
                     RefuseHiddenPurity(context, cast, cast.Operand, cast.TargetType);
                     break;

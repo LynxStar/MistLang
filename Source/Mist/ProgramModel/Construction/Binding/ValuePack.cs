@@ -35,13 +35,41 @@ internal static class ValuePack
 
     /// <summary>
     /// Whether this many arguments can fill these parameters. Exactly one each, unless one of them
-    /// absorbs -- in which case the fixed ones are a floor and anything above it is the pack's.
+    /// absorbs -- in which case the fixed ones are a floor and anything above it is the pack's -- or
+    /// the call stops short of parameters with native defaults, all of them trailing.
     /// </summary>
     public static bool AcceptsCount(IReadOnlyList<Parameter> parameters, int argumentCount)
     {
-        return FlattenedSlot(parameters) is null
-            ? parameters.Count == argumentCount
-            : argumentCount >= parameters.Count - 1;
+        if(FlattenedSlot(parameters) is not { } flattened)
+        {
+            return argumentCount <= parameters.Count && OmitsOnlyDefaults(parameters, argumentCount, parameters.Count);
+        }
+
+        return argumentCount >= parameters.Count - 1
+            || (flattened == parameters.Count - 1 && OmitsOnlyDefaults(parameters, argumentCount, flattened));
+    }
+
+    public static int OmittedDefaults(IReadOnlyList<Parameter> parameters, int argumentCount)
+    {
+        if(FlattenedSlot(parameters) is { } flattened)
+        {
+            return argumentCount >= parameters.Count - 1 ? 0 : flattened - argumentCount;
+        }
+
+        return Math.Max(0, parameters.Count - argumentCount);
+    }
+
+    private static bool OmitsOnlyDefaults(IReadOnlyList<Parameter> parameters, int from, int to)
+    {
+        for(var i = Math.Max(0, from); i < to; i++)
+        {
+            if(!parameters[i].HasNativeDefault)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -141,6 +169,11 @@ internal static class ValuePack
     {
         return ReferenceEquals(type, parameter.Type) && name == parameter.Name
             ? parameter
-            : new Parameter(name, type, parameter.Modifier) { IsFlattened = isFlattened, IsFailed = parameter.IsFailed };
+            : new Parameter(name, type, parameter.Modifier)
+            {
+                IsFlattened = isFlattened,
+                IsFailed = parameter.IsFailed,
+                HasNativeDefault = parameter.HasNativeDefault,
+            };
     }
 }

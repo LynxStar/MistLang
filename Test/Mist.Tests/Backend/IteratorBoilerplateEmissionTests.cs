@@ -1,4 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.Backends.CSharpTranspiler.Lowering;
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -148,6 +150,26 @@ public sealed class IteratorBoilerplateEmissionTests
         var flattened = Declare(HandBuiltModel.Class("Base"), "Dispose", Public with { Accessibility = Accessibility.Private });
 
         Assert.Equal([ObjectCurrent, Reset], Emit(cursor, [flattened]));
+    }
+
+    [Theory]
+    [InlineData("Dispose", Dispose, Reset)]
+    [InlineData("Reset", Reset, Dispose)]
+    public void ADefaultRestatedFromAUserAbstract_KeepsItInPlaceOfTheAdapter(string name, string suppressed, string kept)
+    {
+        var cursor = Abstract("ICursor", Closed(enumerator, built.Type("Int32")));
+        cursor.MethodsList.Add(new Method(name, built.Type("Void"), [], Public) { DeclaringType = cursor, Body = HandBuiltModel.Block() });
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+
+        TypeEmitter.EmitTypeBody(Conformer(cursor), new ConstraintClosureMap(), new VariadicUseRegistry(), writer, diagnostics);
+
+        var lines = writer.ToString().Split('\n').Select(line => line.Trim()).ToList();
+        _ = Assert.Single(lines, line => line == $"public void {name}()");
+        Assert.DoesNotContain(suppressed, lines);
+        Assert.Contains(kept, lines);
+        Assert.Contains(ObjectCurrent, lines);
+        Assert.Empty(diagnostics.ToImmutableArray());
     }
 
     [Theory]

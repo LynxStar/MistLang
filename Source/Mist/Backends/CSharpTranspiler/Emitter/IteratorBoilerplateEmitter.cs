@@ -63,9 +63,9 @@ internal static class IteratorBoilerplateEmitter
     }
 
     /// <summary>
-    /// <paramref name="declared"/> is what the conformer emits, a struct's flattened set as for
-    /// <see cref="DefaultMemberDuplication"/>, so any of it collides with the adapter whatever its
-    /// accessibility. A base class's member implements the CLR interface for its deriver only when public.
+    /// <paramref name="declared"/> is every method the conformer emits, its restated defaults and a struct's
+    /// flattened set included, so any of it collides with the adapter whatever its accessibility. A base
+    /// class's member implements the CLR interface for its deriver only when public.
     /// </summary>
     private static bool Answered(ConcreteType type, IReadOnlyList<Method> declared, string name)
     {

@@ -104,7 +104,9 @@ internal static class ExpressionBinder
             IdentifierExpressionPrimaryNode identifier => IdentifierBinder.BindIdentifier(identifier, ctx, context),
             GenericInvocationExpressionPrimaryNode genericInvocation => PostfixBinder.BindGenericInvocation(
                 genericInvocation, ctx, context),
-            GenericTypeMemberAccessExpressionPrimaryNode constructedAccess => PostfixBinder.BindGenericTypeMemberAccess(
+            GenericTypeMethodCallExpressionPrimaryNode constructedCall => GenericTypeMemberBinder.BindMethodCall(
+                constructedCall, ctx, context),
+            GenericTypeMemberAccessExpressionPrimaryNode constructedAccess => GenericTypeMemberBinder.BindMemberAccess(
                 constructedAccess, ctx, context),
             GenericNameExpressionPrimaryNode genericName => PostfixBinder.BindGenericName(genericName, ctx, context),
 

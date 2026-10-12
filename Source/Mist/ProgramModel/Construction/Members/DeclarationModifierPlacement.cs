@@ -8,7 +8,7 @@ namespace Mist.ProgramModel.Construction.Members;
 /// <summary>
 /// Refuses only placements a spec rules out: <c>async</c> on a type declaration (structured-concurrency
 /// Requirement 2.3, read as <see cref="ProgramModelDiagnostics.AsyncOnlyOnMethods"/> reads it for members,
-/// whose builders report it themselves) and <c>ref</c> on an operator (standard-library Requirement 4.2).
+/// whose builders report it themselves) and unsupported operator modifiers (standard-library Requirement 4.2).
 /// <c>static</c> on a type, <c>owned</c> or a discipline on an enum, alias or newtype, and <c>readonly</c>
 /// on an alias are deliberately absent: no spec decides them, so refusing them would invent a rule.
 /// </summary>
@@ -18,16 +18,21 @@ internal static class DeclarationModifierPlacement
     {
         return modifiers.IsDefaultOrEmpty
             ? []
-            : modifiers.Select(modifier => Refusal(declaration, modifier)).OfType<DiagnosticDescriptor>().Distinct();
+            : modifiers.Select(modifier => Refusal(declaration, modifier, modifiers)).OfType<DiagnosticDescriptor>().Distinct();
     }
 
-    private static DiagnosticDescriptor? Refusal(SyntaxNode declaration, ModifierNode modifier)
+    private static DiagnosticDescriptor? Refusal(SyntaxNode declaration, ModifierNode modifier, ImmutableArray<ModifierNode> modifiers)
     {
         return (declaration, modifier) switch
         {
             (EnumDeclarationNode or TypeAliasDeclarationNode or NewtypeDeclarationNode or TypeBodyDeclarationNode, AsyncModifierModifierNode)
                 => ProgramModelDiagnostics.AsyncOnlyOnMethods,
             (OperatorDeclarationNode, RefModifierModifierNode) => DeclarationModifierDiagnostics.RefOnOperator,
+            (OperatorDeclarationNode, SealedModifierModifierNode) => DeclarationModifierDiagnostics.SealedOnOperator,
+            (OperatorDeclarationNode, ReadonlyModifierModifierNode) when !modifiers.Any(written => written is RefModifierModifierNode)
+                => DeclarationModifierDiagnostics.ReadonlyOnOperator,
+            (OperatorDeclarationNode, OwnedModifierModifierNode) => DeclarationModifierDiagnostics.OwnedOnOperator,
+            (OperatorDeclarationNode, AffineModifierModifierNode) => DeclarationModifierDiagnostics.AffineOnOperator,
             _ => null,
         };
     }

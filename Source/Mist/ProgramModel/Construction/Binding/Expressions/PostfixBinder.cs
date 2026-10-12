@@ -91,37 +91,6 @@ internal static class PostfixBinder
             context);
     }
 
-    internal static Expression BindGenericTypeMemberAccess(
-        GenericTypeMemberAccessExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
-    {
-        var typeName = QualifiedNameHelper.Build(node.Type);
-        var arity = 1 + node.TypeArgs.TypeArguments.Length;
-        var definition = context.Resolver.ResolveGenericDefinition(typeName, arity, ctx.Scope, node);
-
-        if(definition is ErrorType)
-        {
-            return new ErrorExpression(node);
-        }
-
-        var typeArgs = context.Resolver.BindPack(
-            definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
-        var enclosing = context.Resolver.InheritedEnclosing(definition, ctx.Scope);
-        context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node, enclosing, ctx.Scope);
-        var type = definition is TypeAlias alias
-            ? context.Resolver.ExpandAlias(alias, typeArgs, node, ctx.Scope)
-            : context.Resolver.Construct(definition, typeArgs, ctx.Scope, enclosing);
-        var receiver = new TypeReferenceExpression(node, type);
-
-        if(definition is TypeAlias declared
-            && declared.TypeParametersList.Find(parameter => parameter.ValueProperty?.Name == node.Member.Lexeme) is { ValueProperty: { } projected })
-        {
-            return new MemberAccessExpression(
-                node, receiver, projected.Name, projected.Type, member: new PropertyResult(projected, declared, [new ConstructedType(declared, typeArgs)]));
-        }
-
-        return BindMemberAccess(node, receiver, node.Member.Lexeme, ctx, context);
-    }
-
     /// <summary>
     /// A name with type arguments and no call after it, which the grammar admits only where an expression
     /// ends. A method is the group with its arguments stated, left for the position's function type to
@@ -325,7 +294,7 @@ internal static class PostfixBinder
     /// Binds a call, selecting the overload its arguments pick out. The arguments are bound first
     /// because selection reads their types.
     /// </summary>
-    private static Expression BindInvocation(
+    internal static Expression BindInvocation(
         Storm.Runtime.SyntaxNode node,
         Expression receiver,
         ArgumentListNode? arguments,
@@ -555,7 +524,7 @@ internal static class PostfixBinder
             node, receiver, memberName, lifted, isConditional: true, member: found, isFailed: reported);
     }
 
-    private static Expression BindMemberAccess(Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BindingContext ctx, BuilderContext context)
+    internal static Expression BindMemberAccess(Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BindingContext ctx, BuilderContext context)
     {
         // A namespace is not a value, so `Simpliest.Program` is one qualified name
         // rather than a member access on a receiver. Resolve the qualification instead

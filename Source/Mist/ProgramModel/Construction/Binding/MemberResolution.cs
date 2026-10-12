@@ -60,13 +60,19 @@ internal static class MemberResolution
             found = projected;
         }
 
-        // Only on a miss, which is what makes "own members win" a consequence of where this sits
-        // rather than a rule anything has to state. The receiver as WRITTEN is asked about, not the
-        // definition: an extension is declared for `Box<int>` or for `unknown`, never for `Box<,>`.
         if(found is NotFoundResult && callSite is not null)
         {
             found = ExtensionLookup.Find(
                 type, memberName, visibility, callSite, allowExtensionProperties, context.ProgramModel);
+        }
+        else if(memberName == "ToString"
+            && visibility is MemberVisibility.InstanceOnly or MemberVisibility.InstanceAndStatic
+            && found is MethodGroupResult group
+            && !group.Methods.Any(ExtensionLookup.IsParameterlessToString)
+            && callSite is not null
+            && ExtensionLookup.FindUniversalToString(callSite, context.ProgramModel) is { Methods.Count: > 0 } universal)
+        {
+            found = new MethodGroupResult([.. group.Methods, .. universal.Methods], group.Paths);
         }
 
         var reported = Report(found, declaring, TypeDisplay.Mist(receiver), memberName, node, context);

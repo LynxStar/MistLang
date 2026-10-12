@@ -42,6 +42,8 @@ The bootstrap module defines the intrinsic types that form the foundation of the
 
 All numeric types support the standard arithmetic operators (`+`, `-`, `*`, `/`, `%`) and comparison operators (`<`, `>`, `<=`, `>=`, `==`, `!=`). Signed types additionally support unary negation (`-`); `byte`, `ushort`, `uint`, `ulong`, and `char` do not. Logical not (`!`) applies to `bool`. A class or struct can support these unary operations by declaring the corresponding operator; otherwise the compiler reports `MIST_PA_OPERATOR_NOT_APPLICABLE` at the expression. An `unknown` operand must first be narrowed to a type that supports the operation.
 
+User-defined operators must be `public static`. The existing `pure` effect modifier and `intrinsic` declarations on intrinsic types remain supported; `sealed`, `readonly`, `owned`, and `affine` operator modifiers are refused. An operator signature consists of its symbol and parameter types, including arity; changing only its return type does not create another overload. A duplicate signature is diagnosed at the later declaration and identifies the earlier declaration.
+
 ### Text and Character Types
 
 | Type | Category | Description |
@@ -95,4 +97,4 @@ The standard library declares extension methods on the `unknown` type, making th
 | `GetHashCode()` | `int` | Returns a hash code for the value. |
 | `GetType()` | `Type` | Returns the runtime `Type` descriptor for the value (equivalent to calling `Type.Of(self)`). |
 
-These methods mirror the universal operations available on all .NET objects, bridged into Mist's type system through the `unknown` top type.
+These methods mirror the universal operations available on all .NET objects, bridged into Mist's type system through the `unknown` top type. A type that declares formatting overloads such as `ToString(string)` or implements `IFormattable.ToString(string, IFormatProvider)` still has the universal zero-argument `ToString()` surface. Its formatting overloads remain callable with their declared arguments, and a user-declared zero-argument implementation keeps its own selection. Universal formatting uses Mist's existing invariant-culture behavior.

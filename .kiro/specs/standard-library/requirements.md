@@ -97,11 +97,11 @@ This document specifies requirements only. Distribution/loading strategy is an o
 #### Acceptance Criteria
 
 1. THE Mist grammar SHALL accept an Operator_Declaration inside any `class` or `struct` body in the form: `<modifiers> <return_type> operator <op_symbol>(<parameter_list>) <body_or_semicolon>`.
-2. THE grammar SHALL require an Operator_Declaration to carry the modifiers `public static` in v1; any other modifier combination on an operator SHALL produce a parse or semantic diagnostic.
+2. THE grammar SHALL require an Operator_Declaration to carry the modifiers `public static` in v1. Existing `pure` effects and the Intrinsic_Marker under Requirement 5 remain permitted. Unsupported `sealed`, `readonly`, `owned`, and `affine` declaration modifiers SHALL produce a source diagnostic; the existing missing-static, async, and ref-return refusals remain in effect.
 3. THE grammar SHALL support the following Operator_Symbol values for binary operators: `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `>`, `<=`, `>=`.
 4. THE grammar SHALL support the following Operator_Symbol values for unary operators: `-`, `!`.
 5. THE grammar SHALL recognize `&&` and `||` as Operator_Symbol values declarable as binary operators, but only on the `Boolean` type for v1 (see Requirement 13 on non-goals).
-6. WHEN an Operator_Declaration is parsed, THE Semantic_Model_Builder SHALL register it as a static method on the containing type, keyed by operator symbol and parameter types for overload resolution purposes.
+6. WHEN an Operator_Declaration is parsed, THE Semantic_Model_Builder SHALL register it as a static method on the containing type, keyed by operator symbol and parameter types for overload resolution purposes. Two declarations with the same symbol and parameter signature SHALL receive a source duplicate-signature diagnostic at the later declaration, identifying the earlier declaration; return types alone SHALL NOT distinguish overloads. Unary and binary arities remain distinct.
 7. IF an Operator_Declaration appears outside a class or struct body, THEN THE parser or Semantic_Model_Builder SHALL emit a diagnostic indicating operators must be declared as members of a type.
 8. IF a binary Operator_Declaration's parameter count is not 2, THEN THE Semantic_Model_Builder SHALL emit a diagnostic indicating the expected parameter count for that operator.
 9. IF a unary Operator_Declaration's parameter count is not 1, THEN THE Semantic_Model_Builder SHALL emit a diagnostic indicating the expected parameter count for that operator.

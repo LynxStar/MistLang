@@ -33,6 +33,28 @@ public sealed class DeclarationModifierPlacementTests
         Assert.Equal("MIST_PM_REF_ON_OPERATOR", refusal.Id.Value);
     }
 
+    [Theory]
+    [InlineData("sealed", "MIST_PM_SEALED_ON_OPERATOR")]
+    [InlineData("readonly", "MIST_PM_READONLY_ON_OPERATOR")]
+    [InlineData("owned", "MIST_PM_OWNED_ON_OPERATOR")]
+    [InlineData("affine", "MIST_PM_AFFINE_ON_OPERATOR")]
+    public void AnUnsupportedOperatorModifierIsRefusedOnce(string modifier, string expected)
+    {
+        var refusal = Assert.Single(DeclarationModifierPlacement.Refusals(Declaration("operator"),
+            [Modifier("public"), Modifier("static"), Modifier(modifier), Modifier(modifier)]));
+
+        Assert.Equal(expected, refusal.Id.Value);
+    }
+
+    [Theory]
+    [InlineData("public static")]
+    [InlineData("public pure static")]
+    [InlineData("intrinsic public pure static")]
+    public void SupportedOrdinaryAndIntrinsicOperatorModifiersAreAdmitted(string written)
+    {
+        Assert.Empty(DeclarationModifierPlacement.Refusals(Declaration("operator"), [.. written.Split(' ').Select(Modifier)]));
+    }
+
     [Fact]
     public void AModifierWrittenTwiceIsRefusedOnce()
     {

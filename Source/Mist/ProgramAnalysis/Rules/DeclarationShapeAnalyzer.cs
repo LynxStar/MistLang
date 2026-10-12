@@ -311,9 +311,32 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         if(type is ConcreteType concrete)
         {
             CheckRepeats(context, type, concrete.ConstructorsList, "a constructor");
+            CheckCallableSignatures(context, concrete);
         }
 
         CheckRepeats(context, type, type.IndexersList, "an indexer");
+    }
+
+    private static void CheckCallableSignatures(AnalysisContext context, ConcreteType type)
+    {
+        foreach(var repeat in CallableSignatureDecision.Operators(type.OperatorsList)
+            .Concat(CallableSignatureDecision.Casts(type.CastOperatorsList)))
+        {
+            var (path, location, _) = DiagnosticHelper.ResolveLocation(repeat.Earlier.DeclarationNode!);
+            if(repeat.Later is CastOperator cast)
+            {
+                Report(context, cast.DeclarationNode, CallableSignatureDiagnostics.DuplicateCastSignature,
+                    TypeDisplay.Mist(type), cast.IsImplicit ? "implicit" : "explicit",
+                    TypeDisplay.Mist(cast.SourceParameter.Type), TypeDisplay.Mist(cast.TargetType),
+                    path, location.Start.Line, location.Start.Column);
+            }
+            else if(repeat.Later is Operator op)
+            {
+                Report(context, op.DeclarationNode, CallableSignatureDiagnostics.DuplicateOperatorSignature,
+                    TypeDisplay.Mist(type), op.Symbol, OverloadFailure.DescribeSignatures([op]),
+                    path, location.Start.Line, location.Start.Column);
+            }
+        }
     }
 
     private static void CheckRedeclarations(AnalysisContext context, ConcreteType type)

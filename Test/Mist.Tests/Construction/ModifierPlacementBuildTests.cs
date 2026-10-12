@@ -40,6 +40,54 @@ public sealed class ModifierPlacementBuildTests
     }
 
     [Theory]
+    [InlineData("sealed", "MIST_PM_SEALED_ON_OPERATOR")]
+    [InlineData("readonly", "MIST_PM_READONLY_ON_OPERATOR")]
+    [InlineData("owned", "MIST_PM_OWNED_ON_OPERATOR")]
+    [InlineData("affine", "MIST_PM_AFFINE_ON_OPERATOR")]
+    public void AnUnsupportedOperatorModifierIsReportedOnceAtItsDeclaration(string modifier, string expected)
+    {
+        var diagnostics = new DiagnosticBag();
+        var written = modifier switch
+        {
+            "sealed" => (ModifierNode)new SealedModifierModifierNode(),
+            "readonly" => new ReadonlyModifierModifierNode(),
+            "owned" => new OwnedModifierModifierNode(),
+            _ => new AffineModifierModifierNode(),
+        };
+
+        _ = Build("operator", diagnostics, written);
+
+        var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal(expected, diagnostic.Id.Value);
+        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
+    }
+
+    [Fact]
+    public void ReadonlyRefOperatorRetainsItsSingleRefReturnRefusal()
+    {
+        var diagnostics = new DiagnosticBag();
+
+        _ = Build("operator", diagnostics, new ReadonlyModifierModifierNode(), new RefModifierModifierNode());
+
+        Assert.Equal("MIST_PM_REF_ON_OPERATOR", Assert.Single(diagnostics.ToImmutableArray()).Id.Value);
+    }
+
+    [Fact]
+    public void StandardIntrinsicPureOperatorRetainsItsCallableMetadata()
+    {
+        var diagnostics = new DiagnosticBag();
+
+        var modifiers = Build("operator", diagnostics, new IntrinsicModifierModifierNode(), new PureModifierModifierNode());
+
+        Assert.Empty(diagnostics.ToImmutableArray());
+        Assert.True(modifiers.IsIntrinsic);
+        Assert.True(modifiers.IsStatic);
+        Assert.True(modifiers.IsPure);
+        Assert.True(modifiers.IsReadonly);
+    }
+
+    [Theory]
     [InlineData("class", "readonly")]
     [InlineData("struct", "readonly")]
     [InlineData("abstract", "readonly")]

@@ -99,6 +99,8 @@ To invoke an explicit operator, you write `(TargetType)expression`:
 
 Without the `(Kelvin)` cast, this code would not compile — the compiler does not apply explicit operators automatically.
 
+A type cannot declare two conversion operators of the same kind for the same source and target types. The compiler diagnoses the later declaration and identifies the earlier one. Conversions between distinct source-target pairs remain separate declarations.
+
 ## Compile-Time Type Resolution
 
 Cast operators are resolved against the **compile-time (static) type** of the expression, not the runtime type. This means that even if a variable holds an instance of a derived type that declares a cast operator, the operator is only available when the variable's declared type is the one that defines it.

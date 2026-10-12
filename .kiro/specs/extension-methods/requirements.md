@@ -243,7 +243,7 @@ Extension blocks complement Mist's existing traits (structural typing) and inter
 2. THE Emitter SHALL name the generated static class using a deterministic scheme based on the source file and extension block position (e.g., `ExtensionBlock_FileName_LineNumber`).
 3. WHEN emitting an extension method, THE Emitter SHALL emit the receiver parameter as the first parameter of the static method, annotated with `this` for C# extension method syntax.
 4. WHEN emitting a call to an extension method, THE Emitter SHALL emit it as a static method invocation passing the receiver as the first argument.
-5. WHEN emitting a generic extension block, THE Emitter SHALL emit the type parameters on the generated static class or on individual methods as appropriate.
+5. WHEN emitting a generic extension block, THE Emitter SHALL emit the type parameters on the generated static class or on individual methods as appropriate. A static invocation SHALL preserve the bound selected callable and its closed receiver-block arguments followed by its own method arguments, including when the method declares no type parameters of its own.
 
 ---
 
@@ -334,7 +334,7 @@ Extension blocks complement Mist's existing traits (structural typing) and inter
 1. THE Standard_Library SHALL provide a universal extension block `extension(unknown self)` declaring `string ToString()`.
 2. THE Standard_Library SHALL provide a universal extension block declaring `int GetHashCode()`.
 3. THE Standard_Library SHALL provide a universal extension block declaring `Type GetType()`.
-4. WHEN a Mist program calls `ToString()` on any value, THE Type_Checker SHALL resolve it to the universal extension method.
+4. WHEN a Mist program calls `ToString()` on any value, THE Type_Checker SHALL retain the universal zero-argument candidate even when the type declares formatting overloads with parameters. A user-declared nongeneric instance zero-argument `ToString` retains its own selection, and formatting overloads remain callable at their declared arities. This bounded universal contract SHALL NOT change own-member precedence for unrelated names.
 5. WHEN the universal `ToString()` is emitted, THE Emitter SHALL lower it to a call to the .NET `object.ToString()` method on the receiver.
 
 ---

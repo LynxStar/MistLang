@@ -73,6 +73,23 @@ public sealed class ConstructedGenericMemberAccessParseTests
     }
 
     [Theory]
+    [Trait("Tier", "4")]
+    [InlineData("Box<int>.Make<string>(\"x\")")]
+    [InlineData("Standard.Box<int>.Make<string>(\"x\")")]
+    public void TheParserAndPrinterKeepConstructedReceiverAndMethodArgumentsSeparate(string call)
+    {
+        var root = Parse($"var made = {call};");
+        var primary = Assert.Single(Descendants(root).OfType<Generated.GenericTypeMethodCallExpressionPrimaryNode>());
+
+        Assert.Equal("Make", primary.Member.Lexeme);
+        _ = Assert.IsType<Generated.IntTypePrimitiveTypeNode>(Assert.IsType<Generated.PrimitiveSingleTypeRefSingleTypeRefNode>(
+            Assert.IsType<Generated.TypeReferenceTypeArgumentTypeArgumentNode>(primary.TypeArgs.TypeArgument).Type.First).PrimitiveType);
+        _ = Assert.IsType<Generated.StringTypePrimitiveTypeNode>(Assert.IsType<Generated.PrimitiveSingleTypeRefSingleTypeRefNode>(
+            Assert.IsType<Generated.TypeReferenceTypeArgumentTypeArgumentNode>(primary.MethodTypeArgs.TypeArgument).Type.First).PrimitiveType);
+        Assert.Contains($"{call};", MistPrettyPrinter.Print(root));
+    }
+
+    [Theory]
     [InlineData("Box<int> b = made;")]
     [InlineData("Pair<int, string> p = made;")]
     [InlineData("Outer.Box<int>[] many = made;")]

@@ -9,8 +9,7 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// What an extension block offers a receiver, consulted only when the receiver's own members do not
-/// answer. Own members always win, which needs no rule here: this runs on the miss path.
+/// What an extension block offers a receiver, with call-site visibility and receiver specificity.
 /// <para>
 /// VISIBILITY IS A PROPERTY OF THE CALL SITE, not of the program. A block is reachable only from a
 /// file that is in its namespace or imports it, so the same receiver answers differently in two
@@ -139,6 +138,42 @@ internal static class ExtensionLookup
         }
 
         return [.. offering];
+    }
+
+    public static MethodGroupResult FindUniversalToString(Scope callSite, ProgramModelClass programModel)
+    {
+        var methods = new List<Method>();
+
+        foreach(var namespaceName in VisibleNamespaces(callSite))
+        {
+            if(!programModel.Namespaces.TryGetValue(namespaceName, out var ns))
+            {
+                continue;
+            }
+
+            foreach(var (blockReceiver, blocks) in ns.Extensions)
+            {
+                if(blockReceiver is not UnknownType)
+                {
+                    continue;
+                }
+
+                foreach(var block in blocks)
+                {
+                    if(block.TypeParametersList.Count == 0)
+                    {
+                        methods.AddRange(block.MethodsList.Where(IsParameterlessToString));
+                    }
+                }
+            }
+        }
+
+        return new MethodGroupResult(methods);
+    }
+
+    internal static bool IsParameterlessToString(Method method)
+    {
+        return method is { Name: "ToString", Modifiers.IsStatic: false, ParametersList.Count: 0, TypeParametersList.Count: 0 };
     }
 
     /// <summary>

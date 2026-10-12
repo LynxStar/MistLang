@@ -16,11 +16,15 @@ namespace Mist.Tests.Backend;
 public sealed class StaticExtensionCarrierCallTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public void StaticCallsUseTheCarrierWithoutPassingAReceiver(bool promoted, bool generic)
+    [InlineData(false, false, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, false)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(true, true, true)]
+    public void StaticCallsUseTheCarrierWithoutPassingAReceiver(bool promoted, bool genericBlock, bool genericMethod)
     {
         var built = new HandBuiltModel();
         var result = built.Type("Int32");
@@ -31,11 +35,15 @@ public sealed class StaticExtensionCarrierCallTests
         { DeclaringBlock = block };
         var method = source;
 
-        if(generic)
+        if(genericMethod)
+        {
+            source.TypeParametersList.Add(new TypeParameter("U", 0, block.Scope, null));
+        }
+
+        if(genericBlock)
         {
             var receiverParameter = new TypeParameter("T", 0, block.Scope, null);
             block.TypeParametersList.Add(receiverParameter);
-            source.TypeParametersList.Add(new TypeParameter("U", 1, block.Scope, null));
             method = new Method("Read", result, source.ParametersList, source.Modifiers)
             {
                 SourceDeclaration = source,
@@ -53,14 +61,21 @@ public sealed class StaticExtensionCarrierCallTests
 
         var receiver = new TypeReferenceExpression(HandBuiltModel.Node(), holder);
         var access = new MemberAccessExpression(HandBuiltModel.Node(), receiver, "Read", result,
-            generic ? [built.Type("String")] : []);
+            genericMethod ? [built.Type("String")] : []);
         var call = new InvocationExpression(HandBuiltModel.Node(), access, [HandBuiltModel.Literal(result, 42)], result, method, [result]);
         using var promotion = AsyncPromotion.Enter(built.Model);
         var writer = new CSharpWriter();
         var diagnostics = new DiagnosticBag();
         BodyEmitter.EmitExpression(call, writer, diagnostics);
 
-        Assert.Equal($"{(promoted ? "await " : "")}Probe.HolderExtensions.Read{(generic ? "<int, string>" : "")}(42)", writer.ToString());
+        var typeArguments = (genericBlock, genericMethod) switch
+        {
+            (true, true) => "<int, string>",
+            (true, false) => "<int>",
+            (false, true) => "<string>",
+            _ => "",
+        };
+        Assert.Equal($"{(promoted ? "await " : "")}Probe.HolderExtensions.Read{typeArguments}(42)", writer.ToString());
         Assert.Empty(diagnostics.ToImmutableArray());
     }
 }

@@ -85,6 +85,8 @@ extension(Greeting self)
 
 Call it as `Greeting.Create()` — no instance needed.
 
+Static methods in a generic receiver block are called through the closed receiver type. For a `<T> extension(Box<T> self)` block, `Box<int>.Make(1)` supplies the block argument `int`; a method with its own type parameter can also be called as `Box<Animal>.Make<int>(1)` or infer its method argument from the value. The generated carrier call retains the selected declaration, the closed block arguments, and the method arguments in that order. An ordinary static member declared on the receiver type takes precedence, and extension namespace visibility still applies.
+
 ## Ambient Extension Methods
 
 Mist also supports extension methods defined in .NET assemblies. When you import a namespace with a `using` directive, any C# extension methods declared in that namespace become available as instance methods on their target types — just like Mist-native extensions.

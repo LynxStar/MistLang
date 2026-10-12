@@ -160,15 +160,15 @@ internal static class ExtensionBlockEmitter
     }
 
     /// <summary>
-    /// What a call writes after the member's name: C# takes all of a carrier's type arguments or none,
-    /// so a call that writes the method's own writes the block's ahead of them, in the order
+    /// What a call writes after the member's name: every closed block supplies its arguments ahead of
+    /// the method's own, including when the method declares none, in the order
     /// <see cref="CarrierTypeParameters"/> declares. A projected block merges both lists by their
     /// original CLR ordinals, which need not put the receiver's parameters first.
     /// </summary>
     internal static (IReadOnlyList<IMistType> Arguments, IReadOnlyList<TypeParameter>? Parameters) CallTypeArguments(
         Method? method, IReadOnlyList<IMistType> written)
     {
-        if(written.Count == 0 || method is not { ClosedBlock: { } block })
+        if(method is not { ClosedBlock: { } block })
         {
             return (written, method?.TypeParametersList);
         }

@@ -2293,6 +2293,11 @@ public sealed class MistPrettyPrinter
                     var args = EmitArgumentList(genInvoke.Arguments);
                     return $"{name}{typeArgs}({args})";
                 }
+            case GenericTypeMethodCallExpressionPrimaryNode constructedCall:
+                return $"{ExtractQualifiedName(constructedCall.Type)}{EmitTypeArgumentList(constructedCall.TypeArgs)}"
+                    + $".{constructedCall.Member.Lexeme}{EmitTypeArgumentList(constructedCall.MethodTypeArgs)}({EmitArgumentList(constructedCall.Arguments)})";
+            case GenericTypeMemberAccessExpressionPrimaryNode constructedAccess:
+                return $"{ExtractQualifiedName(constructedAccess.Type)}{EmitTypeArgumentList(constructedAccess.TypeArgs)}.{constructedAccess.Member.Lexeme}";
             case GenericNameExpressionPrimaryNode genericName:
                 return $"{genericName.Name.Lexeme}{EmitTypeArgumentList(genericName.TypeArgs)}";
             case IdentifierExpressionPrimaryNode ident:

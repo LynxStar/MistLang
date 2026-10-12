@@ -1,68 +1,123 @@
-// Tier 3: sequence lengths follow resolved builtin operations rather than method spelling.
+// Tier 1: a sequence length survives a call only through a resolved builtin operation, never through the spelling of a user method.
 
-using System.Collections.Immutable;
-using Mist.Backends.CSharpTranspiler.AmbientProvider;
-using Mist.Common.Diagnostics;
-using Mist.ProgramAnalysis;
-using Mist.ProgramModel.Contracts;
+using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
+[Trait("Tier", "1")]
 public sealed class SequenceLengthDecisionTests
 {
+    [Theory]
+    [InlineData("AsSpan", "Array", "Span")]
+    [InlineData("ToArray", "Array", "Array")]
+    [InlineData("AsSpan", "String", "ReadOnlySpan")]
+    public void AResolvedClrExtensionPreservesTheCapturedLength(string name, string source, string result)
+    {
+        var h = new HandBuiltRefinements();
+        var call = Call(Receiver(h, source), Method(name, h.Sequence(result), SequenceLengthOperation.Preserved));
+
+        Assert.Equal(Admitted.Exactly(3), Lengths.Of(call, Tracked));
+    }
+
+    [Theory]
+    [InlineData("Slice", "Custom", "Array", 2)]
+    [InlineData("ToArray", "Array", "Array", 0)]
+    [InlineData("AsSpan", "Array", "Span", 0)]
+    [InlineData("ToCharArray", "Array", "Array", 0)]
+    public void AUserMethodNamedLikeABuiltinManufacturesNoLengthFact(string name, string source, string result, int arity)
+    {
+        var h = new HandBuiltRefinements();
+        var arguments = Enumerable.Range(0, arity).Select(i => h.Literal(i == 0 ? 0L : 3L)).ToArray();
+        var call = Call(Receiver(h, source), Method(name, h.Sequence(result), SequenceLengthOperation.None, parameters: [.. arguments.Select(_ => h.Int)]), arguments);
+
+        Assert.Null(Lengths.Of(call, Tracked));
+    }
+
+    [Theory]
+    [InlineData("Span")]
+    [InlineData("ReadOnlySpan")]
+    public void AnIntrinsicSpanOverAnArrayLiteralKeepsItsLength(string host)
+    {
+        var h = new HandBuiltRefinements();
+        var span = Intrinsic(h, host);
+        var literal = new ArrayLiteralExpression(HandBuiltModel.Node(), h.Int, [h.Literal(10L), h.Literal(20L), h.Literal(30L)], h.Sequence("Array", 3L));
+        var constructor = new Constructor(host, span, [new Parameter("array", literal.Type)], new MemberModifiers { IsIntrinsic = true })
+        {
+            DeclaringType = (MemberType)span.Definition,
+        };
+        var creation = new NewExpression(HandBuiltModel.Node(), span, [literal], constructor, [], [literal.Type]);
+
+        Assert.Equal(Admitted.Exactly(3), Lengths.Of(creation, Tracked));
+    }
+
+    [Theory]
+    [InlineData("Span")]
+    [InlineData("ReadOnlySpan")]
+    public void AnIntrinsicSliceIsAsLongAsItsCount(string host)
+    {
+        var h = new HandBuiltRefinements();
+        var span = Intrinsic(h, host);
+        var slice = Method("Slice", span, SequenceLengthOperation.None, (MemberType)span.Definition, h.Int, h.Int);
+        var call = Call(HandBuiltRefinements.Local(span, "values"), slice, h.Literal(1L), h.Literal(2L));
+
+        Assert.Equal(Admitted.Exactly(2), Lengths.Of(call, Tracked));
+    }
+
     [Fact]
-    public void ResolvedClrExtensions_PreserveCapturedArrayAndStringLengths()
+    public void AnIntrinsicToCharArrayIsAsLongAsItsString()
     {
-        var diagnostics = new DiagnosticBag();
-        using var ambient = AmbientTypeProviderV2Factory.Create("net10.0", [], diagnostics);
-        Assert.Empty(diagnostics.ToImmutableArray());
-        Assert.Empty(Findings("""
-            int[] values = [10, 20, 30];
-            Span<int> view = values.AsSpan();
-            var last = view[2];
-            var copy = values.ToArray();
-            var copiedLast = copy[2];
-            var letters = "abc".AsSpan();
-            var finalLetter = letters[2];
-            """, "using System; using System.Linq;", ambient));
+        var h = new HandBuiltRefinements();
+        var text = (ClassType)h.String;
+        text.Modifiers = text.Modifiers with { IsIntrinsic = true };
+        var call = Call(h.Literal("abc"), Method("ToCharArray", h.Sequence("Array"), SequenceLengthOperation.None, text));
+
+        Assert.Equal(Admitted.Exactly(3), Lengths.Of(call, Tracked));
     }
 
-    [Theory]
-    [InlineData("var custom = new Custom(); var values = custom.Slice(0, 3); var last = values[2];", "public class Custom { public int[] Slice(int start, int count) { return [10]; } }")]
-    [InlineData("int[] values = [10, 20, 30]; var copy = values.ToArray(); var last = copy[2];", "extension(int[] self) { public int[] ToArray() { return [10]; } }")]
-    [InlineData("int[] values = [10, 20, 30]; var copy = values.AsSpan(); var last = copy[2];", "extension(int[] self) { public Span<int> AsSpan() { return new Span<int>([10]); } }")]
-    [InlineData("int[] values = [10, 20, 30]; var copy = values.ToCharArray(); var last = copy[2];", "extension(int[] self) { public char[] ToCharArray() { return ['x']; } }")]
-    public void UserMethods_DoNotManufactureLengthFacts(string statements, string declarations)
+    private static Admitted? Tracked(Expression expression)
     {
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(statements, declarations)).Id.Value);
+        return expression is LocalReferenceExpression { Local.Name: "values" } ? Admitted.Exactly(3) : null;
     }
 
-    [Theory]
-    [InlineData("var values = new Span<int>([10, 20, 30]); var last = values[2];")]
-    [InlineData("var values = new ReadOnlySpan<int>([10, 20, 30]); var last = values[2];")]
-    [InlineData("var values = new Span<int>([10, 20, 30]); var copy = values.Slice(1, 2); var last = copy[1];")]
-    [InlineData("var values = new ReadOnlySpan<int>([10, 20, 30]); var copy = values.Slice(1, 2); var last = copy[1];")]
-    [InlineData("var copy = \"abc\".ToCharArray(); var last = copy[2];")]
-    public void ResolvedBuiltinOperations_PreserveSupportedLengths(string statements)
+    private static Expression Receiver(HandBuiltRefinements h, string source)
     {
-        Assert.Empty(Findings(statements));
+        return source switch
+        {
+            "String" => h.Literal("abc"),
+            "Custom" => HandBuiltRefinements.Local(HandBuiltModel.Class("Custom"), "custom"),
+            _ => HandBuiltRefinements.Local(h.Sequence("Array"), "values"),
+        };
     }
 
-    private static ImmutableArray<Diagnostic> Findings(string statements, string declarations = "", IAmbientTypeProvider? ambient = null)
+    private static ConstructedType Intrinsic(HandBuiltRefinements h, string host)
     {
-        var model = StandardModelProbe.Build(statements, out var binding, declarations, ambient);
-        Assert.Empty(binding.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
-        var probe = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]);
-        var nodes = BodyWalker.DescendantsAndSelf(Assert.IsType<Block>(probe.MethodsList.Single(method => method.Name == "Run").Body)).ToList();
-        Assert.DoesNotContain(nodes.OfType<Expression>(), expression => expression.Type is ErrorType);
-        Assert.NotEmpty(nodes.OfType<IndexExpression>());
+        var span = (ConstructedType)h.Sequence(host);
+        var definition = (ClassType)span.Definition;
+        definition.Modifiers = definition.Modifiers with { IsIntrinsic = true };
+        return span;
+    }
 
-        var findings = new DiagnosticBag();
-        ProgramAnalysisRunner.Run(model, findings);
-        return findings.ToImmutableArray();
+    private static Method Method(
+        string name, IMistType returns, SequenceLengthOperation operation, MemberType? intrinsicHost = null, params IMistType[] parameters)
+    {
+        return new Method(
+            name, returns, parameters.Select((type, i) => new Parameter($"p{i}", type)).ToList(),
+            new MemberModifiers { IsIntrinsic = intrinsicHost is not null, IsClrProjected = intrinsicHost is null })
+        {
+            SequenceLengthOperation = operation,
+            DeclaringType = intrinsicHost,
+        };
+    }
+
+    private static InvocationExpression Call(Expression receiver, Method method, params Expression[] arguments)
+    {
+        var access = new MemberAccessExpression(HandBuiltModel.Node(), receiver, method.Name, method.ReturnType, member: new MethodGroupResult([method]));
+        return new InvocationExpression(HandBuiltModel.Node(), access, arguments, method.ReturnType, method, method.ParametersList.ConvertAll(parameter => parameter.Type));
     }
 }

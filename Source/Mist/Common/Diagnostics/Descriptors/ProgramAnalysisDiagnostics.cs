@@ -662,7 +662,25 @@ public static partial class ProgramAnalysisDiagnostics
         new DiagnosticId("MIST_PA_STACK_SPAN_RETURNED"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
-        "A stackalloc-backed span cannot be returned: it would escape its stack frame.");
+        "This '{0}' refers to {1}, so it cannot be returned: it would outlive its stack frame.");
+
+    public static readonly DiagnosticDescriptor StackSpanStored = new(
+        new DiagnosticId("MIST_PA_STACK_SPAN_STORED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "This '{0}' refers to {1}, so it cannot be stored in {2}: {3}.");
+
+    public static readonly DiagnosticDescriptor StackSpanPassed = new(
+        new DiagnosticId("MIST_PA_STACK_SPAN_PASSED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "This '{0}' refers to {1}, so it cannot be passed to '{2}' alongside {3}, which '{2}' could store it in: {4}.");
+
+    public static readonly DiagnosticDescriptor RefReturnEscapes = new(
+        new DiagnosticId("MIST_PA_REF_RETURN_ESCAPES"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot return {0} by reference: it refers to {1}, which does not outlive the call.");
 
     public static readonly DiagnosticDescriptor CapturedBinding = new(
         new DiagnosticId("MIST_PA_CAPTURED_BINDING"),

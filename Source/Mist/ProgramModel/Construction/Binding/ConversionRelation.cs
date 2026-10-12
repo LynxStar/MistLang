@@ -342,7 +342,7 @@ internal static class ConversionRelation
             var constituentCopying = OptionalUnion.IsOptional(toUnion) ? copying : Copying.None;
 
             return fromUnion.Constituents.All(
-                constituent => toUnion.Constituents.Any(target => IsWithin(constituent, target, constituentCopying)));
+                constituent => toUnion.Constituents.Any(target => ReferenceEquals(constituent, target) || IsWithin(constituent, target, constituentCopying)));
         }
 
         return toUnion.Constituents.Any(constituent => IsWithin(from, constituent, Copying.None));

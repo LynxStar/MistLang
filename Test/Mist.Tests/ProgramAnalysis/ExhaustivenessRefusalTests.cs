@@ -29,6 +29,7 @@ public sealed class ExhaustivenessRefusalTests
     [InlineData("tuple-of-ints-with-a-gap", "(0, _)")]
     [InlineData("tuple-with-only-guarded-arms", "(false, _), (true, _)")]
     [InlineData("union-missing-a-constituent", "string")]
+    [InlineData("union-missing-a-refined-constituent", "Big")]
     public void MissingCaseKeepsItsDiagnosticAndNamesAWitness(string caseName, string witnesses)
     {
         var expression = Switch(caseName);
@@ -73,6 +74,8 @@ public sealed class ExhaustivenessRefusalTests
     [InlineData("tuple-with-a-relational-enum-element")]
     [InlineData("tuple-with-an-unreadable-element")]
     [InlineData("union-constituent-partially-covered-by-a-constant")]
+    [InlineData("union-of-refined-constituents-each-tested")]
+    [InlineData("optional-refinement-and-its-absence")]
     public void ACoveringOrUnreadableArmSetIsNotReported(string caseName)
     {
         Assert.Null(ExhaustivenessAnalyzer.Finding(Switch(caseName)));
@@ -103,6 +106,10 @@ public sealed class ExhaustivenessRefusalTests
         var color = HandBuiltModel.Enum("Color", integer);
         color.MembersList.AddRange([new EnumMember("Red", false, null), new EnumMember("Green", false, null), new EnumMember("Blue", false, null)]);
         var union = model.Interner.GetOrCreateUnionType([integer, text]);
+        var small = HandBuiltRefinements.RefinePattern(integer, new ComparisonPattern(HandBuiltModel.Node(), integer, ComparisonKind.LessThan, HandBuiltModel.Literal(integer, 10L)), "Small");
+        var big = HandBuiltRefinements.RefinePattern(integer, new ComparisonPattern(HandBuiltModel.Node(), integer, ComparisonKind.GreaterThan, HandBuiltModel.Literal(integer, 100L)), "Big");
+        var refinedUnion = model.Interner.GetOrCreateUnionType([small, big]);
+        var optionalSmall = model.Interner.GetOrCreateUnionType([small, nothing]);
         var optionalBool = model.Interner.GetOrCreateUnionType([boolean, nothing]);
         var optionalText = model.Interner.GetOrCreateUnionType([text, nothing]);
         var bools = model.Interner.GetOrCreateTupleType([boolean, boolean]);
@@ -182,6 +189,18 @@ public sealed class ExhaustivenessRefusalTests
             case "union-missing-a-constituent":
                 input = union;
                 arms = [arm(new TypeTestPattern(HandBuiltModel.Node(), integer, null, integer))];
+                break;
+            case "union-missing-a-refined-constituent":
+                input = refinedUnion;
+                arms = [arm(new TypeTestPattern(HandBuiltModel.Node(), small, null, small, small.Predicate))];
+                break;
+            case "union-of-refined-constituents-each-tested":
+                input = refinedUnion;
+                arms = [arm(new TypeTestPattern(HandBuiltModel.Node(), small, null, small, small.Predicate)), arm(new TypeTestPattern(HandBuiltModel.Node(), big, null, big, big.Predicate))];
+                break;
+            case "optional-refinement-and-its-absence":
+                input = optionalSmall;
+                arms = [arm(new TypeTestPattern(HandBuiltModel.Node(), small, null, refinement: small.Predicate)), arm(absent())];
                 break;
             case "union-constituent-partially-covered-by-a-constant":
                 input = union;

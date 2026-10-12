@@ -126,9 +126,10 @@ internal static class ConversionClassifier
             return true;
         }
 
+        // A fresh visited set per constituent: a type visited toward one target may still reach another.
         if(to is UnionType union
             && ConversionRelation.CloneSourceOf(from) is null
-            && union.Constituents.Any(constituent => Reaches(from, constituent, visited)))
+            && union.Constituents.Any(constituent => Reaches(from, constituent, [])))
         {
             return true;
         }

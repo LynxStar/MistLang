@@ -69,7 +69,7 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
 
     private static void Judge(AnalysisContext context, Pattern root, IMistType input, Expression about, Dictionary<TypeParameter, TypeTest> tests)
     {
-        foreach(var (pattern, flowing) in Flatten(root, input))
+        foreach(var (pattern, flowing) in Flatten(root, input, context.Model.TypeInterner))
         {
             switch(pattern)
             {
@@ -85,24 +85,25 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static IEnumerable<(Pattern Pattern, IMistType Input)> Flatten(Pattern pattern, IMistType input)
+    private static IEnumerable<(Pattern Pattern, IMistType Input)> Flatten(Pattern pattern, IMistType input, TypeInterner interner)
     {
         yield return (pattern, input);
 
         var nested = pattern switch
         {
-            TypeTestPattern { Refinement: { } refinement } test when Comparability.Misordered(refinement) is null
-                => Flatten(refinement, test.NarrowedType),
-            ConjunctionPattern conjunction => Conjuncts(conjunction, input),
-            DisjunctionPattern disjunction => disjunction.Operands.SelectMany(operand => Flatten(operand, input)),
-            NegatedPattern negated => Flatten(negated.Operand, input),
+            TypeTestPattern { Refinement: { } refinement } test
+                when Comparability.Misordered(refinement) is null && Comparability.Mismatched(refinement, interner) is null
+                => Flatten(refinement, test.NarrowedType, interner),
+            ConjunctionPattern conjunction => Conjuncts(conjunction, input, interner),
+            DisjunctionPattern disjunction => disjunction.Operands.SelectMany(operand => Flatten(operand, input, interner)),
+            NegatedPattern negated => Flatten(negated.Operand, input, interner),
             PropertyPattern property
-                => (property.TypeTest is { } typeTest ? Flatten(typeTest, input) : [])
-                    .Concat(property.Subpatterns.SelectMany(subpattern => Flatten(subpattern.Pattern, subpattern.MemberType))),
+                => (property.TypeTest is { } typeTest ? Flatten(typeTest, input, interner) : [])
+                    .Concat(property.Subpatterns.SelectMany(subpattern => Flatten(subpattern.Pattern, subpattern.MemberType, interner))),
             TuplePattern tuple when Elements(input) is { } elements && elements.Count == tuple.Elements.Count
-                => tuple.Elements.SelectMany((element, i) => Flatten(element, elements[i])),
+                => tuple.Elements.SelectMany((element, i) => Flatten(element, elements[i], interner)),
             ListPattern list => list.Elements.SelectMany(element => element is { Subpattern: { } subpattern, ScrutineeType: { } scrutinee }
-                ? Flatten(subpattern, scrutinee)
+                ? Flatten(subpattern, scrutinee, interner)
                 : []),
             _ => [],
         };
@@ -113,13 +114,13 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static IEnumerable<(Pattern Pattern, IMistType Input)> Conjuncts(ConjunctionPattern conjunction, IMistType input)
+    private static IEnumerable<(Pattern Pattern, IMistType Input)> Conjuncts(ConjunctionPattern conjunction, IMistType input, TypeInterner interner)
     {
         var narrowed = input;
 
         foreach(var operand in conjunction.Operands)
         {
-            foreach(var entry in Flatten(operand, narrowed))
+            foreach(var entry in Flatten(operand, narrowed, interner))
             {
                 yield return entry;
             }
@@ -301,10 +302,10 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         return earlier switch
         {
             CatchAllPattern => true,
-            TypeTestPattern { Refinement: null } wide when later is TypeTestPattern narrow
+            TypeTestPattern { Refinement: null } wide when later is TypeTestPattern narrow && ReferenceEquals(narrow.Constituent, wide.Constituent)
                 => IsAlways(
-                    ConversionClassifier.Normalized(narrow.Constituent ?? narrow.NarrowedType, interner),
-                    ConversionClassifier.Normalized(wide.Constituent ?? wide.NarrowedType, interner),
+                    ConversionClassifier.Normalized(narrow.NarrowedType, interner),
+                    ConversionClassifier.Normalized(wide.NarrowedType, interner),
                     new HashSet<string>(StringComparer.Ordinal)),
             ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: { } first } }
                 when later is ComparisonPattern { Kind: ComparisonKind.Equal, Bound: LiteralExpression { Value: { } second } }

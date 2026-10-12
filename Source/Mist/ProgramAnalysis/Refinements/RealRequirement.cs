@@ -45,7 +45,7 @@ internal static class RealRequirement
         switch(predicate)
         {
             case ComparisonPattern comparison when Comparability.Misordered(comparison) is null:
-                return LiteralOf(comparison.Bound) is { } bound && IsFinite(bound) ? RealSet.Compare(kind, comparison.Kind, bound) : null;
+                return Compared(comparison.Kind, comparison.Bound, kind);
 
             case ConjunctionPattern conjunction:
                 return Combined(conjunction.Operands, kind, true);
@@ -87,6 +87,11 @@ internal static class RealRequirement
             CloneExpression clone => OfValue(clone.Source, held)?.ConvertedTo(kind),
             _ => LiteralOf(expression) is { } value ? RealSet.Exactly(kind, value) : null,
         };
+    }
+
+    public static RealSet? Compared(ComparisonKind comparison, Expression bound, RealKind kind)
+    {
+        return LiteralOf(bound) is { } value && IsFinite(value) ? RealSet.Compare(kind, comparison, value) : null;
     }
 
     public static LiteralValue? LiteralOf(Expression? expression, Func<LocalVariable, LiteralValue?>? held = null)

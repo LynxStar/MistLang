@@ -29,7 +29,22 @@ internal static class UnionEntry
             return null;
         }
 
-        return $"{UnionCarrierNames.CarrierName(union)}.{UnionCarrierNames.EntryFactory(constituent)}";
+        return $"{UnionCarrierNames.CarrierName(union)}.{UnionCarrierNames.EntryFactory(constituent, union)}";
+    }
+
+    /// <summary>C# will not chain the enum's operator, which reaches only its underlying type, into the carrier's.</summary>
+    public static IMistType? Unwrapped(IMistType from, IMistType? slot)
+    {
+        if(slot is null
+            || Carrier(slot) is not { } union
+            || Unaliased(TypeNameEmitter.Closed(from)) is not EnumType { UnderlyingType: { } underlying } enumType
+            || union.Constituents.Any(constituent => ReferenceEquals(Unaliased(constituent), enumType))
+            || (Carrier(underlying) is { } own && UnionCarrierNames.CarrierName(own) == UnionCarrierNames.CarrierName(union)))
+        {
+            return null;
+        }
+
+        return underlying;
     }
 
     public static IReadOnlyList<IMistType>? Elements(IMistType? slot, TupleLiteralExpression literal)
@@ -104,7 +119,7 @@ internal static class UnionEntry
     {
         var normalized = ConversionClassifier.Normalized(from, interner: null);
 
-        if(union.Constituents.Where(constituent => ConversionRelation.IsIdentity(normalized, Unaliased(constituent))).ToList() is [var identical])
+        if(union.Constituents.Where(constituent => ReferenceEquals(normalized, Unaliased(constituent)) || ConversionRelation.IsIdentity(normalized, Unaliased(constituent))).ToList() is [var identical])
         {
             return identical;
         }

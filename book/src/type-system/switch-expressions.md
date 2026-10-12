@@ -153,6 +153,8 @@ var size = count switch
 
 A `double` keeps its catch-all reachable after `< 0.0` and `>= 0.0`, because `NaN` matches neither.
 
+The same check reads a `ulong` across its whole range, an optional, a tuple and a union. A value arm never matches an absent optional, so over an `int?` a catch-all after `>= 0` and `< 0` still runs for `void`, while `not >= 0` matches `void` as well. Tuple arms are compared element by element and together: after `(> 0, _)` and `(<= 0, > 5)`, an arm `(0, 7)` is unreachable though neither earlier arm covers it alone. Over a union, an arm testing a constituent an earlier unguarded arm already tested is unreachable; a catch-all after an arm for every constituent is accepted.
+
 ## Tuple Positional Pattern Arms
 
 Tuple positional patterns match tuple elements by position using parenthesized syntax. Each element in the pattern corresponds to the element at the same position in the tuple, and can use any subpattern — constants, relational, logical, discard, or var patterns. This provides a concise way to branch on multiple tuple elements simultaneously without referencing `Item1`, `Item2`, etc.

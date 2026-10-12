@@ -15,6 +15,9 @@ internal static class LocaleStartup
         }
 
         var writer = new CSharpWriter();
+
+        // MSBuild reads a .g.cs with nullable annotations off; the runtime is written for the context Mist compiles it in.
+        writer.WriteLine("#nullable enable");
         writer.WriteLine("using System;");
         writer.Append(RuntimeSource().TrimEnd());
         writer.AppendLine();

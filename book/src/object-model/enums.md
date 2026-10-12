@@ -148,7 +148,7 @@ Enum values implicitly convert to their underlying type. You can assign an enum 
 {{#endtab }}
 {{#endtabs }}
 
-This is a widening conversion — the enum value is always a valid instance of its underlying type, so the conversion is safe and implicit. The reverse (narrowing from the underlying type back to the enum) is not allowed — there's no guarantee an arbitrary value of the underlying type corresponds to a named enum member.
+This is a widening conversion — the enum value is always a valid instance of its underlying type, so the conversion is safe and implicit. An enum over a union converts to that whole union: with `enum Mixed : int | string`, `Mixed.Text` assigns or passes as an `int | string` holding its string. An enum also enters a union that holds its underlying type, as the value it wraps. The reverse (narrowing from the underlying type back to the enum) is not allowed — there's no guarantee an arbitrary value of the underlying type corresponds to a named enum member.
 
 ## Pattern Matching
 

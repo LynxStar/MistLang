@@ -7,29 +7,32 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// What a pattern admits of an input, as a set over the input's unrefined domain. Two questions are
-/// asked here, with two domains. Unreachability (<see cref="Covered"/>) asks what the emitted switch
-/// shows Roslyn, so nothing is refused that C# would run: an enum has no domain there, its arms
-/// emitted as equality guards C# never judges, nor a ulong, whose range is not a set of longs, nor a
-/// refined type test over a refined base, emission testing only the outermost predicate.
-/// Exhaustiveness (<see cref="Admits"/>) asks what values exist, so an enum is its variants, each
-/// standing at its position in the declaration.
+/// <see cref="Covered"/> refuses nothing C# would run, so an enum has no domain there: its arms are emitted
+/// as equality guards, which C# never judges. <see cref="Admits"/> asks what values exist, so there an enum
+/// is its variants.
 /// </summary>
 internal static class MatchedValues
 {
+    private static readonly Int128 UnsignedShift = (Int128)long.MinValue;
+
     public static bool Covered(IEnumerable<Pattern> earlier, Pattern later, IMistType input)
     {
-        if(IntegralDomain(input) is { } domain)
+        if(MatchedSpaces.Of(input) is not { } space || space.Read(later) is not { } reached || space.IsEmpty(reached))
         {
-            return Covered(earlier, later, input, Integral(domain));
+            return false;
         }
 
-        return RealRequirement.KindOf(input) is { } kind
-            && Covered(earlier, later, input, new Algebra<RealSet>(
-                RealSet.Everything(kind), RealSet.Nothing(kind),
-                (left, right) => left.And(right), (left, right) => left.Or(right), values => values.Not(),
-                (values, other) => values.IsSubsetOf(other),
-                comparison => RealRequirement.Of(comparison, kind)));
+        var covered = space.Nothing;
+
+        foreach(var pattern in earlier)
+        {
+            if(space.Read(pattern) is { } values && space.Or(covered, values) is { } joined)
+            {
+                covered = joined;
+            }
+        }
+
+        return space.IsSubsetOf(reached, covered);
     }
 
     public static Admitted? Domain(IMistType input)
@@ -41,7 +44,7 @@ internal static class MatchedValues
     {
         if(IntegralDomain(input) is { } domain)
         {
-            return Read(pattern, input, Integral(domain));
+            return Integral(domain, input).Read(pattern);
         }
 
         if(Requirement.Unrefined(input) is not EnumType enumType)
@@ -51,62 +54,60 @@ internal static class MatchedValues
 
         var variants = Variants(enumType);
 
-        return Read(pattern, input, new Algebra<Admitted>(
+        return new ValueAlgebra<Admitted>(
             variants, Admitted.Nothing,
             (left, right) => left.And(right), (left, right) => left.Or(right), values => values.Not().And(variants),
             (values, other) => values.IsSubsetOf(other),
-            comparison => Variant(enumType, comparison)));
-    }
-
-    private static bool Covered<T>(IEnumerable<Pattern> earlier, Pattern later, IMistType input, Algebra<T> algebra)
-        where T : class
-    {
-        if(Read(later, input, algebra) is not { } reached || algebra.IsSubsetOf(reached, algebra.Nothing))
-        {
-            return false;
-        }
-
-        var covered = earlier.Aggregate(algebra.Nothing, (union, pattern) => Read(pattern, input, algebra) is { } values ? algebra.Or(union, values) : union);
-        return algebra.IsSubsetOf(reached, covered);
-    }
-
-    private static T? Read<T>(Pattern pattern, IMistType input, Algebra<T> algebra)
-        where T : class
-    {
-        return pattern switch
-        {
-            CatchAllPattern => algebra.Everything,
-            ComparisonPattern comparison => algebra.Compared(comparison),
-            NegatedPattern negated => Read(negated.Operand, input, algebra) is { } inner ? algebra.Not(inner) : null,
-            ConjunctionPattern conjunction => Fold(conjunction.Operands, input, algebra, algebra.Everything, algebra.And),
-            DisjunctionPattern disjunction => Fold(disjunction.Operands, input, algebra, algebra.Nothing, algebra.Or),
-            TypeTestPattern test when SameDomain(test.NarrowedType, input) => Requirement.Refined(test.NarrowedType) switch
+            (primary, self) => primary switch
             {
-                null => algebra.Everything,
-                RefinedType { BaseType: var baseType } when Requirement.Refined(baseType) is null && test.Refinement is { } predicate
-                    => Read(predicate, input, algebra),
+                ComparisonPattern comparison => Variant(enumType, comparison),
+                TypeTestPattern test when SameDomain(test.NarrowedType, input) => Tested(test, self),
                 _ => null,
-            },
-            _ => null,
-        };
+            }).Read(pattern);
     }
 
-    private static T? Fold<T>(IEnumerable<Pattern> operands, IMistType input, Algebra<T> algebra, T seed, Func<T, T, T> combine)
-        where T : class
+    public static ValueAlgebra<object>? Scalar(IMistType input)
     {
-        var result = seed;
-
-        foreach(var operand in operands)
+        if(IntegralDomain(input) is { } domain)
         {
-            if(Read(operand, input, algebra) is not { } part)
-            {
-                return null;
-            }
-
-            result = combine(result, part);
+            return Integral(domain, input).Erased();
         }
 
-        return result;
+        if(Requirement.Unrefined(input).FullyQualifiedName == WellKnownTypes.UInt64.FullyQualifiedName)
+        {
+            return Ordered(Admitted.Everything, input, comparison => Unsigned(comparison.Bound) is { } shifted
+                ? Requirement.Interval(comparison.Kind, shifted)
+                : null).Erased();
+        }
+
+        return RealRequirement.KindOf(input) is { } kind
+            ? new ValueAlgebra<RealSet>(
+                RealSet.Everything(kind), RealSet.Nothing(kind),
+                (left, right) => left.And(right), (left, right) => left.Or(right), values => values.Not(),
+                (values, other) => values.IsSubsetOf(other),
+                (primary, self) => primary switch
+                {
+                    ComparisonPattern comparison when Orders(comparison, input) => RealRequirement.Compared(comparison.Kind, comparison.Bound, kind),
+                    TypeTestPattern test when SameDomain(test.NarrowedType, input) => Tested(test, self),
+                    _ => null,
+                }).Erased()
+            : null;
+    }
+
+    private static bool Orders(ComparisonPattern comparison, IMistType input)
+    {
+        return comparison.Kind == ComparisonKind.Equal || Comparability.Supports(Requirement.Unrefined(input));
+    }
+
+    private static T? Tested<T>(TypeTestPattern test, ValueAlgebra<T> algebra)
+        where T : class
+    {
+        if(Requirement.Refined(test.NarrowedType) is null)
+        {
+            return algebra.Everything;
+        }
+
+        return test.Refinement is { } predicate ? algebra.Read(predicate) : null;
     }
 
     private static bool SameDomain(IMistType tested, IMistType input)
@@ -114,13 +115,34 @@ internal static class MatchedValues
         return Requirement.Unrefined(tested).FullyQualifiedName == Requirement.Unrefined(input).FullyQualifiedName;
     }
 
-    private static Algebra<Admitted> Integral(Admitted domain)
+    private static ValueAlgebra<Admitted> Integral(Admitted domain, IMistType input)
     {
-        return new Algebra<Admitted>(
+        return Ordered(domain, input, comparison => Requirement.Constant(comparison.Bound) is { } constant
+            ? Requirement.Interval(comparison.Kind, constant).And(domain)
+            : null);
+    }
+
+    private static ValueAlgebra<Admitted> Ordered(Admitted domain, IMistType input, Func<ComparisonPattern, Admitted?> compared)
+    {
+        return new ValueAlgebra<Admitted>(
             domain, Admitted.Nothing,
             (left, right) => left.And(right), (left, right) => left.Or(right), values => values.Not().And(domain),
             (values, other) => values.IsSubsetOf(other),
-            comparison => Requirement.Of(comparison) is { Bounds.Length: 0 } requirement ? requirement.Values.And(domain) : null);
+            (primary, self) => primary switch
+            {
+                ComparisonPattern comparison when Orders(comparison, input) => compared(comparison),
+                TypeTestPattern test when SameDomain(test.NarrowedType, input) => Tested(test, self),
+                _ => null,
+            });
+    }
+
+    private static long? Unsigned(Expression bound)
+    {
+        var value = bound is LiteralExpression { Value: char character } ? (Int128)character : IntegralConstant.Fold(bound);
+
+        return value is { } constant && constant >= ulong.MinValue && constant <= ulong.MaxValue
+            ? (long)(constant + UnsignedShift)
+            : null;
     }
 
     private static Admitted Variants(EnumType enumType)
@@ -155,8 +177,4 @@ internal static class MatchedValues
             : name == WellKnownTypes.Boolean.FullyQualifiedName ? Admitted.Between(0, 1)
             : null;
     }
-
-    private sealed record Algebra<T>(
-        T Everything, T Nothing, Func<T, T, T> And, Func<T, T, T> Or, Func<T, T> Not, Func<T, T, bool> IsSubsetOf, Func<ComparisonPattern, T?> Compared)
-        where T : class;
 }

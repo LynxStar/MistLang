@@ -674,6 +674,7 @@ internal sealed partial class ScopeResolver
         if(node is not null)
         {
             context.ProgramModel.ConstructorConstraintClosures.RecordType(alias, typeArgs, node, boundIn: boundIn);
+            context.ProgramModel.CompositeApplications.RecordClosing(aliased, alias.TypeParametersList, typeArgs, node, boundIn);
         }
 
         return TypeSubstitution

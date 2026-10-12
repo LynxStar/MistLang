@@ -6,6 +6,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -23,6 +24,7 @@ public sealed class RefStructPositionSiteTests
     [InlineData("Union", "MIST_PA_REF_STRUCT_UNION_CONSTITUENT")]
     [InlineData("Tuple", "MIST_PA_REF_STRUCT_ELEMENT")]
     [InlineData("Array", "MIST_PA_REF_STRUCT_ELEMENT")]
+    [InlineData("TypeArgument", "MIST_PA_REF_STRUCT_TYPE_ARGUMENT")]
     public void AWrittenCompositeHoldingARefStructIsRefusedWhereItWasWritten(string kind, string expected)
     {
         model.Model.CompositeApplications.Record(Enum.Parse<CompositeKind>(kind), [cursor, model.Type("String")], HandBuiltModel.Node(37));
@@ -106,6 +108,35 @@ public sealed class RefStructPositionSiteTests
         var root = new CastExpression(HandBuiltModel.Node(37), HandBuiltModel.Literal(cursor), thing, [], thing);
 
         AssertSite(model.Analyze(new CastAnalyzer(), root), "MIST_PA_REF_STRUCT_BOXED");
+    }
+
+    [Theory]
+    [InlineData("is")]
+    [InlineData("negated-is")]
+    [InlineData("switch-arm")]
+    public void ARefStructTypeTestedAgainstAnAbstractItImplementsIsRefusedAsBoxing(string shape)
+    {
+        var thing = new AbstractType("IThing", "Probe", new Scope(null), null, null);
+        cursor.BaseAbstractTypes.Add(thing);
+        var boolean = model.Type("Boolean");
+        Pattern test = new TypeTestPattern(HandBuiltModel.Node(37), thing, new LocalVariable("t", thing));
+        Expression root = shape switch
+        {
+            "is" => new IsPatternExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(cursor), test, boolean),
+            "negated-is" => new IsPatternExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(cursor), new NegatedPattern(HandBuiltModel.Node(), cursor, test), boolean),
+            _ => new SwitchExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(cursor), [new SwitchArm(HandBuiltModel.Node(), test, null, HandBuiltModel.Literal(boolean))], boolean),
+        };
+
+        AssertSite(model.Analyze(new RefStructPositionAnalyzer(), new ExpressionStatement(root)), "MIST_PA_REF_STRUCT_BOXED");
+    }
+
+    [Fact]
+    public void ARefStructTypeTestedAgainstItsOwnTypeIsAdmitted()
+    {
+        var test = new TypeTestPattern(HandBuiltModel.Node(37), cursor, new LocalVariable("c", cursor));
+        var root = new IsPatternExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(cursor), test, model.Type("Boolean"));
+
+        Assert.Empty(model.Analyze(new RefStructPositionAnalyzer(), new ExpressionStatement(root)));
     }
 
     [Fact]

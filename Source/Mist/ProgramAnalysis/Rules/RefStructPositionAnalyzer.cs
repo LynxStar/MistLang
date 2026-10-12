@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -10,10 +11,11 @@ namespace Mist.ProgramAnalysis.Rules;
 /// <summary>
 /// The places that would hold a ref struct off the stack: storage <see cref="RefStructPositions"/> refuses,
 /// a type argument, a union constituent, an optional, and a tuple or array element. A composite is judged
-/// where it was written -- an alias's union once, at the alias -- and an inferred tuple or array literal
-/// where it is formed, unless a written target gave it its type. A ref struct local, parameter or return
-/// stays admitted, and so does a ref struct declaring an interface: the boxing that would follow is refused
-/// where a value is converted, by <see cref="Assignability.Boxing"/>.
+/// where it was written -- an alias's union once, at the alias, and again at a use only for what that use
+/// closed its parameters with -- and an inferred tuple or array literal where it is formed, unless a
+/// written target gave it its type. A ref struct local, parameter or return stays admitted, and so does a
+/// ref struct declaring an interface: the boxing that would follow is refused where a value is converted
+/// or type-tested, by <see cref="Assignability.Boxing"/>.
 /// </summary>
 internal sealed class RefStructPositionAnalyzer : IProgramAnalyzer
 {
@@ -61,7 +63,53 @@ internal sealed class RefStructPositionAnalyzer : IProgramAnalyzer
                 case ArrayLiteralExpression { IsTargetTyped: false } array when RefStructs.Is(array.ElementType):
                     Report(context, CompositeKind.Array, array.ElementType, array.Node, [array]);
                     break;
+
+                case IsPatternExpression test when RefStructs.Is(test.Scrutinee.Type):
+                    JudgeTypeTests(context, test.Scrutinee, test.Pattern);
+                    break;
+
+                case SwitchExpression switched when RefStructs.Is(switched.Scrutinee.Type):
+                    foreach(var arm in switched.Arms)
+                    {
+                        JudgeTypeTests(context, switched.Scrutinee, arm.Pattern);
+                    }
+
+                    break;
             }
+        }
+    }
+
+    private static void JudgeTypeTests(AnalysisContext context, Expression scrutinee, Pattern pattern)
+    {
+        switch(pattern)
+        {
+            case TypeTestPattern test when Assignability.Boxing(scrutinee.Type, test.NarrowedType, context.Model.TypeInterner) is { } boxed:
+                context.Report(boxed, test.Node, [scrutinee], TypeDisplay.Mist(scrutinee.Type), TypeDisplay.Mist(test.NarrowedType));
+                break;
+
+            case PropertyPattern { TypeTest: { } typeTest }:
+                JudgeTypeTests(context, scrutinee, typeTest);
+                break;
+
+            case NegatedPattern negated:
+                JudgeTypeTests(context, scrutinee, negated.Operand);
+                break;
+
+            case ConjunctionPattern conjunction:
+                foreach(var operand in conjunction.Operands)
+                {
+                    JudgeTypeTests(context, scrutinee, operand);
+                }
+
+                break;
+
+            case DisjunctionPattern disjunction:
+                foreach(var operand in disjunction.Operands)
+                {
+                    JudgeTypeTests(context, scrutinee, operand);
+                }
+
+                break;
         }
     }
 
@@ -94,6 +142,12 @@ internal sealed class RefStructPositionAnalyzer : IProgramAnalyzer
         if(kind == CompositeKind.Union)
         {
             context.Report(ProgramAnalysisDiagnostics.RefStructUnionConstituent, at, about, TypeDisplay.Mist(held));
+            return;
+        }
+
+        if(kind == CompositeKind.TypeArgument)
+        {
+            context.Report(ProgramAnalysisDiagnostics.RefStructTypeArgument, at, about, TypeDisplay.Mist(held));
             return;
         }
 

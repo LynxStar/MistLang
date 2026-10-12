@@ -165,6 +165,8 @@ Top-level statements are resolved in Pass 2 like method body statements. The bui
 
 If any top-level `return` statement has an integer expression, the TLS file's effective return type is `int` (exit code). If all returns are bare `return;`, the effective return type is `void`. Mixed return types (some with int, some bare) are allowed — bare returns are treated as `return 0`.
 
+In the current compiler the synthesized entry method keeps a `void` result, and a valued top-level `return` is bound against `int` and marked as the exit code (`ReturnStatement.IsExitCode`); a `return` inside a lambda, local function or async block answers to that body instead. A value that does not convert implicitly to `int`, a `void` value included, is the type error of Requirement 7.3, reported at the value. The emitter writes an exit-code return as an assignment to `Environment.ExitCode` followed by `return;`, so a bare `return;` and falling off the end both exit with 0 however they are mixed with valued returns.
+
 ### 6. C# Emitter Changes
 
 In `CSharpSourceWriter.EmitCompilationUnit()`, detect whether the compilation unit has top-level statements:

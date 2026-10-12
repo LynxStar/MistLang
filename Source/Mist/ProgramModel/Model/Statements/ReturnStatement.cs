@@ -27,4 +27,11 @@ internal sealed class ReturnStatement(Expression? value, IMistType? targetType, 
     /// between the two is a program to reject, not one to silently repair.
     /// </summary>
     public bool IsRef { get; } = isRef;
+
+    /// <summary>
+    /// Whether the value is the process's exit code: a valued return written in the top-level statements,
+    /// whose <see cref="TargetType"/> is int although the statements form no method that returns one
+    /// (top-level-statements Requirement 7), so a bare return or falling off the end still exits with zero.
+    /// </summary>
+    public bool IsExitCode { get; init; }
 }

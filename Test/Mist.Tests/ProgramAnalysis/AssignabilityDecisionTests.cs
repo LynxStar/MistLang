@@ -106,6 +106,11 @@ public sealed class AssignabilityDecisionTests
     [InlineData("Nope n = 1;", "Int32", "error", 1L)]
     [InlineData("Helpers.Take(neverDeclared);", "error", "Int32", null)]
     [InlineData("long l = new Counter();", "Counter", "Int64", null)]
+    [InlineData("return void; in a void body", "Void", "Void", null)]
+    [InlineData("return Log(); in a void body", "Void", "Void", null)]
+    [InlineData("return Missing(); in a void body", "error", "Void", null)]
+    [InlineData("return 0; at top level", "Int32", "Int32", 0L)]
+    [InlineData("return small; at top level", "Byte", "Int32", null)]
     public void AdmittedSlotRemainsSilent(string caseName, string from, string to, long? constant)
     {
         var input = new AssignabilityTypes();

@@ -27,6 +27,8 @@ internal class Method(
 
     public SequenceLengthOperation SequenceLengthOperation { get; init; }
 
+    public bool IsTopLevelProgram { get; init; }
+
     /// <summary>
     /// The attributes applied to this method.
     /// </summary>

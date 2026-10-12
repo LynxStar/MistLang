@@ -138,6 +138,7 @@ internal static class LocalFunctionBinder
             IsAsyncContext = isAsync,
             EnclosingMethod = function,
             ReturnTypeIsFailed = function.Scope is RejectedLocalFunctionScope { ReturnTypeIsFailed: true },
+            ExitCodeType = null,
         };
 
         BodyBinder.BindNestedBlock(function.Body!, scope, bodyCtx, context, returnType);

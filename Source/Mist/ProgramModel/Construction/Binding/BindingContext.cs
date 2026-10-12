@@ -27,6 +27,13 @@ internal sealed class BindingContext
     public bool ReturnTypeIsFailed { get; set; }
 
     /// <summary>
+    /// What a valued <c>return</c> in the top-level statements answers to instead of <see cref="ReturnType"/>:
+    /// the exit code's int. Inherited by a nested block like everything else, and cleared by the lambda,
+    /// local function and async block binders, whose returns answer to the body they start.
+    /// </summary>
+    public IMistType? ExitCodeType { get; set; }
+
+    /// <summary>
     /// The type the current expression is expected to produce, or null when
     /// there is no target.
     /// </summary>
@@ -82,6 +89,7 @@ internal sealed class BindingContext
         : this(scope, returnType ?? enclosing.ReturnType)
     {
         ReturnTypeIsFailed = ReferenceEquals(ReturnType, enclosing.ReturnType) && enclosing.ReturnTypeIsFailed;
+        ExitCodeType = enclosing.ExitCodeType;
         EnclosingProperty = enclosing.EnclosingProperty;
         EnclosingMethod = enclosing.EnclosingMethod;
         IsAsyncContext = enclosing.IsAsyncContext;

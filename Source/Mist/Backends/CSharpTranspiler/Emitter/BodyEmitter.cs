@@ -656,6 +656,11 @@ internal static class BodyEmitter
 
             writer.WriteLine("return;");
         }
+        else if(returnStmt is { IsExitCode: true, Value: { } exitCode })
+        {
+            EmitSequenced(exitCode, "System.Environment.ExitCode = ", writer, diagnostics, slot: returnStmt.TargetType);
+            writer.WriteLine("return;");
+        }
         else if(returnStmt.Value is not null)
         {
             EmitSequenced(returnStmt.Value, returnStmt.IsRef ? "return ref " : "return ", writer, diagnostics, slot: returnStmt.TargetType);

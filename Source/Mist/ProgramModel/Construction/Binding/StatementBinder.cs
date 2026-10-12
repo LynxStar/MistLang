@@ -400,20 +400,22 @@ internal static class StatementBinder
             return new ReturnStatement(value: null, targetType: ctx.ReturnType);
         }
 
+        var target = ctx.ExitCodeType ?? ctx.ReturnType;
+
         Expression value;
-        using(ctx.PushTargetType(ctx.ReturnType, ctx.ReturnTypeIsFailed))
+        using(ctx.PushTargetType(target, ctx.ExitCodeType is null && ctx.ReturnTypeIsFailed))
         {
             value = ExpressionBinder.BindExpression(returnStatement.Value, ctx, context);
         }
 
         if(!ctx.InLambda)
         {
-            value = NewtypeLiterals.Admit(value, ctx.ReturnType, context.ProgramModel.TypeInterner)!;
+            value = NewtypeLiterals.Admit(value, target, context.ProgramModel.TypeInterner)!;
         }
 
-        value = ImplicitConversions.At(value, ctx.ReturnType, context.ProgramModel.TypeInterner);
+        value = ImplicitConversions.At(value, target, context.ProgramModel.TypeInterner);
 
-        return new ReturnStatement(value, ctx.ReturnType, returnStatement.RefKeyword is not null);
+        return new ReturnStatement(value, target, returnStatement.RefKeyword is not null) { IsExitCode = ctx.ExitCodeType is not null };
     }
 
     private static IfStatement BindIf(IfStatementNode node, BindingContext ctx, BuilderContext context)

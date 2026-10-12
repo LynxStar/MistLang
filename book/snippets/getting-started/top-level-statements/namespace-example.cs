@@ -4,7 +4,8 @@ using MyApp;
 
 MyApp.Helper helper = new MyApp.Helper("world");
 System.Console.WriteLine(helper.Greet());
-return 0;
+System.Environment.ExitCode = 0;
+return;
 
 namespace MyApp
 {

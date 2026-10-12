@@ -69,6 +69,9 @@ public sealed class AssignabilityRefusalTests
     [InlineData("struct-newtype-from-its-source", "Point", "Position", null, "MIST_PA_CAST_REQUIRED")]
     [InlineData("switch-arm", "Int32", "String", 1L, "MIST_PA_NO_IMPLICIT_CONVERSION")]
     [InlineData("tuple-deconstruction-element", "Int32", "String", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("top-level-return-of-text", "String", "Int32", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("top-level-return-of-a-long", "Int64", "Int32", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("top-level-return-of-unit", "Void", "Int32", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
     [InlineData("tuple-literal", "String", "Int32", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
     [InlineData("union-into-a-constituent", "IntOrString", "Int32", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
     [InlineData("union-not-covered", "IntOrString", "StringOrBool", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
@@ -76,6 +79,9 @@ public sealed class AssignabilityRefusalTests
     [InlineData("unknown-into-a-parameter", "unknown", "Int32", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
     [InlineData("value-across-two-instantiations-of-a-refinement-alias", "Ne<Int32>", "Ne<String>", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
     [InlineData("value-outside-a-refined-parameter-base", "Int32", "RefinedByte", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("void-body-return-of-a-constant", "Int32", "Void", 1L, "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("void-body-return-of-an-optional", "Int32?", "Void", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("void-body-return-of-a-reference", "Dog", "Void", null, "MIST_PA_NO_IMPLICIT_CONVERSION")]
     public void RefusedSlotKeepsItsDiagnostic(string caseName, string from, string to, long? constant, string expected)
     {
         var input = new AssignabilityTypes();

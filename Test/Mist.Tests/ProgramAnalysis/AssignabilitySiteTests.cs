@@ -19,6 +19,8 @@ public sealed class AssignabilitySiteTests
     [InlineData("assignment")]
     [InlineData("coalescing-assignment")]
     [InlineData("return")]
+    [InlineData("void-body-return")]
+    [InlineData("exit-code-return")]
     [InlineData("argument")]
     [InlineData("constructor-argument")]
     [InlineData("object-initializer")]
@@ -68,6 +70,12 @@ public sealed class AssignabilitySiteTests
                 break;
             case "return":
                 root = new ReturnStatement(value, integer);
+                break;
+            case "void-body-return":
+                root = new ReturnStatement(value, input.Type("Void"));
+                break;
+            case "exit-code-return":
+                root = new ReturnStatement(value, integer) { IsExitCode = true };
                 break;
             case "argument":
                 root = new InvocationExpression(HandBuiltModel.Node(3), target, [value], integer, null, [integer]);
@@ -190,7 +198,6 @@ public sealed class AssignabilitySiteTests
     [InlineData("unpaired-call")]
     [InlineData("elementless-params-call")]
     [InlineData("from-end-index")]
-    [InlineData("void-return")]
     [InlineData("failed-target")]
     public void ASlotTheAnalyzerDoesNotOwnRemainsSilent(string site)
     {
@@ -205,7 +212,6 @@ public sealed class AssignabilitySiteTests
             "elementless-params-call" => new InvocationExpression(HandBuiltModel.Node(), receiver, [value], integer, method, [integer]),
             "unpaired-call" => new InvocationExpression(HandBuiltModel.Node(), receiver, [value], integer, method, []),
             "from-end-index" => new IndexExpression(HandBuiltModel.Node(), receiver, value, integer),
-            "void-return" => new ReturnStatement(value, input.Type("Void")),
             "failed-target" => new AssignmentExpression(HandBuiltModel.Node(), new ErrorExpression(HandBuiltModel.Node()), value, integer),
             _ => throw new ArgumentOutOfRangeException(nameof(site)),
         };

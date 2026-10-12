@@ -33,7 +33,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     Check(context, assignment.Value, AssignedType(context, assignment), assignment.Target);
                     break;
 
-                case ReturnStatement { Value: { } value, TargetType: { } target } when !OptionalUnion.IsVoid(target):
+                case ReturnStatement { Value: { } value, TargetType: { } target }:
                     Check(context, value, target);
                     break;
 

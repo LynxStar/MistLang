@@ -124,7 +124,7 @@ A `return` statement in a top-level statement file sets the process exit code. R
 {{#endtab }}
 {{#endtabs }}
 
-A bare `return;` without a value exits with code 0 (success). Returning a non-integer expression is a type error.
+A bare `return;` without a value exits with code 0 (success), and so does reaching the end of the file, even when another path returns a code. A returned value is the exit code, so it must convert implicitly to `int`: a `byte` does, while a `long`, a `string`, or a `void` value is a type error reported at the value. A `return` inside a lambda or local function answers to that function, not to the exit code. The emitted C# assigns `Environment.ExitCode` and then returns, which keeps the generated entry point valid however its paths mix a code, a bare `return;`, and falling off the end.
 
 ## File-Scoped Namespaces
 

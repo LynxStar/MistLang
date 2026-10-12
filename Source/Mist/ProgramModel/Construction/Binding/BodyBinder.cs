@@ -53,14 +53,19 @@ internal static class BodyBinder
         // An async method's body returns the RESULT, not the task its signature advertises, so the
         // transform MethodBuilder applied is undone for the body's own target type.
         var isAsync = method.Modifiers.IsAsync;
-        var returnType = isAsync
-            ? TaskResult.Of(method.ReturnType) ?? method.ReturnType
+        var returnType = method is Constructor ? context.Resolver.LookupWellKnown(WellKnownTypes.Void)
+            : isAsync ? TaskResult.Of(method.ReturnType) ?? method.ReturnType
             : method.ReturnType
             ;
 
         BindStatements(
             method.Body!,
-            new BindingContext(bodyScope, returnType) { IsAsyncContext = isAsync, EnclosingMethod = method },
+            new BindingContext(bodyScope, returnType)
+            {
+                IsAsyncContext = isAsync,
+                EnclosingMethod = method,
+                ExitCodeType = method.IsTopLevelProgram ? context.Resolver.LookupWellKnown(WellKnownTypes.Int32) : null,
+            },
             context);
     }
 
@@ -193,18 +198,16 @@ internal static class BodyBinder
             bodyScope.DeclareLocal(new LocalVariable(ValueParameterName, valueType), accessorNode, context.Diagnostics);
         }
 
-        // A getter's `return` carries the value; a setter has nothing to return, so it gets no
-        // return type rather than a wrong one.
-        var returnType = isSetter ? null : valueType;
-
+        // A getter's `return` carries the value; a setter's body returns nothing, and its expression
+        // body is a side effect whose type nothing constrains.
         if(accessor.Body is { } body)
         {
-            BindBody(body, bodyScope, returnType, context, owningProperty);
+            BindBody(body, bodyScope, isSetter ? context.Resolver.LookupWellKnown(WellKnownTypes.Void) : valueType, context, owningProperty);
             return;
         }
 
         accessor.ExpressionBody = BindAccessorExpression(
-            accessor.ExpressionBody, returnType, bodyScope, owningProperty, context);
+            accessor.ExpressionBody, isSetter ? null : valueType, bodyScope, owningProperty, context);
     }
 
     private const string ValueParameterName = "value";

@@ -165,6 +165,7 @@ internal sealed class TypeBuilder
         {
             Body = new Block(syntheticBlock),
             Scope = syntheticType.Scope,
+            IsTopLevelProgram = true,
         };
 
         syntheticType.MethodsList.Add(mainMethod);

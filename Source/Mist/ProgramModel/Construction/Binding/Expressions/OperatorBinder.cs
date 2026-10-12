@@ -483,8 +483,10 @@ internal static class OperatorBinder
         var body = new Block(bodyNode);
         var enclosingIsAsync = ctx.IsAsyncContext;
         var enclosingReturn = ctx.ReturnType;
+        var enclosingExitCode = ctx.ExitCodeType;
         ctx.IsAsyncContext = true;
         ctx.ReturnType = null;
+        ctx.ExitCodeType = null;
 
         try
         {
@@ -494,6 +496,7 @@ internal static class OperatorBinder
         {
             ctx.IsAsyncContext = enclosingIsAsync;
             ctx.ReturnType = enclosingReturn;
+            ctx.ExitCodeType = enclosingExitCode;
         }
 
         var produced = LambdaBinder.InferredReturnType(body, node, context)

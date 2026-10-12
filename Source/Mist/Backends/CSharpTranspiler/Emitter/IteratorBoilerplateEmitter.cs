@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
 
@@ -23,9 +24,8 @@ internal static class IteratorBoilerplateEmitter
     {
         var emitted = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach(var reached in SlotLift.Reached(type))
+        foreach(var (reached, definition, _) in AbstractInheritance.Reached(SlotLift.Reached(type), interner: null))
         {
-            var definition = SlotLift.Definition(reached);
             var element = reached is ConstructedType { TypeArguments.Count: > 0 } constructed
                 ? TypeNameEmitter.Emit(constructed.TypeArguments[0])
                 : "object";

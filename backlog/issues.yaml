@@ -312,9 +312,10 @@ issues:
 - id: MIST-012
   title: Extend switch-arm containment across unsupported value domains
   status: confirmed
-  summary: MatchedValues supports long-domain integral and real sets, but no UInt64, union/optional product,
-    refined-on-refined, symbolic, list/property/tuple coverage. Tuple exhaustion also overlaps order3.
-    Enum duplicate arm severity is separate policy, split below.
+  summary: 'Packet 30 made switch-arm containment exact over UInt64, optional and union-carrier partitions,
+    statically tuple-typed products and refinement chains. Symbolic bounds, property patterns and list patterns are
+    still unread, so an arm only they cover stays silent and is left to C#. Enum duplicate-arm severity is separate
+    policy.'
   source_refs:
   - file: backlog/analysis-v2-capability-progression.yaml
     selector: rules[id=pattern-checking].tasks[3]
@@ -335,6 +336,65 @@ issues:
     - file: Source/Mist/ProgramAnalysis/Rules/PatternAnalyzer.cs
       selector: MatchedValues.Covered
       line: 302
+  - revision: '4eb567fbb384657bcb3795c1ca4a648eec5d3b22'
+    based_on: 'c178e4f63023347b99c7ffcf9f4215caade8c796'
+    date: '2026-10-11'
+    kind: bounded implementation and executed regression verification (packet 30)
+    implementation:
+    - 'MatchedValues reads a ulong''s values as longs shifted by 2^63, which keeps their order and every value past
+      Int64.MaxValue. MatchedSpaces builds the space of an optional (its value beside absence, which only void, a catch-all
+      or a negation reaches), a union carrier (one slot per whole constituent and one more only a catch-all fills) and a
+      statically tuple-typed product (boxes compared by exact box subtraction, so an arm covered only by several earlier
+      arms together is found). ValueAlgebra carries each domain''s set operations. Guards still add no coverage.'
+    - 'PatternBinder.ComposeRefinement conjoins every predicate of a refinement chain, base first and through aliases,
+      into TypeTestPattern.Refinement, so the emitted test, the flow facts after a match or a failed match and containment
+      all read SmallPositive (Positive < 10, Positive = int > 0) as > 0 and < 10.'
+    - 'Incidental, 45b4a0139fe31a5e39c2fd1e4f6fc6732ad7678b: PatternAnalyzer.Covers compared the arms'' constituents, so Dog d over Animal | string was
+      taken to cover every Animal and a following Animal a was refused although it runs; an earlier type test now covers a
+      later one only through the same constituent and when every value of the later tested type is one of the earlier''s.'
+    - 'Incidental, 41e224e77d1473c988b7f2b9606faf64f95e9d89: a refinement predicate the declaration rule refuses for a mismatched constant (type P = int >
+      "x") is reported once, as MIST_PA_REFINEMENT_CONSTANT_MISMATCH, instead of again as MIST_PA_PATTERN_CONSTANT_MISMATCH at
+      every type test of P or of a refinement built on it.'
+    acceptance:
+    - 'This record''s four packet probes at the implementation: Pick(ulong) reports MIST_PA_SWITCH_ARM_UNREACHABLE at the
+      `1` arm and at `_` (two CS8510 before); Pick(int?) reports the `> 10` arm; Pick((bool, bool)) reports `(true, false)`;
+      `x is SmallPositive` with x = -1 prints False (True before).'
+    - 'Negative CLI program of eight switches, eight findings, each at the later arm and none reaching Roslyn: ulong `> 5`
+      then `7`; ulong `>= 9223372036854775808` then `18446744073709551615`; int? `int n`, `void` then `_`; int? `>= 0`,
+      `< 0`, `void` then `_`; string? `string t`, `void` then `_`; (bool, bool) `(true, _)`, `(false, _)` then `_`;
+      (int, int) `(> 0, _)`, `(<= 0, > 5)` then `(0, 7)`; int `Positive p` then `SmallPositive s`.'
+    - 'Control CLI program runs with the expected output and its generated project builds (only the pre-existing CS8669 in
+      __Locale.g.cs): ulong arms past Int64.MaxValue, guarded earlier ulong, optional and tuple arms, int? absence reaching
+      `_` and `void`, `not >= 0` matching absence, string? arms, overlapping tuple arms, SmallPositive before Positive,
+      double NaN reaching `_`, overlapping int arms and `_` after every constituent of int | string. A separate program
+      with Dog d before Animal a over Animal | string prints dog, animal, text (refused before 45b4a0139fe31a5e39c2fd1e4f6fc6732ad7678b).'
+    - 'Refinement chain probe: SmallPositive rejects -1, 0 and 10 and accepts 1 and 9; Narrow over Wrapped (an alias of
+      Positive) rejects -1; a disjunction refined by a negation is tested whole; `v is SmallPositive` then a SmallPositive
+      argument is accepted, while the same call outside the branch, after reassignment, under `not SmallPositive` and after
+      `v is Small` is refused.'
+    tests:
+    - 'Tier 1: RefinementCompositionTests; ArmContainmentTests decisions (optional, carrier, tuple, ulong, controls);
+      PatternRefusalTests rows refined-over-refined, ulong-domain, ulong-beyond-long and optional-held-value with silent
+      controls refined-over-refined-below-its-base, ulong-below-the-sign-boundary and optional-absence-reaches-catch-all.'
+    - 'Tier 2: RefinedTypePatternBindingTests (binder type-test path); RefinedPatternFlowTests (flow facts);
+      ChainedRefinementEmissionTests (emitted predicates); ArmContainmentTests report sites with guarded controls;
+      PatternRefusalTests ARefinementItsDeclarationRefuses_IsNotJudgedAgainAtEachTest.'
+    verification:
+    - 'Full regression on the integrated head 181570469dbcea44e4b22de5bc11ca0137f57df9 (rebased on main c178e4f63023347b99c7ffcf9f4215caade8c796, Storm 83410653, Windows host): tools/test-ledger/run.sh built Mist.slnx with 0 warnings and 0 errors; Mist.Tests 9984 of 9984, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46 and Storm.SourceGenerator.Tests 909 of 910 passed, AllFeaturesV2_CompilesRunsAndMatchesBaseline, Testing_RunsUnderTheTestCommand and GeneratedProjectNullabilityTests included; the one failure, Storm NamespacedImportTests on this CRLF checkout, fails identically on unmodified main and is MIST-226. The earlier full run at a3a3599f (ledger 20261011-233614) failed that test and GeneratedProjectNullabilityTests, both identically on main (ledger 20261011-234056); the second is fixed as MIST-227;
+      ledger TestResults/ledger/20261011-234348, summary.txt read, failures.txt holds only that Storm test. dotnet format Mist.slnx --verify-no-changes
+      and git diff --check passed.'
+    - 'Each of the packet''s commits was built alone (0 warnings, 0 errors) and its focused classes run green through the
+      ledger before the next was applied.'
+    - 'Mutation: BindTypeTest reverted to the outer predicate alone failed three RefinedTypePatternBindingTests rows
+      (ledger 20261011-232528).'
+    limitations:
+    - Symbolic bounds, property patterns, list patterns and anything else MatchedValues cannot read stay silent.
+    - An enum still has no domain for unreachability, its arms being equality guards C# never judges; enum duplicate-arm
+      severity is separate policy.
+    - 'A catch-all after an arm for every constituent of a union carrier is not reported: C# runs it, and refusing it
+      would decide the universal-arm-versus-collective-coverage policy (tuple-pattern R3.5) this record does not own.
+      Tuple exhaustiveness is unchanged.'
+    - A tuple read past 256 boxes gives no verdict.
   related:
   - analysis3 tuple-product coverage
   - analysis12 range reasoning
@@ -1118,38 +1178,6 @@ issues:
   area: analysis
   merged_audit_keys:
   - backend:backend-stack-span-escape-positions
-- id: MIST-065
-  title: Verify refinement-union runtime narrowing implications
-  status: unverified
-  summary: Task states assignment constituent proving exists but runtime is-refinement unions only reach
-    pattern rules. No exact runtime/narrowed-knowledge repro exercised; retain finite validation of Req10.3
-    rather than expanding the solver blindly.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=refinement-proving].tasks[2]
-    line_at_baseline: 4775
-    lead_excerpt: 'A union with refined constituents is judged per constituent by the value''s base type,
-      or for a constant by any integral constituent it fits; a runtime `is` against a union of refinements
-      narrows to a constituent (Req 10.3) and is not judged beyond order 8''s pattern rules.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/RefinementAnalyzer.cs
-      selector: private sealed class Proving
-      line: 179
-    - file: Source/Mist/ProgramAnalysis/Rules/RefinementFlow.cs
-      selector: FlowStepKind.Assume
-      line: 103
-  related:
-  - analysis8 union patterns
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-064
-  area: analysis
 - id: MIST-066
   title: Revalidate static extension member callability
   status: unverified
@@ -1697,35 +1725,6 @@ issues:
   - emitter capability unknown-covariant-generic-widening
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:emitter-082-tasks-0
-  area: backend
-- id: MIST-088
-  title: Revalidate enum conversion to a union underlying type
-  status: unverified
-  summary: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-    behavior; no missing test name is used as evidence of a defect.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=88,id=enum-variant-value-inference].analysis_phase_tasks[0]
-    lead_excerpt: 'An enum does not convert to its own UNION base: `int | string u = Mixed.Text` over
-      `Mixed : int | string` is MIST_PA_NO_IMPLICIT_CONVERSION on v2 and MIST_TC_0070 on classic, though
-      Requirement 7.1 admits it and an enum to its backing value is lossless. The refusal is measured
-      (2026-09-12); the cause is read, not confirmed: ConversionClassifier.Within probes the target union''s
-      constituents with th…'
-    line_at_baseline: 6078
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
-      symbol: DeclarationShapeAnalyzer
-      line: 30
-  related:
-  - emitter capability enum-variant-value-inference
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-088-analysis_phase_tasks-0
   area: backend
 - id: MIST-089
   title: Variadic generic method groups as function values
@@ -2448,6 +2447,12 @@ issues:
     - file: Source/Mist/ProgramAnalysis/Rules/Assignability.cs
       selector: var constituents
       line: 55
+  - revision: 'ce3e8a6ce5deb97fc4d8d88cc7b661586911eb3f'
+    date: '2026-10-11'
+    kind: executed CLI probes
+    detail: 'With refined constituents kept apart (MIST-216), Small | Big value = 5 and Tiny t = 3; Small | Big value = t
+      each reach Roslyn as CS0029 (cannot convert int to Union_Int32_Big_Gt100_Int32_Small_Lt10): no constituent is
+      identical to the value''s type, so UnionEntry selects none and no runtime choice is made.'
   related:
   - emitter union conversion selection
   priority: P2
@@ -6575,51 +6580,6 @@ issues:
   priority: P3
   priority_rationale: Generated consumer warning only; no runtime defect.
   area: backend
-- id: MIST-216
-  title: Distinguish refined constituents that share a base in one union carrier
-  status: confirmed
-  summary: A union of two refinements of one type, such as Small | Big over int, is admitted but its carrier
-    names both constituents by the erased base, so it emits duplicate Is/As/AsOrNull members and factories
-    and fails in Roslyn. Sized constituents were separated by MIST-031; carrier names still erase a refinement
-    to its base, the CLR carrying no refinement. Entering an unrefined literal additionally needs MIST-108's
-    selection decision.
-  source_refs: []
-  evidence:
-  - revision: '16c0621fac6bc440d4ab60281fea9a178fc2153d'
-    date: '2026-10-11'
-    kind: executed CLI probe plus source inspection
-    source: 'using Standard;
-
-      namespace Probe;
-
-      type Small = int < 10;
-
-      type Big = int > 100;
-
-      public class Program { public static void Main() { Small | Big value = 5; Console.WriteLine(value switch
-      { Small s => "small", Big b => "big" }); } }
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    observed: MIST_PA_SWITCH_NOT_EXHAUSTIVE warning, then MIST_CS_ERROR on __Unions.g.cs (Union_Int32_Int32
-      already defines IsInt32, AsInt32, AsInt32OrNull and FromInt32) and on Program.cs (cannot convert int
-      to Union_Int32_Int32; ambiguous AsInt32OrNull). Identical at the MIST-031 base apart from the duplicate
-      implicit operators the base emitted in place of FromInt32.
-    sources:
-    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/UnionCarrierNames.cs
-      symbol: ConstituentName (RefinedType arm)
-    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/UnionEntry.cs
-      symbol: Entered
-    expected: The carrier distinguishes the two constituents in its member names and carrier name; a value
-      typed as one refinement enters through that constituent. An anonymous refinement has no declared name,
-      so the naming scheme needs a stable identity for it.
-  related:
-  - MIST-031 sized constituents sharing a CLR spelling
-  - MIST-065 refinement-union runtime narrowing
-  - MIST-108 ambiguous union entry selection
-  priority: P2
-  priority_rationale: An admitted program fails in Roslyn; the literal-entry half depends on an open decision.
-  area: backend
 - id: MIST-217
   title: Emit positional tuple patterns with untyped elements over unknown
   status: decision
@@ -6733,8 +6693,340 @@ issues:
   - language rules belong in the frontend
   priority_rationale: Invalid program reaches the target compiler.
   area: binding
+- id: MIST-223
+  title: Print a union value as the value it holds
+  status: decision
+  summary: 'A union value converted to text prints its carrier struct''s name. `int | string y = 3;` prints
+    Union_Int32_String through Console.WriteLine and interpolation, and AllFeaturesV2 banks
+    `AgeRange childAge = 5 -> Union_Byte_Int32`, captured from classic. Printing the held value''s invariant text would
+    change that banked output, so the owner decides it.'
+  source_refs: []
+  evidence:
+  - revision: 'a3a3599fed8e6b7d8bc1cdd1f5eed194c1f43cc5'
+    date: '2026-10-11'
+    kind: executed CLI probe plus baseline inspection
+    detail: '`int | string y = 3; Console.WriteLine(y); Console.WriteLine($"{y}");` prints Union_Int32_String twice;
+      samples/__baselines__/AllFeaturesV2.out lines 1130-1131 bank Union_Byte_Int32 for AgeRange. The carrier declares no
+      ToString, and an enum over a union stringifies its Value with a CS8603 warning in the generated project.'
+  related:
+  - MIST-216 in-carrier naming keeps existing carriers because of this
+  - MIST-088 enum over a union
+  priority_rationale: Observable text is wrong-looking but banked; changing it is a baseline decision.
+  area: backend
+- id: MIST-224
+  title: Decide whether a constant pattern may be negative
+  status: decision
+  summary: '`x is -3` and a positional `(-3, 7)` fail to parse (MIST_PARSE_INCOMPLETE at the enclosing declaration):
+    ConstantLiteral has no unary minus, while relational patterns (`< -3`) take an expression. Pattern-matching
+    Requirement 1 defines a constant pattern as a literal expression, and a negative number is a negation in Mist, so the
+    contract does not settle it.'
+  source_refs: []
+  evidence:
+  - revision: 'a3a3599fed8e6b7d8bc1cdd1f5eed194c1f43cc5'
+    date: '2026-10-11'
+    kind: executed CLI probes
+    detail: '`int x = -3; Console.WriteLine(x is -3);` and `(a, b) switch { (-3, 7) => ... }` each report
+      MIST_PARSE_INCOMPLETE; Source/Mist/Grammar rule ConstantLiteral lists INTEGER_LITERAL and FLOAT_LITERAL without a sign.'
+  related:
+  - pattern-matching requirements 1 and 2
+  priority_rationale: Language surface choice; a grammar change needs the Storm differential check.
+  area: grammar
+- id: MIST-225
+  title: Name the refined constituents of a union alias in a pattern
+  status: decision
+  summary: 'Every refinement in a union alias carries the alias''s name, so `type Split = int < -100 | int > 100;` or the
+    spec''s AgeRange (int >= 3 and <= 8 | byte >= 0 and < 64) leaves no type to name one constituent by, and `x is int n`
+    is MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT. Refinement-types Requirement 10.3 asks a match to narrow to the
+    constituent; how a pattern selects one (its base when unambiguous, its predicate, a new spelling) is a language
+    decision. The carriers already emit since MIST-216.'
+  source_refs: []
+  evidence:
+  - revision: 'a3a3599fed8e6b7d8bc1cdd1f5eed194c1f43cc5'
+    date: '2026-10-11'
+    kind: executed CLI probes
+    detail: '`Split low = -500; low is int n` and `AgeRange a = 5; a is int n` each report MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT
+      naming Split | Split and AgeRange | AgeRange; Split''s carrier is Union_Int32_Split_Gt100_Int32_Split_LtNeg100.'
+  related:
+  - MIST-216 refined constituents sharing a base
+  - MIST-065 refined constituent binding
+  - refinement-types requirements 10.1 and 10.3
+  priority_rationale: A specified shape cannot be matched; the selection rule is undecided.
+  area: binding
+- id: MIST-226
+  title: Make Storm's namespaced import test independent of checkout line endings
+  status: confirmed
+  summary: 'Storm.SourceGenerator.Tests.NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem
+    fails on a Windows checkout with core.autocrlf=true: the grammar in its raw string literal carries CRLF, the qualified
+    mode text keeps it, and the expected lines use LF. Every other test passes there; on an LF checkout it passes. The
+    fix belongs to LynxStar/StormLang (normalize the compared text or pin LF for test sources) and a pin bump here.'
+  source_refs: []
+  evidence:
+  - revision: 'c178e4f63023347b99c7ffcf9f4215caade8c796'
+    date: '2026-10-11'
+    kind: executed full and focused ledger runs on a Windows host
+    detail: 'Full ledger TestResults/ledger/20261011-233614 (packet 30 branch rebased on main c178e4f63023347b99c7ffcf9f4215caade8c796) and focused ledger
+      20261011-234056 on unmodified main c178e4f63023347b99c7ffcf9f4215caade8c796 both fail it with Assert.Equal Collections differ at position 4, expected
+      "mode L.Inner {\n" against actual "mode L.Inner {\r\n". Six worktrees on the host hold the test file with 251 CR
+      bytes; the packet 25 closeout''s 910 of 910 Storm passes were on an LF host (polling-watcher setting recorded).'
+  related:
+  - packet 25 Storm grammar semantics (Storm 83410653)
+  priority_rationale: A deterministic red full-suite result on Windows hosts hides real failures there.
+  area: tooling
 
 archive:
+- id: MIST-227
+  title: Give the Windows locale runtime its nullable context
+  status: implemented
+  summary: 'Every executable compiled for Windows carries __Locale.g.cs, which MSBuild compiles with nullable annotations
+    off, so PosixLocale''s CultureInfo? and string? raised CS8669 three times in each generated project and failed
+    GeneratedProjectNullabilityTests on Windows hosts. The file now opens with #nullable enable; the runtime keeps its
+    annotations because Mist compiles the same source with nullable analysis on.'
+  source_refs: []
+  evidence:
+  - revision: '181570469dbcea44e4b22de5bc11ca0137f57df9'
+    based_on: 'c178e4f63023347b99c7ffcf9f4215caade8c796'
+    date: '2026-10-11'
+    kind: implementation and executed regression verification (found during packet 30)
+    detail: 'GeneratedProjectNullabilityTests.EmitterToMSBuild_TheGeneratedProjectRaisesNoNullableWarning failed with three
+      CS8669 at __Locale.g.cs(25,30), (25,59) and (39,31) in full ledger 20261011-233614 and identically on unmodified main
+      c178e4f63023347b99c7ffcf9f4215caade8c796 (ledger 20261011-234056); every probe project built on the host showed the same three warnings. With the
+      directive it passes, with LocaleStartupTests (first lines pinned) and PosixLocaleTests (ledger 20261011-234237).'
+    verification:
+    - 'Full regression on the integrated head 181570469dbcea44e4b22de5bc11ca0137f57df9 (rebased on main c178e4f63023347b99c7ffcf9f4215caade8c796, Storm 83410653, Windows host): tools/test-ledger/run.sh built Mist.slnx with 0 warnings and 0 errors; Mist.Tests 9984 of 9984, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46 and Storm.SourceGenerator.Tests 909 of 910 passed, AllFeaturesV2_CompilesRunsAndMatchesBaseline, Testing_RunsUnderTheTestCommand and GeneratedProjectNullabilityTests included; the one failure, Storm NamespacedImportTests on this CRLF checkout, fails identically on unmodified main and is MIST-226. The earlier full run at a3a3599f (ledger 20261011-233614) failed that test and GeneratedProjectNullabilityTests, both identically on main (ledger 20261011-234056); the second is fixed as MIST-227;
+      ledger TestResults/ledger/20261011-234348, summary.txt read, failures.txt holds only that Storm test. dotnet format Mist.slnx --verify-no-changes
+      and git diff --check passed.'
+    - 'Each of the packet''s commits was built alone (0 warnings, 0 errors) and its focused classes run green through the
+      ledger before the next was applied.'
+  related:
+  - feat(driver) Compile for a target platform, and honour the POSIX locale on Windows (ee991fc0)
+  - erased structural types closeout dropping the invariant runtime's annotations (29eccbcf)
+  priority_rationale: A generated project raised warnings and a Tier 4 test failed on Windows hosts.
+  area: backend
+- id: MIST-088
+  title: 'Convert an enum to its whole union underlying type'
+  status: implemented
+  summary: 'An enum over a union converts implicitly to that whole union, and to a union holding it, keeping the
+    constituent its value holds; it does not convert to one constituent alone or to an unrelated union, and nothing
+    converts back to it implicitly. An enum entering any carrier but its own underlying one is read as its underlying
+    value first, which C#''s single user-defined conversion requires.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=88,id=enum-variant-value-inference].analysis_phase_tasks[0]
+    lead_excerpt: 'An enum does not convert to its own UNION base: `int | string u = Mixed.Text` over
+      `Mixed : int | string` is MIST_PA_NO_IMPLICIT_CONVERSION on v2 and MIST_TC_0070 on classic, though
+      Requirement 7.1 admits it and an enum to its backing value is lossless. The refusal is measured
+      (2026-09-12); the cause is read, not confirmed: ConversionClassifier.Within probes the target union''s
+      constituents with th…'
+    line_at_baseline: 6078
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
+      symbol: DeclarationShapeAnalyzer
+      line: 30
+  - revision: 'a3a3599fed8e6b7d8bc1cdd1f5eed194c1f43cc5'
+    based_on: 'c178e4f63023347b99c7ffcf9f4215caade8c796'
+    date: '2026-10-11'
+    kind: implementation and executed regression verification (packet 30)
+    implementation:
+    - 'ConversionClassifier.Within probed the target union''s constituents with the visited set of the walk toward the
+      whole union, so the enum''s underlying union, visited while probing int, was never tried against the union itself
+      and Mixed -> int | string was MIST_PA_NO_IMPLICIT_CONVERSION. Each constituent probe now starts its own set.'
+    - 'BodyEmitter.EmitEntering reads an enum as its underlying value, through that value''s factory where it has one, when
+      it enters a carrier other than its own underlying one (UnionEntry.Unwrapped); an enum that is itself a constituent of
+      the carrier still enters through its own operator. This also repairs an enum over int entering int | string, which
+      failed in Roslyn with CS0029 before.'
+    acceptance:
+    - 'Mixed.Text and Mixed.Number assign and pass to int | string and print string s and int 3 through a switch; a method
+      returning int | string returns Mixed.Text; int | string | bool takes Mixed.Text and Mixed.Number through
+      ((Union_Int32_String)value).'
+    - 'Color (int) enters int | string as int 2 and int 1 by assignment and argument; long wide = Color.Red prints 1;
+      Color | int and Color | string keep the Color tag (color Red, color Green) and an int argument the int tag.'
+    - Mixed.Text prints Text and Mixed.Number == Mixed.Number is True (variant identity unchanged).
+    tests:
+    - 'Tier 1: UnionConversionTests (whole union and a union holding it implicit; one constituent, an unrelated union and
+      the reverse not implicit; an enum over a primitive keeps its conversions); UnionEntryTests enum unwrapping.'
+    - 'Tier 2: UnionCarrierEmissionTests enum entry into another carrier, its own, and a carrier listing the enum.'
+    verification:
+    - 'Full regression on the integrated head 181570469dbcea44e4b22de5bc11ca0137f57df9 (rebased on main c178e4f63023347b99c7ffcf9f4215caade8c796, Storm 83410653, Windows host): tools/test-ledger/run.sh built Mist.slnx with 0 warnings and 0 errors; Mist.Tests 9984 of 9984, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46 and Storm.SourceGenerator.Tests 909 of 910 passed, AllFeaturesV2_CompilesRunsAndMatchesBaseline, Testing_RunsUnderTheTestCommand and GeneratedProjectNullabilityTests included; the one failure, Storm NamespacedImportTests on this CRLF checkout, fails identically on unmodified main and is MIST-226. The earlier full run at a3a3599f (ledger 20261011-233614) failed that test and GeneratedProjectNullabilityTests, both identically on main (ledger 20261011-234056); the second is fixed as MIST-227;
+      ledger TestResults/ledger/20261011-234348, summary.txt read, failures.txt holds only that Storm test. dotnet format Mist.slnx --verify-no-changes
+      and git diff --check passed.'
+    - 'Each of the packet''s commits was built alone (0 warnings, 0 errors) and its focused classes run green through the
+      ledger before the next was applied.'
+    limitations:
+    - A union value printed directly shows its carrier's name; tracked as MIST-223.
+    - The generated ToString of an enum over a union warns CS8603 in the generated project, as before.
+  related:
+  - emitter capability enum-variant-value-inference
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-088-analysis_phase_tasks-0
+  area: backend
+- id: MIST-065
+  title: 'Validate runtime refined constituent binding and flow end to end'
+  status: implemented
+  summary: 'Verified once MIST-216 let a refined union compile: matching a constituent of a union of refinements
+    binds it with that refinement''s static type and enough proof to pass it where the refinement is required, the
+    full composed predicate is what the emitted test checks, and branch facts end at the branch. A switch testing every
+    refined constituent is no longer reported non-exhaustive.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=refinement-proving].tasks[2]
+    line_at_baseline: 4775
+    lead_excerpt: 'A union with refined constituents is judged per constituent by the value''s base type,
+      or for a constant by any integral constituent it fits; a runtime `is` against a union of refinements
+      narrows to a constituent (Req 10.3) and is not judged beyond order 8''s pattern rules.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/RefinementAnalyzer.cs
+      selector: private sealed class Proving
+      line: 179
+    - file: Source/Mist/ProgramAnalysis/Rules/RefinementFlow.cs
+      selector: FlowStepKind.Assume
+      line: 103
+  - revision: '77b6ccdfc3a5ae6cfa084fb0359571c8541ffc85'
+    based_on: 'c178e4f63023347b99c7ffcf9f4215caade8c796'
+    date: '2026-10-11'
+    kind: verification with one implementation fix (packet 30)
+    implementation:
+    - 'ExhaustivenessAnalyzer.MightMatch matched an arm to a constituent with ConversionRelation.IsIdentity, false for any
+      refinement, so a switch over Small | Big with Small s and Big b arms warned MIST_PA_SWITCH_NOT_EXHAUSTIVE naming both.
+      The arm''s constituent is now matched by reference first; a union missing a refined constituent still names it.'
+    - Binding, flow and proving needed no change; MIST-216 (ce3e8a6ce5deb97fc4d8d88cc7b661586911eb3f) and the refinement chain work in MIST-012 (4eb567fbb384657bcb3795c1ca4a648eec5d3b22) carry
+      the emission and composed-predicate halves.
+    acceptance:
+    - 'Same-base constituents (Small | Big): value is Small s passes s to a Small parameter and value is Big b to a Big one;
+      Small values print small, Big values big; first is Big and second is Small are False; s cannot be passed as a Big
+      (MIST_PA_REFINEMENT_NOT_IMPLIED).'
+    - 'Distinct-base constituents (Tiny = byte < 10 | Pos = int > 0): each matched constituent binds its refinement and
+      runs on Union_Byte_Int32.'
+    - 'Values in neither predicate, tested on an int: -1, 0, 5, 9 are Small, 101 is Big, 10 and 50 are neither; SmallPositive
+      accepts only 5 and 9 of them.'
+    - 'Flow negatives refused: a refinement call after the branch (MIST_PA_REFINEMENT_UNPROVEN), after reassignment inside it
+      (MIST_PA_REFINEMENT_VIOLATED for the literal), under not SmallPositive and after a Small test (UNPROVEN).'
+    tests:
+    - 'Tier 1: ExhaustivenessRefusalTests rows union-missing-a-refined-constituent, union-of-refined-constituents-each-tested
+      and optional-refinement-and-its-absence.'
+    - 'Tier 2: RefinedPatternFlowTests (constituent bindings of one and of different bases, composed chains, negation,
+      branch scope, reassignment); RefinedTypePatternBindingTests constituent binding.'
+    verification:
+    - 'Full regression on the integrated head 181570469dbcea44e4b22de5bc11ca0137f57df9 (rebased on main c178e4f63023347b99c7ffcf9f4215caade8c796, Storm 83410653, Windows host): tools/test-ledger/run.sh built Mist.slnx with 0 warnings and 0 errors; Mist.Tests 9984 of 9984, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46 and Storm.SourceGenerator.Tests 909 of 910 passed, AllFeaturesV2_CompilesRunsAndMatchesBaseline, Testing_RunsUnderTheTestCommand and GeneratedProjectNullabilityTests included; the one failure, Storm NamespacedImportTests on this CRLF checkout, fails identically on unmodified main and is MIST-226. The earlier full run at a3a3599f (ledger 20261011-233614) failed that test and GeneratedProjectNullabilityTests, both identically on main (ledger 20261011-234056); the second is fixed as MIST-227;
+      ledger TestResults/ledger/20261011-234348, summary.txt read, failures.txt holds only that Storm test. dotnet format Mist.slnx --verify-no-changes
+      and git diff --check passed.'
+    - 'Each of the packet''s commits was built alone (0 warnings, 0 errors) and its focused classes run green through the
+      ledger before the next was applied.'
+    - 'Mutation: MightMatch without the reference arm failed three ExhaustivenessRefusalTests rows (ledger 20261011-232558).'
+    limitations:
+    - A raw unknown value tested against a whole carrier union is a separate membership policy, excluded here.
+    - Constituents of a union alias sharing the alias's name cannot be named in a pattern (MIST-225).
+  related:
+  - analysis8 union patterns
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-064
+  area: analysis
+- id: MIST-216
+  title: Distinguish refined constituents that share a base in one union carrier
+  status: implemented
+  summary: 'A carrier whose constituents would share an erased name keeps each refinement''s identity, so
+    Small | Big over int emits Union_Int32_Big_Gt100_Int32_Small_Lt10 with a tag, accessors and From factory per
+    refinement, and a typed Small or Big value enters, narrows, extracts and widens through its own constituent.
+    Unions whose bases already tell the constituents apart keep their erased carriers.'
+  source_refs: []
+  evidence:
+  - revision: '16c0621fac6bc440d4ab60281fea9a178fc2153d'
+    date: '2026-10-11'
+    kind: executed CLI probe plus source inspection
+    source: 'using Standard;
+
+      namespace Probe;
+
+      type Small = int < 10;
+
+      type Big = int > 100;
+
+      public class Program { public static void Main() { Small | Big value = 5; Console.WriteLine(value switch
+      { Small s => "small", Big b => "big" }); } }
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    observed: MIST_PA_SWITCH_NOT_EXHAUSTIVE warning, then MIST_CS_ERROR on __Unions.g.cs (Union_Int32_Int32
+      already defines IsInt32, AsInt32, AsInt32OrNull and FromInt32) and on Program.cs (cannot convert int
+      to Union_Int32_Int32; ambiguous AsInt32OrNull). Identical at the MIST-031 base apart from the duplicate
+      implicit operators the base emitted in place of FromInt32.
+    sources:
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/UnionCarrierNames.cs
+      symbol: ConstituentName (RefinedType arm)
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/UnionEntry.cs
+      symbol: Entered
+    expected: The carrier distinguishes the two constituents in its member names and carrier name; a value
+      typed as one refinement enters through that constituent. An anonymous refinement has no declared name,
+      so the naming scheme needs a stable identity for it.
+  - revision: 'ce3e8a6ce5deb97fc4d8d88cc7b661586911eb3f'
+    based_on: 'c178e4f63023347b99c7ffcf9f4215caade8c796'
+    date: '2026-10-11'
+    kind: implementation and executed regression verification (packet 30)
+    implementation:
+    - 'UnionCarrierNames names a constituent within its carrier: a refinement erases to its base unless that would leave
+      two constituents one name, and then each refinement keeps a RefinedConstituentNames spelling after its base -- its
+      declared name, then its predicate spelled out for constant comparisons (Lt10, Ge0AndLe100, NotEq0OrGe5, Gt0p5) and
+      otherwise an X-prefixed FNV-1a digest of its whitespace-free source text and dependent closing; an anonymous one
+      is Where{offset}. AgeRange (int >= 3 and <= 8 | byte >= 0 and < 64) keeps Union_Byte_Int32, which the AllFeaturesV2
+      baseline prints.'
+    - 'UnionCarrierEmitter, BodyEmitter (is narrowing, switch arms, as extraction) and UnionEntry spell members in their
+      carrier''s context; carrier-to-carrier widening reads the narrow carrier''s members and tags through the wide
+      carrier''s, so refinements sharing a union alias''s name keep their tags.'
+    - 'UnionEntry.Entered chooses an identical constituent by reference before by name, a refinement never being
+      IsIdentity-equal to anything: a typed Small enters Small | Big, or Small | int, through FromInt32_Small_Lt10.'
+    - 'ConversionRelation.WidensIntoUnion lets a union widen into one holding each of its constituents by reference, so
+      Small | Big widens into Small | Big | string (refused with MIST_PA_NO_IMPLICIT_CONVERSION before); implication
+      between different refinements stays the prover''s.'
+    acceptance:
+    - 'Packet probe (Small a = 5; Small | Big value = a; value is Small s; TakeSmall(s); switch over Small s and Big b)
+      prints 5 and small with no diagnostic; its generated project builds, warning only CS8509 for the carrier switch
+      (Roslyn cannot see constituent arms exhaust a carrier) and the pre-existing CS8669.'
+    - 'Runtime probe through the CLI: typed Small and Big entries by local, argument and return; Big | Small reuses
+      Union_Int32_Big_Gt100_Int32_Small_Lt10; is, switch and as recover each constituent and refuse the other; widening
+      into Small | Big | string keeps both tags; Tiny (byte < 10) | Pos (int > 0) runs on Union_Byte_Int32; a union alias
+      Split = int < -100 | int > 100 emits Union_Int32_Split_Gt100_Int32_Split_LtNeg100; samples/RefinementTypes still prints
+      Union_Byte_Int32 for AgeRange.'
+    tests:
+    - 'Tier 1: UnionCarrierNamesTests (spellings, in-carrier erasure, shared alias names, digests per closing and
+      declaration); UnionEntryTests (refined identity, refinement beside its base, unrefined values left unlowered);
+      UnionConversionTests refined widening.'
+    - 'Tier 2: UnionCarrierEmissionTests (refined carrier members, widening tags with shared alias names, entry, narrowing
+      and as extraction).'
+    verification:
+    - 'Full regression on the integrated head 181570469dbcea44e4b22de5bc11ca0137f57df9 (rebased on main c178e4f63023347b99c7ffcf9f4215caade8c796, Storm 83410653, Windows host): tools/test-ledger/run.sh built Mist.slnx with 0 warnings and 0 errors; Mist.Tests 9984 of 9984, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46 and Storm.SourceGenerator.Tests 909 of 910 passed, AllFeaturesV2_CompilesRunsAndMatchesBaseline, Testing_RunsUnderTheTestCommand and GeneratedProjectNullabilityTests included; the one failure, Storm NamespacedImportTests on this CRLF checkout, fails identically on unmodified main and is MIST-226. The earlier full run at a3a3599f (ledger 20261011-233614) failed that test and GeneratedProjectNullabilityTests, both identically on main (ledger 20261011-234056); the second is fixed as MIST-227;
+      ledger TestResults/ledger/20261011-234348, summary.txt read, failures.txt holds only that Storm test. dotnet format Mist.slnx --verify-no-changes
+      and git diff --check passed.'
+    - 'Each of the packet''s commits was built alone (0 warnings, 0 errors) and its focused classes run green through the
+      ledger before the next was applied.'
+    - 'Mutation: WidensIntoUnion without the reference arm failed UnionConversionTests.AUnionOfRefinements_WidensIntoAUnionHoldingEachOfThem
+      (ledger 20261011-232558).'
+    limitations:
+    - 'Entering an unrefined literal (Small | Big value = 5) or a value only proven to fit one refinement (a Tiny = int < 5
+      value) still enters no constituent and reaches Roslyn as CS0029; choosing one is MIST-108''s decision.'
+    - Constituents of a union alias whose refinements share the alias's name cannot be named in a pattern; tracked as
+      MIST-225.
+    - A union value's text is still its carrier's name, which is why in-carrier erasure keeps existing carriers; tracked
+      as MIST-223.
+    - Two declarations with the same name and identical unspellable predicate text in one union would share a spelling.
+  related:
+  - MIST-031 sized constituents sharing a CLR spelling
+  - MIST-065 refinement-union runtime narrowing
+  - MIST-108 ambiguous union entry selection
+  priority: P2
+  priority_rationale: An admitted program fails in Roslyn; the literal-entry half depends on an open decision.
+  area: backend
 - id: MIST-045
   title: Qualified base type references do not parse
   status: implemented

@@ -308,6 +308,35 @@ var list = new System.Collections.Generic.List<int>();
 
 > Note: Fully qualified references work without `using` directives, but the `using` form is preferred for readability.
 
+## Calling CLR Members
+
+A CLR method is called the way C# calls it:
+
+- **Optional parameters** can be left off the end of the argument list. The native method supplies its own default, so Mist never evaluates the default value.
+- **`params` parameters** take their elements as a flat list, or one array or collection that already holds them. Both C# `params` arrays and C# 13 `params` collections such as `ReadOnlySpan<T>` work this way.
+- **`System.Object` parameters and locals** accept any value, which is boxed where necessary, as in C#. Nothing converts from `System.Object` back to a narrower type implicitly.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/dotnet-interop/clr-call-shapes.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/dotnet-interop/clr-call-shapes.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+When several overloads could take the same arguments, the compiler picks the one C# picks:
+
+- A candidate called in normal form beats one that has to expand its `params` list.
+- Among expanded candidates, one with more fixed parameters wins, and a span collection beats an array.
+- A candidate that receives every one of its parameters beats one that relies on a default.
+
+Arguments to CLR members are checked like arguments to Mist methods. A wrong supplied argument, a `params` element of the wrong type and a dictionary key of the wrong type are reported in your Mist source, not by the C# compiler.
+
 ## Cross-Assembly Inheritance
 
 CLR inheritance hierarchies that span multiple assemblies are fully resolved. When a class like `MemoryStream` (in `System.IO`) inherits from `Stream` (in `System.Runtime`), the Mist type projector connects the full chain through the Assembly Type Provider's shared cache. This means:
@@ -651,6 +680,10 @@ CLR inheritance hierarchies are fully projected. If class `C` inherits from `B` 
 
 Interface implementations are also projected — a CLR type implementing `IComparable<T>` is assignable to `IComparable<T>` in Mist.
 
+A Mist type conforming to a CLR interface does not have to answer a member the interface implements with a default body. A call to that member gives the same result on the conforming value as through the interface. If the type declares the member itself, its own version wins on both routes. If a derived CLR interface declares its own body for the member, the most specific body runs. If it reabstracts the member, the conformer must answer it.
+
+On a value of a CLR class you reach the members that the class and its base classes declare, as in C#. A member the class implements only explicitly for one of its interfaces is reachable through that interface, not through the class.
+
 Abstract types cannot be instantiated with `new` (the compiler reports an error), and sealed types cannot be inherited from in Mist code.
 
 ## Iterating CLR Collections
@@ -671,6 +704,8 @@ foreach (int x in list)
 
 > Note: `foreach` over CLR collections uses the same syntax as Mist-native enumerables. The compiler handles the protocol translation automatically.
 
+A Mist enumerable or enumerator can also reach `IEnumerable<T>` or `IEnumerator<T>` through an abstract of its own, such as `abstract ITicker : IEnumerator<int>`. It still receives the extra members the CLR interfaces require (the non-generic `Current` and `GetEnumerator`, `Reset` and `Dispose`), each emitted once. A `Dispose` or `Reset` the type or one of its abstracts already declares is kept.
+
 ## Summary
 
 The Assembly Type Provider gives you access to the full .NET ecosystem from Mist:
@@ -682,6 +717,7 @@ The Assembly Type Provider gives you access to the full .NET ecosystem from Mist
 - **Null safety** is enforced — reference returns are `T | void`, requiring narrowing
 - **Cross-assembly inheritance** is resolved — derived types are assignable to base types across assemblies
 - **Inherited members** are callable on derived types
+- **CLR calls** take optional parameters, `params` lists and `System.Object` targets the way C# does, and are checked in your Mist source
 - **Per-overload hiding** — only overloads using genuinely unsupported types are hidden
 - **Ref structs** are projected as stack-only structs and remain usable
 - **Unsupported features** are hidden per-overload, not errored — use what works without friction

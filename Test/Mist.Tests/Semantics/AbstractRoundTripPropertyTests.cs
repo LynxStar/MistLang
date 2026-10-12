@@ -42,7 +42,7 @@ public class AbstractRoundTripPropertyTests
 
     private static BaseListNode MakeBaseList(string name)
     {
-        var baseTypeRef = new BaseTypeRefNode { Name = Tok(name) };
+        var baseTypeRef = new BaseTypeRefNode { Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) } };
         return new BaseListNode
         {
             First = baseTypeRef,

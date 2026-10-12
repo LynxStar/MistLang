@@ -119,8 +119,8 @@ public class InheritanceRoundTripPropertyTests
         {
             var baseList = new BaseListNode
             {
-                First = new BaseTypeRefNode { Name = Tok(baseClassName) },
-                Rest = new BaseTypeRefNode { Name = Tok(baseClassName) },
+                First = new BaseTypeRefNode { Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(baseClassName) } },
+                Rest = new BaseTypeRefNode { Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(baseClassName) } },
                 BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
             };
             classDecl.BaseClause = baseList;
@@ -275,7 +275,7 @@ public class InheritanceRoundTripPropertyTests
         var description = string.Join(", ",
             classDecls.Select(c =>
             {
-                var basePart = c.BaseClause is not null ? $" : {c.BaseList.First.Name.Lexeme}" : "";
+                var basePart = c.BaseClause is not null ? $" : {c.BaseList.First.Name.IDENTIFIER.Lexeme}" : "";
                 return $"{c.Name.Lexeme}{basePart}";
             }));
 

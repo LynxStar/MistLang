@@ -64,7 +64,7 @@ rule TypeParameter
     = PARAMS name:IDENTIFIER                                          as ParamsPackTypeParameter
     | domainName:IDENTIFIER arrayRank:ArrayRankSuffix COLON name:IDENTIFIER  as ExplicitPackTypeParameter
     | name:IDENTIFIER COLON valueType:PrimitiveType           as DependentTypeParameter
-    | name:IDENTIFIER COLON constraintName:IDENTIFIER         as NamedConstraintDependentTypeParameter
+    | name:IDENTIFIER COLON constraintName:QualifiedIdentifier as NamedConstraintDependentTypeParameter
     | name:IDENTIFIER                                          as RegularTypeParameter
     ;
 
@@ -148,14 +148,12 @@ rule TypeBodyDeclaration : HasModifiers = attributes:AttributeList* modifiers:Mo
     constraints:WhereClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
-// A base entry is a type name with optional type arguments, plus an optional
-// trailing spread `...`. The bare spread form `: TArgs...` expands a Type[] pack
-// into one base-type entry per element (Requirement 9.3); it is kept as an
-// optional token so `Name`/`TypeArgs` stay directly on the node for the existing
-// consumers, and semantic validity (the operand must be a pack) is deferred to
-// the program model. Spreading into a base type's type arguments (`: ICountable<TArgs...>`)
-// is handled separately by the SpreadSingleTypeRef form inside the type-argument list.
-rule BaseTypeRef = name:IDENTIFIER typeArgs:TypeArgumentList? spread:ELLIPSIS?;
+// Bases use the nominal name forms from type positions, including a constructed enclosing type.
+// A trailing spread keeps the existing Type[] pack syntax without admitting arbitrary base shapes.
+rule BaseTypeRef = name:QualifiedIdentifier enclosing:BaseTypeEnclosing?
+    typeArgs:TypeArgumentList? spread:ELLIPSIS?;
+
+rule BaseTypeEnclosing = outerArgs:TypeArgumentList DOT nested:QualifiedIdentifier;
 
 rule BaseList = first:BaseTypeRef (COMMA rest:BaseTypeRef)*;
 

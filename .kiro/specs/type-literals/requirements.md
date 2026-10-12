@@ -67,6 +67,7 @@ Mist diverges from C# by treating types as first-class literal expressions. In C
 2. WHEN a `TypeLiteralExpression` references a primitive type keyword, THE Semantic_Model_Builder SHALL resolve the type literal without requiring any imports.
 3. WHEN a `TypeLiteralExpression` references a user-defined type, THE Semantic_Model_Builder SHALL resolve the type using the same scope and import rules as type annotations.
 4. IF a `TypeLiteralExpression` is used where a non-`Type_Type` value is expected (e.g., `int x = int;`), THEN THE Type_Checker SHALL report a type mismatch diagnostic.
+5. WHEN a bare primitive keyword directly receives member access, THE Semantic_Model_Builder SHALL first consider supported static members on its represented type, including static extensions, and otherwise retain reflected `Type` member lookup. A `Type`-valued local SHALL continue to receive ordinary `Type` member lookup; this route SHALL NOT expose instance members of the represented type.
 
 ### Requirement 5: C# Backend — typeof() Emission
 

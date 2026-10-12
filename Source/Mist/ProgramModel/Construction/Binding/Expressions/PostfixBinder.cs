@@ -566,7 +566,7 @@ internal static class PostfixBinder
             return BindQualifiedName(node, namespaceRef, memberName, ctx, context);
         }
 
-        var (found, constructed, reported) = ResolveMember(receiver, memberName, node, ctx, context);
+        var (found, constructed, reported) = ResolveMember(ref receiver, memberName, node, ctx, context);
 
         if(found is MethodGroupResult { Methods.Count: > 0 } group)
         {
@@ -648,8 +648,14 @@ internal static class PostfixBinder
     /// </para>
     /// </summary>
     private static MemberResolution.MemberLookup ResolveMember(
-        Expression receiver, string memberName, Storm.Runtime.SyntaxNode node, BindingContext ctx, BuilderContext context)
+        ref Expression receiver, string memberName, Storm.Runtime.SyntaxNode node, BindingContext ctx, BuilderContext context)
     {
+        if(KeywordTypeMemberLookup.Resolve(receiver, memberName, node, ctx, context) is { } keyword)
+        {
+            receiver = keyword.Receiver;
+            return keyword.Lookup;
+        }
+
         // A dependent parameter named here is a value of its domain, a pack's being Type[], which makes
         // `TArgs.Length` the ordinary array length and `N.ToString()` its domain's member.
         if(receiver is TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true, Domain: { } domain } })

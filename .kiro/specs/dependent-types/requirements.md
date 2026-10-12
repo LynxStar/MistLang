@@ -55,6 +55,7 @@ Dependent type parameters can appear on classes, structs, interfaces, traits, ty
 4. WHEN a type parameter includes a Dependent_Type_Annotation, THE Parser SHALL produce an AST node that captures the parameter name and the value type reference as distinct from a regular type parameter.
 5. WHEN a type parameter does not include a Dependent_Type_Annotation, THE Parser SHALL produce a regular type parameter AST node, preserving backward compatibility.
 6. THE Grammar SHALL disambiguate the `:Type` annotation from generic constraint syntax (`where T : Type`) by restricting the annotation to appear inline within the angle brackets of the Type_Parameter_List.
+7. THE Grammar SHALL accept namespace-qualified names for named dependent domains, resolve them by the existing named type lookup rules, and preserve the permitted scalar domain categories and refinement checks. Unknown and inaccessible domain names SHALL retain source-anchored diagnostics.
 
 ### Requirement 2: Dependent Type Argument Grammar
 

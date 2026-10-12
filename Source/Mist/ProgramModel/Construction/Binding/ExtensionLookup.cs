@@ -107,7 +107,7 @@ internal static class ExtensionLookup
             {
                 foreach(var property in block.PropertiesList)
                 {
-                    if(property.Name == memberName)
+                    if(property.Name == memberName && Permits(visibility, property.Modifiers.IsStatic))
                     {
                         return new ExtensionPropertyResult(property, block);
                     }
@@ -278,7 +278,7 @@ internal static class ExtensionLookup
 
         foreach(var property in block.PropertiesList)
         {
-            if(property.Name == memberName)
+            if(property.Name == memberName && Permits(visibility, property.Modifiers.IsStatic))
             {
                 return true;
             }

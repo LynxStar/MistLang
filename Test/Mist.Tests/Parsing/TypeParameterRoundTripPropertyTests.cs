@@ -100,7 +100,7 @@ public class TypeParameterRoundTripPropertyTests
                select (TypeParameterNode)new NamedConstraintDependentTypeParameterTypeParameterNode
                {
                    Name = Tok(name),
-                   ConstraintName = Tok(constraintName),
+                   ConstraintName = new QualifiedIdentifierNode { IDENTIFIER = Tok(constraintName) },
                };
     }
 
@@ -359,9 +359,9 @@ public class TypeParameterRoundTripPropertyTests
 
             case NamedConstraintDependentTypeParameterTypeParameterNode namedOrig:
                 var namedRepr = (NamedConstraintDependentTypeParameterTypeParameterNode)repr;
-                if(namedOrig.ConstraintName.Lexeme != namedRepr.ConstraintName.Lexeme)
+                if(namedOrig.ConstraintName.IDENTIFIER.Lexeme != namedRepr.ConstraintName.IDENTIFIER.Lexeme)
                 {
-                    return $"NamedConstraintDependentTypeParameter constraint mismatch: '{namedOrig.ConstraintName.Lexeme}' vs '{namedRepr.ConstraintName.Lexeme}'";
+                    return $"NamedConstraintDependentTypeParameter constraint mismatch: '{namedOrig.ConstraintName.IDENTIFIER.Lexeme}' vs '{namedRepr.ConstraintName.IDENTIFIER.Lexeme}'";
                 }
 
                 break;
@@ -392,7 +392,7 @@ public class TypeParameterRoundTripPropertyTests
         return tp switch
         {
             DependentTypeParameterTypeParameterNode dep => $"{dep.Name.Lexeme}:primitive",
-            NamedConstraintDependentTypeParameterTypeParameterNode named => $"{named.Name.Lexeme}:{named.ConstraintName.Lexeme}",
+            NamedConstraintDependentTypeParameterTypeParameterNode named => $"{named.Name.Lexeme}:{named.ConstraintName.IDENTIFIER.Lexeme}",
             RegularTypeParameterTypeParameterNode reg => reg.Name.Lexeme,
             _ => "?",
         };

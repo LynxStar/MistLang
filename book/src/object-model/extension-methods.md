@@ -71,7 +71,7 @@ From the caller's perspective, `greeting.WordCount()` looks like a regular metho
 
 ## Static Extension Members
 
-Extension blocks can declare `static` methods. These belong to the type itself and are called via the type name, not on an instance. They cannot access the receiver parameter.
+Extension blocks can declare `static` methods. These belong to the type itself and are called via the type name, not on an instance. They cannot access the receiver parameter. Primitive keywords also reach supported static members: a static extension declared on `int` can be called through either `int` or `Int32`. Bare keyword member lookup considers the represented type's static members first, then reflected `Type` properties such as `string.Name`. A keyword used as a value still produces a `Type`; `var t = int` keeps reflection through `t.Name`, and does not turn `t` into a static receiver for `Int32`.
 
 ```mist
 extension(Greeting self)

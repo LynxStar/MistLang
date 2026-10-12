@@ -101,7 +101,7 @@ internal sealed class BaseTypeResolver
         {
             var ownerKind = typeDef is ClassType ? "class" : "struct";
             var baseKind = resolvedConcrete is ClassType ? "class" : "struct";
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.BaseTypeKindMismatch, baseTypeRef, null, ownerKind, baseKind, baseTypeRef.Name.Lexeme);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.BaseTypeKindMismatch, baseTypeRef, null, ownerKind, baseKind, QualifiedNameHelper.Build(baseTypeRef.Name));
             return true;
         }
 
@@ -127,13 +127,13 @@ internal sealed class BaseTypeResolver
 
         if(definition is ConcreteType)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ConcreteInAbstractList, baseTypeRef, null, baseTypeRef.Name.Lexeme);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ConcreteInAbstractList, baseTypeRef, null, QualifiedNameHelper.Build(baseTypeRef.Name));
             return;
         }
 
         if(definition is not AbstractType)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.InvalidBaseType, baseTypeRef, null, baseTypeRef.Name.Lexeme);
+            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.InvalidBaseType, baseTypeRef, null, QualifiedNameHelper.Build(baseTypeRef.Name));
             return;
         }
 
@@ -147,26 +147,8 @@ internal sealed class BaseTypeResolver
     /// </summary>
     private IMistType ResolveBaseTypeRef(BaseTypeRefNode baseTypeRef, MemberType typeDef)
     {
-        var name = baseTypeRef.Name.Lexeme;
-        var arity = ScopeResolver.GetTypeArgumentArity(baseTypeRef.TypeArgs);
-        var definition = scopeResolver.ResolveGenericDefinition(name, arity, typeDef.Scope, baseTypeRef);
-
-        if(definition is ErrorType)
-        {
-            return ErrorType.Instance;
-        }
-
-        if(baseTypeRef.TypeArgs is null && !ScopeResolver.Absorbs(definition))
-        {
-            return definition;
-        }
-
-        var written = baseTypeRef.TypeArgs is { } typeArgList
-            ? scopeResolver.ResolveTypeArguments(typeArgList, typeDef.Scope)
-            : [];
-
-        var typeArgs = scopeResolver.BindPack(definition, written, baseTypeRef);
-        context.ProgramModel.ConstructorConstraintClosures.RecordType(definition, typeArgs, baseTypeRef, boundIn: typeDef.Scope);
-        return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArgs);
+        return baseTypeRef.Enclosing is { } enclosing
+            ? scopeResolver.ResolveNestedGeneric(baseTypeRef.Name, enclosing.OuterArgs, enclosing.Nested, baseTypeRef.TypeArgs, typeDef.Scope, baseTypeRef)
+            : scopeResolver.ResolveNamed(baseTypeRef.Name, baseTypeRef.TypeArgs, typeDef.Scope, baseTypeRef);
     }
 }

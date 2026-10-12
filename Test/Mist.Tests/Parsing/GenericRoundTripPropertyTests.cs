@@ -107,8 +107,8 @@ public class GenericRoundTripPropertyTests
                    : Gen.Constant((TypeArgumentListNode?)null)
                select new BaseListNode
                {
-                   First = new BaseTypeRefNode { Name = Tok(name), TypeArgs = typeArgs },
-                   Rest = new BaseTypeRefNode { Name = Tok(name), TypeArgs = typeArgs },
+                   First = new BaseTypeRefNode { Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) }, TypeArgs = typeArgs },
+                   Rest = new BaseTypeRefNode { Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) }, TypeArgs = typeArgs },
                    BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty,
                };
     }
@@ -120,7 +120,7 @@ public class GenericRoundTripPropertyTests
                        from typeArgs in hasTypeArgs
                            ? GenTypeArgumentList().Select(a => (TypeArgumentListNode?)a)
                            : Gen.Constant((TypeArgumentListNode?)null)
-                       select new BaseTypeRefNode { Name = Tok(name), TypeArgs = typeArgs };
+                       select new BaseTypeRefNode { Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) }, TypeArgs = typeArgs };
 
         var gen1 = genEntry.Select(e => new[] { e });
         var gen2 = from e1 in genEntry

@@ -128,7 +128,7 @@ internal static class TypeParameterPopulator
 
             case NamedConstraintDependentTypeParameterTypeParameterNode named:
                 typeParam.IsDependent = true;
-                typeParam.DomainTypeName = named.ConstraintName.Lexeme;
+                typeParam.DomainTypeName = QualifiedNameHelper.Build(named.ConstraintName);
                 break;
         }
 

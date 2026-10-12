@@ -2435,14 +2435,20 @@ public sealed class MistPrettyPrinter
     private string EmitBaseTypeRef(BaseTypeRefNode baseTypeRef)
     {
         var spread = baseTypeRef.Spread is not null ? "..." : "";
-        return baseTypeRef.Name.Lexeme + EmitTypeArgumentList(baseTypeRef.TypeArgs) + spread;
+        var name = ExtractQualifiedName(baseTypeRef.Name);
+        if(baseTypeRef.Enclosing is { } enclosing)
+        {
+            name += EmitTypeArgumentList(enclosing.OuterArgs) + "." + ExtractQualifiedName(enclosing.Nested);
+        }
+
+        return name + EmitTypeArgumentList(baseTypeRef.TypeArgs) + spread;
     }
 
     /// <summary>
     /// Emits a type parameter list (e.g., &lt;T, U&gt; or &lt;T, Size:int&gt;) or empty string if null.
     /// Dependent type parameters are emitted as Name:Type with no spaces around the colon.
     /// </summary>
-    private static string EmitTypeParameterList(TypeParameterListNode? typeParams)
+    private string EmitTypeParameterList(TypeParameterListNode? typeParams)
     {
         if(typeParams is null)
         {
@@ -2461,7 +2467,7 @@ public sealed class MistPrettyPrinter
         return $"<{string.Join(", ", parts)}>";
     }
 
-    private static string EmitTypeParameter(TypeParameterNode tp)
+    private string EmitTypeParameter(TypeParameterNode tp)
     {
         return tp switch
         {
@@ -2474,7 +2480,7 @@ public sealed class MistPrettyPrinter
             DependentTypeParameterTypeParameterNode dep =>
                 $"{dep.Name.Lexeme}:{EmitPrimitiveType(dep.ValueType)}",
             NamedConstraintDependentTypeParameterTypeParameterNode named =>
-                $"{named.Name.Lexeme}:{named.ConstraintName.Lexeme}",
+                $"{named.Name.Lexeme}:{ExtractQualifiedName(named.ConstraintName)}",
             RegularTypeParameterTypeParameterNode reg =>
                 reg.Name.Lexeme,
             _ => tp.GetName().Lexeme,

@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -50,27 +51,24 @@ internal sealed class TypeParameterDomainResolver
     {
         foreach(var typeParameter in typeParameters)
         {
-            if(Resolve(typeParameter) is not MistType domain)
+            var annotation = Annotation(typeParameter.Ordinal, location);
+
+            if(Resolve(typeParameter, annotation) is not MistType domain)
             {
                 continue;
             }
 
             typeParameter.Domain = domain;
 
-            if(location is not null && typeParameter.DomainTypeName is not null)
-            {
-                context.ProgramModel.TypeNamings.Record(domain, typeParameter.Scope, location);
-            }
-
             // A pack is exempt because its domain is Type[] by construction rather than by
             // annotation, and what carries its identity is the element types it holds.
-            if(location is not null
+            if(annotation is not null
                 && typeParameter.IsDependent
                 && typeParameter.PackKind == TypePackKind.None
                 && !CarryableDomains.Contains(Underlying(domain).FullyQualifiedName))
             {
                 context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.DisallowedDependentDomain, location, null, domain.Name);
+                    ProgramModelDiagnostics.DisallowedDependentDomain, annotation, null, domain.Name);
             }
         }
     }
@@ -133,7 +131,34 @@ internal sealed class TypeParameterDomainResolver
         };
     }
 
-    private IMistType? Resolve(TypeParameter typeParameter)
+    private static SyntaxNode? Annotation(int ordinal, SyntaxNode? location)
+    {
+        var parameters = location switch
+        {
+            TypeParameterListNode list => list,
+            BodyTypeTypeDeclarationNode body => body.TypeBody.TypeParams,
+            TypeBodyDeclarationNode body => body.TypeParams,
+            TypeAliasDeclarationNode alias => alias.TypeParams,
+            NewtypeDeclarationNode newtype => newtype.TypeParams,
+            _ => null,
+        };
+
+        if(parameters is null || ordinal > parameters.TypeParameters.Length)
+        {
+            return location;
+        }
+
+        var parameter = ordinal == 0 ? parameters.TypeParameter : parameters.TypeParameters[ordinal - 1];
+
+        return parameter switch
+        {
+            NamedConstraintDependentTypeParameterTypeParameterNode named => named.ConstraintName,
+            DependentTypeParameterTypeParameterNode dependent => dependent.ValueType,
+            _ => parameter,
+        };
+    }
+
+    private IMistType? Resolve(TypeParameter typeParameter, SyntaxNode? location)
     {
         // A pack ranges over Type[], which is the whole of why `params TArgs` is the dependent
         // parameter `Type[]:TArgs` rather than a kind of its own. A fixed-size domain pins the
@@ -152,10 +177,14 @@ internal sealed class TypeParameterDomainResolver
 
         if(typeParameter.DomainTypeName is { } name)
         {
-            return typeParameter.Scope.Lookup(new LookupRequest(name, MemberVisibility.None, null))
-                is TypeResult found
-                    ? NotError(found.Type)
-                    : null;
+            if(location is not null)
+            {
+                return NotError(resolver.ResolveNamedType(name, typeParameter.Scope, location));
+            }
+
+            return typeParameter.Scope.Lookup(new LookupRequest(name, MemberVisibility.None, null)) is TypeResult found
+                ? NotError(found.Type)
+                : null;
         }
 
         return NotError(resolver.LookupWellKnown(WellKnownTypes.Type));

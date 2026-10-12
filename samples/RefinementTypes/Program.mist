@@ -223,6 +223,19 @@ public class Program
         int pctBase = pctVal;
         Console.WriteLine($"  Percentage 50 widened to int -> {pctBase}");
 
+        // 14. Runtime boundary: the predicate's own comparison decides, and the binding reads as its base
+        Console.WriteLine("--- Runtime boundary ---");
+        int atBoundary = 18;
+        int belowBoundary = 17;
+        bool atEdge = atBoundary is AdultAge;
+        bool belowEdge = belowBoundary is AdultAge;
+        Console.WriteLine($"  18 is AdultAge -> {atEdge}, 17 is AdultAge -> {belowEdge}");
+        var bounded = new Interval(10, 50);
+        if (bounded is ValidInterval validBounded)
+        {
+            Console.WriteLine($"  Interval(10, 50) as ValidInterval: End -> {validBounded.End}");
+        }
+
         Console.WriteLine("Done!");
     }
 }

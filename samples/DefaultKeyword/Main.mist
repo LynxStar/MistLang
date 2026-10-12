@@ -86,6 +86,71 @@ public readonly struct Container
     }
 }
 
+// ─── Field initializers that leave a trail ───────────────────────────────────
+// PROOF: an initializer runs once per construction and before the constructor body, and a derived
+//        type's own initializers run before its base constructor's
+public class Log
+{
+    public static string Trail = "";
+
+    public static string Show(string tag)
+    {
+        Trail = Trail + tag;
+        return tag;
+    }
+
+    public static int Num(string tag, int n)
+    {
+        Trail = Trail + tag;
+        return n;
+    }
+}
+
+public class Bare
+{
+    public string Field = Log.Show("a");
+    public int Count = Log.Num("b", 7);
+
+    public Bare(int seed)
+    {
+    }
+}
+
+public class Quiet
+{
+    public string Field = "q";
+    public int Count = 7;
+}
+
+public class Declared
+{
+    public string Field = Log.Show("a");
+
+    public Declared(int seed)
+    {
+        Log.Trail = Log.Trail + "C";
+    }
+}
+
+public class Derived : Bare
+{
+    public string Extra = Log.Show("x");
+
+    public Derived(int seed) : base(seed)
+    {
+    }
+}
+
+public struct Mark
+{
+    public int X = Log.Num("p", 3);
+
+    public Mark(int seed)
+    {
+        Log.Trail = Log.Trail + "S";
+    }
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 public class Program
@@ -134,6 +199,21 @@ public class Program
         Container c2 = default(Container);
         Console.WriteLine($"new Container() = {c1.Describe()}");
         Console.WriteLine($"default(Container) = {c2.Describe()}");
+
+        Console.WriteLine("--- Initializers Per Construction ---");
+        var bare = new Bare(0);
+        Console.WriteLine($"new Bare(0) = {bare.Field} {bare.Count} trail={Log.Trail}");
+        Log.Trail = "";
+        var quiet = new Quiet();
+        Console.WriteLine($"new Quiet() = {quiet.Field} {quiet.Count} trail={Log.Trail}");
+        var declared = new Declared(0);
+        Console.WriteLine($"new Declared(0) = {declared.Field} trail={Log.Trail}");
+        Log.Trail = "";
+        var derived = new Derived(0);
+        Console.WriteLine($"new Derived(0) = {derived.Field} {derived.Extra} trail={Log.Trail}");
+        Log.Trail = "";
+        var mark = new Mark(0);
+        Console.WriteLine($"new Mark(0) = {mark.X} trail={Log.Trail}");
 
         Console.WriteLine("Done!");
     }

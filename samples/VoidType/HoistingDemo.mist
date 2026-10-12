@@ -1,0 +1,185 @@
+// HoistingDemo — A call yielding nothing whose value is taken runs ahead of its statement, and the
+// trail the calls leave is the order the program ran them: after every operand before it, before every
+// operand after it, and once, only where its branch is taken.
+
+using Standard;
+
+namespace VoidType;
+
+public class Log
+{
+    public static string Trail = "";
+
+    public static Log Box = new Log();
+
+    public string? Opt = void;
+
+    public Spot Pt = new Spot();
+
+    public Log()
+    {
+    }
+
+    public static void F() { Trail = Trail + "f"; }
+
+    public static void G() { Trail = Trail + "g"; }
+
+    public static int H() { Trail = Trail + "h"; return 1; }
+
+    public static int K() { Trail = Trail + "k"; return 2; }
+
+    public static bool T() { Trail = Trail + "t"; return true; }
+
+    public static bool No() { Trail = Trail + "n"; return false; }
+
+    public static bool Check(void unit) { Trail = Trail + "c"; return true; }
+
+    public static string Show(void unit) { Trail = Trail + "s"; return "s"; }
+
+    public static string Pair(void unit, int n) { Trail = Trail + "p"; return $"p{n}"; }
+
+    public static bool Under(void unit, int i) { Trail = Trail + $"u{i}"; return i < 2; }
+
+    public static int Next(void unit, int i) { Trail = Trail + "x"; return i + 1; }
+
+    public static int Idx() { Trail = Trail + "i"; return 0; }
+
+    public static void Bump(ref int slot, void unit) { slot = slot + 1; }
+
+    public static Log Make() { Trail = Trail + "m"; return Box; }
+
+    public static Spot MakeSpot() { Trail = Trail + "k"; return new Spot(); }
+
+    public static Log? Maybe(bool yes) { Trail = Trail + "y"; if(yes) { return new Log(); } return void; }
+
+    public static string Read(string seen, void unit) { return $"read({seen},{unit})"; }
+
+    public static string G3(int first, void unit, int last) { return $"g3({first},{unit},{last})"; }
+
+    public static string Shown => Log.Show(Log.F());
+
+    public string Take(void unit) { Trail = Trail + "T"; return "took"; }
+
+    public string Take(void unit, int value) { return $"take({unit},{value})"; }
+
+    public bool Has(void unit) { Trail = Trail + "H"; return true; }
+
+    public void Poke(void unit) { Trail = Trail + "P"; }
+}
+
+public struct Spot
+{
+    public string Name;
+
+    public string Describe(void unit) { Log.Trail = Log.Trail + "D"; return "d"; }
+}
+
+public class Seeded
+{
+    public string Value = Log.Show(Log.F());
+
+    public Seeded(int seed)
+    {
+    }
+}
+
+public class Base
+{
+    public string Seen = "";
+
+    public Base(string seen)
+    {
+        Seen = seen;
+    }
+}
+
+public class Derived : Base
+{
+    public Derived(int n) : base(Log.Pair(Log.G(), n))
+    {
+    }
+}
+
+public class HoistingDemo
+{
+    public static string Line(string label, string values)
+    {
+        var line = $"{label} {values} {Log.Trail}";
+        Log.Trail = "";
+        return line;
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("--- Unit Hoisting ---");
+
+        var ordered = Log.G3(Log.K(), Log.F(), Log.H());
+        var first = Log.Trail;
+        Log.Trail = "x";
+        var read = Log.Read(Log.Trail, Log.F());
+        var second = Log.Trail;
+        Log.Trail = "";
+        var taken = Log.Make().Take(Log.F(), Log.H());
+        var hole = $"{Log.F()}{Log.K()}";
+        Console.WriteLine(Line("operands", $"{ordered} {first} | {read} {second} | {taken} {hole}"));
+
+        var conjoined = $"{Log.No() && Log.Check(Log.F())} {Log.T() && Log.Check(Log.F())}";
+        Console.WriteLine(Line("and", conjoined));
+
+        var disjoined = $"{Log.T() || Log.Check(Log.F())} {Log.No() || Log.Check(Log.F())}";
+        Console.WriteLine(Line("or", disjoined));
+
+        string? none = void;
+        string? some = "x";
+        var coalesced = $"{none ?? Log.Show(Log.F())} {some ?? Log.Show(Log.G())}";
+        Console.WriteLine(Line("coalesce", coalesced));
+
+        Log.Make().Opt ??= Log.Show(Log.F());
+        Log.Make().Opt ??= Log.Show(Log.G());
+        Console.WriteLine(Line("coalesce-assign", $"{Log.Box.Opt}"));
+
+        var absent = Log.Maybe(false)?.Take(Log.F());
+        var present = Log.Maybe(true)?.Take(Log.G());
+        Console.WriteLine(Line("conditional-access", $"{absent} {present}"));
+
+        int one = 1;
+        var armed = one switch { 1 => Log.Show(Log.F()), _ => Log.Show(Log.G()) };
+        var unarmed = one switch { 2 => Log.Show(Log.F()), _ => "none" };
+        Console.WriteLine(Line("switch", $"{armed} {unarmed}"));
+
+        one switch { 1 => Log.F(), _ => Log.G() };
+        Console.WriteLine(Line("switch-statement", "-"));
+
+        for(int i = 0; Log.Under(Log.F(), i); i = Log.Next(Log.G(), i)) { Log.Trail = Log.Trail + "B"; }
+        Console.WriteLine(Line("for", "-"));
+
+        int turns = 0;
+        while(Log.Maybe(turns < 2) is Log looped && looped.Has(Log.F())) { looped.Poke(void); turns = turns + 1; }
+        Console.WriteLine(Line("while", $"{turns}"));
+
+        object log = new Log();
+        object text = "text";
+        if(log is Log matched && matched.Has(Log.F())) { matched.Poke(void); } else { Log.Trail = Log.Trail + "E"; }
+        Log.Trail = Log.Trail + "|";
+        if(text is Log unmatched && unmatched.Has(Log.F())) { unmatched.Poke(void); } else { Log.Trail = Log.Trail + "E"; }
+        Console.WriteLine(Line("if-else", "-"));
+
+        Func<int, bool> above = (int k) => k > 1 && Log.Check(Log.F());
+        Log.Trail = Log.Trail + "|";
+        Console.WriteLine(Line("lambda", $"{above(1)} {above(2)}"));
+
+        Console.WriteLine(Line("getter", $"{Log.Shown} {Log.Shown}"));
+
+        Console.WriteLine(Line("initializer", $"{new Seeded(0).Value} {new Seeded(0).Value}"));
+
+        Console.WriteLine(Line("chain", new Derived(3).Seen));
+
+        Log.Make().Pt.Name = Log.Show(Log.F());
+        int[] slots = [5];
+        Log.Bump(ref slots[Log.Idx()], Log.F());
+        Console.WriteLine(Line("location", $"{Log.Box.Pt.Name} {slots[0]}"));
+
+        var described = Log.MakeSpot().Describe(Log.F());
+        Console.WriteLine(Line("receiver", described));
+    }
+}

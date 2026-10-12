@@ -340,6 +340,85 @@ public class Link : IClonable<Link>
     }
 }
 
+public class Ledger<T>
+{
+    private T serial;
+
+    public Ledger(T serial)
+    {
+        this.serial = serial;
+    }
+
+    public T Serial()
+    {
+        return serial;
+    }
+}
+
+public readonly class Account<T> : Ledger<T>
+{
+    private string currency;
+
+    public Account(string currency, T serial) : base(serial)
+    {
+        this.currency = currency;
+    }
+
+    public string Currency()
+    {
+        return currency;
+    }
+}
+
+public readonly class Caption
+{
+    private string text;
+
+    public Caption(string text)
+    {
+        this.text = text;
+    }
+
+    public string Text()
+    {
+        return text;
+    }
+}
+
+// A conformance declared on the source in a with block is not part of what the clone copies: a
+// newtype handed to that abstract type is converted to its source first, and then tests as the source.
+with Caption : ITag
+{
+    Text as Tag;
+}
+
+public class Shelf<U>
+{
+    public type Own = new Account<U>;
+    public type Kept<V> = new Pair<V, U>;
+
+    public static string Both(U item)
+    {
+        var own = (Own)new Account<U>("own", item);
+        Account<U> back = own;
+        var kept = (Kept<int>)new Pair<int, U>(1, item);
+        Pair<int, U> pair = kept;
+        return $"{own.Currency()}={own.Serial()} {back.Currency()}={back.Serial()} {kept.First()},{kept.Second} {pair.First()},{pair.Second}";
+    }
+}
+
+public class Rack
+{
+    private type Own<K> = new Pair<K, int>;
+
+    public static string Both()
+    {
+        var own = (Own<string>)new Pair<string, int>("r", 2);
+        Pair<string, int> back = own;
+        return $"{own.First()},{own.Second} {back.First()},{back.Second}";
+    }
+}
+
 public type Slot = Pair<int, string>;
 
 public type Age = new int;
@@ -362,6 +441,10 @@ public type Ocelot = new Lynx;
 public type Chain<T> = new Node<T>;
 public type IntChain = new Node<int>;
 public type Rope = new Link;
+public type IntAccount = new Account<int>;
+public type Subtitle = new Caption;
+public type PairAgain = new IntPair;
+public type CellAgain = new IntCell;
 
 public class Person
 {
@@ -520,6 +603,47 @@ public class Program
         var rope = (Rope)new Link(4, new Link(5, noLink));
         var tail = (Rope)new Link(6, noLink);
         Console.WriteLine($"rope={SpellRope(rope)} tail={tail.Item},{tail.Next is void}");
+
+        Console.WriteLine("--- Private state through a generic base ---");
+        Account<int> spent = new IntAccount("EUR", 7);
+        IntAccount earned = (IntAccount)new Account<int>("USD", 8);
+        Console.WriteLine($"spent={spent.Currency()},{spent.Serial()} earned={earned.Currency()},{earned.Serial()}");
+
+        Console.WriteLine("--- Newtype of a newtype ---");
+        var pairAgain = (PairAgain)enteredPair;
+        IntPair down = pairAgain;
+        Pair<int, string> root = pairAgain;
+        Console.WriteLine($"again={pairAgain.First()},{pairAgain.Second} down={down.First()},{down.Second} root={root.First()},{root.Second}");
+        var nested = (CellAgain)firstCell;
+        var unnested = (IntCell)nested;
+        Console.WriteLine($"nested={nested.Describe()} unnested={unnested.Describe()}");
+
+        Console.WriteLine("--- Conformance declared on the source ---");
+        ITag tagged = new Subtitle("copied");
+        unknown heldTag = tagged;
+        Console.WriteLine($"tag={tagged.Tag()} is-Caption={heldTag is Caption} is-Subtitle={heldTag is Subtitle}");
+
+        Console.WriteLine("--- Newtypes declared inside types ---");
+        Console.WriteLine($"shelf={Shelf<string>.Both("u")} | {Shelf<int>.Both(7)} rack={Rack.Both()}");
+
+        Console.WriteLine("--- Optional newtype to optional source ---");
+        IntAccount? absent = void;
+        Account<int>? stillAbsent = absent;
+        var absentShown = "absent";
+        if(stillAbsent is Account<int> presentAbsent)
+        {
+            absentShown = presentAbsent.Currency();
+        }
+
+        IntAccount? held = new IntAccount("GBP", 9);
+        Account<int>? stillHeld = held;
+        var heldShown = "absent";
+        if(stillHeld is Account<int> present)
+        {
+            heldShown = $"{present.Currency()},{present.Serial()}";
+        }
+
+        Console.WriteLine($"absent={absentShown} held={heldShown}");
 
         Console.WriteLine("=== Newtype Clones Done ===");
     }

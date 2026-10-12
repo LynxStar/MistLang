@@ -336,6 +336,12 @@ AppState(ErrorCount=5, Ready=True, Status=initialized)
 --- Readonly Struct: new vs default ---
 new Container() = Container(Code=99, Label=constructed)
 default(Container) = Container(Code=42, Label=defaulted)
+--- Initializers Per Construction ---
+new Bare(0) = a 7 trail=ab
+new Quiet() = q 7 trail=
+new Declared(0) = a trail=aC
+new Derived(0) = a x trail=xab
+new Mark(0) = 3 trail=pS
 Done!
 === Abstract type with slots only ===
 Person: Alice, age 30
@@ -429,6 +435,24 @@ DescribeVoid: received void
 Result of void: Result(Ok: Void)
 IsSuccess: True
 GenericBox of void: GenericBox(Void)
+--- Unit Hoisting ---
+operands g3(2,Void,1) kfh | read(x,Void) xf | take(Void,1) Void2 mfhfk
+and False True ntfc
+or True True tnfc
+coalesce s x fs
+coalesce-assign s mfsm
+conditional-access Void took yygT
+switch s none fs
+switch-statement - f
+for - fu0Bgxfu1Bgxfu2
+while 2 yfHPyfHPy
+if-else - fHP|E
+lambda False True |fc
+getter s s fsfs
+initializer s s fsfs
+chain p3 gp
+location s 6 mfsif
+receiver d kfD
 --- Void Value Literal ---
 void variable: Void
 Type variable: Void
@@ -997,6 +1021,8 @@ area=7
 abstractCount=3
 sum=10
 sumEmpty=0
+widths=2210
+abstractCountOne=1 describeOne=1 describeZero=0
 === Variadics Done ===
 === ArrayBoundsFlowAnalysis Sample ===
 --- 1. Literal indices on concrete arrays ---
@@ -1162,6 +1188,9 @@ BuildListAndCount(1, 2): 2
 --- Widening to base type ---
   AdultAge 40 widened to int -> 40
   Percentage 50 widened to int -> 50
+--- Runtime boundary ---
+  18 is AdultAge -> True, 17 is AdultAge -> False
+  Interval(10, 50) as ValidInterval: End -> 50
 Done!
 === Refinement Comparison Engine Sample ===
 --- [eq-implies-relational] ---
@@ -1423,6 +1452,13 @@ First word: hello
   layers=3
   primary=Circle(Radius=7, Label=primary)
   secondary=Square(Side=0)
+--- Defaults Through Generics ---
+  new Box<Widget>(): 9 default(Box<Widget>): 7
+  new T() at Box<Widget>: 7
+  new T(11) at Chosen<Widget>: 11 child=7
+  new T() with initializer: 13
+  default(T) twice: 12 then 7
+  constructed: 8 defaulted: 4 default(string): []
 Done!
 === RefStructs Sample ===
 --- Mist Declared Ref Struct ---
@@ -1562,6 +1598,10 @@ sizeCalls=2
   FileHandle(64).Drop() called
   Reassigned to FileHandle(65)
   FileHandle(65).Drop() called
+--- 12. Affine: with block drops on early return ---
+  Inside with-block, returning early
+  AuthToken(early).Drop() called - consumed
+  LeaveEarly returned
 === Drop Semantics Done ===
 === Substructural Field Discipline Sample ===
 --- 1. Linear container holds linear field ---
@@ -1971,6 +2011,8 @@ efConfigured=True
 --- C# Interop V2 Done ---
 === DelegateFuncConversion Sample ===
 positives.Count=3
+item=10
+item=20
 alsoPositives.Count=3
 sortedFirst=5
 evens.Count=3
@@ -2098,6 +2140,17 @@ lynx=spots=4 spare=7 ocelot=spots=139 spare=5 lynxBack=spots=409 spare=5
 chain= 1/1 2/1 3/0 back= 1/2 2/1 3/0
 closed=1,False apart= 1/1 2/1 3/0 source= 1/0 99/0 3/0
 rope= 4 5 tail=6,True
+--- Private state through a generic base ---
+spent=EUR,7 earned=USD,8
+--- Newtype of a newtype ---
+again=2,two down=2,two root=2,two
+nested=3 fresh#1#1 made=1 unnested=3 fresh#1#1#3 made=3
+--- Conformance declared on the source ---
+tag=copied is-Caption=True is-Subtitle=False
+--- Newtypes declared inside types ---
+shelf=own=u own=u 1,u 1,u | own=7 own=7 1,7 1,7 rack=r,2 r,2
+--- Optional newtype to optional source ---
+absent=absent held=GBP,9
 === Newtype Clones Done ===
 === Overloaded Indexers ===
 --- String index, int indexer declared first ---

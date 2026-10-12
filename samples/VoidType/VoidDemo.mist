@@ -67,5 +67,7 @@ public class VoidDemo
         // 8. Void field in a generic context
         var box = new GenericBox<void>(void);
         Console.WriteLine($"GenericBox of void: {box.Describe()}");
+
+        HoistingDemo.RunDemo();
     }
 }

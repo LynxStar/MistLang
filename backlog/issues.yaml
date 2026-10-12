@@ -6469,6 +6469,32 @@ archive:
     - 'The final main integration changes union entry/narrowing and pattern/refinement arms; callable signature decisions, modifier placement, universal ToString candidate selection and selected extension carrier argument composition are unchanged. Their owning regressions plus affected union/conversion/pattern/qualified-type tests and full-system samples pass together.'
     - 'DOTNET_USE_POLLING_FILE_WATCHER=1 NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 tools/test-ledger/run.sh Mist.slnx --filter <owning and affected classes plus SamplesCompileAndMatchBaselineTest>: TestResults/ledger/20261011-235816, 1551/1551 passed (Mist.Tests 1532, Storm generator 17, consumer 2), 0 failed/skipped; its solution build has 0 warnings/errors. summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline, Testing_RunsUnderTheTestCommand and EnumReadonlyRestriction_CompilesAndProducesExpectedOutput passed. The exact filter is retained in env.txt.'
     - 'dotnet format Mist.slnx --verify-no-changes and git diff --check pass on this integrated head. Full-suite evidence remains the 11045/11045 run at 2534fca8; this final integration is verified by the affected 1551-case run and full-system controls.'
+  - revision: d769b4e1e51a2688d0c753ac89517379b565613b
+    date: '2026-10-12'
+    kind: packet 28 and 31 integration generated-consumer verification
+    verification:
+    - Integrated remote main b75423794 while preserving its CLR call contracts, native defaults, nullable slot spelling,
+      lifetime safety, all concurrent canonical records, and all four packet 27 archives. Declaration modifier conflict
+      resolution retains both operator refusals and the new ref-field refusal with both Tier 1 suites.
+    - 'All 22 acceptance probes replayed at TestResults/packet27-probes/results.json: 14 intended source refusals
+      and 8 admitted runs with exact expected stdout; all 8 generated consumers build with 0 warnings/errors. The
+      exact IFormattable fixture now emits the nullable native slot parameters from the landed packet 28 MIST-212
+      fix, so its two historical CS8767 warnings are resolved without suppression. Selected Make<Animal,int>, Make<int>,
+      Count<long> and public new string ToString spellings remain correct.'
+    - dotnet format Mist.slnx --verify-no-changes --no-restore and git diff --check pass.
+  - revision: d769b4e1e51a2688d0c753ac89517379b565613b
+    date: '2026-10-12'
+    kind: final full integrated regression
+    verification:
+    - 'Full ledger TestResults/ledger/20261012-000842 on integrated packet 28/31 source: 11457/11457 passed, 0 failed/skipped
+      (Mist.Tests 10386, CLI 115, Storm 910, consumer 46), 355s. Fresh dotnet build Mist.slnx has 0 warnings/errors.
+      summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and
+      Testing_RunsUnderTheTestCommand both pass. DOTNET_USE_POLLING_FILE_WATCHER=1, NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache,
+      UseSharedCompilation=false, DOTNET_CLI_USE_MSBUILD_SERVER=0.'
+    - Full dotnet format Mist.slnx --verify-no-changes --no-restore and git diff --check pass. All 22 fresh CLI probes
+      and all 8 fresh generated consumer builds pass with 0 warnings/errors. The historical IFormattable annotation
+      gap is now resolved by concurrent landed MIST-212; no suppression or duplicate fix. Storm remains at current
+      main pin 83410653c7d722868a5001d2ef71e6692ec012b3.
   related:
   - emitter operator/cast declarations
   priority: P2
@@ -6529,6 +6555,32 @@ archive:
     - 'The final main integration changes union entry/narrowing and pattern/refinement arms; callable signature decisions, modifier placement, universal ToString candidate selection and selected extension carrier argument composition are unchanged. Their owning regressions plus affected union/conversion/pattern/qualified-type tests and full-system samples pass together.'
     - 'DOTNET_USE_POLLING_FILE_WATCHER=1 NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 tools/test-ledger/run.sh Mist.slnx --filter <owning and affected classes plus SamplesCompileAndMatchBaselineTest>: TestResults/ledger/20261011-235816, 1551/1551 passed (Mist.Tests 1532, Storm generator 17, consumer 2), 0 failed/skipped; its solution build has 0 warnings/errors. summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline, Testing_RunsUnderTheTestCommand and EnumReadonlyRestriction_CompilesAndProducesExpectedOutput passed. The exact filter is retained in env.txt.'
     - 'dotnet format Mist.slnx --verify-no-changes and git diff --check pass on this integrated head. Full-suite evidence remains the 11045/11045 run at 2534fca8; this final integration is verified by the affected 1551-case run and full-system controls.'
+  - revision: d769b4e1e51a2688d0c753ac89517379b565613b
+    date: '2026-10-12'
+    kind: packet 28 and 31 integration generated-consumer verification
+    verification:
+    - Integrated remote main b75423794 while preserving its CLR call contracts, native defaults, nullable slot spelling,
+      lifetime safety, all concurrent canonical records, and all four packet 27 archives. Declaration modifier conflict
+      resolution retains both operator refusals and the new ref-field refusal with both Tier 1 suites.
+    - 'All 22 acceptance probes replayed at TestResults/packet27-probes/results.json: 14 intended source refusals
+      and 8 admitted runs with exact expected stdout; all 8 generated consumers build with 0 warnings/errors. The
+      exact IFormattable fixture now emits the nullable native slot parameters from the landed packet 28 MIST-212
+      fix, so its two historical CS8767 warnings are resolved without suppression. Selected Make<Animal,int>, Make<int>,
+      Count<long> and public new string ToString spellings remain correct.'
+    - dotnet format Mist.slnx --verify-no-changes --no-restore and git diff --check pass.
+  - revision: d769b4e1e51a2688d0c753ac89517379b565613b
+    date: '2026-10-12'
+    kind: final full integrated regression
+    verification:
+    - 'Full ledger TestResults/ledger/20261012-000842 on integrated packet 28/31 source: 11457/11457 passed, 0 failed/skipped
+      (Mist.Tests 10386, CLI 115, Storm 910, consumer 46), 355s. Fresh dotnet build Mist.slnx has 0 warnings/errors.
+      summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and
+      Testing_RunsUnderTheTestCommand both pass. DOTNET_USE_POLLING_FILE_WATCHER=1, NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache,
+      UseSharedCompilation=false, DOTNET_CLI_USE_MSBUILD_SERVER=0.'
+    - Full dotnet format Mist.slnx --verify-no-changes --no-restore and git diff --check pass. All 22 fresh CLI probes
+      and all 8 fresh generated consumer builds pass with 0 warnings/errors. The historical IFormattable annotation
+      gap is now resolved by concurrent landed MIST-212; no suppression or duplicate fix. Storm remains at current
+      main pin 83410653c7d722868a5001d2ef71e6692ec012b3.
   related:
   - analysis modifier legality
   priority_rationale: Current source-established wrong behavior; correctness work.
@@ -6620,6 +6672,32 @@ archive:
     - 'The final main integration changes union entry/narrowing and pattern/refinement arms; callable signature decisions, modifier placement, universal ToString candidate selection and selected extension carrier argument composition are unchanged. Their owning regressions plus affected union/conversion/pattern/qualified-type tests and full-system samples pass together.'
     - 'DOTNET_USE_POLLING_FILE_WATCHER=1 NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 tools/test-ledger/run.sh Mist.slnx --filter <owning and affected classes plus SamplesCompileAndMatchBaselineTest>: TestResults/ledger/20261011-235816, 1551/1551 passed (Mist.Tests 1532, Storm generator 17, consumer 2), 0 failed/skipped; its solution build has 0 warnings/errors. summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline, Testing_RunsUnderTheTestCommand and EnumReadonlyRestriction_CompilesAndProducesExpectedOutput passed. The exact filter is retained in env.txt.'
     - 'dotnet format Mist.slnx --verify-no-changes and git diff --check pass on this integrated head. Full-suite evidence remains the 11045/11045 run at 2534fca8; this final integration is verified by the affected 1551-case run and full-system controls.'
+  - revision: d769b4e1e51a2688d0c753ac89517379b565613b
+    date: '2026-10-12'
+    kind: packet 28 and 31 integration generated-consumer verification
+    verification:
+    - Integrated remote main b75423794 while preserving its CLR call contracts, native defaults, nullable slot spelling,
+      lifetime safety, all concurrent canonical records, and all four packet 27 archives. Declaration modifier conflict
+      resolution retains both operator refusals and the new ref-field refusal with both Tier 1 suites.
+    - 'All 22 acceptance probes replayed at TestResults/packet27-probes/results.json: 14 intended source refusals
+      and 8 admitted runs with exact expected stdout; all 8 generated consumers build with 0 warnings/errors. The
+      exact IFormattable fixture now emits the nullable native slot parameters from the landed packet 28 MIST-212
+      fix, so its two historical CS8767 warnings are resolved without suppression. Selected Make<Animal,int>, Make<int>,
+      Count<long> and public new string ToString spellings remain correct.'
+    - dotnet format Mist.slnx --verify-no-changes --no-restore and git diff --check pass.
+  - revision: d769b4e1e51a2688d0c753ac89517379b565613b
+    date: '2026-10-12'
+    kind: final full integrated regression
+    verification:
+    - 'Full ledger TestResults/ledger/20261012-000842 on integrated packet 28/31 source: 11457/11457 passed, 0 failed/skipped
+      (Mist.Tests 10386, CLI 115, Storm 910, consumer 46), 355s. Fresh dotnet build Mist.slnx has 0 warnings/errors.
+      summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and
+      Testing_RunsUnderTheTestCommand both pass. DOTNET_USE_POLLING_FILE_WATCHER=1, NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache,
+      UseSharedCompilation=false, DOTNET_CLI_USE_MSBUILD_SERVER=0.'
+    - Full dotnet format Mist.slnx --verify-no-changes --no-restore and git diff --check pass. All 22 fresh CLI probes
+      and all 8 fresh generated consumer builds pass with 0 warnings/errors. The historical IFormattable annotation
+      gap is now resolved by concurrent landed MIST-212; no suppression or duplicate fix. Storm remains at current
+      main pin 83410653c7d722868a5001d2ef71e6692ec012b3.
   related:
   - MIST-212
   - universal member lookup
@@ -6703,6 +6781,32 @@ archive:
     - 'The final main integration changes union entry/narrowing and pattern/refinement arms; callable signature decisions, modifier placement, universal ToString candidate selection and selected extension carrier argument composition are unchanged. Their owning regressions plus affected union/conversion/pattern/qualified-type tests and full-system samples pass together.'
     - 'DOTNET_USE_POLLING_FILE_WATCHER=1 NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache UseSharedCompilation=false DOTNET_CLI_USE_MSBUILD_SERVER=0 tools/test-ledger/run.sh Mist.slnx --filter <owning and affected classes plus SamplesCompileAndMatchBaselineTest>: TestResults/ledger/20261011-235816, 1551/1551 passed (Mist.Tests 1532, Storm generator 17, consumer 2), 0 failed/skipped; its solution build has 0 warnings/errors. summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline, Testing_RunsUnderTheTestCommand and EnumReadonlyRestriction_CompilesAndProducesExpectedOutput passed. The exact filter is retained in env.txt.'
     - 'dotnet format Mist.slnx --verify-no-changes and git diff --check pass on this integrated head. Full-suite evidence remains the 11045/11045 run at 2534fca8; this final integration is verified by the affected 1551-case run and full-system controls.'
+  - revision: d769b4e1e51a2688d0c753ac89517379b565613b
+    date: '2026-10-12'
+    kind: packet 28 and 31 integration generated-consumer verification
+    verification:
+    - Integrated remote main b75423794 while preserving its CLR call contracts, native defaults, nullable slot spelling,
+      lifetime safety, all concurrent canonical records, and all four packet 27 archives. Declaration modifier conflict
+      resolution retains both operator refusals and the new ref-field refusal with both Tier 1 suites.
+    - 'All 22 acceptance probes replayed at TestResults/packet27-probes/results.json: 14 intended source refusals
+      and 8 admitted runs with exact expected stdout; all 8 generated consumers build with 0 warnings/errors. The
+      exact IFormattable fixture now emits the nullable native slot parameters from the landed packet 28 MIST-212
+      fix, so its two historical CS8767 warnings are resolved without suppression. Selected Make<Animal,int>, Make<int>,
+      Count<long> and public new string ToString spellings remain correct.'
+    - dotnet format Mist.slnx --verify-no-changes --no-restore and git diff --check pass.
+  - revision: d769b4e1e51a2688d0c753ac89517379b565613b
+    date: '2026-10-12'
+    kind: final full integrated regression
+    verification:
+    - 'Full ledger TestResults/ledger/20261012-000842 on integrated packet 28/31 source: 11457/11457 passed, 0 failed/skipped
+      (Mist.Tests 10386, CLI 115, Storm 910, consumer 46), 355s. Fresh dotnet build Mist.slnx has 0 warnings/errors.
+      summary.txt, empty failures.txt and all four TRX inspected; AllFeaturesV2_CompilesRunsAndMatchesBaseline and
+      Testing_RunsUnderTheTestCommand both pass. DOTNET_USE_POLLING_FILE_WATCHER=1, NUGET_HTTP_CACHE_PATH=/private/tmp/mist-27-nuget-cache,
+      UseSharedCompilation=false, DOTNET_CLI_USE_MSBUILD_SERVER=0.'
+    - Full dotnet format Mist.slnx --verify-no-changes --no-restore and git diff --check pass. All 22 fresh CLI probes
+      and all 8 fresh generated consumer builds pass with 0 warnings/errors. The historical IFormattable annotation
+      gap is now resolved by concurrent landed MIST-212; no suppression or duplicate fix. Storm remains at current
+      main pin 83410653c7d722868a5001d2ef71e6692ec012b3.
   related:
   - program-model-body-tasks static extension members
   - emitter capability extension-block-declaration

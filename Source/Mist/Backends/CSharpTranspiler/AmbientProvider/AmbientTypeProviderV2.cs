@@ -3,7 +3,7 @@ using System.Reflection;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
-using Mist.ProgramModel.Contracts;
+using Mist.Driver.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
@@ -17,7 +17,7 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// <see cref="BuildAndRegister"/> eagerly projects all CLR types in two phases
 /// (shells, then type parameters/constraints) and merges them into the ProgramModel.
 /// </summary>
-internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
+internal sealed class AmbientTypeProviderV2 : IAmbientTypeSource
 {
     private AmbientTypeResolver? resolver;
     private readonly MetadataLoadContext? metadataContext;

@@ -26,8 +26,9 @@ public sealed class CompilerDriver : ICompilerDriver
         ILexer lexer,
         IParser parser,
         ICompilationProgressReporter? progressReporter = null,
-        IResolutionDiagnosticListener? resolutionListener = null)
-        : this(lexer, parser, StdlibParseCache.Shared, progressReporter, resolutionListener)
+        IResolutionDiagnosticListener? resolutionListener = null,
+        Func<PipelineInput, IAmbientTypeSource>? ambientTypes = null)
+        : this(lexer, parser, StdlibParseCache.Shared, progressReporter, resolutionListener, ambientTypes)
     {
     }
 
@@ -36,14 +37,15 @@ public sealed class CompilerDriver : ICompilerDriver
         IParser parser,
         StdlibParseCache stdlibParseCache,
         ICompilationProgressReporter? progressReporter = null,
-        IResolutionDiagnosticListener? resolutionListener = null)
+        IResolutionDiagnosticListener? resolutionListener = null,
+        Func<PipelineInput, IAmbientTypeSource>? ambientTypes = null)
     {
         this.lexer = lexer;
         this.parser = parser;
         this.stdlibParseCache = stdlibParseCache;
         this.progressReporter = progressReporter ?? NullProgressReporter.Instance;
         this.resolutionListener = resolutionListener;
-        standardPipeline = new StandardPipeline(this.progressReporter);
+        standardPipeline = new StandardPipeline(this.progressReporter, ambientTypes);
     }
 
     public CompilerResult Compile(CompilerOptions options)

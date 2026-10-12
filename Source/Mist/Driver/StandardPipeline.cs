@@ -23,8 +23,10 @@ public sealed class StandardPipeline : ICompilationPipeline
     private readonly Action<IProgramModel, DiagnosticBag, AnalysisTimings> analyze;
     private readonly Func<IProgramModel, Func<string, Type?>, PipelineInput, Emission> emit;
 
-    public StandardPipeline(ICompilationProgressReporter progressReporter)
-        : this(progressReporter, Build, Analyze, Emit)
+    public StandardPipeline(
+        ICompilationProgressReporter progressReporter,
+        Func<PipelineInput, IAmbientTypeSource>? ambientTypes = null)
+        : this(progressReporter, input => Build(input, ambientTypes ?? LoadAmbientTypes), Analyze, Emit)
     {
     }
 
@@ -108,15 +110,13 @@ public sealed class StandardPipeline : ICompilationPipeline
     }
 
     /// <summary>
-    /// Stage 4 – The ambient type provider (SDK and NuGet assembly resolution) is created inside the
-    /// stage, and lives as long as the returned build because emission resolves CLR types through it.
+    /// Stage 4 – The ambient types are created inside the stage, from the caller's source or by SDK and
+    /// NuGet assembly resolution, and live as long as the returned build because emission resolves CLR
+    /// types through them.
     /// </summary>
-    private static ModelBuild Build(PipelineInput input)
+    private static ModelBuild Build(PipelineInput input, Func<PipelineInput, IAmbientTypeSource> ambientTypes)
     {
-        var ambientProvider = AmbientTypeProviderV2Factory.Create(
-            input.Options.TargetFramework,
-            input.ResolvedAssemblyPaths,
-            input.Diagnostics);
+        var ambientProvider = ambientTypes(input);
 
         try
         {
@@ -134,6 +134,14 @@ public sealed class StandardPipeline : ICompilationPipeline
             ambientProvider.Dispose();
             throw;
         }
+    }
+
+    private static IAmbientTypeSource LoadAmbientTypes(PipelineInput input)
+    {
+        return AmbientTypeProviderV2Factory.Create(
+            input.Options.TargetFramework,
+            input.ResolvedAssemblyPaths,
+            input.Diagnostics);
     }
 
     /// <summary>

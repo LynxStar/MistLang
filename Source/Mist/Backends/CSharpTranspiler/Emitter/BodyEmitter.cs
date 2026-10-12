@@ -2248,6 +2248,15 @@ internal static class BodyEmitter
     internal static void EmitEntering(
         Expression value, IMistType? slot, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(UnionEntry.Unwrapped(value.Type, slot) is { } underlying)
+        {
+            var through = UnionEntry.Factory(underlying, slot);
+            writer.Append($"{through}(({TypeNameEmitter.Emit(underlying)})");
+            EmitSubExpression(value, PrefixPrecedence, writer, diagnostics);
+            writer.Append(")");
+            return;
+        }
+
         if(UnionEntry.Factory(value.Type, slot) is { } factory)
         {
             writer.Append($"{factory}(");

@@ -176,6 +176,24 @@ public sealed class UnionCarrierEmissionTests
             PropertyPatternEmissionTests.Emit(new AsExpression(HandBuiltModel.Node(), Reference("value", either), small, AsConversionKind.UnionExtraction, small, OptionalOf(small))));
     }
 
+    [Fact]
+    public void AnEnum_EntersAnotherCarrierAsItsUnderlyingValue_AndItsOwnThroughItsOperator()
+    {
+        var pair = new UnionType([IntegerType, StringType]);
+        var color = HandBuiltModel.Enum("Color", IntegerType);
+        var mixed = HandBuiltModel.Enum("Mixed", pair);
+
+        Assert.Equal("Union_Int32_String value = ((int)color);",
+            Statement(new LocalDeclarationStatement(new LocalVariable("value", pair), Reference("color", color))));
+        Assert.Equal("Union_Boolean_Int32_String value = ((Union_Int32_String)mixed);",
+            Statement(new LocalDeclarationStatement(new LocalVariable("value", new UnionType([BooleanType, IntegerType, StringType])), Reference("mixed", mixed))));
+        Assert.Equal("Union_Int32_String value = mixed;",
+            Statement(new LocalDeclarationStatement(new LocalVariable("value", pair), Reference("mixed", mixed))));
+        Assert.Equal("return ((int)color);", Statement(new ReturnStatement(Reference("color", color), pair)));
+        Assert.Equal("Union_Color_Int32 value = color;",
+            Statement(new LocalDeclarationStatement(new LocalVariable("value", new UnionType([color, IntegerType])), Reference("color", color))));
+    }
+
     private static (RefinedType Small, RefinedType Big) Refinements()
     {
         var h = new HandBuiltRefinements();

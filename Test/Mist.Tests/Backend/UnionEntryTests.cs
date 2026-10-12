@@ -114,6 +114,26 @@ public sealed class UnionEntryTests
     }
 
     [Fact]
+    public void AnEnum_EntersACarrierOtherThanItsOwnAsTheValueItWraps()
+    {
+        var pair = new UnionType([IntegerType, StringType]);
+        var color = HandBuiltModel.Enum("Color", IntegerType);
+        var mixed = HandBuiltModel.Enum("Mixed", pair);
+        var wider = new UnionType([BooleanType, IntegerType, StringType]);
+
+        Assert.Same(IntegerType, UnionEntry.Unwrapped(color, pair));
+        Assert.Same(pair, UnionEntry.Unwrapped(mixed, wider));
+        Assert.Same(pair, UnionEntry.Unwrapped(AliasOf("Shade", mixed), AliasOf("Wider", wider)));
+        Assert.Null(UnionEntry.Unwrapped(mixed, pair));
+        Assert.Null(UnionEntry.Unwrapped(color, new UnionType([color, IntegerType])));
+        Assert.Null(UnionEntry.Unwrapped(color, new UnionType([color, StringType])));
+        Assert.Null(UnionEntry.Unwrapped(color, OptionalOf(IntegerType)));
+        Assert.Null(UnionEntry.Unwrapped(color, IntegerType));
+        Assert.Null(UnionEntry.Unwrapped(IntegerType, pair));
+        Assert.Null(UnionEntry.Unwrapped(color, null));
+    }
+
+    [Fact]
     public void NoCarrierEntry_LowersNothing()
     {
         Assert.Null(UnionEntry.Factory(Three, null));

@@ -32,6 +32,21 @@ internal static class UnionEntry
         return $"{UnionCarrierNames.CarrierName(union)}.{UnionCarrierNames.EntryFactory(constituent, union)}";
     }
 
+    /// <summary>C# will not chain the enum's operator, which reaches only its underlying type, into the carrier's.</summary>
+    public static IMistType? Unwrapped(IMistType from, IMistType? slot)
+    {
+        if(slot is null
+            || Carrier(slot) is not { } union
+            || Unaliased(TypeNameEmitter.Closed(from)) is not EnumType { UnderlyingType: { } underlying } enumType
+            || union.Constituents.Any(constituent => ReferenceEquals(Unaliased(constituent), enumType))
+            || (Carrier(underlying) is { } own && UnionCarrierNames.CarrierName(own) == UnionCarrierNames.CarrierName(union)))
+        {
+            return null;
+        }
+
+        return underlying;
+    }
+
     public static IReadOnlyList<IMistType>? Elements(IMistType? slot, TupleLiteralExpression literal)
     {
         return Slots(slot) is { } elements

@@ -9,16 +9,15 @@ using Mist.Driver.Contracts;
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Tier 4, the boundary from emitted C# to the runtime: purity Requirement 13.2 says the members Standard
-/// declares pure read no state that can change while the program runs, and the current culture is such state
-/// (Requirement 7.5); setting it through the environment is only the easiest way to vary it for a test. The
-/// emitted text names the invariant culture (InvariantCultureEmissionTests); only running the program under a
-/// culture that formats, orders and case-maps differently shows the CLR honoring it. One compile, under German
-/// so a literal the compiler read by the current culture would print wrong (Requirement 13.3), and two runs;
-/// each run first prints the culture it got, so a machine without ICU or one that ignores LANG fails here
-/// instead of passing for nothing.
+/// Tier 5, kept because the orchestrator runs under the machine's own culture and so cannot show the CLR
+/// honoring the invariant text purity Requirements 7.5 and 13.2 demand of the members Standard declares pure
+/// (InvariantCultureEmissionTests sees only the emitted names). One compile, under German so a literal the
+/// compiler read by the current culture would print wrong (Requirement 13.3), and one run under Turkish, whose
+/// decimal separator, date order, dotted I and ordering all differ from the invariant; the run first prints
+/// the culture it got, so a machine without ICU or one that ignores LANG fails here instead of passing for
+/// nothing.
 /// </summary>
-[Trait("Tier", "4")]
+[Trait("Tier", "5")]
 public sealed class CultureInvariantEmissionTests : IDisposable
 {
     private const string Program = """
@@ -149,12 +148,9 @@ public sealed class CultureInvariantEmissionTests : IDisposable
     }
 
     [Fact]
-    public void AProgramRunUnderTurkishAndGermanCultures_PrintsTheInvariantText()
+    public void AProgramRunUnderTheTurkishCulture_PrintsTheInvariantText()
     {
-        var artifact = Compile();
-
-        Assert.Equal(["tr-TR", .. Invariant], Run(artifact, "tr_TR.UTF-8"));
-        Assert.Equal(["de-DE", .. Invariant], Run(artifact, "de_DE.UTF-8"));
+        Assert.Equal(["tr-TR", .. Invariant], Run(Compile(), "tr_TR.UTF-8"));
     }
 
     private string Compile()

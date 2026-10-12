@@ -9,71 +9,13 @@ using Mist.Tests.InteropFixtures;
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Tier 4, the boundary from an ambient CLR tuple signature to the ValueTuple a call hands it or gets
-/// back at runtime. The model can hold the right shape while the values land in the wrong slots, and
-/// past seven elements every slot beyond the seventh travels inside a Rest, so only running the
-/// program shows each value arrived where the signature said it would.
+/// Tier 5, kept because the signatures it calls live in the C# fixture project, which a sample's mist.toml cannot
+/// reference, so the orchestrator cannot make the claim: a ValueTuple a CLR signature hands over or gets back
+/// lands each value in the slot the signature said, including every slot past the seventh, which travels inside
+/// a Rest. One compile and one run, read in three sections.
 /// </summary>
-[Trait("Tier", "4")]
-public sealed class ClrTupleSignatureRuntimeTests(ClrTupleSignatureRuntimeFixture fixture)
-    : IClassFixture<ClrTupleSignatureRuntimeFixture>
-{
-    [Fact]
-    public void MistTuplesPassedToClrParameters_ArriveElementByElement()
-    {
-        Assert.Equal(
-            [
-                "7:seven",
-                "12",
-                "10",
-                "42",
-                "dock@5,6",
-                "nine=36",
-                "1..14 fifteen sixteen",
-                "7",
-                "2 1",
-            ],
-            fixture.Section("passed"));
-    }
-
-    [Fact]
-    public void ReturnedTuples_AssignDeconstructAndAnswerTheirElements()
-    {
-        Assert.Equal(
-            [
-                "3 2",
-                "5 3",
-                "4 1",
-                "3 1",
-                "8 eight",
-                "home 1 2 2",
-                "4 #4",
-                "Ada Lovelace 10",
-                "ada=3",
-                "grace=5",
-                "rook",
-                "2..9 9",
-            ],
-            fixture.Section("returned"));
-    }
-
-    [Fact]
-    public void LongReturnedTuples_ReachEveryElementThroughTheRest()
-    {
-        Assert.Equal(
-            [
-                "10 17 17",
-                "1 8 tail tail",
-                "36 tail",
-                "typed",
-                "1 14 15 fifteen last last",
-                "1..14 fifteen again",
-            ],
-            fixture.Section("long"));
-    }
-}
-
-public sealed class ClrTupleSignatureRuntimeFixture : IDisposable
+[Trait("Tier", "5")]
+public sealed class ClrTupleSignatureRuntimeTests : IDisposable
 {
     private const string Program = """
         using Standard;
@@ -148,13 +90,82 @@ public sealed class ClrTupleSignatureRuntimeFixture : IDisposable
         """;
 
     private readonly string scratchDir;
-    private readonly string[] output;
 
-    public ClrTupleSignatureRuntimeFixture()
+    public ClrTupleSignatureRuntimeTests()
     {
         scratchDir = Path.Combine(Path.GetTempPath(), "mist-clrtuple-" + Guid.NewGuid().ToString("N"));
         _ = Directory.CreateDirectory(scratchDir);
+    }
 
+    public void Dispose()
+    {
+        if(Directory.Exists(scratchDir))
+        {
+            try { Directory.Delete(scratchDir, recursive: true); } catch(IOException) { }
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    [Fact]
+    public void TuplesCrossingAClrSignature_LandEveryElementWhereItSaid()
+    {
+        var output = CompileAndRun();
+
+        Assert.Equal(
+            [
+                "7:seven",
+                "12",
+                "10",
+                "42",
+                "dock@5,6",
+                "nine=36",
+                "1..14 fifteen sixteen",
+                "7",
+                "2 1",
+            ],
+            Section(output, "passed"));
+
+        Assert.Equal(
+            [
+                "3 2",
+                "5 3",
+                "4 1",
+                "3 1",
+                "8 eight",
+                "home 1 2 2",
+                "4 #4",
+                "Ada Lovelace 10",
+                "ada=3",
+                "grace=5",
+                "rook",
+                "2..9 9",
+            ],
+            Section(output, "returned"));
+
+        Assert.Equal(
+            [
+                "10 17 17",
+                "1 8 tail tail",
+                "36 tail",
+                "typed",
+                "1 14 15 fifteen last last",
+                "1..14 fifteen again",
+            ],
+            Section(output, "long"));
+    }
+
+    private static IReadOnlyList<string> Section(string[] output, string name)
+    {
+        var start = Array.IndexOf(output, $"== {name}");
+
+        Assert.True(start >= 0, $"No '{name}' section in:\n{string.Join("\n", output)}");
+
+        return output.Skip(start + 1).TakeWhile(line => !line.StartsWith("== ", StringComparison.Ordinal)).ToList();
+    }
+
+    private string[] CompileAndRun()
+    {
         var sourcePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(sourcePath, Program);
 
@@ -177,37 +188,13 @@ public sealed class ClrTupleSignatureRuntimeFixture : IDisposable
             .Select(d => $"  {d.Id.Value}: {d.Message}")
             .ToList();
 
-        output = errors.Count == 0 && result.PrimaryOutputArtifactPath is { } artifact
-            ? Run(artifact)
-            : ["compile failed:", .. errors];
-    }
+        Assert.True(errors.Count == 0, $"Compilation failed:\n{string.Join("\n", errors)}");
+        Assert.NotNull(result.PrimaryOutputArtifactPath);
 
-    public IReadOnlyList<string> Section(string name)
-    {
-        var start = Array.IndexOf(output, $"== {name}");
-
-        Assert.True(start >= 0, $"No '{name}' section in:\n{string.Join("\n", output)}");
-
-        return output.Skip(start + 1).TakeWhile(line => !line.StartsWith("== ", StringComparison.Ordinal)).ToList();
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(scratchDir, recursive: true);
-        }
-        catch(IOException)
-        {
-        }
-    }
-
-    private static string[] Run(string artifact)
-    {
         using var process = Process.Start(new ProcessStartInfo
         {
             FileName = "dotnet",
-            Arguments = artifact,
+            Arguments = result.PrimaryOutputArtifactPath,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             StandardOutputEncoding = System.Text.Encoding.UTF8,
@@ -222,6 +209,8 @@ public sealed class ClrTupleSignatureRuntimeFixture : IDisposable
         var stderr = process.StandardError.ReadToEnd();
         _ = process.WaitForExit(60000);
 
-        return [.. stdout.ReplaceLineEndings("\n").TrimEnd().Split('\n'), .. stderr.Length == 0 ? [] : new[] { "stderr:", stderr }];
+        Assert.True(process.ExitCode == 0, stderr);
+
+        return stdout.ReplaceLineEndings("\n").TrimEnd().Split('\n');
     }
 }

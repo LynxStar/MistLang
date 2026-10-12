@@ -9,12 +9,13 @@ using Mist.Driver.Contracts;
 namespace Mist.Tests.Integration;
 
 /// <summary>
-/// Tier 4, the boundary from the emitted project to MSBuild. The in-process compile reports errors only, and
-/// it reads none of the generated csproj, so only MSBuild over that project shows what its nullable context
-/// makes of the emitted spellings: an optional reference in every declaring position, a union carrier and the
-/// invariant-text runtime written into generated .g.cs files, sized constituents and a wide tuple test.
+/// Tier 5, kept because the orchestrator compiles through the CLI and reads none of the build's warnings, while
+/// the in-process compile reports errors only and reads none of the generated csproj: only MSBuild over that
+/// project shows what its nullable context makes of the emitted spellings. One build, of a program putting an
+/// optional reference in every declaring position, a union carrier and the invariant-text runtime into generated
+/// .g.cs files, sized constituents and a wide tuple test.
 /// </summary>
-[Trait("Tier", "4")]
+[Trait("Tier", "5")]
 public sealed partial class GeneratedProjectNullabilityTests : IDisposable
 {
     private const string Source = """

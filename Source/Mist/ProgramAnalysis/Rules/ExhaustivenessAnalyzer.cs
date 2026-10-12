@@ -86,7 +86,8 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
     {
         return pattern switch
         {
-            TypeTestPattern test => ConversionRelation.IsIdentity(test.Constituent ?? test.NarrowedType, constituent),
+            TypeTestPattern test => ReferenceEquals(test.Constituent ?? test.NarrowedType, constituent)
+                || ConversionRelation.IsIdentity(test.Constituent ?? test.NarrowedType, constituent),
             ComparisonPattern comparison => !OptionalUnion.IsVoid(constituent) && Comparability.Compares(comparison, constituent, interner),
             _ => true,
         };

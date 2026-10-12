@@ -489,84 +489,6 @@ issues:
   priority_rationale: Current reproducible wrong behavior; correctness work.
   audit_key: backend:backend-range-sliceable
   area: backend
-- id: MIST-045
-  title: Qualified base type references do not parse
-  status: confirmed
-  summary: BaseTypeRef accepts a single IDENTIFIER plus type arguments, not a qualified reference. Probe
-    Derived:Probe.Base cannot parse. A full TypeReference refactor is optional implementation technique;
-    qualified nominal base support is the observable missing feature. Invalid arrays/unions/primitive
-    bases should remain refused.
-  source_refs:
-  - file: backlog/grammar.md
-    selector: Unify BaseTypeRef
-    lead_excerpt: '## Unify BaseTypeRef into TypeReference'
-    line_at_baseline: 39
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/Grammar/Mist.storm
-    selector: rule BaseTypeRef
-    line: 158
-    observed: Single identifier grammar excludes qualified names.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Resolution/BaseTypeResolver.cs
-    selector: private IMistType ResolveBaseTypeRef
-    line: 148
-    observed: Resolver receives one name token and performs arity-aware lookup.
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/qualified-base
-    exit_code: 1
-    source: 'using Standard; namespace Probe; public class Base {} public class Derived : Probe.Base {}
-      public class Program { public static void Main() {} }'
-    artifact: /private/tmp/mist-reconcile-binding-probes/qualified-base
-    observed: '/private/tmp/mist-reconcile-binding-probes/qualified-base/Program.mist(1,55): error MIST_PARSE_INCOMPLETE:
-      Parser did not consume all input. Unparseable content begins at line 1.'
-  related:
-  - body base lookup
-  - general qualified-name lead
-  priority: P2
-  priority_rationale: Ordinary namespace-qualified nominal inheritance is inaccessible; no broad arbitrary
-    base-shape permission inferred.
-  audit_key: binding:grammar-01
-  area: binding
-- id: MIST-046
-  title: Qualified named dependent domains do not parse
-  status: confirmed
-  summary: NamedConstraintDependentTypeParameter admits one IDENTIFIER. Box<N:Probe.Positive> cannot parse,
-    although the underlying named refinement domain can be resolved semantically. Merging alternatives
-    is an optional implementation method; do not expand scalar domains to arbitrary unsupported types.
-  source_refs:
-  - file: backlog/grammar.md
-    selector: Unify DependentTypeParameter
-    lead_excerpt: '## Unify DependentTypeParameter alternatives into a single rule with TypeReference'
-    line_at_baseline: 3
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/Grammar/Mist.storm
-    selector: name:IDENTIFIER COLON constraintName:IDENTIFIER
-    line: 67
-    observed: Named domain alternative excludes qualified type spelling.
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/qualified-domain
-    exit_code: 1
-    source: using Standard; namespace Probe; type Positive = int > 0; public class Box<N:Probe.Positive>
-      {} public class Program { public static void Main() {} }
-    artifact: /private/tmp/mist-reconcile-binding-probes/qualified-domain
-    observed: '/private/tmp/mist-reconcile-binding-probes/qualified-domain/Program.mist(1,59): error MIST_PARSE_INCOMPLETE:
-      Parser did not consume all input. Unparseable content begins at line 1.'
-  related:
-  - scalar dependent domain capability
-  - body dependent_types
-  priority: P3
-  priority_rationale: Finite syntactic naming gap remains after scalar value work landed.
-  audit_key: binding:grammar-02
-  area: binding
 - id: MIST-047
   title: CLR non-enum constant field values are not projected
   status: confirmed
@@ -1870,55 +1792,6 @@ issues:
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:general-19
   area: backend
-- id: MIST-098
-  title: Keyword type literals do not redirect static lookup
-  status: unverified
-  summary: 'A keyword type primary becomes a Standard.Type value and postfix lookup asks that metatype.
-    string.IsNullOrEmpty therefore names Type in the refusal. This probe alone is not proof that the desired
-    member is supported: Standard.String itself does not declare IsNullOrEmpty. Retain as a lookup contract
-    lead requiring a genuine supported keyword-owned static target.'
-  source_refs:
-  - file: backlog/program-model-body-tasks.yaml
-    selector: redirect to referenced type
-    lead_excerpt: '      - [ ] redirect to referenced type for static member access (`string.IsNullOrEmpty(...)`)
-      -- the literal now binds as a VALUE, so a static call through a keyword type resolves against Standard.Type''s
-      instance members and misses'
-    line_at_baseline: 395
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ExpressionBinder.cs
-    selector: private static Expression BindTypeLiteral
-    line: 132
-    observed: Builds TypeLiteralExpression with reflected Standard.Type value semantics.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/PostfixBinder.cs
-    selector: var receiverType = receiver is TypeReferenceExpression
-    line: 656
-    observed: Only TypeReferenceExpression chooses ReferencedType; TypeLiteralExpression uses its value
-      Type.
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Standard/Bootstrap/String.mist
-    selector: intrinsic public pure static String operator
-    line: 10
-    observed: Bootstrap string exposes operators, not IsNullOrEmpty.
-  - kind: executed_cli_probe
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/keyword-static
-    exit_code: 1
-    source: using Standard; public class Program { public static void Main() { Console.WriteLine(string.IsNullOrEmpty(""));
-      } }
-    artifact: /private/tmp/mist-reconcile-binding-probes/keyword-static
-    observed: '/private/tmp/mist-reconcile-binding-probes/keyword-static/Program.mist(1,92): error MIST_PM_UNRESOLVED_MEMBER:
-      ''Type'' has no member named ''IsNullOrEmpty''.'
-  related: []
-  priority: P3
-  priority_rationale: Avoid converting an invalid Standard member probe into a false confirmed defect.
-  audit_key: binding:bind-11
-  area: binding
 - id: MIST-099
   title: Tuple element-name mismatch is emitted but warnings are absent
   status: unverified
@@ -6949,6 +6822,297 @@ archive:
     evidence:
     - 'TestResults/ledger/20261011-225558/summary.txt and failures.txt inspected before rerun; no test failure reported. allfeatures-managed-stack.txt retains the FileConfigurationProvider/ChangeTokenRegistration stack.'
     - 'Full rerun TestResults/ledger/20261011-230417 passes with the polling watcher; its summary, failures and TRX are inspected.'
+- id: MIST-045
+  title: Qualified base type references do not parse
+  status: implemented
+  summary: Implemented namespace-qualified nominal bases, including generic class/struct and abstract bases and nested
+    bases under a constructed enclosing type. Existing arity-aware named resolution, aliases and enclosing identity are
+    shared with type positions; unsupported base categories remain refused. Inherited enclosing arguments and cyclic-hierarchy
+    termination are also covered.
+  source_refs:
+  - file: backlog/grammar.md
+    selector: Unify BaseTypeRef
+    lead_excerpt: '## Unify BaseTypeRef into TypeReference'
+    line_at_baseline: 39
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/Grammar/Mist.storm
+    selector: rule BaseTypeRef
+    line: 158
+    observed: Single identifier grammar excludes qualified names.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Resolution/BaseTypeResolver.cs
+    selector: private IMistType ResolveBaseTypeRef
+    line: 148
+    observed: Resolver receives one name token and performs arity-aware lookup.
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/qualified-base
+    exit_code: 1
+    source: 'using Standard; namespace Probe; public class Base {} public class Derived : Probe.Base {} public class
+      Program { public static void Main() {} }'
+    artifact: /private/tmp/mist-reconcile-binding-probes/qualified-base
+    observed: '/private/tmp/mist-reconcile-binding-probes/qualified-base/Program.mist(1,55): error MIST_PARSE_INCOMPLETE:
+      Parser did not consume all input. Unparseable content begins at line 1.'
+  - kind: interrupted_cli_probe
+    revision: ab03544db28a4b2264c7408aa1a97a4b266a05c8
+    date: '2026-10-11'
+    source: using Standard; namespace Probe; public class Base:Probe.Derived{} public class Derived:Probe.Base{} public
+      class Program{public static void Main(){}}
+    exit_code: 143
+    observed: At the pre-cycle-safeguard implementation (ab03544d), the qualified Base/Derived cycle consumed CPU without
+      completing. The probe was terminated with exit 143 after dotnet-stack identified ConformanceAnalyzer.Fillers as
+      the nonterminating hierarchy walk. The preserved scratch stack is /private/tmp/mist-packet26/verification/cycle-stack.txt
+      and the interrupted result is in results-before-cycle-check.json. c3f000a8 adds the owned refusal; the same probe
+      now exits 1 at Program.mist(1,89) with MIST_PA_CYCLIC_INHERITANCE.
+    resolution_revision: c3f000a815a3bd1573bb1f8fb0b828a508e715e3
+  related:
+  - body base lookup
+  - general qualified-name lead
+  priority: P2
+  priority_rationale: Ordinary namespace-qualified nominal inheritance is inaccessible; no broad arbitrary base-shape
+    permission inferred.
+  audit_key: binding:grammar-01
+  area: binding
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - 11fc1f334add8d6869ed9083b096a8368c3dad87
+    - ab03544db28a4b2264c7408aa1a97a4b266a05c8
+    - c3f000a815a3bd1573bb1f8fb0b828a508e715e3
+    verification_revision: c3f000a815a3bd1573bb1f8fb0b828a508e715e3
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - BaseTypeRef captures a QualifiedIdentifier and an optional explicit BaseTypeEnclosing node. Base resolution calls
+      the existing ScopeResolver.ResolveNamed/ResolveNestedGeneric paths, retaining alias expansion, arity, constructor-constraint
+      closure and constructed enclosing identity. Pretty-printing and every affected AST reader are updated; Storm remains
+      at its recorded pin.
+    - TypeSubstitution.ForPath carries both enclosing and own arguments from every constructed base, preserving inherited
+      class/struct field, property and method signatures.
+    - InheritanceCycleAnalyzer performs an iterative declaration-identity graph check before hierarchy-dependent analysis.
+      Cycles produce MIST_PA_CYCLIC_INHERITANCE at the base clause without mutating the graph; cyclic models retain Stage
+      4 findings and defer remaining Stage 5 checks. Acyclic models retain normal and clone analyzer aggregation.
+    acceptance:
+    - The exact Derived:Probe.Base reproduction now exits 0; out/Probe.csproj builds --no-incremental with 0 warnings/errors.
+      Qualified generic class and struct bases, generic abstract inheritance/implementation, aliases and Probe.Outer<int>.Inner<bool>
+      execute 7, 9, 8, True and independently compile cleanly.
+    - Tier 2 QualifiedNominalBaseResolutionTests and ConstructedEnclosingBaseMemberBindingTests cover qualified/simple/imported
+      aliases, generic and nested identity, kind/additional-concrete refusals, unresolved names, arity and source anchors.
+      Tier 1 ConstructedBaseSubstitutionTests prove enclosing/receiver/path composition.
+    - CLI controls retain MIST_PM_UNRESOLVED_TYPE for unknown names and arity, MIST_PA_INACCESSIBLE_TYPE for a private
+      qualified base, MIST_PA_SEALED_BASE_TYPE, MIST_PM_CONCRETE_IN_ABSTRACT_LIST, MIST_PM_BASE_TYPE_KIND_MISMATCH for
+      class:Standard.Int32 and MIST_BE_INTRINSIC_STRUCT_BASE for struct:Standard.Int32. Array and union base syntax remain
+      MIST_PARSE_INCOMPLETE.
+    - Qualified class, struct, abstract and constructed generic cycles all exit 1 with MIST_PA_CYCLIC_INHERITANCE. Fourteen
+      Tier 1 cycle decision cases include self/indirect/constructed cycles and acyclic diamonds; two Tier 3 runner cases
+      verify termination, graph retention and acyclic diagnostic aggregation.
+    - Tier 2 QualifiedTypeDomainGrammarTests verify capture shapes, full qualification/enclosing printing, node spans
+      and origins. Existing nested alias/newtype controls still print 2 and 3, with independently clean emitted-project
+      builds.
+    verification:
+    - 'dotnet build Mist.slnx through the final focused ledger (TestResults/ledger/20261011-230726): 0 warnings and 0
+      errors. dotnet format Mist.slnx --verify-no-changes and git diff --check passed on the combined source.'
+    - 'Focused ledger TestResults/ledger/20261011-225639: 377 tests passed (Mist.Tests 357, Storm.SourceGenerator.Tests
+      18, Storm.ConsumerIntegration.Tests 2). Final cycle/integration focused ledger TestResults/ledger/20261011-230726:
+      263 passed (246, 15, 2). Both summary.txt and failures.txt inspected; no failures.'
+    - 'LEDGER_NO_BUILD=1 tools/test-ledger/run.sh Mist.slnx at c3f000a815a3bd1573bb1f8fb0b828a508e715e3, TestResults/ledger/20261011-230906:
+      10956 passed, 0 failed, 0 skipped (Mist.Tests 9885, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests
+      46), exit 0 after 698s. summary.txt and failures.txt inspected; failures.txt empty. AllFeaturesV2_CompilesRunsAndMatchesBaseline
+      and Testing_RunsUnderTheTestCommand passed.'
+    - No macOS watcher recursion was observed and no polling override was used. A stack sample of the slower full-suite
+      test host showed ordinary CLR metadata projection work; concurrent worktree builds/tests are captured in env.txt.
+    - Storm submodule checked out and recorded at 83410653c7d722868a5001d2ef71e6692ec012b3; submodule is clean. Mist
+      grammar regeneration, affected generated-AST readers, parser origin checks and Storm consumer tests pass against
+      that pin. Successful scratch projects were independently built with dotnet build <scratch>/out/Probe.csproj --no-incremental
+      and all had 0 warnings/errors.
+    limitations:
+    - Only the existing nominal name forms and constructed-enclosing spelling are admitted; this is not a merger with
+      arbitrary TypeReference base shapes.
+    - A cyclic inheritance graph is refused before remaining Stage 5 checks because those walkers require termination;
+      correcting the cycle allows those checks to complete.
+- id: MIST-046
+  title: Qualified named dependent domains do not parse
+  status: implemented
+  summary: Implemented qualified named dependent scalar domains. Full qualified names are stored and resolved through
+    ordinary named type lookup, retaining alias/refinement identity and carryable-domain restrictions. Unknown/ambiguous
+    and inaccessible annotations retain source-anchored owning diagnostics instead of silently becoming ordinary type
+    parameters.
+  source_refs:
+  - file: backlog/grammar.md
+    selector: Unify DependentTypeParameter
+    lead_excerpt: '## Unify DependentTypeParameter alternatives into a single rule with TypeReference'
+    line_at_baseline: 3
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/Grammar/Mist.storm
+    selector: name:IDENTIFIER COLON constraintName:IDENTIFIER
+    line: 67
+    observed: Named domain alternative excludes qualified type spelling.
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/qualified-domain
+    exit_code: 1
+    source: using Standard; namespace Probe; type Positive = int > 0; public class Box<N:Probe.Positive> {} public class
+      Program { public static void Main() {} }
+    artifact: /private/tmp/mist-reconcile-binding-probes/qualified-domain
+    observed: '/private/tmp/mist-reconcile-binding-probes/qualified-domain/Program.mist(1,59): error MIST_PARSE_INCOMPLETE:
+      Parser did not consume all input. Unparseable content begins at line 1.'
+  related:
+  - scalar dependent domain capability
+  - body dependent_types
+  priority: P3
+  priority_rationale: Finite syntactic naming gap remains after scalar value work landed.
+  audit_key: binding:grammar-02
+  area: binding
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - 11fc1f334add8d6869ed9083b096a8368c3dad87
+    verification_revision: c3f000a815a3bd1573bb1f8fb0b828a508e715e3
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - NamedConstraintDependentTypeParameter captures QualifiedIdentifier; TypeParameterPopulator stores the full dotted
+      spelling. TypeParameterDomainResolver uses diagnostic-aware ResolveNamedType and retains the actual per-parameter
+      annotation for naming/accessibility and disallowed-domain diagnostics.
+    - Existing alias/refinement transparency, CarryableDomains and dependent identity/entailment policies are preserved.
+      Source-less model parameters retain their existing nullable resolution path.
+    acceptance:
+    - The exact Box<N:Probe.Positive> reproduction now exits 0 and its generated out/Probe.csproj builds --no-incremental
+      with 0 warnings/errors.
+    - A runtime probe with Measures.Positive, Measures.Nested.Positive, an imported unqualified Positive and a colliding
+      Other.Positive prints 1, 2, 3; its generated project compiles cleanly. Box<-1> over Positive=int > 0 is MIST_PA_DEPENDENT_ARGUMENT_VIOLATED
+      at the closing site.
+    - Tier 2 QualifiedDependentDomainTests cover absolute/relative/imported/nested names, collisions, full spelling and
+      domain identity, all ten carryable scalar domains, five refused primitive domains through alias/refinement chains,
+      exact unknown/namespace-only/ambiguous names and separate annotation spans. Tier 1 DependentDomainAccessibilityTests
+      and the added DependentDomainDecisionTests cases cover private/internal access and closed refinement values.
+    - CLI unknown Probe.Missing is MIST_PM_UNRESOLVED_TYPE at the annotation; private Probe.Outer.Positive is MIST_PA_INACCESSIBLE_TYPE
+      at the annotation; an arbitrary object domain is MIST_DT_0001. Unresolved named parameters keep IsDependent with
+      Domain unset. Grammar/printing/origin checks cover one- and multi-segment named domains.
+    verification:
+    - 'dotnet build Mist.slnx through the final focused ledger (TestResults/ledger/20261011-230726): 0 warnings and 0
+      errors. dotnet format Mist.slnx --verify-no-changes and git diff --check passed on the combined source.'
+    - 'Focused ledger TestResults/ledger/20261011-225639: 377 tests passed (Mist.Tests 357, Storm.SourceGenerator.Tests
+      18, Storm.ConsumerIntegration.Tests 2). Final cycle/integration focused ledger TestResults/ledger/20261011-230726:
+      263 passed (246, 15, 2). Both summary.txt and failures.txt inspected; no failures.'
+    - 'LEDGER_NO_BUILD=1 tools/test-ledger/run.sh Mist.slnx at c3f000a815a3bd1573bb1f8fb0b828a508e715e3, TestResults/ledger/20261011-230906:
+      10956 passed, 0 failed, 0 skipped (Mist.Tests 9885, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests
+      46), exit 0 after 698s. summary.txt and failures.txt inspected; failures.txt empty. AllFeaturesV2_CompilesRunsAndMatchesBaseline
+      and Testing_RunsUnderTheTestCommand passed.'
+    - No macOS watcher recursion was observed and no polling override was used. A stack sample of the slower full-suite
+      test host showed ordinary CLR metadata projection work; concurrent worktree builds/tests are captured in env.txt.
+    - Storm submodule checked out and recorded at 83410653c7d722868a5001d2ef71e6692ec012b3; submodule is clean. Mist
+      grammar regeneration, affected generated-AST readers, parser origin checks and Storm consumer tests pass against
+      that pin. Successful scratch projects were independently built with dotnet build <scratch>/out/Probe.csproj --no-incremental
+      and all had 0 warnings/errors.
+    limitations:
+    - 'Qualification adds names only: no float/string/enum/arbitrary object domains, arbitrary parameter annotation expressions
+      or new generic entailment policy are admitted.'
+- id: MIST-098
+  title: Keyword type literals do not redirect static lookup
+  status: implemented
+  summary: Implemented supported static lookup through bare primitive keyword spellings. A primitive keyword resolves
+    declared/static extension members on its represented type and otherwise retains reflected Type member lookup. First-class
+    Type values and Type-valued locals keep their ordinary reflection behavior; represented instance members are excluded.
+  source_refs:
+  - file: backlog/program-model-body-tasks.yaml
+    selector: redirect to referenced type
+    lead_excerpt: '      - [ ] redirect to referenced type for static member access (`string.IsNullOrEmpty(...)`) --
+      the literal now binds as a VALUE, so a static call through a keyword type resolves against Standard.Type''s instance
+      members and misses'
+    line_at_baseline: 395
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ExpressionBinder.cs
+    selector: private static Expression BindTypeLiteral
+    line: 132
+    observed: Builds TypeLiteralExpression with reflected Standard.Type value semantics.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/Expressions/PostfixBinder.cs
+    selector: var receiverType = receiver is TypeReferenceExpression
+    line: 656
+    observed: Only TypeReferenceExpression chooses ReferencedType; TypeLiteralExpression uses its value Type.
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Standard/Bootstrap/String.mist
+    selector: intrinsic public pure static String operator
+    line: 10
+    observed: Bootstrap string exposes operators, not IsNullOrEmpty.
+  - kind: executed_cli_probe
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll build /private/tmp/mist-reconcile-binding-probes/keyword-static
+    exit_code: 1
+    source: using Standard; public class Program { public static void Main() { Console.WriteLine(string.IsNullOrEmpty(""));
+      } }
+    artifact: /private/tmp/mist-reconcile-binding-probes/keyword-static
+    observed: '/private/tmp/mist-reconcile-binding-probes/keyword-static/Program.mist(1,92): error MIST_PM_UNRESOLVED_MEMBER:
+      ''Type'' has no member named ''IsNullOrEmpty''.'
+  - kind: executed_cli_probe
+    revision: 5ff1b65b05ac02d5a6c4626ab7be9adc72a809f1
+    date: '2026-10-11'
+    source: using Standard; namespace Probe; extension(int self){public static int Meaning(){return 42;}} public class
+      Program{public static void Main(){Console.WriteLine(int.Meaning());}}
+    exit_code: 1
+    observed: 'Program.mist(1,163): MIST_PM_UNRESOLVED_MEMBER: ''Type'' has no member named ''Meaning''. This genuine
+      declared static extension establishes the gap; the post-fix nominal/keyword control prints 42 through both spellings.'
+  related: []
+  priority: P3
+  priority_rationale: Avoid converting an invalid Standard member probe into a false confirmed defect.
+  audit_key: binding:bind-11
+  area: binding
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - 11fc1f334add8d6869ed9083b096a8368c3dad87
+    verification_revision: c3f000a815a3bd1573bb1f8fb0b828a508e715e3
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - KeywordTypeMemberLookup classifies only a directly written scalar primitive TypeLiteral primary. PostfixBinder
+      supplies a TypeReference receiver only when using that static route; ordinary Type values and other literal shapes
+      retain their existing route. Speculative misses do not duplicate diagnostics.
+    - Extension property selection obeys StaticOnly/InstanceOnly visibility, and static extension property emission omits
+      the instance receiver argument.
+    acceptance:
+    - A genuine extension(int self){public static int Meaning(){return 42;}} fixture prints 42 through both int.Meaning()
+      and Int32.Meaning(); the exact original keyword probe now exits 0 and its emitted project independently builds
+      --no-incremental with 0 warnings/errors.
+    - The combined static/reflection probe prints 42, 42, 43, 43, Int32, String for keyword/nominal static methods and
+      static properties, var t=int with t.Name, and string.Name. Its emitted project builds with 0 warnings/errors.
+    - Tier 2 KeywordTypeStaticLookupTests verify identical selected method identity, declared-static precedence, reflected
+      property fallback, inferred Type local identity, instance method/extension/property exclusion, static property
+      visibility, narrow syntax classification and one source-anchored unknown-member diagnostic. StaticExtensionCarrierCallTests
+      retain typeof/reflection emission and verify static property getters have no receiver argument.
+    - CLI int.Instance() and int.Missing() are MIST_PM_UNRESOLVED_MEMBER on int at the suffix; t.Meaning() for var t=int
+      remains MIST_PM_UNRESOLVED_MEMBER on Type.
+    verification:
+    - 'dotnet build Mist.slnx through the final focused ledger (TestResults/ledger/20261011-230726): 0 warnings and 0
+      errors. dotnet format Mist.slnx --verify-no-changes and git diff --check passed on the combined source.'
+    - 'Focused ledger TestResults/ledger/20261011-225639: 377 tests passed (Mist.Tests 357, Storm.SourceGenerator.Tests
+      18, Storm.ConsumerIntegration.Tests 2). Final cycle/integration focused ledger TestResults/ledger/20261011-230726:
+      263 passed (246, 15, 2). Both summary.txt and failures.txt inspected; no failures.'
+    - 'LEDGER_NO_BUILD=1 tools/test-ledger/run.sh Mist.slnx at c3f000a815a3bd1573bb1f8fb0b828a508e715e3, TestResults/ledger/20261011-230906:
+      10956 passed, 0 failed, 0 skipped (Mist.Tests 9885, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests
+      46), exit 0 after 698s. summary.txt and failures.txt inspected; failures.txt empty. AllFeaturesV2_CompilesRunsAndMatchesBaseline
+      and Testing_RunsUnderTheTestCommand passed.'
+    - No macOS watcher recursion was observed and no polling override was used. A stack sample of the slower full-suite
+      test host showed ordinary CLR metadata projection work; concurrent worktree builds/tests are captured in env.txt.
+    - Storm submodule checked out and recorded at 83410653c7d722868a5001d2ef71e6692ec012b3; submodule is clean. Mist
+      grammar regeneration, affected generated-AST readers, parser origin checks and Storm consumer tests pass against
+      that pin. Successful scratch projects were independently built with dotnet build <scratch>/out/Probe.csproj --no-incremental
+      and all had 0 warnings/errors.
+    limitations:
+    - This supplies represented primitive receivers and static visibility only. Callable candidate/block closure work
+      remains independently owned by packet 27.
+    - No unsupported CLR member is added; the historical string.IsNullOrEmpty fixture remains unsuitable because Standard.String
+      does not declare that target.
 - id: MIST-215
   title: Reconcile effective declaration order with requirement 6.8
   status: implemented

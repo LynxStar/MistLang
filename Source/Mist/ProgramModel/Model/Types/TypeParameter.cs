@@ -84,7 +84,7 @@ internal class TypeParameter : MistType, ITypeParameter
     /// of the model here. The annotation admits four shapes and three of them carry no syntax worth
     /// deferring: a primitive keyword maps to a well-known type by a pure switch, a pack's domain
     /// is built from <see cref="PackKind"/> and <see cref="PackLength"/>, and a plain parameter's
-    /// is constant. Only a named refinement needs anything, and what it needs is one identifier.
+    /// is constant. Only a named refinement needs anything, and what it needs is a qualified name.
     /// </para>
     /// </summary>
     public WellKnownType? DomainPrimitive { get; internal set; }

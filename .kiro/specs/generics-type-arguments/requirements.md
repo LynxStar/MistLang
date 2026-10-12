@@ -132,6 +132,7 @@ This document specifies the requirements for adding generics and type arguments 
 3. WHEN a type declaration specifies interfaces with type arguments (e.g., `class Box<T> : IContainer<T>`), THE Semantic_Model_Builder SHALL resolve each interface to a Constructed_Type and store them on the type's `Interfaces` property.
 4. WHEN a non-generic type inherits from a generic type without providing type arguments, THE Semantic_Model_Builder SHALL emit a diagnostic error indicating that type arguments are required.
 5. WHEN a generic type inherits from another generic type, THE Semantic_Model_Builder SHALL correctly propagate type parameter substitutions through the inheritance chain.
+6. THE Parser and Semantic_Model_Builder SHALL accept namespace-qualified nominal base names and nested bases under a constructed enclosing type, using the same arity-aware name resolution, alias expansion and enclosing substitution as existing type positions. Qualification SHALL NOT admit additional base categories.
 
 ### Requirement 9: Generic Member Resolution
 

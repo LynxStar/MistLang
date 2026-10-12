@@ -39,7 +39,8 @@ internal static class MemberResolution
         SyntaxNode node,
         BuilderContext context,
         Scope? callSite = null,
-        bool allowExtensionProperties = false)
+        bool allowExtensionProperties = false,
+        bool reportMissing = true)
     {
         var receiver = Answering(type);
         var constructed = receiver as ConstructedType;
@@ -75,7 +76,8 @@ internal static class MemberResolution
             found = new MethodGroupResult([.. group.Methods, .. universal.Methods], group.Paths);
         }
 
-        var reported = Report(found, declaring, TypeDisplay.Mist(receiver), memberName, node, context);
+        var reported = (found is not NotFoundResult || reportMissing)
+            && Report(found, declaring, TypeDisplay.Mist(receiver), memberName, node, context);
 
         return new MemberLookup(found, constructed, reported);
     }

@@ -16,6 +16,37 @@ namespace Mist.Tests.Backend;
 public sealed class StaticExtensionCarrierCallTests
 {
     [Theory]
+    [InlineData(false, "HolderExtensions.get_Read(value)")]
+    [InlineData(true, "HolderExtensions.get_Read()")]
+    public void PropertyCallsPassAReceiverOnlyForInstanceExtensions(bool isStatic, string expected)
+    {
+        var built = new HandBuiltModel();
+        var holder = HandBuiltModel.Class("Holder");
+        var property = new Property("Read", built.Type("Int32"), new MemberModifiers { IsStatic = isStatic });
+        Expression receiver = isStatic
+            ? new TypeReferenceExpression(HandBuiltModel.Node(), holder)
+            : new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("value", holder));
+        var access = new ExtensionPropertyAccessExpression(HandBuiltModel.Node(), receiver, property, "HolderExtensions", property.Type);
+        var diagnostics = new DiagnosticBag();
+
+        Assert.Equal(expected, BodyEmitter.Render(access, diagnostics));
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    [Fact]
+    public void PrimitiveTypeValuesAndTheirReflectedPropertiesKeepTypeofEmission()
+    {
+        var built = new HandBuiltModel();
+        var literal = new TypeLiteralExpression(HandBuiltModel.Node(), built.Type("String"), built.Type("Type"));
+        var access = new MemberAccessExpression(HandBuiltModel.Node(), literal, "Name", built.Type("String"));
+        var diagnostics = new DiagnosticBag();
+
+        Assert.Equal("typeof(string)", BodyEmitter.Render(literal, diagnostics));
+        Assert.Equal("typeof(string).Name", BodyEmitter.Render(access, diagnostics));
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
     [InlineData(false, false, false)]
     [InlineData(false, false, true)]
     [InlineData(false, true, false)]

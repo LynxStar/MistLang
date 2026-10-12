@@ -2,7 +2,7 @@
 
 Inheritance lets you create a new class that reuses, extends, and specializes the behavior of an existing class. The derived class (child) inherits all public and private members from the base class (parent), and can add its own fields and methods or provide specialized implementations.
 
-Mist uses the same colon syntax as C# for declaring inheritance relationships. A class can extend at most one base class.
+Mist uses the same colon syntax as C# for declaring inheritance relationships. A class can extend at most one base class. Base names can be namespace-qualified, such as `Models.Base`, and can supply type arguments, such as `Models.Base<int>`. A nested base under a constructed enclosing type can be spelled `Models.Outer<int>.Inner`. The same name resolution applies to struct bases and abstract type lists; qualification does not change which base kinds are permitted. Circular inheritance is refused at the base clause. Correct the cycle before the compiler can complete the remaining hierarchy-dependent checks.
 
 ## Extending a Base Class
 

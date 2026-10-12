@@ -14,6 +14,8 @@ namespace Mist.ProgramAnalysis;
 
 internal static class ProgramAnalysisRunner
 {
+    private static readonly InheritanceCycleAnalyzer HierarchyAnalyzer = new();
+
     private static readonly IProgramAnalyzer[] Analyzers =
     [
         new OperatorAnalyzer(),
@@ -47,6 +49,25 @@ internal static class ProgramAnalysisRunner
     {
         timings ??= new AnalysisTimings();
         var sourcePaths = SourceTypes.UnitsOf(model).Select(source => source.Unit.SourcePath).ToHashSet(StringComparer.Ordinal);
+        var types = SourceTypes.Of(model).ToList();
+        var hierarchyStarted = Stopwatch.GetTimestamp();
+        var cycles = InheritanceCycleAnalyzer.Decide(types);
+        if(cycles.Count > 0)
+        {
+            var hierarchy = new AnalysisScope(types, [], [], []);
+            var context = new AnalysisContext(model, hierarchy, [],
+                new Dictionary<object, SourceRoot>(), new Dictionary<object, AssignmentExpression>(),
+                sourcePaths, diagnostics, HierarchyAnalyzer.Id, CloneConversionRefusals.None);
+            InheritanceCycleAnalyzer.Report(context, cycles);
+        }
+
+        timings.Record(HierarchyAnalyzer, Stopwatch.GetElapsedTime(hierarchyStarted));
+        if(cycles.Count > 0)
+        {
+            // Hierarchy consumers require termination, so a cyclic model cannot safely enter normal analysis.
+            return;
+        }
+
         var bodies = SourceBodies.Of(model).ToList();
         var clones = SourceTypes.Of(model).OfType<ConcreteType>().Where(IsClone).ToList();
         var conversions = bodies.Where(root => root.Member is CastOperator { ClonesThrough: not null }).ToList();

@@ -27,7 +27,7 @@ Struct inheritance introduces structural composition for value types in Mist. A 
 
 #### Acceptance Criteria
 
-1. WHEN a struct declaration includes a colon followed by a comma-separated list of type references, THE Parser SHALL parse all entries as a BaseList of BaseTypeRef nodes, each preserving its identifier and optional type arguments.
+1. WHEN a struct declaration includes a colon followed by a comma-separated list of type references, THE Parser SHALL parse all entries as a BaseList of BaseTypeRef nodes, each preserving its qualified name, optional constructed enclosing type and optional type arguments.
 2. WHEN the Semantic_Model_Builder resolves a struct's base list and the first entry resolves to a struct type, THE Semantic_Model_Builder SHALL record it as the base struct and resolve remaining entries as implemented interfaces.
 3. IF a struct declaration's base list contains more than one entry that resolves to a struct type, THEN THE Semantic_Model_Builder SHALL emit a diagnostic error that identifies the declaring struct name and indicates that multiple struct inheritance is not supported.
 4. THE Parser SHALL preserve type arguments on any base list entry (e.g., `struct Derived : Base<int>`) by storing them on the corresponding BaseTypeRef node.

@@ -1,3 +1,4 @@
+using Mist.Generated;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
@@ -103,6 +104,33 @@ public sealed class DependentDomainDecisionTests
         Assert.Null(RefinementAnalyzer.DomainFinding(slot, Lifted(200L)));
         Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(slot, Lifted(256L))?.Id.Value);
         Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(slot, Lifted(true))?.Id.Value);
+    }
+
+    [Theory]
+    [InlineData(1L, null)]
+    [InlineData(0L, null)]
+    [InlineData(-1L, "MIST_PA_DEPENDENT_ARGUMENT_VIOLATED")]
+    [InlineData(true, NotAssignable)]
+    public void AQualifiedRefinementAliasAdmitsOnlyValuesOfItsKindAndPredicate(object value, string? expected)
+    {
+        var h = new HandBuiltRefinements();
+        var positive = new TypeAlias("Positive", "Measures", new Scope(null), null, new TypeAliasDeclarationNode())
+        {
+            AliasedType = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 0L),
+        };
+        var domain = new TypeAlias("Count", "Measures", new Scope(null), null, new TypeAliasDeclarationNode())
+        {
+            AliasedType = positive,
+        };
+        var slot = new TypeParameter("N", 0, new Scope(null), null)
+        {
+            IsDependent = true,
+            Domain = domain,
+            DomainTypeName = domain.FullyQualifiedName,
+        };
+        var argument = new LiftedType(value is bool ? h.Bool : h.Int, value);
+
+        Assert.Equal(expected, RefinementAnalyzer.DependentFinding(slot, argument)?.Id.Value);
     }
 
     [Fact]

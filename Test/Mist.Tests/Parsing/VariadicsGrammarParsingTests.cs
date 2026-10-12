@@ -183,7 +183,7 @@ public class VariadicsGrammarParsingTests
         Assert.NotNull(baseList);
         var baseRef = baseList!.First;
         _ = Assert.NotNull(baseRef.Spread);
-        Assert.Equal("TArgs", baseRef.Name.Lexeme);
+        Assert.Equal("TArgs", baseRef.Name.IDENTIFIER.Lexeme);
         Assert.Null(baseRef.TypeArgs);
     }
 

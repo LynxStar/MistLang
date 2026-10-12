@@ -8,7 +8,7 @@ Mist dependent types are related to but distinct from refinement types. Refineme
 
 ## Dependent Parameter Syntax
 
-A dependent type parameter uses the `Name:ValueType` syntax inside the type parameter list. The colon separates the parameter name from its value type — this distinguishes it from a regular generic type parameter.
+A dependent type parameter uses the `Name:ValueType` syntax inside the type parameter list. The colon separates the parameter name from its value type — this distinguishes it from a regular generic type parameter. A named domain can be namespace-qualified: `N:Models.Positive` resolves the same domain as `N:Positive` when that alias is in scope. Named aliases and refinements of permitted scalar types retain their underlying domain restrictions and validate closed values against the refinement. Unknown names and inaccessible domains are reported at the annotation.
 
 {{#tabs }}
 {{#tab name="Mist" }}

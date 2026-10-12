@@ -66,19 +66,8 @@ internal sealed class TypeSubstitution
 
         foreach(var construction in path ?? [])
         {
-            if(construction.Definition is not IHasTypeParameters definition)
-            {
-                continue;
-            }
-
-            var arguments = new IMistType?[construction.TypeArguments.Count];
-
-            for(var i = 0; i < arguments.Length; i++)
-            {
-                arguments[i] = substitution.Apply(construction.TypeArguments[i], interner);
-            }
-
-            substitution = substitution.Extend(ByOrdinal(definition.TypeParametersList, arguments));
+            var closed = (ConstructedType)substitution.Apply(construction, interner);
+            substitution = substitution.Extend(ForReceiver(closed));
         }
 
         return substitution;

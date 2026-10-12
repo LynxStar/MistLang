@@ -1336,7 +1336,11 @@ internal static class BodyEmitter
             // never wrote, so C#'s own extension lookup has nothing to find.
             case ExtensionPropertyAccessExpression extensionProperty:
                 writer.Append($"{extensionProperty.CarrierName}.get_{extensionProperty.Property.Name}(");
-                EmitExpression(extensionProperty.Receiver, writer, diagnostics);
+                if(!extensionProperty.Property.Modifiers.IsStatic)
+                {
+                    EmitExpression(extensionProperty.Receiver, writer, diagnostics);
+                }
+
                 writer.Append(")");
                 break;
 

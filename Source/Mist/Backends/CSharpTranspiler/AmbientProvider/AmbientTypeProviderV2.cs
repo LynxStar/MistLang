@@ -322,5 +322,13 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
                     break;
             }
         }
+
+        foreach(var (fqn, clrType) in clrTypes)
+        {
+            if(shells[fqn] is AbstractType derived)
+            {
+                NativeSlotOverrides.Project(derived, clrType, resolver);
+            }
+        }
     }
 }

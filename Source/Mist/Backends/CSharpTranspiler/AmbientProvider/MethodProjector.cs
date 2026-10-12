@@ -103,6 +103,7 @@ internal static class MethodProjector
             DeclaringType = memberType,
             Scope = methodScope,
             SequenceLengthOperation = ClrSequenceLengths.Of(method),
+            HasNativeBody = method.DeclaringType is { IsInterface: true } && method.IsPublic && !method.IsStatic && !method.IsAbstract,
         };
 
         projected.TypeParametersList.AddRange(typeParameters);

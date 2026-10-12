@@ -1302,7 +1302,8 @@ internal static class BodyEmitter
                 // only the invocation knows which overload they fill -- and a dependent slot is
                 // spelled by its carrier rather than by its domain.
                 if(invocation.Receiver is MemberAccessExpression hiddenCallee
-                    && HiddenBaseCall.ReceiverType(hiddenCallee.Receiver.Type, invocation.Method) is { } baseType)
+                    && (HiddenBaseCall.ReceiverType(hiddenCallee.Receiver.Type, invocation.Method)
+                        ?? NativeDefaultCall.ReceiverType(hiddenCallee.Receiver.Type, invocation.Method)) is { } baseType)
                 {
                     EmitMemberAccess(hiddenCallee,
                         ExtensionBlockEmitter.CallTypeArguments(invocation.Method, hiddenCallee.TypeArguments),
@@ -1566,7 +1567,8 @@ internal static class BodyEmitter
 
             case MethodReferenceExpression methodRef:
                 if(enclosingType is { } enclosing
-                    && HiddenBaseCall.ReceiverType(enclosing, methodRef.Method) is { } baseOwner)
+                    && (HiddenBaseCall.ReceiverType(enclosing, methodRef.Method)
+                        ?? NativeDefaultCall.ReceiverType(enclosing, methodRef.Method)) is { } baseOwner)
                 {
                     writer.Append(methodRef.Method.Modifiers.IsStatic
                         ? TypeNameEmitter.Emit(baseOwner) + "."

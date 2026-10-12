@@ -84,7 +84,7 @@ internal static class TypeMemberLookup
 
         if(type is MemberType memberType)
         {
-            foreach(var abstractBase in memberType.BaseAbstractTypes)
+            foreach(var abstractBase in memberType.BaseAbstractTypes.Where(abstractBase => Searches(memberType, abstractBase)))
             {
                 Enqueue(abstractBase, depth, path, queue, seen);
             }
@@ -108,6 +108,19 @@ internal static class TypeMemberLookup
         {
             Enqueue(newtypeSource, depth, path, queue, seen);
         }
+    }
+
+    /// <summary>
+    /// C# finds a class's members in the class and its bases, never in its interfaces, and a projected
+    /// CLR class or struct already carries every member it makes accessible. A projected interface's
+    /// member that such a type implements only explicitly is therefore no member of it, so lookup does
+    /// not enter a projected interface from a projected concrete type.
+    /// </summary>
+    internal static bool Searches(MemberType type, IMistType abstractBase)
+    {
+        return !(type is ConcreteType
+            && type.Assembly.Kind == MistAssemblyKind.Ambient
+            && ((abstractBase as ConstructedType)?.Definition ?? abstractBase) is MistType { Assembly.Kind: MistAssemblyKind.Ambient });
     }
 
     private static void Enqueue(

@@ -28,6 +28,8 @@ internal static class ConversionRelation
 
     private static readonly string[] BaseDelegateNames = ["System.Delegate", "System.MulticastDelegate"];
 
+    private const string ClrRootName = "System.Object";
+
     public static bool IsImplicit(IMistType from, IMistType to)
     {
         return IsWithin(Unrefined(from), Unrefined(to)) || CastOperatorSelection.Implicit(from, to, interner: null).Count > 0;
@@ -308,10 +310,15 @@ internal static class ConversionRelation
     /// representation to widen, an error type would launder a failure into a resolution, and a method
     /// group is a set of signatures awaiting selection rather than something to convert.
     /// </para>
+    /// <para>
+    /// The projected CLR <c>System.Object</c> contains the same values, every one of which boxes or
+    /// already is a reference to it once emitted. It stays a type of its own: neither it nor unknown is
+    /// identical to the other, and nothing narrower is reached from it.
+    /// </para>
     /// </summary>
     private static bool WidensToUnknown(IMistType from, IMistType to)
     {
-        return to is UnknownType
+        return (to is UnknownType || (to is ClassType && to.FullyQualifiedName == ClrRootName))
             && from is not (ErrorType or MethodGroupType or UnboundLambdaType or NotProjectedType)
             && !OptionalUnion.IsVoid(from)
             ;

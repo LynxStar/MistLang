@@ -1129,55 +1129,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-060
   area: analysis
-- id: MIST-064
-  title: Extend stack-backed span escape checking to stores
-  status: unverified
-  summary: EscapeAnalyzer.JudgeStackSpans only scans returns, following local declarations and Slice.
-    Field/collection storage escapes are not separately judged, but ref-struct storage rules may reject
-    first. Validate a reachable store route before a concrete fix.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=ownership-borrow-checking].tasks[8]
-    line_at_baseline: 3771
-    lead_excerpt: 'The stackalloc escape rule covers a return, directly or through a local or a Slice.
-      A span stored into a field or collection escapes too and is unmeasured: the field form is refused
-      first as a ref struct field.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=140,id=stackalloc].analysis_phase_tasks[1]
-    lead_excerpt: 'The escape rule: a stackalloc-backed span may be passed down but must not escape. Classic
-      has FrameEscapeAnalyzer for this and v2 runs no analyzers. StackOnlyTypes exercises the permitted
-      direction only, so nothing measures the refusal either way.
-
-      '
-    line_at_baseline: 9033
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
-      selector: foreach(var returned in nodes.OfType<ReturnStatement>())
-      line: 55
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: 'Source-only: EscapeAnalyzer.JudgeStackSpans examines ReturnStatements. Analysis auditor explicitly
-      could not substantiate field/collection escapes by an executed probe.'
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
-      symbol: JudgeStackSpans
-      line: 24
-  related:
-  - emitter ref/span escape
-  - analysis register span escape
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-062
-  area: analysis
-  merged_audit_keys:
-  - backend:backend-stack-span-escape-positions
 - id: MIST-066
   title: Revalidate static extension member callability
   status: unverified
@@ -1608,40 +1559,6 @@ issues:
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:backend-ref-operator-parameter
   area: backend
-- id: MIST-080
-  title: Diagnose escaping local ref returns at Mist source
-  status: unverified
-  summary: The ref-return escape lead remains separate from lvalue admissibility. Existing EscapeAnalyzer
-    handles stack spans and lambda capture, while position checks establish lvalues; the local ref return
-    lifetime case needs a current refusal probe.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=132,id=ref-parameters-and-ref-locals].analysis_phase_tasks[0]
-    lead_excerpt: 'ESCAPE ANALYSIS for a ref return. `ref int Bad() { int x = 1; return ref x; }` now
-      emits, and Roslyn refuses it with CS8168 against the GENERATED file. That is a badly-sited diagnostic
-      rather than a silent miscompile, and strictly better than the wrong answer this capability used
-      to produce -- but it is the one place emitting made the message worse than refusing did.
-
-      '
-    line_at_baseline: 8654
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: 'Source-only: current EscapeAnalyzer does not establish general ref-return referent lifetime.
-      Historical CS8168 example was not executed on this baseline.'
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
-      symbol: JudgeStackSpans
-      line: 24
-    - file: Source/Mist/ProgramAnalysis/Rules/PositionAnalyzer.cs
-      symbol: ref return
-      line: 12
-  related:
-  - analysis register ref escapes
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:backend-ref-return-lifetimes
-  area: backend
 - id: MIST-081
   title: Recheck specific variadic shapes outside the delivered constraint/specialization closeout
   status: unverified
@@ -1794,67 +1711,6 @@ issues:
   - emitter capability ref-parameters-and-ref-locals
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:emitter-132-analysis_phase_tasks-2
-  area: backend
-- id: MIST-092
-  title: Revalidate source refusal or lowering of ref fields
-  status: unverified
-  summary: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-    behavior; no missing test name is used as evidence of a defect.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=132,id=ref-parameters-and-ref-locals].tasks[1]
-    lead_excerpt: 'Refuse or emit a ref FIELD. `FieldDeclaration` carries an ownership specifier and `ref`
-      on it lands on MemberModifiers.IsRef exactly as a method''s does, so `ref int F;` is still dropped
-      silently -- the last member of this family that is. Out of this capability''s name and untouched
-      by it, and now the only one left, which makes it more conspicuous than before rather than less.
-
-      '
-    line_at_baseline: 8654
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/PositionAnalyzer.cs
-      symbol: PositionAnalyzer
-      line: 20
-  related:
-  - emitter capability ref-parameters-and-ref-locals
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-132-tasks-1
-  area: backend
-- id: MIST-093
-  title: Revalidate deep composite and alias ref-struct legality
-  status: unverified
-  summary: Direct ref-struct fields, generic argument positions and capture/return escape checks already
-    exist. Revalidate deep composite/alias position completeness rather than wholesale absence of field/parameter/return/foreach/local
-    checks. No targeted deep position fixture was executed in this pass.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=138,id=ref-struct-declarations].analysis_phase_tasks[1]
-    lead_excerpt: 'Propagate ref-struct-ness into legality checks at every position used -- field, parameter,
-      return, foreach and local. A ref struct FIELD is the one with two answers: legal inside another
-      ref struct, which RefStructs.NestedRefStruct exercises and Roslyn accepts, and CS8345 inside a class,
-      which nothing in Mist currently refuses ahead of the C# compiler.
-
-      '
-    line_at_baseline: 8928
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
-      symbol: DeclarationShapeAnalyzer
-      line: 30
-  related:
-  - emitter capability ref-struct-declarations
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-138-analysis_phase_tasks-1
   area: backend
 - id: MIST-094
   title: Revalidate implicit cloning into owned fields and field assignments
@@ -6757,7 +6613,7 @@ issues:
   status: confirmed
   summary: 'Storm.SourceGenerator.Tests.NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem
     fails on a Windows checkout with core.autocrlf=true: the grammar in its raw string literal carries CRLF, the qualified
-    mode text keeps it, and the expected lines use LF. Every other test passes there; on an LF checkout it passes. The
+    mode text keeps it, and the expected lines use LF. Every other test passes there; on an LF checkout it passes. The printer, not the checkout, supplies the CR (see the packet 31 evidence). The
     fix belongs to LynxStar/StormLang (normalize the compared text or pin LF for test sources) and a pin bump here.'
   source_refs: []
   evidence:
@@ -6768,12 +6624,331 @@ issues:
       20261011-234056 on unmodified main c178e4f63023347b99c7ffcf9f4215caade8c796 both fail it with Assert.Equal Collections differ at position 4, expected
       "mode L.Inner {\n" against actual "mode L.Inner {\r\n". Six worktrees on the host hold the test file with 251 CR
       bytes; the packet 25 closeout''s 910 of 910 Storm passes were on an LF host (polling-watcher setting recorded).'
+  - revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    date: '2026-10-11'
+    kind: executed full ledgers on a Windows host, and source inspection of the pinned Storm
+    detail: 'Packet 31 saw the same failure in full ledgers TestResults/ledger/20261011-233251 (at 639e1c0b), 20261011-234417 (at 08329e0d) and 20261011-235015 (at ab0c153bfe384811a0f08b1b8555f33ec21d1a31), and alone on a detached checkout of main c178e4f63023347b99c7ffcf9f4215caade8c796. The expected mode text in the test is an escaped "\n" literal, not a raw string, and the grammar under test is built in memory; the CR comes from StormPrettyPrinter.PrintModeDecl, which ends its lines with StringBuilder.AppendLine and so writes Environment.NewLine. An LF checkout on Windows would still fail; printing \n or normalizing the compared text in the test fixes it.'
+    source_symbols:
+    - file: Source/Storm.SourceGenerator/Frontend/StormPrettyPrinter.cs
+      symbol: PrintModeDecl
+      line: 129
   related:
   - packet 25 Storm grammar semantics (Storm 83410653)
   priority_rationale: A deterministic red full-suite result on Windows hosts hides real failures there.
   area: tooling
 
+- id: MIST-229
+  title: A generic-typed local declared without an initializer parses as an expression
+  status: confirmed
+  summary: '`List<int> s;` and `Span<int> s;` do not bind as declarations: the Statement rule tries UninitializedVariableDeclaration after ExpressionStatement, to keep `(ulong)a;` a cast, so a generic type name followed by a name parses as a chain of comparisons and every use reports MIST_PM_UNRESOLVED_IDENTIFIER. A non-generic `Holder h;` declares as expected.'
+  evidence:
+  - revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    date: '2026-10-11'
+    kind: executed CLI probe
+    source: 'using Standard; using System; namespace Probe; public class Program { public static void Main() { List<int> s; s = new List<int>(); Console.WriteLine(s.Count); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_PM_UNRESOLVED_IDENTIFIER: The name ''List'' could not be found in this scope; then the same for ''s'' at each use.'
+    source_symbols:
+    - file: Source/Mist/Grammar/Mist.storm
+      symbol: rule Statement, UninitializedVariableStatement alternative
+      line: 466
+  related:
+  - MIST-064
+  priority: P3
+  priority_rationale: A grammar ordering limit with a clear expected behaviour; a grammar change outside packet 31's scope.
+  area: parsing
+- id: MIST-230
+  title: Specify or refuse ref properties and indexers declared in Mist source
+  status: decision
+  summary: A `ref` modifier on a Mist property is accepted and erased at emission, so `public ref int Value { get { return ref this.store; } }` reaches Roslyn as a value property ("By-reference returns may only be used in methods that return by reference"). No spec decides whether ref-returning properties and indexers are a Mist feature to emit or a placement to refuse; ref fields are refused under ref-parameters Requirement 6.5 (MIST-092), and readonly ref methods await MIST-142.
+  evidence:
+  - revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    date: '2026-10-11'
+    kind: executed CLI probe
+    source: 'using Standard; using System; namespace Probe; public class Holder { private int store = 1; public ref int Value { get { return ref this.store; } } } public class Program { public static void Main() { var h = new Holder(); ref int r = h.Value; r = 5; Console.WriteLine(h.Value); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'Program.cs: error MIST_CS_ERROR: By-reference returns may only be used in methods that return by reference; and A non ref-returning property or indexer may not be used as an out or ref value.'
+  related:
+  - MIST-092
+  - MIST-142
+  priority_rationale: Language contract needs resolution before selecting behavior.
+  area: backend
 archive:
+- id: MIST-080
+  title: Diagnose escaping local ref returns at Mist source
+  status: implemented
+  summary: 'Delivered: a ref return is judged by its referent''s lifetime at Mist source. Returning by ref a local, a parameter passed by value, an alias of either, a field of a struct member''s own receiver or of a struct local or parameter, an element of stackalloc memory, or a ref-returning call lent such storage is refused with MIST_PA_REF_RETURN_ESCAPES at the returned expression. A ref parameter, a class instance field directly or through a ref local, a static field, an array element, an element of a caller''s span and a call lent only such storage stay returnable.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=132,id=ref-parameters-and-ref-locals].analysis_phase_tasks[0]
+    lead_excerpt: 'ESCAPE ANALYSIS for a ref return. `ref int Bad() { int x = 1; return ref x; }` now
+      emits, and Roslyn refuses it with CS8168 against the GENERATED file. That is a badly-sited diagnostic
+      rather than a silent miscompile, and strictly better than the wrong answer this capability used
+      to produce -- but it is the one place emitting made the message worse than refusing did.
+
+      '
+    line_at_baseline: 8654
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: 'Source-only: current EscapeAnalyzer does not establish general ref-return referent lifetime.
+      Historical CS8168 example was not executed on this baseline.'
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
+      symbol: JudgeStackSpans
+      line: 24
+    - file: Source/Mist/ProgramAnalysis/Rules/PositionAnalyzer.cs
+      symbol: ref return
+      line: 12
+  related:
+  - analysis register ref escapes
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:backend-ref-return-lifetimes
+  area: backend
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - c0f052105cf09eb68a2e8d33f01505491151e1c7
+    - 85a365f96d75e2dcde9706ac30124888ea386c6f
+    verification_revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - 'FrameScopes.Referent answers which frame storage a reference names, by C#''s ref-safe contexts: a local, a by-value parameter, a struct member''s receiver, stackalloc memory through a span element, and a ref-returning call or indexer as narrow as the narrowest reference it is lent or ref struct it is given. A class instance field, a static field and an array element name none.'
+    - 'FrameLifetimes, an IFlowLattice over the shared FlowGraph, fixes a ref local''s referent where it is declared, with every ref struct local''s scope, and keeps the narrower fact at a join. EscapeAnalyzer replays the solution at each `return ref`, in lambdas and local functions as their own frames.'
+    - 'Mist has no ref reassignment: `ref r = ref y;` is MIST_PARSE_INCOMPLETE, so a declaration is the only binding of a ref local and there is no reassignment to support.'
+    - 'A returned expression PositionAnalyzer already refuses -- not a location, or a readonly reference returned writably -- is skipped, so one mistake gets one complaint.'
+    acceptance:
+    - 'Packet reproduction `int x = 1; return ref x;` (Roslyn CS8168 against the generated file at the baseline) now reports MIST_PA_REF_RETURN_ESCAPES: "Cannot return ''x'' by reference: it refers to local ''x'', which does not outlive the call." The alias reproduction `ref int alias = x; return ref alias;` (CS8157) reports the same at ''alias''.'
+    - 'Control: the class instance Get() returning `ref this.Value` still prints 9 after `x = 9` through the returned alias.'
+    - 'CLI probe refusals: `ref int Bad1(int p) { return ref p; }`, `return ref Pick(ref n)` over a local, a ref local to an element of a stackalloc span, `return ref s.F` of a struct local, and `return ref this.F` in a struct member (CS8170 at the baseline, now "it refers to the receiver ''this'' of struct ''S''").'
+    - 'CLI probe admissions, run and printing 8, 4, 5, 9, 6, 10: a ref local to a class field, a ref local to a ref parameter, a static field, Pick(ref c.Value), a field of a ref struct parameter (`ref S s`) and an element of a span parameter. The generated out/Probe.csproj builds with dotnet build --no-incremental at 0 errors and 0 warnings.'
+    - 'Tests: Tier 1 FrameScopeDecisionTests (referent rows for local, by-value parameter, struct local field, struct receiver field, stack element, ref call over a local; and for ref parameter, class field, static field, array element, span parameter element, ref call over a ref parameter); Tier 2 FrameEscapeSiteTests (four refusal sites, four admissions, and no second complaint after PositionAnalyzer''s literal and readonly-alias refusals).'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors at ab0c153bfe384811a0f08b1b8555f33ec21d1a31. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh, all projects, at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 on Windows: test exit 1 with 11175 passed and 1 failed -- Mist.Tests 10105 of 10105, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46, Storm.SourceGenerator.Tests 909 of 910 -- after building Mist.slnx with 0 warnings and 0 errors. Ledger TestResults/ledger/20261011-235015; summary.txt and failures.txt inspected. The one failure is Storm.SourceGenerator.Tests.NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, which fails identically on pristine main c178e4f6 on Windows and is MIST-226, with this run''s evidence added there. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed.'
+    - 'The first full run, at 639e1c0b before rebasing onto packet 30 (TestResults/ledger/20261011-233251), also failed Mist.Tests.Integration.GeneratedProjectNullabilityTests.EmitterToMSBuild_TheGeneratedProjectRaisesNoNullableWarning; it failed identically on pristine main c178e4f6 on Windows. Packet 30 landed the same fix first (18157046, MIST-227), so this packet''s duplicate was dropped before publication, and the run at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 passes it.'
+    - 'AllFeaturesV2_CompilesRunsAndMatchesBaseline passed in that ledger, and a CLI run of AllFeaturesV2 before rebasing onto packets 26 and 30 matched samples/__baselines__/AllFeaturesV2.out line for line (2308 lines, exit 0); the RefStructs, StackOnlyTypes, RefParameters, ClrRefInterop, ClrRefReadonly, SizedSequencePatterns, ResourceTransfer, NamedAllocationElements and StampableTypes samples it composes raise none of the new diagnostics.'
+    - 'Each refused frame and ref-return shape was first confirmed a Roslyn error in a C# scratch library on net10.0 (CS8168, CS8157, CS8167, CS8169, CS8170, CS9075, CS8352, CS8353, CS8350), and each admitted control compiled there; each refused position shape was a Roslyn error (CS8345, the ValueTuple, Nullable and array-element refusals, the boxing conversions) in its probe''s generated project at the baseline.'
+    limitations:
+    - 'Mist source declares no readonly-ref return: `readonly ref` on a method is the open decision MIST-142, so only `ref` returns occur in bodies. The rule judges any `return ref`.'
+    - 'A field of a struct member''s own `this` is refused, as C# refuses it (CS8170); Requirement 6.3''s rationale -- the object''s storage outlives the call -- holds for a class receiver, which stays admitted.'
+    - 'MIST-091, the liveness of a ref local to a field or element across ownership moves, is untouched.'
+- id: MIST-064
+  title: Extend stack-backed span escape checking to stores
+  status: implemented
+  summary: 'Delivered: stack backing is carried through ref struct values and judged wherever it could outlive the frame. A ref struct built from, or holding, stackalloc memory -- through a constructor, a field, a slice, a conversion, a switch arm or a pattern binding -- is refused when returned (MIST_PA_STACK_SPAN_RETURNED), stored where it outlives the frame (MIST_PA_STACK_SPAN_STORED) or passed to a call that could store it there (MIST_PA_STACK_SPAN_PASSED), at the escaping expression. Frame-local holders, indexing, slicing, foreach and non-escaping calls stay admitted.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=ownership-borrow-checking].tasks[8]
+    line_at_baseline: 3771
+    lead_excerpt: 'The stackalloc escape rule covers a return, directly or through a local or a Slice.
+      A span stored into a field or collection escapes too and is unmeasured: the field form is refused
+      first as a ref struct field.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=140,id=stackalloc].analysis_phase_tasks[1]
+    lead_excerpt: 'The escape rule: a stackalloc-backed span may be passed down but must not escape. Classic
+      has FrameEscapeAnalyzer for this and v2 runs no analyzers. StackOnlyTypes exercises the permitted
+      direction only, so nothing measures the refusal either way.
+
+      '
+    line_at_baseline: 9033
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
+      selector: foreach(var returned in nodes.OfType<ReturnStatement>())
+      line: 55
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: 'Source-only: EscapeAnalyzer.JudgeStackSpans examines ReturnStatements. Analysis auditor explicitly
+      could not substantiate field/collection escapes by an executed probe.'
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/EscapeAnalyzer.cs
+      symbol: JudgeStackSpans
+      line: 24
+  related:
+  - emitter ref/span escape
+  - analysis register span escape
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-062
+  area: analysis
+  merged_audit_keys:
+  - backend:backend-stack-span-escape-positions
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - c0f052105cf09eb68a2e8d33f01505491151e1c7
+    - 85a365f96d75e2dcde9706ac30124888ea386c6f
+    verification_revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - 'FrameScopes.Value answers what frame storage a ref struct value refers to: stackalloc memory, or a local or by-value parameter a Mist ref struct constructor or method was lent by ref. A call, constructor, indexer, property or field read of a ref struct is as narrow as the narrowest ref struct it is given or reference it is lent, a switch or coalesce as its narrowest arm, a conversion as its operand.'
+    - 'FrameLifetimes fixes each ref struct local''s scope from its initializer, foreach collection, with value, deconstruction or pattern scrutinee, as C# does: a later assignment neither clears nor adds the backing. EscapeAnalyzer.Frames replays the solution and judges returns, getter expression bodies, lambda results, stores (FrameScopes.Destination: a local not declared stack-bound, a parameter, `this` or one of its fields, a field of a holder not declared stack-bound) and calls whose non-readonly receiver or ref ref-struct argument is such storage.'
+    - 'MIST_PA_STACK_SPAN_RETURNED keeps its id and now names the value''s type and what it refers to; StackSpanStored, StackSpanPassed and RefReturnEscapes are new.'
+    acceptance:
+    - 'Packet reproduction `return new Holder(x)` over `Span<int, 3> x = stackalloc int[3]` (two Roslyn CS8352/CS8350 errors at the baseline) now reports MIST_PA_STACK_SPAN_RETURNED at the return: "This ''Holder'' refers to stackalloc memory, so it cannot be returned: it would outlive its stack frame."'
+    - 'CLI probes refused, each once at the escaping expression: a Holder local returned; `new Outer(new Holder(x))` returned; `x.Slice(0, 2)` and a stack-declared alias returned; a span local declared from `arr.AsSpan()` then assigned stackalloc (STORED, CS8353 in C#); `Holder h; h = new Holder(st);` (STORED); a switch with a stack arm returned; `this.Data = s` in a ref struct method, `h.Data = st` on a heap-declared holder (STORED); `h.Put(st)` on that holder and `p.Put(st)` on a holder parameter (PASSED, CS8350 in C#); a stack span bound by `is Span<int, 3> three` and returned; a local function returning stackalloc; and `new Pin(ref n)` over a local returned ("refers to local ''n''").'
+    - 'CLI probe admissions run and print 18 and 2: a stack holder used locally, `Put` and a field store on it, a readonly method on a heap holder, SumSpan(stack), Slice used locally, a heap-backed holder returned, `Wrap(Span<int, 3> p)` returning `new Holder(p)`, a parameter span returned through a pattern binding, `new Pin(ref n)` over a ref parameter, and a lambda with its own stackalloc. The generated out/Probe.csproj builds with dotnet build --no-incremental at 0 errors and 0 warnings.'
+    - 'Tests: Tier 1 FrameScopeDecisionTests (value, destination, declaration, pattern binding and join rows); Tier 2 FrameEscapeSiteTests (holder returns including one reassigned from a heap span, a pattern binding, a lambda result, four store destinations, a call store, and admissions); OwnershipRefusalTests stack-span rows now over a ref struct Span; OwnershipDecisionTests admissions also hold the new ids silent.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors at ab0c153bfe384811a0f08b1b8555f33ec21d1a31. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh, all projects, at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 on Windows: test exit 1 with 11175 passed and 1 failed -- Mist.Tests 10105 of 10105, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46, Storm.SourceGenerator.Tests 909 of 910 -- after building Mist.slnx with 0 warnings and 0 errors. Ledger TestResults/ledger/20261011-235015; summary.txt and failures.txt inspected. The one failure is Storm.SourceGenerator.Tests.NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, which fails identically on pristine main c178e4f6 on Windows and is MIST-226, with this run''s evidence added there. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed.'
+    - 'The first full run, at 639e1c0b before rebasing onto packet 30 (TestResults/ledger/20261011-233251), also failed Mist.Tests.Integration.GeneratedProjectNullabilityTests.EmitterToMSBuild_TheGeneratedProjectRaisesNoNullableWarning; it failed identically on pristine main c178e4f6 on Windows. Packet 30 landed the same fix first (18157046, MIST-227), so this packet''s duplicate was dropped before publication, and the run at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 passes it.'
+    - 'AllFeaturesV2_CompilesRunsAndMatchesBaseline passed in that ledger, and a CLI run of AllFeaturesV2 before rebasing onto packets 26 and 30 matched samples/__baselines__/AllFeaturesV2.out line for line (2308 lines, exit 0); the RefStructs, StackOnlyTypes, RefParameters, ClrRefInterop, ClrRefReadonly, SizedSequencePatterns, ResourceTransfer, NamedAllocationElements and StampableTypes samples it composes raise none of the new diagnostics.'
+    - 'Each refused frame and ref-return shape was first confirmed a Roslyn error in a C# scratch library on net10.0 (CS8168, CS8157, CS8167, CS8169, CS8170, CS9075, CS8352, CS8353, CS8350), and each admitted control compiled there; each refused position shape was a Roslyn error (CS8345, the ValueTuple, Nullable and array-element refusals, the boxing conversions) in its probe''s generated project at the baseline.'
+    limitations:
+    - 'Scopes follow C#''s declaration-fixed contexts rather than a finer flow-sensitive model: a span local declared from heap memory may not later take stackalloc memory even when it never escapes (CS8353), since R8.4 forbids accepting what C# refuses. The stack-only design''s rule 2 is amended to say so.'
+    - 'CLR span-over-reference constructors such as ReadOnlySpan<T>(in T) are not reachable from Mist source (overload resolution selects the array constructor), so a reference captured that way is not modelled; a reference lent to a Mist ref struct constructor or method is.'
+    - 'An uninitialized generic ref struct local (`Span<int> s;`) does not parse as a declaration (MIST-229), so that route was verified with a non-generic holder.'
+    - 'Readonly exemption for the call rule reads the method''s readonly modifier and a readonly declaring struct; Mist''s own Span is a non-readonly intrinsic ref struct whose members take no ref struct argument.'
+- id: MIST-092
+  title: Revalidate source refusal or lowering of ref fields
+  status: implemented
+  summary: 'Delivered: `ref` on a field is refused at its declaration with MIST_PM_REF_ON_FIELD (ref-parameters Requirement 6.5), once per field whatever else it carries, in a class, a struct or a ref struct, static or not. FieldEmitter treats a ref field reaching emission as an internal error, so the modifier can no longer be erased silently. No ref-field feature is added.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=132,id=ref-parameters-and-ref-locals].tasks[1]
+    lead_excerpt: 'Refuse or emit a ref FIELD. `FieldDeclaration` carries an ownership specifier and `ref`
+      on it lands on MemberModifiers.IsRef exactly as a method''s does, so `ref int F;` is still dropped
+      silently -- the last member of this family that is. Out of this capability''s name and untouched
+      by it, and now the only one left, which makes it more conspicuous than before rather than less.
+
+      '
+    line_at_baseline: 8654
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/PositionAnalyzer.cs
+      symbol: PositionAnalyzer
+      line: 20
+  related:
+  - emitter capability ref-parameters-and-ref-locals
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-132-tasks-1
+  area: backend
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - 95c9efeea17b2c6619b2c560589a07fa1a846183
+    - 85a365f96d75e2dcde9706ac30124888ea386c6f
+    verification_revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - 'DeclarationModifierPlacement refuses (FieldDeclarationNode, RefModifierModifierNode) as it refuses ref on an operator. A field''s `ref` always lands on MemberModifiers.IsRef, because Modifier* takes it greedily ahead of the ownership specifier, so `readonly ref` and `ref readonly` reach the same refusal and Distinct reports it once.'
+    - 'FieldEmitter.Emit throws an internal error for a field whose modifiers carry IsRef.'
+    acceptance:
+    - 'The packet reproduction `public ref int Value;` printed 1 at the baseline; it now exits 1 with one MIST_PM_REF_ON_FIELD at the field.'
+    - 'CLI probe with `readonly ref` and `ref readonly` instance fields and a static ref field in a class, a ref field in a struct and one in a ref struct, plus an unrelated `string s = 5;`: five MIST_PM_REF_ON_FIELD, one per field, and the unrelated MIST_PA_NO_IMPLICIT_CONVERSION is still reported, so Stage 5 still runs.'
+    - 'Tier 1 DeclarationModifierPlacementTests: five refused field spellings and two admitted field modifiers (readonly, static). Tier 1 RefFieldEmissionTests: an instance and a static ref field are refused at emission and a value field is emitted.'
+    - 'Ordinary fields, ref returns, ref parameters and ref locals are unchanged: the RefParameters, ClrRefInterop and ClrRefReadonly lines of AllFeaturesV2 match the baseline.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors at ab0c153bfe384811a0f08b1b8555f33ec21d1a31. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh, all projects, at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 on Windows: test exit 1 with 11175 passed and 1 failed -- Mist.Tests 10105 of 10105, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46, Storm.SourceGenerator.Tests 909 of 910 -- after building Mist.slnx with 0 warnings and 0 errors. Ledger TestResults/ledger/20261011-235015; summary.txt and failures.txt inspected. The one failure is Storm.SourceGenerator.Tests.NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, which fails identically on pristine main c178e4f6 on Windows and is MIST-226, with this run''s evidence added there. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed.'
+    - 'The first full run, at 639e1c0b before rebasing onto packet 30 (TestResults/ledger/20261011-233251), also failed Mist.Tests.Integration.GeneratedProjectNullabilityTests.EmitterToMSBuild_TheGeneratedProjectRaisesNoNullableWarning; it failed identically on pristine main c178e4f6 on Windows. Packet 30 landed the same fix first (18157046, MIST-227), so this packet''s duplicate was dropped before publication, and the run at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 passes it.'
+    - 'AllFeaturesV2_CompilesRunsAndMatchesBaseline passed in that ledger, and a CLI run of AllFeaturesV2 before rebasing onto packets 26 and 30 matched samples/__baselines__/AllFeaturesV2.out line for line (2308 lines, exit 0); the RefStructs, StackOnlyTypes, RefParameters, ClrRefInterop, ClrRefReadonly, SizedSequencePatterns, ResourceTransfer, NamedAllocationElements and StampableTypes samples it composes raise none of the new diagnostics.'
+    - 'Each refused frame and ref-return shape was first confirmed a Roslyn error in a C# scratch library on net10.0 (CS8168, CS8157, CS8167, CS8169, CS8170, CS9075, CS8352, CS8353, CS8350), and each admitted control compiled there; each refused position shape was a Roslyn error (CS8345, the ValueTuple, Nullable and array-element refusals, the boxing conversions) in its probe''s generated project at the baseline.'
+    limitations:
+    - 'A `ref` property or indexer declared in Mist source has the same erasure at emission; no spec decides whether it is a feature, so it is recorded as the decision MIST-230.'
+- id: MIST-093
+  title: Revalidate deep composite and alias ref-struct legality
+  status: implemented
+  summary: 'Delivered: every heap position the ref-struct contract names is refused at Mist source, where it is written. A property of a ref struct type in a class or struct that is not a ref struct (3.6), static storage of one in any type, a generic type argument (3.7), a union constituent (3.8), an optional (3.9), a tuple or array element, and a conversion or type test that would box one (3.11) -- through aliases, generic alias closings and nested composites. Direct ref struct fields of ref structs, locals, parameters, returns and interface declarations stay admitted.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=138,id=ref-struct-declarations].analysis_phase_tasks[1]
+    lead_excerpt: 'Propagate ref-struct-ness into legality checks at every position used -- field, parameter,
+      return, foreach and local. A ref struct FIELD is the one with two answers: legal inside another
+      ref struct, which RefStructs.NestedRefStruct exercises and Roslyn accepts, and CS8345 inside a class,
+      which nothing in Mist currently refuses ahead of the C# compiler.
+
+      '
+    line_at_baseline: 8928
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/DeclarationShapeAnalyzer.cs
+      symbol: DeclarationShapeAnalyzer
+      line: 30
+  related:
+  - emitter capability ref-struct-declarations
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-138-analysis_phase_tasks-1
+  area: backend
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - 1fc8701ea6e98a79920d568ca39b68eaf14f577f
+    - ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    - 85a365f96d75e2dcde9706ac30124888ea386c6f
+    verification_revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    implementation:
+    - 'RefStructPositionAnalyzer takes the field and type-argument checks from DisciplineAnalyzer and adds RefStructPositions decisions for properties (MIST_PA_REF_STRUCT_PROPERTY) and static storage (MIST_PA_REF_STRUCT_STATIC_STORAGE), the optional registry (MIST_PA_REF_STRUCT_OPTIONAL), and composites (MIST_PA_REF_STRUCT_UNION_CONSTITUENT, MIST_PA_REF_STRUCT_ELEMENT). RefStructs.Is sees a ref struct through constructions, refinements and aliases for these rules and for EscapeAnalyzer''s capture rule.'
+    - 'The binder records each union, tuple and array it resolves, an alias''s union included, in CompositeApplicationRegistry, so a composite is judged once where it was written. ScopeResolver.ExpandAlias records a generic alias''s closing with only what the use closed its parameters by, in every union, tuple, array or type argument the alias body holds. TupleLiteralExpression and ArrayLiteralExpression record whether a target typed them, so an inferred literal is judged where it is formed and a target-typed one is left to its written target.'
+    - 'Assignability.Boxing refuses a ref struct converted to what is not one -- an abstract it implements or the top type -- with MIST_PA_REF_STRUCT_BOXED at every AssignabilityAnalyzer position, at an explicit cast or `as` in CastAnalyzer, and at an `is` or switch-arm type test. It is kept apart from Assignability.Judge, which overload pairing also asks whether a conversion exists.'
+    acceptance:
+    - 'Packet reproduction, a class auto-property `Span<int, 3> Data { get; set; }` (Roslyn CS8345 at the baseline), now reports MIST_PA_REF_STRUCT_PROPERTY at the property; the struct and aliased forms do too.'
+    - 'CLI probes now refused at source, each once (all reached Roslyn at the baseline): a static span field and a static auto-property in a ref struct; `Span<int> | string` in a local, a return type and an unused alias; `Cursor | int`; `Span<int>?` as a parameter and inside `List<...>`; `(Span<int>, int)` as a local type, a field type and an inferred `var t = (s, 1)`; `var arr = [s, s]`; `Opt<Span<int>>` over `type Opt<T> = T | string;`; `IThing t = cursor`, `(IThing)cursor`, `Use(cursor)` and `return new Cursor()` into IThing; `object o = cursor`; `Console.WriteLine(cursor)`; `cursor is IThing t`.'
+    - 'Controls: `List<Span<int>>` keeps its two existing type-argument complaints; a target-typed tuple literal adds none to its written type; `Array<Span<int>, 2> arr = [s, s]` gets one; `type Buf = Span<int>; Func<int> f = () => b.Length` keeps its capture refusal through the alias; Mist''s own `Span<T>` alias closing adds nothing.'
+    - 'Tests: Tier 1 RefStructPositionDecisionTests (predicate through constructions, refinements and aliases; field, property and static decisions; boxing and its admissions); Tier 1 CompositeClosingRecordTests; Tier 2 CompositeApplicationRecordingTests (union, tuple and array recorded once at their node); Tier 2 RefStructPositionSiteTests (written composites, optional, foreign and heap composites left alone, inferred and target-typed literals, storage sites, boxing at a local, a cast and type tests); OwnershipRefusalTests keeps the field and type-argument rows through the new analyzer.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors at ab0c153bfe384811a0f08b1b8555f33ec21d1a31. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh, all projects, at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 on Windows: test exit 1 with 11175 passed and 1 failed -- Mist.Tests 10105 of 10105, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46, Storm.SourceGenerator.Tests 909 of 910 -- after building Mist.slnx with 0 warnings and 0 errors. Ledger TestResults/ledger/20261011-235015; summary.txt and failures.txt inspected. The one failure is Storm.SourceGenerator.Tests.NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, which fails identically on pristine main c178e4f6 on Windows and is MIST-226, with this run''s evidence added there. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed.'
+    - 'The first full run, at 639e1c0b before rebasing onto packet 30 (TestResults/ledger/20261011-233251), also failed Mist.Tests.Integration.GeneratedProjectNullabilityTests.EmitterToMSBuild_TheGeneratedProjectRaisesNoNullableWarning; it failed identically on pristine main c178e4f6 on Windows. Packet 30 landed the same fix first (18157046, MIST-227), so this packet''s duplicate was dropped before publication, and the run at ab0c153bfe384811a0f08b1b8555f33ec21d1a31 passes it.'
+    - 'AllFeaturesV2_CompilesRunsAndMatchesBaseline passed in that ledger, and a CLI run of AllFeaturesV2 before rebasing onto packets 26 and 30 matched samples/__baselines__/AllFeaturesV2.out line for line (2308 lines, exit 0); the RefStructs, StackOnlyTypes, RefParameters, ClrRefInterop, ClrRefReadonly, SizedSequencePatterns, ResourceTransfer, NamedAllocationElements and StampableTypes samples it composes raise none of the new diagnostics.'
+    - 'Each refused frame and ref-return shape was first confirmed a Roslyn error in a C# scratch library on net10.0 (CS8168, CS8157, CS8167, CS8169, CS8170, CS9075, CS8352, CS8353, CS8350), and each admitted control compiled there; each refused position shape was a Roslyn error (CS8345, the ValueTuple, Nullable and array-element refusals, the boxing conversions) in its probe''s generated project at the baseline.'
+    limitations:
+    - 'A ref struct passed to a CLR-projected callee''s object or abstract parameter is not judged at Mist source, because AssignabilityAnalyzer skips CLR-projected callees; that route belongs with MIST-053.'
+    - 'Function types such as `func<Span<int>, int>` stay admitted: they are not generic type arguments in Mist''s model, and .NET''s Func and Action allow ref struct type arguments (the probe runs and prints 2).'
+    - 'A storage-free property of ref struct type in a class is refused, because Requirement 3.6 and design Property 3 refuse any property there, although C# would accept it.'
+    - 'A composite formed only by inference -- a union inferred for switch arms, or a generic method''s substitution with no written site -- is not recorded; no such route was found reaching Roslyn.'
+- id: MIST-228
+  title: Refuse a ref local declared without an initializer
+  status: implemented
+  summary: 'Delivered: `ref int r;` is refused at the declaration with MIST_PM_REF_LOCAL_NEEDS_INITIALIZER (ref-parameters Requirement 5.7), for both ref spellings, and the local is marked failed so its later uses are not blamed for the same mistake.'
+  evidence:
+  - revision: 5ff1b65b05ac02d5a6c4626ab7be9adc72a809f1
+    date: '2026-10-11'
+    kind: executed CLI probe
+    source: 'using Standard; using System; namespace Probe; public class Program { public static void Main() { int y = 2; ref int r; r = y; Console.WriteLine(r); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'Program.cs: error MIST_CS_ERROR: A declaration of a by-reference variable must have an initializer; and Use of unassigned local variable ''r''.'
+  related:
+  - MIST-080
+  priority: P3
+  priority_rationale: Found while closing packet 31; a spec criterion that reached Roslyn.
+  area: binding
+  closure:
+    date: '2026-10-11'
+    implementation_revisions:
+    - 9e08aacbe570203d3e0d732a83ed9c761f620e01
+    - 85a365f96d75e2dcde9706ac30124888ea386c6f
+    verification_revision: ab0c153bfe384811a0f08b1b8555f33ec21d1a31
+    implementation:
+    - StatementBinder.BindUninitialized reports MIST_PM_REF_LOCAL_NEEDS_INITIALIZER at the declaration when its specifier is ref or readonly ref, and declares the local with IsFailed so PriorFailure silences its uses.
+    acceptance:
+    - The probe above now exits 1 with the single complaint at the declaration and nothing about `r = y` or the read.
+    - Tier 2 RefLocalInitializerBindingTests binds the declaration from hand-built nodes for both spellings, and an ordinary `int r;` with no diagnostic.
+    verification:
+    - Same full ledger as MIST-080 (TestResults/ledger/20261011-235015).
 - id: MIST-227
   title: Give the Windows locale runtime its nullable context
   status: implemented

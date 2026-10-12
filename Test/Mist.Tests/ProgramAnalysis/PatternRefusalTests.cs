@@ -204,6 +204,28 @@ public sealed class PatternRefusalTests
 
     [Theory]
     [Trait("Tier", "2")]
+    [InlineData("mismatched-constant", null)]
+    [InlineData("mismatched-constant-beneath-a-refinement", null)]
+    [InlineData("non-constant-bound", "MIST_PA_PATTERN_BOUND_NOT_CONSTANT")]
+    public void ARefinementItsDeclarationRefuses_IsNotJudgedAgainAtEachTest(string shape, string? expected)
+    {
+        var h = new HandBuiltRefinements();
+        var method = new Method("Max", h.Int, [], default);
+        var bound = shape == "non-constant-bound"
+            ? (Expression)new InvocationExpression(HandBuiltModel.Node(), new MethodReferenceExpression(HandBuiltModel.Node(), method), [], h.Int, method, [])
+            : h.Literal("x");
+        var declared = HandBuiltRefinements.RefinePattern(h.Int, h.Compare(h.Int, ComparisonKind.Equal, bound), "Declared");
+        var tested = shape == "mismatched-constant-beneath-a-refinement" ? h.Refine(declared, ComparisonKind.LessThan, 10L, "Beneath") : declared;
+        var pattern = new TypeTestPattern(HandBuiltModel.Node(), tested, null,
+            refinement: PatternBinder.ComposeRefinement(tested, HandBuiltModel.Node(), refined => refined.Predicate));
+
+        var findings = h.Built.Analyze(new PatternAnalyzer(), new IsPatternExpression(HandBuiltModel.Node(), HandBuiltRefinements.Local(h.Int), pattern, h.Bool));
+
+        Assert.Equal(expected, findings.SingleOrDefault()?.Id.Value);
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
     [InlineData("element", "MIST_PA_PATTERN_NEVER_MATCHES", "int")]
     [InlineData("slice", "MIST_PA_PATTERN_NEVER_MATCHES", "Numbers")]
     [InlineData("nested-list", "MIST_PA_PATTERN_NEVER_MATCHES", "int")]

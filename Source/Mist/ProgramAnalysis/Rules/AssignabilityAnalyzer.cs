@@ -29,7 +29,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     Check(context, initializer, local.Local.Type);
                     break;
 
-                case AssignmentExpression assignment:
+                case AssignmentExpression assignment when StorageLocations.NotAssignable(assignment.Target) is null:
                     Check(context, assignment.Value, AssignedType(context, assignment), assignment.Target);
                     break;
 

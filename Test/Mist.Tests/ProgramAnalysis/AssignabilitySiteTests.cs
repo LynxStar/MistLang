@@ -63,7 +63,8 @@ public sealed class AssignabilitySiteTests
                 root = new AssignmentExpression(HandBuiltModel.Node(3), target, value, integer);
                 break;
             case "coalescing-assignment":
-                root = new AssignmentExpression(HandBuiltModel.Node(3), HandBuiltModel.Literal(optional), value, integer, isCoalescing: true);
+                root = new AssignmentExpression(
+                    HandBuiltModel.Node(3), new LocalReferenceExpression(HandBuiltModel.Node(3), new LocalVariable("held", optional)), value, integer, isCoalescing: true);
                 break;
             case "return":
                 root = new ReturnStatement(value, integer);
@@ -205,7 +206,7 @@ public sealed class AssignabilitySiteTests
             "unpaired-call" => new InvocationExpression(HandBuiltModel.Node(), receiver, [value], integer, method, []),
             "from-end-index" => new IndexExpression(HandBuiltModel.Node(), receiver, value, integer),
             "void-return" => new ReturnStatement(value, input.Type("Void")),
-            "failed-target" => new AssignmentExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(ErrorType.Instance), value, integer),
+            "failed-target" => new AssignmentExpression(HandBuiltModel.Node(), new ErrorExpression(HandBuiltModel.Node()), value, integer),
             _ => throw new ArgumentOutOfRangeException(nameof(site)),
         };
 

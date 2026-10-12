@@ -8,7 +8,7 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The positions with one rule each: <c>??=</c> anywhere but statement position, a readonly local
+/// The positions with one rule each: an assignment to something that is not storage, <c>??=</c> anywhere but statement position, a readonly local
 /// reassigned, a reference taken where one is taken -- a ref local, a by-ref argument, a ref return -- to
 /// something that is not a storage location or, writably, through a readonly reference, a readonly
 /// reference assigned to, a static lambda or local function reaching outside itself, and <c>?</c> applied
@@ -36,6 +36,10 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
         {
             switch(node)
             {
+                case AssignmentExpression assignment when StorageLocations.NotAssignable(assignment.Target) is { } value:
+                    context.Report(ProgramAnalysisDiagnostics.NotAssignable, assignment.Target.Node, [assignment.Target], value);
+                    break;
+
                 case AssignmentExpression { IsCoalescing: true } coalescing when PositionDecision.Coalescing(statementLevel.Contains(coalescing)) is { } positional:
                     context.Report(positional, coalescing.Node, [coalescing.Target]);
                     break;

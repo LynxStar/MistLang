@@ -39,6 +39,33 @@ internal static class StorageLocations
         };
     }
 
+    /// <summary>
+    /// What an assignment cannot write through, by the same reckoning: a property or indexer is written by its
+    /// setter, which <see cref="Rules.AccessorAnalyzer"/> judges, unless it is reached through a struct that
+    /// is itself a value, whose copy the write would be lost on.
+    /// </summary>
+    public static string? NotAssignable(Expression target)
+    {
+        return target switch
+        {
+            PropertyReferenceExpression or ExtensionPropertyAccessExpression or IndexExpression { Indexer.Modifiers.IsRef: true } => null,
+            MemberAccessExpression { Member: PropertyResult { Property: var property } } access
+                => CopiedHolder(property.Modifiers.IsStatic, access.Receiver) is { } holder ? $"a property of {holder}" : null,
+            IndexExpression { Indexer: not null } index => CopiedHolder(isStatic: false, index.Receiver) is { } holder ? $"the indexer of {holder}" : null,
+            TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true } dependent } => $"dependent parameter '{dependent.Name}'",
+            TypeReferenceExpression type => $"the type '{TypeDisplay.Mist(type.ReferencedType)}'",
+            TypeLiteralExpression type => $"the type '{TypeDisplay.Mist(type.ReferencedType)}'",
+            ThisExpression self when !ThisTiers.IsValue(Requirement.Unrefined(self.Type)) => "'this'",
+            TupleLiteralExpression => "a tuple literal",
+            _ => NotALocation(target),
+        };
+    }
+
+    private static string? CopiedHolder(bool isStatic, Expression receiver)
+    {
+        return !isStatic && ThisTiers.IsValue(Requirement.Unrefined(receiver.Type)) ? NotALocation(receiver) : null;
+    }
+
     private static bool HoldsElements(IMistType receiver)
     {
         return Requirement.Unrefined(receiver) is ConstructedType { Definition.FullyQualifiedName: var name }

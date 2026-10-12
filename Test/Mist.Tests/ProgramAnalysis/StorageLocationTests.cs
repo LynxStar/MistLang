@@ -53,6 +53,45 @@ public sealed class StorageLocationTests
     }
 
     [Theory]
+    [InlineData("local")]
+    [InlineData("field")]
+    [InlineData("struct-local-field")]
+    [InlineData("array-element")]
+    [InlineData("span-element")]
+    [InlineData("ref-call")]
+    [InlineData("ref-indexer")]
+    [InlineData("property")]
+    [InlineData("indexer")]
+    [InlineData("struct-local-property")]
+    [InlineData("static-property-of-a-struct-result")]
+    [InlineData("struct-result-ref-indexer")]
+    [InlineData("struct-this")]
+    [InlineData("failed")]
+    public void AnAssignmentMayWriteStorageOrAnAccessor(string shape)
+    {
+        Assert.Null(StorageLocations.NotAssignable(Assigned(shape)));
+    }
+
+    [Theory]
+    [InlineData("literal", "a literal")]
+    [InlineData("value-call", "the result of 'Abs'")]
+    [InlineData("sum", "a computed value")]
+    [InlineData("struct-result-field", "a field of the result of 'Origin'")]
+    [InlineData("struct-result-property", "a property of the result of 'Origin'")]
+    [InlineData("struct-result-indexer", "the indexer of the result of 'Origin'")]
+    [InlineData("slice", "a slice")]
+    [InlineData("string-element", "an element of 'string'")]
+    [InlineData("type-name", "the type 'Holder'")]
+    [InlineData("type-literal", "the type 'Holder'")]
+    [InlineData("dependent-parameter", "dependent parameter 'N'")]
+    [InlineData("class-this", "'this'")]
+    [InlineData("tuple", "a tuple literal")]
+    public void AnAssignmentToAValueNamesWhatItWrites(string shape, string expected)
+    {
+        Assert.Equal(expected, StorageLocations.NotAssignable(Assigned(shape)));
+    }
+
+    [Theory]
     [InlineData(ByRefDirection.Ref, "passed as a ref argument")]
     [InlineData(ByRefDirection.Out, "passed as an out argument")]
     [InlineData(ByRefDirection.In, "passed by reference to an in parameter")]
@@ -99,6 +138,48 @@ public sealed class StorageLocationTests
             "literal" => HandBuiltModel.Literal(integer, 5L),
             "sum" => new BinaryExpression(HandBuiltModel.Node(), Local(integer), BinaryOperatorKind.Add, Local(integer), integer),
             _ => FieldOf(Call(origin), x),
+        };
+    }
+
+    private Expression Assigned(string shape)
+    {
+        var integer = Integer;
+        var holder = HandBuiltModel.Class("Holder");
+        var point = HandBuiltModel.Struct("Point");
+        var origin = Call(new Method("Origin", point, [], default));
+        var length = new Property("Length", integer, default);
+
+        return shape switch
+        {
+            "struct-local-property" => PropertyOf(Local(point), length),
+            "static-property-of-a-struct-result" => PropertyOf(origin, new Property("Zero", integer, new MemberModifiers { IsStatic = true })),
+            "struct-result-ref-indexer" => IndexedOn(origin, new MemberModifiers { IsRef = true }),
+            "struct-this" => new ThisExpression(HandBuiltModel.Node(), point),
+            "failed" => new ErrorExpression(HandBuiltModel.Node()),
+            "struct-result-property" => PropertyOf(origin, length),
+            "struct-result-indexer" => IndexedOn(origin, default),
+            "type-name" => new TypeReferenceExpression(HandBuiltModel.Node(), holder),
+            "type-literal" => new TypeLiteralExpression(HandBuiltModel.Node(), holder, model.Type("Type")),
+            "dependent-parameter" => new TypeReferenceExpression(
+                HandBuiltModel.Node(), new TypeParameter("N", 0, new Scope(null), holder) { IsDependent = true, Domain = model.Type("Int32") }),
+            "class-this" => new ThisExpression(HandBuiltModel.Node(), holder),
+            "tuple" => new TupleLiteralExpression(
+                HandBuiltModel.Node(), [Local(integer), Local(integer)], [null, null], model.Interner.GetOrCreateTupleType([integer, integer])),
+            _ => Shaped(shape),
+        };
+    }
+
+    private static MemberAccessExpression PropertyOf(Expression receiver, Property property)
+    {
+        return new MemberAccessExpression(
+            HandBuiltModel.Node(), receiver, property.Name, property.Type, member: new PropertyResult(property, receiver.Type, []));
+    }
+
+    private IndexExpression IndexedOn(Expression receiver, MemberModifiers modifiers)
+    {
+        return new IndexExpression(HandBuiltModel.Node(), receiver, HandBuiltModel.Literal(Integer, 1L), Integer)
+        {
+            Indexer = new Indexer(Integer, [new Parameter("index", Integer)], modifiers),
         };
     }
 

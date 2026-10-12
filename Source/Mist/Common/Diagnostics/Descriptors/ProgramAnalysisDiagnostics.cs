@@ -364,6 +364,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Cannot take a reference to {0}: it is not a storage location, so it cannot be {1}. Only a variable, a field, an array or span element, or a result returned by ref can be.");
 
+    public static readonly DiagnosticDescriptor NotAssignable = new(
+        new DiagnosticId("MIST_PA_NOT_ASSIGNABLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot assign to {0}: the left-hand side of an assignment must be a variable, a field, a property, an indexer, an array or span element, or a result returned by ref.");
+
     public static readonly DiagnosticDescriptor StaticLambdaCapture = new(
         new DiagnosticId("MIST_PA_STATIC_LAMBDA_CAPTURE"),
         DiagnosticSeverity.Error,

@@ -193,7 +193,8 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     Need(state, initializer, declaration.Local.Type, initializer);
                     break;
 
-                case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }:
+                case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }
+                    when StorageLocations.NotAssignable(assignment.Target) is null:
                     Need(state, assignment.Value, assignment.Target.Type, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target));
 
                     if(assignment.Target is IndexExpression written)

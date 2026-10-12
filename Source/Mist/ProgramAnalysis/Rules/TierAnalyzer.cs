@@ -1,9 +1,9 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
-using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramAnalysis.Rules;
@@ -20,29 +20,32 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
         {
             switch(node)
             {
-                case InvocationExpression { Method: { Modifiers.IsStatic: false } method } invocation:
-                    JudgeReceiver(context, tiers, invocation, method);
-                    JudgeLends(context, invocation.Arguments, method.ParametersList);
-                    break;
-
-                case InvocationExpression { Method: { } method } invocation:
-                    JudgeLends(context, invocation.Arguments, method.ParametersList);
-                    break;
-
-                case NewExpression { Constructor: { } constructor } creation:
-                    JudgeLends(context, creation.Arguments, constructor.ParametersList);
-                    break;
-
-                case LocalDeclarationStatement
-                {
-                    Local.Ownership: OwnershipKind.Owned,
-                    Initializer: MemberAccessExpression
+                case InvocationExpression invocation:
+                    if(invocation.Method is { Modifiers.IsStatic: false } method)
                     {
-                        Receiver: LocalReferenceExpression { Local: { Ownership: OwnershipKind.Unrestricted, IsRef: false } holder },
-                        Member: FieldResult { Field: { } extracted },
-                    } access,
-                } when ThisTiers.IsOwned(extracted):
-                    context.Report(ProgramAnalysisDiagnostics.SharedExtract, access.Node, [access], extracted.Name, holder.Name);
+                        JudgeReceiver(context, tiers, invocation, method);
+                    }
+
+                    JudgeArguments(context, tiers, invocation, invocation.Arguments, invocation.Parameters);
+                    break;
+
+                case NewExpression creation:
+                    JudgeArguments(context, tiers, creation, creation.Arguments, creation.Constructor?.ParametersList);
+                    break;
+
+                case LocalDeclarationStatement { Initializer: { } initializer } declaration:
+                    JudgeExtraction(context, initializer, declaration.Local.Ownership, declaration.Local.IsRef);
+                    break;
+
+                case AssignmentExpression { IsCoalescing: false } assignment:
+                    foreach(var (target, value) in Deconstructions.Pairs(assignment))
+                    {
+                        if(target is LocalReferenceExpression { Local: var written })
+                        {
+                            JudgeExtraction(context, value, written.IsRef ? OwnershipKind.Unrestricted : written.Ownership, byReference: false);
+                        }
+                    }
+
                     break;
             }
         }
@@ -79,25 +82,54 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void JudgeLends(AnalysisContext context, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter> parameters)
+    private static void JudgeArguments(
+        AnalysisContext context, ThisTiers tiers, Expression call, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
     {
-        for(var i = 0; i < arguments.Count && i < parameters.Count; i++)
+        for(var i = 0; parameters is not null && i < arguments.Count && i < parameters.Count; i++)
         {
-            var required = parameters[i].Modifier.Ownership switch
-            {
-                OwnershipKind.Borrowed => ThisTier.Borrowed,
-                OwnershipKind.Frozen => ThisTier.Frozen,
-                _ => ThisTier.None,
-            };
+            JudgeExtraction(context, arguments[i], parameters[i].Modifier.Ownership, parameters[i].Modifier.IsRef);
+            JudgeLend(context, tiers, call, arguments[i], parameters[i]);
+        }
+    }
 
-            if(required == ThisTier.None || !RefusesLend(arguments[i], required) || arguments[i] is not LocalReferenceExpression argument)
-            {
-                continue;
-            }
+    private static void JudgeLend(AnalysisContext context, ThisTiers tiers, Expression call, Expression argument, Parameter parameter)
+    {
+        var required = ThisTiers.LendTier(parameter);
 
+        if(required == ThisTier.None || ThisTiers.IsValue(argument.Type))
+        {
+            return;
+        }
+
+        var (given, lent) = argument switch
+        {
+            LocalReferenceExpression { Local: var local } => (Given(local), $"variable '{local.Name}'"),
+            ThisExpression => (tiers.Provided(argument, context.MemberOf(call)), "'this'"),
+            _ => (ThisTier.Owned, null),
+        };
+
+        if(lent is not null && given < required)
+        {
             context.Report(
                 ProgramAnalysisDiagnostics.IncompatibleLend, argument.Node, [argument],
-                ThisTiers.Display(Given(argument.Local)), argument.Local.Name, ThisTiers.Display(required), parameters[i].Name);
+                ThisTiers.Display(given), lent, ThisTiers.Display(required), parameter.Name);
+        }
+    }
+
+    private static void JudgeExtraction(AnalysisContext context, Expression value, OwnershipKind destination, bool byReference)
+    {
+        if(OwnedProvenance.SharedExtraction(value) is not var (field, holder))
+        {
+            return;
+        }
+
+        var refused = byReference
+            || destination is OwnershipKind.Owned or OwnershipKind.Frozen or OwnershipKind.Borrowed
+            || (!ThisTiers.IsValue(field.Type) && !Origins.IsUnchangeable(field.Type));
+
+        if(refused)
+        {
+            context.Report(ProgramAnalysisDiagnostics.SharedExtract, value.Node, [value], field.Name, holder.Name);
         }
     }
 

@@ -40,6 +40,20 @@ public sealed class OwnershipRefusalTests
     [InlineData("mutation-while-frozen", "MIST_PA_LEASE_VIOLATION")]
     [InlineData("owned-abstract", "MIST_PA_OWNED_ABSTRACT")]
     [InlineData("owned-binding-of-linear-type", "MIST_PA_OWNED_SUBSTRUCTURAL_BINDING")]
+    [InlineData("owned-field-borrowed-then-read", "MIST_PA_LEASE_VIOLATION")]
+    [InlineData("owned-field-frozen-then-whole-move", "MIST_PA_COMPOSITE_STATE")]
+    [InlineData("owned-field-frozen-then-write", "MIST_PA_LEASE_VIOLATION")]
+    [InlineData("owned-field-move-into-owned-parameter-then-read", "MIST_PA_USE_AFTER_MOVE")]
+    [InlineData("owned-field-move-then-method-reading-it", "MIST_PA_FIELD_STATE_CALL")]
+    [InlineData("owned-field-move-then-method-writing-it", "MIST_PA_FIELD_STATE_CALL")]
+    [InlineData("owned-field-move-then-read", "MIST_PA_USE_AFTER_MOVE")]
+    [InlineData("owned-field-move-then-whole-move", "MIST_PA_COMPOSITE_STATE")]
+    [InlineData("owned-field-move-then-whole-read", "MIST_PA_COMPOSITE_STATE")]
+    [InlineData("owned-field-moved-in-one-branch-then-read", "MIST_PA_USE_AFTER_MOVE")]
+    [InlineData("owned-field-moved-inside-loop", "MIST_PA_LOOP_MOVE")]
+    [InlineData("owned-field-moved-while-holder-frozen", "MIST_PA_LEASE_VIOLATION")]
+    [InlineData("owned-field-read-into-unrestricted-then-read", "MIST_PA_USE_AFTER_MOVE")]
+    [InlineData("owned-field-readonly-ref-then-move", "MIST_PA_LEASE_VIOLATION")]
     [InlineData("owned-parameter-used-after-move", "MIST_PA_USE_AFTER_MOVE")]
     [InlineData("readonly-block-in-constructor-assigns-field", "MIST_PA_FIELD_ASSIGNED_IN_READONLY_BLOCK")]
     [InlineData("readonly-field-assigned-from-outside-the-type", "MIST_PA_READONLY_FIELD_ASSIGNED")]
@@ -60,6 +74,10 @@ public sealed class OwnershipRefusalTests
     [InlineData("ref-struct-field-in-class", "MIST_PA_REF_STRUCT_FIELD")]
     [InlineData("relevant-declared-owned", "MIST_PA_CONFLICTING_DISCIPLINE")]
     [InlineData("shared-extract", "MIST_PA_SHARED_EXTRACT")]
+    [InlineData("shared-extract-by-assignment", "MIST_PA_SHARED_EXTRACT")]
+    [InlineData("shared-extract-frozen", "MIST_PA_SHARED_EXTRACT")]
+    [InlineData("shared-extract-into-owned-parameter", "MIST_PA_SHARED_EXTRACT")]
+    [InlineData("shared-extract-unrestricted-nonclonable", "MIST_PA_SHARED_EXTRACT")]
     [InlineData("stack-span-returned-through-alias", "MIST_PA_STACK_SPAN_RETURNED")]
     [InlineData("stack-span-returned", "MIST_PA_STACK_SPAN_RETURNED")]
     [InlineData("task-field-in-unrestricted-container", "MIST_PA_FIELD_DISCIPLINE_CONTAINMENT")]
@@ -72,6 +90,9 @@ public sealed class OwnershipRefusalTests
     [InlineData("this-tier-mismatch-through-explicit-this-call", "MIST_PA_THIS_TIER_MISMATCH")]
     [InlineData("this-tier-mismatch-unrestricted-parameter", "MIST_PA_THIS_TIER_MISMATCH")]
     [InlineData("unconstrained-type-parameter-field-in-linear-container", "MIST_PA_FIELD_TYPE_PARAMETER_UNCONSTRAINED")]
+    [InlineData("linear-argument-closing-a-generic-alias", "MIST_PA_FIELD_DISCIPLINE_CONTAINMENT")]
+    [InlineData("linear-argument-closing-an-unconstrained-field", "MIST_PA_FIELD_DISCIPLINE_CONTAINMENT")]
+    [InlineData("linear-argument-reaching-an-unconstrained-field-through-a-wrapper", "MIST_PA_FIELD_DISCIPLINE_CONTAINMENT")]
     [InlineData("unrestricted-to-borrowed-parameter", "MIST_PA_INCOMPATIBLE_LEND")]
     [InlineData("unrestricted-to-frozen-parameter", "MIST_PA_INCOMPATIBLE_LEND")]
     [InlineData("use-after-consuming-call", "MIST_PA_USE_AFTER_MOVE")]
@@ -94,6 +115,11 @@ public sealed class OwnershipRefusalTests
     [Theory]
     [InlineData("use-after-move-into-owned-binding")]
     [InlineData("access-while-borrowed")]
+    [InlineData("owned-field-move-then-read")]
+    [InlineData("owned-field-frozen-then-write")]
+    [InlineData("owned-field-move-then-whole-move")]
+    [InlineData("shared-extract-frozen")]
+    [InlineData("linear-argument-closing-an-unconstrained-field")]
     [InlineData("this-tier-mismatch-unrestricted-parameter")]
     [InlineData("lambda-captures-owned-binding")]
     [InlineData("stack-span-returned")]
@@ -122,6 +148,45 @@ public sealed class OwnershipRefusalTests
     public void AReadonlyMethodMaySetALocalIndexerOnWhatItOwns()
     {
         Assert.Empty(new OwnershipFragments().Analyze("readonly-method-sets-indexer-on-fresh-local"));
+    }
+
+    [Theory]
+    [InlineData("owned-field-move-then-sibling-read")]
+    [InlineData("owned-field-move-then-restore-then-whole-move")]
+    [InlineData("owned-field-move-then-method-reading-sibling")]
+    [InlineData("owned-field-frozen-then-sibling-write")]
+    [InlineData("owned-field-frozen-then-whole-freeze")]
+    [InlineData("owned-field-frozen-lease-ends-then-write")]
+    [InlineData("owned-field-borrowed-then-sibling-read")]
+    [InlineData("owned-field-moved-in-loop-and-restored")]
+    [InlineData("owned-field-cloned-into-owned-then-read")]
+    [InlineData("owned-string-field-read-then-read")]
+    [InlineData("this-lend-in-constructor")]
+    [InlineData("this-lend-with-borrowed")]
+    [InlineData("this-lend-struct")]
+    [InlineData("this-lend-undeclared")]
+    [InlineData("shared-extract-unrestricted-string")]
+    [InlineData("shared-extract-cloned")]
+    [InlineData("plain-argument-closing-an-unconstrained-field")]
+    [InlineData("linear-argument-closing-an-affine-constrained-field")]
+    public void AnOwnedFieldShapeTheContractAdmits_IsAdmitted(string caseName)
+    {
+        Assert.Empty(new OwnershipFragments().Analyze(caseName));
+    }
+
+    /// <summary>
+    /// A `this` lent past the tier its method declares is refused where it is lent and again where the
+    /// tier is declared, as a call through `this` already is: the site names the parameter, the
+    /// declaration names what the body needs.
+    /// </summary>
+    [Theory]
+    [InlineData("this-lend-frozen-to-borrowed")]
+    [InlineData("this-lend-readonly-ref-to-frozen")]
+    public void ThisLentPastItsDeclaredTier_IsRefusedAtTheLendAndTheDeclaration(string caseName)
+    {
+        var ids = new OwnershipFragments().Analyze(caseName).Select(diagnostic => diagnostic.Id.Value).Order().ToList();
+
+        Assert.Equal(new[] { "MIST_PA_INCOMPATIBLE_LEND", "MIST_PA_THIS_TIER_INSUFFICIENT" }, ids);
     }
 
     /// <summary>

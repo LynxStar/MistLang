@@ -40,6 +40,8 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
             }
         }
 
+        ClosedContainment.Judge(context);
+
         foreach(var node in context.Nodes)
         {
             if(node is LocalDeclarationStatement { Local: { Ownership: OwnershipKind.Owned } local, Initializer: { } initializer }
@@ -93,9 +95,9 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void JudgeField(AnalysisContext context, ConcreteType container, Field field, SubstructuralDiscipline held, Storm.Runtime.SyntaxNode at)
+    internal static string? Reason(SubstructuralDiscipline container, SubstructuralDiscipline held)
     {
-        var reason = (container.Discipline, held) switch
+        return (container, held) switch
         {
             (_, SubstructuralDiscipline.None) => null,
             (SubstructuralDiscipline.Linear, _) => null,
@@ -105,8 +107,11 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
             (SubstructuralDiscipline.Relevant, _) => "the container may be dropped more than once, which the field's discipline does not allow",
             _ => "the container has no substructural discipline and cannot guarantee the field's",
         };
+    }
 
-        if(reason is not null)
+    private static void JudgeField(AnalysisContext context, ConcreteType container, Field field, SubstructuralDiscipline held, Storm.Runtime.SyntaxNode at)
+    {
+        if(Reason(container.Discipline, held) is { } reason)
         {
             context.Report(
                 ProgramAnalysisDiagnostics.FieldDisciplineContainment, at, [],
@@ -114,7 +119,7 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static SubstructuralDiscipline? Constrained(TypeParameter parameter)
+    internal static SubstructuralDiscipline? Constrained(TypeParameter parameter)
     {
         foreach(var constraint in parameter.ConstraintsList)
         {
@@ -132,7 +137,7 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
         return null;
     }
 
-    private static string Display(SubstructuralDiscipline discipline)
+    internal static string Display(SubstructuralDiscipline discipline)
     {
         return discipline switch
         {
@@ -143,7 +148,7 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
         };
     }
 
-    private static string Capitalised(SubstructuralDiscipline discipline)
+    internal static string Capitalised(SubstructuralDiscipline discipline)
     {
         var name = Display(discipline);
         return char.ToUpperInvariant(name[0]) + name[1..];

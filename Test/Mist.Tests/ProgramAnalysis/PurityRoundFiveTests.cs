@@ -70,9 +70,9 @@ public sealed class PurityRoundFiveTests
     }
 
     [Fact]
-    public void OwnedFieldReadIntoAnUnrestrictedLocalSurvivesTheOwnersMove()
+    public void OwnedFieldReadIntoAnUnrestrictedLocalMovesItOutOfTheOwner()
     {
-        Refused("owned-field-read-into-a-local-then-parent-moved", OwnedSourceNotOwned, "its owned field 'Items' is also held by 'leak'");
+        Refused("owned-field-read-into-a-local-then-parent-moved", "MIST_PA_COMPOSITE_STATE", "owned field 'Items' is moved");
     }
 
     [Fact]

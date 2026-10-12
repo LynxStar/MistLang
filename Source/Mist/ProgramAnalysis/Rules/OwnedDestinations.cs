@@ -179,7 +179,7 @@ internal static class OwnedDestinations
         {
             context.Report(ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], destination, OwnershipAnalyzer.Unowned(value));
         }
-        else if(!extracts && OwnershipAnalyzer.HeldByAnotherOwner(value, method) is { } field)
+        else if(!extracts && OwnershipAnalyzer.HeldByAnotherOwner(value, method) is { } field && Place.Of(Unwrapped(value)) is not { IsRoot: false })
         {
             context.Report(
                 ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], destination,

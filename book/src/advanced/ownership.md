@@ -159,8 +159,8 @@ public class Document
 
 An `owned` field enforces two rules:
 
-1. **Provenance on writes** — any value written into the field must come from an owned source (a constructor call, a move from an owned binding, an owned-returning function, or a clone via `IClonable<T>`). This is the same provenance rule as field assignment on owned bindings, but now it applies to the specific field at all times.
-2. **Extraction requires an owned parent** — moving out of, borrowing, freezing, or taking a readonly ref of the field is only permitted when the parent binding is owned. Through a shared parent, you can write (with provenance) and clone-read, but you cannot extract the value.
+1. **Provenance on writes** — any value written into the field must come from an owned source (a constructor call, a move from an owned binding, an owned-returning function, or a clone via `IClonable<T>`). This is the same provenance rule as field assignment on owned bindings, but now it applies to the specific field at all times. Where the source is a shared value of a clonable type, the compiler inserts the `.Clone()` itself — at a field initializer, in a constructor or method assignment, and in an object initializer — so the field receives an independent copy. A shared value whose type cannot be cloned is refused at the write.
+2. **Extraction requires an owned parent** — moving out of, borrowing, freezing, or taking a readonly ref of the field is only permitted when the parent binding is owned. Through a shared parent, you can write (with provenance) and read: a read of a clonable field through a shared parent is compiled as a clone, and a read of a field whose type cannot be cloned is refused, since the only way to hand it out would be to alias it.
 
 The `owned` modifier is valid on fields of any reference type. It can also appear on value-type fields (structs and primitives) without error, though it has no behavioral effect since value types are copied. Static fields cannot be marked `owned` — ownership requires an instance-level owner.
 
@@ -196,7 +196,7 @@ The compiler infers the minimum ownership tier required on `this` for each metho
 - A method that only **reads** owned fields requires at least `readonly ref` access.
 - A method that doesn't touch owned fields requires no tier — it's callable from any binding.
 
-If a method calls a helper on `this`, the helper's tier requirement composes transitively: calling a `borrowed`-requiring helper makes the outer method also require `borrowed`.
+If a method calls a helper on `this`, the helper's tier requirement composes transitively: calling a `borrowed`-requiring helper makes the outer method also require `borrowed`. Passing `this` to a parameter composes the same way: a method that lends `this` to a `borrowed` parameter requires `borrowed` access, and one that lends it to a `frozen` parameter requires `frozen`. A method whose declared tier is lower than such a lend is refused at the lend, as a method declared `with frozen` cannot pass `this` where `borrowed` is needed. Inside a constructor `this` is owned, so a constructor may lend it at any tier.
 
 ```mist
 public class Account
@@ -321,9 +321,13 @@ p.Left = "restored";  // Left returns to Live
 
 **State transitions for fields** mirror the standard ownership states: Live, LentReadonly, LentFrozen, LentRef, and Moved. Each field transitions independently.
 
-**Reading into a shared destination is a move**: `var x = p.Left` moves the value out of `Left` (the field enters Moved). If you want a copy without moving, the field's type must implement `IClonable<T>` — the compiler inserts a `.Clone()` and the field stays Live.
+**Reading into a shared destination is a move**: `var x = p.Left` moves the value out of `Left` (the field enters Moved), and so does passing `p.Left` to an owned parameter or storing it into another owned field. Reading it into an *owned* binding is different when the field's type implements `IClonable<T>`: the compiler inserts a `.Clone()` there, the binding gets an independent copy and the field stays Live. For a copy anywhere else, write `p.Left.Clone()` yourself. A field whose value cannot change, such as a `string`, is never tracked: reading it is a copy.
 
-**Composite state** restricts whole-object operations. The parent's composite state is the most restrictive state among all its owned fields. If any field is Moved, you cannot pass the parent as a whole (move, borrow, freeze) to another binding — the object is incomplete. But you can still access sibling fields and restore the moved field.
+**Leases on a field** work as leases on a binding do. `frozen var f = p.Left` leaves `Left` lent frozen until the block that declared `f` ends: `Left` may be read and frozen again but not written, borrowed or moved, while `Right` is untouched. A `borrowed` lease locks the field entirely for its duration. A lease on the parent constrains every field in the same way.
+
+**Composite state** restricts whole-object operations. The parent's composite state is the most restrictive state among all its owned fields. If any field is Moved or lent borrowed, you cannot pass the parent as a whole to another binding or parameter — the object is incomplete, and even a plain read of the whole is refused. If a field is lent frozen, the parent may still be read, frozen or viewed as a whole, but not moved, borrowed or written. You can always access sibling fields and restore the moved field.
+
+**Method calls look at the fields they touch**: calling a method on the parent is refused when the method reads or writes an owned field that is moved or lent borrowed, or writes one that is lent frozen, counting the fields its helpers reach on `this`. A method that touches only Live fields is callable while a sibling is out.
 
 **Sibling independence**: field A being borrowed does not prevent operations on field B. Each field is tracked independently. The composite state only restricts operations on the parent *as a whole*.
 

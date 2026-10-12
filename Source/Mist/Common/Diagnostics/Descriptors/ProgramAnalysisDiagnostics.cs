@@ -488,7 +488,7 @@ public static partial class ProgramAnalysisDiagnostics
         new DiagnosticId("MIST_PA_INCOMPATIBLE_LEND"),
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
-        "Cannot pass {0} variable '{1}' to {2} parameter '{3}': a {2} parameter needs at least {2} access.");
+        "Cannot pass {0} {1} to {2} parameter '{3}': a {2} parameter needs at least {2} access.");
 
     public static readonly DiagnosticDescriptor ThisTierMismatch = new(
         new DiagnosticId("MIST_PA_THIS_TIER_MISMATCH"),
@@ -507,6 +507,18 @@ public static partial class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Cannot extract owned field '{0}' through unrestricted binding '{1}': extracting from an owned field requires an owned binding to its holder.");
+
+    public static readonly DiagnosticDescriptor CompositeState = new(
+        new DiagnosticId("MIST_PA_COMPOSITE_STATE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot {0} '{1}' as a whole while its owned field '{2}' is {3}.");
+
+    public static readonly DiagnosticDescriptor FieldStateCall = new(
+        new DiagnosticId("MIST_PA_FIELD_STATE_CALL"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Cannot call '{0}' on '{1}': it {2} owned field '{3}', which is {4}.");
 
     public static readonly DiagnosticDescriptor OwnedAbstract = new(
         new DiagnosticId("MIST_PA_OWNED_ABSTRACT"),

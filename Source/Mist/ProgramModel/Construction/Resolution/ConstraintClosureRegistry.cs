@@ -61,7 +61,7 @@ internal sealed class ConstraintClosureRegistry
         {
             var aliasClosing = TypeSubstitution.ForReceiver(enclosing)
                 .Extend(TypeSubstitution.ForParameters(alias.TypeParametersList, typeArguments));
-            Record(alias.TypeParametersList, typeArguments, aliasClosing, node, boundIn, stampableOnly: true);
+            Record(alias.TypeParametersList, typeArguments, aliasClosing, node, boundIn);
             return;
         }
 

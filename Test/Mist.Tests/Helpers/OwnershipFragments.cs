@@ -19,6 +19,12 @@ internal sealed class OwnershipFragments
 
     public IReadOnlyList<Diagnostic> Analyze(string name)
     {
+        if(name.StartsWith("owned-field-", StringComparison.Ordinal) || name.StartsWith("owned-string-field-", StringComparison.Ordinal)
+            || name.StartsWith("this-lend-", StringComparison.Ordinal) || name.StartsWith("shared-extract-", StringComparison.Ordinal))
+        {
+            return new OwnedFieldFragments().Analyze(name);
+        }
+
         if((name.StartsWith("readonly-", StringComparison.Ordinal) && name != "readonly-ref-to-frozen-parameter")
             || name.StartsWith("field-assigned-", StringComparison.Ordinal))
         {
@@ -41,7 +47,8 @@ internal sealed class OwnershipFragments
             or "ref-struct-as-type-argument" or "ref-struct-field-in-class" or "affine-field-in-relevant-container"
             or "linear-field-in-unrestricted-container" or "linear-field-in-affine-container"
             or "task-field-in-unrestricted-container" or "unconstrained-type-parameter-field-in-linear-container"
-            or "owned-binding-of-linear-type")
+            or "owned-binding-of-linear-type"
+            || name.Contains("-argument-closing-", StringComparison.Ordinal) || name.Contains("-argument-reaching-", StringComparison.Ordinal))
         {
             return OwnershipDeclarations.Analyze(name);
         }

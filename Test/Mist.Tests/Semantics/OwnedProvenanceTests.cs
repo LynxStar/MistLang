@@ -10,6 +10,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -76,6 +77,82 @@ public sealed class OwnedProvenanceTests
         var findings = types.Model.Analyze(new OwnershipAnalyzer(), body, [], probe, run);
 
         Assert.Equal(expected, findings.SingleOrDefault()?.Id.Value);
+    }
+
+    /// <summary>
+    /// Owned-fields Requirement 2.3: an owned field read through a holder that neither owns nor leases
+    /// it is copied into any destination that keeps the value, and left alone where the destination
+    /// aliases it -- a lease or a reference -- or where the holder is owned, which is a move instead.
+    /// </summary>
+    [Theory]
+    [Trait("Tier", "1")]
+    [InlineData(OwnershipKind.Unrestricted, false, OwnershipKind.Unrestricted, true)]
+    [InlineData(OwnershipKind.Owned, false, OwnershipKind.Unrestricted, true)]
+    [InlineData(OwnershipKind.Frozen, false, OwnershipKind.Unrestricted, false)]
+    [InlineData(OwnershipKind.Borrowed, false, OwnershipKind.Unrestricted, false)]
+    [InlineData(OwnershipKind.Unrestricted, true, OwnershipKind.Unrestricted, false)]
+    [InlineData(OwnershipKind.Unrestricted, false, OwnershipKind.Owned, false)]
+    public void AnOwnedFieldReadThroughASharedHolder_IsClonedWhereTheDestinationKeepsIt(
+        OwnershipKind destination, bool byReference, OwnershipKind holder, bool cloned)
+    {
+        var holders = new Holders();
+        var read = holders.Read(holder);
+
+        var bound = OwnedProvenance.At(destination, read, byReference);
+
+        Assert.Equal(cloned, bound is CloneExpression);
+        Assert.Same(read, cloned ? ((CloneExpression)bound).Source : bound);
+    }
+
+    [Theory]
+    [Trait("Tier", "1")]
+    [InlineData("owned-field", OwnershipKind.Owned)]
+    [InlineData("plain-field", OwnershipKind.Unrestricted)]
+    [InlineData("owned-local", OwnershipKind.Owned)]
+    [InlineData("ref-local", OwnershipKind.Unrestricted)]
+    public void AStoreIsReadAtTheTierItsSlotPromises(string slot, OwnershipKind expected)
+    {
+        Assert.Equal(expected, OwnedProvenance.OwnershipOf(new Holders().Slot(slot)));
+    }
+
+    private sealed class Holders
+    {
+        private readonly ClassType thing = HandBuiltModel.Class("Thing");
+        private readonly ClassType holder = HandBuiltModel.Class("Holder");
+        private readonly Field item;
+        private readonly Field plain;
+
+        public Holders()
+        {
+            thing.MethodsList.Add(new Method("Clone", thing, [], new MemberModifiers { IsOwned = true }) { DeclaringType = thing });
+            item = new Field("Item", thing, OwnershipKind.Owned, default) { DeclaringType = holder };
+            plain = new Field("Plain", thing, OwnershipKind.Unrestricted, default) { DeclaringType = holder };
+            holder.FieldsList.AddRange([item, plain]);
+        }
+
+        public MemberAccessExpression Read(OwnershipKind holding)
+        {
+            var local = new LocalVariable("h", holder) { Ownership = holding };
+            return Access(new LocalReferenceExpression(HandBuiltModel.Node(), local), item);
+        }
+
+        public Expression Slot(string slot)
+        {
+            var h = new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("h", holder));
+
+            return slot switch
+            {
+                "owned-field" => Access(h, item),
+                "plain-field" => Access(h, plain),
+                "owned-local" => new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("o", thing) { Ownership = OwnershipKind.Owned }),
+                _ => new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("r", thing) { IsRef = true, Ownership = OwnershipKind.Owned }),
+            };
+        }
+
+        private MemberAccessExpression Access(Expression receiver, Field field)
+        {
+            return new MemberAccessExpression(HandBuiltModel.Node(), receiver, field.Name, field.Type, member: new FieldResult(field, holder, []));
+        }
     }
 
     private sealed class Types

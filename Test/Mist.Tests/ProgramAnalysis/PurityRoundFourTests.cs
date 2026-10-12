@@ -11,7 +11,6 @@ public sealed class PurityRoundFourTests
     private const string StoresUnowned = "MIST_PA_PURE_SCOPE_STORES_UNOWNED";
     private const string PureFunctionRequired = "MIST_PA_PURE_FUNCTION_REQUIRED";
     private const string ReadonlyContractNotMet = "MIST_PA_READONLY_CONTRACT_NOT_MET";
-    private const string OwnedSourceNotOwned = "MIST_PA_OWNED_SOURCE_NOT_OWNED";
 
     [Fact]
     public void FrozenLocalDeclaredOverAnUnrestrictedInput()
@@ -88,9 +87,9 @@ public sealed class PurityRoundFourTests
     }
 
     [Fact]
-    public void OwnedFieldOfAnOwnedHolderCopiedIntoAnotherOwnedSlotWithoutAMove()
+    public void OwnedFieldOfAnOwnedHolderMovedIntoAnotherOwnedSlot_IsAPartialMove()
     {
-        Refused("owned-field-of-an-owned-holder-copied-into-another-owned-slot-without-a-move", OwnedSourceNotOwned, "owned field 'Items' still holds it");
+        Admitted("owned-field-of-an-owned-holder-moved-into-another-owned-slot");
     }
 
     [Fact]

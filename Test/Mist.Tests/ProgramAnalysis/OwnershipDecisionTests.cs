@@ -16,6 +16,7 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
     private static readonly string[] Ids =
     [
         "MIST_PA_USE_AFTER_MOVE", "MIST_PA_LOOP_MOVE", "MIST_PA_LEASE_VIOLATION", "MIST_PA_INCOMPATIBLE_LEND",
+        "MIST_PA_COMPOSITE_STATE", "MIST_PA_FIELD_STATE_CALL",
         "MIST_PA_THIS_TIER_MISMATCH", "MIST_PA_THIS_TIER_INSUFFICIENT", "MIST_PA_SHARED_EXTRACT",
         "MIST_PA_OWNED_ABSTRACT", "MIST_PA_OWNED_SUBSTRUCTURAL_BINDING", "MIST_PA_CONFLICTING_DISCIPLINE",
         "MIST_PA_FIELD_DISCIPLINE_CONTAINMENT", "MIST_PA_FIELD_TYPE_PARAMETER_UNCONSTRAINED",
@@ -364,11 +365,22 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
     [InlineData("var car = new Car(); car.Service(); car.Front.Rev(1); car.Spare.Rev(1);")]
     [InlineData("new Account(1).Deposit(1);")]
     [InlineData("Helpers.Make().Deposit(1);")]
-    [InlineData("owned var car = new Car(); owned var f = car.Front; Console.WriteLine(car.Front.Get());")]
-    [InlineData("owned var car = new Car(); var f = car.Front; Console.WriteLine(car.Front.Get());")]
     public void AReceiverClassicAdmits_IsAdmitted(string statement)
     {
         AssertSilent(statement);
+    }
+
+    /// <summary>
+    /// Owned-fields Requirements 16.2 and 16.7: an owned field of a non-clonable type read out of an
+    /// owned holder into any binding is a move of that field, so the read after it is refused. These
+    /// rows were banked as classic's admissions before per-field state existed.
+    /// </summary>
+    [Theory]
+    [InlineData("owned var car = new Car(); owned var f = car.Front; Console.WriteLine(car.Front.Get());")]
+    [InlineData("owned var car = new Car(); var f = car.Front; Console.WriteLine(car.Front.Get());")]
+    public void AnOwnedFieldReadOutOfAnOwnedHolder_IsAMoveOfThatField(string statement)
+    {
+        Assert.Equal("MIST_PA_USE_AFTER_MOVE", Assert.Single(Analyse(statement)).Id.Value);
     }
 
     [Theory]

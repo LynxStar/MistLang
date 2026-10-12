@@ -283,7 +283,7 @@ internal static class StatementBinder
             FailureSource = initializer,
         };
         ctx.Scope.DeclareLocal(local, node, context.Diagnostics, name.Span);
-        return new LocalDeclarationStatement(local, initializer is null ? null : OwnedProvenance.At(ownership, initializer));
+        return new LocalDeclarationStatement(local, initializer is null ? null : OwnedProvenance.At(ownership, initializer, local.IsRef));
     }
 
     /// <summary>

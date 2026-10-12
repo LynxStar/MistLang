@@ -51,7 +51,7 @@ internal sealed partial class PurityFragments
             "constructor-context-clause-read-without-declaring-it" => ConstructorContextClause(chained: false),
             "chained-constructor-context-clause-read-without-declaring-it" => ConstructorContextClause(chained: true),
             "enum-variant-read-runs-member-value-initializers" => EnumVariantReadRunsMemberValueInitializers(),
-            "owned-field-of-an-owned-holder-copied-into-another-owned-slot-without-a-move" => OwnedFieldOfAnOwnedHolderMoved(intoBinding: false),
+            "owned-field-of-an-owned-holder-moved-into-another-owned-slot" => OwnedFieldOfAnOwnedHolderMoved(intoBinding: false),
             "owned-field-of-an-owned-holder-extracted-into-an-owned-binding" => OwnedFieldOfAnOwnedHolderMoved(intoBinding: true),
             _ => RoundFourDispatch(name),
         };

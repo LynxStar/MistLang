@@ -1,5 +1,7 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -92,8 +94,8 @@ internal static class MemberBinder
         {
             foreach(var field in concreteType.FieldsList)
             {
-                field.Initializer = BodyBinder.BindInitializer(
-                    field.Initializer, field.Type, memberType.Scope, context);
+                field.Initializer = AtSlot(
+                    OwnedProvenance.IsOwned(field), BodyBinder.BindInitializer(field.Initializer, field.Type, memberType.Scope, context));
             }
 
             BindDefaultBlock(concreteType, context);
@@ -101,9 +103,14 @@ internal static class MemberBinder
 
         foreach(var property in memberType.PropertiesList)
         {
-            property.Initializer = BodyBinder.BindInitializer(
-                property.Initializer, property.Type, memberType.Scope, context);
+            property.Initializer = AtSlot(
+                OwnedProvenance.IsOwned(property), BodyBinder.BindInitializer(property.Initializer, property.Type, memberType.Scope, context));
         }
+    }
+
+    private static Expression? AtSlot(bool owned, Expression? bound)
+    {
+        return bound is null ? null : OwnedProvenance.At(owned ? OwnershipKind.Owned : OwnershipKind.Unrestricted, bound);
     }
 
     /// <summary>
@@ -146,8 +153,7 @@ internal static class MemberBinder
     {
         if(declaring.FieldsList.Find(f => f.Name == entry.FieldName) is { } field)
         {
-            entry.Value = BodyBinder.BindInitializer(
-                entry.Value, field.Type, enclosing.Scope, context)!;
+            entry.Value = AtSlot(OwnedProvenance.IsOwned(field), BodyBinder.BindInitializer(entry.Value, field.Type, enclosing.Scope, context))!;
         }
     }
 

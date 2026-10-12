@@ -66,6 +66,11 @@ internal static class ExpressionBinder
 
                 value = ImplicitConversions.At(value, valueTarget, context.ProgramModel.TypeInterner);
 
+                if(!isCoalescing)
+                {
+                    value = OwnedProvenance.At(OwnedProvenance.OwnershipOf(target), value);
+                }
+
                 return new AssignmentExpression(expression, target, value, AssignmentResultType(target, value, isCoalescing), isCoalescing);
             }
 

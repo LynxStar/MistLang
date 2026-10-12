@@ -15,6 +15,12 @@ internal static class OwnershipDeclarations
     public static IReadOnlyList<Diagnostic> Analyze(string name)
     {
         var fragment = new DeclarationFragments();
+
+        if(name.Contains("-argument-", StringComparison.Ordinal))
+        {
+            return Closings(fragment, name);
+        }
+
         var container = fragment.Class("Container");
         var held = fragment.Class("Held");
         switch(name)
@@ -89,5 +95,49 @@ internal static class OwnershipDeclarations
         }
 
         return fragment.Run(name.StartsWith("ref-struct-", StringComparison.Ordinal) ? new RefStructPositionAnalyzer() : new DisciplineAnalyzer());
+    }
+
+    private static IReadOnlyList<Diagnostic> Closings(DeclarationFragments fragment, string name)
+    {
+        var box = fragment.Class("Box");
+        var t = DeclarationFragments.Parameter(box, box.Scope, "T");
+        box.FieldsList.Add(new Field("Item", t, default, default) { DeclaringType = box, DeclarationNode = HandBuiltModel.Node() });
+        var resource = fragment.Class("Resource");
+        resource.Modifiers = DeclarationFragments.Public with { Discipline = SubstructuralDiscipline.Linear };
+        var registry = fragment.Built.Model.ConstructorConstraintClosures;
+        var interner = fragment.Built.Interner;
+
+        switch(name)
+        {
+            case "linear-argument-closing-an-unconstrained-field":
+                registry.RecordType(box, [resource], HandBuiltModel.Node(37));
+                break;
+            case "plain-argument-closing-an-unconstrained-field":
+                registry.RecordType(box, [fragment.Class("Plain")], HandBuiltModel.Node(37));
+                break;
+            case "linear-argument-closing-an-affine-constrained-field":
+                box.Modifiers = DeclarationFragments.Public with { Discipline = SubstructuralDiscipline.Affine };
+                t.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Affine));
+                registry.RecordType(box, [resource], HandBuiltModel.Node(37));
+                break;
+            case "linear-argument-reaching-an-unconstrained-field-through-a-wrapper":
+                var wrapper = fragment.Class("Wrapper");
+                var u = DeclarationFragments.Parameter(wrapper, wrapper.Scope, "U");
+                wrapper.FieldsList.Add(new Field("Inner", interner.GetOrCreateConstructedType(box, [u]), default, default) { DeclaringType = wrapper, DeclarationNode = HandBuiltModel.Node() });
+                registry.RecordType(box, [u], HandBuiltModel.Node());
+                registry.RecordType(wrapper, [resource], HandBuiltModel.Node(37));
+                break;
+            case "linear-argument-closing-a-generic-alias":
+                var alias = fragment.Alias("Wrap", box);
+                var aliased = DeclarationFragments.Parameter(alias, alias.Scope, "T");
+                alias.AliasedType = interner.GetOrCreateConstructedType(box, [aliased]);
+                registry.RecordType(box, [aliased], HandBuiltModel.Node());
+                registry.RecordType(alias, [resource], HandBuiltModel.Node(37));
+                break;
+            default:
+                throw new ArgumentException($"no closing fragment named '{name}'", nameof(name));
+        }
+
+        return fragment.Run(new DisciplineAnalyzer());
     }
 }

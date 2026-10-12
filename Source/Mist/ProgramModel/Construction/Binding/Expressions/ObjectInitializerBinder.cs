@@ -62,8 +62,9 @@ internal static class ObjectInitializerBinder
             value = ExpressionBinder.BindExpression(named.Value, ctx, context);
         }
 
-        value = ImplicitConversions.At(
-            NewtypeLiterals.Admit(value, target, context.ProgramModel.TypeInterner)!, target, context.ProgramModel.TypeInterner);
+        value = OwnedProvenance.At(
+            OwnedProvenance.OwnershipOf(found),
+            ImplicitConversions.At(NewtypeLiterals.Admit(value, target, context.ProgramModel.TypeInterner)!, target, context.ProgramModel.TypeInterner));
 
         bound.Add(new ObjectInitializerAssignment(named, memberName, value, target, member: found) { IsTargetFailed = lookup.Reported });
     }

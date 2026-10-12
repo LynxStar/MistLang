@@ -1,7 +1,9 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -10,19 +12,26 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// Where an owned position gets its value, and what to do when the source does not already own one.
 /// An owned binding promises an INDEPENDENT value, so a source that something else still holds has to
 /// be copied -- otherwise the two names alias and mutating either is visible through the other, which
-/// is the whole of what owning is meant to rule out.
+/// is the whole of what owning is meant to rule out. An owned field read through a shared holder is the
+/// same promise seen from the other side (owned-fields Requirement 2.3): the holder cannot give the
+/// field away, so what it hands out is a copy.
 /// </summary>
 internal static class OwnedProvenance
 {
     /// <summary>
-    /// The expression to bind at an owned position: the source itself where it already owns its value,
-    /// and a clone of it otherwise. A type with no <c>Clone</c> is left alone -- whether owning it is
-    /// legal at all is a judgement on a finished model, and refusing here would turn a rule about
-    /// provenance into one about which types may be owned.
+    /// The expression to bind at a position of the given tier: the source itself where it already owns
+    /// its value or the position only lends, and a clone of it otherwise. A type with no <c>Clone</c>
+    /// is left alone -- whether owning it is legal at all is a judgement on a finished model, and
+    /// refusing here would turn a rule about provenance into one about which types may be owned.
     /// </summary>
-    public static Expression At(OwnershipKind target, Expression source)
+    public static Expression At(OwnershipKind target, Expression source, bool byReference = false)
     {
-        return target == OwnershipKind.Owned && !Owns(source) && Clonable(source.Type)
+        if(byReference || target is OwnershipKind.Frozen or OwnershipKind.Borrowed || !Clonable(source.Type))
+        {
+            return source;
+        }
+
+        return (target == OwnershipKind.Owned && !Owns(source)) || SharedExtraction(source) is not null
             ? new CloneExpression(source.Node, source)
             : source
             ;
@@ -45,11 +54,56 @@ internal static class OwnedProvenance
         for(var i = 0; i < arguments.Count; i++)
         {
             adjusted.Add(i < parameters.Count
-                ? At(parameters[i].Modifier.Ownership, arguments[i])
+                ? At(parameters[i].Modifier.Ownership, arguments[i], parameters[i].Modifier.IsRef)
                 : arguments[i]);
         }
 
         return adjusted;
+    }
+
+    public static OwnershipKind OwnershipOf(Expression target)
+    {
+        return target switch
+        {
+            LocalReferenceExpression { Local: { IsRef: false } local } => local.Ownership,
+            FieldReferenceExpression { Field: var field } => IsOwned(field) ? OwnershipKind.Owned : OwnershipKind.Unrestricted,
+            BackingFieldReferenceExpression { Property: var backed } => IsOwned(backed) ? OwnershipKind.Owned : OwnershipKind.Unrestricted,
+            PropertyReferenceExpression { Property: var property } => IsOwned(property) ? OwnershipKind.Owned : OwnershipKind.Unrestricted,
+            MemberAccessExpression { Member: var member } => OwnershipOf(member),
+            _ => OwnershipKind.Unrestricted,
+        };
+    }
+
+    public static OwnershipKind OwnershipOf(LookupResult? member)
+    {
+        return member switch
+        {
+            FieldResult { Field: var field } when IsOwned(field) => OwnershipKind.Owned,
+            PropertyResult { Property: var property } when IsOwned(property) => OwnershipKind.Owned,
+            _ => OwnershipKind.Unrestricted,
+        };
+    }
+
+    public static bool IsOwned(Field field)
+    {
+        return !field.Modifiers.IsStatic
+            && (field.Ownership == OwnershipKind.Owned || field.Modifiers.IsOwned || field.DeclaringType is { Modifiers.IsOwned: true });
+    }
+
+    public static bool IsOwned(Property property)
+    {
+        return property.Modifiers is { IsOwned: true, IsStatic: false };
+    }
+
+    public static (Field Field, LocalVariable Holder)? SharedExtraction(Expression source)
+    {
+        return source is MemberAccessExpression
+        {
+            Receiver: LocalReferenceExpression { Local: { Ownership: OwnershipKind.Unrestricted, IsRef: false } holder },
+            Member: FieldResult { Field: var field },
+        } && IsOwned(field)
+            ? (field, holder)
+            : null;
     }
 
     /// <summary>

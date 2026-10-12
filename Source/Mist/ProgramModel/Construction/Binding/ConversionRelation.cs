@@ -191,7 +191,8 @@ internal static class ConversionRelation
 
     /// <summary>
     /// Compared by name rather than by reference, since interning holds for most pairs but not every
-    /// construction path. One hole survives <see cref="IsIndeterminate"/>: a constructed type
+    /// construction path, and with tuple element names dropped at every depth, since they are not part
+    /// of a type's identity. One hole survives <see cref="IsIndeterminate"/>: a constructed type
     /// interpolates its arguments' names, so the same lifted value over an int and over a byte compares
     /// equal here.
     /// </summary>
@@ -205,7 +206,41 @@ internal static class ConversionRelation
             return false;
         }
 
-        return string.Equals(left.FullyQualifiedName, right.FullyQualifiedName, StringComparison.Ordinal);
+        return SameName(left, right);
+    }
+
+    private static bool SameName(IMistType left, IMistType right)
+    {
+        left = Structural(left);
+        right = Structural(right);
+
+        if(string.Equals(left.FullyQualifiedName, right.FullyQualifiedName, StringComparison.Ordinal)
+            || (left is DeclaredType { ClrMetadataName: { } leftRuntime }
+                && right is DeclaredType { ClrMetadataName: { } rightRuntime }
+                && string.Equals(leftRuntime, rightRuntime, StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        return (left, right) switch
+        {
+            (ConstructedType leftConstructed, ConstructedType rightConstructed) =>
+                SameName(leftConstructed.Definition, rightConstructed.Definition)
+                && SameEnclosing(leftConstructed.Enclosing, rightConstructed.Enclosing)
+                && SameNames(leftConstructed.TypeArguments, rightConstructed.TypeArguments),
+            (ITupleType leftTuple, ITupleType rightTuple) => SameNames(leftTuple.ElementTypes, rightTuple.ElementTypes),
+            _ => false,
+        };
+    }
+
+    private static bool SameEnclosing(ConstructedType? left, ConstructedType? right)
+    {
+        return left is null ? right is null : right is not null && SameName(left, right);
+    }
+
+    private static bool SameNames(IReadOnlyList<IMistType> left, IReadOnlyList<IMistType> right)
+    {
+        return left.Count == right.Count && left.Zip(right).All(pair => SameName(pair.First, pair.Second));
     }
 
     /// <summary>

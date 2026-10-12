@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Reflection;
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.ProgramModel.Contracts;
@@ -80,6 +81,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
     {
         // Pull well-known Standard Library types out of the ProgramModel.
         var wellKnownTypes = ResolveWellKnownTypes(programModel);
+        NameIntrinsicRuntimeTypes(programModel);
 
         // Phase 1: Create shells for all exported types.
         var (shells, clrTypes) = CreateShells(wellKnownTypes);
@@ -147,6 +149,17 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeProvider, IDisposable
         }
 
         return resolved;
+    }
+
+    private static void NameIntrinsicRuntimeTypes(ProgramModelType programModel)
+    {
+        foreach(var mistName in ClrSpelling.MistNames)
+        {
+            if(programModel.TypesByFQN.TryGetValue(mistName, out var type) && type is DeclaredType declared)
+            {
+                declared.ClrMetadataName = ClrSpelling.MetadataName(declared);
+            }
+        }
     }
 
     /// <summary>

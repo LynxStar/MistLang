@@ -166,83 +166,6 @@ issues:
     versus collective-coverage policy, a language decision rather than a proof gap.
   audit_key: analysis:analysis-004
   area: analysis
-- id: MIST-004
-  title: Judge collection-initializer Add refinement and parameter constraints
-  status: confirmed
-  summary: OverloadResolution.IsApplicable already checks ordinary implicit/constant argument conversions,
-    so this is not a general type-mismatch gap. ObjectInitializerBinder.AddElement records selected Add
-    and converted elements with targetType:null; AssignabilityAnalyzer only judges non-null entry targets,
-    and RefinementAnalyzer NeedArguments for NewExpression checks constructor arguments rather than selected
-    Add entries. Preserve the bounded missing refinement/parameter-constraint discharge for collection
-    elements. Source-supported; the attempted Bag probe lacked IEnumerable and was inconclusive.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=assignability-core].tasks[3]
-    line_at_baseline: 1295
-    lead_excerpt: 'A collection-initializer element is not judged against the Add overload the binder
-      selected.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ObjectInitializerBinder.cs
-      selector: 'targetType: null, choice.Selected'
-      line: 114
-    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
-      selector: if(entry.TargetType is { } target)
-      line: 220
-  related:
-  - emitter collection initializers
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-011
-  area: analysis
-- id: MIST-005
-  title: Judge void and top-level returns at their source contracts
-  status: confirmed
-  summary: Valued non-unit returns in void bodies still reach Roslyn because assignability skips void
-    targets. Top-level integer returns are explicitly valid process exit codes (top-level-statements Requirement
-    7.1), and bare return exits with zero; only non-integer top-level returns require a source type error.
-    Do not use the historical broad valued-return wording to reject valid scripts.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=assignability-core].tasks[5]
-    line_at_baseline: 1300
-    lead_excerpt: 'A return with a value in a void method, and a top-level `return 0`, carry a void target
-      and are skipped here; order 6 owns the declaration-shape refusal.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: current CLI probes executed, plus source inspection; no test-suite execution claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
-      selector: when !OptionalUnion.IsVoid(target)
-      line: 39
-    probes:
-    - project: /private/tmp/mist-reconcile-analysis-probes/candidate-void-return
-      results_file: /private/tmp/mist-reconcile-analysis-probes/results.json
-  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
-    date: '2026-10-11'
-    verification: contract and executed void-body probe inspected; workstream 33 carries focused top-level
-      controls
-    sources:
-    - file: .kiro/specs/top-level-statements/requirements.md
-      selector: Requirement 7.1–7.3
-      line: 100
-    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
-      selector: return branch skips void target
-      line: 39
-  related:
-  - emitter declaration/return shape
-  priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-013
-  area: analysis
 - id: MIST-012
   title: Extend switch-arm containment across unsupported value domains
   status: confirmed
@@ -1270,39 +1193,6 @@ issues:
   - packet 06 monomorph constraints/union
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:backend-variadic-residual-shapes
-  area: backend
-- id: MIST-083
-  title: Revalidate initializer duplicate names and nested or unknown targets
-  status: unverified
-  summary: The old blanket PI-family omission is stale for delivered conversion, access, set/init availability
-    and readonly-context entry checks. Retain only duplicate-name, nested/unknown-target cases not fully
-    proved in this audit. AccessibilityAnalyzer reads ObjectInitializerAssignment; AccessorAnalyzer checks
-    its accessor; ReadonlyAnalyzer.JudgeEntry checks storage writes. Validate one exact remaining source
-    refusal before choosing a fix.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=64,id=object-initializer-blocks].analysis_phase_tasks[0]
-    lead_excerpt: 'Port classic''s MIST_PI_* family, none of which v2 performs: no accessible set or init
-      (0003), readonly field (0004), inaccessible member (0005), duplicate name in one block (0006), and
-      value not convertible to the member''s type (0002). Only member-not-found (0001) has a v2 counterpart,
-      as MIST_PM_UNRESOLVED_MEMBER.
-
-      EVERY ONE OF THEM IS ALREADY CAUGHT, by Roslyn, on the GENERATED FILE. Measured on …'
-    line_at_baseline: 3666
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols:
-    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
-      symbol: AssignabilityAnalyzer
-      line: 21
-  related:
-  - emitter capability object-initializer-blocks
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
-  audit_key: backend:emitter-064-analysis_phase_tasks-0
   area: backend
 - id: MIST-086
   title: Revalidate member filtering for readonly generic storage
@@ -6196,19 +6086,6 @@ issues:
   - MIST-011
   priority_rationale: Specified filler form refused.
   area: analysis
-- id: MIST-222
-  title: Refuse an assignment whose target is not a variable, property or indexer
-  status: confirmed
-  summary: 'Assigning to a literal, or to a dependent parameter read as a value, binds without a Mist diagnostic and fails in Roslyn with CS0131. The frontend should refuse every non-assignable target; enumerate the expression kinds and choose the diagnostic rather than special-casing these two.'
-  source_refs: []
-  evidence:
-  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
-    kind: executed CLI probe
-    detail: "`7 = 3;` and `N = 3;` inside Box<N:int> each fail MIST_CS_ERROR: The left-hand side of an assignment must be a variable, property or indexer. A projected property write is already refused (MIST_PA_NO_SET_ACCESSOR)."
-  related:
-  - language rules belong in the frontend
-  priority_rationale: Invalid program reaches the target compiler.
-  area: binding
 - id: MIST-223
   title: Print a union value as the value it holds
   status: decision
@@ -6298,6 +6175,14 @@ issues:
     detail: 'Fails identically, expected "mode L.Inner {\n" against actual "mode L.Inner {\r\n", in full ledgers
       20261011-225341, 20261011-232925, 20261011-233412 and 20261011-235419, 20261012-000032 and when run alone with a filter. Packet 28 does
       not touch Storm; every other Storm test passes.'
+  - revision: '82a8ba422ba1a41c8fe27bdf78c0f8db36cf2d59'
+    based_on: '729763ba33a563f8c96836a026e0675a2cb7073a'
+    date: '2026-10-12'
+    kind: executed full ledger runs on a Windows host (packet 33)
+    detail: 'The same test failed with the same Collections differ at position 4 ("mode L.Inner {\r\n") in every full
+      packet 33 run on this host (ledgers 20261011-235626, 20261012-000206, 20261012-000618, 20261012-002030), with Storm unchanged at
+      83410653 and the test file unmodified; packet 33 touched no Storm or test-source line-ending setting. Every other
+      test of the four assemblies passed in those runs.'
   related:
   - packet 25 Storm grammar semantics (Storm 83410653)
   priority_rationale: A deterministic red full-suite result on Windows hosts hides real failures there.
@@ -6410,7 +6295,362 @@ issues:
   priority: P2
   priority_rationale: A runtime exception in a valid-looking program, blocked on a language policy choice.
   area: language
+- id: MIST-236
+  title: Refuse arguments to a source type that declares no constructor
+  status: confirmed
+  summary: 'new Bag(1) on a class that declares no constructor binds without a Mist diagnostic and fails in Roslyn
+    (CS1729), because SelectConstructor selects nothing and reports nothing when the definition has no constructors.
+    The implicit parameterless constructor should refuse any argument at the source, as NoApplicableOverload does
+    for a declared one, without refusing CLR-projected or Standard types whose constructors the model does not
+    list.'
+  source_refs: []
+  evidence:
+  - revision: '132b418397f87b2b9d9ef9ca0422444e1c46a924'
+    based_on: '729763ba33a563f8c96836a026e0675a2cb7073a'
+    date: '2026-10-11'
+    kind: executed CLI probe and source inspection
+    detail: 'Found by packet 33. With Bag declaring no constructor, var bag = new Bag(1); gives only MIST_CS_ERROR
+      ''Bag'' does not contain a constructor that takes 1 arguments; new Bag(1){1} the same. ExpressionBinder.SelectConstructor
+      returns an empty OverloadChoice when ConstructorsList is empty, by design for a C# default with nothing to
+      choose between. Not fixed in packet 33: it changes constructor selection, which that packet excluded.'
+    sources:
+    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ExpressionBinder.cs
+      selector: 'definition is not ConcreteType { ConstructorsList.Count: > 0 } concrete'
+  related:
+  - MIST-004
+  priority: P2
+  priority_rationale: Invalid program reaches the target compiler.
+  area: binding
 archive:
+- id: MIST-234
+  title: Prove a named initializer entry against its member's refinement
+  status: implemented
+  summary: 'Delivered: new Box(){Value = -1} compiled although Value is a Positive, because the refinement prover judged
+    an assignment to the member but not the same write made by an initializer entry, and nothing guards it at
+    runtime. The entry''s Evaluate step now discharges its value against the member type the binder recorded.'
+  source_refs: []
+  evidence:
+  - revision: '7d6c856891e853f89cfbc7618ffa9e5036cc527d'
+    based_on: '729763ba33a563f8c96836a026e0675a2cb7073a'
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    detail: 'Found by packet 33 while probing MIST-004. CLI probes with type Positive = int > 0: Value = -1 on a property
+      and Value = 0 on a field give one MIST_PA_REFINEMENT_VIOLATED at the value (formerly accepted); Value = 4 and a
+      parameter narrowed by if(m > 0) run. An entry whose target failed owes nothing. Tier 2
+      InitializerEntryRefinementTests.ANamedEntryMeetsItsMembersRefinement and the failed-member row,
+      RefinementSiteTests initializer-member row. Book: refinement-types and properties.'
+    verification:
+    - 'dotnet build Mist.slnx on 82a8ba422ba1a41c8fe27bdf78c0f8db36cf2d59: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh on this head (Windows, 32 CPUs, no other test run active), ledger TestResults/ledger/20261012-002030: Mist.Tests 10476 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed, Storm.SourceGenerator.Tests 909 of 910, the one failure being NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, the CRLF checkout failure recorded on MIST-226. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed; summary.txt and failures.txt were read. Full runs at the packet 30, 31 and 28 bases (ledgers 20261011-235626, 20261012-000206, 20261012-000618) had the same single failure and no other.'
+    - 'SnippetEmitter full sweep over 406 snippets at the packet 28 base (b75423794d04c952dcfe913363da1ae68132669f with these commits): 0 updated, 0 failed. The first sweep found two variadic false positives (Item... = values...), fixed by the follow-up revision of MIST-222. The final rebase onto packet 27 changed no snippet, sample or file of this packet.'
+  related:
+  - MIST-004
+  priority_rationale: A refinement was violated with no compile-time or runtime refusal.
+  area: analysis
+- id: MIST-235
+  title: Refuse an initializer block that both assigns members and adds elements
+  status: implemented
+  summary: 'Delivered: new Bag(){Count = 3, 4} bound both entries and failed in Roslyn (CS0747), because one block emits
+    as one C# initializer and C# has no form that does both. Each entry whose kind differs from the block''s first is
+    now refused with MIST_PA_INITIALIZER_KINDS_MIXED.'
+  source_refs: []
+  evidence:
+  - revision: '00a239458675fa8b06b1c7295cc3ead7f2d1d9cf'
+    based_on: '729763ba33a563f8c96836a026e0675a2cb7073a'
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    detail: 'Found by packet 33 while probing MIST-004. CLI probes: {Count = 3, 4} and {4, Count = 3} each give one
+      MIST_PA_INITIALIZER_KINDS_MIXED at the odd entry, naming what it and the first entry do; {Count = 3} and {4, 5}
+      run. InitializerBlockTests: Tier 1 AnEntryOfTheOtherKindThanTheBlocksFirstIsMixed (4 blocks), Tier 2
+      AMixedEntryIsRefusedAtItself. Book: object-model/properties.'
+    verification:
+    - 'dotnet build Mist.slnx on 82a8ba422ba1a41c8fe27bdf78c0f8db36cf2d59: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh on this head (Windows, 32 CPUs, no other test run active), ledger TestResults/ledger/20261012-002030: Mist.Tests 10476 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed, Storm.SourceGenerator.Tests 909 of 910, the one failure being NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, the CRLF checkout failure recorded on MIST-226. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed; summary.txt and failures.txt were read. Full runs at the packet 30, 31 and 28 bases (ledgers 20261011-235626, 20261012-000206, 20261012-000618) had the same single failure and no other.'
+    - 'SnippetEmitter full sweep over 406 snippets at the packet 28 base (b75423794d04c952dcfe913363da1ae68132669f with these commits): 0 updated, 0 failed. The first sweep found two variadic false positives (Item... = values...), fixed by the follow-up revision of MIST-222. The final rebase onto packet 27 changed no snippet, sample or file of this packet.'
+  related:
+  - MIST-004
+  - MIST-083
+  priority_rationale: Invalid program reached the target compiler.
+  area: analysis
+- id: MIST-083
+  title: Revalidate initializer duplicate names and nested or unknown targets
+  status: implemented
+  summary: 'Delivered: a member assigned more than once in one initializer block is refused at each repetition with
+    MIST_PA_INITIALIZER_MEMBER_REPEATED before C# is generated (property-initializers Requirement 6). Separate and
+    nested blocks are judged apart, and failed or unknown targets keep their own single complaint.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=64,id=object-initializer-blocks].analysis_phase_tasks[0]
+    lead_excerpt: 'Port classic''s MIST_PI_* family, none of which v2 performs: no accessible set or init
+      (0003), readonly field (0004), inaccessible member (0005), duplicate name in one block (0006), and
+      value not convertible to the member''s type (0002). Only member-not-found (0001) has a v2 counterpart,
+      as MIST_PM_UNRESOLVED_MEMBER.
+
+      EVERY ONE OF THEM IS ALREADY CAUGHT, by Roslyn, on the GENERATED FILE. Measured on …'
+    line_at_baseline: 3666
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
+      symbol: AssignabilityAnalyzer
+      line: 21
+  - revision: '9b5f376019bdc2c1140370172c483c381a3120ee'
+    based_on: '729763ba33a563f8c96836a026e0675a2cb7073a'
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'InitializerAnalyzer (registered after AccessorAnalyzer) reports every entry that repeats an earlier member name
+      of the same NewExpression block, counting only entries the binder resolved to storage (TargetType set, target
+      not failed). A nested construction is its own NewExpression, so its block answers only for itself.'
+    acceptance:
+    - 'CLI probes: new Box(){Value=1,Value=2} gives one MIST_PA_INITIALIZER_MEMBER_REPEATED at the second Value
+      (formerly CS1912); three Values give two. Child=new Inner(){Value=1},Value=2 runs (3). The nested
+      Child=new Inner(){Missing=1} control is still one MIST_PM_UNRESOLVED_MEMBER; Missing=1,Missing=2 reports the
+      two unresolved members and no repetition; new Nope(){Value=1,Value=2} reports only the unresolved type.
+      Value="x",Value=2 keeps the conversion error and adds the repetition; Hidden=1,Hidden=2 on a private member keeps
+      both inaccessibility findings and adds the repetition. An invalid constructor still lets the repetition report.'
+    - 'Retained controls from packet 18: static targets, methods, nested types and enum variants stay
+      MIST_PM_INITIALIZER_TARGET_NOT_INSTANCE or MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE, and set, init, readonly
+      and access rules stay with AccessorAnalyzer, AccessibilityAnalyzer and ReadonlyAnalyzer; InitializerTargetBindingTests
+      passes unchanged.'
+    tests:
+    - 'InitializerBlockTests: Tier 1 AMemberIsRepeatedFromItsSecondAssignmentInOneBlock (6 blocks, failed, unresolved and
+      element entries included); Tier 2 refusal site and nested-block independence. Book: object-model/properties.'
+    verification:
+    - 'dotnet build Mist.slnx on 82a8ba422ba1a41c8fe27bdf78c0f8db36cf2d59: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh on this head (Windows, 32 CPUs, no other test run active), ledger TestResults/ledger/20261012-002030: Mist.Tests 10476 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed, Storm.SourceGenerator.Tests 909 of 910, the one failure being NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, the CRLF checkout failure recorded on MIST-226. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed; summary.txt and failures.txt were read. Full runs at the packet 30, 31 and 28 bases (ledgers 20261011-235626, 20261012-000206, 20261012-000618) had the same single failure and no other.'
+    - 'SnippetEmitter full sweep over 406 snippets at the packet 28 base (b75423794d04c952dcfe913363da1ae68132669f with these commits): 0 updated, 0 failed. The first sweep found two variadic false positives (Item... = values...), fixed by the follow-up revision of MIST-222. The final rebase onto packet 27 changed no snippet, sample or file of this packet.'
+    limitations:
+    - 'C# nested member initializers (Child = { Value = 1 }) are not in the grammar and were not added.'
+  related:
+  - emitter capability object-initializer-blocks
+  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  audit_key: backend:emitter-064-analysis_phase_tasks-0
+  area: backend
+- id: MIST-004
+  title: Judge collection-initializer Add refinement and parameter constraints
+  status: implemented
+  summary: 'Delivered: each collection-initializer element is judged against the Add overload the binder selected, in
+    source order and with the flow state it is evaluated in: refinement and where predicates of the selected
+    parameter are discharged by the existing prover, and an incompatible element is refused at the element rather
+    than in Roslyn.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=assignability-core].tasks[3]
+    line_at_baseline: 1295
+    lead_excerpt: 'A collection-initializer element is not judged against the Add overload the binder
+      selected.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ObjectInitializerBinder.cs
+      selector: 'targetType: null, choice.Selected'
+      line: 114
+    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
+      selector: if(entry.TargetType is { } target)
+      line: 220
+  - revision: '132b418397f87b2b9d9ef9ca0422444e1c46a924'
+    based_on: '729763ba33a563f8c96836a026e0675a2cb7073a'
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'ObjectInitializerAssignment.AddParameterTypes records the selected Add''s parameter types closed over the
+      constructed owner; ObjectInitializerBinder sets it beside the existing Add selection, so analysis never resolves
+      Add again.'
+    - 'FlowGraphBuilder gives every initializer entry an Evaluate step right after its value and before the next
+      entry and the construction. RefinementAnalyzer discharges a collection element there through NeedArguments
+      (parameter names, sibling bounds and closed targets as for a call). LocalLifetimes keeps the construction as the
+      one point that may throw, so lifetime plans are unchanged.'
+    - 'AssignabilityAnalyzer pairs the element with the same targets through CheckArguments.'
+    - 'An element whose Add lookup fails keeps its value as a failed entry, so failures inside it still report and
+      nothing is dropped from the emitted initializer; an Add that is a field or property is refused as
+      MIST_PM_NOT_CALLABLE instead of the element vanishing silently.'
+    acceptance:
+    - 'CLI probes with an IEnumerable Bag (GetEnumerator through ArrayList): new Bag(){-1} with Add(int value) where
+      value > 0 is one MIST_PA_CONSTRAINT_VIOLATED at -1 (formerly accepted); {1, 2}, a local n = 5 and a parameter
+      narrowed by if(m > 3) are accepted and run; an unknown parameter is MIST_PA_CONSTRAINT_UNPROVEN; {"x"} is
+      MIST_PA_NO_IMPLICIT_CONVERSION at the element (formerly two CS errors), as is new List<int>(){"x"}.'
+    - 'Overloads Add(int) where > 0 and Add(string): {"a", 3} runs (11), {"a", -3} refuses only -3. A named alias
+      parameter Add(Positive p) refuses {0}. A generic owner Gen<T> with Add(T) constructed Gen<Positive> refuses
+      {-1} and runs {5}. A nested Holder(){Inner = new Bag(){-2}} refuses -2 once. k = 1; {k, (k = -1)} refuses only
+      the second element: the first is judged before the reassignment. An invalid constructor (new Box(1){V = "x"})
+      keeps both findings. A missing Add with {F(-1)} reports MIST_PM_UNRESOLVED_MEMBER and the independent
+      refinement violation inside the element; a field named Add is MIST_PM_NOT_CALLABLE (formerly accepted, the
+      element dropped).'
+    tests:
+    - 'Tier 2 InitializerEntryRefinementTests (where predicate, local proof, unproven value, per-element overload,
+      closed generic parameter, evaluation order, failed entries owe nothing, nested block, entry steps in the flow
+      graph), RefinementSiteTests collection-element row, AssignabilitySiteTests collection-element row,
+      InitializerTargetBindingTests (closed Add parameter types; a missing or field Add keeps the element behind one
+      refusal). Book: type-system/refinement-types and object-model/properties.'
+    verification:
+    - 'dotnet build Mist.slnx on 82a8ba422ba1a41c8fe27bdf78c0f8db36cf2d59: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh on this head (Windows, 32 CPUs, no other test run active), ledger TestResults/ledger/20261012-002030: Mist.Tests 10476 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed, Storm.SourceGenerator.Tests 909 of 910, the one failure being NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, the CRLF checkout failure recorded on MIST-226. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed; summary.txt and failures.txt were read. Full runs at the packet 30, 31 and 28 bases (ledgers 20261011-235626, 20261012-000206, 20261012-000618) had the same single failure and no other.'
+    - 'SnippetEmitter full sweep over 406 snippets at the packet 28 base (b75423794d04c952dcfe913363da1ae68132669f with these commits): 0 updated, 0 failed. The first sweep found two variadic false positives (Item... = values...), fixed by the follow-up revision of MIST-222. The final rebase onto packet 27 changed no snippet, sample or file of this packet.'
+    limitations:
+    - 'An element that is an assignment expression is not tracked by value, so (k = 2) stays unproven against a
+      refined parameter, exactly as the same expression is as a call argument. Arguments passed to a source type
+      that declares no constructor, new Bag(1){...}, still reach Roslyn; that is MIST-236, outside this record.'
+  related:
+  - emitter collection initializers
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-011
+  area: analysis
+- id: MIST-005
+  title: Judge void and top-level returns at their source contracts
+  status: implemented
+  summary: 'Delivered: a non-unit value returned from a body whose result is void is refused at the value before C#
+    is generated, for methods, local functions, lambdas whose function type returns void, async bodies whose task
+    result is void, setters and constructors; a top-level valued return is bound as the int exit code (Requirement
+    7.1), a bare return or the end of the statements exits 0 however they mix (7.2), and a non-int value, a void
+    one included, is the type error of 7.3 at the value.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=assignability-core].tasks[5]
+    line_at_baseline: 1300
+    lead_excerpt: 'A return with a value in a void method, and a top-level `return 0`, carry a void target
+      and are skipped here; order 6 owns the declaration-shape refusal.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: current CLI probes executed, plus source inspection; no test-suite execution claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
+      selector: when !OptionalUnion.IsVoid(target)
+      line: 39
+    probes:
+    - project: /private/tmp/mist-reconcile-analysis-probes/candidate-void-return
+      results_file: /private/tmp/mist-reconcile-analysis-probes/results.json
+  - revision: b1e556fb9d9528367f7de6bd7d71a13bd5c28aad
+    date: '2026-10-11'
+    verification: contract and executed void-body probe inspected; workstream 33 carries focused top-level
+      controls
+    sources:
+    - file: .kiro/specs/top-level-statements/requirements.md
+      selector: Requirement 7.1–7.3
+      line: 100
+    - file: Source/Mist/ProgramAnalysis/Rules/AssignabilityAnalyzer.cs
+      selector: return branch skips void target
+      line: 39
+  - revision: 'a5652526223d4e028a1a5900b7676ff899436f41'
+    documentation_revision: '00bf2218b039dded63dc0007472720b47d359303'
+    based_on: '729763ba33a563f8c96836a026e0675a2cb7073a'
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'AssignabilityAnalyzer judges every ReturnStatement value against its TargetType, void included, so int, Box or
+      int? returned into void is MIST_PA_NO_IMPLICIT_CONVERSION at the value (void-unit-type Requirement 3.4) while a
+      unit value (return void;, a returned void call) is identity (3.2, 3.5).'
+    - 'BodyBinder binds a setter or init accessor body against void (it had no return target) and a constructor body
+      against void rather than its constructed type, so return 7; in a setter and return new Box(); in Box() are
+      refused at the source (formerly CS0127).'
+    - 'TypeBuilder marks the synthesized top-level Main IsTopLevelProgram. BodyBinder gives its body
+      BindingContext.ExitCodeType int, which nested blocks inherit and the lambda, local function and async block
+      binders clear. StatementBinder binds a valued top-level return against int and records
+      ReturnStatement.IsExitCode; a bare return keeps the void target, so the TLS is distinguished from a void body
+      in the model.'
+    - 'BodyEmitter writes an exit-code return as System.Environment.ExitCode = value; return;. The C# entry point
+      stays void (or Task when the statements await), so a code mixed with a bare return (formerly CS0126) or with a
+      reachable end (formerly CS0161) compiles and exits 0 on those paths.'
+    acceptance:
+    - 'CLI probes: void Main(){return 1;} gives one MIST_PA_NO_IMPLICIT_CONVERSION at 1 (formerly CS0127); so do return
+      5; in an Action lambda, in a void local function, in a setter, in an async void method, and return new Box();
+      in a constructor. Controls: return void; and return F(); with void F print and exit 0; return; in a
+      constructor, a lambda and Main still compile; return Missing(); reports only the unresolved name.'
+    - 'Top level: return 0; exits 0; return "bad"; is one MIST_PA_NO_IMPLICIT_CONVERSION string to int (formerly
+      CS0029); byte b = 7; return b; exits 7; a long is refused; await Task.Delay(1); return 5; exits 5; return
+      F() + g(); with an int local function and a Func<int> lambda exits 11; a switch-expression value exits 6;
+      if(args.Length == 0) { return; } return 3; exits 0 and the 3 path exits 3; if(args.Length > 5) { return 4; }
+      followed by more statements exits 0 with the 4 path exiting 4. The generated project of the last builds with 0
+      warnings and 0 errors. samples/TopLevelStatements runs and exits 0.'
+    tests:
+    - 'Tier 1 AssignabilityRefusalTests (void-body returns of a constant, an optional and a reference; top-level
+      returns of text, a long and unit) and AssignabilityDecisionTests (void, a void call and a failed value into void;
+      0 and a byte at top level). Tier 2 ReturnContractBindingTests (exit-code and bare top-level returns, a void
+      method, a constructor, a setter, a lambda among the top-level statements), ExitCodeReturnEmissionTests, and
+      AssignabilitySiteTests void-body and exit-code rows (the void-body row moved out of the silent theory).'
+    - 'Book: getting-started/top-level-statements and basics/void-type describe the rules; the two snippet twins of
+      the top-level chapter were regenerated. top-level-statements design.md states the exit-code contract.'
+    verification:
+    - 'dotnet build Mist.slnx on 82a8ba422ba1a41c8fe27bdf78c0f8db36cf2d59: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh on this head (Windows, 32 CPUs, no other test run active), ledger TestResults/ledger/20261012-002030: Mist.Tests 10476 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed, Storm.SourceGenerator.Tests 909 of 910, the one failure being NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, the CRLF checkout failure recorded on MIST-226. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed; summary.txt and failures.txt were read. Full runs at the packet 30, 31 and 28 bases (ledgers 20261011-235626, 20261012-000206, 20261012-000618) had the same single failure and no other.'
+    - 'SnippetEmitter full sweep over 406 snippets at the packet 28 base (b75423794d04c952dcfe913363da1ae68132669f with these commits): 0 updated, 0 failed. The first sweep found two variadic false positives (Item... = values...), fixed by the follow-up revision of MIST-222. The final rebase onto packet 27 changed no snippet, sample or file of this packet.'
+    limitations:
+    - 'A void value returned from the top-level statements (return void;, return of a void call) is now the
+      Requirement 7.3 type error; before this change it compiled and exited 0. A missing return in a non-void body is
+      still left to Roslyn, as before.'
+  related:
+  - emitter declaration/return shape
+  priority: P2
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-013
+  area: analysis
+- id: MIST-222
+  title: Refuse an assignment whose target is not a variable, property or indexer
+  status: implemented
+  summary: 'Delivered: an assignment whose target is not storage is refused at the target with MIST_PA_NOT_ASSIGNABLE
+    before C# is generated, for every expression kind that names no variable, field, element, ref result, property
+    or indexer; the value bound for such a target owes no conversion or refinement proof, so the mistake reports
+    once.'
+  source_refs: []
+  evidence:
+  - revision: packet 20 generic constraints and dependent projections commit containing this entry, based on 3e4ff5e0b3142cd0451b1957b81adef290e67266
+    kind: executed CLI probe
+    detail: "`7 = 3;` and `N = 3;` inside Box<N:int> each fail MIST_CS_ERROR: The left-hand side of an assignment must be a variable, property or indexer. A projected property write is already refused (MIST_PA_NO_SET_ACCESSOR)."
+  - revision: '8c9977b87d88ac86faf08dab4d90584daca403c8'
+    follow_up_revision: '82a8ba422ba1a41c8fe27bdf78c0f8db36cf2d59'
+    based_on: '729763ba33a563f8c96836a026e0675a2cb7073a'
+    date: '2026-10-11'
+    kind: implementation and executed verification
+    implementation:
+    - 'StorageLocations.NotAssignable classifies a target by the existing storage reckoning (NotALocation) and admits a
+      property, extension property or indexer, whose setter, accessibility and init rules stay AccessorAnalyzer''s.
+      It names what is refused: a literal, the result of an ordinary call or operator, a construction, a type name or
+      type literal, a dependent parameter read as a value, a tuple literal, this in a class, a slice, an element of a
+      string, and a field, property or non-ref indexer reached through a struct that is itself an unstored value
+      (formerly CS1612). A spread target is judged by its operand, and an index whose intrinsic indexer the model does
+      not record (List<T>) stays assignable.'
+    - 'PositionAnalyzer reports MIST_PA_NOT_ASSIGNABLE at the target, before its other positional rules, for = and ??=.
+      AssignabilityAnalyzer and RefinementAnalyzer skip the value of a refused target. Failed targets (ErrorExpression,
+      UnresolvedExpression, a method group the binder already refused) stay with their owning failure.'
+    acceptance:
+    - 'CLI probes on the implementation: 7 = 3; and N = 3; inside Box<N:int> each give one MIST_PA_NOT_ASSIGNABLE at the
+      target (formerly CS0131). Also refused once: F() = 3; G().X = 3; and G().P = 3; on a struct result; int = 3; (no
+      longer a Type conversion complaint); (a, b) = (3, 4); (a = 2) = 3; a + 1 = 3; new Pt() = new Pt(); xs[0..1] = xs;
+      7 = "x"; s[0] = c; on a string; this = new Holder(); in a class. F = 3; stays the binder''s single
+      MIST_PM_METHOD_GROUP_NOT_CONVERTED.'
+    - 'Controls that still compile and run: struct local field and property writes, this = new Holder(); in a struct,
+      array, List<T> and Dictionary<K,V> element writes, tuple element and named tuple element writes, variadic
+      Item... = values...; and pack projection writes, ??= on a field, readonly-local and missing-setter refusals
+      unchanged (MIST_PA_READONLY_LOCAL_REASSIGNED, MIST_PA_NO_SET_ACCESSOR). The assignment result type and ??=
+      narrowing of packet 18 are untouched.'
+    tests:
+    - 'Tier 1 StorageLocationTests: AnAssignmentMayWriteStorageOrAnAccessor (16 shapes) and
+      AnAssignmentToAValueNamesWhatItWrites (14 shapes). Tier 2 AssignmentTargetSiteTests: the refusal is at the
+      target for = and ??=, storage is not refused, and a refused target owes no conversion or proof.
+      AssignabilitySiteTests now builds its ??= row over a local and its failed-target row over an ErrorExpression.'
+    verification:
+    - 'dotnet build Mist.slnx on 82a8ba422ba1a41c8fe27bdf78c0f8db36cf2d59: 0 warnings, 0 errors. dotnet format Mist.slnx --verify-no-changes: exit 0. git diff --check: clean.'
+    - 'tools/test-ledger/run.sh on this head (Windows, 32 CPUs, no other test run active), ledger TestResults/ledger/20261012-002030: Mist.Tests 10476 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed, Storm.SourceGenerator.Tests 909 of 910, the one failure being NamespacedImportTests.ImportedFragmentsModesAndTraitsAreQualifiedWhereverTheImportedFileNamesThem, the CRLF checkout failure recorded on MIST-226. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed; summary.txt and failures.txt were read. Full runs at the packet 30, 31 and 28 bases (ledgers 20261011-235626, 20261012-000206, 20261012-000618) had the same single failure and no other.'
+    - 'SnippetEmitter full sweep over 406 snippets at the packet 28 base (b75423794d04c952dcfe913363da1ae68132669f with these commits): 0 updated, 0 failed. The first sweep found two variadic false positives (Item... = values...), fixed by the follow-up revision of MIST-222. The final rebase onto packet 27 changed no snippet, sample or file of this packet.'
+    limitations:
+    - 'Compound assignment and ++/-- are not in the grammar, so they are parse errors rather than targets. Writing an
+      element of a ReadOnlySpan<T> is still left to Roslyn, as the model records no read-only element access for it.'
+  related:
+  - language rules belong in the frontend
+  priority_rationale: Invalid program reaches the target compiler.
+  area: binding
 - id: MIST-007
   title: Reject duplicate operator and conversion signatures
   status: implemented

@@ -315,7 +315,7 @@ Each span-typed local/temporary is tagged with a **stack-backing fact**:
 
 The fact originates at a `StackallocExpressionPrimaryNode` (`StackBacked`) and propagates through:
 
-- **Frame-local bindings:** `var s = stackalloc T[n];` and any subsequent `var t = s;` copy the fact (R8.1).
+- **Frame-local bindings:** `var s = stackalloc T[n];` and any subsequent `var t = s;` copy the fact (R8.1). A binding's fact is fixed by its declaration, as C#'s ref-safety context is, so a later assignment neither clears it nor adds it (see rule 2).
 - **`Slice` results:** `s.Slice(a, b)` carries the backing of its receiver (the slice aliases the same stack memory) (R8.1).
 - **Aliasing expressions** the analysis can see carry the backing (assignment of one span binding to another, ternary/`switch` whose arms are stack-backed, etc.).
 - **Containing ref struct (R8.5):** storing a `StackBacked` span into a field of *another* ref struct value `r` propagates `StackBacked` to `r`. Thereafter `r` is treated as stack-backed for the return/store rules, matching C#'s treatment of ref-struct fields.
@@ -327,7 +327,7 @@ When propagation cannot be proven safe (e.g., the value passes through an opaque
 Let `e` be an expression evaluating to a `StackBacked` value.
 
 1. **Return (R8.2 → `MIST2008`):** if `e` is (or flows into) a `return` expression of the enclosing method, reject at the return expression. A stackalloc-backed span cannot be returned.
-2. **Escaping store (R8.3 → `MIST2009`):** if `e` is assigned/stored into a location whose lifetime exceeds the current frame — a field or property of a heap object, a `static`/captured binding, an `out`/`ref` parameter that outlives the call, or an element of a heap collection — reject at the store. (Storing into a *frame-local* binding is fine and merely propagates the fact.)
+2. **Escaping store (R8.3 → `MIST2009`):** if `e` is assigned/stored into a location whose lifetime exceeds the current frame — a field or property of a heap object, a `static`/captured binding, an `out`/`ref` parameter that outlives the call, or an element of a heap collection — reject at the store. Storing into a binding declared `StackBacked` is fine; storing into one declared from heap memory or from nothing is rejected, because C# fixes that binding's context at its declaration and would reject the emitted program (R8.4). A call that could store its argument into such a binding — a non-`readonly` method of a ref struct receiver, or a `ref` ref-struct argument — is rejected at the argument for the same reason.
 3. **Containing-ref-struct propagation (R8.5):** after a `StackBacked` span is stored into ref struct `r`'s field, rules 1 and 2 apply to `r` (returning/storing `r` is a frame escape).
 
 ### Acceptance rules (R8.6, R9.4)

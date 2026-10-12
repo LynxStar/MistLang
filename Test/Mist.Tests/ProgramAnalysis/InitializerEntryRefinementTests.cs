@@ -99,17 +99,34 @@ public sealed class InitializerEntryRefinementTests
     [InlineData("failed-value")]
     [InlineData("failed-add")]
     [InlineData("no-add")]
+    [InlineData("failed-member")]
     public void AFailedEntryOwesNoProof(string failure)
     {
+        var positive = h.Refine(h.Int, ComparisonKind.GreaterThan, 0L, "Positive");
         var negative = h.Literal(-1L);
         var entry = failure switch
         {
             "failed-value" => Element(new ErrorExpression(HandBuiltModel.Node()), PositiveAdd()),
             "failed-add" => new ObjectInitializerAssignment(HandBuiltModel.Node(), null, negative, null, PositiveAdd()) { IsTargetFailed = true },
-            _ => new ObjectInitializerAssignment(HandBuiltModel.Node(), null, negative, null),
+            "no-add" => new ObjectInitializerAssignment(HandBuiltModel.Node(), null, negative, null),
+            _ => new ObjectInitializerAssignment(HandBuiltModel.Node(), "Value", negative, positive) { IsTargetFailed = true },
         };
 
         Assert.Empty(Findings(Bag(entry)));
+    }
+
+    [Theory]
+    [InlineData(-1L, "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData(4L, null)]
+    public void ANamedEntryMeetsItsMembersRefinement(long value, string? expected)
+    {
+        var positive = h.Refine(h.Int, ComparisonKind.GreaterThan, 0L, "Positive");
+        var entry = new ObjectInitializerAssignment(HandBuiltModel.Node(3), "Value", h.Literal(value, offset: 24), positive);
+
+        var finding = Findings(Bag(entry)).SingleOrDefault();
+
+        Assert.Equal(expected, finding?.Id.Value);
+        Assert.Equal(expected is null ? null : 25, finding?.Location.Start.Column);
     }
 
     [Fact]

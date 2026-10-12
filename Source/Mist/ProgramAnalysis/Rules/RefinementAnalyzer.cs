@@ -21,8 +21,9 @@ namespace Mist.ProgramAnalysis.Rules;
 /// increment it took, a parameter's own `where`. What cannot be proven is refused where
 /// the value meets the refinement -- a declaration, an assignment, a return, an index into an array
 /// whose length is known or that a local or a field holds, an argument at a call, a construction or a
-/// constructor chain, a collection element as the argument to its selected Add, judged right after it
-/// is evaluated, and the operand of a cast, which is an argument to its conversion function. A
+/// constructor chain, an initializer entry -- a member's value, or a collection element as the argument
+/// to its selected Add, judged right after it is evaluated -- and the operand of a cast, which is an
+/// argument to its conversion function. A
 /// parameter's `where` IS the parameter's type, an anonymous refinement of the declared one, so the
 /// model has one way to say a value is narrowed and this rule one way to read it, and nothing is left
 /// to a runtime guard at the callee: refinement is type checking, and a call is where the type is
@@ -223,6 +224,10 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
                 case { Kind: FlowStepKind.Evaluate, Node: ObjectInitializerAssignment { IsTargetFailed: false, Add: { } add } element }:
                     NeedArguments(state, [element.Value], element.AddParameterTypes, add.ParametersList, callee: add);
+                    break;
+
+                case { Kind: FlowStepKind.Evaluate, Node: ObjectInitializerAssignment { IsTargetFailed: false, TargetType: { } member } entry }:
+                    Need(state, entry.Value, member, entry.Value, onConstraint: entry.MemberName);
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: CastExpression cast } when CastAnalyzer.Converts(context, cast):

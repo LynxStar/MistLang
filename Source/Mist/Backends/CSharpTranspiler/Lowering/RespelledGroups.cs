@@ -22,6 +22,7 @@ internal static class RespelledGroups
             || DefaultWitnesses.StaticParameters(reference.Method).Count > 0
             || reference.Method.TypeParametersList.Any(DefaultConstraintWitness.Constrains)
             || ConstructorWitnesses.Of(reference.Method.TypeParametersList).Count > 0
+            || ContextKeyWitnesses.Ordinals(reference.Method).Count > 0
             || (reference.Method is { Modifiers.IsStatic: true, DeclaringType: ConcreteType owner }
                 && ConstructorWitnesses.Stored(owner).Count > 0)
             || IntrinsicCalls.Respells(reference.Method)
@@ -41,7 +42,7 @@ internal static class RespelledGroups
         }
 
         var captured = receiver is null ? null : Bound;
-        var callArguments = DefaultWitnesses.MethodArguments(method, reference.TypeArguments, receiverType ?? method.DeclaringType)
+        var callArguments = DefaultWitnesses.MethodArguments(method, reference.TypeArguments, receiverType ?? method.DeclaringType, reference.ContextTypes)
             .Select(argument => argument ?? "/* unsupported: default constraint */").Concat(arguments);
         var target = captured ?? (method.Modifiers.IsStatic
             ? method.DeclaringType is { } declaring

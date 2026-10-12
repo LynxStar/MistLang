@@ -13,7 +13,8 @@ namespace Mist.Tests.Backend;
 
 // Tier 2: a generic slot `string Pick<T>(T value)` on the hand-built abstract IPicker and its answer
 // `Pick<U>(U value)` on Picker, each constrained as a case names: what the interface declares, and
-// whether an explicit implementation must forward to an answer whose constraints C# would not match.
+// whether an explicit implementation must forward to an answer whose constraints or hidden channels
+// -- witnesses, context keys -- C# would not match, passing on only what the answer requires.
 [Trait("Tier", "2")]
 public sealed class ConstraintSlotBridgeEmissionTests
 {
@@ -28,12 +29,48 @@ public sealed class ConstraintSlotBridgeEmissionTests
     [InlineData("IShow, class", "class", "string Probe.IPicker.Pick<T>(T value) => this.Pick<T>(value);")]
     [InlineData("IShow", "IShow", "")]
     [InlineData("", "", "")]
-    [InlineData("new(Int32)", "", "")]
+    [InlineData("new(Int32)", "", "string Probe.IPicker.Pick<T>(System.Func<int, T> __construct_T_0, T value) => this.Pick<T>(value);")]
+    [InlineData("new(Int32)", "new(Int32)", "")]
+    [InlineData("default", "", "string Probe.IPicker.Pick<T>(System.Func<T> __default_T, T value) => this.Pick<T>(value);")]
+    [InlineData("default", "default", "")]
+    [InlineData("struct", "new()", "string Probe.IPicker.Pick<T>(T value) => this.Pick<T>(() => new T(), value);")]
     public void AnAnswerRequiringLessThanItsSlot_IsReachedThroughAnExplicitImplementation(string promised, string required, string expected)
     {
         var (_, picker) = Declare(promised, required);
 
         Assert.Equal(expected, Bridge(picker));
+    }
+
+    [Theory]
+    [InlineData("IShow", "", "string Probe.IPicker.Pick<T>(System.Type __context_0, T value) => this.Pick<T>(__context_0, value);")]
+    [InlineData("", "", "")]
+    public void AnAnswerDeclaringItsSlotsOpenClause_IsHandedTheKeyTheSlotWasGiven(string promised, string required, string expected)
+    {
+        var (slot, picker) = Declare(promised, required);
+        var answer = picker.MethodsList.Single();
+        slot.ContextBindingsList.Add(new ContextBinding(slot.TypeParametersList[0], "value"));
+        answer.ContextBindingsList.Add(new ContextBinding(answer.TypeParametersList[0], "value"));
+
+        Assert.Equal(expected, Bridge(picker));
+    }
+
+    [Fact]
+    public void AnAnswerClosingItsSlotsOpenClause_IsBridgedWithoutTheKey()
+    {
+        var contract = new AbstractType("IBox<>", "Probe", new Scope(null), null, null) { Assembly = Source };
+        var parameter = new TypeParameter("T", 0, new Scope(contract.Scope), contract);
+        contract.TypeParametersList.Add(parameter);
+        var slot = new Method("Read", parameter, [], Public) { DeclaringType = contract };
+        slot.ContextBindingsList.Add(new ContextBinding(parameter, "value"));
+        contract.MethodsList.Add(slot);
+        var optional = new UnionType([built.Type("String"), built.Type("Void")]);
+        var box = HandBuiltModel.Class("OptBox");
+        box.BaseAbstractTypes.Add(new ConstructedType(contract, [optional]));
+        var answer = new Method("Read", optional, [], Public) { DeclaringType = box };
+        answer.ContextBindingsList.Add(new ContextBinding(optional, "value"));
+        box.MethodsList.Add(answer);
+
+        Assert.Equal("string? Probe.IBox<string?>.Read(System.Type __context_0) => this.Read();", Bridge(box));
     }
 
     [Fact]
@@ -69,6 +106,9 @@ public sealed class ConstraintSlotBridgeEmissionTests
             parameter.ConstraintsList.Add(constraint switch
             {
                 "class" => new KeywordConstraint(TypeParameterConstraintKind.Class),
+                "struct" => new KeywordConstraint(TypeParameterConstraintKind.Struct),
+                "default" => new KeywordConstraint(TypeParameterConstraintKind.Default),
+                "new()" => new ConstructorConstraint([]),
                 "new(Int32)" => new ConstructorConstraint([built.Type("Int32")]),
                 _ => new TypeConstraint(shown),
             });

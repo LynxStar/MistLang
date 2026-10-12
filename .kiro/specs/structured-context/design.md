@@ -198,6 +198,29 @@ try {
 var identifier = (TypeReference)MistContext.Peek<TypeReference>();
 ```
 
+**Method with a clause whose key names a type parameter** (`T Get<T>() with T value`): the CLR
+erases what makes two Mist keys distinct (`string?` and `string` are one `System.String`), so the
+clause gains a `System.Type` parameter, placed with the default and constructor witnesses, that the
+call site fills with the key it closed the clause to (Requirement 5.1). The body peeks by that
+parameter; a nested call holding the same open key forwards it; a `with` block under it files by it.
+A closed key keeps the generic spelling above.
+```csharp
+public static T Get<T>(System.Type __context_0)
+{
+    var value = (T)MistContext.Peek(__context_0);
+    return value;
+}
+
+// Get<string?>() written under `with string? opt;` and `with "required";`
+Get<string?>(typeof(MistContext.Optional<string>));
+```
+An answer whose channel differs from its slot's -- a slot `T Read() with T value` on `IBox<T>`
+answered by `string? Read() with string? value` on `OptBox : IBox<string?>` -- is reached through an
+explicit implementation that forwards only what the answer requires, as a weaker generic answer's
+witnesses are. A member the target runs with no call written (an operator, a `Drop`, an enumerator
+member) carries no parameter and keeps `Peek<T>()`, as does a `with` block whose open key no enclosing
+clause holds; those file under the CLR-erased key.
+
 **Multiple context declarations in the same scope** nest `try/finally` blocks so that pops happen in reverse declaration order.
 
 ### 5. MistContext.g.cs Runtime Helper
@@ -229,6 +252,11 @@ internal static class MistContext
     {
         return (T)_stacks[typeof(T)].Peek();
     }
+
+    // The generic members delegate to these, which a key carried as a System.Type parameter uses.
+    public static void Push(Type key, object value) { ... }
+    public static void Pop(Type key) { ... }
+    public static object Peek(Type key) { ... }
 }
 ```
 

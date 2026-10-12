@@ -12,8 +12,9 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// <summary>
 /// C# lets a generic member implement an interface's only when their constraints are identical, while Mist
 /// admits an answer that requires less than its slot promises. Such an answer keeps its own constraints for
-/// direct calls, and an EXPLICIT implementation, which inherits the interface's, forwards to it. An answer
-/// whose default or constructor witnesses differ from the slot's has no forwarding spelled here.
+/// direct calls, and an EXPLICIT implementation, which inherits the interface's, forwards to it. The same
+/// bridge serves an answer whose hidden channels -- default and constructor witnesses, context keys -- are
+/// not the slot's, each mapped by its identity in <see cref="MethodEmitter.ForwardingArguments"/>.
 /// </summary>
 internal static class ConstraintSlotBridgeEmitter
 {
@@ -28,7 +29,7 @@ internal static class ConstraintSlotBridgeEmitter
 
             foreach(var slot in definition.MethodsList)
             {
-                if(slot.Modifiers.IsStatic || slot.TypeParametersList.Count == 0
+                if(slot.Modifiers.IsStatic
                     || SlotLift.Erased(slot.ReturnType) is not null
                     || PackSlotBridgeEmitter.Arguments(slot, substitution) is not null)
                 {
@@ -45,7 +46,7 @@ internal static class ConstraintSlotBridgeEmitter
 
                 var renaming = SlotSignatures.Closing(slot, source, substitution);
 
-                if(SameConstraints(slot, source, renaming, filler.Substitution) || !SameWitnesses(slot, source, renaming))
+                if(SameConstraints(slot, source, renaming, filler.Substitution) && SameChannels(slot, source, renaming))
                 {
                     continue;
                 }
@@ -66,7 +67,7 @@ internal static class ConstraintSlotBridgeEmitter
 
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
                 writer.WriteLine(
-                    $"{signature} => {reference}this.{source.Name}{MethodEmitter.ForwardingTypeArguments(slot)}({MethodEmitter.ForwardingArguments(slot)});");
+                    $"{signature} => {reference}this.{source.Name}{MethodEmitter.ForwardingTypeArguments(slot, source)}({MethodEmitter.ForwardingArguments(slot, source, renaming)});");
             }
         }
     }
@@ -97,7 +98,7 @@ internal static class ConstraintSlotBridgeEmitter
         return true;
     }
 
-    private static bool SameWitnesses(Method slot, Method answer, TypeSubstitution renaming)
+    private static bool SameChannels(Method slot, Method answer, TypeSubstitution renaming)
     {
         for(var i = 0; i < slot.TypeParametersList.Count && i < answer.TypeParametersList.Count; i++)
         {
@@ -110,7 +111,11 @@ internal static class ConstraintSlotBridgeEmitter
             }
         }
 
-        return true;
+        var promisedKeys = ContextKeyWitnesses.Keys(slot).Select(key => renaming.Apply(key, interner: null)).ToList();
+        var requiredKeys = ContextKeyWitnesses.Keys(answer);
+
+        return promisedKeys.Count == requiredKeys.Count
+            && promisedKeys.Zip(requiredKeys).All(pair => ContextKeys.Same(pair.First, pair.Second));
     }
 
     private static IEnumerable<string> Signatures(TypeParameter parameter, TypeSubstitution substitution)

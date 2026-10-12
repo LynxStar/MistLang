@@ -112,6 +112,46 @@ public sealed class StructuredContextKeyEmissionTests
         Assert.Contains("MistContext.Pop<MistContext.Optional<string>>();", writer.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("Tier", "2")]
+    public void AnOpenClauseReadsItsKeyParameterAndAWithBlockUnderItFilesByTheSameParameter()
+    {
+        var parameter = new TypeParameter("T", 0, new Scope(null), null);
+        var body = HandBuiltModel.Block(new WithBlockStatement(
+            HandBuiltModel.Literal(parameter), HandBuiltModel.Block(), binding: null, keyType: parameter));
+        var method = new Method("Read", parameter, [], new MemberModifiers()) { Body = body, DeclaringType = HandBuiltModel.Class("Owner") };
+        method.TypeParametersList.Add(parameter);
+        method.ContextBindingsList.Add(new ContextBinding(parameter, "value"));
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+
+        BodyEmitter.EmitMethodBody(method, body, writer, diagnostics);
+
+        Assert.Empty(diagnostics.ToImmutableArray());
+        Assert.Equal("T Read<T>(System.Type __context_0)", MethodEmitter.EmitSignature(method, diagnostics));
+        Assert.Contains("var value = (T)MistContext.Peek(__context_0);", writer.ToString(), StringComparison.Ordinal);
+        Assert.Contains("MistContext.Push(__context_0, ", writer.ToString(), StringComparison.Ordinal);
+        Assert.Contains("MistContext.Pop(__context_0);", writer.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("Peek<", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void AClosedClauseOnAGenericMethodKeepsTheGenericPeekAndNoParameter()
+    {
+        var parameter = new TypeParameter("T", 0, new Scope(null), null);
+        var method = new Method("Read", text, [], new MemberModifiers()) { Body = HandBuiltModel.Block(), DeclaringType = HandBuiltModel.Class("Owner") };
+        method.TypeParametersList.Add(parameter);
+        method.ContextBindingsList.Add(new ContextBinding(Optional(text), "value"));
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+
+        BodyEmitter.EmitMethodBody(method, method.Body!, writer, diagnostics);
+
+        Assert.Equal("string Read<T>()", MethodEmitter.EmitSignature(method, diagnostics));
+        Assert.Contains("var value = (string?)MistContext.Peek<MistContext.Optional<string>>();", writer.ToString(), StringComparison.Ordinal);
+    }
+
     private UnionType Optional(IMistType inner)
     {
         return new UnionType([inner, model.Type("Void")]);

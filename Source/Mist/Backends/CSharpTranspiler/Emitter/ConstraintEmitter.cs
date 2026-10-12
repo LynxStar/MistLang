@@ -103,7 +103,7 @@ internal static class ConstraintEmitter
 
                 case ConstructorConstraint constructorConstraint:
                     types.Add(ConstructorConstraintInterfaces.Closed(
-                        constructorConstraint.ParameterTypes, constructorConstraint.ParameterTypes, parameter.Name));
+                        constructorConstraint.ParameterTypes, constructorConstraint.ParameterTypes, TypeNameEmitter.Emit(parameter)));
                     break;
             }
         }

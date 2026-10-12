@@ -83,12 +83,12 @@ internal static class SlotBridgeEmitter
 
     private static string Parameters(Method method, TypeSubstitution substitution)
     {
-        return string.Join(", ", method.ParametersList.Select(parameter =>
-            $"{TypeNameEmitter.Emit(substitution.Apply(parameter.Type, interner: null))} {parameter.Name}"));
+        return string.Join(", ", ContextKeyWitnesses.Parameters(method).Concat(method.ParametersList.Select(parameter =>
+            $"{TypeNameEmitter.Emit(substitution.Apply(parameter.Type, interner: null))} {parameter.Name}")));
     }
 
     private static string Arguments(Method method)
     {
-        return string.Join(", ", method.ParametersList.Select(parameter => parameter.Name));
+        return string.Join(", ", ContextKeyWitnesses.Names(method).Concat(method.ParametersList.Select(parameter => parameter.Name)));
     }
 }

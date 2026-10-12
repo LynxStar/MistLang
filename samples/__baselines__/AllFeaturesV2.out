@@ -1800,6 +1800,19 @@ item=30
   extension=x:7
   abstract default=world
   concrete default=world
+--- 19. Generic context keys ---
+  Get<string?>=generic-optional
+  Get<string>=generic-required
+  Outer<string?>=generic-optional
+  Shadow<string?>=generic-shadow
+  restored Get<string?>=generic-optional
+  Keyed<string?>.Read()=generic-optional
+  Keyed<string>.Seeded=generic-required
+  extension Ambient<string?>=generic-optional
+  reference=generic-optional
+  abstract Get<string?>=generic-optional Get<string>=generic-required
+  closed answer Read()=generic-optional
+  Get<int?>=21 Get<int>=42
 === Structured Context Done ===
 --- Ownership ---
 [non-owned-binding] readonly method=10
@@ -2029,6 +2042,8 @@ Deep outer=24 base=25 property=5
 Deep property after set=11 source=11
 Dual read=37/mapped-stored echo=43/word! count=2/2
 Dual properties=12/changed sources=12/changed
+Weak answer through slot=weak:1 direct=weak:2
+Struct promise answered by new()=fresh:3:0
 === Generic Abstract Members Done ===
 === Nested Generic Types ===
 Box<int>.Wrapper.Unwrap()=7

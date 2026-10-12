@@ -121,14 +121,15 @@ public sealed class ExtensionCarrierEmissionTests
         ExtensionBlockEmitter.Emit(block, writer, diagnostics, ref anyEmitted);
 
         var text = writer.ToString();
-        Assert.Contains(isStatic ? "Read<T, U>()" : "Read<T, U>(this Probe.Box<T> self)", text);
+        var keys = hasContext ? "System.Type __context_0, System.Type __context_1" : "";
+        Assert.Contains(isStatic ? $"Read<T, U>({keys})" : $"Read<T, U>(this Probe.Box<T> self{(hasContext ? ", " + keys : "")})", text);
         Assert.Equal(hasContext, ContextLowering.Used());
 
         if(hasContext)
         {
-            Assert.Contains("var value = (U)MistContext.Peek<U>();", text);
-            Assert.Contains("var ignored = (T)MistContext.Peek<T>();", text);
-            Assert.True(text.IndexOf("MistContext.Peek<U>()", StringComparison.Ordinal)
+            Assert.Contains("var value = (U)MistContext.Peek(__context_0);", text);
+            Assert.Contains("var ignored = (T)MistContext.Peek(__context_1);", text);
+            Assert.True(text.IndexOf("MistContext.Peek(__context_0)", StringComparison.Ordinal)
                 < text.IndexOf("return value;", StringComparison.Ordinal));
         }
         else

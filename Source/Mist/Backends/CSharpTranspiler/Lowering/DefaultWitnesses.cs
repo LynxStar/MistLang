@@ -4,6 +4,7 @@ using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -43,7 +44,8 @@ internal static class DefaultWitnesses
         return method is { Modifiers.IsStatic: true, DeclaringType: ConcreteType owner } ? Stored(owner) : [];
     }
 
-    public static List<string?> MethodArguments(Method method, IReadOnlyList<IMistType> typeArguments, IMistType? receiverType)
+    public static List<string?> MethodArguments(
+        Method method, IReadOnlyList<IMistType> typeArguments, IMistType? receiverType, IReadOnlyList<IMistType>? contextKeys = null)
     {
         var closed = method.DeclaringType is { } owner && receiverType is not null ? UnsafeReach.ClosedOwner(owner, receiverType) : receiverType;
         var arguments = (closed is null ? [] : Arguments(StaticParameters(method), closed) ?? [])
@@ -56,6 +58,7 @@ internal static class DefaultWitnesses
             arguments.AddRange(ConstructorWitnesses.Arguments(method.TypeParametersList, typeArguments));
         }
 
+        arguments.AddRange(ContextKeyWitnesses.Arguments(method, contextKeys ?? ContextBinding.TypesOf(method)));
         return arguments;
     }
 

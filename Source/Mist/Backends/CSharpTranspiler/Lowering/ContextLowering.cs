@@ -47,14 +47,16 @@ internal static class ContextLowering
                 "private static readonly System.Collections.Generic.Dictionary<System.Type, "
                 + "System.Collections.Generic.Stack<object>> stacks = new();");
             writer.WriteBlankLine();
-            writer.WriteLine("public static void Push<T>(object value)");
+            writer.WriteLine("public static void Push<T>(object value) => Push(typeof(T), value);");
+            writer.WriteBlankLine();
+            writer.WriteLine("public static void Push(System.Type key, object value)");
             using(writer.Block())
             {
-                writer.WriteLine("if (!stacks.TryGetValue(typeof(T), out var stack))");
+                writer.WriteLine("if (!stacks.TryGetValue(key, out var stack))");
                 using(writer.Block())
                 {
                     writer.WriteLine("stack = new System.Collections.Generic.Stack<object>();");
-                    writer.WriteLine("stacks[typeof(T)] = stack;");
+                    writer.WriteLine("stacks[key] = stack;");
                 }
 
                 writer.WriteBlankLine();
@@ -62,9 +64,13 @@ internal static class ContextLowering
             }
 
             writer.WriteBlankLine();
-            writer.WriteLine("public static void Pop<T>() => stacks[typeof(T)].Pop();");
+            writer.WriteLine("public static void Pop<T>() => Pop(typeof(T));");
             writer.WriteBlankLine();
-            writer.WriteLine("public static object Peek<T>() => stacks[typeof(T)].Peek();");
+            writer.WriteLine("public static void Pop(System.Type key) => stacks[key].Pop();");
+            writer.WriteBlankLine();
+            writer.WriteLine("public static object Peek<T>() => Peek(typeof(T));");
+            writer.WriteBlankLine();
+            writer.WriteLine("public static object Peek(System.Type key) => stacks[key].Peek();");
             writer.WriteBlankLine();
             writer.WriteLine("public sealed class Optional<T>");
             using(writer.Block())

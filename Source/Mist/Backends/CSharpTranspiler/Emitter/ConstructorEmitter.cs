@@ -1,5 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -43,6 +45,8 @@ internal static class ConstructorEmitter
         var witnesses = constructor.Modifiers.IsStatic || concrete is null ? [] : DefaultWitnesses.Stored(concrete);
         var constructionWitnesses = constructor.Modifiers.IsStatic || concrete is null ? [] : ConstructorWitnesses.Stored(concrete);
         var parts = witnesses.Select(DefaultConstraintWitness.Parameter).Concat(ConstructorWitnesses.Parameters(constructionWitnesses)).ToList();
+        parts.AddRange(ContextKeyWitnesses.Parameters(constructor));
+        using var contextScope = ContextKeyWitnesses.Entering(constructor);
 
         if(parameters.Length > 0)
         {
@@ -52,6 +56,7 @@ internal static class ConstructorEmitter
         if((witnesses.Count > 0 || constructionWitnesses.Count > 0) && concrete is not null)
         {
             var supplied = DefaultWitnesses.CompatibilityArguments(concrete, factory: false);
+            supplied.AddRange(ContextKeyWitnesses.Erased(constructor));
             supplied.AddRange(constructor.ParametersList.Select(parameter => ArgumentKeywords.For(parameter) + parameter.Name));
             writer.WriteLine($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({parameters}) : this({string.Join(", ", supplied)})");
             using(writer.Block())
@@ -78,6 +83,10 @@ internal static class ConstructorEmitter
             var targetType = constructor.ChainKind == ConstructorChainKind.This ? concrete : concrete?.BaseType;
             var targetDeclaration = targetType is null ? null : ProgramModel.Construction.Defaultability.DeclarationOf(targetType);
             var forwarded = targetDeclaration is null ? [] : DefaultWitnesses.ConstructionArguments(targetDeclaration, targetType!);
+            var throughBase = TypeSubstitution.ForReceiver(constructor.ChainKind == ConstructorChainKind.Base ? targetType as ConstructedType : null);
+            forwarded?.AddRange(constructor.ChainedConstructor is { } reached
+                ? ContextKeyWitnesses.Arguments(reached, ContextBinding.TypesOf(reached, key => throughBase.Apply(key, interner: null)))
+                : []);
 
             if(forwarded is { Count: > 0 })
             {

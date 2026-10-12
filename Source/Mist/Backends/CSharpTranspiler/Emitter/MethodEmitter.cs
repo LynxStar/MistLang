@@ -1,6 +1,9 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -102,6 +105,7 @@ internal static class MethodEmitter
         parts.AddRange(method is { Modifiers.IsStatic: true, DeclaringType: ConcreteType owner }
             ? ConstructorWitnesses.Parameters(ConstructorWitnesses.Stored(owner)) : []);
         parts.AddRange(ConstructorWitnesses.Parameters(ConstructorWitnesses.Of(declared)));
+        parts.AddRange(ContextKeyWitnesses.Parameters(method));
         var parameters = ParameterEmitter.Emit(method.ParametersList, diagnostics);
 
         if(parameters.Length > 0)
@@ -124,23 +128,69 @@ internal static class MethodEmitter
             : method.TypeParametersList;
     }
 
-    internal static string ForwardingTypeArguments(Method method)
+    internal static string ForwardingTypeArguments(Method slot, Method? answer = null)
     {
-        var declared = Declared(method);
+        var declared = Declared(slot);
         var parameters = declared.Select(DependentCarrierNames.Parameter)
-            .Concat(SlotLift.Synthesized(declared).Select(slot => slot.Name)).ToList();
+            .Concat(SlotLift.Synthesized(answer is null ? declared : Declared(answer)).Select(slot => slot.Name)).ToList();
 
         return parameters.Count > 0 ? $"<{string.Join(", ", parameters)}>" : "";
     }
 
-    internal static string ForwardingArguments(Method method)
+    /// <summary>
+    /// What an explicit implementation of <paramref name="slot"/> passes on to <paramref name="answer"/>:
+    /// each hidden channel the ANSWER requires, supplied from the slot's parameter of the same identity
+    /// -- a default witness by position, a constructor witness by its signature under
+    /// <paramref name="closing"/>, a context key by the key -- and synthesized where Mist admitted the
+    /// answer without one (a struct promise entails <c>new()</c>); then the declared arguments. An answer
+    /// requiring less than its slot leaves the surplus unforwarded, which is the whole point of bridging.
+    /// </summary>
+    internal static string ForwardingArguments(Method slot, Method? answer = null, TypeSubstitution? closing = null)
     {
-        var declared = Declared(method);
-        var arguments = declared.Where(DefaultConstraintWitness.Constrains).Select(DefaultConstraintWitness.Name)
-            .Concat(ConstructorWitnesses.Names(ConstructorWitnesses.Of(declared)))
-            .Concat(method.ParametersList.Select(parameter => $"{ArgumentKeywords.For(parameter)}{parameter.Name}"));
+        var declared = Declared(slot);
+        var answering = answer is null ? declared : Declared(answer);
+        closing ??= TypeSubstitution.ForParameters(declared, [.. answering]);
+        var arguments = new List<string>();
 
+        for(var i = 0; i < declared.Count && i < answering.Count; i++)
+        {
+            if(DefaultConstraintWitness.Constrains(answering[i]))
+            {
+                arguments.Add(DefaultConstraintWitness.Name(declared[i]));
+            }
+        }
+
+        var promised = ConstructorWitnesses.Of(declared);
+
+        using(TypeNameEmitter.Substituting(TypeSubstitution.ForParameters(answering, [.. declared])))
+        {
+            foreach(var required in ConstructorWitnesses.Of(answering))
+            {
+                var position = answering.IndexOf(required.Parameter);
+                var signature = Spelled(required.Signature, TypeSubstitution.Empty);
+                var supplied = promised.FirstOrDefault(witness => position >= 0 && ReferenceEquals(witness.Parameter, declared[position])
+                    && Spelled(witness.Signature, closing) == signature);
+
+                arguments.Add(supplied is null ? ConstructorWitnesses.DefaultArguments([required])[0] : ConstructorWitnesses.Name(supplied));
+            }
+
+            var keys = ContextKeyWitnesses.Keys(slot).Select(key => closing.Apply(key, interner: null)).ToList();
+            var ordinals = ContextKeyWitnesses.Ordinals(slot);
+
+            foreach(var key in ContextKeyWitnesses.Keys(answer ?? slot))
+            {
+                var index = keys.FindIndex(promisedKey => ContextKeys.Same(promisedKey, key));
+                arguments.Add(index >= 0 ? ContextKeyWitnesses.Name(ordinals[index]) : ContextKeyWitnesses.Spell(key));
+            }
+        }
+
+        arguments.AddRange(slot.ParametersList.Select(parameter => $"{ArgumentKeywords.For(parameter)}{parameter.Name}"));
         return string.Join(", ", arguments);
+    }
+
+    private static string Spelled(IReadOnlyList<IMistType> signature, TypeSubstitution substitution)
+    {
+        return string.Join(",", signature.Select(type => TypeNameEmitter.Emit(substitution.Apply(type, interner: null))));
     }
 
     /// <summary>

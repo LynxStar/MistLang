@@ -158,8 +158,8 @@ public sealed class RestatedDefaultEntryEmissionTests
         TypeEmitter.EmitTypeBody(emitted, new ConstraintClosureMap(), new VariadicUseRegistry(), writer, diagnostics);
 
         var text = writer.ToString();
-        Assert.Contains($"{expectedType} Read(Handle held)", text);
-        Assert.Contains($"var value = ({expectedType})MistContext.Peek<{expectedType}>();", text);
+        Assert.Contains($"{expectedType} Read(System.Type __context_0, Handle held)", text);
+        Assert.Contains($"var value = ({expectedType})MistContext.Peek(__context_0);", text);
         Assert.Contains("var ignored = (string)MistContext.Peek<string>();", text);
         Assert.True(text.IndexOf("MistContext.Peek", StringComparison.Ordinal)
             < text.IndexOf("return value;", StringComparison.Ordinal));

@@ -51,8 +51,8 @@ internal static class AsyncSlotBridgeEmitter
                     continue;
                 }
 
-                var typeParameters = MethodEmitter.ForwardingTypeArguments(slot);
-                var arguments = MethodEmitter.ForwardingArguments(slot);
+                var typeParameters = MethodEmitter.ForwardingTypeArguments(slot, source);
+                var arguments = MethodEmitter.ForwardingArguments(slot, source, SlotSignatures.Closing(slot, source!, substitution));
 
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
                 writer.WriteLine($"{signature} => this.{source!.Name}{typeParameters}({arguments}).GetAwaiter().GetResult();");

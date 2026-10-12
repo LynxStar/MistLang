@@ -35,6 +35,7 @@ the record of which samples run.
 | `SizedSequencePatterns` | Written 2026-10-03, after classic was retired. |
 | `ResourceTransfer` | Written 2026-10-11, after classic was retired. |
 | `ClrCallContracts` | Written 2026-10-11, after classic was retired. |
+| `StructuredContext`, section 19 | Added 2026-10-11, after classic was retired; classic erased a generic clause's key to its CLR type. |
 
 `OptionalTypeParameters` is not V2-ONLY: its existing sample lines were cross-checked against
 classic even though it is composed only into `AllFeaturesV2`. Nor is the old

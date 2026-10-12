@@ -126,6 +126,27 @@ with DualMappedWidget : IDualBoth
     Text as Value;
 }
 
+// A slot whose type parameter promises `default` or `new()` carries a hidden factory in the emitted
+// interface; an answer that requires less is admitted by entailment and reached through a bridge that
+// drops, or synthesizes, what the answer needs.
+public abstract IWeakMaker { string Make<T>(T value) where T : default; }
+
+public class WeakMaker : IWeakMaker
+{
+    public string Make<U>(U value) { return $"weak:{value}"; }
+}
+
+public abstract IStructMaker { string Fresh<T>(T value) where T : struct; }
+
+public class FreshMaker : IStructMaker
+{
+    public string Fresh<U>(U value) where U : new()
+    {
+        var made = new U();
+        return $"fresh:{value}:{made}";
+    }
+}
+
 public class Program
 {
     public static T First<T>(Holder<T> holder)
@@ -169,6 +190,11 @@ public class Program
         numbers.Value = 12;
         text.Value = "changed";
         Console.WriteLine($"Dual properties={numbers.Value}/{text.Value} sources={dual.Number}/{dual.Text}");
+
+        IWeakMaker weak = new WeakMaker();
+        Console.WriteLine($"Weak answer through slot={weak.Make<int>(1)} direct={new WeakMaker().Make<int>(2)}");
+        IStructMaker fresh = new FreshMaker();
+        Console.WriteLine($"Struct promise answered by new()={fresh.Fresh<int>(3)}");
 
         Console.WriteLine("=== Generic Abstract Members Done ===");
     }

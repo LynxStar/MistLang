@@ -69,6 +69,7 @@ internal static class ExtensionBlockEmitter
         var typeParameters = CarrierTypeParameters(method, block);
         var parameters = DefaultConstraintWitness.Parameters(method.TypeParametersList);
         parameters.AddRange(ConstructorWitnesses.Parameters(ConstructorWitnesses.Of(method.TypeParametersList)));
+        parameters.AddRange(ContextKeyWitnesses.Parameters(method));
         parameters.Add(ParameterEmitter.Emit(method.ParametersList, diagnostics));
 
         writer.WriteLine(

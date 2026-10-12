@@ -47,8 +47,8 @@ internal static class ConformanceEmitter
         MethodMapping mapping, string interfaceName, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var slot = mapping.Target;
-        var typeParams = MethodEmitter.ForwardingTypeArguments(slot);
-        var arguments = MethodEmitter.ForwardingArguments(slot);
+        var typeParams = MethodEmitter.ForwardingTypeArguments(slot, mapping.Source);
+        var arguments = MethodEmitter.ForwardingArguments(slot, mapping.Source);
         var aliased = slot.Modifiers.IsRef ? "ref " : "";
         var completion = AsyncPromotion.IsPromoted(mapping.Source) ? ".GetAwaiter().GetResult()" : "";
 

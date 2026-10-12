@@ -79,12 +79,13 @@ internal static class BodyEmitter
     /// </summary>
     public static void EmitMethodBody(
         Method method, Block body, CSharpWriter writer, DiagnosticBag diagnostics, Func<Parameter, string>? spell = null,
-        MemberType? owner = null, IEnumerable<string>? additionalParameterNames = null)
+        MemberType? owner = null, IEnumerable<string>? additionalParameterNames = null, bool capturesContext = false)
     {
         var previous = enclosingType;
         enclosingType = owner ?? method.DeclaringType ?? previous;
         try
         {
+            using var keys = capturesContext ? null : ContextKeyWitnesses.Entering(method);
             using var names = LocalNames.Enter(body, method.ParametersList.Select(parameter => parameter.Name)
                 .Concat(method.ContextBindingsList.Select(binding => binding.Identifier))
                 .Concat(additionalParameterNames ?? []));
@@ -130,7 +131,7 @@ internal static class BodyEmitter
 
         try
         {
-            EmitMethodBody(function.Function, function.Body, writer, diagnostics, spell);
+            EmitMethodBody(function.Function, function.Body, writer, diagnostics, spell, capturesContext: true);
         }
         finally
         {
@@ -153,8 +154,11 @@ internal static class BodyEmitter
         foreach(var binding in method.ContextBindingsList)
         {
             var type = TypeNameEmitter.Emit(binding.ContextType);
+            var peek = ContextKeyWitnesses.Held(binding.ContextType) is { } held
+                ? $"MistContext.Peek({held})"
+                : $"MistContext.Peek<{TypeNameEmitter.EmitContextKey(binding.ContextType)}>()";
 
-            writer.WriteLine($"var {binding.Identifier} = ({type})MistContext.Peek<{TypeNameEmitter.EmitContextKey(binding.ContextType)}>();");
+            writer.WriteLine($"var {binding.Identifier} = ({type}){peek};");
         }
     }
 
@@ -502,7 +506,8 @@ internal static class BodyEmitter
         {
             EmitExpression(callee.Receiver, writer, diagnostics);
 
-            if(HasArguments(call.Arguments, call.Method.ParametersList) || DefaultWitnesses.MethodArguments(call.Method, callee.TypeArguments, callee.Receiver.Type).Count > 0)
+            if(HasArguments(call.Arguments, call.Method.ParametersList)
+                || DefaultWitnesses.MethodArguments(call.Method, callee.TypeArguments, callee.Receiver.Type, call.ContextTypes).Count > 0)
             {
                 writer.Append(", ");
             }
@@ -529,7 +534,7 @@ internal static class BodyEmitter
         }
 
         var receiverType = invocation.Receiver is MemberAccessExpression reached ? reached.Receiver.Type : method.DeclaringType;
-        var witnesses = DefaultWitnesses.MethodArguments(method, typeArguments, receiverType);
+        var witnesses = DefaultWitnesses.MethodArguments(method, typeArguments, receiverType, invocation.ContextTypes);
 
         if(witnesses.Count == 0)
         {
@@ -829,13 +834,14 @@ internal static class BodyEmitter
         // The KEY the value is filed under, which a form may have written and which is not the
         // value's own type -- see WithBlockStatement.KeyType. The drop below still asks the VALUE
         // what it owes, those being different questions about the same instance.
-        var type = TypeNameEmitter.EmitContextKey(withBlock.KeyType);
+        var keyed = ContextKeyWitnesses.Held(withBlock.KeyType);
+        var type = keyed ?? TypeNameEmitter.EmitContextKey(withBlock.KeyType);
 
         EmitSequenced(withBlock.Value, $"var {bound} = ", writer, diagnostics);
         var plan = LifetimeLowering.Active;
         var owning = binding is not null && plan.Covers(binding) ? binding : null;
         var flag = owning is null ? null : LifetimeLowering.Flag(owning, owned: true, writer);
-        writer.WriteLine($"MistContext.Push<{type}>({bound});");
+        writer.WriteLine(keyed is null ? $"MistContext.Push<{type}>({bound});" : $"MistContext.Push({type}, {bound});");
         writer.WriteLine("try");
 
         using(writer.Block())
@@ -847,7 +853,7 @@ internal static class BodyEmitter
 
         using(writer.Block())
         {
-            writer.WriteLine($"MistContext.Pop<{type}>();");
+            writer.WriteLine(keyed is null ? $"MistContext.Pop<{type}>();" : $"MistContext.Pop({type});");
 
             if(plan.ReleaseAt(withBlock) is var (held, release))
             {
@@ -2910,6 +2916,7 @@ internal static class BodyEmitter
         writer.Append(target);
         var declaration = ProgramModel.Construction.Defaultability.DeclarationOf(newExpression.Type);
         var witnesses = declaration is null ? [] : DefaultWitnesses.ConstructionArguments(declaration, newExpression.Type);
+        witnesses?.AddRange(newExpression.Constructor is { } entered ? ContextKeyWitnesses.Arguments(entered, newExpression.ContextTypes) : []);
 
         if(witnesses is { Count: > 0 })
         {

@@ -19,6 +19,7 @@
 //  16. Abstract type structural dispatch with with-clause
 //  17. Optional-reference/value and nested tuple/callable key independence
 //  18. Extension method and abstract/concrete default body entry
+//  19. Generic context keys: optional and required keys erased behind a type parameter
 
 using Standard;
 
@@ -247,6 +248,52 @@ public class Intermediary
     }
 }
 
+// ─── Generic context keys (section 19) ───────────────────────────────────────
+
+public class Generics
+{
+    public static T Get<T>() with T value { return value; }
+
+    public static T Outer<T>() with T value { return Get<T>(); }
+
+    public static T Shadow<T>(T replacement) with T value { with replacement; return Get<T>(); }
+}
+
+public class Keyed<T>
+{
+    public T Seeded;
+
+    public Keyed() with T value { Seeded = value; }
+
+    public T Read() with T value { return value; }
+}
+
+public class KeyHolder<T>
+{
+    public T Item;
+
+    public KeyHolder(T item) { Item = item; }
+}
+
+<T> extension(KeyHolder<T> self)
+{
+    public T Ambient() with T value { return value; }
+}
+
+public abstract KeyReader { T Get<T>() with T value; }
+
+public class OpenKeyReader : KeyReader
+{
+    public T Get<T>() with T value { return value; }
+}
+
+public abstract OptionalReader<T> { T Read() with T value; }
+
+public class ClosedOptionalReader : OptionalReader<string?>
+{
+    public string? Read() with string? value { return value; }
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 public class Program
@@ -472,6 +519,29 @@ public class Program
         DefaultReader abstractDefault = concreteDefault;
         Console.WriteLine($"  abstract default={abstractDefault.Read()}");
         Console.WriteLine($"  concrete default={concreteDefault.Read()}");
+
+        Console.WriteLine("--- 19. Generic context keys ---");
+        string? optionalKey = "generic-optional";
+        with optionalKey;
+        with "generic-required";
+        Console.WriteLine($"  Get<string?>={Generics.Get<string?>()}");
+        Console.WriteLine($"  Get<string>={Generics.Get<string>()}");
+        Console.WriteLine($"  Outer<string?>={Generics.Outer<string?>()}");
+        Console.WriteLine($"  Shadow<string?>={Generics.Shadow<string?>("generic-shadow")}");
+        Console.WriteLine($"  restored Get<string?>={Generics.Get<string?>()}");
+        Console.WriteLine($"  Keyed<string?>.Read()={new Keyed<string?>().Read()}");
+        Console.WriteLine($"  Keyed<string>.Seeded={new Keyed<string>().Seeded}");
+        Console.WriteLine($"  extension Ambient<string?>={new KeyHolder<string?>("holder").Ambient()}");
+        func<string?> reference = Generics.Get<string?>;
+        Console.WriteLine($"  reference={reference()}");
+        KeyReader keyReader = new OpenKeyReader();
+        Console.WriteLine($"  abstract Get<string?>={keyReader.Get<string?>()} Get<string>={keyReader.Get<string>()}");
+        OptionalReader<string?> optionalReader = new ClosedOptionalReader();
+        Console.WriteLine($"  closed answer Read()={optionalReader.Read()}");
+        int? optionalNumber = 21;
+        with optionalNumber;
+        with 42;
+        Console.WriteLine($"  Get<int?>={Generics.Get<int?>()} Get<int>={Generics.Get<int>()}");
 
         Console.WriteLine("=== Structured Context Done ===");
     }

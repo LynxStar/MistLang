@@ -21,7 +21,9 @@ internal static class ConstructorInitializers
             var target = $"__constructed{index}";
             var value = $"__initialized{index}";
             var valueType = TypeNameEmitter.Emit(entry.TargetType ?? entry.Value.Type);
-            var assignment = entry.MemberName is { } member ? $"{target}.{member} = {value}" : $"{target}.Add({value})";
+            var keys = entry.Add is { } add ? ContextKeyWitnesses.Arguments(add, keys: null) : new List<string>();
+            keys.Add(value);
+            var assignment = entry.MemberName is { } member ? $"{target}.{member} = {value}" : $"{target}.Add({string.Join(", ", keys)})";
             result = $"((System.Func<{product}, {valueType}, {product}>)(({target}, {value}) => {{ {assignment}; return {target}; }}))({result}, {render(entry.Value)})";
         }
 

@@ -41,6 +41,17 @@ public sealed class StructuredContextTests : ProgramModelProbe
 
             public Greeter() with string message { this.Greeting = message; }
         }
+
+        public class Erased
+        {
+            public static T Get<T>() with T value { return value; }
+
+            public static T Outer<T>() with T value { return Get<T>(); }
+
+            public static string? Optional() { return Get<string?>(); }
+
+            public static func<string?> Reference() { return Get<string?>; }
+        }
         """;
 
     protected override string Preamble { get; } = "";
@@ -81,6 +92,21 @@ public sealed class StructuredContextTests : ProgramModelProbe
             "var message = (string)MistContext.Peek<string>();",
             EmitType("Greeter"),
             StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A call closes the callee's open clause to a key and hands that key over, because the CLR would
+    /// erase it: `string?` and `string` are one runtime type and two keys. An intermediate holding the
+    /// same open key forwards the parameter it was handed, and a method named as a value closes over it.
+    /// </summary>
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("Optional", "Get<string?>(typeof(MistContext.Optional<string>))")]
+    [InlineData("Outer", "Get<T>(__context_0)")]
+    [InlineData("Reference", "Get<string?>(typeof(MistContext.Optional<string>))")]
+    public void ACallHandsTheCalleeTheKeyItClosedItsClauseTo(string member, string expected)
+    {
+        Assert.Contains(expected, EmitMember("Erased", member), StringComparison.Ordinal);
     }
 
     /// <summary>

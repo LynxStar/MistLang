@@ -25,6 +25,7 @@ internal static class MethodEmitter
         }
 
         var modifiers = MemberModifierEmitter.Emit(method.Modifiers, emitReadonly)
+            + (HidesObjectToString(method) ? "new " : "")
             + (AsyncPromotion.EmitsAsync(method) ? "async " : "");
 
         AttributeEmitter.EmitLines(method.DeclaredAttributesList, writer, diagnostics);
@@ -37,6 +38,15 @@ internal static class MethodEmitter
                 BodyEmitter.EmitMethodBody(method, method.Body, writer, diagnostics, owner: owner);
             }
         }
+    }
+
+    private static bool HidesObjectToString(Method method)
+    {
+        return method is
+        {
+            Name: "ToString", Modifiers.IsStatic: false, ParametersList.Count: 0, TypeParametersList.Count: 0,
+            DeclaringType: ConcreteType { Assembly.HasMistSource: true }, DeclaringBlock: null,
+        };
     }
 
     /// <summary>

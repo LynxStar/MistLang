@@ -259,75 +259,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-042
   area: analysis
-- id: MIST-029
-  title: Support both specified user-defined sliceable protocols
-  status: confirmed
-  summary: A receiver with a Range indexer, or Length plus Slice(int,int), is refused as not sliceable.
-    Both protocols are explicitly named by the slicing capability; keep separate acceptance controls for
-    each route.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=124,id=slicing-and-sliceable-classification].tasks[0]
-    lead_excerpt: Classify a RANGE-INDEXER type and a COUNTABLE-PLUS-SLICE-MEMBER type as sliceable, which
-      the spec sentence names and this does not implement. NOTHING IN THE REPOSITORY DECLARES EITHER --
-      no type in Source/Standard/Bootstrap has an indexer taking Standard.Range, and none declares `Slice(int,
-      int)`. So the branch would be written with no receiver to exercise it, which is why it is a task
-      here rather…
-    line_at_baseline: 8115
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: executed CLI probe
-    detail: Both current CLI fixtures fail MIST_PM_RECEIVER_NOT_SLICEABLE, whose message limits receivers
-      to arrays/string.
-    source_symbols: []
-    probes:
-    - path: /private/tmp/mist-backend-reconcile-probes/range_indexer
-      source: 'using Standard;
-
-        namespace Probe;
-
-        public class Box { public int this[Range r] { get { return 7; } } } public class Program { public
-        static void Main() { Console.WriteLine(new Box()[0..1]); } }
-
-        '
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/range_indexer
-        --quiet
-      exit_code: 1
-      output: '/private/tmp/mist-backend-reconcile-probes/range_indexer/Program.mist(3,147): error MIST_PM_RECEIVER_NOT_SLICEABLE:
-        ''Box'' cannot be sliced by a range. Only an array or a string yields a sub-sequence.
-
-        /private/tmp/mist-backend-reconcile-probes/range_indexer/Program.mist(3,127): error MIST_PM_UNRESOLVABLE_OVERLOAD:
-        The call to method ''WriteLine'' matches no overload. No conversion is known from the given arguments
-        to any of: (string), (unknown).
-
-        '
-    - path: /private/tmp/mist-backend-reconcile-probes/count_slice
-      source: 'using Standard;
-
-        namespace Probe;
-
-        public class Box { public int Length => 3; public int Slice(int start, int count) { return count;
-        } } public class Program { public static void Main() { Console.WriteLine(new Box()[0..1]); } }
-
-        '
-      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/count_slice
-        --quiet
-      exit_code: 1
-      output: '/private/tmp/mist-backend-reconcile-probes/count_slice/Program.mist(3,181): error MIST_PM_RECEIVER_NOT_SLICEABLE:
-        ''Box'' cannot be sliced by a range. Only an array or a string yields a sub-sequence.
-
-        /private/tmp/mist-backend-reconcile-probes/count_slice/Program.mist(3,161): error MIST_PM_UNRESOLVABLE_OVERLOAD:
-        The call to method ''WriteLine'' matches no overload. No conversion is known from the given arguments
-        to any of: (string), (unknown).
-
-        '
-  related:
-  - range slicing
-  - user-defined indexers
-  priority_rationale: Current reproducible wrong behavior; correctness work.
-  audit_key: backend:backend-range-sliceable
-  area: backend
 - id: MIST-047
   title: CLR non-enum constant field values are not projected
   status: confirmed
@@ -5955,6 +5886,11 @@ issues:
     fix belongs to LynxStar/StormLang (normalize the compared text or pin LF for test sources) and a pin bump here.'
   source_refs: []
   evidence:
+  - revision: '7df5f58e7cd03987990c34546319e5a344d8a72e'
+    date: '2026-10-14'
+    kind: executed full ledger on a Windows host during packet 36
+    detail: 'Fails identically, expected "mode L.Inner {\n" against actual "mode L.Inner {\r\n", in full ledger
+      TestResults/ledger/20261014-003102 on the packet 36 head; packet 36 does not touch Storm and every other Storm test passes.'
   - revision: 'c178e4f63023347b99c7ffcf9f4215caade8c796'
     date: '2026-10-11'
     kind: executed full and focused ledger runs on a Windows host
@@ -6167,6 +6103,237 @@ issues:
   priority_rationale: A valid program using this as its own generic construction is refused.
   area: binding
 archive:
+- id: MIST-029
+  title: Support both specified user-defined sliceable protocols
+  status: implemented
+  summary: 'Delivered 2026-10-14: a range into a countable user type (an int Length, else an int Count, with a getter)
+    selects its Range indexer when the ordinary indexer selection picks one that actually takes a Range, and otherwise
+    the instance, non-generic, by-value Slice(int, int) the ordinary method selection picks among candidates of that
+    shape, as C#''s implicit range support does; the access is typed by the selected member''s closed result, records
+    the member it reaches, and the emitted receiver[range] is lowered by Roslyn onto that member. A list pattern''s
+    slice subpattern selects the same way. Before, every such receiver was refused as not sliceable.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=124,id=slicing-and-sliceable-classification].tasks[0]
+    lead_excerpt: Classify a RANGE-INDEXER type and a COUNTABLE-PLUS-SLICE-MEMBER type as sliceable, which
+      the spec sentence names and this does not implement. NOTHING IN THE REPOSITORY DECLARES EITHER --
+      no type in Source/Standard/Bootstrap has an indexer taking Standard.Range, and none declares `Slice(int,
+      int)`. So the branch would be written with no receiver to exercise it, which is why it is a task
+      here rather…
+    line_at_baseline: 8115
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: executed CLI probe
+    detail: Both current CLI fixtures fail MIST_PM_RECEIVER_NOT_SLICEABLE, whose message limits receivers
+      to arrays/string.
+    source_symbols: []
+    probes:
+    - path: /private/tmp/mist-backend-reconcile-probes/range_indexer
+      source: 'using Standard;
+
+        namespace Probe;
+
+        public class Box { public int this[Range r] { get { return 7; } } } public class Program { public
+        static void Main() { Console.WriteLine(new Box()[0..1]); } }
+
+        '
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/range_indexer
+        --quiet
+      exit_code: 1
+      output: '/private/tmp/mist-backend-reconcile-probes/range_indexer/Program.mist(3,147): error MIST_PM_RECEIVER_NOT_SLICEABLE:
+        ''Box'' cannot be sliced by a range. Only an array or a string yields a sub-sequence.
+
+        /private/tmp/mist-backend-reconcile-probes/range_indexer/Program.mist(3,127): error MIST_PM_UNRESOLVABLE_OVERLOAD:
+        The call to method ''WriteLine'' matches no overload. No conversion is known from the given arguments
+        to any of: (string), (unknown).
+
+        '
+    - path: /private/tmp/mist-backend-reconcile-probes/count_slice
+      source: 'using Standard;
+
+        namespace Probe;
+
+        public class Box { public int Length => 3; public int Slice(int start, int count) { return count;
+        } } public class Program { public static void Main() { Console.WriteLine(new Box()[0..1]); } }
+
+        '
+      command: dotnet Source/Mist.CLI/bin/Debug/net10.0/osx-arm64/mist.dll run /private/tmp/mist-backend-reconcile-probes/count_slice
+        --quiet
+      exit_code: 1
+      output: '/private/tmp/mist-backend-reconcile-probes/count_slice/Program.mist(3,181): error MIST_PM_RECEIVER_NOT_SLICEABLE:
+        ''Box'' cannot be sliced by a range. Only an array or a string yields a sub-sequence.
+
+        /private/tmp/mist-backend-reconcile-probes/count_slice/Program.mist(3,161): error MIST_PM_UNRESOLVABLE_OVERLOAD:
+        The call to method ''WriteLine'' matches no overload. No conversion is known from the given arguments
+        to any of: (string), (unknown).
+
+        '
+  - revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    date: '2026-10-13'
+    kind: executed CLI probes (packet 36 planning)
+    detail: 'range_indexer (Length 3 and a public Range indexer returning 7, sliced 0..1), count_slice (Count 3 and
+      Slice(int, int) returning its count) and list_slice ([1, .. var middle, 3] over Count, an int indexer and Slice)
+      each failed MIST_PM_RECEIVER_NOT_SLICEABLE, followed by a derivative WriteLine overload error or an unresolved
+      middle; a private Slice was refused the same way, the negative access control. Revalidated unchanged at
+      c058acc234377aba92b16eeebad7fc83e52b0069 on 2026-10-14 before the change.'
+  - revision: MIST-029 closure commits containing this entry, based on 04d74f053c8cdefdbd5d67b723682f7fcb4ca0ad
+    date: '2026-10-14'
+    kind: implementation and executed verification
+    implementation:
+    - 'Indexability.SelectSlice narrows the receiver''s instance Slice group (found by TypeMemberLookup, so hiding and
+      base paths are lookup''s) to non-generic methods of two by-value int parameters, refinements and aliases allowed,
+      and lets OverloadResolution.Select weigh them. Indexability.Takes asks ConversionClassifier whether the selected
+      indexer''s parameter, refinement aside, takes the argument, because selection hands back a lone candidate without
+      asking. Count now requires a getter.'
+    - 'IndexBinder binds a range into a non-intrinsic receiver as an ordinary indexer access when a countable receiver''s
+      selected indexer takes it (a tie is reported as one), else as an IndexExpression whose Slice is
+      CountedSlice(Count, Slice), typed by Slice''s closed result as a call is, else as MIST_PM_RECEIVER_NOT_SLICEABLE on
+      a spoken ErrorExpression, withheld under NeedsAnalysis as the not-indexable refusal is; the message names both
+      protocols. The Slice call is recorded on TaskDrops so async promotion reaches the caller.'
+    - 'PatternBinder records ListPattern.Slice (the Range indexer or Slice, with the count) for a slice subpattern over
+      a user type and binds the subpattern against its result. A refused list pattern (not indexable, two slices, not
+      sliceable) keeps the rest of its elements bound against ErrorType as failures, so their bindings resolve silently.'
+    - 'Stage 5 judges the recorded members: AccessibilityAnalyzer and AccessorAnalyzer (count, Range indexer, Slice),
+      PurityJudge and the PurityInference roots, ReadonlyAnalyzer (readonly contexts and readonly parameters) and
+      ReadonlyInference, ContextCalls.Sites, and RefinementAnalyzer, which proves Slice''s refined parameters from the
+      start and length decoded from a literal or stored range against the count''s declared and lifted values, and from a
+      list pattern''s leading element count and what the match leaves.'
+    - 'BodyEmitter writes receiver[range]. A slice through an async-promoted Slice is awaited as a promoted call is
+      (AsyncLifts, operand precedence), and MIST_BE_UNSUPPORTED_IMPLICIT_SLICE refuses a list pattern through a promoted
+      Slice and a clone conversion slicing through a member C# cannot reach from the newtype.'
+    acceptance:
+    - 'Packet probes at the closure head: range_indexer prints 7, count_slice prints 1, list_slice prints 1, and the
+      private Slice control reports MIST_PA_INACCESSIBLE_MEMBER at the slice with no MIST_CS_ERROR. Further probes: a
+      Range indexer beside an int indexer; an inherited Range indexer through Named : Labelled<string>; a generic
+      Window<T>.Slice; Length preferred over Count; every bound form, ^ bounds, empty and stored ranges; evaluation order
+      receiver, start, end, count, Slice, with Roslyn eliding the count for from-start bounds; abstract-type,
+      default-member, constrained type-parameter, newtype, Memory<int> and ArraySegment<int> receivers; is and switch
+      patterns, a bare .., and a Range-indexer-backed pattern slice; a settable Range indexer written, and a Slice result
+      and a getter-only Range indexer refused as assignment targets; a missing or long count, Slice(long, long), arity
+      one and three, static, generic and ref Slice and a lone int indexer each refused once without a cascade; a private
+      Range indexer, a private count, a write-only Range indexer, an impure Slice read in a pure method and a reversed
+      range against a refined length parameter refused at the source.'
+    - 'Tier 2 UserSliceBindingTests (binder chain over hand-built types: both routes, inherited and generic owners,
+      preference, eleven refusal shapes, list-pattern slices, refused patterns keeping failed bindings), CountedReadRuleTests
+      (accessibility, accessors, refinement offsets, purity and readonly fragments), CountedSliceEmissionTests
+      (receiver[range], the promoted await and its precedence, both backend refusals) and StructuredContextRefusalTests
+      rows for a slice and a list-pattern slice reached bare and under a context.'
+    - 'samples/SliceableTypes is banked in AllFeaturesV2 (V2-only provenance in samples/CLAUDE.md);
+      book/src/basics/indexes-and-ranges.md shows a generated user-sliceable snippet and list-slice-patterns.md gives a
+      user slice''s binding type.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format Mist.slnx --verify-no-changes and git diff --check
+      clean. Full regression through tools/test-ledger/run.sh at 7df5f58e7cd03987990c34546319e5a344d8a72e (Storm 83410653, clean tree), ledger
+      TestResults/ledger/20261014-003102: Mist.Tests 10666 passed, Mist.CLI.Tests 115 passed,
+      Storm.ConsumerIntegration.Tests 46 passed and Storm.SourceGenerator.Tests 909 of 910, the
+      one failure being MIST-226''s Windows newline test (sighting recorded there); summary.txt and failures.txt read;
+      AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. SnippetEmitter over all
+      book snippets: 407 pairs, 0 updated, 0 failed at the closure head (and the same at the feature commit).'
+    limitations:
+    - 'Selection, as everywhere in the binder, is made before accessibility, which Stage 5 judges: a private Range
+      indexer beside a public Slice, or a private Length beside a public Count, is refused outside the type where C#
+      would use the other member.'
+    - 'Purity, readonly and context judgments treat the count as read on every Slice route, though Roslyn elides it when
+      both bounds count from the start, so a pure scope slicing through an impure count C# would not call is refused.'
+    - 'Slice''s with clauses are read through its declared types, as foreach''s implicit members are, not through a
+      generic owner''s receiver arguments.'
+    - 'A list pattern through an async-promoted Slice, and a clone conversion slicing through a member C# cannot reach
+      from the newtype, are refused with MIST_BE_UNSUPPORTED_IMPLICIT_SLICE rather than lowered explicitly.'
+    - 'A refined Slice parameter is proved only from literal or stored ranges the flow tracks; another range leaves it
+      unproven and refused.'
+  related:
+  - range slicing
+  - user-defined indexers
+  - MIST-241
+  - MIST-242
+  priority_rationale: Current reproducible wrong behavior; correctness work.
+  audit_key: backend:backend-range-sliceable
+  area: backend
+
+- id: MIST-241
+  title: Count a position only through an indexer that takes one
+  status: implemented
+  summary: 'Delivered 2026-10-14: a from-end index, and a list pattern''s elements, are read only through an indexer
+    whose parameter an int reaches, refinement aside, or that takes an Index. Before, indexer selection handed back a
+    lone candidate without asking whether the argument fit, so a receiver whose only indexer took a string or a Range
+    recorded a counted indexer over that parameter and Roslyn refused the emitted access.'
+  source_refs: []
+  evidence:
+  - revision: 8427bb20 (packet 36 working tree, positional path as on 04d74f053c8cdefdbd5d67b723682f7fcb4ca0ad)
+    date: '2026-10-14'
+    kind: executed CLI probe
+    source: 'using Standard; namespace Probe; public class Keyed { public int Count { get { return 2; } } public string
+      this[string key] { get { return key; } } } public class Labelled { public int Count { get { return 2; } }
+      public string this[Range range] { get { return "r"; } } } public class Program { public static void Main() { var
+      keyed = new Keyed(); var last = keyed[^1]; var labelled = new Labelled(); var end = labelled[^1]; if (labelled is
+      [var z, ..]) { Console.WriteLine(z); } } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_CS_ERROR Argument 1: cannot convert from ''System.Index'' to ''string'' once and to ''System.Range''
+      twice; nothing was refused at the source. Found while making a lone Range indexer sliceable (MIST-029).'
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Construction/Binding/Indexability.cs
+      symbol: ElementType
+    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/IndexBinder.cs
+      symbol: Bind
+  - revision: MIST-241 closure commit containing this entry, based on 04d74f053c8cdefdbd5d67b723682f7fcb4ca0ad
+    date: '2026-10-14'
+    kind: implementation and executed verification
+    implementation:
+    - 'Indexability.ElementType asks Indexability.Takes of the selected indexer; IndexBinder counts a from-end index only
+      through an indexer that takes an int position and otherwise keeps the parameter type on the access, so the
+      assignability rule refuses Index there.'
+    acceptance:
+    - 'The probe reports MIST_PA_NO_IMPLICIT_CONVERSION (Index to string, Index to Range) at both from-end indexes and
+      MIST_PM_LIST_PATTERN_SCRUTINEE at the list pattern, with no MIST_CS_ERROR; Tier 2 CountedPositionBindingTests cover
+      string, Range, Index and refined-int indexers for both reads.'
+    verification:
+    - 'Covered by the MIST-029 closure verification on the same integrated head.'
+  related:
+  - MIST-029
+  priority_rationale: A program Mist admitted failed in Roslyn; bounded binder fix.
+  area: binding
+
+- id: MIST-242
+  title: Judge the access of the count and indexer a counted read calls
+  status: implemented
+  summary: 'Delivered 2026-10-14: the accessibility and accessor rules judge the Length or Count and the indexer a
+    from-end index or a list pattern calls, as they judge a counted slice''s members. Before, neither rule looked at
+    them, so a private Length read by rows[^1] or rows is [var first, _] outside the type was admitted and Roslyn
+    refused the emitted access.'
+  source_refs: []
+  evidence:
+  - revision: d03232a9 (packet 36 working tree, access rules as on 04d74f053c8cdefdbd5d67b723682f7fcb4ca0ad)
+    date: '2026-10-14'
+    kind: executed CLI probe
+    source: 'using Standard; namespace Probe; public class Rows { private int Length { get { return 2; } } public int
+      this[int index] { get { return index; } } } public class Program { public static void Main() { var rows = new
+      Rows(); Console.WriteLine(rows[^1]); if (rows is [var first, _]) { Console.WriteLine(first); } } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_CS_ERROR cannot convert from ''System.Index'' to ''int'' and List patterns may not be used for a value
+      of type ''Rows''; nothing was refused at the source.'
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/Rules/AccessibilityAnalyzer.cs
+      symbol: Analyze
+  - revision: MIST-242 closure commit containing this entry, based on 04d74f053c8cdefdbd5d67b723682f7fcb4ca0ad
+    date: '2026-10-14'
+    kind: implementation and executed verification
+    implementation:
+    - 'CountedReads.Of lists each member a counted read calls once; AccessibilityAnalyzer and AccessorAnalyzer judge the
+      from-end count and every member of a list pattern''s reads and slice.'
+    acceptance:
+    - 'The probe reports MIST_PA_INACCESSIBLE_MEMBER for ''Length'' at both reads, with no MIST_CS_ERROR; CountedReadRuleTests
+      rows cover a private count read from the end and by a list pattern, a private element indexer, and a private count
+      getter on both reads.'
+    verification:
+    - 'Covered by the MIST-029 closure verification on the same integrated head.'
+  related:
+  - MIST-029
+  priority_rationale: A program Mist admitted failed in Roslyn; bounded analysis fix.
+  area: analysis
+
 - id: MIST-100
   title: Generic/operator tie resolution beyond implemented builtin selection
   status: implemented

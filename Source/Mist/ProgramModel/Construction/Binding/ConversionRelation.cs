@@ -86,6 +86,14 @@ internal static class ConversionRelation
             return true;
         }
 
+        // The one containment an indeterminate type does have: a value typed by a type parameter is a
+        // value of that same parameter, so an open `T` argument reaches a `T` parameter of the same
+        // declaration. Judged by reference, since two declarations may both name theirs `T`.
+        if(from is TypeParameter && ReferenceEquals(from, to))
+        {
+            return true;
+        }
+
         if(IsIndeterminate(from) || IsIndeterminate(to))
         {
             return false;

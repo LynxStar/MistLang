@@ -990,77 +990,6 @@ issues:
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
   audit_key: backend:backend-variadic-residual-shapes
   area: backend
-- id: MIST-086
-  title: Revalidate member filtering for readonly generic storage
-  status: confirmed
-  summary: Closed generic views containing unknown currently admit direct and transitive storage-writing
-    members. Requirement9/10 requires per-parameter write summaries and direction-specific member filtering;
-    read-only members must remain usable.
-  source_refs:
-  - file: backlog/emitter-v2-capability-progression.yaml
-    selector: capabilities[order=82,id=unknown-covariant-generic-widening].tasks[0]
-    lead_excerpt: FILTER members that write storage typed by the parameter. This is the soundness half
-      named in this order's own description and it is not built -- `widened.Add(99)` still resolves on
-      a `MyList<unknown>` receiver, where the language hides it because Add writes a T-typed field and
-      T is bound to the top type. Construction's business rather than the analysis phase's, because it
-      changes what a name RESO…
-    line_at_baseline: 5286
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    kind: source-only
-    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-      behavior; no missing test name is used as evidence of a defect.
-    source_symbols: []
-  - revision: c80c36823175514e5448fc2296bb174fbb360ec2
-    kind: executed CLI source-admission/artifact probe
-    source: using Standard; namespace Probe; public class Box<T> { public T Value; public Box(T value) {
-      this.Value = value; } public void Set(T value) { this.Value = value; } public T Get() { return this.Value;
-      } } public class Program { public static void Unsafe(Box<unknown> b) { b.Set("bad"); } public static
-      void Main() { Console.WriteLine("bound"); } }
-    observed: bound
-    exit_code: 0
-    date: '2026-10-13'
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    limits: Unsafe(Box<unknown>) methods are bound, compiled and emitted but Main never invokes them; these
-      prove invalid source admission, not an executed runtime corruption. Reader control likewise verifies
-      source admission. Compilation confirms existing unknown view lowers to dynamic; that representation
-      is intentionally preserved.
-  - revision: c80c36823175514e5448fc2296bb174fbb360ec2
-    kind: executed CLI source-admission/artifact probe
-    source: using Standard; namespace Probe; public class Box<T> { public T Value; public Box(T value) {
-      this.Value = value; } public void Set(T value) { this.Value = value; } public void Forward(T value)
-      { Set(value); } public T Get() { return this.Value; } } public class Program { public static void
-      Unsafe(Box<unknown> b) { b.Forward("bad"); } public static void Main() { Console.WriteLine("bound");
-      } }
-    observed: bound
-    exit_code: 0
-    date: '2026-10-13'
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    limits: Unsafe(Box<unknown>) methods are bound, compiled and emitted but Main never invokes them; these
-      prove invalid source admission, not an executed runtime corruption. Reader control likewise verifies
-      source admission. Compilation confirms existing unknown view lowers to dynamic; that representation
-      is intentionally preserved.
-  - revision: c80c36823175514e5448fc2296bb174fbb360ec2
-    kind: executed CLI source-admission/artifact probe
-    source: using Standard; namespace Probe; public class Box<T> { public T Value; public Box(T value) {
-      this.Value = value; } public void Set(T value) { this.Value = value; } public T Get() { return this.Value;
-      } } public class Program { public static unknown Read(Box<unknown> b) { return b.Get(); } public static
-      void Main() { Console.WriteLine("bound"); } }
-    observed: bound
-    exit_code: 0
-    date: '2026-10-13'
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    limits: Unsafe(Box<unknown>) methods are bound, compiled and emitted but Main never invokes them; these
-      prove invalid source admission, not an executed runtime corruption. Reader control likewise verifies
-      source admission. Compilation confirms existing unknown view lowers to dynamic; that representation
-      is intentionally preserved.
-  related:
-  - emitter capability unknown-covariant-generic-widening
-  priority_rationale: Current direct and transitive write-filter source-admission failures violate the established
-    unknown-view soundness contract.
-  audit_key: backend:emitter-082-tasks-0
-  area: backend
 - id: MIST-089
   title: Variadic generic method groups as function values
   status: unverified
@@ -5927,6 +5856,13 @@ issues:
     detail: 'Fails identically, expected "mode L.Inner {\n" against actual "mode L.Inner {\r\n" at position 4, in full
       ledgers 20261014-000600 and 20261014-001317, with Storm unchanged at 83410653 and the test file unmodified. Every other test of the four
       assemblies passed in those runs.'
+  - revision: e1177d05ae6c2b564bd89f7ee6fa16b002b070dd
+    based_on: fcb617d4
+    date: '2026-10-14'
+    kind: executed full ledger run on a Windows host (packet 34)
+    detail: 'Fails identically, expected "mode L.Inner {\n" against actual "mode L.Inner {\r\n" at position 4, in full ledger
+      20261014-004757, with Storm unchanged at 83410653 and the test file unmodified; packet 34 does not touch Storm and every other test
+      of the four assemblies passed (10709, 115, 46 and 909).'
   related:
   - packet 25 Storm grammar semantics (Storm 83410653)
   priority_rationale: A deterministic red full-suite result on Windows hosts hides real failures there.
@@ -6097,12 +6033,129 @@ issues:
     detail: 'Found while closing MIST-100; operator selection is not involved, since the ordinary call fails the same way.
       The fix types the receiver, which reaches member lookup and emission through this, so it was not folded into
       packet 37.'
+  - revision: e1177d05ae6c2b564bd89f7ee6fa16b002b070dd
+    date: '2026-10-14'
+    kind: executed CLI probe
+    source: 'using Standard; namespace Probe; public class Early<U> { public void UsesLater(Box<unknown> b) { Console.WriteLine("later"); } } public class Box<T> { public T Value; public Box(T value) { this.Value = value; } public void Through(Early<unknown> e) { e.UsesLater(this); } } public class Program { public static void Main() { new Box<int>(1).Through(new Early<int>()); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_PA_NO_IMPLICIT_CONVERSION: Cannot implicitly convert type ''Box'' to ''Box<unknown>'' at e.UsesLater(this), where a Box<T> parameter in its place widens.'
+    detail: 'Seen again while closing MIST-086: the covariant widening to a construction closed with unknown is refused for this for the same reason, since the bare definition is not a construction.'
   related:
   - MIST-100
+  - MIST-086
   priority: P3
   priority_rationale: A valid program using this as its own generic construction is refused.
   area: binding
+- id: MIST-243
+  title: Spell an intrinsic construction closed with unknown as dynamic
+  status: confirmed
+  summary: 'TypeNameEmitter spells an intrinsic definition through ClrSpelling before the arm that spells a construction bearing unknown as dynamic, so List<unknown> widened = list; emits System.Collections.Generic.List<object> and Roslyn refuses the List<int> conversion, while a Mist class closed the same way is dynamic and runs. Expected: the dynamic spelling applies to every construction bearing unknown at a non-dependent position, intrinsic definitions included, or the widening into an intrinsic construction is refused where Mist admits it; which of the two is an unknown representation decision this record holds open.'
+  source_refs: []
+  evidence:
+  - revision: e1177d05ae6c2b564bd89f7ee6fa16b002b070dd
+    date: '2026-10-14'
+    kind: executed CLI probe
+    source: 'using Standard; namespace Probe; public class Program { public static void Main() { var list = new List<int>(); list.Add(3); List<unknown> widened = list; Console.WriteLine($"{widened.Count}"); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'out\Probe\Program.cs: error MIST_CS_ERROR: Cannot implicitly convert type ''System.Collections.Generic.List<int>'' to ''System.Collections.Generic.List<object>'''
+    source_symbols:
+    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/TypeNameEmitter.cs
+      symbol: the ClrSpelling arm precedes the ContainsUnknown arm
+    detail: 'Found while closing MIST-086, whose filter already hides List<unknown>.Add and the indexer setter and keeps Count; the unknown representation is excluded from that packet.'
+  related:
+  - MIST-086
+  priority: P3
+  priority_rationale: A widening Mist admits reaches the target compiler as an error.
+  area: backend
 archive:
+- id: MIST-086
+  title: Revalidate member filtering for readonly generic storage
+  status: implemented
+  summary: 'Delivered 2026-10-14: a receiver closed with unknown hides every member whose write reaches storage typed by a parameter the receiver binds to unknown, judged per access direction and transitively through the members it calls, and reports MIST_PM_UNKNOWN_VIEW_HIDES_WRITER naming the member, the receiver and the parameter; readers, same-name reader overloads, open bodies, concrete constructions and narrowed bindings keep their access. Before, Box<unknown>.Set("bad") and the transitive Forward("bad") bound and emitted.'
+  source_refs:
+  - file: backlog/emitter-v2-capability-progression.yaml
+    selector: capabilities[order=82,id=unknown-covariant-generic-widening].tasks[0]
+    lead_excerpt: FILTER members that write storage typed by the parameter. This is the soundness half
+      named in this order's own description and it is not built -- `widened.Add(99)` still resolves on
+      a `MyList<unknown>` receiver, where the language hides it because Add writes a T-typed field and
+      T is bound to the top type. Construction's business rather than the analysis phase's, because it
+      changes what a name RESO…
+    line_at_baseline: 5286
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    kind: source-only
+    detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
+      behavior; no missing test name is used as evidence of a defect.
+    source_symbols: []
+  - revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    kind: executed CLI source-admission/artifact probe
+    source: using Standard; namespace Probe; public class Box<T> { public T Value; public Box(T value) {
+      this.Value = value; } public void Set(T value) { this.Value = value; } public T Get() { return this.Value;
+      } } public class Program { public static void Unsafe(Box<unknown> b) { b.Set("bad"); } public static
+      void Main() { Console.WriteLine("bound"); } }
+    observed: bound
+    exit_code: 0
+    date: '2026-10-13'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    limits: Unsafe(Box<unknown>) methods are bound, compiled and emitted but Main never invokes them; these
+      prove invalid source admission, not an executed runtime corruption. Reader control likewise verifies
+      source admission. Compilation confirms existing unknown view lowers to dynamic; that representation
+      is intentionally preserved.
+  - revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    kind: executed CLI source-admission/artifact probe
+    source: using Standard; namespace Probe; public class Box<T> { public T Value; public Box(T value) {
+      this.Value = value; } public void Set(T value) { this.Value = value; } public void Forward(T value)
+      { Set(value); } public T Get() { return this.Value; } } public class Program { public static void
+      Unsafe(Box<unknown> b) { b.Forward("bad"); } public static void Main() { Console.WriteLine("bound");
+      } }
+    observed: bound
+    exit_code: 0
+    date: '2026-10-13'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    limits: Unsafe(Box<unknown>) methods are bound, compiled and emitted but Main never invokes them; these
+      prove invalid source admission, not an executed runtime corruption. Reader control likewise verifies
+      source admission. Compilation confirms existing unknown view lowers to dynamic; that representation
+      is intentionally preserved.
+  - revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    kind: executed CLI source-admission/artifact probe
+    source: using Standard; namespace Probe; public class Box<T> { public T Value; public Box(T value) {
+      this.Value = value; } public void Set(T value) { this.Value = value; } public T Get() { return this.Value;
+      } } public class Program { public static unknown Read(Box<unknown> b) { return b.Get(); } public static
+      void Main() { Console.WriteLine("bound"); } }
+    observed: bound
+    exit_code: 0
+    date: '2026-10-13'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    limits: Unsafe(Box<unknown>) methods are bound, compiled and emitted but Main never invokes them; these
+      prove invalid source admission, not an executed runtime corruption. Reader control likewise verifies
+      source admission. Compilation confirms existing unknown view lowers to dynamic; that representation
+      is intentionally preserved.
+  - revision: '438c850c (feat(binding): Hide storage-writing members on receivers closed with unknown), with 49db16df (fix(analysis)) and e1177d05 (fix(binding)), rebased on fcb617d4'
+    date: '2026-10-14'
+    kind: implementation and executed verification
+    implementation:
+    - 'StorageWriteSummaries (Source/Mist/ProgramModel/Construction/Binding/StorageWrites) classifies every member a type parameter is in scope of, per direction, from its bound body: direct writes to fields, backing slots and intrinsic elements; edges to the members it calls, substituted the way each site closes the callee through receivers, base clauses (Ancestry), enclosing instantiations, extension closings, method type arguments and operator operands; the conservative argument rule of Requirements 9.8 and 9.9 for callees with no body to read (projected, intrinsic, abstract, function values); a monotone fixed point over recursion. Constructors add their parameters and chain (9.7). Members without bodies classify from their signatures, out parameters excepted, so a projected List<unknown> hides Add and the indexer setter and keeps Count and the indexer getter.'
+    - 'The summaries are demanded by the first receiver closed with unknown; bodies not yet bound by then are bound in a discarded trial (diagnostics withheld, registries discarded, slots restored), so the result is independent of declaration order and of which body the binder reached first. MemberResolution drops hidden overloads before selection and reports UnknownViewHidesWriter only when none remains, extension methods through their block closing; PostfixBinder and IndexBinder judge fields, properties, indexers and intrinsic elements in the direction BindingContext.WriteTargetNode records for an assignment target, which AssignmentTargets locates. A dependent position bound to unknown (an array length) does not close a type with unknown.'
+    - 'UnknownClosureAnalyzer refuses constructing a closure with unknown (5.7, 10.5) and defaulting unknown (5.6); PatternAnalyzer refuses a type test for such a closure from a value that already widens to it (11.4). ConversionRelation lets a type parameter be within itself, which an overloaded Set(T)/Set(string) called with an open T argument needed.'
+    acceptance:
+    - 'CLI probes at this revision: the three recorded probes report MIST_PM_UNKNOWN_VIEW_HIDES_WRITER for Set and Forward and admit Read; refused: field and setter assignment, a getter that writes, indexer set, mutual recursion with one writer, inherited Keep on Derived<unknown>, SetSecond on Pair<int, unknown>, List<unknown>.Add and its indexer set, Set on Box<List<unknown>>, static Stash on Box<unknown>, Inner.Put on Box<unknown>.Inner, extension Overwrite, a ??= into T storage, Print calling Console.WriteLine(this.Value), new Box<unknown>(1), unknown d = default, and ints is Box<unknown>; admitted and run: Size, GetAt, field, getter and indexer reads as unknown, Add(string) beside the hidden Add(T), a read-only cycle, SetFirst on Pair<int, unknown>, GetSecond on Pair<unknown, string>, extension Look, narrowing to Box<int> then Set, and a generic body declared before the type it closes reporting the same as after.'
+    verification:
+    - 'Tier 1 UnknownViewDecisionTests (occurrences, unknown-bearing with dependent positions, HiddenBy, FromSignature, HiddenElement, Ancestry, AssignmentTargets) and TypeParameterIdentityTests; Tier 2 StorageWriteSummaryTests (direct writes, call inheritance and fixed point, base-clause substitution, two parameters, operator edges with renamed and inherited owners, accessor directions, foreign and delegate calls, constructors and chains, coalescing and ref arguments, a generic method closed at the call) and UnknownViewBindingTests (hidden writer and its message, reader overload selected, concrete receiver untouched, field, property and indexer directions, independent parameters, inherited and nested arguments, a completed body read as it stands); Tier 1 and 2 UnknownClosureRefusalTests; Tier 3 UnknownViewFilteringTests (body-based writers, reader overload, readers, extensions, declaration order). dotnet build Mist.slnx 0 warnings, dotnet format --verify-no-changes clean. Full ledger TestResults/ledger/20261014-004757 at e1177d05: Mist.Tests 10709 passed, 0 failed (AllFeaturesV2_CompilesRunsAndMatchesBaseline passed with the two UnknownType lines added), Mist.CLI.Tests 115, Storm.ConsumerIntegration.Tests 46, Storm.SourceGenerator.Tests 909 of 910, the one failure the Windows-only MIST-226 case.'
+    limitations:
+    - 'A foreach over a receiver closed with unknown resolves GetEnumerator through EnumerableElement without this filter, a property pattern reads a getter without it, and an extension PROPERTY on such a receiver is not judged; each is a reader surface in practice and none is named by Requirement 10.'
+    - 'The summaries over a generic body that itself holds a site hidden on another type are computed from the trial, where that site still selects its writer; a reader overload selected in the real binding may therefore leave an over-approximate summary and hide a call elsewhere. Safe direction, and only where both a hidden overload and a reader exist and the hidden one also writes a parameter the enclosing type closes.'
+    - 'Standard intrinsic members have no bodies, so Console.WriteLine(this.Value) makes its caller a writer by the argument rule, as Requirement 9.9 specifies; the sample''s readers avoid it. Intrinsic constructions closed with unknown emit as their CLR spelling rather than dynamic (MIST-243), so widening into List<unknown> does not compile although the filter judges it.'
+  related:
+  - emitter capability unknown-covariant-generic-widening
+  - MIST-243
+  - MIST-240
+  priority_rationale: Current direct and transitive write-filter source-admission failures violate the established
+    unknown-view soundness contract.
+  audit_key: backend:emitter-082-tasks-0
+  area: backend
 - id: MIST-029
   title: Support both specified user-defined sliceable protocols
   status: implemented

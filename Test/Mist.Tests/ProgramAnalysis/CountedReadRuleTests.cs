@@ -9,16 +9,19 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// A slice C# reads through a user type's count and Slice, or a list pattern's Range indexer, calls members no
-// expression in the model spells. Each rule that judges a call judges these from the recorded CountedSlice.
+// A from-end index, a list pattern and a counted slice call a count, an indexer or Slice that no expression in
+// the model spells. Each rule that judges a call judges these from the recorded CountedIndexer or CountedSlice.
 [Trait("Tier", "2")]
-public sealed class CountedSliceRuleTests
+public sealed class CountedReadRuleTests
 {
     [Theory]
     [InlineData("private-slice", "'Slice' is inaccessible")]
     [InlineData("private-count", "'Count' is inaccessible")]
     [InlineData("private-range-indexer-in-a-pattern", "'this[]' is inaccessible")]
-    public void AMemberTheSliceCallsOutOfReachIsRefused(string shape, string message)
+    [InlineData("private-count-read-from-the-end", "'Count' is inaccessible")]
+    [InlineData("private-count-read-by-a-list-pattern", "'Count' is inaccessible")]
+    [InlineData("private-indexer-read-by-a-list-pattern", "'this[]' is inaccessible")]
+    public void AMemberACountedReadCallsOutOfReachIsRefused(string shape, string message)
     {
         var fragment = Access(shape);
 
@@ -32,7 +35,9 @@ public sealed class CountedSliceRuleTests
     [Theory]
     [InlineData("count-with-a-private-getter", "MIST_PA_INACCESSIBLE_ACCESSOR")]
     [InlineData("range-indexer-without-a-getter-in-a-pattern", "MIST_PA_NO_GET_ACCESSOR")]
-    public void AnAccessorTheSliceReadsMustBeReadable(string shape, string id)
+    [InlineData("count-with-a-private-getter-read-from-the-end", "MIST_PA_INACCESSIBLE_ACCESSOR")]
+    [InlineData("count-with-a-private-getter-read-by-a-list-pattern", "MIST_PA_INACCESSIBLE_ACCESSOR")]
+    public void AnAccessorACountedReadCallsMustBeReadable(string shape, string id)
     {
         var diagnostic = Assert.Single(Access(shape).Run(new AccessorAnalyzer()));
 
@@ -134,6 +139,22 @@ public sealed class CountedSliceRuleTests
             Getter = new PropertyAccessor { IsAuto = true, Accessibility = shape.Contains("private-getter", StringComparison.Ordinal) ? Accessibility.Private : Accessibility.Public },
         };
         var receiver = new ThisExpression(HandBuiltModel.Node(), owner);
+
+        if(shape.Contains("from-the-end", StringComparison.Ordinal) || shape.Contains("read-by-a-list-pattern", StringComparison.Ordinal))
+        {
+            var element = new Indexer(integer, [new Parameter("at", integer)], shape.Contains("private-indexer", StringComparison.Ordinal) ? hidden : DeclarationFragments.Public)
+            {
+                DeclaringType = owner,
+                Getter = new PropertyAccessor { IsAuto = true },
+            };
+            var reads = new CountedIndexer(element, integer, count);
+            var last = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.FromEnd, HandBuiltModel.Literal(integer, 1L), fragment.Built.Type("Index"));
+            var first = new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(), integer, null), IsSlice: false, integer);
+            fragment.Root = shape.Contains("from-the-end", StringComparison.Ordinal)
+                ? new IndexExpression(HandBuiltModel.Node(30), receiver, last, integer) { Indexer = element, FromEnd = reads }
+                : new ListPattern(HandBuiltModel.Node(30), [first], owner) { Reads = reads };
+            return fragment;
+        }
 
         if(shape.Contains("pattern", StringComparison.Ordinal))
         {

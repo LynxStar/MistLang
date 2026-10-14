@@ -34,14 +34,15 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
 
                 case IndexExpression { Indexer: { DeclaringType: { } declaring } indexer } index:
                     Judge(context, index, index.Node, [index], "this[]", indexer.Modifiers, declaring);
+                    JudgeCounted(context, index, index.Node, [index], index.FromEnd is { Count: var count } ? [count] : []);
                     break;
 
                 case IndexExpression { Slice: { } slice } sliced:
-                    JudgeSlice(context, sliced, sliced.Node, [sliced], slice);
+                    JudgeCounted(context, sliced, sliced.Node, [sliced], CountedReads.Of(null, slice));
                     break;
 
-                case ListPattern { Slice: { } slice } list:
-                    JudgeSlice(context, list, list.Node, [], slice);
+                case ListPattern list:
+                    JudgeCounted(context, list, list.Node, [], CountedReads.Of(list.Reads, list.Slice));
                     break;
 
                 case ObjectInitializerAssignment { IsTargetFailed: false, MemberName: { } name, Member: { } member } entry:
@@ -192,18 +193,24 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
         };
     }
 
-    private static void JudgeSlice(AnalysisContext context, object use, SyntaxNode at, IReadOnlyList<Expression> about, CountedSlice slice)
+    private static void JudgeCounted(AnalysisContext context, object use, SyntaxNode at, IReadOnlyList<Expression> about, IReadOnlyList<object> called)
     {
-        Judge(context, use, at, about, slice.Count.Name, slice.Count.Modifiers, slice.Count.DeclaringType);
-
-        if(slice.Indexer is { } indexer)
+        foreach(var member in called)
         {
-            Judge(context, use, at, about, "this[]", indexer.Modifiers, indexer.DeclaringType);
-        }
+            switch(member)
+            {
+                case Property property:
+                    Judge(context, use, at, about, property.Name, property.Modifiers, property.DeclaringType);
+                    break;
 
-        if(slice.Method is { } method)
-        {
-            Judge(context, use, at, about, method.Name, method.Modifiers, method.DeclaringType);
+                case Indexer indexer:
+                    Judge(context, use, at, about, "this[]", indexer.Modifiers, indexer.DeclaringType);
+                    break;
+
+                case Method method:
+                    Judge(context, use, at, about, method.Name, method.Modifiers, method.DeclaringType);
+                    break;
+            }
         }
     }
 

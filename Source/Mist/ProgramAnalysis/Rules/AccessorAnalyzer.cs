@@ -51,14 +51,15 @@ internal sealed class AccessorAnalyzer : IProgramAnalyzer
             {
                 case IndexExpression { Indexer: { } indexer } index:
                     Judge(context, Use.Of(context, index), Slot.Of(indexer), Construction.None);
+                    JudgeCounted(context, new Use(index, index.Node, [index], AccessDirection.Read), index.FromEnd is { Count: var count } ? [count] : []);
                     break;
 
                 case IndexExpression { Slice: { } slice } sliced:
-                    JudgeSlice(context, new Use(sliced, sliced.Node, [sliced], AccessDirection.Read), slice);
+                    JudgeCounted(context, new Use(sliced, sliced.Node, [sliced], AccessDirection.Read), CountedReads.Of(null, slice));
                     break;
 
-                case ListPattern { Slice: { } slice } list:
-                    JudgeSlice(context, new Use(list, list.Node, [], AccessDirection.Read), slice);
+                case ListPattern list:
+                    JudgeCounted(context, new Use(list, list.Node, [], AccessDirection.Read), CountedReads.Of(list.Reads, list.Slice));
                     break;
 
                 case MemberAccessExpression { Member: PropertyResult { Property: var property } } access:
@@ -102,13 +103,14 @@ internal sealed class AccessorAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void JudgeSlice(AnalysisContext context, Use use, CountedSlice slice)
+    private static void JudgeCounted(AnalysisContext context, Use use, IReadOnlyList<object> called)
     {
-        Judge(context, use, Slot.Of(slice.Count), Construction.None);
-
-        if(slice.Indexer is { } indexer)
+        foreach(var member in called)
         {
-            Judge(context, use, Slot.Of(indexer), Construction.None);
+            if(member switch { Property property => Slot.Of(property), Indexer indexer => Slot.Of(indexer), _ => (Slot?)null } is { } slot)
+            {
+                Judge(context, use, slot, Construction.None);
+            }
         }
     }
 

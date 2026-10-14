@@ -48,6 +48,7 @@ internal static class Indexability
 
         return Indexers(receiverType) is { Count: > 0 } indexers
             && Select(indexers, receiverType, index, context) is { Selected: { } selected } choice
+            && Takes(choice, index.Type, context)
             ? IndexerType(selected, choice.Substitution, context)
             : ErrorType.Instance
             ;
@@ -205,7 +206,7 @@ internal static class Indexability
 
         if(Indexers(receiverType) is { Count: > 0 } indexers
             && Select(indexers, receiverType, range, context) is { Selected: { Modifiers.IsIntrinsic: false } indexer } choice
-            && TakesRange(choice, range.Type, context))
+            && Takes(choice, range.Type, context))
         {
             return (IndexerType(indexer, choice.Substitution, context), new CountedSlice(count, indexer, null));
         }
@@ -238,13 +239,19 @@ internal static class Indexability
 
     private const string SliceName = "Slice";
 
-    public static bool TakesRange(OverloadChoice<Indexer>? choice, IMistType rangeType, BuilderContext context)
+    public static bool Takes(OverloadChoice<Indexer>? choice, IMistType argumentType, BuilderContext context)
     {
         var interner = context.ProgramModel.TypeInterner;
 
-        return choice is { Selected.ParametersList: [var parameter] }
-            && ConversionClassifier.Classify(rangeType, choice.Substitution.Apply(parameter.Type, interner), interner)
-                is not (ConversionKind.None or ConversionKind.Explicit);
+        if(choice is not { Selected.ParametersList: [var parameter] })
+        {
+            return false;
+        }
+
+        var slot = ConversionRelation.Unrefined(choice.Substitution.Apply(parameter.Type, interner));
+
+        return (IsInt(argumentType) && IsIndex(slot))
+            || ConversionClassifier.Classify(argumentType, slot, interner) is not (ConversionKind.None or ConversionKind.Explicit);
     }
 
     private static bool IsSliceShape(Method method)

@@ -38,7 +38,7 @@ internal static class IndexBinder
         var indexers = Indexability.Indexers(receiver.Type);
         var choice = indexers.Count == 0 ? null : Indexability.Select(indexers, receiver.Type, index, context);
         var indexerTakesRange = choice is { Ambiguous.Count: > 0 }
-            || (Indexability.TakesRange(choice, index.Type, context) && Indexability.Count(receiver.Type) is not null);
+            || (Indexability.Takes(choice, index.Type, context) && Indexability.Count(receiver.Type) is not null);
 
         if(isRange && !indexerTakesRange)
         {
@@ -78,8 +78,10 @@ internal static class IndexBinder
         var interner = context.ProgramModel.TypeInterner;
         var parameterTypes = selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner));
         CountedIndexer? fromEnd = null;
+        var readsPosition = !selected.Modifiers.IsIntrinsic && Indexability.IsIndex(index.Type) && parameterTypes is [_] && !Indexability.IsIndex(parameterTypes[0]);
+        var takesPosition = readsPosition && Indexability.Takes(choice, context.Resolver.LookupWellKnown(WellKnownTypes.Int32), context);
 
-        if(!selected.Modifiers.IsIntrinsic && Indexability.IsIndex(index.Type) && parameterTypes is [var position] && !Indexability.IsIndex(position))
+        if(takesPosition && parameterTypes is [var position])
         {
             if(Indexability.Count(receiver.Type) is { } count)
             {
@@ -96,7 +98,7 @@ internal static class IndexBinder
             node, receiver, ImplicitConversions.AtParameters([index], method: null, parameterTypes, interner)[0], type)
         {
             Indexer = selected.Modifiers.IsIntrinsic ? null : selected,
-            ParameterType = parameterTypes is [var slot] && !Indexability.IsIndex(index.Type) ? slot : null,
+            ParameterType = parameterTypes is [var slot] && (!Indexability.IsIndex(index.Type) || (readsPosition && !takesPosition)) ? slot : null,
             FromEnd = fromEnd,
         };
     }

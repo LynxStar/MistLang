@@ -216,6 +216,11 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
             return ProgramAnalysisDiagnostics.PatternNarrowsToUnknown;
         }
 
+        if(UnknownViews.IsClosedWithUnknown(tested) && ConversionRelation.IsWithin(input, tested))
+        {
+            return ProgramAnalysisDiagnostics.PatternNarrowsToUnknownClosure;
+        }
+
         var held = OptionalLifting.NonVoidPortion(input, interner);
 
         if(ConversionRelation.CopiesAClone(held, tested) || ConversionRelation.CopiesAClone(tested, held))

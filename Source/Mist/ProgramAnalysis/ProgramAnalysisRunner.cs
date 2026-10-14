@@ -27,6 +27,7 @@ internal static class ProgramAnalysisRunner
         new DeclarationShapeAnalyzer(),
         new ConstraintAnalyzer(),
         new DefaultabilityAnalyzer(),
+        new UnknownClosureAnalyzer(),
         new ConformanceAnalyzer(),
         new PatternAnalyzer(),
         new RegexAnalyzer(),

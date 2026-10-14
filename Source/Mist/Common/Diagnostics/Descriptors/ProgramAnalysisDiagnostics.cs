@@ -292,6 +292,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type.");
 
+    public static readonly DiagnosticDescriptor PatternNarrowsToUnknownClosure = new(
+        new DiagnosticId("MIST_PA_PATTERN_NARROWS_TO_UNKNOWN_CLOSURE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Narrowing '{0}' to '{1}' is not meaningful: every '{0}' already widens to '{1}', so the pattern is tautologically true, and the binding it introduces only hides the members that write storage of the parameters closed with 'unknown'. Narrow to a concrete construction instead.");
+
     public static readonly DiagnosticDescriptor PatternNotComparable = new(
         new DiagnosticId("MIST_PA_PATTERN_NOT_COMPARABLE"),
         DiagnosticSeverity.Error,
@@ -333,6 +339,18 @@ public static partial class ProgramAnalysisDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Analysis,
         "Cannot access member '{0}' on a value of type 'unknown': 'unknown' has no members. Narrow the value with an 'is' pattern first.");
+
+    public static readonly DiagnosticDescriptor UnknownClosureConstructed = new(
+        new DiagnosticId("MIST_PA_UNKNOWN_CLOSURE_CONSTRUCTED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'{0}' cannot be constructed: its type argument for {1} is 'unknown', and a generic type closed with 'unknown' is only a view of a concrete instantiation. Construct a concrete instantiation and widen it.");
+
+    public static readonly DiagnosticDescriptor UnknownHasNoDefault = new(
+        new DiagnosticId("MIST_PA_UNKNOWN_HAS_NO_DEFAULT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "'unknown' has no default value: no value is 'unknown' and nothing more. Give the slot a concrete type, or an explicit value.");
 
     public static readonly DiagnosticDescriptor ConditionalAccessOnNonOptional = new(
         new DiagnosticId("MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL"),

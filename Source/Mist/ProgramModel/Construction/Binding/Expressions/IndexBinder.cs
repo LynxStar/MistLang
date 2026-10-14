@@ -39,6 +39,7 @@ internal static class IndexBinder
         var choice = indexers.Count == 0 ? null : Indexability.Select(indexers, receiver.Type, index, context);
         var indexerTakesRange = choice is { Ambiguous.Count: > 0 }
             || (Indexability.Takes(choice, index.Type, context) && Indexability.Count(receiver.Type) is not null);
+        var access = ctx.AccessAt(node);
 
         if(isRange && !indexerTakesRange)
         {
@@ -49,6 +50,12 @@ internal static class IndexBinder
         {
             if(Indexability.ArrayElement(receiver.Type) is { } element)
             {
+                if(access.HasFlag(StorageAccess.Write) && UnknownViews.HiddenElement(receiver.Type) is { } hiddenElement)
+                {
+                    UnknownViews.Report(hiddenElement, receiver.Type, node, context);
+                    return new ErrorExpression(node, [receiver, index]);
+                }
+
                 return new IndexExpression(node, receiver, index, element);
             }
 
@@ -72,6 +79,12 @@ internal static class IndexBinder
             return OverloadFailure.Retain(
                 choice, indexers, [index],
                 $"indexer '{TypeDisplay.Mist(receiver.Type)}.this[]'", node, context.Diagnostics, [receiver, index]);
+        }
+
+        if(UnknownViews.IsClosedWithUnknown(receiver.Type) && UnknownViews.Hidden(selected, access, choice.Substitution, context) is { } hidden)
+        {
+            UnknownViews.Report(hidden, receiver.Type, node, context);
+            return new ErrorExpression(node, [receiver, index]);
         }
 
         var type = Indexability.ArrayElement(receiver.Type) ?? Indexability.IndexerType(selected, choice.Substitution, context);

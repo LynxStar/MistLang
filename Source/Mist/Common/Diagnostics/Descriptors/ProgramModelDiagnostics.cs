@@ -963,6 +963,17 @@ public static class ProgramModelDiagnostics
         PipelineStage.SemanticModelConstruction,
         "{0} cannot have type '{1}': 'unknown' is not permitted as the declared type of writable storage. Use a concrete type, or accept 'unknown' as a parameter and pattern-match it.");
 
+    /// <summary>
+    /// The member-not-found of a receiver closed with <c>unknown</c> (unknown-type Requirement 10.7):
+    /// the member exists, and this receiver hides it, because the storage it would write is typed by a
+    /// parameter the receiver binds to the top type while the runtime object holds a concrete argument.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnknownViewHidesWriter = new(
+        new DiagnosticId("MIST_PM_UNKNOWN_VIEW_HIDES_WRITER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "'{1}' cannot be {2} on '{0}': it would write to storage typed by '{3}', which '{0}' closes with 'unknown'. Narrow the receiver with an 'is' pattern to a concrete construction first.");
+
     // ── Retroactive conformance ──────────────────────────────────────────
 
     /// <summary>

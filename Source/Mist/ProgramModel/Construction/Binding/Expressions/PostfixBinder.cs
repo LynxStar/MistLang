@@ -512,6 +512,11 @@ internal static class PostfixBinder
             };
         }
 
+        if(HiddenOn(constructed, found, StorageAccess.Read, node, context))
+        {
+            return new MemberAccessExpression(node, receiver, memberName, ErrorType.Instance, isConditional: true, member: found, isFailed: true);
+        }
+
         var resolved = TypeSubstitution
             .ForMember(constructed, found, interner)
             .Apply(MemberTypeOf(found), interner);
@@ -521,6 +526,25 @@ internal static class PostfixBinder
 
         return new MemberAccessExpression(
             node, receiver, memberName, lifted, isConditional: true, member: found, isFailed: reported);
+    }
+
+    /// <summary>
+    /// Whether a receiver closed with <c>unknown</c> hides the field or property found on it in the
+    /// direction this site uses it, reporting so where it does.
+    /// </summary>
+    private static bool HiddenOn(
+        ConstructedType? constructed, LookupResult found, StorageAccess access, Storm.Runtime.SyntaxNode node, BuilderContext context)
+    {
+        if(constructed is null
+            || found is not (FieldResult or PropertyResult)
+            || !UnknownViews.IsClosedWithUnknown(constructed)
+            || UnknownViews.Hidden(found, access, constructed, context) is not { } hidden)
+        {
+            return false;
+        }
+
+        UnknownViews.Report(hidden, constructed, node, context);
+        return true;
     }
 
     internal static Expression BindMemberAccess(Storm.Runtime.SyntaxNode node, Expression receiver, string memberName, BindingContext ctx, BuilderContext context)
@@ -539,6 +563,11 @@ internal static class PostfixBinder
         if(found is MethodGroupResult { Methods.Count: > 0 } group)
         {
             return new MethodGroupExpression(node, receiver, memberName, group.Methods, constructed) { Paths = group.Paths };
+        }
+
+        if(HiddenOn(constructed, found, ctx.AccessAt(node), node, context))
+        {
+            return new MemberAccessExpression(node, receiver, memberName, ErrorType.Instance, member: found, isFailed: true);
         }
 
         // C# has no extension property, so this access is not one in the output: it becomes a call

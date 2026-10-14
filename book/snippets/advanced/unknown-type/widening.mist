@@ -1,0 +1,52 @@
+using Standard;
+
+public class MyList<T>
+{
+    public int count;
+    public T item0;
+
+    public MyList()
+    {
+        this.count = 0;
+    }
+
+    public int Size()
+    {
+        return this.count;
+    }
+
+    public T GetAt(int index)
+    {
+        return this.item0;
+    }
+
+    public void Add(T value)
+    {
+        this.item0 = value;
+        this.count = this.count + 1;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var ints = new MyList<int>();
+        ints.Add(42);
+
+        MyList<unknown> widened = ints;
+        Console.WriteLine($"size: {widened.Size()}");
+
+        unknown first = widened.GetAt(0);
+        if (first is int number)
+        {
+            Console.WriteLine($"first: {number}");
+        }
+
+        if (widened is MyList<int> narrowed)
+        {
+            narrowed.Add(7);
+            Console.WriteLine($"narrowed size: {narrowed.Size()}");
+        }
+    }
+}

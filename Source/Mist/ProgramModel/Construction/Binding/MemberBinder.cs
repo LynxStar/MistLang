@@ -65,6 +65,8 @@ internal static class MemberBinder
                 {
                     BodyBinder.BindDelegate(method, context);
                 }
+
+                context.StorageWrites.MarkComplete(method);
             }
 
             foreach(var property in block.PropertiesList)
@@ -72,6 +74,7 @@ internal static class MemberBinder
                 BodyBinder.BindAccessors(
                     property.Getter, property.Setter, property.Type, [],
                     property.Modifiers.IsStatic, property, block.Scope, context);
+                context.StorageWrites.MarkComplete(property);
             }
         }
     }
@@ -85,6 +88,8 @@ internal static class MemberBinder
             {
                 BodyBinder.BindDelegate(boundDelegate, context);
             }
+
+            context.StorageWrites.MarkComplete(boundDelegate);
         }
     }
 
@@ -96,6 +101,7 @@ internal static class MemberBinder
             {
                 field.Initializer = AtSlot(
                     OwnedProvenance.IsOwned(field), BodyBinder.BindInitializer(field.Initializer, field.Type, memberType.Scope, context));
+                context.StorageWrites.MarkComplete(field);
             }
 
             BindDefaultBlock(concreteType, context);
@@ -164,6 +170,7 @@ internal static class MemberBinder
             BodyBinder.BindAccessors(
                 property.Getter, property.Setter, property.Type, [],
                 property.Modifiers.IsStatic, property, memberType.Scope, context);
+            context.StorageWrites.MarkComplete(property);
         }
 
         foreach(var indexer in memberType.IndexersList)
@@ -171,6 +178,7 @@ internal static class MemberBinder
             BodyBinder.BindAccessors(
                 indexer.Getter, indexer.Setter, indexer.Type, indexer.ParametersList,
                 indexer.Modifiers.IsStatic, owningProperty: null, memberType.Scope, context);
+            context.StorageWrites.MarkComplete(indexer);
         }
     }
 }

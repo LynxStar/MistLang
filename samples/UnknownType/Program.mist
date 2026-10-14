@@ -42,6 +42,7 @@ namespace UnknownType;
 public class MyList<T>
 {
     public int count;
+    public int notes;
     public T item0;
     public T item1;
     public T item2;
@@ -49,11 +50,22 @@ public class MyList<T>
     public MyList()
     {
         this.count = 0;
+        this.notes = 0;
     }
 
     public int Size()
     {
         return this.count;
+    }
+
+    // A same-name overload that writes only the `int` note counter. It stays
+    // selectable on a `MyList<unknown>` receiver, where `Add(T)` is hidden,
+    // because a hidden writer is removed from the candidates rather than
+    // refusing the name.
+    public int Add(string note)
+    {
+        this.notes = this.notes + 1;
+        return this.notes;
     }
 
     public T GetAt(int index)
@@ -143,6 +155,17 @@ public class Program
                 unknown element = widened.GetAt(i);
                 Describe(element);
             }
+
+            // `Add(string)` writes no T-typed storage, so it is the overload
+            // this call selects on the widened receiver; `Add(T)` is hidden.
+            int notes = widened.Add("note");
+            Console.WriteLine($"widened notes after reader overload: {notes}");
+
+            // A field read through the view yields `unknown`. Assigning it
+            // (`widened.item0 = 99;`) would be refused as a write to T-typed
+            // storage, just as `Add(99)` is below.
+            unknown first = widened.item0;
+            Console.WriteLine($"widened first item: {first}");
 
             // The following call would NOT compile here:
             //   widened.Add(99);

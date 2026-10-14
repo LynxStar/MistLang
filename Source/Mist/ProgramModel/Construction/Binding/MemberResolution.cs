@@ -51,6 +51,13 @@ internal static class MemberResolution
         }
 
         var found = TypeMemberLookup.Find(declaring, LookupRequest.Member(memberName, visibility, node));
+        HiddenMember? hidden = null;
+        var closedWithUnknown = constructed is not null && UnknownViews.IsClosedWithUnknown(constructed);
+
+        if(closedWithUnknown && found is MethodGroupResult declaredGroup)
+        {
+            found = (LookupResult?)UnknownViews.Filter(declaredGroup, constructed!, context, out hidden) ?? new NotFoundResult();
+        }
 
         // Ahead of extensions and behind declared members, which is where a projection belongs: it
         // is the declaring type's own, so it beats an extension, but a member actually written
@@ -65,6 +72,12 @@ internal static class MemberResolution
         {
             found = ExtensionLookup.Find(
                 type, memberName, visibility, callSite, allowExtensionProperties, context.ProgramModel);
+
+            if(closedWithUnknown && found is MethodGroupResult extensions)
+            {
+                found = (LookupResult?)UnknownViews.FilterExtensions(extensions, context, out var hiddenExtension) ?? new NotFoundResult();
+                hidden ??= hiddenExtension;
+            }
         }
         else if(memberName == "ToString"
             && visibility is MemberVisibility.InstanceOnly or MemberVisibility.InstanceAndStatic
@@ -77,7 +90,7 @@ internal static class MemberResolution
         }
 
         var reported = (found is not NotFoundResult || reportMissing)
-            && Report(found, declaring, TypeDisplay.Mist(receiver), memberName, node, context);
+            && Report(found, declaring, receiver, memberName, node, context, hidden);
 
         return new MemberLookup(found, constructed, reported);
     }
@@ -186,10 +199,11 @@ internal static class MemberResolution
     private static bool Report(
         LookupResult found,
         MistType declaring,
-        string written,
+        IMistType receiver,
         string memberName,
         SyntaxNode node,
-        BuilderContext context)
+        BuilderContext context,
+        HiddenMember? hidden)
     {
         if(!AnswersMembers(declaring))
         {
@@ -198,15 +212,19 @@ internal static class MemberResolution
 
         switch(found)
         {
+            case NotFoundResult when hidden is { } hiddenMember:
+                UnknownViews.Report(hiddenMember, receiver, node, context);
+                return true;
+
             case NotFoundResult:
                 context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.UnresolvedMember, node, null, written, memberName);
+                    ProgramModelDiagnostics.UnresolvedMember, node, null, TypeDisplay.Mist(receiver), memberName);
                 return true;
 
             case AmbiguousResult ambiguous:
                 context.Diagnostics.ReportAtNode(
                     ProgramModelDiagnostics.AmbiguousMember, node, null,
-                    written, memberName, Describe(ambiguous));
+                    TypeDisplay.Mist(receiver), memberName, Describe(ambiguous));
                 return true;
 
             default:

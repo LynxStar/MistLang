@@ -38,7 +38,12 @@ internal static class ExpressionBinder
 
             if(assignmentOp.Operator.Lexeme == "=" || isCoalescing)
             {
-                var target = OperatorBinder.BindVoidCoalescing(assignment.Target, ctx, context);
+                Expression target;
+                using(ctx.PushWriteTarget(
+                    AssignmentTargets.AccessNodeOf(assignment.Target), isCoalescing ? StorageAccess.ReadWrite : StorageAccess.Write))
+                {
+                    target = OperatorBinder.BindVoidCoalescing(assignment.Target, ctx, context);
+                }
 
                 // A target takes what the local was declared to hold, whatever a `??=` narrowed its
                 // reads to; the narrowing is of the value read back, not of the slot written.

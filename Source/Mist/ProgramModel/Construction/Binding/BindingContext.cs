@@ -73,6 +73,48 @@ internal sealed class BindingContext
     /// </summary>
     public PostfixNode? SettledMethodGroup { get; set; }
 
+    /// <summary>
+    /// The one access the enclosing assignment writes through -- see
+    /// <see cref="Expressions.AssignmentTargets"/> -- and whether it also reads it, as <c>??=</c> does.
+    /// Null outside an assignment's target, where every access is a read. A node rather than a flag so
+    /// that the receivers an access is reached through, which the same assignment binds, stay reads.
+    /// </summary>
+    public Storm.Runtime.SyntaxNode? WriteTargetNode { get; private set; }
+
+    public StorageAccess WriteAccess { get; private set; }
+
+    public StorageAccess AccessAt(Storm.Runtime.SyntaxNode node)
+    {
+        return ReferenceEquals(node, WriteTargetNode) ? WriteAccess : StorageAccess.Read;
+    }
+
+    public WriteTargetScope PushWriteTarget(Storm.Runtime.SyntaxNode? node, StorageAccess access)
+    {
+        return new WriteTargetScope(this, node, access);
+    }
+
+    internal struct WriteTargetScope : IDisposable
+    {
+        private readonly BindingContext ctx;
+        private readonly Storm.Runtime.SyntaxNode? previous;
+        private readonly StorageAccess previousAccess;
+
+        public WriteTargetScope(BindingContext ctx, Storm.Runtime.SyntaxNode? node, StorageAccess access)
+        {
+            this.ctx = ctx;
+            previous = ctx.WriteTargetNode;
+            previousAccess = ctx.WriteAccess;
+            ctx.WriteTargetNode = node;
+            ctx.WriteAccess = access;
+        }
+
+        public void Dispose()
+        {
+            ctx.WriteTargetNode = previous;
+            ctx.WriteAccess = previousAccess;
+        }
+    }
+
     public BindingContext(BodyScope scope, IMistType? returnType)
     {
         Scope = scope;

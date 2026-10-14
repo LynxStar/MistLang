@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Binding.StorageWrites;
 using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Scaffolding;
@@ -65,6 +66,8 @@ internal sealed class BuilderContext
     public ScopeResolver Resolver { get; }
 
     public AttributeBuilder Attributes { get; }
+
+    public StorageWriteSummaries StorageWrites { get; } = new();
 
     /// <summary>
     /// Using directives collected during Phase 1, judged by <see cref="UsingValidation"/> once every

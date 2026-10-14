@@ -814,6 +814,8 @@ widened size: 3
 int: 10
 int: 20
 int: 30
+widened notes after reader overload: 1
+widened first item: 10
 narrowed size after Add: 4
 narrowed element at 3: 30
 base list size: 4

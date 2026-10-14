@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Storm.Runtime;
@@ -22,6 +23,17 @@ internal sealed class BinaryExpression(
     public Expression Right { get; } = right;
 
     public Operator? Operator { get; init; }
+
+    /// <summary>
+    /// What <see cref="Operator"/>'s owner and the bases walked to reach it were constructed with here. The
+    /// declaration stays the one source body every closing shares, so effect judgments follow that body, while a
+    /// consumer needing this site's concrete types reads them through this rather than closing them again.
+    /// </summary>
+    public TypeSubstitution OperatorClosing { get; init; } = TypeSubstitution.Empty;
+
+    public IReadOnlyList<IMistType>? ParameterTypes { get; init; }
+
+    public IReadOnlyList<ClosedOperator> AmbiguousOperators { get; init; } = [];
 
     public override IMistType Type { get; } = type;
 }

@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -78,7 +79,7 @@ public sealed class FormattingCallbackDecisionTests
     }
 
     [Fact]
-    public void AnOperatorIsClosedByTheOperandOfTheTypeDeclaringIt()
+    public void AnOperatorIsClosedByTheClosingItsSelectionRecorded()
     {
         var (shelf, _) = f.GenericIndexed("Shelf");
         var closed = f.Constructed(shelf, f.Box);
@@ -89,12 +90,30 @@ public sealed class FormattingCallbackDecisionTests
         var addition = new BinaryExpression(HandBuiltModel.Node(), FormattingFragments.Value(f.Integer), BinaryOperatorKind.Add, FormattingFragments.Value(closed), closed)
         {
             Operator = plus,
+            OperatorClosing = TypeSubstitution.ForReceiver(closed),
         };
 
         var use = Assert.Single(FormattingCallbacks.Uses(addition, enclosing: null));
 
         Assert.Same(plus, use.Callee);
         Assert.Same(f.Box, use.Closing.Apply(shelf.TypeParametersList[0], interner: null));
+    }
+
+    [Fact]
+    public void AnInheritedOperatorIsClosedThroughTheBaseClauseItsSelectionRecorded()
+    {
+        var (shown, plus) = f.GenericOperator("Shown");
+        var derived = f.Derived("Boxes", shown, f.Box);
+        var addition = new BinaryExpression(HandBuiltModel.Node(), FormattingFragments.Value(derived), BinaryOperatorKind.Add, FormattingFragments.Value(derived), f.Text)
+        {
+            Operator = plus,
+            OperatorClosing = TypeSubstitution.ForPath(null, [f.Constructed(shown, f.Box)], interner: null),
+        };
+
+        var use = Assert.Single(FormattingCallbacks.Uses(addition, enclosing: null));
+
+        Assert.Same(plus, use.Callee);
+        Assert.Same(f.Box, use.Closing.Apply(shown.TypeParametersList[0], interner: null));
     }
 
     [Fact]

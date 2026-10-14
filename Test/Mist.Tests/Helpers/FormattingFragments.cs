@@ -148,6 +148,82 @@ internal sealed class FormattingFragments
         return Declare(HandBuiltModel.Class(name, Constructed(baseDefinition, argument)));
     }
 
+    public (ClassType Owner, Operator Plus) GenericOperator(string name)
+    {
+        var (type, parameter) = GenericClass(name, "T");
+        var open = Constructed(type, parameter);
+        var plus = new Operator(OperatorKind.Plus, Text, [new Parameter("left", open), new Parameter("right", open)], Public with { IsStatic = true })
+        {
+            DeclaringType = type,
+            Body = Returning(Interpolate(Item(parameter))),
+        };
+        type.OperatorsList.Add(plus);
+        return (type, plus);
+    }
+
+    public (ClassType Cell, Operator Plus) StorageOperator(string name, bool writes, bool declaredPure = false)
+    {
+        var (type, parameter) = GenericClass(name, "T");
+        var stored = new Field("Stored", parameter, default, Public) { DeclaringType = type };
+        type.FieldsList.Add(stored);
+        var open = Constructed(type, parameter);
+        Expression storedOf(string holder)
+        {
+            return new MemberAccessExpression(HandBuiltModel.Node(), Value(open, holder), "Stored", parameter, member: new FieldResult(stored, type, []));
+        }
+
+        var body = writes
+            ? HandBuiltModel.Block(
+                new ExpressionStatement(new AssignmentExpression(HandBuiltModel.Node(), storedOf("left"), storedOf("right"), parameter)),
+                new ReturnStatement(storedOf("left"), parameter))
+            : Returning(storedOf("right"));
+        var plus = new Operator(OperatorKind.Plus, parameter, [new Parameter("left", open), new Parameter("right", open)], Public with { IsStatic = true, IsPure = declaredPure })
+        {
+            DeclaringType = type,
+            Body = body,
+        };
+        type.OperatorsList.Add(plus);
+        return (type, plus);
+    }
+
+    public (ClassType Derived, TypeParameter Renamed) GenericDerived(string name, ClassType baseDefinition)
+    {
+        var (type, parameter) = GenericClass(name, "V");
+        type.BaseType = Constructed(baseDefinition, parameter);
+        return (type, parameter);
+    }
+
+    public Method Applies(string name, Operator applied, IMistType operand, TypeSubstitution closing, int offset, bool isReadonly = true)
+    {
+        var node = HandBuiltModel.Node(offset);
+        var sum = new BinaryExpression(node, Value(operand), BinaryOperatorKind.Add, Value(operand), applied.ReturnType)
+        {
+            Operator = applied,
+            OperatorClosing = closing,
+        };
+        return Member(name, isReadonly, Returning(sum));
+    }
+
+    public Method Wraps(string name, Operator applied, ClassType operandDefinition, ClassType declaring, int offset, bool isPure = false)
+    {
+        var parameter = TypeParameterNamed("U");
+        var operand = Constructed(operandDefinition, parameter);
+        var closing = TypeSubstitution.ForPath(operand, ReferenceEquals(operandDefinition, declaring) ? [] : [(ConstructedType)operandDefinition.BaseType!], interner: null);
+        var sum = new BinaryExpression(HandBuiltModel.Node(offset), Value(operand), BinaryOperatorKind.Add, Value(operand), closing.Apply(applied.ReturnType, interner: null))
+        {
+            Operator = applied,
+            OperatorClosing = closing,
+        };
+        var wrap = new Method(name, closing.Apply(applied.ReturnType, interner: null), [], Readonly with { IsStatic = true, IsPure = isPure })
+        {
+            DeclaringType = Program,
+            Body = Returning(sum),
+        };
+        wrap.TypeParametersList.Add(parameter);
+        Program.MethodsList.Add(wrap);
+        return wrap;
+    }
+
     public Method CallsThrough(string name, Method callee, IMistType receiver, int offset)
     {
         var node = HandBuiltModel.Node(offset);
@@ -218,9 +294,17 @@ internal sealed class FormattingFragments
         return new InterpolatedStringExpression(HandBuiltModel.Node(), [new InterpolatedStringHole(hole)], Text);
     }
 
-    public static LocalReferenceExpression Value(IMistType type)
+    public static LocalReferenceExpression Value(IMistType type, string name = "value")
     {
-        return new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("value", type) { Parameter = new Parameter("value", type) });
+        return new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable(name, type) { Parameter = new Parameter(name, type) });
+    }
+
+    private (ClassType Type, TypeParameter Parameter) GenericClass(string name, string parameterName)
+    {
+        var type = Declare(HandBuiltModel.Class(name));
+        var parameter = new TypeParameter(parameterName, 0, type.Scope, type);
+        type.TypeParametersList.Add(parameter);
+        return (type, parameter);
     }
 
     private ClassType Formatter(string name, bool mutates, bool declaredReadonly = false)

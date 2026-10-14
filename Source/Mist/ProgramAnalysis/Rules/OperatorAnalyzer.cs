@@ -42,6 +42,12 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
                     JudgeBinary(context, binary);
                     break;
 
+                case UnaryExpression { Type: ErrorType } unary when OperatorDecision.Tie(unary.AmbiguousOperators) is { } tie:
+                    context.Refuse(
+                        unary, tie, [unary.Operand],
+                        $"operator '{Spelling(unary.OperatorKind)}'", OperatorDecision.Signatures(unary.AmbiguousOperators));
+                    break;
+
                 case UnaryExpression unary when unary.Type is ErrorType
                     && !context.HasFailure(unary.Operand)
                     && OperatorDecision.Unary(unary.OperatorKind, unary.Operand.Type) is { } refused:
@@ -69,6 +75,14 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
         IMistType wellKnown(WellKnownType type)
         {
             return context.Model.TypesByFQN[type.FullyQualifiedName];
+        }
+
+        if(OperatorDecision.Tie(binary.AmbiguousOperators) is { } tie)
+        {
+            context.Refuse(
+                binary, tie, [binary.Left, binary.Right],
+                $"operator '{Spelling(binary.OperatorKind)}'", OperatorDecision.Signatures(binary.AmbiguousOperators));
+            return;
         }
 
         if(OperatorDecision.Binary(binary.OperatorKind, binary.Left.Type, binary.Right.Type, wellKnown) is not { } descriptor)

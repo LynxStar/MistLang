@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Storm.Runtime;
@@ -18,6 +19,12 @@ internal sealed class UnaryExpression(
     public Expression Operand { get; } = operand;
 
     public Operator? Operator { get; init; }
+
+    public TypeSubstitution OperatorClosing { get; init; } = TypeSubstitution.Empty;
+
+    public IReadOnlyList<IMistType>? ParameterTypes { get; init; }
+
+    public IReadOnlyList<ClosedOperator> AmbiguousOperators { get; init; } = [];
 
     public override IMistType Type { get; } = type;
 }

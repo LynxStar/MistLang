@@ -312,25 +312,20 @@ internal static class OperatorBinder
                     }
 
                     var operand = BindUnary(negate.Operand, ctx, context);
+                    var choice = OperatorAdmissibility.Unary(UnaryOperatorKind.Negate, operand.Type, context.ProgramModel.TypeInterner);
                     var negated = NegatedLiteralType(operand) is { } promoted
                         ? context.Resolver.LookupWellKnown(promoted)
-                        : OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.Negate, operand.Type);
+                        : choice.Type;
 
-                    return new UnaryExpression(node, UnaryOperatorKind.Negate, operand, negated ?? ErrorType.Instance)
-                    {
-                        Operator = OperatorAdmissibility.SelectedUnary(UnaryOperatorKind.Negate, operand.Type),
-                    };
+                    return MakeUnary(node, UnaryOperatorKind.Negate, operand, negated, choice, context);
                 }
 
             case LogicalNotUnaryNode logicalNot:
                 {
                     var operand = BindUnary(logicalNot.Operand, ctx, context);
-                    return new UnaryExpression(
-                        node, UnaryOperatorKind.LogicalNot, operand,
-                        OperatorAdmissibility.UnaryResultType(UnaryOperatorKind.LogicalNot, operand.Type) ?? ErrorType.Instance)
-                    {
-                        Operator = OperatorAdmissibility.SelectedUnary(UnaryOperatorKind.LogicalNot, operand.Type),
-                    };
+                    var choice = OperatorAdmissibility.Unary(UnaryOperatorKind.LogicalNot, operand.Type, context.ProgramModel.TypeInterner);
+
+                    return MakeUnary(node, UnaryOperatorKind.LogicalNot, operand, choice.Type, choice, context);
                 }
 
             // Alone among the unary arms this does not answer with its operand's type. `^1` is an
@@ -521,28 +516,43 @@ internal static class OperatorBinder
             : operand;
     }
 
-    private static BinaryExpression MakeBinary(
-        Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right, BuilderContext context)
-    {
-        var selected = OperatorAdmissibility.Selected(op, left.Type, right.Type);
-        var operands = ImplicitConversions.AtParameters(
-            [left, right], selected, selected?.ParametersList.ConvertAll(parameter => parameter.Type), context.ProgramModel.TypeInterner);
-
-        return new BinaryExpression(node, operands[0], op, operands[1], BinaryResultType(left, op, right, context))
-        {
-            Operator = selected,
-        };
-    }
-
     /// <summary>
-    /// The type <see cref="OperatorAdmissibility"/> gives the operator over these operands, or the error
+    /// Typed by what <see cref="OperatorAdmissibility"/> gives the operator over these operands, or the error
     /// type where no operator admits them: the operator rule reports that against the operands, and an
     /// error-typed result keeps everything downstream from complaining about it a second time.
     /// </summary>
-    private static IMistType BinaryResultType(Expression left, BinaryOperatorKind op, Expression right, BuilderContext context)
+    private static BinaryExpression MakeBinary(
+        Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right, BuilderContext context)
     {
-        return OperatorAdmissibility.ResultType(op, left.Type, right.Type, context.Resolver.LookupWellKnown)
-            ?? ErrorType.Instance;
+        var interner = context.ProgramModel.TypeInterner;
+        var choice = OperatorAdmissibility.Binary(
+            op, left.Type, right.Type, context.Resolver.LookupWellKnown,
+            [ConstantConversion.IntegerConstant(left), ConstantConversion.IntegerConstant(right)], interner);
+        var selected = choice.Selected;
+        var operands = ImplicitConversions.AtParameters([left, right], selected?.Declaration, selected?.ParameterTypes, interner);
+
+        return new BinaryExpression(node, operands[0], op, operands[1], choice.Type ?? ErrorType.Instance)
+        {
+            Operator = selected?.Declaration,
+            OperatorClosing = selected?.Closing ?? TypeSubstitution.Empty,
+            ParameterTypes = selected?.ParameterTypes,
+            AmbiguousOperators = choice.Tied,
+        };
+    }
+
+    private static UnaryExpression MakeUnary(
+        UnaryNode node, UnaryOperatorKind op, Expression operand, IMistType? type, OperatorChoice choice, BuilderContext context)
+    {
+        var selected = choice.Selected;
+        var converted = ImplicitConversions.AtParameters([operand], selected?.Declaration, selected?.ParameterTypes, context.ProgramModel.TypeInterner);
+
+        return new UnaryExpression(node, op, converted[0], type ?? ErrorType.Instance)
+        {
+            Operator = selected?.Declaration,
+            OperatorClosing = selected?.Closing ?? TypeSubstitution.Empty,
+            ParameterTypes = selected?.ParameterTypes,
+            AmbiguousOperators = choice.Tied,
+        };
     }
 
     private static BinaryOperatorKind MapOperator(string? lexeme)

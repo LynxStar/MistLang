@@ -476,10 +476,10 @@ internal static class BodyEmitter
     /// reaches here already substituted -- the emitter runs no inference of its own.
     /// </summary>
     private static void EmitOperand(
-        Expression operand, Operator? declared, int position, int precedence, CSharpWriter writer, DiagnosticBag diagnostics)
+        Expression operand, Operator? declared, IReadOnlyList<IMistType>? closed, int position, int precedence, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         if(declared is { Modifiers.IsIntrinsic: false } && position < declared.ParametersList.Count
-            && OverloadPinning.CastFor(operand, declared.ParametersList[position], declared) is { } pinned)
+            && OverloadPinning.CastFor(operand, declared.ParametersList[position], closed?[position] ?? declared.ParametersList[position].Type, declared) is { } pinned)
         {
             writer.Append($"(({pinned})");
             EmitSubExpression(operand, PrefixPrecedence, writer, diagnostics);
@@ -1385,9 +1385,9 @@ internal static class BodyEmitter
                 break;
 
             case BinaryExpression binary:
-                EmitOperand(binary.Left, binary.Operator, 0, GetPrecedence(binary.OperatorKind), writer, diagnostics);
+                EmitOperand(binary.Left, binary.Operator, binary.ParameterTypes, 0, GetPrecedence(binary.OperatorKind), writer, diagnostics);
                 writer.Append($" {MapBinaryOperator(binary.OperatorKind)} ");
-                EmitOperand(binary.Right, binary.Operator, 1, GetPrecedence(binary.OperatorKind) + 1, writer, diagnostics);
+                EmitOperand(binary.Right, binary.Operator, binary.ParameterTypes, 1, GetPrecedence(binary.OperatorKind) + 1, writer, diagnostics);
                 break;
 
             case UnaryExpression unary when NarrowArithmetic.Promotes(unary.Type):
@@ -1397,7 +1397,7 @@ internal static class BodyEmitter
 
             case UnaryExpression unary:
                 writer.Append(Prefixed(
-                    unary.OperatorKind, RenderOperand(unary.Operand, unary.Operator, 0, PrefixPrecedence, diagnostics)));
+                    unary.OperatorKind, RenderOperand(unary.Operand, unary.Operator, unary.ParameterTypes, 0, PrefixPrecedence, diagnostics)));
                 break;
 
             case IsPatternExpression isPattern:
@@ -2379,10 +2379,10 @@ internal static class BodyEmitter
     }
 
     private static string RenderOperand(
-        Expression operand, Operator? declared, int position, int precedence, DiagnosticBag diagnostics)
+        Expression operand, Operator? declared, IReadOnlyList<IMistType>? closed, int position, int precedence, DiagnosticBag diagnostics)
     {
         var scratch = new CSharpWriter();
-        EmitOperand(operand, declared, position, precedence, scratch, diagnostics);
+        EmitOperand(operand, declared, closed, position, precedence, scratch, diagnostics);
         return scratch.ToString();
     }
 

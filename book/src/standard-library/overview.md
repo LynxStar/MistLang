@@ -44,6 +44,8 @@ All numeric types support the standard arithmetic operators (`+`, `-`, `*`, `/`,
 
 User-defined operators must be `public static`. The existing `pure` effect modifier and `intrinsic` declarations on intrinsic types remain supported; `sealed`, `readonly`, `owned`, and `affine` operator modifiers are refused. An operator signature consists of its symbol and parameter types, including arity; changing only its return type does not create another overload. A duplicate signature is diagnosed at the later declaration and identifies the earlier declaration.
 
+An operator expression calls an operator declared on one of its operand types or on that type's base classes. A generic type's operators apply at the construction they are found on: on a `Tag<int>`, an operator `Tag<T>` declares over `T` takes `Tag<int>` operands and returns `int`, and an operator declared on a generic base is reached through a derived type with the arguments its base clause supplies. When several operators apply, the compiler chooses as it chooses among method overloads: an exact parameter beats a converted one, a narrower parameter beats a wider one, an integer constant reaches a smaller integral parameter of a declared operator that holds its value, and a parameter fixed at its declaration beats one the owner's type argument supplies. Operators that remain equally applicable, such as one signature declared on both operand types, are refused with `MIST_PM_AMBIGUOUS_OVERLOAD`, which names each candidate with the type that declares it.
+
 ### Text and Character Types
 
 | Type | Category | Description |

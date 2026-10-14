@@ -35,6 +35,7 @@ the record of which samples run.
 | `SizedSequencePatterns` | Written 2026-10-03, after classic was retired. |
 | `ResourceTransfer` | Written 2026-10-11, after classic was retired. |
 | `ClrCallContracts` | Written 2026-10-11, after classic was retired. |
+| `ClosedOperators` | Written 2026-10-13, after classic was retired. |
 | `StructuredContext`, section 19 | Added 2026-10-11, after classic was retired; classic erased a generic clause's key to its CLR type. |
 | `Variadics`, `RefinementTypes`, `DropSemantics`, `DelegateFuncConversion`, `OptionalDefaultability`, `DefaultKeyword` and `VoidType` (`HoistingDemo`), the sections added 2026-10-12 | Bank the claims of the retired compile-and-run tests; captured from v2 and read against the programs by hand. |
 

@@ -85,11 +85,11 @@ internal sealed class FormattingCallbacks
                 break;
 
             case BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } binaryOperator } binary:
-                yield return ThroughOperands(binaryOperator, binary, binary.Left.Type, binary.Right.Type);
+                yield return new FormatUse(binaryOperator, binaryOperator.Modifiers, binaryOperator.DeclaringType, binary, binary.OperatorClosing);
                 break;
 
             case UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator } unary:
-                yield return ThroughOperands(unaryOperator, unary, unary.Operand.Type);
+                yield return new FormatUse(unaryOperator, unaryOperator.Modifiers, unaryOperator.DeclaringType, unary, unary.OperatorClosing);
                 break;
 
             case CastExpression { Operator: { Modifiers.IsIntrinsic: false } conversion } cast:

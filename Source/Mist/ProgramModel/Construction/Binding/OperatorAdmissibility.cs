@@ -1,7 +1,7 @@
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -24,21 +24,36 @@ internal static class OperatorAdmissibility
     public static IMistType? ResultType(
         BinaryOperatorKind op, IMistType left, IMistType right, Func<WellKnownType, IMistType> wellKnown)
     {
+        return Binary(op, left, right, wellKnown).Type;
+    }
+
+    public static OperatorChoice Binary(
+        BinaryOperatorKind op, IMistType left, IMistType right, Func<WellKnownType, IMistType> wellKnown,
+        IReadOnlyList<Int128?>? constants = null, TypeInterner? interner = null)
+    {
         if(IsIndeterminate(left) || IsIndeterminate(right))
         {
-            return left;
+            return OperatorChoice.Typed(left);
         }
 
         if(left is UnknownType || right is UnknownType || left is UnionType || right is UnionType)
         {
-            return null;
+            return OperatorChoice.None;
         }
 
-        if(Declared(op, left, right) is { } declared)
+        if(DeclaredKind(op) is { } kind
+            && OperatorSelection.Select(kind, [left, right], constants, interner) is var (selected, tied)
+            && (selected is not null || tied.Count > 0))
         {
-            return declared.ReturnType;
+            return new OperatorChoice(selected?.ReturnType, selected, tied);
         }
 
+        return OperatorChoice.Typed(Builtin(op, left, right, wellKnown));
+    }
+
+    private static IMistType? Builtin(
+        BinaryOperatorKind op, IMistType left, IMistType right, Func<WellKnownType, IMistType> wellKnown)
+    {
         var leftBase = Underlying(left);
         var rightBase = Underlying(right);
 
@@ -68,53 +83,30 @@ internal static class OperatorAdmissibility
         };
     }
 
+    public static IMistType? UnaryResultType(UnaryOperatorKind op, IMistType operand)
+    {
+        return Unary(op, operand).Type;
+    }
+
     /// <summary>
     /// A transformation promises only its selected return contract, never its operand's predicate.
     /// Standard shells also admit signed numeric negation and Boolean not without loaded declarations;
     /// unsigned and char negation remain refused rather than acquiring target-language promotions.
     /// </summary>
-    public static IMistType? UnaryResultType(UnaryOperatorKind op, IMistType operand)
+    public static OperatorChoice Unary(UnaryOperatorKind op, IMistType operand, TypeInterner? interner = null)
     {
         var underlying = Underlying(operand);
 
         if(underlying is ErrorType or UnknownType or UnionType)
         {
-            return null;
+            return OperatorChoice.None;
         }
 
         if(IsIndeterminate(underlying))
         {
-            return underlying;
+            return OperatorChoice.Typed(underlying);
         }
 
-        if(SelectedUnary(op, operand) is { } candidate)
-        {
-            return candidate.ReturnType;
-        }
-
-        return op switch
-        {
-            UnaryOperatorKind.Negate => IsNumeric(underlying) && !Array.Exists(Unnegatable, type => Is(underlying, type))
-                ? underlying : null,
-            UnaryOperatorKind.LogicalNot => Is(underlying, WellKnownTypes.Boolean) ? underlying : null,
-            _ => operand,
-        };
-    }
-
-    /// <summary>
-    /// The declared operator a binary expression selects, when it is one: null where the result comes
-    /// from promotion or from a rule about the operands, which no declaration answers for.
-    /// </summary>
-    public static Operator? Selected(BinaryOperatorKind op, IMistType left, IMistType right)
-    {
-        return IsIndeterminate(left) || IsIndeterminate(right)
-            || left is UnknownType || right is UnknownType || left is UnionType || right is UnionType
-            ? null
-            : Declared(op, left, right);
-    }
-
-    public static Operator? SelectedUnary(UnaryOperatorKind op, IMistType operand)
-    {
         var kind = op switch
         {
             UnaryOperatorKind.Negate => OperatorKind.Minus,
@@ -122,20 +114,25 @@ internal static class OperatorAdmissibility
             _ => (OperatorKind?)null,
         };
 
-        if(kind is null || IsIndeterminate(operand))
+        if(kind is { } declared
+            && OperatorSelection.Select(declared, [operand], constants: null, interner) is var (selected, tied)
+            && (selected is not null || tied.Count > 0))
         {
-            return null;
+            return new OperatorChoice(selected?.ReturnType, selected, tied);
         }
 
-        return Operators(operand).FirstOrDefault(candidate =>
-            candidate.Kind == kind.Value
-            && candidate.ParametersList.Count == 1
-            && Accepts(candidate.ParametersList[0].Type, operand));
+        return OperatorChoice.Typed(op switch
+        {
+            UnaryOperatorKind.Negate => IsNumeric(underlying) && !Array.Exists(Unnegatable, type => Is(underlying, type))
+                ? underlying : null,
+            UnaryOperatorKind.LogicalNot => Is(underlying, WellKnownTypes.Boolean) ? underlying : null,
+            _ => operand,
+        });
     }
 
-    private static Operator? Declared(BinaryOperatorKind op, IMistType left, IMistType right)
+    private static OperatorKind? DeclaredKind(BinaryOperatorKind op)
     {
-        var kind = op switch
+        return op switch
         {
             BinaryOperatorKind.Add => OperatorKind.Plus,
             BinaryOperatorKind.Subtract => OperatorKind.Minus,
@@ -148,48 +145,17 @@ internal static class OperatorAdmissibility
             BinaryOperatorKind.GreaterThan => OperatorKind.GreaterThan,
             BinaryOperatorKind.LessThanOrEqual => OperatorKind.LessThanOrEqual,
             BinaryOperatorKind.GreaterThanOrEqual => OperatorKind.GreaterThanOrEqual,
-            _ => (OperatorKind?)null,
+            _ => null,
         };
-
-        if(kind is null)
-        {
-            return null;
-        }
-
-        foreach(var candidate in Operators(left).Concat(Operators(right)))
-        {
-            if(candidate.Kind == kind.Value
-                && candidate.ParametersList.Count == 2
-                && Accepts(candidate.ParametersList[0].Type, left)
-                && Accepts(candidate.ParametersList[1].Type, right))
-            {
-                return candidate;
-            }
-        }
-
-        return null;
     }
 
-    private static IEnumerable<Operator> Operators(IMistType type)
-    {
-        for(var current = (Underlying(type) is ConstructedType constructed ? constructed.Definition : Underlying(type)) as MemberType;
-            current is not null;
-            current = (current as ConcreteType)?.BaseType as MemberType)
-        {
-            foreach(var declared in current.OperatorsList)
-            {
-                yield return declared;
-            }
-        }
-    }
-
-    private static bool Accepts(IMistType parameter, IMistType argument)
+    internal static bool Accepts(IMistType parameter, IMistType argument)
     {
         return parameter is TypeParameter
             || ConversionClassifier.Classify(argument, parameter) is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified;
     }
 
-    private static IMistType Underlying(IMistType type)
+    internal static IMistType Underlying(IMistType type)
     {
         return type switch
         {

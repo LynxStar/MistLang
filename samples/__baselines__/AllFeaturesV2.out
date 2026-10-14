@@ -2397,3 +2397,19 @@ True
   tick 2
   tick 1
 === CLR Call Contracts Done ===
+=== Closed Operators ===
+Tag<int> + Tag<int> = 8
+Tag<string> + Tag<string> = seven
+(-Tag<int>).Held = 7
+Twice(Tag<int>(9)) = 9
+-Leaf = 7
+Leaf * Leaf = 8
+Named * Named = b
+pair + flipped = 7, flipped + pair = eight
+m + 2 = 7
+m + wide = wide
+m - 1 = byte
+m - 300 = long
+Keyed<int> + 1 = fixed int
+Keyed<string> + k = per instantiation
+=== Closed Operators Done ===

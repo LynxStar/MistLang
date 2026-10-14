@@ -116,5 +116,6 @@ public class Program
         SizedSequencePatterns.Program.RunDemo();
         ResourceTransfer.Program.RunDemo();
         ClrCallContracts.Program.RunDemo();
+        ClosedOperators.Program.RunDemo();
     }
 }

@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -240,6 +241,40 @@ public sealed class ReadonlyFormattingClosingTests
 
         Assert.Equal(findings, found.Count);
         Assert.All(found, finding => Assert.Equal(CallsMutable, finding.Id.Value));
+    }
+
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 0)]
+    public void AReadonlyMemberApplyingAGenericOperator_IsJudgedByTheFormatterItsClosingReaches(bool mutable, int findings)
+    {
+        var (tag, plus) = f.GenericOperator("Tag");
+        var operand = f.Constructed(tag, mutable ? f.Box : f.Calm);
+
+        var found = f.Analyze(plus, f.Applies("Peek", plus, operand, TypeSubstitution.ForReceiver(operand), offset: 60));
+
+        Assert.Equal(findings, found.Count);
+        Assert.All(found, finding =>
+        {
+            Assert.Equal(CallsMutable, finding.Id.Value);
+            Assert.Equal(61, finding.Location.Start.Column);
+        });
+    }
+
+    [Fact]
+    public void AnInheritedGenericOperator_IsJudgedThroughTheBaseClauseItsSelectionRecorded()
+    {
+        var (shown, plus) = f.GenericOperator("Shown");
+        var boxes = f.Derived("Boxes", shown, f.Box);
+        var calms = f.Derived("Calms", shown, f.Calm);
+
+        var finding = Assert.Single(f.Analyze(
+            plus,
+            f.Applies("Look", plus, boxes, TypeSubstitution.ForPath(null, [f.Constructed(shown, f.Box)], interner: null), offset: 60),
+            f.Applies("Settle", plus, calms, TypeSubstitution.ForPath(null, [f.Constructed(shown, f.Calm)], interner: null), offset: 80)));
+
+        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(61, finding.Location.Start.Column);
     }
 
     [Fact]

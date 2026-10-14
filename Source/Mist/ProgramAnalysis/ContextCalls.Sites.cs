@@ -152,11 +152,11 @@ internal sealed partial class ContextCalls
                     break;
 
                 case BinaryExpression { Operator: { } applied } binary:
-                    Record(binary.Node, binary, applied, ContextBinding.TypesOf(applied), frame);
+                    Record(binary.Node, binary, applied, ContextBinding.TypesOf(applied, type => binary.OperatorClosing.Apply(type, interner: null)), frame);
                     break;
 
                 case UnaryExpression { Operator: { } applied } unary:
-                    Record(unary.Node, unary, applied, ContextBinding.TypesOf(applied), frame);
+                    Record(unary.Node, unary, applied, ContextBinding.TypesOf(applied, type => unary.OperatorClosing.Apply(type, interner: null)), frame);
                     break;
 
                 case CastExpression { Operator: { } called } cast:

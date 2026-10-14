@@ -160,7 +160,7 @@ public sealed class UnaryNegationRuleTests
         operandType.OperatorsList.Add(declared);
         var operand = HandBuiltModel.Refined(operandType, "InputPromise");
 
-        Assert.Same(declared, OperatorAdmissibility.SelectedUnary(kind, operand));
+        Assert.Same(declared, OperatorAdmissibility.Unary(kind, operand).Selected?.Declaration);
         Assert.Same(returnType, OperatorAdmissibility.UnaryResultType(kind, operand));
         Assert.Null(OperatorDecision.Unary(kind, operand));
     }

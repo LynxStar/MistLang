@@ -1,0 +1,180 @@
+using Standard;
+
+namespace ClosedOperators;
+
+// Every value below comes through a declared operator selected on closed types: a generic owner's
+// operators at its type arguments, an inherited generic base's through each base clause, and between
+// overloads the better one rather than the first declared, so `m + 2` is the int operator's 7 and the
+// arithmetic on it would read "70" had the string operator been bound.
+public class Tag<T>
+{
+    public T Held;
+
+    public Tag(T held)
+    {
+        this.Held = held;
+    }
+
+    public static T operator +(Tag<T> left, Tag<T> right)
+    {
+        return right.Held;
+    }
+
+    public static Tag<T> operator -(Tag<T> value)
+    {
+        return value;
+    }
+}
+
+public class Base<T>
+{
+    public T Value;
+
+    public Base(T value)
+    {
+        this.Value = value;
+    }
+
+    public static T operator -(Base<T> value)
+    {
+        return value.Value;
+    }
+
+    public static T operator *(Base<T> left, Base<T> right)
+    {
+        return right.Value;
+    }
+}
+
+public class Middle<U> : Base<U>
+{
+    public Middle(U value) : base(value)
+    {
+    }
+}
+
+public class Leaf : Middle<int>
+{
+    public Leaf(int value) : base(value)
+    {
+    }
+}
+
+public class Named : Base<string>
+{
+    public Named(string value) : base(value)
+    {
+    }
+}
+
+public class Pair<A, B>
+{
+    public A First;
+    public B Second;
+
+    public Pair(A first, B second)
+    {
+        this.First = first;
+        this.Second = second;
+    }
+
+    public static A operator +(Pair<A, B> left, Pair<B, A> right)
+    {
+        return left.First;
+    }
+}
+
+public struct Money
+{
+    public int Cents;
+
+    public Money(int cents)
+    {
+        this.Cents = cents;
+    }
+
+    public static string operator +(Money left, long right)
+    {
+        return "wide";
+    }
+
+    public static int operator +(Money left, int right)
+    {
+        return left.Cents + right;
+    }
+
+    public static string operator -(Money left, long right)
+    {
+        return "long";
+    }
+
+    public static string operator -(Money left, byte right)
+    {
+        return "byte";
+    }
+}
+
+public class Keyed<K>
+{
+    public static string operator +(Keyed<K> keyed, K key)
+    {
+        return "per instantiation";
+    }
+
+    public static string operator +(Keyed<K> keyed, int key)
+    {
+        return "fixed int";
+    }
+}
+
+public class Program
+{
+    private static T Twice<T>(Tag<T> tag)
+    {
+        return tag + tag;
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Closed Operators ===");
+
+        var number = new Tag<int>(7);
+        var word = new Tag<string>("seven");
+        int total = number + number;
+        string text = word + word;
+        Console.WriteLine($"Tag<int> + Tag<int> = {total + 1}");
+        Console.WriteLine($"Tag<string> + Tag<string> = {text}");
+        Console.WriteLine($"(-Tag<int>).Held = {(-number).Held}");
+        Console.WriteLine($"Twice(Tag<int>(9)) = {Twice(new Tag<int>(9))}");
+
+        var leaf = new Leaf(7);
+        int negated = -leaf;
+        Console.WriteLine($"-Leaf = {negated}");
+        Console.WriteLine($"Leaf * Leaf = {leaf * new Leaf(8)}");
+        Console.WriteLine($"Named * Named = {new Named("a") * new Named("b")}");
+
+        var pair = new Pair<int, string>(7, "seven");
+        var flipped = new Pair<string, int>("eight", 8);
+        int first = pair + flipped;
+        string other = flipped + pair;
+        Console.WriteLine($"pair + flipped = {first}, flipped + pair = {other}");
+
+        var m = new Money(5);
+        var exact = m + 2;
+        long wide = 3;
+        Console.WriteLine($"m + 2 = {exact + 0}");
+        Console.WriteLine($"m + wide = {m + wide}");
+        Console.WriteLine($"m - 1 = {m - 1}");
+        Console.WriteLine($"m - 300 = {m - 300}");
+
+        Console.WriteLine($"Keyed<int> + 1 = {new Keyed<int>() + 1}");
+        Console.WriteLine($"Keyed<string> + k = {new Keyed<string>() + "k"}");
+
+        Console.WriteLine("=== Closed Operators Done ===");
+    }
+}

@@ -1061,9 +1061,10 @@ issues:
   area: backend
 - id: MIST-086
   title: Revalidate member filtering for readonly generic storage
-  status: unverified
-  summary: Retained explicit obligation. Source-only reconnaissance did not establish its current full
-    behavior; no missing test name is used as evidence of a defect.
+  status: confirmed
+  summary: Closed generic views containing unknown currently admit direct and transitive storage-writing
+    members. Requirement9/10 requires per-parameter write summaries and direction-specific member filtering;
+    read-only members must remain usable.
   source_refs:
   - file: backlog/emitter-v2-capability-progression.yaml
     selector: capabilities[order=82,id=unknown-covariant-generic-widening].tasks[0]
@@ -1080,9 +1081,53 @@ issues:
     detail: Retained explicit obligation. Source-only reconnaissance did not establish its current full
       behavior; no missing test name is used as evidence of a defect.
     source_symbols: []
+  - revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    kind: executed CLI source-admission/artifact probe
+    source: using Standard; namespace Probe; public class Box<T> { public T Value; public Box(T value) {
+      this.Value = value; } public void Set(T value) { this.Value = value; } public T Get() { return this.Value;
+      } } public class Program { public static void Unsafe(Box<unknown> b) { b.Set("bad"); } public static
+      void Main() { Console.WriteLine("bound"); } }
+    observed: bound
+    exit_code: 0
+    date: '2026-10-13'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    limits: Unsafe(Box<unknown>) methods are bound, compiled and emitted but Main never invokes them; these
+      prove invalid source admission, not an executed runtime corruption. Reader control likewise verifies
+      source admission. Compilation confirms existing unknown view lowers to dynamic; that representation
+      is intentionally preserved.
+  - revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    kind: executed CLI source-admission/artifact probe
+    source: using Standard; namespace Probe; public class Box<T> { public T Value; public Box(T value) {
+      this.Value = value; } public void Set(T value) { this.Value = value; } public void Forward(T value)
+      { Set(value); } public T Get() { return this.Value; } } public class Program { public static void
+      Unsafe(Box<unknown> b) { b.Forward("bad"); } public static void Main() { Console.WriteLine("bound");
+      } }
+    observed: bound
+    exit_code: 0
+    date: '2026-10-13'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    limits: Unsafe(Box<unknown>) methods are bound, compiled and emitted but Main never invokes them; these
+      prove invalid source admission, not an executed runtime corruption. Reader control likewise verifies
+      source admission. Compilation confirms existing unknown view lowers to dynamic; that representation
+      is intentionally preserved.
+  - revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    kind: executed CLI source-admission/artifact probe
+    source: using Standard; namespace Probe; public class Box<T> { public T Value; public Box(T value) {
+      this.Value = value; } public void Set(T value) { this.Value = value; } public T Get() { return this.Value;
+      } } public class Program { public static unknown Read(Box<unknown> b) { return b.Get(); } public static
+      void Main() { Console.WriteLine("bound"); } }
+    observed: bound
+    exit_code: 0
+    date: '2026-10-13'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    limits: Unsafe(Box<unknown>) methods are bound, compiled and emitted but Main never invokes them; these
+      prove invalid source admission, not an executed runtime corruption. Reader control likewise verifies
+      source admission. Compilation confirms existing unknown view lowers to dynamic; that representation
+      is intentionally preserved.
   related:
   - emitter capability unknown-covariant-generic-widening
-  priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
+  priority_rationale: Current direct and transitive write-filter source-admission failures violate the established
+    unknown-view soundness contract.
   audit_key: backend:emitter-082-tasks-0
   area: backend
 - id: MIST-089
@@ -1235,11 +1280,11 @@ issues:
   area: binding
 - id: MIST-100
   title: Generic/operator tie resolution beyond implemented builtin selection
-  status: unverified
-  summary: 'The broad operator checklist is mostly stale: OperatorAdmissibility now promotes numeric operands,
-    concatenates strings, produces Boolean logical/comparison types, and selects user operators. Its Declared
-    path still takes the first admissible declaration; exhaustive generic/operator tie behavior is not
-    verified here. Preserve only this bounded residue, not a missing binary operator subsystem.'
+  status: confirmed
+  summary: 'Current unary/binary operators on constructed generic owners and generic base paths are wrongly
+    refused. First-applicable selection also loses ordinary overload ranking and source ambiguity: distinct
+    candidate return types expose model/emitted-C# disagreement. Builtin numeric and nongeneric operator
+    behavior is already implemented.'
   source_refs:
   - file: backlog/program-model-body-tasks.yaml
     selector: user-defined operator overload resolution
@@ -1279,21 +1324,124 @@ issues:
     observed: MIST_PA_OPERATOR_NOT_APPLICABLE at both `t + t`, for operands Tag<Box<int>> and Tag<int>. A user
       operator declared on a generic type is not applicable to that type's constructions; found while probing
       MIST-017, whose readonly formatting follows such an operator's closing once the binder admits it.
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public class Tag<T>{public T Held;public Tag(T held){this.Held=held;}
+      public static T operator +(Tag<T> left,Tag<T> right){return left.Held;}} public class Program{public
+      static void Main(){var t=new Tag<int>(7);Console.WriteLine(t+t);}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '<scratch-project>/Program.mist(1,262): error MIST_PA_OPERATOR_NOT_APPLICABLE: Operator ''+''
+      cannot be applied to operands of type ''Tag<int>'' and ''Tag<int>''.
+
+      '
+    date: '2026-10-13'
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public class Tag<T>{public T Held;public Tag(T held){this.Held=held;}
+      public static Tag<T> operator -(Tag<T> value){return value;}} public class Program{public static void
+      Main(){var t=new Tag<int>(7);Console.WriteLine((-t).Held);}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '<scratch-project>/Program.mist(1,252): error MIST_PA_OPERATOR_NOT_APPLICABLE: Operator ''-''
+      cannot be applied to operands of type ''Tag<int>'' and ''Tag<int>''.
+
+      '
+    date: '2026-10-13'
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public class Base<T>{public static int operator -(Base<T> value){return
+      7;}}public class Derived:Base<int>{}public class Program{public static void Main(){Console.WriteLine(-new
+      Derived());}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '<scratch-project>/Program.mist(1,205): error MIST_PA_OPERATOR_NOT_APPLICABLE: Operator ''-''
+      cannot be applied to operands of type ''Derived'' and ''Derived''.
+
+      '
+    date: '2026-10-13'
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public class Left {public static string operator +(Left left,Right
+      right){return "left";}}public class Right{public static string operator +(Left left,Right right){return
+      "right";}}public class Program{public static void Main(){Console.WriteLine(new Left()+new Right());}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '<scratch-project>/out/Probe/Program.cs: error MIST_CS_ERROR: Operator ''+'' is ambiguous
+      on operands of type ''Left'' and ''Right''
+
+      '
+    date: '2026-10-13'
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public struct Money {public static string operator +(Money left,long
+      right){return "wide";}public static int operator +(Money left,int right){return 7;}}public class Program{public
+      static void Main(){Money m=default;var result=m+1;Console.WriteLine(result);}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '<scratch-project>/out/Probe/Program.cs: error MIST_CS_ERROR: Cannot implicitly convert type
+      ''int'' to ''string''
+
+      '
+    date: '2026-10-13'
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public struct Money {public static string operator +(Money left,long
+      right){return "wide";}public static string operator +(Money left,int right){return "exact";}} public
+      class Program{public static void Main(){Money m=default;Console.WriteLine(m+1);}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: 'exact
+
+      '
+    date: '2026-10-13'
+    limits: Same-result control succeeds through C# selection; stdout does not establish binder-selected
+      declaration identity.
   related:
   - emitter185 generic operator residue
   - analysis operator capability
   priority: P3
-  priority_rationale: Need a real ambiguous/generic fixture against current contract; old checklist is
-    not proof.
+  priority_rationale: Current generic applicability, result-type disagreement and backend-owned ambiguity
+    probes establish a bounded operator-resolution defect.
   audit_key: binding:bind-13
   area: binding
 - id: MIST-101
   title: Nested inline-block AST/capture projection is not proved complete
-  status: unverified
-  summary: Recursive inline emission exists, but the final capture/order closeout explicitly excludes
-    nested inline AST subtypes and prefix ownership. Keep that finite supported-shape residue unverified
-    until an independent admitted nested grammar reproduces it on b4e5853c. Do not reopen closed ordinary
-    inline projection cases.
+  status: confirmed
+  summary: A valid nested inline grammar at Storm 83410653 passes validation and lowering but generates shadowed
+    parser locals and an undefined inner-arm node type. A separate invalid nested prefix relationship is
+    also admitted. Preserve closed nonnested projection work; complete nested prefix verification and flat
+    AST/capture ownership.
   source_refs:
   - file: backlog/storm.md
     selector: Nested inline-block emission is also outside
@@ -1314,10 +1462,58 @@ issues:
     selector: if(arm.TailExpression is InlineBlockIR nested)
     line: 48
     observed: Nested inline shapes are traversed/admitted along separate recursive path.
+  - kind: executed direct current generator and generated-artifact Roslyn diagnostic probe
+    mist_revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    grammar: grammar Nested; token A="a"; token B="b"; token C="c"; token D="d"; rule Outer=a:A; rule Inner=a:Outer
+      b:B; rule Leaf=b:Inner c:C; rule Other=a:Outer d:D; rule Parent=inline Outer:{inner:inline Inner:{leaf:Leaf
+      as LeafArm} as NestedArm,other:Other as OtherArm};
+    admissibility: StormGrammar/import resolution, NameResolutionPass, ModeValidationPass, LeftRecursionPass,
+      InlinePrefixVerification, ReachabilityPass and TraitValidationPass produced no diagnostic text; GrammarIRLowering.Succeeded=True.
+      Inner begins Outer and Leaf begins Inner; Other begins Outer. This is the valid fixture, distinct
+      from the invalid-prefix control.
+    observed: 'lowering: True
+
+      (425,31): error CS0136: A local or parameter named ''_A'' cannot be declared in this scope because
+      that name is used in an enclosing local scope to define a local or parameter
+
+      (427,25): error CS0136: A local or parameter named ''_inlineOk'' cannot be declared in this scope
+      because that name is used in an enclosing local scope to define a local or parameter
+
+      (428,25): error CS0136: A local or parameter named ''_m0'' cannot be declared in this scope because
+      that name is used in an enclosing local scope to define a local or parameter
+
+      (446,25): error CS0136: A local or parameter named ''_inlinePrefixEnd'' cannot be declared in this
+      scope because that name is used in an enclosing local scope to define a local or parameter
+
+      (447,25): error CS0136: A local or parameter named ''_inlinePrefixSpan'' cannot be declared in this
+      scope because that name is used in an enclosing local scope to define a local or parameter
+
+      (450,29): error CS0136: A local or parameter named ''_peek'' cannot be declared in this scope because
+      that name is used in an enclosing local scope to define a local or parameter
+
+      (475,48): error CS0246: The type or namespace name ''LeafArmParentNode'' could not be found (are you
+      missing a using directive or an assembly reference?)
+
+      '
+    limits: Direct generator emission plus CSharpCompilation.GetDiagnostics, not a full Storm/Mist suite
+      or runtime parser execution. The generated artifact cannot currently compile. A private harness built
+      warning-free against matching net9 Roslyn/runtime references; no repo build/source edits or restore
+      were needed.
+    date: '2026-10-13'
+  - kind: executed current validation/lowering control plus source inspection
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    grammar: grammar Nested; token A="a"; token B="b"; token C="c"; token D="d"; rule Outer=a:A; rule Inner=b:B;
+      rule Leaf=b:Inner c:C; rule Other=a:Outer d:D; rule Parent=inline Outer:{inner:inline Inner:{leaf:Leaf
+      as LeafArm} as NestedArm,other:Other as OtherArm};
+    observed: The first private fixture passed name/left-recursion/prefix checking and lowered successfully
+      despite Inner=b:B not extending Outer=a:A. It must not be cited as valid emission evidence. VerifyArm
+      recursively checks inner arms only, skipping the outer/nested prefix relation.
+    date: '2026-10-13'
   related: []
   priority: P3
-  priority_rationale: Known bounded limitation, not freshly executed; required contract and actual admitted
-    shape need validation.
+  priority_rationale: An independently admitted nested grammar now reproduces generated-artifact errors
+    at the current Storm pin; the nested prefix mismatch control also fails validation ownership.
   audit_key: binding:storm-09
   area: binding
 - id: MIST-102

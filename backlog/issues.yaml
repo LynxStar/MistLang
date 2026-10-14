@@ -1278,163 +1278,6 @@ issues:
   priority_rationale: Name erasure may be legal; reconcile desired warning contract before changes.
   audit_key: binding:bind-12
   area: binding
-- id: MIST-100
-  title: Generic/operator tie resolution beyond implemented builtin selection
-  status: confirmed
-  summary: 'Current unary/binary operators on constructed generic owners and generic base paths are wrongly
-    refused. First-applicable selection also loses ordinary overload ranking and source ambiguity: distinct
-    candidate return types expose model/emitted-C# disagreement. Builtin numeric and nongeneric operator
-    behavior is already implemented.'
-  source_refs:
-  - file: backlog/program-model-body-tasks.yaml
-    selector: user-defined operator overload resolution
-    lead_excerpt: '      - [ ] user-defined operator overload resolution (search BOTH operand types, left-operand
-      tiebreak)'
-    line_at_baseline: 413
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  - file: backlog/program-model-body-tasks.yaml
-    selector: overload resolution (applicability
-    lead_excerpt: '    - [~] overload resolution (applicability, most-specific, left-operand tiebreak,
-      ref exact-match filtering, non-generic preference) -- OverloadResolution.Select runs arity -> closing
-      -> applicability -> pairwise betterness (exact over converted, then narrower target, then non-generic
-      over generic). ConversionRelation covers identity, implicit numeric widening, inheritance and union
-      containment …'
-    line_at_baseline: 546
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - kind: source_inspection
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    file: Source/Mist/ProgramModel/Construction/Binding/OperatorAdmissibility.cs
-    selector: private static Operator? Declared
-    line: 136
-    observed: Current declaration-selection path searches admissible operators; builtin result rules already
-      exist.
-  - kind: executed CLI probe
-    revision: 0998bc6e
-    date: '2026-10-11'
-    source: "using Standard; using System; namespace Probe;\npublic class Box<T> : IFormattable { public int\
-      \ N; public string ToString(string format, IFormatProvider provider) { this.N = this.N + 1; return \"\
-      box\"; } }\npublic class Tag<T> { public T Held; public Tag(T held) { this.Held = held; } public static\
-      \ string operator +(Tag<T> tag, Tag<T> other) { return $\"{tag.Held}\"; } }\npublic class Program {\n\
-      \  public static readonly string Peek(Tag<Box<int>> t) { return t + t; }\n  public static readonly string\
-      \ Calm(Tag<int> t) { return t + t; }\n  public static void Main() { var x = new Box<int>(); Standard.Console.WriteLine(Peek(new\
-      \ Tag<Box<int>>(x))); Standard.Console.WriteLine(x.N); }\n}\n"
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: MIST_PA_OPERATOR_NOT_APPLICABLE at both `t + t`, for operands Tag<Box<int>> and Tag<int>. A user
-      operator declared on a generic type is not applicable to that type's constructions; found while probing
-      MIST-017, whose readonly formatting follows such an operator's closing once the binder admits it.
-  - kind: executed CLI probe
-    revision: c80c36823175514e5448fc2296bb174fbb360ec2
-    source: using Standard;namespace Probe;public class Tag<T>{public T Held;public Tag(T held){this.Held=held;}
-      public static T operator +(Tag<T> left,Tag<T> right){return left.Held;}} public class Program{public
-      static void Main(){var t=new Tag<int>(7);Console.WriteLine(t+t);}}
-    mist_toml: 'name="Probe"
-
-      namespace_root="Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: '<scratch-project>/Program.mist(1,262): error MIST_PA_OPERATOR_NOT_APPLICABLE: Operator ''+''
-      cannot be applied to operands of type ''Tag<int>'' and ''Tag<int>''.
-
-      '
-    date: '2026-10-13'
-  - kind: executed CLI probe
-    revision: c80c36823175514e5448fc2296bb174fbb360ec2
-    source: using Standard;namespace Probe;public class Tag<T>{public T Held;public Tag(T held){this.Held=held;}
-      public static Tag<T> operator -(Tag<T> value){return value;}} public class Program{public static void
-      Main(){var t=new Tag<int>(7);Console.WriteLine((-t).Held);}}
-    mist_toml: 'name="Probe"
-
-      namespace_root="Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: '<scratch-project>/Program.mist(1,252): error MIST_PA_OPERATOR_NOT_APPLICABLE: Operator ''-''
-      cannot be applied to operands of type ''Tag<int>'' and ''Tag<int>''.
-
-      '
-    date: '2026-10-13'
-  - kind: executed CLI probe
-    revision: c80c36823175514e5448fc2296bb174fbb360ec2
-    source: using Standard;namespace Probe;public class Base<T>{public static int operator -(Base<T> value){return
-      7;}}public class Derived:Base<int>{}public class Program{public static void Main(){Console.WriteLine(-new
-      Derived());}}
-    mist_toml: 'name="Probe"
-
-      namespace_root="Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: '<scratch-project>/Program.mist(1,205): error MIST_PA_OPERATOR_NOT_APPLICABLE: Operator ''-''
-      cannot be applied to operands of type ''Derived'' and ''Derived''.
-
-      '
-    date: '2026-10-13'
-  - kind: executed CLI probe
-    revision: c80c36823175514e5448fc2296bb174fbb360ec2
-    source: using Standard;namespace Probe;public class Left {public static string operator +(Left left,Right
-      right){return "left";}}public class Right{public static string operator +(Left left,Right right){return
-      "right";}}public class Program{public static void Main(){Console.WriteLine(new Left()+new Right());}}
-    mist_toml: 'name="Probe"
-
-      namespace_root="Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: '<scratch-project>/out/Probe/Program.cs: error MIST_CS_ERROR: Operator ''+'' is ambiguous
-      on operands of type ''Left'' and ''Right''
-
-      '
-    date: '2026-10-13'
-  - kind: executed CLI probe
-    revision: c80c36823175514e5448fc2296bb174fbb360ec2
-    source: using Standard;namespace Probe;public struct Money {public static string operator +(Money left,long
-      right){return "wide";}public static int operator +(Money left,int right){return 7;}}public class Program{public
-      static void Main(){Money m=default;var result=m+1;Console.WriteLine(result);}}
-    mist_toml: 'name="Probe"
-
-      namespace_root="Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: '<scratch-project>/out/Probe/Program.cs: error MIST_CS_ERROR: Cannot implicitly convert type
-      ''int'' to ''string''
-
-      '
-    date: '2026-10-13'
-  - kind: executed CLI probe
-    revision: c80c36823175514e5448fc2296bb174fbb360ec2
-    source: using Standard;namespace Probe;public struct Money {public static string operator +(Money left,long
-      right){return "wide";}public static string operator +(Money left,int right){return "exact";}} public
-      class Program{public static void Main(){Money m=default;Console.WriteLine(m+1);}}
-    mist_toml: 'name="Probe"
-
-      namespace_root="Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 0
-    observed: 'exact
-
-      '
-    date: '2026-10-13'
-    limits: Same-result control succeeds through C# selection; stdout does not establish binder-selected
-      declaration identity.
-  related:
-  - emitter185 generic operator residue
-  - analysis operator capability
-  priority: P3
-  priority_rationale: Current generic applicability, result-type disagreement and backend-owned ambiguity
-    probes establish a bounded operator-resolution defect.
-  audit_key: binding:bind-13
-  area: binding
 - id: MIST-101
   title: Nested inline-block AST/capture projection is not proved complete
   status: confirmed
@@ -6141,6 +5984,13 @@ issues:
       packet 33 run on this host (ledgers 20261011-235626, 20261012-000206, 20261012-000618, 20261012-002030), with Storm unchanged at
       83410653 and the test file unmodified; packet 33 touched no Storm or test-source line-ending setting. Every other
       test of the four assemblies passed in those runs.'
+  - revision: e0f5e8bc59399f651624a52a8c08155987f9b133
+    based_on: c058acc234377aba92b16eeebad7fc83e52b0069
+    date: '2026-10-14'
+    kind: executed full ledger runs on a Windows host (packet 37)
+    detail: 'Fails identically, expected "mode L.Inner {\n" against actual "mode L.Inner {\r\n" at position 4, in full
+      ledgers 20261014-000600 and 20261014-001317, with Storm unchanged at 83410653 and the test file unmodified. Every other test of the four
+      assemblies passed in those runs.'
   related:
   - packet 25 Storm grammar semantics (Storm 83410653)
   priority_rationale: A deterministic red full-suite result on Windows hosts hides real failures there.
@@ -6279,7 +6129,263 @@ issues:
   priority: P2
   priority_rationale: Invalid program reaches the target compiler.
   area: binding
+- id: MIST-240
+  title: '`this` in a generic type''s own body is typed as the bare definition'
+  status: confirmed
+  summary: 'Inside class Tag<T>, this binds with the definition Tag rather than its self-construction Tag<T>, so it
+    reaches no parameter or operand declared Tag<T>: Same(this) for static Tag<T> Same(Tag<T> other) reports
+    MIST_PA_NO_IMPLICIT_CONVERSION from Tag to Tag<T>, and this + this over an operator declared on Tag<T> reports
+    MIST_PA_OPERATOR_NOT_APPLICABLE for Tag and Tag. A parameter or local declared Tag<T> works. Expected: this is a
+    value of the type''s self-construction wherever that construction is expected.'
+  source_refs: []
+  evidence:
+  - revision: e0f5e8bc59399f651624a52a8c08155987f9b133
+    date: '2026-10-14'
+    kind: executed CLI probes
+    sources:
+    - 'using Standard;namespace Probe;public class Tag<T>{public T Held;public Tag(T held){this.Held=held;} public static
+      Tag<T> Same(Tag<T> other){return other;} public Tag<T> Me(){return Same(this);} public static Tag<T> operator
+      +(Tag<T> left,Tag<T> right){return right;} public Tag<T> Mixed(Tag<T> o){return o+o;}} public class Program{public
+      static void Main(){var t=new Tag<int>(7);Console.WriteLine(t.Me().Held);Console.WriteLine(t.Mixed(t).Held);}}'
+    - 'using Standard;namespace Probe;public class Tag<T>{public T Held;public Tag(T held){this.Held=held;} public static
+      Tag<T> operator +(Tag<T> left,Tag<T> right){return right;} public Tag<T> Twice(){return this+this;}} public class
+      Program{public static void Main(){Console.WriteLine(new Tag<int>(7).Twice().Held);}}'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'First: MIST_PA_NO_IMPLICIT_CONVERSION: Cannot implicitly convert type ''Tag'' to ''Tag<T>'' at Same(this),
+      while o+o over a Tag<T> parameter binds. Second: MIST_PA_OPERATOR_NOT_APPLICABLE: Operator ''+'' cannot be applied
+      to operands of type ''Tag'' and ''Tag''.'
+    source_symbols:
+    - file: Source/Mist/ProgramModel/Model/Scopes/TypeScope.cs
+      symbol: LookupSelf answers ReceiverResult(memberType)
+    detail: 'Found while closing MIST-100; operator selection is not involved, since the ordinary call fails the same way.
+      The fix types the receiver, which reaches member lookup and emission through this, so it was not folded into
+      packet 37.'
+  related:
+  - MIST-100
+  priority: P3
+  priority_rationale: A valid program using this as its own generic construction is refused.
+  area: binding
 archive:
+- id: MIST-100
+  title: Generic/operator tie resolution beyond implemented builtin selection
+  status: implemented
+  summary: 'Delivered 2026-10-14: a unary or binary operator is selected once among the operators its operand
+    types and their base chains declare, each closed through the construction it was found on and the base clauses
+    walked to reach it, and ranked by the method overload rules; a tie is refused at the source and the selected
+    declaration, closed parameter and result types, closing and conversions reach analysis and emission. Before,
+    operators on constructed generic owners and generic base paths were refused and the first applicable
+    declaration was bound, so a tie or a better later candidate surfaced only as a Roslyn error.'
+  source_refs:
+  - file: backlog/program-model-body-tasks.yaml
+    selector: user-defined operator overload resolution
+    lead_excerpt: '      - [ ] user-defined operator overload resolution (search BOTH operand types, left-operand
+      tiebreak)'
+    line_at_baseline: 413
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  - file: backlog/program-model-body-tasks.yaml
+    selector: overload resolution (applicability
+    lead_excerpt: '    - [~] overload resolution (applicability, most-specific, left-operand tiebreak,
+      ref exact-match filtering, non-generic preference) -- OverloadResolution.Select runs arity -> closing
+      -> applicability -> pairwise betterness (exact over converted, then narrower target, then non-generic
+      over generic). ConversionRelation covers identity, implicit numeric widening, inheritance and union
+      containment …'
+    line_at_baseline: 546
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - kind: source_inspection
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    file: Source/Mist/ProgramModel/Construction/Binding/OperatorAdmissibility.cs
+    selector: private static Operator? Declared
+    line: 136
+    observed: Current declaration-selection path searches admissible operators; builtin result rules already
+      exist.
+  - kind: executed CLI probe
+    revision: 0998bc6e
+    date: '2026-10-11'
+    source: "using Standard; using System; namespace Probe;\npublic class Box<T> : IFormattable { public int\
+      \ N; public string ToString(string format, IFormatProvider provider) { this.N = this.N + 1; return \"\
+      box\"; } }\npublic class Tag<T> { public T Held; public Tag(T held) { this.Held = held; } public static\
+      \ string operator +(Tag<T> tag, Tag<T> other) { return $\"{tag.Held}\"; } }\npublic class Program {\n\
+      \  public static readonly string Peek(Tag<Box<int>> t) { return t + t; }\n  public static readonly string\
+      \ Calm(Tag<int> t) { return t + t; }\n  public static void Main() { var x = new Box<int>(); Standard.Console.WriteLine(Peek(new\
+      \ Tag<Box<int>>(x))); Standard.Console.WriteLine(x.N); }\n}\n"
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: MIST_PA_OPERATOR_NOT_APPLICABLE at both `t + t`, for operands Tag<Box<int>> and Tag<int>. A user
+      operator declared on a generic type is not applicable to that type's constructions; found while probing
+      MIST-017, whose readonly formatting follows such an operator's closing once the binder admits it.
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public class Tag<T>{public T Held;public Tag(T held){this.Held=held;}
+      public static T operator +(Tag<T> left,Tag<T> right){return left.Held;}} public class Program{public
+      static void Main(){var t=new Tag<int>(7);Console.WriteLine(t+t);}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '<scratch-project>/Program.mist(1,262): error MIST_PA_OPERATOR_NOT_APPLICABLE: Operator ''+''
+      cannot be applied to operands of type ''Tag<int>'' and ''Tag<int>''.
+
+      '
+    date: '2026-10-13'
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public class Tag<T>{public T Held;public Tag(T held){this.Held=held;}
+      public static Tag<T> operator -(Tag<T> value){return value;}} public class Program{public static void
+      Main(){var t=new Tag<int>(7);Console.WriteLine((-t).Held);}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '<scratch-project>/Program.mist(1,252): error MIST_PA_OPERATOR_NOT_APPLICABLE: Operator ''-''
+      cannot be applied to operands of type ''Tag<int>'' and ''Tag<int>''.
+
+      '
+    date: '2026-10-13'
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public class Base<T>{public static int operator -(Base<T> value){return
+      7;}}public class Derived:Base<int>{}public class Program{public static void Main(){Console.WriteLine(-new
+      Derived());}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '<scratch-project>/Program.mist(1,205): error MIST_PA_OPERATOR_NOT_APPLICABLE: Operator ''-''
+      cannot be applied to operands of type ''Derived'' and ''Derived''.
+
+      '
+    date: '2026-10-13'
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public class Left {public static string operator +(Left left,Right
+      right){return "left";}}public class Right{public static string operator +(Left left,Right right){return
+      "right";}}public class Program{public static void Main(){Console.WriteLine(new Left()+new Right());}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '<scratch-project>/out/Probe/Program.cs: error MIST_CS_ERROR: Operator ''+'' is ambiguous
+      on operands of type ''Left'' and ''Right''
+
+      '
+    date: '2026-10-13'
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public struct Money {public static string operator +(Money left,long
+      right){return "wide";}public static int operator +(Money left,int right){return 7;}}public class Program{public
+      static void Main(){Money m=default;var result=m+1;Console.WriteLine(result);}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: '<scratch-project>/out/Probe/Program.cs: error MIST_CS_ERROR: Cannot implicitly convert type
+      ''int'' to ''string''
+
+      '
+    date: '2026-10-13'
+  - kind: executed CLI probe
+    revision: c80c36823175514e5448fc2296bb174fbb360ec2
+    source: using Standard;namespace Probe;public struct Money {public static string operator +(Money left,long
+      right){return "wide";}public static string operator +(Money left,int right){return "exact";}} public
+      class Program{public static void Main(){Money m=default;Console.WriteLine(m+1);}}
+    mist_toml: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: 'exact
+
+      '
+    date: '2026-10-13'
+    limits: Same-result control succeeds through C# selection; stdout does not establish binder-selected
+      declaration identity.
+  - revision: MIST-100 closure commits containing this entry, based on c058acc234377aba92b16eeebad7fc83e52b0069
+    date: '2026-10-14'
+    kind: implementation and executed verification
+    implementation:
+    - 'OperatorSelection (binding) finds the operators each operand type and its base chain declare, closing each through the construction it was found on and every base clause walked, as TypeSubstitution.ForPath does; one declaration reached through both operands on one construction is one candidate. Applicability keeps OperatorAdmissibility.Accepts and adds ConstantConversion for a declared, non-intrinsic operator (an intrinsic stays the target''s promoting arithmetic, so a byte plus 1 is still Int32''s); ranking is OverloadResolution.CompareConversions per operand, then MoreSpecificSignature on identical closed parameters; candidates left unbeaten are a tie, never a choice.'
+    - 'OperatorAdmissibility.Binary and Unary return one OperatorChoice (closed result type, selected ClosedOperator, tie) that types the expression, converts the operands against the closed parameters through ImplicitConversions.AtParameters and fills the bound graph; ResultType and UnaryResultType remain its type-only views for the operator rule.'
+    - 'BinaryExpression and UnaryExpression keep Operator as the source declaration and add OperatorClosing, ParameterTypes and AmbiguousOperators. OperatorAnalyzer refuses a recorded tie with MIST_PM_AMBIGUOUS_OVERLOAD (standard-library Requirements 6.5 and 14.2) naming each candidate with its owner; FormattingCallbacks and ContextCalls.Sites read the recorded closing; PurityJudge and ReadonlyInference keep judging the one source body; BodyEmitter pins operands with the closed parameter types.'
+    acceptance:
+    - 'Packet probes at the closure revision: Tag<int>+Tag<int> prints 7, (-Tag<int>).Held prints 7 and -new Derived() through Base<int> prints 7; Left+Right reports MIST_PM_AMBIGUOUS_OVERLOAD "Left.operator +(Left, Right), Right.operator +(Left, Right)" at the expression with no MIST_CS_ERROR; Money +(long)->string beside +(int)->int types var result as int and prints 7 in either declaration order, the emitted local reading int result = m + 1; the same-return control prints exact. Further probes: two-level A<T>/B<U>/C base path, binary inherited operators on D:Base<int> and E:Base<string>, Pair<A,B> parameters used twice in both orders, Tag<int>+Tag<string> refused as not applicable, a constant reaching byte before long and 300 reaching long, sbyte/byte and short/uint ties, Keyed<int>+1 selecting the fixed int operator, a generic method operand Tag<X>, and readonly Peek(Tag<Box<int>>) refused while Calm(Tag<int>) is admitted.'
+    - 'Tier 1 ClosedOperatorSelectionTests (closing, unary closed return, instantiation isolation, inherited and two-level bases with a renamed parameter, owner parameters used twice, owner-described ties, exact over wide in either order and owner, constants, signed/unsigned ties, fixed-parameter preference, narrower reference, intrinsic constant control, refined and alias operands, declared conversion, non-generic and no-applicable controls) and FormattingCallbackDecisionTests (recorded and inherited closings). Tier 2 ClosedOperatorBindingTests (binder chain over a hand-built AST: declaration, closed operands and result, inferred local in either order, conversion to the closed parameter, tie left to analysis, failed operand keeping its cause), ClosedOperatorRefusalTests (one owner-named ambiguity at the expression, unary tie, failed operand silent, selection silent), ClosedOperatorEmissionTests (emitted local typed by the selected result, a conversion emitted once in place), ReadonlyFormattingClosingTests (constructed and inherited operator closings) and ClosedOperatorEffectTests (a readonly generic wrapper over a T-storage writer versus reader in either root order and through a renamed inherited owner parameter, independent same-symbol operators, a pure wrapper keeping its selected operator''s declared promise). A mutant dropping the recorded closing in FormattingCallbacks failed four of them.'
+    - 'samples/ClosedOperators is banked in AllFeaturesV2 (V2-only provenance in samples/CLAUDE.md); book/src/standard-library/overview.md describes operator selection.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format Mist.slnx --verify-no-changes and git diff --check clean. Full regression through tools/test-ledger/run.sh at e0f5e8bc59399f651624a52a8c08155987f9b133 (Storm 83410653, clean tree), ledger TestResults/ledger/20261014-001317: Mist.Tests 10602 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed and Storm.SourceGenerator.Tests 909 of 910, the one failure being MIST-226''s Windows newline test (sighting recorded there); summary.txt and failures.txt read; AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed. The earlier full ledger 20261014-000600 on the MIST-100 implementation alone read the same with Mist.Tests 10598 passed. AllFeaturesV2 through the CLI matched the baseline (2416 lines) with no diagnostics.'
+    limitations:
+    - 'Inside a generic type''s own body this is typed as the bare definition, so this + this in Tag<T> is refused as not applicable to Tag and Tag, exactly as Same(this) is refused for an ordinary method taking Tag<T>; recorded as MIST-240, not operator-specific.'
+    - 'The inherited candidates are ranked together (method-overloading Requirements 3.6 and 5.3), where C# considers only the most derived type declaring an applicable operator; a derived and a base operator each better at one operand are refused as ambiguous where C# would take the derived one.'
+    - 'Static-abstract, conformance and extension operator discovery (MIST-058, MIST-060) and ref operator parameters (MIST-079) remain with their records.'
+  related:
+  - emitter185 generic operator residue
+  - analysis operator capability
+  - MIST-239
+  - MIST-240
+  priority: P3
+  priority_rationale: Current generic applicability, result-type disagreement and backend-owned ambiguity
+    probes establish a bounded operator-resolution defect.
+  audit_key: binding:bind-13
+  area: binding
+- id: MIST-239
+  title: Judge an inherited generic cast operator's formatting through its base clause
+  status: implemented
+  summary: 'Delivered 2026-10-14: a readonly member casting through a cast operator declared on Base<T> and reached
+    through Derived : Base<Box<int>> is judged at T = Box<int>, as the same cast on a Base<Box<int>> already was. Before,
+    formatting callbacks recovered a closing only from an operand whose own definition declared the operator, so the
+    inherited cast was admitted and its mutating ToString ran.'
+  source_refs: []
+  evidence:
+  - revision: packet 37 working tree at 4cf10f51 (cast path as on c058acc234377aba92b16eeebad7fc83e52b0069)
+    date: '2026-10-14'
+    kind: executed CLI probe
+    source: 'using Standard; using System; namespace Probe; public class Box<T> : IFormattable { public int N; public
+      string ToString(string format, IFormatProvider provider) { this.N = this.N + 1; return "box"; } } public class
+      Base<T> { public T Held; public Base(T held) { this.Held = held; } public static explicit operator string(Base<T>
+      b) { return $"{b.Held}"; } } public class Derived : Base<Box<int>> { public Derived(Box<int> b) : base(b) { } }
+      public class Program { public static readonly string Direct(Base<Box<int>> b) { return (string)b; } public static
+      readonly string Peek(Derived d) { return (string)d; } public static void Main() { var x = new Box<int>();
+      Standard.Console.WriteLine(Peek(new Derived(x))); Standard.Console.WriteLine(x.N); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE at Direct only; Peek, the same cast through the inherited base
+      clause, was admitted.'
+    source_symbols:
+    - file: Source/Mist/ProgramAnalysis/FormattingCallbacks.cs
+      symbol: ThroughOperands
+  - revision: MIST-239 closure commit containing this entry, based on c058acc234377aba92b16eeebad7fc83e52b0069
+    date: '2026-10-14'
+    kind: implementation and executed verification
+    implementation:
+    - 'ConversionFunction carries the Closing ConversionRelation.DeclaredOn found it under (the owner''s arguments, or a closed base clause''s for an inherited operator); CastExpression and ImplicitConversionExpression expose it as OperatorClosing and FormattingCallbacks reads it, as it reads a binary or unary operator''s; ThroughOperands is removed.'
+    acceptance:
+    - 'The probe above reports MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE at Direct and at Peek; with a readonly formatter in Box''s place the same program runs and prints calm, and an implicit conversion declared on Base<T> still converts.'
+    - 'Tier 1 ConversionClosingTests (owner and inherited base closings from DeclaredOn and CastOperatorSelection.Best); Tier 2 ReadonlyFormattingClosingTests (a readonly cast through an inherited generic conversion refused for a mutable formatter and admitted for a readonly one).'
+    verification:
+    - 'Covered by the MIST-100 closure verification on the same integrated head.'
+  related:
+  - MIST-100
+  - MIST-017
+  priority_rationale: A readonly promise broken at runtime by an admitted inherited cast; bounded analysis fix.
+  area: analysis
 - id: MIST-238
   title: Push the tests that load the .NET reference assemblies down to the tier that owns their invariant
   status: implemented

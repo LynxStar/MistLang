@@ -241,6 +241,28 @@ internal sealed class UnsafeReach : IDisposable
         return reach.Coalesced(typedTarget, "(object?)null", $"(__t, __k) => {getter}(__t)", $"(__t, __k, __v) => {setter}(__t, __v)", render(assignment.Value));
     }
 
+    public static string? Unreached(CountedSlice slice, IMistType receiverType)
+    {
+        if(current is not { } reach)
+        {
+            return null;
+        }
+
+        if(!reach.Reaches(Narrowest(slice.Count), false, slice.Count.DeclaringType, receiverType))
+        {
+            return slice.Count.Name;
+        }
+
+        if(slice.Indexer is { } indexer && !reach.Reaches(Narrowest(indexer), false, indexer.DeclaringType, receiverType))
+        {
+            return "this[]";
+        }
+
+        return slice.Method is { } method && !reach.Reaches(method.Modifiers.Accessibility, false, method.DeclaringType, receiverType)
+            ? method.Name
+            : null;
+    }
+
     public static string? Index(IndexExpression index, Func<Expression, string> render)
     {
         if(current is not { } reach

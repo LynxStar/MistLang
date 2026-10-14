@@ -1,0 +1,245 @@
+// SliceableTypes -- a range slices a countable user type through its own Range indexer or, failing one,
+// through Slice(int, int), handed the start and the length the range decodes against the count. Each line
+// names the member that produced the slice and what it was handed, so a slice reached through the wrong
+// member, a bound decoded against the wrong end, an extra read of the count or a second call changes a line.
+//
+// V2-ONLY: written after classic was retired. Its lines were captured from v2 and read against the program
+// by hand.
+
+using Standard;
+using System;
+
+namespace SliceableTypes;
+
+public class Ledger
+{
+    private int[] entries = [10, 20, 30, 40, 50];
+
+    public int Length
+    {
+        get
+        {
+            return 5;
+        }
+    }
+
+    public int this[int index]
+    {
+        get
+        {
+            return (index + 1) * 10;
+        }
+    }
+
+    public int[] this[Range range]
+    {
+        get
+        {
+            return entries[range];
+        }
+    }
+}
+
+public class Tape
+{
+    public int Count
+    {
+        get
+        {
+            Console.WriteLine("  read Count");
+            return 6;
+        }
+    }
+
+    public int this[int index]
+    {
+        get
+        {
+            return index + 1;
+        }
+    }
+
+    public string Slice(int start, int length)
+    {
+        Console.WriteLine($"  Slice({start}, {length})");
+        return $"tape[{start}+{length}]";
+    }
+}
+
+public class Window<T>
+{
+    private T first;
+    private T second;
+
+    public Window(T first, T second)
+    {
+        this.first = first;
+        this.second = second;
+    }
+
+    public int Length
+    {
+        get
+        {
+            return 2;
+        }
+    }
+
+    public T First
+    {
+        get
+        {
+            return first;
+        }
+    }
+
+    public Window<T> Slice(int start, int length)
+    {
+        if (start == 1)
+        {
+            return new Window<T>(second, second);
+        }
+
+        if (length == 2)
+        {
+            return new Window<T>(first, second);
+        }
+
+        return new Window<T>(first, first);
+    }
+}
+
+public class Labelled<T>
+{
+    private T label;
+
+    public Labelled(T label)
+    {
+        this.label = label;
+    }
+
+    public int Count
+    {
+        get
+        {
+            return 3;
+        }
+    }
+
+    public T this[Range range]
+    {
+        get
+        {
+            return label;
+        }
+    }
+}
+
+public class Badge : Labelled<string>
+{
+    public Badge() : base("badge")
+    {
+    }
+}
+
+public class Program
+{
+    private static Tape Fresh(string why)
+    {
+        Console.WriteLine($"  make {why}");
+        return new Tape();
+    }
+
+    private static int Bound(int value)
+    {
+        Console.WriteLine($"  bound {value}");
+        return value;
+    }
+
+    private static string Show(int[] values)
+    {
+        var shown = "";
+
+        foreach (var value in values)
+        {
+            shown = shown + $"{value};";
+        }
+
+        return shown;
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Sliceable Types ===");
+
+        Console.WriteLine("--- Range indexer beside an int indexer ---");
+        var ledger = new Ledger();
+        int[] middle = ledger[1..4];
+        int single = ledger[1];
+        Console.WriteLine($"middle={Show(middle)} single={single} last={ledger[^1]}");
+        Console.WriteLine($"tail={Show(ledger[^2..])} all={Show(ledger[..])}");
+
+        Console.WriteLine("--- Slice(int, int) over every bound form ---");
+        var tape = new Tape();
+        Console.WriteLine(tape[1..3]);
+        Console.WriteLine(tape[..2]);
+        Console.WriteLine(tape[4..]);
+        Console.WriteLine(tape[..]);
+        Console.WriteLine(tape[^4..^1]);
+        Console.WriteLine(tape[1..^1]);
+        Console.WriteLine(tape[2..2]);
+        Range window = 2..^2;
+        Console.WriteLine(tape[window]);
+
+        Console.WriteLine("--- Receiver, bounds and Slice each run once, in order ---");
+        Console.WriteLine(Fresh("receiver")[Bound(1)..Bound(4)]);
+        Console.WriteLine(Fresh("receiver")[Bound(1)..^Bound(1)]);
+
+        Console.WriteLine("--- A generic owner's result is closed by the receiver ---");
+        var pair = new Window<string>("left", "right");
+        Window<string> rest = pair[1..];
+        Console.WriteLine($"{rest.First} {pair[..1].First} {pair[..].First}");
+
+        Console.WriteLine("--- An inherited Range indexer reads through its constructed base ---");
+        var badge = new Badge();
+        string named = badge[0..1];
+        Console.WriteLine(named.ToUpper());
+
+        Console.WriteLine("--- List patterns slice through the same members ---");
+        if (tape is [1, .. var inner, 6])
+        {
+            Console.WriteLine($"inner={inner}");
+        }
+
+        if (ledger is [var head, .. var body, var end])
+        {
+            Console.WriteLine($"head={head} body={Show(body)} end={end}");
+        }
+
+        var described = tape switch
+        {
+            [9, ..] => "starts with nine",
+            [_, _, .. var after] => $"after={after}",
+            _ => "none",
+        };
+        Console.WriteLine(described);
+
+        if (tape is [1, ..])
+        {
+            Console.WriteLine("bare slice, no Slice call");
+        }
+
+        Console.WriteLine("--- CLR sequences slice through their own Slice ---");
+        int[] numbers = [1, 2, 3, 4];
+        var memory = new Memory<int>(numbers);
+        var segment = new ArraySegment<int>(numbers);
+        Console.WriteLine($"memory={memory[1..3].Length} segment={segment[1..].Count}");
+
+        Console.WriteLine("=== Sliceable Types Done ===");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

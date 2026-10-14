@@ -209,12 +209,33 @@ internal sealed partial class PurityInference
                     Note(counted.Count);
                 }
 
+                Note(index.Slice);
                 break;
 
-            case ListPattern { Reads: { } reads }:
-                Note(reads.Count);
-                Note(reads.Indexer);
+            case ListPattern list:
+                if(list.Reads is { } reads)
+                {
+                    Note(reads.Count);
+                    Note(reads.Indexer);
+                }
+
+                Note(list.Slice);
                 break;
+        }
+    }
+
+    private void Note(CountedSlice? slice)
+    {
+        if(slice is null)
+        {
+            return;
+        }
+
+        Note(slice.Count);
+
+        if(slice.Indexer is { } indexer)
+        {
+            Note(indexer);
         }
     }
 

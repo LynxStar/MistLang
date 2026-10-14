@@ -73,12 +73,39 @@ internal static partial class PurityJudge
                 return;
             }
 
+            if(index.Slice is { } slice)
+            {
+                JudgeSlice(slice, origins.Of(index.Receiver), index.Node, index);
+                return;
+            }
+
             if(IsValueStorage(index.Receiver))
             {
                 return;
             }
 
             JudgeStorageRead(origins.Of(index.Receiver), $"an element of {Spell(index.Receiver)}", index.Node, [index], index.Receiver);
+        }
+
+        private void JudgeSlice(CountedSlice slice, Origin holder, SyntaxNode at, Expression about)
+        {
+            if(silenced.Contains(about))
+            {
+                return;
+            }
+
+            JudgeGetter(slice.Count, holder, at, [about]);
+
+            if(slice.Indexer?.Getter is { } getter && !silenced.Contains(about))
+            {
+                _ = JudgeCall(getter, holder, "read 'this[]'", at, [about]);
+            }
+
+            if(slice.Method is { } method && !silenced.Contains(about))
+            {
+                _ = JudgeCall(method, holder, $"call '{method.Name}'", at, [about]);
+                JudgeContexts(method.ContextBindingsList, $"'{method.Name}'", about);
+            }
         }
 
         private void JudgeFromEnd(IndexExpression index)
@@ -264,11 +291,22 @@ internal static partial class PurityJudge
                         _ = JudgeCall(getter, scrutinee, "read 'this[]'", list.Node, [about]);
                     }
 
+                    if(list.Slice is { } slice)
+                    {
+                        JudgeSlice(slice, scrutinee, list.Node, about);
+                    }
+
                     JudgeElements(list, about);
                     break;
 
                 case ListPattern list:
                     JudgeStorageRead(scrutinee, $"the elements of {Spell(about)}", list.Node, [about], chain: null);
+
+                    if(list.Slice is { } counted)
+                    {
+                        JudgeSlice(counted, scrutinee, list.Node, about);
+                    }
+
                     JudgeElements(list, about);
                     break;
 

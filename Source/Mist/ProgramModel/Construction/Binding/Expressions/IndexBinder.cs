@@ -11,7 +11,10 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 /// Binds <c>a[x]</c>, which yields an element or a sub-sequence depending on what <c>x</c> IS, so the
 /// receiver alone cannot type it -- <c>numbers[1]</c> and <c>numbers[1..3]</c> differ in result type.
 /// An element access into a receiver that declares indexers selects one by the index, as a call selects
-/// a method by its arguments, and is refused as a call is when none or several could take it.
+/// a method by its arguments, and is refused as a call is when none or several could take it. A range
+/// into a countable user type selects its Range indexer the same way and, failing one, reaches its
+/// Slice(int, int) as C#'s implicit range support does, which is what lets the emitted access stay
+/// <c>receiver[range]</c>.
 /// </summary>
 internal static class IndexBinder
 {
@@ -25,14 +28,24 @@ internal static class IndexBinder
             return new ErrorExpression(node, [receiver, index]);
         }
 
-        if(Indexability.IsRange(index.Type))
+        var isRange = Indexability.IsRange(index.Type);
+
+        if(isRange && Indexability.SliceType(receiver.Type, context) is not ErrorType and var sliced)
         {
-            return new IndexExpression(node, receiver, index, SliceType(receiver.Type, node, context));
+            return new IndexExpression(node, receiver, index, sliced);
         }
 
         var indexers = Indexability.Indexers(receiver.Type);
+        var choice = indexers.Count == 0 ? null : Indexability.Select(indexers, receiver.Type, index, context);
+        var indexerTakesRange = choice is { Ambiguous.Count: > 0 }
+            || (Indexability.TakesRange(choice, index.Type, context) && Indexability.Count(receiver.Type) is not null);
 
-        if(indexers.Count == 0)
+        if(isRange && !indexerTakesRange)
+        {
+            return BindSlice(node, receiver, index, ctx, context);
+        }
+
+        if(choice is null)
         {
             if(Indexability.ArrayElement(receiver.Type) is { } element)
             {
@@ -53,8 +66,6 @@ internal static class IndexBinder
             ReportNotIndexable(receiver.Type, node, context);
             return new ErrorExpression(node, [receiver, index]);
         }
-
-        var choice = Indexability.Select(indexers, receiver.Type, index, context);
 
         if(choice.Selected is not { } selected)
         {
@@ -96,16 +107,33 @@ internal static class IndexBinder
             ProgramModelDiagnostics.ReceiverNotIndexable, node, null, TypeDisplay.Mist(receiverType));
     }
 
-    private static IMistType SliceType(IMistType receiverType, IndexSuffixPostfixSuffixNode node, BuilderContext context)
+    private static Expression BindSlice(
+        IndexSuffixPostfixSuffixNode node, Expression receiver, Expression index, BindingContext ctx, BuilderContext context)
     {
-        var sliced = Indexability.SliceType(receiverType, context);
-
-        if(sliced is ErrorType)
+        if(Indexability.Count(receiver.Type) is { } count
+            && Indexability.SelectSlice(receiver.Type, node, context) is { Selected: { } slice } choice)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.ReceiverNotSliceable, node, null, receiverType.Name);
+            context.ProgramModel.TaskDrops.RecordCall(ctx.EnclosingMethod, slice);
+
+            return new IndexExpression(node, receiver, index, Indexability.SliceResult(slice, choice.Substitution, context))
+            {
+                Slice = new CountedSlice(count, null, slice),
+            };
         }
 
-        return sliced;
+        if(FailureDependency.NeedsAnalysis(receiver) || FailureDependency.NeedsAnalysis(index))
+        {
+            var pending = context.Diagnostics.Withhold(() => ReportNotSliceable(receiver.Type, node, context));
+            return new ErrorExpression(node, [receiver, index], pending.Single());
+        }
+
+        ReportNotSliceable(receiver.Type, node, context);
+        return new ErrorExpression(node, [receiver, index]);
+    }
+
+    private static void ReportNotSliceable(IMistType receiverType, IndexSuffixPostfixSuffixNode node, BuilderContext context)
+    {
+        context.Diagnostics.ReportAtNode(
+            ProgramModelDiagnostics.ReceiverNotSliceable, node, null, TypeDisplay.Mist(receiverType));
     }
 }

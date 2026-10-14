@@ -39,11 +39,6 @@ internal static class Indexability
             ;
     }
 
-    public static bool IsSliceable(IMistType type, BuilderContext context)
-    {
-        return SliceType(type, context) is not ErrorType;
-    }
-
     public static IMistType ElementType(IMistType receiverType, Expression index, BuilderContext context)
     {
         if(ArrayElement(receiverType) is { } element)
@@ -180,17 +175,14 @@ internal static class Indexability
 
     public static Property? Count(IMistType receiverType)
     {
-        var unaliased = receiverType is TypeAlias { AliasedType: { } aliased } ? aliased : receiverType;
-        var receiver = unaliased is RefinedType refined ? refined.BaseType : unaliased;
-
-        if(((receiver as ConstructedType)?.Definition ?? receiver) is not MistType declaring)
+        if(Declaring(receiverType) is not { } declaring)
         {
             return null;
         }
 
         foreach(var name in CountNames)
         {
-            if(TypeMemberLookup.Find(declaring, LookupRequest.Member(name, MemberVisibility.InstanceOnly, null)) is PropertyResult { Property: var property }
+            if(TypeMemberLookup.Find(declaring, LookupRequest.Member(name, MemberVisibility.InstanceOnly, null)) is PropertyResult { Property: { Getter: not null } property }
                 && IsInt(property.Type))
             {
                 return property;
@@ -201,6 +193,92 @@ internal static class Indexability
     }
 
     private static readonly string[] CountNames = ["Length", "Count"];
+
+    public static (IMistType Type, CountedSlice Read)? CountedSliceOf(IMistType receiverType, Storm.Runtime.SyntaxNode node, BuilderContext context)
+    {
+        if(Count(receiverType) is not { } count)
+        {
+            return null;
+        }
+
+        var range = new DefaultExpression(node, context.Resolver.LookupWellKnown(WellKnownTypes.Range));
+
+        if(Indexers(receiverType) is { Count: > 0 } indexers
+            && Select(indexers, receiverType, range, context) is { Selected: { Modifiers.IsIntrinsic: false } indexer } choice
+            && TakesRange(choice, range.Type, context))
+        {
+            return (IndexerType(indexer, choice.Substitution, context), new CountedSlice(count, indexer, null));
+        }
+
+        return SelectSlice(receiverType, node, context) is { Selected: { } method } sliced
+            ? (SliceResult(method, sliced.Substitution, context), new CountedSlice(count, null, method))
+            : null;
+    }
+
+    /// <summary>
+    /// The Slice C#'s implicit range support calls, which it takes only as an instance method of no type
+    /// parameters whose two parameters are int values, so the candidates are narrowed to that shape before
+    /// the ordinary selection weighs them. Null when the receiver has none of that shape.
+    /// </summary>
+    public static OverloadChoice<Method>? SelectSlice(IMistType receiverType, Storm.Runtime.SyntaxNode node, BuilderContext context)
+    {
+        if(Declaring(receiverType) is not { } declaring
+            || TypeMemberLookup.Find(declaring, LookupRequest.Member(SliceName, MemberVisibility.InstanceOnly, null)) is not MethodGroupResult group)
+        {
+            return null;
+        }
+
+        var shaped = group.Methods.Where(IsSliceShape).ToList();
+        var position = Position(node, context);
+
+        return shaped.Count == 0
+            ? null
+            : OverloadResolution.Select(shaped, [position, position], Unwrapped(receiverType) as ConstructedType, [], context.ProgramModel.TypeInterner, paths: group.Paths);
+    }
+
+    private const string SliceName = "Slice";
+
+    public static bool TakesRange(OverloadChoice<Indexer>? choice, IMistType rangeType, BuilderContext context)
+    {
+        var interner = context.ProgramModel.TypeInterner;
+
+        return choice is { Selected.ParametersList: [var parameter] }
+            && ConversionClassifier.Classify(rangeType, choice.Substitution.Apply(parameter.Type, interner), interner)
+                is not (ConversionKind.None or ConversionKind.Explicit);
+    }
+
+    private static bool IsSliceShape(Method method)
+    {
+        return method is { TypeParametersList.Count: 0, ParametersList: [var start, var length] }
+            && IsIntValue(start)
+            && IsIntValue(length);
+    }
+
+    private static bool IsIntValue(Parameter parameter)
+    {
+        return parameter is { IsFlattened: false, Modifier: { IsRef: false, Direction: ByRefDirection.None } } && IsInt(parameter.Type);
+    }
+
+    public static IMistType SliceResult(Method slice, TypeSubstitution substitution, BuilderContext context)
+    {
+        return ClrInboundLifting.Close(
+            slice.Modifiers,
+            substitution.Apply(slice.ReturnType, context.ProgramModel.TypeInterner),
+            context.Resolver.LookupWellKnown(WellKnownTypes.Void),
+            context.ProgramModel.TypeInterner);
+    }
+
+    private static IMistType Unwrapped(IMistType receiverType)
+    {
+        var unaliased = receiverType is TypeAlias { AliasedType: { } aliased } ? aliased : receiverType;
+        return unaliased is RefinedType refined ? refined.BaseType : unaliased;
+    }
+
+    private static MistType? Declaring(IMistType receiverType)
+    {
+        var receiver = Unwrapped(receiverType);
+        return ((receiver as ConstructedType)?.Definition ?? receiver) as MistType;
+    }
 
     private static bool IsInt(IMistType type)
     {

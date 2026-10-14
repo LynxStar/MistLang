@@ -99,3 +99,4 @@ SizedSequencePatterns = { path = "../SizedSequencePatterns" }
 ResourceTransfer = { path = "../ResourceTransfer" }
 ClrCallContracts = { path = "../ClrCallContracts" }
 ClosedOperators = { path = "../ClosedOperators" }
+SliceableTypes = { path = "../SliceableTypes" }

@@ -214,8 +214,11 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
                 || (!OwnLocalCallee(indexer.Getter, indexer.Modifiers, origins.Of(indexed.Receiver))
                     && UnprovenGetter(indexer.Getter, indexer.Modifiers, indexer.DeclaringType, callees)),
             IndexExpression { FromEnd: { } counted } indexed => CountWrites(counted, origins.Of(indexed.Receiver), callees),
-            ListPattern { Reads: { } reads } => CountWrites(reads, Origin.External, callees)
-                || UnprovenGetter(reads.Indexer.Getter, reads.Indexer.Modifiers, reads.Indexer.DeclaringType, callees),
+            IndexExpression { Slice: { } slice } sliced => SliceWrites(slice, origins.Of(sliced.Receiver), callees),
+            ListPattern { Reads: { } reads } list => CountWrites(reads, Origin.External, callees)
+                || UnprovenGetter(reads.Indexer.Getter, reads.Indexer.Modifiers, reads.Indexer.DeclaringType, callees)
+                || SliceWrites(list.Slice, Origin.External, callees),
+            ListPattern { Slice: { } slice } => SliceWrites(slice, Origin.External, callees),
             // An intrinsic operator is the target's own arithmetic, with no body that could write.
             BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } binaryOperator } => Unproven(binaryOperator, callees),
             UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator } => Unproven(unaryOperator, callees),
@@ -271,6 +274,24 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
         return counted is { Count: var count }
             && !OwnLocalCallee(count.Getter, count.Modifiers, holder)
             && UnprovenGetter(count.Getter, count.Modifiers, count.DeclaringType, callees);
+    }
+
+    private bool SliceWrites(CountedSlice? slice, Origin holder, List<object> callees)
+    {
+        if(slice is null)
+        {
+            return false;
+        }
+
+        var count = slice.Count;
+
+        return (!OwnLocalCallee(count.Getter, count.Modifiers, holder) && UnprovenGetter(count.Getter, count.Modifiers, count.DeclaringType, callees))
+            || (slice.Indexer is { } indexer
+                && !OwnLocalCallee(indexer.Getter, indexer.Modifiers, holder)
+                && UnprovenGetter(indexer.Getter, indexer.Modifiers, indexer.DeclaringType, callees))
+            || (slice.Method is { } method
+                && !(!method.Modifiers.IsStatic && holder is Origin.Own && IsLocalMember(method, method.Modifiers))
+                && Unproven(method, callees));
     }
 
     private bool EntryWrites(ObjectInitializerAssignment entry, List<object> callees)

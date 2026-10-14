@@ -53,6 +53,14 @@ internal sealed class AccessorAnalyzer : IProgramAnalyzer
                     Judge(context, Use.Of(context, index), Slot.Of(indexer), Construction.None);
                     break;
 
+                case IndexExpression { Slice: { } slice } sliced:
+                    JudgeSlice(context, new Use(sliced, sliced.Node, [sliced], AccessDirection.Read), slice);
+                    break;
+
+                case ListPattern { Slice: { } slice } list:
+                    JudgeSlice(context, new Use(list, list.Node, [], AccessDirection.Read), slice);
+                    break;
+
                 case MemberAccessExpression { Member: PropertyResult { Property: var property } } access:
                     Judge(
                         context, Use.Of(context, access), Slot.Of(property),
@@ -91,6 +99,16 @@ internal sealed class AccessorAnalyzer : IProgramAnalyzer
                 owner, assembly, slot.Accessibility, slot.Declaring) is { } written)
         {
             Report(context, use, slot, written, slot.Setter, slot.Setter is { IsInit: true } ? "init" : "set");
+        }
+    }
+
+    private static void JudgeSlice(AnalysisContext context, Use use, CountedSlice slice)
+    {
+        Judge(context, use, Slot.Of(slice.Count), Construction.None);
+
+        if(slice.Indexer is { } indexer)
+        {
+            Judge(context, use, Slot.Of(indexer), Construction.None);
         }
     }
 

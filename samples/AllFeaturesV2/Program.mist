@@ -117,5 +117,6 @@ public class Program
         ResourceTransfer.Program.RunDemo();
         ClrCallContracts.Program.RunDemo();
         ClosedOperators.Program.RunDemo();
+        SliceableTypes.Program.RunDemo();
     }
 }

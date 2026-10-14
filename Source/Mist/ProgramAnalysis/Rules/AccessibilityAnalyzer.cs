@@ -36,6 +36,14 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
                     Judge(context, index, index.Node, [index], "this[]", indexer.Modifiers, declaring);
                     break;
 
+                case IndexExpression { Slice: { } slice } sliced:
+                    JudgeSlice(context, sliced, sliced.Node, [sliced], slice);
+                    break;
+
+                case ListPattern { Slice: { } slice } list:
+                    JudgeSlice(context, list, list.Node, [], slice);
+                    break;
+
                 case ObjectInitializerAssignment { IsTargetFailed: false, MemberName: { } name, Member: { } member } entry:
                     JudgeStorage(context, entry, entry.Node, [], name, member);
                     break;
@@ -182,6 +190,21 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
             PropertyResult found => (found.Property.Modifiers, found.Property.DeclaringType ?? AccessDomains.Definition(found.DeclaringType), "property"),
             _ => null,
         };
+    }
+
+    private static void JudgeSlice(AnalysisContext context, object use, SyntaxNode at, IReadOnlyList<Expression> about, CountedSlice slice)
+    {
+        Judge(context, use, at, about, slice.Count.Name, slice.Count.Modifiers, slice.Count.DeclaringType);
+
+        if(slice.Indexer is { } indexer)
+        {
+            Judge(context, use, at, about, "this[]", indexer.Modifiers, indexer.DeclaringType);
+        }
+
+        if(slice.Method is { } method)
+        {
+            Judge(context, use, at, about, method.Name, method.Modifiers, method.DeclaringType);
+        }
     }
 
     private static void Judge(

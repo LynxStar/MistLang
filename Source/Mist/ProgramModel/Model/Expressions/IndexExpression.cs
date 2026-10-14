@@ -18,9 +18,9 @@ internal sealed class IndexExpression(
     public Expression Index { get; } = index;
 
     /// <summary>
-    /// The user indexer the index selected among the receiver's, or null for an element access the
-    /// target supplies -- an array's or a span's, whose intrinsic indexer has no accessor a rule could
-    /// judge.
+    /// The user indexer the index selected among the receiver's, or null for an access the target
+    /// supplies -- an array's or a span's, whose intrinsic indexer has no accessor a rule could judge --
+    /// and for a slice <see cref="Slice"/> reaches.
     /// </summary>
     public Indexer? Indexer { get; init; }
 
@@ -33,6 +33,8 @@ internal sealed class IndexExpression(
     public IMistType? ParameterType { get; init; }
 
     public CountedIndexer? FromEnd { get; init; }
+
+    public CountedSlice? Slice { get; init; }
 
     public override IMistType Type { get; } = type;
 }

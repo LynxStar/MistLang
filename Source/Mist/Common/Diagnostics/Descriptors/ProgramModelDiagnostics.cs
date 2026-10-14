@@ -575,7 +575,7 @@ public static class ProgramModelDiagnostics
         new DiagnosticId("MIST_PM_RECEIVER_NOT_SLICEABLE"),
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
-        "'{0}' cannot be sliced by a range. Only an array or a string yields a sub-sequence.");
+        "'{0}' cannot be sliced by a range. A sub-sequence comes from an array, a span or a string, or from a type with an int Length or Count and either a Range indexer or a Slice(int, int) method.");
 
     public static readonly DiagnosticDescriptor ReceiverNotIndexable = new(
         new DiagnosticId("MIST_PM_RECEIVER_NOT_INDEXABLE"),

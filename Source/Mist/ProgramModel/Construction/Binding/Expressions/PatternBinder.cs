@@ -412,18 +412,19 @@ internal static partial class PatternBinder
     {
         var matched = OptionalLifting.NonVoidPortion(scrutineeType, context.ProgramModel.TypeInterner);
         var elementType = Indexability.ElementType(matched, Indexability.Position(node, context), context);
+        var refused = elementType is ErrorType && matched is not ErrorType;
 
-        if(elementType is ErrorType && matched is not ErrorType)
+        if(refused)
         {
             context.Diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.ListPatternScrutineeNotIndexable, node, null, matched.Name);
-
-            return new ListPattern(node, [], ErrorType.Instance) { IsFailed = true };
         }
 
         CountedIndexer? reads = null;
+        CountedSlice? slices = null;
 
-        if(Indexability.ArrayElement(matched) is null
+        if(!refused
+            && Indexability.ArrayElement(matched) is null
             && Indexability.Select(Indexability.Indexers(matched), matched, Indexability.Position(node, context), context)
                 is { Selected: { Modifiers.IsIntrinsic: false } selected } choice)
         {
@@ -447,12 +448,12 @@ internal static partial class PatternBinder
         {
             if(elementNode is SliceElementListPatternElementNode slice)
             {
-                if(sliceSeen)
+                if(sliceSeen && !refused)
                 {
                     context.Diagnostics.ReportAtNode(
                         ProgramModelDiagnostics.ListPatternMultipleSlices, node, null);
 
-                    return new ListPattern(node, [], ErrorType.Instance) { IsFailed = true };
+                    refused = true;
                 }
 
                 sliceSeen = true;
@@ -463,17 +464,24 @@ internal static partial class PatternBinder
                     continue;
                 }
 
-                var sliceType = matched is ErrorType ? ErrorType.Instance : Indexability.SliceType(matched, context);
+                var sliceType = refused || matched is ErrorType ? ErrorType.Instance : Indexability.SliceType(matched, context);
 
-                if(sliceType is ErrorType && matched is not ErrorType)
+                if(sliceType is ErrorType && !refused && matched is not ErrorType)
                 {
-                    context.Diagnostics.ReportAtNode(
-                        ProgramModelDiagnostics.ReceiverNotSliceable, node, null, matched.Name);
+                    if(Indexability.CountedSliceOf(matched, node, context) is { } counted)
+                    {
+                        (sliceType, slices) = counted;
+                    }
+                    else
+                    {
+                        context.Diagnostics.ReportAtNode(
+                            ProgramModelDiagnostics.ReceiverNotSliceable, node, null, TypeDisplay.Mist(matched));
 
-                    return new ListPattern(node, [], ErrorType.Instance) { IsFailed = true };
+                        refused = true;
+                    }
                 }
 
-                if(Bind(slice.Subpattern, sliceType, bindingsPermitted, ctx, context, scrutineeFailed) is not { } boundSlice)
+                if(Bind(slice.Subpattern, sliceType, bindingsPermitted, ctx, context, scrutineeFailed || refused) is not { } boundSlice)
                 {
                     return null;
                 }
@@ -482,16 +490,28 @@ internal static partial class PatternBinder
                 continue;
             }
 
+            var positionType = refused ? ErrorType.Instance : elementType;
+
             if(elementNode is not PatternElementListPatternElementNode positional
-                || Bind(positional.Pattern, elementType, bindingsPermitted, ctx, context, scrutineeFailed) is not { } bound)
+                || Bind(positional.Pattern, positionType, bindingsPermitted, ctx, context, scrutineeFailed || refused) is not { } bound)
             {
                 return null;
             }
 
-            elements.Add(new ListPatternElement(bound, IsSlice: false, elementType));
+            elements.Add(new ListPatternElement(bound, IsSlice: false, positionType));
         }
 
-        return new ListPattern(node, elements, matched) { Reads = reads, IsFailed = scrutineeFailed || elements.Any(element => element.Subpattern?.IsFailed is true) };
+        if(refused)
+        {
+            return new ListPattern(node, elements, ErrorType.Instance) { IsFailed = true };
+        }
+
+        return new ListPattern(node, elements, matched)
+        {
+            Reads = reads,
+            Slice = slices,
+            IsFailed = scrutineeFailed || elements.Any(element => element.Subpattern?.IsFailed is true),
+        };
     }
 
     /// <summary>

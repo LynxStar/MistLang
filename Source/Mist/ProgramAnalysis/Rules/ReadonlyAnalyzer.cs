@@ -147,6 +147,15 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                     reached.Name, ReadonlyParameterReceivers.Describe(receiver, through));
                 break;
 
+            case IndexExpression { Slice.Method: { } sliceMethod } sliced
+                when !frame.IsReadonly
+                    && ReadonlyParameterReceivers.RootOf(sliced.Receiver) is { Local.Parameter.Modifier.IsRef: false } through
+                    && !inference.IsReadonly(sliceMethod):
+                context.Report(
+                    ProgramAnalysisDiagnostics.ReadonlyParameterCallsMutable, sliced.Node, [sliced],
+                    sliceMethod.Name, ReadonlyParameterReceivers.Describe(sliced.Receiver, through));
+                break;
+
             case IndexExpression { Indexer: { } indexer } read when frame.IsReadonly && context.DirectionOf(node).HasFlag(AccessDirection.Read):
                 if(!inference.IsReadonlyGetter(indexer) && !frame.LocalOnOwn(indexer.Getter, indexer.Modifiers, read, inference))
                 {
@@ -277,17 +286,43 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             JudgeGetter(count, fromEnd, frame, context, inference);
         }
 
-        if(node is ListPattern { Reads: { } reads } list)
+        if(node is IndexExpression { Slice: { } slice } sliced)
         {
-            foreach(var (name, readonlyGetter) in new[] { (reads.Count.Name, inference.IsReadonlyGetter(reads.Count)), ("this[]", inference.IsReadonlyGetter(reads.Indexer)) })
+            JudgeGetter(slice.Count, sliced, frame, context, inference);
+
+            if(slice.Method is { } method && !inference.IsReadonly(method) && !frame.LocalOn(sliced.Receiver, method, inference))
             {
-                if(!readonlyGetter)
-                {
-                    context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, list.Node, [], name, frame.Describe());
-                    break;
-                }
+                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, sliced.Node, [sliced], method.Name, frame.Describe());
             }
         }
+
+        if(node is ListPattern list && MutableRead(list, inference) is { } mutable)
+        {
+            context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, list.Node, [], mutable, frame.Describe());
+        }
+    }
+
+    private static string? MutableRead(ListPattern list, PurityInference inference)
+    {
+        if(list.Reads is { } reads)
+        {
+            if(!inference.IsReadonlyGetter(reads.Count))
+            {
+                return reads.Count.Name;
+            }
+
+            if(!inference.IsReadonlyGetter(reads.Indexer))
+            {
+                return "this[]";
+            }
+        }
+
+        return list.Slice switch
+        {
+            { Indexer: { } indexer } when !inference.IsReadonlyGetter(indexer) => "this[]",
+            { Method: { } method } when !inference.IsReadonly(method) => method.Name,
+            _ => null,
+        };
     }
 
     private static bool AllocatesReadonly(NewExpression allocation, PurityInference inference)

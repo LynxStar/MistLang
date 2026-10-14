@@ -185,6 +185,17 @@ public static class BackendDiagnostics
         "A value cannot be tested against '{0}' at run time yet, because its elements carry a length that only a check of every element could establish.");
 
     /// <summary>
+    /// A slice of a user type is written as <c>receiver[range]</c> and Roslyn makes the call to its count and
+    /// Slice itself, so where that call needs what C# cannot give it at that spot -- an await inside a list
+    /// pattern, or an UnsafeAccessor in a clone conversion -- there is no call in the output to change.
+    /// </summary>
+    public static readonly DiagnosticDescriptor UnsupportedImplicitSlice = new(
+        new DiagnosticId("MIST_BE_UNSUPPORTED_IMPLICIT_SLICE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "'{0}' cannot be sliced here yet: C# calls its '{1}' itself, and {2}.");
+
+    /// <summary>
     /// A struct and one of its ancestors declare a field of the same name. Legal Mist, because two
     /// levels declaring a private field cannot see each other, but the C# backend flattens
     /// inherited fields into one struct where the name can only resolve to one of them.

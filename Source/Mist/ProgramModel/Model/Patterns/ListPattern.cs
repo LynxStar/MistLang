@@ -26,6 +26,8 @@ internal sealed class ListPattern(
 
     public CountedIndexer? Reads { get; init; }
 
+    public CountedSlice? Slice { get; init; }
+
     public override LocalVariable? Binding => null;
 }
 

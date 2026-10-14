@@ -150,6 +150,7 @@ internal static class RefinementFindings
             LiteralExpression { Value: { } constant } => Convert.ToString(constant, CultureInfo.InvariantCulture) ?? "",
             UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset } => $"^{Display(offset)}",
             UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operand: LiteralExpression { Value: not null } negated } => $"-{Display(negated)}",
+            RangeExpression range => $"{(range.Start is { } start ? Display(start) : "")}..{(range.End is { } end ? Display(end) : "")}",
             _ => TypeDisplay.Mist(expression.Type),
         };
     }

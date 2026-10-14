@@ -81,7 +81,7 @@ Adding a `var` binding to the slice (`.. var middle`) binds the matched contiguo
 {{#endtab }}
 {{#endtabs }}
 
-A slice sub-pattern requires a sliceable receiver. The binding follows the slice-result type: an array slice binds an array, a span slice binds a span, and a string slice binds a `string`.
+A slice sub-pattern requires a sliceable receiver. The binding follows the slice-result type: an array slice binds an array, a span slice binds a span, a string slice binds a `string`, and a slice of your own type binds whatever its `Range` indexer or `Slice(int, int)` method returns (see [Indexable and Sliceable Receivers](../basics/indexes-and-ranges.md#indexable-and-sliceable-receivers)). A bare `..` needs neither member.
 
 ## List Patterns in `switch` Arms
 

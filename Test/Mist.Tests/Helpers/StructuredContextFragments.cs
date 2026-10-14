@@ -62,6 +62,7 @@ internal sealed partial class StructuredContextFragments
             _ when name.StartsWith("implicit-", StringComparison.Ordinal) => Implicit(name),
             _ when name.StartsWith("accessor-", StringComparison.Ordinal) => Accessors(name),
             _ when name.StartsWith("indexer-", StringComparison.Ordinal) => Indexers(name),
+            _ when name.StartsWith("slice-", StringComparison.Ordinal) => Slices(name),
             _ when name.StartsWith("operator-", StringComparison.Ordinal) || name.StartsWith("conversion-", StringComparison.Ordinal) => Operators(name),
             _ when name.StartsWith("drop-", StringComparison.Ordinal) => Drops(name),
             _ when name.StartsWith("dispose-", StringComparison.Ordinal) || name.StartsWith("loop-", StringComparison.Ordinal) => Disposals(name),

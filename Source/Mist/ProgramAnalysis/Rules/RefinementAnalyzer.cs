@@ -50,6 +50,11 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             {
                 new Proving(context, lifted, UnseenWrites.None).NeedElements(list, reads);
             }
+
+            if(list.Slice is { Method: { } slice } sliced)
+            {
+                new Proving(context, lifted, UnseenWrites.None).NeedSliceElements(list, sliced, slice);
+            }
         }
 
         var closings = context.Model.ConstructorConstraintClosures;
@@ -319,6 +324,17 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                 return;
             }
 
+            if(index.Slice is { Method: { } slice } sliced)
+            {
+                var (start, length) = RefinementFlow.Range(state, index.Index, lifted) is { } range
+                    ? Offsets(range, Counted(sliced.Count))
+                    : (Admitted.Everything, Admitted.Everything);
+                var shown = RefinementFindings.Display(index.Index);
+
+                NeedSliceArguments(slice, sliced.Count, start, length, index.Index.Node, ($"the start of {shown}", $"the length of {shown}"), [index.Index]);
+                return;
+            }
+
             if(index.FromEnd is { } counted)
             {
                 var written = index.Index is ImplicitConversionExpression conversion ? conversion.Operand : index.Index;
@@ -479,20 +495,63 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             }
         }
 
-        private void NeedPosition(Admitted position, CountedIndexer counted, Storm.Runtime.SyntaxNode at, string shown, IReadOnlyList<Expression> about)
+        public void NeedSliceElements(ListPattern list, CountedSlice sliced, Method slice)
         {
-            var considered = Considered(counted.ParameterType, counted.Count.Type, value: null);
+            var elements = list.Elements;
+            var at = 0;
 
-            if(considered.Count == 0 || AnySatisfied(new Knowledge(position, ImmutableHashSet<Bound>.Empty), considered, counted.Count.Type, Reading.None))
+            while(at < elements.Count && !elements[at].IsSlice)
+            {
+                at++;
+            }
+
+            var fixedCount = elements.Count - 1;
+            var count = Counted(sliced.Count).And(Admitted.AtLeast(fixedCount));
+
+            if(at == elements.Count || count.Intervals.Length == 0)
             {
                 return;
             }
 
-            var parameter = counted.Indexer.ParametersList[0].Name;
+            var node = elements[at].Subpattern?.Node ?? list.Node;
+            NeedSliceArguments(slice, sliced.Count, Admitted.Exactly(at), count.Shifted(-fixedCount), node, ($"{at}", "the length of the slice"), []);
+        }
+
+        private void NeedSliceArguments(
+            Method slice, Property count, Admitted start, Admitted length, Storm.Runtime.SyntaxNode at, (string Start, string Length) shown, IReadOnlyList<Expression> about)
+        {
+            if(slice.ParametersList is [var first, var second])
+            {
+                NeedSlot(start, first.Type, count.Type, first.Name, at, shown.Start, about);
+                NeedSlot(length, second.Type, count.Type, second.Name, at, shown.Length, about);
+            }
+        }
+
+        private static (Admitted Start, Admitted Length) Offsets(StoredRange range, Admitted count)
+        {
+            var start = range.Start.FromEnd ? count.Minus(range.Start.Values) : range.Start.Values;
+            var end = range.End.FromEnd ? count.Minus(range.End.Values) : range.End.Values;
+
+            return (start, end.Minus(start));
+        }
+
+        private void NeedPosition(Admitted position, CountedIndexer counted, Storm.Runtime.SyntaxNode at, string shown, IReadOnlyList<Expression> about)
+        {
+            NeedSlot(position, counted.ParameterType, counted.Count.Type, counted.Indexer.ParametersList[0].Name, at, shown, about);
+        }
+
+        private void NeedSlot(Admitted value, IMistType slot, IMistType valueType, string parameter, Storm.Runtime.SyntaxNode at, string shown, IReadOnlyList<Expression> about)
+        {
+            var considered = Considered(slot, valueType, value: null);
+
+            if(considered.Count == 0 || AnySatisfied(new Knowledge(value, ImmutableHashSet<Bound>.Empty), considered, valueType, Reading.None))
+            {
+                return;
+            }
 
             if(Requirement.OfType(considered[0]) is { } required)
             {
-                RefinementFindings.ReportPosition(context, position, Read(required, proving: false, Reading.None), at, shown, parameter, about);
+                RefinementFindings.ReportPosition(context, value, Read(required, proving: false, Reading.None), at, shown, parameter, about);
             }
             else
             {
@@ -502,7 +561,12 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         private Admitted Counted(CountedIndexer counted)
         {
-            return (Requirement.ValuesOf(counted.Count.Type) ?? Admitted.Everything).And(lifted.Of(counted.Count) ?? Admitted.Everything);
+            return Counted(counted.Count);
+        }
+
+        private Admitted Counted(Property count)
+        {
+            return (Requirement.ValuesOf(count.Type) ?? Admitted.Everything).And(lifted.Of(count) ?? Admitted.Everything);
         }
 
         private static List<IMistType> Considered(IMistType target, IMistType valueType, Expression? value)

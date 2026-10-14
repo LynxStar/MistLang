@@ -134,14 +134,15 @@ internal sealed partial class ContextCalls
                         Record(index.Node, index, count, [], frame);
                     }
 
+                    RecordSlice(index.Node, index, index.Slice, frame);
                     break;
 
                 case PropertySubpattern { IsMemberFailed: false, Member: PropertyResult { Property.Getter: { } getter } } subpattern:
                     Record(subpattern.Node, about: null, getter, [], frame);
                     break;
 
-                case ListPattern { Reads: { } reads } list:
-                    foreach(var read in new PropertyAccessor?[] { reads.Count.Getter, reads.Indexer.Getter })
+                case ListPattern list:
+                    foreach(var read in new PropertyAccessor?[] { list.Reads?.Count.Getter, list.Reads?.Indexer.Getter })
                     {
                         if(read is not null)
                         {
@@ -149,6 +150,7 @@ internal sealed partial class ContextCalls
                         }
                     }
 
+                    RecordSlice(list.Node, about: null, list.Slice, frame);
                     break;
 
                 case BinaryExpression { Operator: { } applied } binary:
@@ -188,6 +190,17 @@ internal sealed partial class ContextCalls
         foreach(var (drop, _) in PurityJudge.Drops(value.Type, awaitable: false))
         {
             Record(value.Node, value, drop, ContextBinding.TypesOf(drop), frame);
+        }
+    }
+
+    private void RecordSlice(SyntaxNode node, Expression? about, CountedSlice? slice, Frame frame)
+    {
+        foreach(var called in new object?[] { slice?.Count.Getter, slice?.Indexer?.Getter, slice?.Method })
+        {
+            if(called is not null)
+            {
+                Record(node, about, called, ContextBinding.TypesOf(called as Method), frame);
+            }
         }
     }
 

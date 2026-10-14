@@ -15,8 +15,9 @@ internal static class AsyncLifts
         {
             var node = pending.Pop();
 
-            if(node is InvocationExpression invocation
+            if((node is InvocationExpression invocation
                 && (AsyncPromotion.IsPromoted(invocation.Method) || TaskResult.Dropped(invocation) is not null))
+                || (node is IndexExpression { Slice.Method: { } slice } && AsyncPromotion.IsPromoted(slice)))
             {
                 return true;
             }

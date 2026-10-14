@@ -2413,3 +2413,58 @@ m - 300 = long
 Keyed<int> + 1 = fixed int
 Keyed<string> + k = per instantiation
 === Closed Operators Done ===
+=== Sliceable Types ===
+--- Range indexer beside an int indexer ---
+middle=20;30;40; single=20 last=50
+tail=40;50; all=10;20;30;40;50;
+--- Slice(int, int) over every bound form ---
+  Slice(1, 2)
+tape[1+2]
+  Slice(0, 2)
+tape[0+2]
+  read Count
+  Slice(4, 2)
+tape[4+2]
+  read Count
+  Slice(0, 6)
+tape[0+6]
+  read Count
+  Slice(2, 3)
+tape[2+3]
+  read Count
+  Slice(1, 4)
+tape[1+4]
+  Slice(2, 0)
+tape[2+0]
+  read Count
+  Slice(2, 2)
+tape[2+2]
+--- Receiver, bounds and Slice each run once, in order ---
+  make receiver
+  bound 1
+  bound 4
+  Slice(1, 3)
+tape[1+3]
+  make receiver
+  bound 1
+  bound 1
+  read Count
+  Slice(1, 4)
+tape[1+4]
+--- A generic owner's result is closed by the receiver ---
+right left left
+--- An inherited Range indexer reads through its constructed base ---
+BADGE
+--- List patterns slice through the same members ---
+  read Count
+  Slice(1, 4)
+inner=tape[1+4]
+head=10 body=20;30;40; end=50
+  read Count
+  Slice(2, 4)
+after=tape[2+4]
+  read Count
+bare slice, no Slice call
+--- CLR sequences slice through their own Slice ---
+memory=2 segment=3
+=== Sliceable Types Done ===

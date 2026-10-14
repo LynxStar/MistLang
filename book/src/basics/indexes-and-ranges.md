@@ -145,4 +145,19 @@ Index-from-end access requires a countable, indexable receiver, and range slicin
 - **Indexable** types expose a length (`Length` or `Count`) and an integer indexer: arrays, `Span<T>`, `ReadOnlySpan<T>`, `string`, and `List<T>`.
 - **Sliceable** types produce a contiguous sub-sequence from a range: arrays, `Span<T>`, `ReadOnlySpan<T>`, `string`, and any countable type exposing a `Range` indexer or a `Slice(int, int)` method.
 
+A type of your own becomes sliceable the way it does in C#. A range is handed whole to an indexer that takes a `Range`; failing one, it reaches a `Slice(int, int)` instance method as the start and the length, decoded against the type's `Length` (or `Count`, when it has no `Length`). The slice's type is whatever that indexer or method returns, and a list pattern's slice goes through the same member. Both routes need the count, and the count, the indexer and `Slice` must all be accessible where the slice is written.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/basics/indexes-and-ranges/user-sliceable.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/basics/indexes-and-ranges/user-sliceable.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
 Using `^` on a non-indexable receiver, or `..` on a non-sliceable receiver, is a compile-time error. The same holds for the operand of `^` and the bounds of `..`: an operand must be an integer, and each present range bound must be an integer or an `Index`.

@@ -1198,7 +1198,12 @@ internal static class BodyEmitter
     /// </summary>
     private static bool CompletesPromoted(Expression expression)
     {
-        return expression is InvocationExpression invocation && AsyncPromotion.IsPromoted(invocation.Method);
+        return expression switch
+        {
+            InvocationExpression invocation => AsyncPromotion.IsPromoted(invocation.Method),
+            IndexExpression { Slice.Method: { } slice } => AsyncPromotion.IsPromoted(slice),
+            _ => false,
+        };
     }
 
     private static void EmitDirect(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)
@@ -1483,6 +1488,7 @@ internal static class BodyEmitter
                 break;
 
             case IndexExpression elementAccess:
+                ReportUnreachedSlice(elementAccess.Slice, elementAccess.Receiver.Type, elementAccess.Node, diagnostics);
                 EmitSubExpression(elementAccess.Receiver, PostfixPrecedence, writer, diagnostics);
                 writer.Append("[");
 
@@ -2672,9 +2678,28 @@ internal static class BodyEmitter
     /// enum variant out of one would compare a sub-sequence against a variant, and clearing sends the
     /// variant to <see cref="EmitComparison"/> to be refused rather than emitting that.
     /// </summary>
+    private static void ReportUnreachedSlice(CountedSlice? slice, IMistType receiverType, Storm.Runtime.SyntaxNode node, DiagnosticBag diagnostics)
+    {
+        if(slice is not null && UnsafeReach.Unreached(slice, receiverType) is { } member)
+        {
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.UnsupportedImplicitSlice, node, null,
+                TypeDisplay.Mist(receiverType), member, "a conversion run through a Clone body cannot reach it from the newtype");
+        }
+    }
+
     private static void EmitListPattern(
         ListPattern list, List<HoistedTest>? hoisted, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(list.Slice is { Method: { } promoted } && AsyncPromotion.IsPromoted(promoted))
+        {
+            diagnostics.ReportAtNode(
+                BackendDiagnostics.UnsupportedImplicitSlice, list.Node, null,
+                TypeDisplay.Mist(list.NarrowedType), promoted.Name, "it waits on a task a list pattern has no place to wait for");
+        }
+
+        ReportUnreachedSlice(list.Slice, list.NarrowedType, list.Node, diagnostics);
+
         writer.Append("[");
 
         for(var i = 0; i < list.Elements.Count; i++)
@@ -3404,7 +3429,7 @@ internal static class BodyEmitter
             UnaryExpression => PrefixPrecedence,
             LiteralExpression negative when EmitLiteral(negative).StartsWith('-') => PrefixPrecedence,
             InvocationExpression drop when TaskResult.Dropped(drop) is not null => PrefixPrecedence,
-            InvocationExpression when CompletesPromoted(expression) && !blockingAwaits => PrefixPrecedence,
+            InvocationExpression or IndexExpression when CompletesPromoted(expression) && !blockingAwaits => PrefixPrecedence,
             IsPatternExpression => RelationalPrecedence,
             AsExpression { Kind: AsConversionKind.Identity } identity => GetPrecedence(identity.Operand),
             SwitchExpression => SwitchPrecedence,

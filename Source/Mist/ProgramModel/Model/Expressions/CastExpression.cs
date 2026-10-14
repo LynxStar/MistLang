@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -8,7 +9,7 @@ namespace Mist.ProgramModel.Model.Expressions;
 /// <summary>
 /// An explicit cast written in source, as <c>(Kelvin)celsius</c>. Which conversion it performs is
 /// Mist's decision, so <see cref="Operator"/> is resolved at binding by
-/// <see cref="Construction.Binding.CastOperatorSelection"/> rather than left to the emitted C#, which
+/// <see cref="CastOperatorSelection"/> rather than left to the emitted C#, which
 /// chooses among operators by rules of its own.
 /// <para>
 /// No emitter reads it. C# refuses to call a conversion operator by name (CS0571), leaving a cast as
@@ -45,6 +46,8 @@ internal sealed class CastExpression(
     public CastOperator? Operator { get; } = bestOperators is [var called] ? called.Operator : null;
 
     public IReadOnlyList<CastOperator> AmbiguousOperators { get; } = bestOperators.Count > 1 ? [.. bestOperators.Select(function => function.Operator)] : [];
+
+    public TypeSubstitution OperatorClosing { get; } = bestOperators is [var called] ? called.Closing : TypeSubstitution.Empty;
 
     public override IMistType Type { get; } = resultType;
 

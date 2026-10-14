@@ -161,6 +161,25 @@ internal sealed class FormattingFragments
         return (type, plus);
     }
 
+    public (ClassType Owner, CastOperator Conversion) GenericConversion(string name)
+    {
+        var (type, parameter) = GenericClass(name, "T");
+        var conversion = new CastOperator(Text, new Parameter("value", Constructed(type, parameter)), false, Public with { IsStatic = true })
+        {
+            DeclaringType = type,
+            Body = Returning(Interpolate(Item(parameter))),
+        };
+        type.CastOperatorsList.Add(conversion);
+        return (type, conversion);
+    }
+
+    public Method Casts(string name, CastOperator conversion, IMistType operand, ConstructedType owner, int offset)
+    {
+        var function = new ConversionFunction(conversion, owner, Text) { Closing = TypeSubstitution.ForReceiver(owner) };
+        var cast = new CastExpression(HandBuiltModel.Node(offset), Value(operand), Text, [function], Text);
+        return Member(name, isReadonly: true, Returning(cast));
+    }
+
     public (ClassType Cell, Operator Plus) StorageOperator(string name, bool writes, bool declaredPure = false)
     {
         var (type, parameter) = GenericClass(name, "T");

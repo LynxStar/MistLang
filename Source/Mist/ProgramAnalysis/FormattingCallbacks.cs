@@ -93,11 +93,11 @@ internal sealed class FormattingCallbacks
                 break;
 
             case CastExpression { Operator: { Modifiers.IsIntrinsic: false } conversion } cast:
-                yield return ThroughOperands(conversion, cast, cast.Operand.Type, cast.Type);
+                yield return new FormatUse(conversion, conversion.Modifiers, conversion.DeclaringType, cast, cast.OperatorClosing);
                 break;
 
             case ImplicitConversionExpression { Operator: { Modifiers.IsIntrinsic: false } conversion } converted:
-                yield return ThroughOperands(conversion, converted, converted.Operand.Type, converted.Type);
+                yield return new FormatUse(conversion, conversion.Modifiers, conversion.DeclaringType, converted, converted.OperatorClosing);
                 break;
 
             case PropertyReferenceExpression { Property: { Getter: { } getter } property } read:
@@ -303,13 +303,6 @@ internal sealed class FormattingCallbacks
         }
 
         return false;
-    }
-
-    private static FormatUse ThroughOperands(Method member, Expression at, params IMistType[] operands)
-    {
-        var closing = operands.Select(Constructed).FirstOrDefault(constructed => ReferenceEquals(constructed?.Definition, member.DeclaringType));
-
-        return new FormatUse(member, member.Modifiers, member.DeclaringType, at, TypeSubstitution.ForReceiver(closing));
     }
 
     private static TypeSubstitution Inherited(IMistType? receiver, MemberType? declaring)

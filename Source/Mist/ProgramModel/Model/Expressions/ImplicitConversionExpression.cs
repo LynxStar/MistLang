@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Storm.Runtime;
@@ -26,6 +27,8 @@ internal sealed class ImplicitConversionExpression(
     public IReadOnlyList<CastOperator> AmbiguousOperators { get; } = bestOperators.Count > 1 ? [.. bestOperators.Select(function => function.Operator)] : [];
 
     public IMistType? ParameterType { get; } = bestOperators is [var called] ? called.Parameter : null;
+
+    public TypeSubstitution OperatorClosing { get; } = bestOperators is [var called] ? called.Closing : TypeSubstitution.Empty;
 
     public override IMistType Type { get; } = bestOperators is [var called] ? called.Result : targetType;
 }

@@ -277,6 +277,25 @@ public sealed class ReadonlyFormattingClosingTests
         Assert.Equal(61, finding.Location.Start.Column);
     }
 
+    [Theory]
+    [InlineData(true, 1)]
+    [InlineData(false, 0)]
+    public void AReadonlyMemberCastingThroughAnInheritedGenericConversion_IsJudgedByItsBaseClause(bool mutable, int findings)
+    {
+        var (shown, conversion) = f.GenericConversion("Shown");
+        var argument = mutable ? f.Box : f.Calm;
+        var derived = f.Derived("Derived", shown, argument);
+
+        var found = f.Analyze(conversion, f.Casts("Look", conversion, derived, f.Constructed(shown, argument), offset: 60));
+
+        Assert.Equal(findings, found.Count);
+        Assert.All(found, finding =>
+        {
+            Assert.Equal(CallsMutable, finding.Id.Value);
+            Assert.Equal(61, finding.Location.Start.Column);
+        });
+    }
+
     [Fact]
     public void AReadonlyMemberFormattingAMutableFormatterDirectly_KeepsItsRefusal()
     {

@@ -175,7 +175,10 @@ internal static class ConversionRelation
             yield return new ConversionFunction(
                 castOperator,
                 substitution.Apply(castOperator.SourceParameter.Type, interner: null),
-                substitution.Apply(castOperator.TargetType, interner: null));
+                substitution.Apply(castOperator.TargetType, interner: null))
+            {
+                Closing = substitution,
+            };
         }
 
         if(declaring.BaseType is not { } baseType)

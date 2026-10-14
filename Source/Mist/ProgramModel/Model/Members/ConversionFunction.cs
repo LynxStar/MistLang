@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model.Members;
@@ -7,4 +8,7 @@ namespace Mist.ProgramModel.Model.Members;
 /// type parameters, so the parameter a call's argument must reach and the result it produces are the
 /// declaration's, substituted through the arguments of the constructed type the operator was found on.
 /// </summary>
-internal sealed record ConversionFunction(CastOperator Operator, IMistType Parameter, IMistType Result);
+internal sealed record ConversionFunction(CastOperator Operator, IMistType Parameter, IMistType Result)
+{
+    public TypeSubstitution Closing { get; init; } = TypeSubstitution.Empty;
+}

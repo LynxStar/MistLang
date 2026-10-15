@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -81,6 +82,40 @@ public sealed class BaseConstructorRefusalTests
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
 
         Assert.Contains("Base class 'BaseContainer<T>'", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, true)]
+    public void UnchainedConstructorOverAPackTakingBase_IsRefusedUnlessTheBaseClauseClosesThePackEmpty(int width, bool refused)
+    {
+        var fragment = new DeclarationFragments();
+        var meter = fragment.Class("Meter<>");
+        var pack = DeclarationFragments.Parameter(meter, meter.Scope, "Ts");
+        pack.PackKind = TypePackKind.Unbracketed;
+        meter.ConstructorsList.Add(new Constructor("Meter", meter, [new Parameter("readings", new TupleType([new SpreadType(pack)])) { IsFlattened = true }], DeclarationFragments.Public)
+        {
+            DeclaringType = meter,
+            DeclarationNode = HandBuiltModel.Node(30),
+        });
+        var dial = fragment.Class("Dial");
+        var elements = Enumerable.Repeat<IMistType>(fragment.Built.Type("Int32"), width).ToList();
+        dial.BaseType = fragment.Built.Interner.GetOrCreateConstructedType(meter, [new LiftedType(fragment.Built.Type("Type"), new TypePackValue(elements))]);
+        Declare(dial, ConstructorChainKind.None, 60);
+
+        var findings = fragment.Run(new DeclarationShapeAnalyzer());
+
+        if(refused)
+        {
+            var finding = Assert.Single(findings);
+            Assert.Equal("MIST_PA_BASE_CTOR_UNSATISFIED", finding.Id.Value);
+            Assert.Equal(61, finding.Location.Start.Column);
+            Assert.Contains("Meter", finding.Message, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Empty(findings);
+        }
     }
 
     [Fact]

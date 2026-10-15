@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -108,6 +109,38 @@ public sealed class StructImplicitChainsTests
         {
             Assert.Same(selected, ImplicitChains.Of(dial));
             Assert.Null(ImplicitChains.UnsatisfiedStructBase(constructor));
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void ConstructedPackBase_IsAnImplicitTargetOnlyWhereTheBaseClauseClosesThePackEmpty(int width)
+    {
+        var built = new HandBuiltModel();
+        var meter = new StructType("Meter<>", "Probe", new Scope(null), null, null);
+        var pack = new TypeParameter("Ts", 0, meter.Scope, meter) { PackKind = TypePackKind.Unbracketed };
+        meter.TypeParametersList.Add(pack);
+        var selected = new Constructor("Meter", meter, [new Parameter("readings", new TupleType([new SpreadType(pack)])) { IsFlattened = true }], Public)
+        {
+            DeclaringType = meter,
+        };
+        meter.ConstructorsList.Add(selected);
+        var dial = HandBuiltModel.Struct("Dial");
+        var elements = Enumerable.Repeat<IMistType>(built.Type("Int32"), width).ToList();
+        var constructed = built.Interner.GetOrCreateConstructedType(meter, [new LiftedType(built.Type("Type"), new TypePackValue(elements))]);
+        dial.BaseType = constructed;
+        var constructor = Add(dial);
+
+        if(width == 0)
+        {
+            Assert.Same(selected, ImplicitChains.Of(dial));
+            Assert.Null(ImplicitChains.UnsatisfiedStructBase(constructor));
+        }
+        else
+        {
+            Assert.Null(ImplicitChains.Of(dial));
+            Assert.Same(constructed, ImplicitChains.UnsatisfiedStructBase(constructor));
         }
     }
 

@@ -131,7 +131,69 @@ public sealed class ImplicitChainsTests
         }
     }
 
+    [Theory]
+    [InlineData("public:pack", "[]", "public:pack")]
+    [InlineData("public:pack", "[int]", "nothing")]
+    [InlineData("public:pack", "[int, string]", "nothing")]
+    [InlineData("public:pack", "Us...", "nothing")]
+    [InlineData("public:pack", "Us", "nothing")]
+    [InlineData("public:pack public:none", "[int]", "public:none")]
+    [InlineData("public:int public:pack", "[]", "public:pack")]
+    [InlineData("private:pack", "[]", "nothing")]
+    public void UnchainedConstructorOverAPackTakingBase_RunsItOnlyWhereTheBaseClauseClosesThePackEmpty(
+        string constructors, string closing, string expected)
+    {
+        var (derived, baseType, written) = PackDerivation(constructors, closing);
+
+        Assert.Equal(expected, Describe(ImplicitChains.Of(derived), baseType));
+
+        if(expected == "nothing")
+        {
+            Assert.Same(written, ImplicitChains.UnsatisfiedBase(derived.ConstructorsList[0]));
+        }
+        else
+        {
+            Assert.Null(ImplicitChains.UnsatisfiedBase(derived.ConstructorsList[0]));
+        }
+    }
+
     private static MemberModifiers Public => DeclarationFragments.Public;
+
+    private (ClassType Derived, ClassType Base, ConstructedType Written) PackDerivation(string constructors, string closing)
+    {
+        var baseType = new ClassType("Meter<>", "Probe", new Scope(null), null, null);
+        var pack = new TypeParameter("Ts", 0, baseType.Scope, baseType) { PackKind = TypePackKind.Unbracketed };
+        baseType.TypeParametersList.Add(pack);
+
+        foreach(var spec in constructors.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            baseType.ConstructorsList.Add(BaseConstructor(baseType, spec, pack));
+        }
+
+        var derived = HandBuiltModel.Class("Dial");
+        var own = new TypeParameter("Us", 0, derived.Scope, derived) { PackKind = TypePackKind.Unbracketed };
+        IMistType argument = closing switch
+        {
+            "Us" => own,
+            "Us..." => Pack([new SpreadType(own)]),
+            _ => Pack([.. closing.Trim('[', ']').Split(", ", StringSplitOptions.RemoveEmptyEntries).Select(name => built.Type(name == "int" ? "Int32" : "String"))]),
+        };
+
+        if(closing.StartsWith("Us", StringComparison.Ordinal))
+        {
+            derived.TypeParametersList.Add(own);
+        }
+
+        var written = built.Interner.GetOrCreateConstructedType(baseType, [argument]);
+        derived.BaseType = written;
+        derived.ConstructorsList.Add(Unchained(derived));
+        return (derived, baseType, written);
+    }
+
+    private LiftedType Pack(List<IMistType> elements)
+    {
+        return new LiftedType(built.Type("Type"), new TypePackValue(elements));
+    }
 
     private (ClassType Derived, ClassType Base) Derivation(string constructors)
     {
@@ -147,7 +209,7 @@ public sealed class ImplicitChainsTests
         return (derived, baseType);
     }
 
-    private Constructor BaseConstructor(ConcreteType owner, string spec)
+    private Constructor BaseConstructor(ConcreteType owner, string spec, TypeParameter? pack = null)
     {
         var access = spec.Split(':')[0];
         var shape = spec.Split(':')[1];
@@ -156,6 +218,7 @@ public sealed class ImplicitChainsTests
         {
             "none" => [],
             "params" => [new Parameter("readings", integer) { IsFlattened = true }],
+            "pack" => [new Parameter("readings", new TupleType([new SpreadType(pack!)])) { IsFlattened = true }],
             _ => [.. shape.Split(',').Select((_, i) => new Parameter($"reading{i}", integer))],
         };
 

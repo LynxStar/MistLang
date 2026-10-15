@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -146,11 +147,9 @@ internal static class ConstructorEmitter
         }
 
         if(!loweredToCall && constructor.ChainKind == ConstructorChainKind.None && !constructor.Modifiers.IsStatic
-            && concrete?.BaseType is { } baseType
-            && ProgramModel.Construction.Defaultability.DeclarationOf(baseType) is { } baseDeclaration
-            && DefaultWitnesses.ConstructionArguments(baseDeclaration, baseType) is { Count: > 0 } baseWitnesses)
+            && concrete?.BaseType is { } baseType)
         {
-            writer.Append($" : base({string.Join(", ", baseWitnesses)})");
+            EmitImplicitChain(concrete, baseType, writer, diagnostics);
         }
 
         writer.AppendLine();
@@ -179,6 +178,40 @@ internal static class ConstructorEmitter
         }
 
         StatementHost.EmitMethods(hosted, writer, diagnostics);
+    }
+
+    /// <summary>
+    /// The clause an omitted chain stands for, written only where C#'s own implicit <c>base()</c>
+    /// would pass too little: the base's witnesses, and the empty tuple that a value-pack parameter
+    /// closed to no elements still receives, C# having no convention that packs nothing into it.
+    /// </summary>
+    private static void EmitImplicitChain(ConcreteType derived, MistType baseType, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var reached = ImplicitChains.Of(derived) as Constructor;
+        var closing = TypeSubstitution.ForReceiver(baseType as ConstructedType);
+        var forwarded = ProgramModel.Construction.Defaultability.DeclarationOf(baseType) is { } baseDeclaration
+            ? DefaultWitnesses.ConstructionArguments(baseDeclaration, baseType) ?? []
+            : [];
+        forwarded.AddRange(reached is null
+            ? []
+            : ContextKeyWitnesses.Arguments(reached, ContextBinding.TypesOf(reached, key => closing.Apply(key, interner: null))));
+        var packs = reached?.ParametersList is [{ IsFlattened: true, Type: TupleType or NamedTupleType }];
+
+        if(forwarded.Count == 0 && !packs)
+        {
+            return;
+        }
+
+        writer.Append($" : base({string.Join(", ", forwarded)}");
+
+        if(packs)
+        {
+            writer.Append(forwarded.Count > 0 ? ", " : "");
+            BodyEmitter.EmitArguments([], reached!.ParametersList,
+                reached.ParametersList.ConvertAll(parameter => closing.Apply(parameter.Type, interner: null)), writer, diagnostics, reached);
+        }
+
+        writer.Append(")");
     }
 
     private static string ResolveModifiers(Constructor constructor, MemberType declaringType)

@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -22,16 +23,33 @@ internal static class ImplicitChains
 
         var declared = type.ConstructorsList.FindAll(candidate => !candidate.Modifiers.IsStatic);
 
-        return declared.Count == 0 ? type : CalledWithNothing(declared, derived);
+        return declared.Count == 0 ? type : CalledWithNothing(declared, derived, baseType);
     }
 
-    public static Constructor? CalledWithNothing(List<Constructor> candidates, MistType from)
+    public static Constructor? CalledWithNothing(List<Constructor> candidates, MistType from, IMistType? target = null)
     {
         var reachable = candidates.FindAll(candidate => candidate.DeclaringType is not { } declaring
             || AccessDomains.Admits(from, from.Assembly, candidate.Modifiers.Accessibility, declaring));
+        var closing = TypeSubstitution.ForReceiver(target as ConstructedType);
 
         return reachable.Find(candidate => candidate.ParametersList.Count == 0)
-            ?? reachable.Find(candidate => candidate.ParametersList is [{ IsFlattened: true }]);
+            ?? reachable.Find(candidate => candidate.ParametersList is [{ IsFlattened: true } sole] && AbsorbsNothing(closing.Apply(sole.Type, interner: null)));
+    }
+
+    /// <summary>
+    /// Whether a flattened parameter takes an empty argument list once the base clause has closed it.
+    /// The homogeneous form always collects an empty array; a value pack takes nothing only when it is
+    /// closed to no elements, since one still open stands for every width, and the chain has to hold
+    /// at each of them.
+    /// </summary>
+    private static bool AbsorbsNothing(IMistType closed)
+    {
+        return closed switch
+        {
+            TupleType tuple => tuple.ElementTypes.Count == 0,
+            NamedTupleType named => named.ElementTypes.Count == 0,
+            _ => true,
+        };
     }
 
     public static MistType? UnsatisfiedBase(Constructor constructor)

@@ -1025,6 +1025,7 @@ sum=10
 sumEmpty=0
 widths=2210
 abstractCountOne=1 describeOne=1 describeZero=0
+emptyPackChain=0 0
 === Variadics Done ===
 === ArrayBoundsFlowAnalysis Sample ===
 --- 1. Literal indices on concrete arrays ---

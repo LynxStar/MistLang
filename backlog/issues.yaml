@@ -1179,7 +1179,17 @@ issues:
       kind mismatch, tuple newtypes). Exact residual shapes were not freshly probed. Packet 06 ownership
       covers constraints/union specialization but does not by itself prove all these shapes.
     source_symbols: []
+  - revision: MIST-240 closure commits containing this entry, based on 3d60a320c9a6ae5da11685c838a15decfe5c4ae7
+    date: '2026-10-15'
+    kind: cross-reference
+    detail: 'The one variadic self-receiver route demonstrated here, Same(this) inside class Bundle<params Ts> for
+      static Bundle<Ts...> Same(Bundle<Ts...> value), reported MIST_PA_NO_IMPLICIT_CONVERSION from Bundle to
+      Bundle<[Ts...]> at 3d60a320 and is delivered under MIST-240: this carries the symbolic pack slot until
+      specialization, proven at widths 0, 1, 2 and 9. The spread-typed parameter, spread into a non-pack slot, variadic
+      method inside a variadic type or extension, pack type-length narrowing, constructor-chain spread and base-list
+      spread shapes were not probed and remain this record''s residue.'
   related:
+  - MIST-240
   - variadics general/body trackers
   - packet 06 monomorph constraints/union
   priority_rationale: Preserve the unresolved lead without counting it as a proven defect.
@@ -6064,6 +6074,12 @@ issues:
     detail: 'Fails identically, expected "mode L.Inner {\n" against actual "mode L.Inner {\r\n" at position 4, in full ledger
       20261015-003416 and in the final full ledger 20261015-004718, with Storm unchanged at 83410653 and the test file unmodified; packet 40
       does not touch Storm and every other test of the four assemblies passed (10709 then 10746, 115, 46 and 909).'
+  - revision: MIST-240 closure commits containing this entry, based on 3d60a320c9a6ae5da11685c838a15decfe5c4ae7
+    date: '2026-10-15'
+    kind: executed full ledger on a Windows host during packet 41
+    detail: 'Fails identically in ledger TestResults/ledger/20261015-005152 (storm.sourcegenerator.tests.dll 909 of 910, expected
+      "mode L.Inner {\n" against actual "mode L.Inner {\r\n" at NamespacedImportTests.cs line 71) while every Mist.Tests,
+      Mist.CLI.Tests and Storm.ConsumerIntegration.Tests test passed. The packet touched no Storm source and the pin stayed 83410653; the rerun on the tree rebased onto d78b635c, ledger TestResults/ledger/20261015-005716, failed the same way (909 of 910) with 10778, 115 and 46 passed elsewhere.'
   related:
   - packet 25 Storm grammar semantics (Storm 83410653)
   priority_rationale: A deterministic red full-suite result on Windows hosts hides real failures there.
@@ -6202,14 +6218,38 @@ issues:
   priority: P2
   priority_rationale: Invalid program reaches the target compiler.
   area: binding
+- id: MIST-243
+  title: Spell an intrinsic construction closed with unknown as dynamic
+  status: confirmed
+  summary: 'TypeNameEmitter spells an intrinsic definition through ClrSpelling before the arm that spells a construction bearing unknown as dynamic, so List<unknown> widened = list; emits System.Collections.Generic.List<object> and Roslyn refuses the List<int> conversion, while a Mist class closed the same way is dynamic and runs. Expected: the dynamic spelling applies to every construction bearing unknown at a non-dependent position, intrinsic definitions included, or the widening into an intrinsic construction is refused where Mist admits it; which of the two is an unknown representation decision this record holds open.'
+  source_refs: []
+  evidence:
+  - revision: e1177d05ae6c2b564bd89f7ee6fa16b002b070dd
+    date: '2026-10-14'
+    kind: executed CLI probe
+    source: 'using Standard; namespace Probe; public class Program { public static void Main() { var list = new List<int>(); list.Add(3); List<unknown> widened = list; Console.WriteLine($"{widened.Count}"); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'out\Probe\Program.cs: error MIST_CS_ERROR: Cannot implicitly convert type ''System.Collections.Generic.List<int>'' to ''System.Collections.Generic.List<object>'''
+    source_symbols:
+    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/TypeNameEmitter.cs
+      symbol: the ClrSpelling arm precedes the ContainsUnknown arm
+    detail: 'Found while closing MIST-086, whose filter already hides List<unknown>.Add and the indexer setter and keeps Count; the unknown representation is excluded from that packet.'
+  related:
+  - MIST-086
+  priority: P3
+  priority_rationale: A widening Mist admits reaches the target compiler as an error.
+  area: backend
+archive:
 - id: MIST-240
   title: '`this` in a generic type''s own body is typed as the bare definition'
-  status: confirmed
-  summary: 'Inside class Tag<T>, this binds with the definition Tag rather than its self-construction Tag<T>, so it
-    reaches no parameter or operand declared Tag<T>: Same(this) for static Tag<T> Same(Tag<T> other) reports
-    MIST_PA_NO_IMPLICIT_CONVERSION from Tag to Tag<T>, and this + this over an operator declared on Tag<T> reports
-    MIST_PA_OPERATOR_NOT_APPLICABLE for Tag and Tag. A parameter or local declared Tag<T> works. Expected: this is a
-    value of the type''s self-construction wherever that construction is expected.'
+  status: implemented
+  summary: 'Delivered 2026-10-15: inside a generic declaration''s own body, this is a value of the declaration
+    applied to its own parameters -- the interned Tag<T>, Bundle<[Ts...]> with the pack filling its slot as its own
+    spread, or a nested Inner<U> over its own parameter with no enclosing instantiation -- so Same(this), this + this,
+    a Tag<T> local, a method group over this and a widening to Box<unknown> bind as they do for a parameter declared
+    Tag<T>. Before, this carried the bare definition and each such site reported MIST_PA_NO_IMPLICIT_CONVERSION or
+    MIST_PA_OPERATOR_NOT_APPLICABLE.'
   source_refs: []
   evidence:
   - revision: e0f5e8bc59399f651624a52a8c08155987f9b133
@@ -6242,35 +6282,27 @@ issues:
     exit_code: 1
     observed: 'MIST_PA_NO_IMPLICIT_CONVERSION: Cannot implicitly convert type ''Box'' to ''Box<unknown>'' at e.UsesLater(this), where a Box<T> parameter in its place widens.'
     detail: 'Seen again while closing MIST-086: the covariant widening to a construction closed with unknown is refused for this for the same reason, since the bare definition is not a construction.'
+  - revision: MIST-240 closure commits containing this entry, based on 3d60a320c9a6ae5da11685c838a15decfe5c4ae7
+    date: '2026-10-15'
+    kind: implementation and executed verification
+    implementation:
+    - 'SelfConstruction.Of (ProgramModel/Construction/Resolution) builds a generic definition''s self construction through the interner: each ordinary parameter stands for itself and each pack fills its slot as LiftPack(domain, [Ts...]), the slot BindPack produces for the written Bundle<Ts...>, with no enclosing instantiation, matching how a body''s own type references resolve (ScopeResolver.InheritedEnclosing). A non-generic definition, nested under a generic or not, stays itself.'
+    - 'ExpressionBinder.BindThis applies it when the scope chain answers with a type''s definition; a receiver a ReceiverScope supplies already typed, as a clone body''s is, is kept as supplied. TypeScope, ConstructionScope, ConstructedType, TypeSubstitution and every call, operator, conversion, member-access, method-group and effect consumer are unchanged: the receiver now carries the construction they already handle, so no Method, Operator or TypeParameter is manufactured.'
+    acceptance:
+    - 'Packet probes at the closure revision: Tag<T>.Me returning Same(this) prints 7; Bundle<params Ts>.Me prints ok; Outer<T>.Inner<U>.Me through Outer<int>.Make() prints ok; the typed Tag<T> parameter control prints 7 and the Child<T>:Base<(T,int)> control prints ok, both unchanged. At 3d60a320 before the fix the three reported MIST_PA_NO_IMPLICIT_CONVERSION from Tag, Bundle and Inner to Tag<T>, Bundle<[Ts...]> and Inner<U>.'
+    - 'samples/GenericSelfReceivers, banked in AllFeaturesV2 (V2-only provenance in samples/CLAUDE.md), runs Same(this), this assigned to a Tag<T> local, Same(this) under a method type parameter sharing ordinal zero, this + this through the declared operator, a property body, a method group over this.Me, explicit this.Held beside bare Held, a constructor body, Bundle<params Ts> at widths 0, 1, 2 and 9, Both<T, params Ts>, a generic Inner<U> and a non-generic Plain nested under Outer<T>, Child<T>:Base<(T, int)>, a generic struct Pair<T>, an abstract default body inferring Holders.Same<T>(this), and this widening to Box<unknown>.'
+    - 'Tier 1 SelfConstructionTests (a non-generic and a nested non-generic stay themselves, the interned Tag<T>, a struct definition kept, unbracketed and bracketed pack slots, a fixed slot beside a pack, a pack with no resolved domain, a nested generic over its own ordinal-zero T distinct from the outer T with no enclosing) and ReceiverLookupTests (instance member, nested type, static member, initializer, no type, supplied receiver kept). Tier 2 ThisBindingTests over hand-built scopes (interned self construction, bare non-generic, pack slot identical to the written Bundle<Ts...>, nested own parameter, Same(this) selecting the source method with the same interned parameter type, a ReceiverScope receiver kept, MIST_PM_THIS_IN_STATIC and MIST_PM_THIS_OUTSIDE_TYPE retained). Tier 3 GenericSelfReceiverTests on the model (Same(this) and Same(typed) select one Method with one parameter type, this + this and other + other select one Operator with the same closed parameters, constructor and accessor agree with the method, pack owner, nested generic with null enclosing, non-generic nested, inherited Base<(T, Int32)>.Same through Child<T>, generic struct, abstract default body inferring Holder<T>).'
+    verification:
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format Mist.slnx --verify-no-changes and git diff --check clean. Full regression through tools/test-ledger/run.sh on the integrated tree (Storm 83410653) on a Windows host, ledger TestResults/ledger/20261015-005152: Mist.Tests 10741 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed and Storm.SourceGenerator.Tests 909 of 910, the one failure being MIST-226''s Windows newline test (sighting recorded there); summary.txt and failures.txt read. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed within that run, and samples/GenericSelfReceivers through the CLI printed its eleven baseline lines with no diagnostics. The packet''s focused filter over ConstructedGenericMemberAccessTests, NestedTypeResolutionTests, InheritedGenericMemberTests, InheritedGenericMethodTests, PackForwardingTests, NestedGenericTypeEmissionTests, PackForwardingEmissionTests and ThisLendInferenceTests plus the four new classes is 111 tests, all green in that ledger. Rerun on the integrated tree rebased onto main d78b635c, ledger TestResults/ledger/20261015-005716: Mist.Tests 10778 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed and Storm.SourceGenerator.Tests 909 of 910, the same MIST-226 test being the one failure; build 0 warnings, format and git diff --check clean.'
+    limitations:
+    - 'NewtypeConversions.CloneMethod keeps its own open construction over the bare parameter list when matching a clonable source against IClonable, so a pack-generic clonable source is not matched against IClonable<Bundle<[Ts...]>>; cloning policy is unchanged here by design.'
+    - 'An extension block body names its receiver by the parameter it declares rather than by this, so extension receiver typing is outside this record; receivers a ReceiverScope supplies are kept as supplied.'
   related:
   - MIST-100
   - MIST-086
   priority: P3
   priority_rationale: A valid program using this as its own generic construction is refused.
   area: binding
-- id: MIST-243
-  title: Spell an intrinsic construction closed with unknown as dynamic
-  status: confirmed
-  summary: 'TypeNameEmitter spells an intrinsic definition through ClrSpelling before the arm that spells a construction bearing unknown as dynamic, so List<unknown> widened = list; emits System.Collections.Generic.List<object> and Roslyn refuses the List<int> conversion, while a Mist class closed the same way is dynamic and runs. Expected: the dynamic spelling applies to every construction bearing unknown at a non-dependent position, intrinsic definitions included, or the widening into an intrinsic construction is refused where Mist admits it; which of the two is an unknown representation decision this record holds open.'
-  source_refs: []
-  evidence:
-  - revision: e1177d05ae6c2b564bd89f7ee6fa16b002b070dd
-    date: '2026-10-14'
-    kind: executed CLI probe
-    source: 'using Standard; namespace Probe; public class Program { public static void Main() { var list = new List<int>(); list.Add(3); List<unknown> widened = list; Console.WriteLine($"{widened.Count}"); } }'
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: 'out\Probe\Program.cs: error MIST_CS_ERROR: Cannot implicitly convert type ''System.Collections.Generic.List<int>'' to ''System.Collections.Generic.List<object>'''
-    source_symbols:
-    - file: Source/Mist/Backends/CSharpTranspiler/Emitter/TypeNameEmitter.cs
-      symbol: the ClrSpelling arm precedes the ContainsUnknown arm
-    detail: 'Found while closing MIST-086, whose filter already hides List<unknown>.Add and the indexer setter and keeps Count; the unknown representation is excluded from that packet.'
-  related:
-  - MIST-086
-  priority: P3
-  priority_rationale: A widening Mist admits reaches the target compiler as an error.
-  area: backend
-archive:
 - id: MIST-086
   title: Revalidate member filtering for readonly generic storage
   status: implemented

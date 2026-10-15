@@ -4,7 +4,7 @@ The `default` keyword in Mist produces the default value for a given type. It co
 
 Not all types support `default`. Mist separates two distinct concepts:
 
-- **Default (data)**: A deterministic template. The type's own constructors never run: a default is built from its field initializers and its `default` block, which must be [pure](./purity.md#where-mist-requires-purity), so taking a default has no side effects and every default of a type starts in the same state.
+- **Default (data)**: A deterministic template. The type's own constructors never run: a default is built from its field initializers and its `default` block, which must be [pure](./purity.md#where-mist-requires-purity), so taking a default has no side effects and every default of a type starts in the same state. A property's setter does not run either: a default writes the property's backing storage directly, so a setter that validates or logs sees nothing until the program assigns the property itself.
 - **Constructor / `new()` (behavior)**: Explicit initialization logic that may perform IO, fail, or depend on external state.
 
 A type that supports the `default` operator is called **defaultable**. A type that does not is **non-defaultable** — and that is a perfectly valid state. The compiler does not force every type to have a meaningful zero value.

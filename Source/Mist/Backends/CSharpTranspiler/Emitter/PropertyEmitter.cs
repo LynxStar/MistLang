@@ -5,7 +5,8 @@ using Mist.ProgramModel.Model.Members;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// Emits a property declaration: modifiers, type, name, accessors and any initializer.
+/// Emits a property declaration: modifiers, type, name, accessors and any initializer, after the
+/// backing field it declares (<see cref="BackingStorage"/>), which then carries the initializer.
 /// </summary>
 internal static class PropertyEmitter
 {
@@ -20,7 +21,10 @@ internal static class PropertyEmitter
 
         using var constructionScope = property.Modifiers.IsStatic ? ConstructorWitnesses.NativeScope() : null;
         var modifiers = MemberModifierEmitter.Emit(property.Modifiers, emitReadonly);
-        var declaration = $"{modifiers}{TypeNameEmitter.Emit(property.Type)} {property.Name}";
+        var typeName = TypeNameEmitter.Emit(property.Type);
+        var declaration = $"{modifiers}{typeName} {property.Name}";
+        var storage = BackingStorage.DeclaredField(property);
+        var hosted = storage is null ? null : EmitDeclaredField(property, storage, typeName, writer, diagnostics);
 
         AttributeEmitter.EmitLines(property.DeclaredAttributesList, writer, diagnostics);
 
@@ -33,7 +37,7 @@ internal static class PropertyEmitter
             writer.WriteLine(declaration);
             writer.WriteLine("{");
             writer.Indent();
-            EmitAccessors(property, readonlyGetter, writer, diagnostics);
+            EmitAccessors(property, readonlyGetter, storage, writer, diagnostics);
             writer.Dedent();
 
             // Written by hand rather than through CSharpWriter.Block, whose closing brace ends its
@@ -41,9 +45,7 @@ internal static class PropertyEmitter
             writer.Write("}");
         }
 
-        StatementHost.Hosted? hosted = null;
-
-        if(property.Initializer is { } initializer && (property.Modifiers.IsStatic || !DefaultWitnesses.Deferred(initializer)))
+        if(storage is null && property.Initializer is { } initializer && (property.Modifiers.IsStatic || !DefaultWitnesses.Deferred(initializer)))
         {
             writer.Append(" = ");
             hosted = StatementHost.Emit(initializer, $"__Initialize{property.Name}", property.Type, [], writer, diagnostics);
@@ -52,6 +54,25 @@ internal static class PropertyEmitter
 
         writer.AppendLine();
         StatementHost.EmitMethods(hosted is null ? [] : [hosted], writer, diagnostics);
+    }
+
+    private static StatementHost.Hosted? EmitDeclaredField(
+        Property property, string name, string typeName, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var isStatic = property.Modifiers.IsStatic;
+        var modifiers = isStatic ? "private static " : property.DeclaringType is { IsReadonly: true } ? "private readonly " : "private ";
+
+        if(property.Initializer is null || (!isStatic && DefaultWitnesses.Deferred(property.Initializer)))
+        {
+            writer.WriteLine($"{modifiers}{typeName} {name};");
+            return null;
+        }
+
+        writer.Write($"{modifiers}{typeName} {name} = ");
+        var hosted = StatementHost.Emit(property.Initializer, $"__Initialize{property.Name}", property.Type, [], writer, diagnostics);
+        writer.Append(";");
+        writer.AppendLine();
+        return hosted;
     }
 
     private static string InlineAccessors(Property property)
@@ -72,16 +93,30 @@ internal static class PropertyEmitter
     }
 
     private static void EmitAccessors(
-        Property property, bool readonlyGetter, CSharpWriter writer, DiagnosticBag diagnostics)
+        Property property, bool readonlyGetter, string? storage, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         if(property.Getter is { } getter)
         {
-            AccessorEmitter.Emit(getter, isSetter: false, readonlyGetter, writer, diagnostics, property.Type);
+            if(storage is not null && AccessorEmitter.IsBodiless(getter))
+            {
+                AccessorEmitter.EmitOverStorage(getter, isSetter: false, readonlyGetter, storage, writer);
+            }
+            else
+            {
+                AccessorEmitter.Emit(getter, isSetter: false, readonlyGetter, writer, diagnostics, property.Type);
+            }
         }
 
         if(property.Setter is { } setter)
         {
-            AccessorEmitter.Emit(setter, isSetter: true, isReadonly: false, writer, diagnostics);
+            if(storage is not null && AccessorEmitter.IsBodiless(setter))
+            {
+                AccessorEmitter.EmitOverStorage(setter, isSetter: true, isReadonly: false, storage, writer);
+            }
+            else
+            {
+                AccessorEmitter.Emit(setter, isSetter: true, isReadonly: false, writer, diagnostics);
+            }
         }
     }
 }

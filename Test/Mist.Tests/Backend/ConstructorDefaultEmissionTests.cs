@@ -239,6 +239,63 @@ public sealed class ConstructorDefaultEmissionTests
         Assert.Equal(admitsZero, text.Contains("this.Count = default(int);", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void StorageBehindACustomSetter_IsDefaultedByNameWhileTheBodyAssignsTheProperty()
+    {
+        var holder = shapes.Type("Holder");
+        var property = CustomSetter(holder, "Count", shapes.Integer);
+        var constructor = Declare(holder, body: HandBuiltModel.Block(new ExpressionStatement(
+            new AssignmentExpression(HandBuiltModel.Node(), new PropertyReferenceExpression(HandBuiltModel.Node(), property),
+                HandBuiltModel.Literal(shapes.Integer, 9L), shapes.Integer))));
+
+        var text = Emit(constructor, holder);
+
+        Assert.Contains("this.__Count_field = default(int);", text, StringComparison.Ordinal);
+        Assert.Contains("Count = 9;", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("__Count_field = 9;", text, StringComparison.Ordinal);
+        Assert.True(text.IndexOf("this.__Count_field =", StringComparison.Ordinal) < text.IndexOf("Count = 9;", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DeferredInitializerBehindACustomSetter_IsAssignedByName()
+    {
+        var holder = shapes.Type("Holder");
+        var parameter = Parameter(holder, defaultConstrained: true);
+        var property = CustomSetter(holder, "Item", parameter);
+        property.Initializer = new DefaultExpression(HandBuiltModel.Node(), parameter);
+
+        Assert.Contains("this.__Item_field = __default_T();", Emit(Constructor(holder), holder), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ThisChain_DoesNotRepeatStorageBehindACustomSetter()
+    {
+        var holder = shapes.Type("Holder");
+        _ = CustomSetter(holder, "Count", shapes.Integer);
+        var root = Constructor(holder, shapes.Integer);
+        var delegating = Declare(holder, chain: ConstructorChainKind.This);
+        delegating.ChainedConstructor = root;
+        delegating.ChainArgumentsList.Add(HandBuiltModel.Literal(shapes.Integer, 1L));
+
+        Assert.DoesNotContain("__Count_field", Emit(delegating, holder), StringComparison.Ordinal);
+        Assert.Contains("this.__Count_field = default(int);", Emit(root, holder), StringComparison.Ordinal);
+    }
+
+    private static Property CustomSetter(ConcreteType owner, string name, IMistType type)
+    {
+        var property = new Property(name, type, Public)
+        {
+            Getter = new PropertyAccessor { IsAuto = true },
+            Setter = new PropertyAccessor(),
+            DeclaringType = owner,
+        };
+        var node = HandBuiltModel.Node();
+        property.Setter!.ExpressionBody = new AssignmentExpression(node, new BackingFieldReferenceExpression(node, property), HandBuiltModel.Literal(type), type);
+        property.UsesBackingField = true;
+        owner.PropertiesList.Add(property);
+        return property;
+    }
+
     private EnumType Mode()
     {
         var mode = HandBuiltModel.Enum("Mode", shapes.Integer);

@@ -342,6 +342,11 @@ new Quiet() = q 7 trail=
 new Declared(0) = a trail=aC
 new Derived(0) = a x trail=xab
 new Mark(0) = 3 trail=pS
+--- Custom Setter: default writes storage ---
+default(Gauge) = 0 mm trail=
+new Gauge() = 0 mm trail=
+assigned = 5 cm trail=LU
+Reading = 0 0 trail=
 Done!
 === Abstract type with slots only ===
 Person: Alice, age 30

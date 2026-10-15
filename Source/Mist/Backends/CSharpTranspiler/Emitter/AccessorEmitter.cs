@@ -69,6 +69,11 @@ internal static class AccessorEmitter
         return $"{Header(accessor, isSetter, isReadonly: false)};";
     }
 
+    public static void EmitOverStorage(PropertyAccessor accessor, bool isSetter, bool isReadonly, string storage, CSharpWriter writer)
+    {
+        writer.WriteLine($"{Header(accessor, isSetter, isReadonly)} => {(isSetter ? $"{storage} = value" : storage)};");
+    }
+
     /// <summary>
     /// Whether this accessor emits as a bare <c>get;</c> with nothing to indent under it.
     /// </summary>

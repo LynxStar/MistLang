@@ -156,11 +156,11 @@ internal static class DefaultEmitter
 
             if(value is not null)
             {
-                BodyEmitter.EmitSequenced(value, $"this.{slot.Name} = ", writer, diagnostics);
+                BodyEmitter.EmitSequenced(value, $"this.{BackingStorage.Slot(slot)} = ", writer, diagnostics);
                 continue;
             }
 
-            writer.WriteLine($"this.{slot.Name} = {DefaultSynthesis.StorageZero(slot.Type)!};");
+            writer.WriteLine($"this.{BackingStorage.Slot(slot)} = {DefaultSynthesis.StorageZero(slot.Type)!};");
         }
     }
 
@@ -183,7 +183,7 @@ internal static class DefaultEmitter
             BodyEmitter.EmitSequenced(nested.Value, $"{local}.{nested.FieldName} = ", writer, diagnostics);
         }
 
-        writer.WriteLine($"this.{field.Name} = {local};");
+        writer.WriteLine($"this.{BackingStorage.Slot(field)} = {local};");
     }
 
     private static void SeparateMember(CSharpWriter writer, ref bool anyEmitted)

@@ -151,6 +151,51 @@ public struct Mark
     }
 }
 
+// ─── Custom setters are behavior; a default writes storage ───────────────────
+// PROOF: default(Gauge) and new Gauge() fill each property's backing storage directly, so the
+//        setters leave no trail; an explicit assignment still runs the setter exactly as written.
+public class Gauge
+{
+    public int Level
+    {
+        get
+        {
+            return field;
+        }
+        set
+        {
+            Log.Trail = Log.Trail + "L";
+            field = value;
+        }
+    }
+
+    public string Unit
+    {
+        get;
+        set
+        {
+            Log.Trail = Log.Trail + "U";
+            field = value;
+        }
+    } = "mm";
+}
+
+public struct Reading
+{
+    public int Value
+    {
+        get
+        {
+            return field;
+        }
+        set
+        {
+            Log.Trail = Log.Trail + "V";
+            field = value;
+        }
+    }
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 public class Program
@@ -214,6 +259,20 @@ public class Program
         Log.Trail = "";
         var mark = new Mark(0);
         Console.WriteLine($"new Mark(0) = {mark.X} trail={Log.Trail}");
+
+        Console.WriteLine("--- Custom Setter: default writes storage ---");
+        Log.Trail = "";
+        Gauge gauge = default(Gauge);
+        Console.WriteLine($"default(Gauge) = {gauge.Level} {gauge.Unit} trail={Log.Trail}");
+        var made = new Gauge();
+        Console.WriteLine($"new Gauge() = {made.Level} {made.Unit} trail={Log.Trail}");
+        made.Level = 5;
+        made.Unit = "cm";
+        Console.WriteLine($"assigned = {made.Level} {made.Unit} trail={Log.Trail}");
+        Log.Trail = "";
+        Reading reading = default(Reading);
+        var measured = new Reading();
+        Console.WriteLine($"Reading = {reading.Value} {measured.Value} trail={Log.Trail}");
 
         Console.WriteLine("Done!");
     }

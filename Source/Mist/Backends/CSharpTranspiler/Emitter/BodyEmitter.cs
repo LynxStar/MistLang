@@ -1677,8 +1677,8 @@ internal static class BodyEmitter
                     UnsafeReach.Implicit(propertyRef.Property)
                     ?? ReceiverSpelling.Qualifier(propertyRef.Property.DeclaringType, propertyRef.Property.Modifiers.IsStatic) + propertyRef.Property.Name);
                 break;
-            case BackingFieldReferenceExpression:
-                writer.Append("field");
+            case BackingFieldReferenceExpression backing:
+                writer.Append(BackingStorage.DeclaredField(backing.Property) ?? "field");
                 break;
 
             case NewExpression newExpression:

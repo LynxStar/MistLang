@@ -4,6 +4,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -100,6 +101,53 @@ public sealed class StorageDefaultEmissionTests
 
         Assert.DoesNotContain("this.Reading", emitted, StringComparison.Ordinal);
         Assert.Contains("this.Scale = default(int);", emitted, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PropertyWithAnAccessorOfItsOwn_IsAssignedThroughItsDeclaredBackingField(bool isStruct)
+    {
+        ConcreteType holder = isStruct ? HandBuiltModel.Struct("Holder") : HandBuiltModel.Class("Holder");
+        holder.PropertiesList.Add(CustomSetter("Count", integer));
+        holder.PropertiesList.Add(CustomSetter("Defaulted", Inner(), autoGetter: true));
+
+        var emitted = Emit(holder);
+
+        Assert.Contains("this.__Count_field = default(int);", emitted, StringComparison.Ordinal);
+        Assert.Contains("this.__Defaulted_field = Inner.__CreateDefault();", emitted, StringComparison.Ordinal);
+        Assert.DoesNotContain("this.Count", emitted, StringComparison.Ordinal);
+        Assert.DoesNotContain("this.Defaulted", emitted, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PropertyWithAnAccessorOfItsOwnAndAnInitializer_IsLeftToItsBackingField()
+    {
+        var holder = HandBuiltModel.Class("Holder");
+        var count = CustomSetter("Count", integer);
+        count.Initializer = HandBuiltModel.Literal(integer, 5L);
+        holder.PropertiesList.Add(count);
+
+        Assert.DoesNotContain("Count", Emit(holder), StringComparison.Ordinal);
+    }
+
+    private static Property CustomSetter(string name, IMistType type, bool autoGetter = false)
+    {
+        var property = new Property(name, type, Public)
+        {
+            Getter = new PropertyAccessor { IsAuto = autoGetter },
+            Setter = new PropertyAccessor(),
+        };
+        var node = HandBuiltModel.Node();
+        property.Setter!.ExpressionBody = new AssignmentExpression(node, new BackingFieldReferenceExpression(node, property), HandBuiltModel.Literal(type), type);
+
+        if(!autoGetter)
+        {
+            property.Getter!.ExpressionBody = new BackingFieldReferenceExpression(node, property);
+        }
+
+        property.UsesBackingField = true;
+        return property;
     }
 
     private ClassType Inner()

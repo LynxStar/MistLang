@@ -170,21 +170,24 @@ internal static class DefaultWitnesses
         {
             using var through = TypeEmitter.Substituting(assignment.Path);
 
+            var slot = BackingStorage.Slot(assignment.Storage);
+
             if(assignment.Storage.Initializer is { } initializer && Deferred(initializer))
             {
-                BodyEmitter.EmitSequenced(initializer, $"this.{assignment.Storage.Name} = ", writer, diagnostics);
+                BodyEmitter.EmitSequenced(initializer, $"this.{slot} = ", writer, diagnostics);
             }
             else if(assignment.Storage.Initializer is null && RefinedZero.IsAdmitted(TypeNameEmitter.Closed(assignment.Storage.Type))
                 && DefaultSynthesis.StorageZero(assignment.Storage.Type) is { } zero)
             {
-                writer.WriteLine($"this.{assignment.Storage.Name} = {zero};");
+                writer.WriteLine($"this.{slot} = {zero};");
             }
             else if(declaration is StructType && assignment.Storage.Initializer is null
                 && Defaultability.IsUndecided(TypeNameEmitter.Closed(assignment.Storage.Type))
-                && (assignment.Storage.Field is not null || (assignment.Storage.Property is { Getter.IsAuto: true } property
-                    && AccessorEmitter.IsBodiless(property.Setter))))
+                && (assignment.Storage.Field is not null || (assignment.Storage.Property is { } property
+                    && (BackingStorage.DeclaredField(property) is not null
+                        || (property.Getter is { IsAuto: true } && AccessorEmitter.IsBodiless(property.Setter))))))
             {
-                writer.WriteLine($"this.{assignment.Storage.Name} = default({TypeEmitter.EmitTypeName(declaration)}).{assignment.Storage.Name};");
+                writer.WriteLine($"this.{slot} = default({TypeEmitter.EmitTypeName(declaration)}).{slot};");
             }
         }
     }

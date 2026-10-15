@@ -40,7 +40,7 @@ Do not use `_` prefix, `m_` prefix, or any other Hungarian-style notation.
 ## Whitespace and Formatting
 
 - No trailing whitespace on any line.
-- Files end with a single newline (no extra blank lines at EOF).
+- Files end at the last line's closing character with no trailing newline (`insert_final_newline = false`); the formatter reports FINALNEWLINE for one.
 - Use spaces for indentation (4 spaces per level).
 - No alignment padding (don't add extra spaces to line up comments or assignments across lines).
 
@@ -134,7 +134,7 @@ List<int> items = new();
 |------|-----------|---------|
 | Braces required | IDE0011 | All control flow blocks need `{ }` |
 | Field naming | IDE1006 | Private fields are `camelCase`, no `_` |
-| Whitespace | WHITESPACE / FINALNEWLINE | No trailing spaces, single final newline |
+| Whitespace | WHITESPACE / FINALNEWLINE | No trailing spaces, no final newline |
 | Discard unused values | IDE0058 | Assign ignored return values to `_` |
 | Block body methods | IDE0022 | No expression-bodied methods |
 | Blank line after block | IDE2003 | Blank line between `}` and next statement |

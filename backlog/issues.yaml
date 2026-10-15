@@ -337,61 +337,6 @@ issues:
     than inventing tuple nominal identity.
   audit_key: binding:provider-03
   area: binding
-- id: MIST-054
-  title: Validate purity of setters run by default synthesis
-  status: confirmed
-  summary: Synthesized default(Box) and implicit new Box() both execute a custom property setter, printing
-    setter before the stored zero. The default data route assigns through the public property rather than
-    backing storage; defaultability Requirement6 requires side-effect-free data realization. Preserve explicit
-    user setter behavior.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=declaration-shape-checks].tasks[10]
-    line_at_baseline: 2183
-    lead_excerpt: The synthesized default assigns a property through its setter; nothing judges that setter
-      purity.
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/PurityAnalyzer.cs
-      selector: private void JudgeDefaults
-      line: 274
-    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/DefaultSynthesis.cs
-      selector: FlattenedAssignments
-      line: 167
-  - kind: executed CLI probe
-    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
-    date: '2026-10-15'
-    source: 'using Standard; namespace Probe; public class Box { public int Value { get{return field;} set{Console.WriteLine("setter");field=value;}
-      } } public class Program { public static void Main(){Console.WriteLine(default(Box).Value);Console.WriteLine(new
-      Box().Value);} }
-
-      '
-    manifest: 'name="Probe"
-
-      namespace_root="Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 0
-    observed: 'setter
-
-      0
-
-      setter
-
-      0
-
-      '
-  related:
-  - emitter default synthesis/purity
-  priority: P2
-  priority_rationale: Current executed default and implicit construction probes establish the setter-effect
-    route; this is independent of computed getter storage policy.
-  audit_key: analysis:analysis-030
-  area: analysis
 - id: MIST-055
   title: Revalidate lone bodied getter backing-field contract
   status: unverified
@@ -449,60 +394,6 @@ issues:
   priority: P3
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-032
-  area: analysis
-- id: MIST-057
-  title: Revalidate zero-argument value-pack constructor eligibility
-  status: confirmed
-  summary: Implicit base chains treat any sole flattened parameter as callable with no arguments, regardless
-    of its closed pack cardinality. Base<int> wrongly reaches C# without the required ValueTuple<int> argument;
-    valid Base<[]> also reaches C# without its empty ValueTuple argument. Eligibility and emitted materialization
-    must agree after closure.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=declaration-shape-checks].tasks[11]
-    line_at_baseline: 2391
-    lead_excerpt: A single value-pack params parameter counts as callable with nothing whatever its pack
-      holds; no program measured.
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/ImplicitChains.cs
-      selector: 'candidate.ParametersList is [{ IsFlattened: true }]'
-      line: 34
-  - kind: executed CLI probe
-    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
-    date: '2026-10-15'
-    source: using Standard;namespace Probe;public class Base<params Ts>{public Base(params Ts args){}}public
-      class Derived:Base<int>{public Derived(){}}public class Program{public static void Main(){new Derived();Console.WriteLine("bad");}}
-    manifest: 'name="Probe"
-
-      namespace_root="Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: 'MIST_CS_ERROR missing required args parameter: Base_1<int>.Base_1(ValueTuple<int>)'
-  - kind: executed CLI probe
-    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
-    date: '2026-10-15'
-    source: using Standard;namespace Probe;public class Base<params Ts>{public Base(params Ts args){}}public
-      class Derived:Base<[]>{public Derived(){}}public class Program{public static void Main(){new Derived();Console.WriteLine("ok");}}
-    manifest: 'name="Probe"
-
-      namespace_root="Probe"
-
-      '
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
-    exit_code: 1
-    observed: 'MIST_CS_ERROR missing required args parameter: Base_0.Base_0(ValueTuple)'
-  related:
-  - emitter constructor pack specialization
-  priority: P2
-  priority_rationale: Current executed nonempty and empty pack cases establish both invalid source admission
-    and valid implicit-chain failure.
-  audit_key: analysis:analysis-034
   area: analysis
 - id: MIST-058
   title: Revalidate bodiless operator and static abstract slot obligations
@@ -6079,7 +5970,11 @@ issues:
     kind: executed full ledger on a Windows host during packet 41
     detail: 'Fails identically in ledger TestResults/ledger/20261015-005152 (storm.sourcegenerator.tests.dll 909 of 910, expected
       "mode L.Inner {\n" against actual "mode L.Inner {\r\n" at NamespacedImportTests.cs line 71) while every Mist.Tests,
-      Mist.CLI.Tests and Storm.ConsumerIntegration.Tests test passed. The packet touched no Storm source and the pin stayed 83410653; the rerun on the tree rebased onto d78b635c, ledger TestResults/ledger/20261015-005716, failed the same way (909 of 910) with 10778, 115 and 46 passed elsewhere.'
+      Mist.CLI.Tests and Storm.ConsumerIntegration.Tests test passed. The packet touched no Storm source and the pin stayed 83410653; the rerun on the tree rebased onto 9aa7f491, ledger TestResults/ledger/20261015-005716, failed the same way (909 of 910) with 10778, 115 and 46 passed elsewhere.'
+  - revision: '96c7208f with the backlog commit containing this entry (packet 42), based on main 9aa7f491'
+    date: '2026-10-15'
+    kind: executed full ledger runs on a Windows host (packet 42)
+    detail: 'Fails identically, expected "mode L.Inner {\n" against actual "mode L.Inner {\r\n" at position 4, in full ledgers 20261015-010137 and 20261015-011416, with Storm unchanged at 83410653 and the test file unmodified; packet 42 does not touch Storm and every other Storm test passed (909 of 910) in both runs.'
   related:
   - packet 25 Storm grammar semantics (Storm 83410653)
   priority_rationale: A deterministic red full-suite result on Windows hosts hides real failures there.
@@ -6192,32 +6087,6 @@ issues:
   priority: P2
   priority_rationale: A runtime exception in a valid-looking program, blocked on a language policy choice.
   area: language
-- id: MIST-236
-  title: Refuse arguments to a source type that declares no constructor
-  status: confirmed
-  summary: 'new Bag(1) on a class that declares no constructor binds without a Mist diagnostic and fails in Roslyn
-    (CS1729), because SelectConstructor selects nothing and reports nothing when the definition has no constructors.
-    The implicit parameterless constructor should refuse any argument at the source, as NoApplicableOverload does
-    for a declared one, without refusing CLR-projected or Standard types whose constructors the model does not
-    list.'
-  source_refs: []
-  evidence:
-  - revision: '132b418397f87b2b9d9ef9ca0422444e1c46a924'
-    based_on: '729763ba33a563f8c96836a026e0675a2cb7073a'
-    date: '2026-10-11'
-    kind: executed CLI probe and source inspection
-    detail: 'Found by packet 33. With Bag declaring no constructor, var bag = new Bag(1); gives only MIST_CS_ERROR
-      ''Bag'' does not contain a constructor that takes 1 arguments; new Bag(1){1} the same. ExpressionBinder.SelectConstructor
-      returns an empty OverloadChoice when ConstructorsList is empty, by design for a C# default with nothing to
-      choose between. Not fixed in packet 33: it changes constructor selection, which that packet excluded.'
-    sources:
-    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ExpressionBinder.cs
-      selector: 'definition is not ConcreteType { ConstructorsList.Count: > 0 } concrete'
-  related:
-  - MIST-004
-  priority: P2
-  priority_rationale: Invalid program reaches the target compiler.
-  area: binding
 - id: MIST-243
   title: Spell an intrinsic construction closed with unknown as dynamic
   status: confirmed
@@ -6241,6 +6110,171 @@ issues:
   priority_rationale: A widening Mist admits reaches the target compiler as an error.
   area: backend
 archive:
+- id: MIST-054
+  title: Validate purity of setters run by default synthesis
+  status: implemented
+  summary: 'Delivered 2026-10-15: a default and an implicit construction write a property''s backing storage by name, so a setter with a body never runs during default realization; the recorded probe prints 0 and 0 with no setter line, and an explicit assignment still runs the setter exactly as written. Before, default(Box) and new Box() both printed setter before the stored zero.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=declaration-shape-checks].tasks[10]
+    line_at_baseline: 2183
+    lead_excerpt: The synthesized default assigns a property through its setter; nothing judges that setter
+      purity.
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/PurityAnalyzer.cs
+      selector: private void JudgeDefaults
+      line: 274
+    - file: Source/Mist/Backends/CSharpTranspiler/Lowering/DefaultSynthesis.cs
+      selector: FlattenedAssignments
+      line: 167
+  - kind: executed CLI probe
+    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
+    date: '2026-10-15'
+    source: 'using Standard; namespace Probe; public class Box { public int Value { get{return field;} set{Console.WriteLine("setter");field=value;}
+      } } public class Program { public static void Main(){Console.WriteLine(default(Box).Value);Console.WriteLine(new
+      Box().Value);} }
+
+      '
+    manifest: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: 'setter
+
+      0
+
+      setter
+
+      0
+
+      '
+  - revision: '229b77e3 (fix(emitter): Write a default into a custom-setter property''s storage), on 9aa7f491'
+    date: '2026-10-15'
+    kind: implementation and executed verification
+    implementation:
+    - 'BackingStorage (Source/Mist/Backends/CSharpTranspiler/Lowering) names the C# member that holds a property''s storage: an auto-property keeps C#''s synthesized field, which assigning the property writes and nothing else runs, and a property with an accessor of its own declares a private field __<Name>_field (properties Requirement 14.6). PropertyEmitter declares that field before the property, spells a bodiless accessor over it (get => field, set => field = value), moves the initializer onto the field, and marks it static or readonly as the property and its type require; BodyEmitter spells a field reference as that name.'
+    - 'Every synthesized storage write names the slot through BackingStorage.Slot: the default sentinel and factory (DefaultEmitter.EmitAssignments and EmitBinding), the implicit constructor, the pre-body storage defaults and deferred witnessed initializers of a user constructor, and the flattened struct slots (DefaultWitnesses.EmitInitializers, including the undecided-type branch). An explicit assignment in a body binds and emits as a property write, so the setter runs as written. Default data and constructor behaviour stay separate: nothing changed in PurityAnalyzer.JudgeDefaults, Defaultability or InstanceStorage.'
+    acceptance:
+    - 'CLI probes at this revision: the recorded setter program prints 0 and 0 with no setter line (exit 0); the same shape over a struct prints 0 and 0; a class with get;/bodied set beside get { return field; }/bodied set with = "t" prints 0, t, then setter and 3 after an explicit assignment. The emitted Box declares private int __Value_field, reads it from get => __Value_field, writes it in the setter body and assigns this.__Value_field = default(int) in the implicit constructor.'
+    - 'samples/DefaultKeyword banks the class and struct behaviour with a setter trail: default(Gauge) = 0 mm trail=, new Gauge() = 0 mm trail=, assigned = 5 cm trail=LU, Reading = 0 0 trail=; samples/AllFeaturesV2 matches the extended baseline.'
+    verification:
+    - 'Tier 2: PropertyBackingStorageEmissionTests (7 cases: declared field with the auto getter rerouted, bodied getter beside a rerouted auto setter, initializer carried by the field, static field, readonly-type field, narrowed setter accessibility, auto-property unchanged); StorageDefaultEmissionTests (class and struct defaults name the field for an int zero and a defaultable reference, an initialized property is left to its field); ConstructorDefaultEmissionTests (pre-body default by name while the body assigns the property, deferred witnessed initializer by name, a this-chain repeats nothing).'
+    - 'Focused ledger 20261015-005302 (172 passed, 0 failed) over the implicit-chain, default-emission, consistency and synthesis classes; full ledger 20261015-010137 on the packet head before the spec refresh (Mist.Tests 10788 run, 10786 passed; the two SpecProofCodeMatchesSampleTest failures were the variadics proof block and expected output lagging the extended sample, refreshed in the docs(specs) commit of this packet and green in ledger 20261015-010359) and the final full ledger 20261015-011416 on the bundle rebased on main 9aa7f491 (Mist.Tests, Mist.CLI.Tests and Storm.ConsumerIntegration.Tests all passed; the one Storm failure is the Windows-only MIST-226 case, recorded there); AllFeaturesV2 matches the extended baseline in both.'
+    limitations:
+    - 'A lone bodied getter that names field now declares the field too; it stays computed for InstanceStorage and no default assigns it, so the MIST-055 policy is untouched. StructAncestorFactory still carries only fully auto properties between a struct and its ancestors, as before. The declared field''s name is not checked against a member a program might declare with the same spelling.'
+  related:
+  - emitter default synthesis/purity
+  priority: P2
+  priority_rationale: Current executed default and implicit construction probes establish the setter-effect
+    route; this is independent of computed getter storage policy.
+  audit_key: analysis:analysis-030
+  area: analysis
+- id: MIST-057
+  title: Revalidate zero-argument value-pack constructor eligibility
+  status: implemented
+  summary: 'Delivered 2026-10-15: an omitted chain to a base whose only constructor takes a value pack is admitted exactly when the base clause closes the pack empty, and the emitted clause passes the empty tuple; Derived : Base<int> is refused at the source with MIST_PA_BASE_CTOR_UNSATISFIED, the struct form with MIST_STRUCT_BASE_CTOR_REQUIRED, and an open pack is refused because the chain has to hold at every width. Before, both the nonempty and the empty closing reached Roslyn.'
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=declaration-shape-checks].tasks[11]
+    line_at_baseline: 2391
+    lead_excerpt: A single value-pack params parameter counts as callable with nothing whatever its pack
+      holds; no program measured.
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/ImplicitChains.cs
+      selector: 'candidate.ParametersList is [{ IsFlattened: true }]'
+      line: 34
+  - kind: executed CLI probe
+    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
+    date: '2026-10-15'
+    source: using Standard;namespace Probe;public class Base<params Ts>{public Base(params Ts args){}}public
+      class Derived:Base<int>{public Derived(){}}public class Program{public static void Main(){new Derived();Console.WriteLine("bad");}}
+    manifest: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_CS_ERROR missing required args parameter: Base_1<int>.Base_1(ValueTuple<int>)'
+  - kind: executed CLI probe
+    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
+    date: '2026-10-15'
+    source: using Standard;namespace Probe;public class Base<params Ts>{public Base(params Ts args){}}public
+      class Derived:Base<[]>{public Derived(){}}public class Program{public static void Main(){new Derived();Console.WriteLine("ok");}}
+    manifest: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_CS_ERROR missing required args parameter: Base_0.Base_0(ValueTuple)'
+  - revision: '37b4c1a2 (fix(analysis): Close an omitted base chain by the value pack''s written width), on 9aa7f491'
+    date: '2026-10-15'
+    kind: implementation and executed verification
+    implementation:
+    - 'ImplicitChains.CalledWithNothing closes a sole flattened parameter through the written base clause (TypeSubstitution.ForReceiver): a homogeneous params array always absorbs an empty list, a value pack only when it is closed to no elements, and a pack still open after closing (Derived<params Us> : Base<Us...> or Base<Us>) is refused. An accessible parameterless overload is still preferred, and accessibility is judged as before. DeclarationShapeAnalyzer, PurityJudge and StructInitEmitter consume the one decision.'
+    - 'ConstructorEmitter.EmitImplicitChain writes the omitted chain only where C#''s own implicit base() would pass too little: the base''s default and construction witnesses as before, the reached constructor''s context keys as a written chain forwards them, and the value pack through BodyEmitter.EmitArguments, so Base_0 receives default(System.ValueTuple) exactly as an explicit base() does. The flattened struct route already passed new System.ValueTuple { } to the ancestor initializer and is unchanged.'
+    acceptance:
+    - 'CLI probes at this revision: the recorded zero-pack-bad program reports MIST_PA_BASE_CTOR_UNSATISFIED naming ''Base<[Int32]>'' (exit 1); zero-pack-good prints ok (exit 0) with public Derived() : base(default(System.ValueTuple)) emitted; the explicit base() control prints base, ok; a params int[] base prints base 0, ok; Derived<params Us> : Base<Us...> is refused naming ''Base<[Us...]>''; Leaf : Mid<[]> over Mid(params Us a) : base(a...) prints base, leaf; struct SDerived : SBase<int> reports MIST_STRUCT_BASE_CTOR_REQUIRED and SBase<[]> prints 7.'
+    - 'samples/Variadics banks emptyPackChain=0 0 for a class and a flattened struct over a pack-only base closed empty; samples/AllFeaturesV2 matches the extended baseline.'
+    verification:
+    - 'Tier 1: ImplicitChainsTests (8 rows: [] admitted; [int], [int, string], Us... and Us refused; a parameterless overload preferred over a nonempty pack; a pack-only overload chosen beside an argument-taking one; a private pack-only constructor refused) and StructImplicitChainsTests (empty and one-element closings). Tier 2: BaseConstructorRefusalTests (DeclarationShapeAnalyzer admits the empty closing and refuses the one-element closing at the constructor), ImplicitChainEmissionTests (empty tuple clause; parameterless and homogeneous bases leave the clause to C#; the omitted clause equals the written empty chain''s; the struct initializer call).'
+    - 'Focused ledger 20261015-005302 (172 passed, 0 failed); full ledger 20261015-010137 on the packet head before the spec refresh (Mist.Tests 10788 run, 10786 passed; the two SpecProofCodeMatchesSampleTest failures were the variadics proof block and expected output lagging the extended sample, refreshed in the docs(specs) commit of this packet and green in ledger 20261015-010359) and the final full ledger 20261015-011416 on the bundle rebased on main 9aa7f491 (Mist.Tests, Mist.CLI.Tests and Storm.ConsumerIntegration.Tests all passed; the one Storm failure is the Windows-only MIST-226 case, recorded there); AllFeaturesV2 matches the extended baseline in both.'
+    limitations:
+    - 'A pack parameter typed by a NamedTupleType is judged by element count the same way; no program measured one. Context-key forwarding on an omitted chain mirrors the written chain''s emission and is covered only by the equality of the two clauses, not by a program with a context-bound base constructor.'
+  related:
+  - emitter constructor pack specialization
+  priority: P2
+  priority_rationale: Current executed nonempty and empty pack cases establish both invalid source admission
+    and valid implicit-chain failure.
+  audit_key: analysis:analysis-034
+  area: analysis
+- id: MIST-236
+  title: Refuse arguments to a source type that declares no constructor
+  status: implemented
+  summary: 'Delivered 2026-10-15: a source class or struct declaring no instance constructor selects its implicit parameterless constructor, which refuses any argument at the source with MIST_PM_NO_APPLICABLE_OVERLOAD (Declared arities: 0) for new Bag(1), its object-initializer form and a target-typed new(1); a static constructor is no longer an instance candidate, and Ambient, intrinsic and cloned types keep their admission. Before, the calls reached Roslyn as CS1729.'
+  source_refs: []
+  evidence:
+  - revision: '132b418397f87b2b9d9ef9ca0422444e1c46a924'
+    based_on: '729763ba33a563f8c96836a026e0675a2cb7073a'
+    date: '2026-10-11'
+    kind: executed CLI probe and source inspection
+    detail: 'Found by packet 33. With Bag declaring no constructor, var bag = new Bag(1); gives only MIST_CS_ERROR
+      ''Bag'' does not contain a constructor that takes 1 arguments; new Bag(1){1} the same. ExpressionBinder.SelectConstructor
+      returns an empty OverloadChoice when ConstructorsList is empty, by design for a C# default with nothing to
+      choose between. Not fixed in packet 33: it changes constructor selection, which that packet excluded.'
+    sources:
+    - file: Source/Mist/ProgramModel/Construction/Binding/Expressions/ExpressionBinder.cs
+      selector: 'definition is not ConcreteType { ConstructorsList.Count: > 0 } concrete'
+  - revision: '4515ccb5 (fix(binding): Refuse arguments to an implicit parameterless constructor), on 9aa7f491'
+    date: '2026-10-15'
+    kind: implementation and executed verification
+    implementation:
+    - 'ExpressionBinder.ConstructorsOf lists instance constructors only, so OverloadResolution never selects a static constructor for new; SelectConstructor hands a concrete type declaring none to ImplicitConstruction, which answers Selected = null for an empty argument list (the emitter writes the bare construction as before) and otherwise refuses through OverloadFailure.Retain with a synthesized parameterless candidate, so an argument that already failed owns the only complaint and an analysis-dependent argument defers the report. Only a declaration with IsIntrinsic false, CloneSource null and an assembly other than Ambient is known to declare none.'
+    acceptance:
+    - 'CLI probes at this revision: new Bag(1) reports MIST_PM_NO_APPLICABLE_OVERLOAD: There is no overload of constructor ''Bag'' accepting 1 argument(s). Declared arities: 0. (exit 1); new Bag(1){X=2} and Bag y=new(3) report one such diagnostic each; a Bag with only a static constructor runs new Bag() (prints 1) and refuses new Bag(1); new Bag() on a constructorless Bag is unchanged.'
+    verification:
+    - 'Tier 2: ImplicitConstructorArgumentBindingTests (12 cases: class, struct and static-constructor-only refusals with the exact message and column; the empty argument list selecting nothing; Ambient, intrinsic and cloned types admitted; a failed argument owning the complaint; the object-initializer form adding no second complaint; a target-typed construction refused the same way).'
+    - 'Focused ledger 20261015-005452 (12 passed, 0 failed); full ledger 20261015-010137 on the packet head before the spec refresh (Mist.Tests 10788 run, 10786 passed; the two SpecProofCodeMatchesSampleTest failures were the variadics proof block and expected output lagging the extended sample, refreshed in the docs(specs) commit of this packet and green in ledger 20261015-010359) and the final full ledger 20261015-011416 on the bundle rebased on main 9aa7f491 (Mist.Tests, Mist.CLI.Tests and Storm.ConsumerIntegration.Tests all passed; the one Storm failure is the Windows-only MIST-226 case, recorded there); AllFeaturesV2 matches the extended baseline in both.'
+    limitations:
+    - 'A Reference-assembly type counts as a complete declaration like Self and Standard. A projected type is admitted whatever constructors it lists, as before.'
+  related:
+  - MIST-004
+  priority: P2
+  priority_rationale: Invalid program reaches the target compiler.
+  area: binding
 - id: MIST-240
   title: '`this` in a generic type''s own body is typed as the bare definition'
   status: implemented
@@ -6293,7 +6327,7 @@ archive:
     - 'samples/GenericSelfReceivers, banked in AllFeaturesV2 (V2-only provenance in samples/CLAUDE.md), runs Same(this), this assigned to a Tag<T> local, Same(this) under a method type parameter sharing ordinal zero, this + this through the declared operator, a property body, a method group over this.Me, explicit this.Held beside bare Held, a constructor body, Bundle<params Ts> at widths 0, 1, 2 and 9, Both<T, params Ts>, a generic Inner<U> and a non-generic Plain nested under Outer<T>, Child<T>:Base<(T, int)>, a generic struct Pair<T>, an abstract default body inferring Holders.Same<T>(this), and this widening to Box<unknown>.'
     - 'Tier 1 SelfConstructionTests (a non-generic and a nested non-generic stay themselves, the interned Tag<T>, a struct definition kept, unbracketed and bracketed pack slots, a fixed slot beside a pack, a pack with no resolved domain, a nested generic over its own ordinal-zero T distinct from the outer T with no enclosing) and ReceiverLookupTests (instance member, nested type, static member, initializer, no type, supplied receiver kept). Tier 2 ThisBindingTests over hand-built scopes (interned self construction, bare non-generic, pack slot identical to the written Bundle<Ts...>, nested own parameter, Same(this) selecting the source method with the same interned parameter type, a ReceiverScope receiver kept, MIST_PM_THIS_IN_STATIC and MIST_PM_THIS_OUTSIDE_TYPE retained). Tier 3 GenericSelfReceiverTests on the model (Same(this) and Same(typed) select one Method with one parameter type, this + this and other + other select one Operator with the same closed parameters, constructor and accessor agree with the method, pack owner, nested generic with null enclosing, non-generic nested, inherited Base<(T, Int32)>.Same through Child<T>, generic struct, abstract default body inferring Holder<T>).'
     verification:
-    - 'dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format Mist.slnx --verify-no-changes and git diff --check clean. Full regression through tools/test-ledger/run.sh on the integrated tree (Storm 83410653) on a Windows host, ledger TestResults/ledger/20261015-005152: Mist.Tests 10741 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed and Storm.SourceGenerator.Tests 909 of 910, the one failure being MIST-226''s Windows newline test (sighting recorded there); summary.txt and failures.txt read. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed within that run, and samples/GenericSelfReceivers through the CLI printed its eleven baseline lines with no diagnostics. The packet''s focused filter over ConstructedGenericMemberAccessTests, NestedTypeResolutionTests, InheritedGenericMemberTests, InheritedGenericMethodTests, PackForwardingTests, NestedGenericTypeEmissionTests, PackForwardingEmissionTests and ThisLendInferenceTests plus the four new classes is 111 tests, all green in that ledger. Rerun on the integrated tree rebased onto main d78b635c, ledger TestResults/ledger/20261015-005716: Mist.Tests 10778 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed and Storm.SourceGenerator.Tests 909 of 910, the same MIST-226 test being the one failure; build 0 warnings, format and git diff --check clean.'
+    - 'dotnet build Mist.slnx: 0 warnings, 0 errors; dotnet format Mist.slnx --verify-no-changes and git diff --check clean. Full regression through tools/test-ledger/run.sh on the integrated tree (Storm 83410653) on a Windows host, ledger TestResults/ledger/20261015-005152: Mist.Tests 10741 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed and Storm.SourceGenerator.Tests 909 of 910, the one failure being MIST-226''s Windows newline test (sighting recorded there); summary.txt and failures.txt read. AllFeaturesV2_CompilesRunsAndMatchesBaseline and Testing_RunsUnderTheTestCommand passed within that run, and samples/GenericSelfReceivers through the CLI printed its eleven baseline lines with no diagnostics. The packet''s focused filter over ConstructedGenericMemberAccessTests, NestedTypeResolutionTests, InheritedGenericMemberTests, InheritedGenericMethodTests, PackForwardingTests, NestedGenericTypeEmissionTests, PackForwardingEmissionTests and ThisLendInferenceTests plus the four new classes is 111 tests, all green in that ledger. Rerun on the integrated tree rebased onto main 9aa7f491, ledger TestResults/ledger/20261015-005716: Mist.Tests 10778 passed, Mist.CLI.Tests 115 passed, Storm.ConsumerIntegration.Tests 46 passed and Storm.SourceGenerator.Tests 909 of 910, the same MIST-226 test being the one failure; build 0 warnings, format and git diff --check clean.'
     limitations:
     - 'NewtypeConversions.CloneMethod keeps its own open construction over the bare parameter list when matching a clonable source against IClonable, so a pack-generic clonable source is not matched against IClonable<Bundle<[Ts...]>>; cloning policy is unchanged here by design.'
     - 'An extension block body names its receiver by the parameter it declares rather than by this, so extension receiver typing is outside this record; receivers a ReceiverScope supplies are kept as supplied.'

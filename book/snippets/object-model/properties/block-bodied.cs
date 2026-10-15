@@ -6,25 +6,26 @@ public class Thermostat
 {
     public Thermostat(int initial)
     {
-        this.Temperature = default(int);
+        this.__Temperature_field = default(int);
         this.Temperature = initial;
     }
 
+    private int __Temperature_field;
     public int Temperature
     {
         get
         {
-            return field;
+            return __Temperature_field;
         }
         set
         {
             if (value < -273)
             {
-                field = -273;
+                __Temperature_field = -273;
             }
             else
             {
-                field = value;
+                __Temperature_field = value;
             }
         }
     }

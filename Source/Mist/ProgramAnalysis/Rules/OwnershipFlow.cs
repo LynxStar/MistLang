@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.ProgramAnalysis.Flow;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -23,8 +24,11 @@ namespace Mist.ProgramAnalysis.Rules;
 /// incomplete and cannot be handed anywhere, while its other fields stay usable and the moved one may be
 /// written back. A write to a slot is the one action not evaluated as a step, so its own borrow is
 /// judged there; everything else complains about a borrow where the place is read. What such a store
-/// keeps, like an owned field stored into a plain one, is a second holder of the value, so from there
-/// on the holder may not move into an owned destination until it or that field is assigned afresh. Two
+/// keeps, like an owned field stored into a plain one, is a second holder of the value, and so is an
+/// ordinary parameter -- one neither owned nor lent -- since the callee may keep what it is handed
+/// (owned-fields Requirement 18.9), where a borrowed, frozen or readonly ref parameter gives it back as
+/// the call returns; from there on the holder may not move into an owned destination or be returned
+/// owned until it or that field is assigned afresh, and a plain use of it stays admitted. Two
 /// paths join by remembering either path's move, which is classic's verdict measured; a use once
 /// complained of settles the place, so one mistake is one complaint per path; and a struct is never
 /// tracked, since a copy of it is a value of its own. The rest of what classic admits here -- a call as
@@ -139,8 +143,6 @@ internal sealed partial class OwnershipFlow(
                     return state;
                 }
 
-                state = Keep(state, initializer, $"'{declaration.Local.Name}'", partOnly: true);
-
                 if(Place.Of(initializer) is not { } source)
                 {
                     return state;
@@ -174,8 +176,6 @@ internal sealed partial class OwnershipFlow(
                 };
 
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false, Target: LocalReferenceExpression target } assignment }:
-                state = Keep(state, assignment.Value, $"'{target.Local.Name}'", partOnly: true);
-
                 if(OwnershipAnalyzer.Tracked(target.Local))
                 {
                     state = Forget(state, target.Local);
@@ -192,12 +192,13 @@ internal sealed partial class OwnershipFlow(
                 return state;
 
             case { Kind: FlowStepKind.Evaluate, Node: TupleLiteralExpression tuple }:
-                return tuple.Elements.Aggregate(state, (kept, element) => Keep(kept, element, "a tuple", partOnly: false));
+                return tuple.Elements.Aggregate(state, (kept, element) => Keep(kept, element, "a tuple"));
 
             case { Kind: FlowStepKind.Evaluate, Node: AnonymousObjectExpression anonymous }:
-                return anonymous.Values.Aggregate(state, (kept, value) => Keep(kept, value, "an anonymous object", partOnly: false));
+                return anonymous.Values.Aggregate(state, (kept, value) => Keep(kept, value, "an anonymous object"));
 
             case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression invocation }:
+                state = HandArguments(state, invocation.Arguments, invocation.Parameters, invocation.Method is { } called ? $"'{called.Name}'" : "a function value");
                 state = MoveArguments(state, invocation.Arguments, invocation.Parameters);
 
                 if(ThisTiers.ReceiverOf(invocation) is not { } receiver || Place.Of(receiver) is not { } held || !Place.Tracked(held))
@@ -213,7 +214,8 @@ internal sealed partial class OwnershipFlow(
                 return invocation.Method is { } method ? Settle(state, held, method) : state;
 
             case { Kind: FlowStepKind.Evaluate, Node: NewExpression creation }:
-                state = creation.Initializer.Where(entry => !entry.IsTargetFailed).Aggregate(state, (kept, entry) => Keep(kept, entry.Value, $"'{entry.MemberName}'", partOnly: false));
+                state = creation.Initializer.Where(entry => !entry.IsTargetFailed).Aggregate(state, (kept, entry) => Keep(kept, entry.Value, $"'{entry.MemberName}'"));
+                state = HandArguments(state, creation.Arguments, creation.Constructor?.ParametersList, $"'{creation.Type.Name}'");
                 return MoveArguments(state, creation.Arguments, creation.Constructor?.ParametersList);
 
             case { Kind: FlowStepKind.Evaluate, Node: ArrayLiteralExpression literal }:
@@ -255,19 +257,73 @@ internal sealed partial class OwnershipFlow(
             return Move(state, moved, value);
         }
 
-        return Keep(state, value, Path(target) is { } path ? $"'{path}'" : "a field", partOnly: false);
+        return Keep(state, value, Path(target) is { } path ? $"'{path}'" : "a field");
     }
 
-    private static State Keep(State state, Expression value, string where, bool partOnly)
+    private static State Keep(State state, Expression value, string where)
+    {
+        return HolderOf(value) switch
+        {
+            (var local, null) => Share(state, local, $"'{local.Name}' is also held by {where}, where it was stored without a move", null),
+            (var holder, { } field) => Share(state, holder, $"its owned field '{field.Name}' is also held by {where}, which read it out without a move", field.Name),
+            null => state,
+        };
+    }
+
+    private static State HandArguments(State state, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters, string callee)
+    {
+        for(var i = 0; i < arguments.Count; i++)
+        {
+            var parameter = parameters switch
+            {
+                null => null,
+                _ when i < parameters.Count => parameters[i],
+                [.., { IsFlattened: true } last] => last,
+                _ => null,
+            };
+
+            if(parameters is null)
+            {
+                state = Hand(state, arguments[i], callee);
+            }
+            else if(parameter is not null && Hands(parameter.Modifier))
+            {
+                state = Hand(state, arguments[i], $"parameter '{parameter.Name}' of {callee}");
+            }
+        }
+
+        return state;
+    }
+
+    private static bool Hands(ParameterModifier modifier)
+    {
+        return modifier is { Ownership: OwnershipKind.Unrestricted, Direction: not ByRefDirection.Out } and not { IsRef: true, IsReadonly: true };
+    }
+
+    private static State Hand(State state, Expression argument, string recipient)
+    {
+        return HolderOf(argument) switch
+        {
+            (var local, null) => Share(state, local, $"'{local.Name}' was handed to {recipient} without a move, so another holder may still reach it", null),
+            (var holder, { } field) => Share(state, holder, $"its owned field '{field.Name}' was handed to {recipient} without a move, so another holder may still reach it", field.Name),
+            null => state,
+        };
+    }
+
+    private static State Share(State state, LocalVariable holder, string reason, string? field)
+    {
+        return state with { Shared = state.Shared.SetItem(holder, new Kept(reason, field)) };
+    }
+
+    private static (LocalVariable Holder, Field? Field)? HolderOf(Expression value)
     {
         return OwnershipAnalyzer.Unwrapped(value) switch
         {
-            LocalReferenceExpression { Local: { Ownership: OwnershipKind.Owned } local } when !partOnly && OwnershipAnalyzer.Tracked(local) =>
-                state with { Shared = state.Shared.SetItem(local, new Kept($"'{local.Name}' is also held by {where}, where it was stored without a move", null)) },
+            LocalReferenceExpression { Local: { Ownership: OwnershipKind.Owned } local }
+                when OwnershipAnalyzer.Tracked(local) && !Origins.IsUnchangeable(local.Type) => (local, null),
             MemberAccessExpression { Receiver: LocalReferenceExpression { Local: { Ownership: OwnershipKind.Owned } holder }, Member: FieldResult { Field: var field } }
-                when !partOnly && OwnershipAnalyzer.Tracked(holder) && ThisTiers.IsOwned(field) && !Origins.IsUnchangeable(field.Type) =>
-                state with { Shared = state.Shared.SetItem(holder, new Kept($"its owned field '{field.Name}' is also held by {where}, which read it out without a move", field.Name)) },
-            _ => state,
+                when OwnershipAnalyzer.Tracked(holder) && ThisTiers.IsOwned(field) && !Origins.IsUnchangeable(field.Type) => (holder, field),
+            _ => null,
         };
     }
 

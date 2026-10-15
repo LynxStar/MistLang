@@ -61,8 +61,8 @@ internal sealed partial class OwnershipFlow
                 JudgeAssignment(state, assignment);
                 break;
 
-            case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: LocalReferenceExpression returned } }
-                when owning is not null && state.Shared.TryGetValue(returned.Local, out var kept):
+            case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } returned } }
+                when owning is not null && SharedThrough(state, returned) is { } kept:
                 context.Report(ProgramAnalysisDiagnostics.OwnedReturnNotOwned, returned.Node, [returned], owning.Name, kept.Reason);
                 break;
 
@@ -224,10 +224,20 @@ internal sealed partial class OwnershipFlow
 
     private void JudgeShared(State state, Expression source, string destination, bool owned)
     {
-        if(owned && source is LocalReferenceExpression { Local: var local } && state.Shared.TryGetValue(local, out var kept))
+        if(owned && SharedThrough(state, source) is { } kept)
         {
             context.Report(ProgramAnalysisDiagnostics.OwnedSourceNotOwned, source.Node, [source], destination, kept.Reason);
         }
+    }
+
+    private static Kept? SharedThrough(State state, Expression source)
+    {
+        if(Place.Of(OwnershipAnalyzer.Unwrapped(source)) is not { } place || !state.Shared.TryGetValue(place.Root, out var kept))
+        {
+            return null;
+        }
+
+        return place.IsRoot || kept.Field is null || kept.Field == place.Path[0].Name ? kept : null;
     }
 
     private static (Place Lent, Lease Kind)? Lent(State state, Place place, Action action, bool evaluated)

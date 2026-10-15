@@ -19,6 +19,11 @@ internal sealed class OwnershipFragments
 
     public IReadOnlyList<Diagnostic> Analyze(string name)
     {
+        if(name.StartsWith("handed-", StringComparison.Ordinal))
+        {
+            return new CallBoundaryFragments().Analyze(name);
+        }
+
         if(name.StartsWith("owned-field-", StringComparison.Ordinal) || name.StartsWith("owned-string-field-", StringComparison.Ordinal)
             || name.StartsWith("this-lend-", StringComparison.Ordinal) || name.StartsWith("shared-extract-", StringComparison.Ordinal))
         {

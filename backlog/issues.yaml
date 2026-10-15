@@ -666,13 +666,20 @@ issues:
   audit_key: analysis:analysis-077
   area: analysis
 - id: MIST-068
-  title: Revalidate purity aliases crossing ordinary call arguments/results
+  title: Track an owned alias handed out through an ordinary receiver
   status: confirmed
-  summary: Current executed programs can return an explicit owned mutable Cell after Keep(c) retains it
-    or Id(c) exposes an alias; mutating Saved subsequently changes the claimed owned result. Owned-fields
-    Requirement18.9 already requires refusing explicit-owned reuse after an ordinary non-owned-parameter
-    call, including the nonretaining Inspect control. No new callee-retention precision policy is required
-    to fix these cases.
+  summary: 'Closed for ordinary ARGUMENTS at the packet 40 revision: an explicit owned mutable local, or an owned
+    field of one, passed to a parameter that is neither owned nor lent (borrowed, frozen or readonly ref) -- of a
+    static or instance method, a constructor, a local function, a function value or a wrapper -- becomes a
+    second-held value in OwnershipFlow, so a later owned claim on it (an owned return, an owned binding, an owned
+    parameter, an owned field or a with-owned receiver) is refused until a fresh value is assigned on whichever
+    path handed it away, while plain reads, writes and further passes stay admitted. The Keep, Inspect and Id
+    reproductions below are refused before emission; the Id case falls to the argument boundary, so no alias
+    graph is needed. Residue: an alias handed out through an ordinary RECEIVER of an explicit owned local
+    (`var alias = c.Self(); Saved = alias; return c;` with Self returning this) is still admitted and prints 7,
+    because Origins.Escapes is consulted only for locals not declared owned and the flow records no receiver
+    handoff; ThisEscapes.Leaks is related evidence, but receiver leakage and argument retention are not
+    interchangeable, and no per-callee retention summary is introduced without a contract for it.'
   source_refs:
   - file: backlog/analysis-v2-capability-progression.yaml
     selector: rules[id=purity-checking].tasks[3]
@@ -753,11 +760,84 @@ issues:
       '
     limits: Actual Main execution; Inspect is a negative reuse control under owned-fields R18.9, not a required
       admission. No whole-program retention framework is established by this probe.
+  - kind: contract interpretation
+    revision: 3d60a320c9a6ae5da11685c838a15decfe5c4ae7
+    date: '2026-10-15'
+    detail: 'Owned-fields Requirement 18.9 -- an explicit owned binding used after being passed to a non-owned
+      parameter is an error -- takes precedence over the historical caution in the lead excerpt above that every
+      non-owned argument cannot be treated as an alias; the caution is provenance, not an accepted override, and
+      the nonretaining Inspect probe is the negative reuse control rather than a required admission. The error is
+      judged where ownership is claimed, so Print(o); Bump(o) stays admitted, and a lent parameter (borrowed,
+      frozen or readonly ref) is a lease that gives the value back, as the banked lending fixtures hold. MIST-122
+      (plain linear parameter transfer) and MIST-061 (a borrowed call under a frozen lease) are untouched: the
+      handoff applies only to bindings declared owned and changes no cleanup.'
+  - kind: implementation
+    revision: 'packet 40 commit containing this entry, based on main 3d60a320c9a6ae5da11685c838a15decfe5c4ae7'
+    storm_revision: 83410653c7d722868a5001d2ef71e6692ec012b3
+    date: '2026-10-15'
+    detail: 'OwnershipFlow.Transfer hands every argument of an InvocationExpression or NewExpression whose
+      parameter is Unrestricted, not an out parameter and not readonly ref (a function value with no signature
+      hands all of them, a params parameter its tail) to the existing Shared state, as Kept on the owned local or
+      on the owned field of an owned holder, through the same HolderOf reading that the tuple, anonymous-object
+      and field stores use; a value of a type that cannot change is never kept. OwnershipFlow.Judge reads Shared
+      through SharedThrough at every owned claim -- the owned return, which now unwraps conversions and reads a
+      field path against the kept field, an owned binding, an owned parameter, an owned slot and a with-owned
+      receiver -- and reports OwnedReturnNotOwned or OwnedSourceNotOwned at the claiming expression with the
+      handoff as the reason. Reassignment forgets the state, so a fresh value regains ownership on the path that
+      replaced it, and a join keeps either path''s handoff. The partOnly argument of Keep, under which nothing was
+      ever kept, is removed. The ownership chapter of the book documents the handoff under Move Semantics.'
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/OwnershipFlow.cs
+      selector: HandArguments, Hands, Hand, HolderOf
+    - file: Source/Mist/ProgramAnalysis/Rules/OwnershipFlow.Judge.cs
+      selector: SharedThrough
+  - kind: executed CLI probes
+    revision: 'packet 40 commit containing this entry, based on main 3d60a320c9a6ae5da11685c838a15decfe5c4ae7'
+    date: '2026-10-15'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    detail: 'The three reproductions above now exit 1 before emission with one finding each at the returned c:
+      Keep (1,255), Inspect (1,235) and Id (1,277) report MIST_PA_OWNED_RETURN_NOT_OWNED "''Make'' returns owned
+      but this value is not: ''c'' was handed to parameter ''c'' of ''Keep'' without a move, so another holder may
+      still reach it", naming Inspect and Id respectively. `owned var c = new Cell(); Keep(c); owned var d = c;`
+      exits 1 with MIST_PA_OWNED_SOURCE_NOT_OWNED at the initializer of d. `owned var p = new Pair(); Keep(p.Left);
+      return p;` over two owned Cell fields exits 1 naming "its owned field ''Left''". Controls, each exit 0:
+      Freeze(c); Borrow(c); View(c); return c; through frozen, borrowed and readonly ref parameters prints 0, 1,
+      10; Keep(c); c = new Cell(); return c; prints 0 after Saved.N = 7; Print(o); Bump(o); o.N = o.N + 5;
+      Print(o) prints 0, 6. Residue probe: `public Cell Self() { return this; }` with `var alias = c.Self();
+      Saved = alias; return c;` still exits 0 and prints 7.'
+  - kind: tests
+    revision: 'packet 40 commit containing this entry, based on main 3d60a320c9a6ae5da11685c838a15decfe5c4ae7'
+    date: '2026-10-15'
+    detail: 'Tier 2 hand-built bodies in Test/Mist.Tests/Helpers/CallBoundaryFragments.cs, dispatched from
+      OwnershipFragments by the handed- prefix and judged by OwnershipAnalyzer alone: eighteen refusal rows in
+      OwnershipRefusalTests.RefusedFragmentKeepsItsDiagnostic (static, instance, constructor, local-function,
+      function-value and wrapper handoffs, the Id result alias, one branch, a loop, a mutation after the handoff,
+      an owned field handed then the holder or the field returned, the whole handed then a field returned, and
+      the binding, parameter, receiver, field and owned-parameter claims), three location rows, five
+      AHandoffRefusalNamesTheRecipient message rows and eleven AHandoffTheContractAdmits_IsAdmitted rows (frozen,
+      borrowed and readonly ref parameters, replacement on the straight path, on the handing branch and in the
+      loop, plain reuse, a value-typed field, an owned string, a sibling field and a restored field). Focused
+      ledger TestResults/ledger/20261015-004038: 398 of 398 across OwnershipDecisionTests, OwnershipRefusalTests,
+      PurityRoundFiveTests, FrameScopeDecisionTests, OwnedReturnProvenanceTests, PurityRoundThreeTests and
+      OwnedProvenanceTests.'
+  - kind: executed full ledger runs on a Windows host (packet 40)
+    revision: 'packet 40 commit containing this entry, based on main 3d60a320c9a6ae5da11685c838a15decfe5c4ae7'
+    date: '2026-10-15'
+    detail: 'tools/test-ledger/run.sh with the implementation in place (ledger TestResults/ledger/20261015-003416):
+      Mist.Tests 10709 of 10709 including AllFeaturesV2_CompilesRunsAndMatchesBaseline and
+      Testing_RunsUnderTheTestCommand, Mist.CLI.Tests 115 of 115, Storm.ConsumerIntegration.Tests 46 of 46,
+      Storm.SourceGenerator.Tests 909 of 910, the one failure being NamespacedImportTests on this CRLF checkout
+      (MIST-226). The final run on the complete bundle (ledger TestResults/ledger/20261015-004718), after dotnet
+      build Mist.slnx at 0 warnings and 0 errors, dotnet format Mist.slnx --verify-no-changes clean and git diff
+      --check clean: Mist.Tests 10746 of 10746 with the 37 new rows, Mist.CLI.Tests 115 of 115,
+      Storm.ConsumerIntegration.Tests 46 of 46, Storm.SourceGenerator.Tests 909 of 910 with the same MIST-226
+      failure and no other; summary.txt and failures.txt were read.'
   related:
   - analysis11 owned provenance
   priority: P2
-  priority_rationale: Current executed argument/result alias probes violate the accepted owned-source and
-    call-boundary contract.
+  priority_rationale: 'The argument handoff is closed with executed refusals and Tier 2 coverage; the receiver
+    alias form remains an executed admission against the owned-return contract and needs its own decision on
+    what receiver evidence may stand in for a handoff.'
   audit_key: analysis:analysis-081
   area: analysis
 - id: MIST-069
@@ -5978,6 +6058,12 @@ issues:
     detail: 'Fails identically, expected "mode L.Inner {\n" against actual "mode L.Inner {\r\n" at position 4, in full ledger
       20261014-004757, with Storm unchanged at 83410653 and the test file unmodified; packet 34 does not touch Storm and every other test
       of the four assemblies passed (10709, 115, 46 and 909).'
+  - revision: 'packet 40 commit containing this entry, based on main 3d60a320c9a6ae5da11685c838a15decfe5c4ae7'
+    date: '2026-10-15'
+    kind: executed full ledger runs on a Windows host (packet 40)
+    detail: 'Fails identically, expected "mode L.Inner {\n" against actual "mode L.Inner {\r\n" at position 4, in full ledger
+      20261015-003416 and in the final full ledger 20261015-004718, with Storm unchanged at 83410653 and the test file unmodified; packet 40
+      does not touch Storm and every other test of the four assemblies passed (10709 then 10746, 115, 46 and 909).'
   related:
   - packet 25 Storm grammar semantics (Storm 83410653)
   priority_rationale: A deterministic red full-suite result on Windows hosts hides real failures there.

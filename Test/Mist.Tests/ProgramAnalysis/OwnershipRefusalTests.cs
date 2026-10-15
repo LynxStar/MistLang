@@ -20,6 +20,24 @@ public sealed class OwnershipRefusalTests
     [InlineData("field-assigned-on-readonly-parameter", "MIST_PA_FIELD_ASSIGNED_ON_READONLY_PARAMETER")]
     [InlineData("field-write-while-frozen", "MIST_PA_LEASE_VIOLATION")]
     [InlineData("frozen-to-borrowed-parameter", "MIST_PA_INCOMPATIBLE_LEND")]
+    [InlineData("handed-in-a-loop-then-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-on-one-branch-then-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-owned-field-then-field-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-owned-field-then-holder-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-owned-parameter-then-moved-into-an-owned-binding", "MIST_PA_OWNED_SOURCE_NOT_OWNED")]
+    [InlineData("handed-then-consumed-as-an-owned-receiver", "MIST_PA_OWNED_SOURCE_NOT_OWNED")]
+    [InlineData("handed-then-moved-into-an-owned-binding", "MIST_PA_OWNED_SOURCE_NOT_OWNED")]
+    [InlineData("handed-then-moved-into-an-owned-field", "MIST_PA_OWNED_SOURCE_NOT_OWNED")]
+    [InlineData("handed-then-moved-into-an-owned-parameter", "MIST_PA_OWNED_SOURCE_NOT_OWNED")]
+    [InlineData("handed-then-mutated-then-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-then-result-aliased-then-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-through-a-wrapper-then-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-to-a-constructor-then-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-to-a-function-value-then-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-to-a-local-function-then-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-to-a-static-method-then-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-to-an-instance-method-then-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
+    [InlineData("handed-whole-then-owned-field-returned-owned", "MIST_PA_OWNED_RETURN_NOT_OWNED")]
     [InlineData("lambda-captures-borrowed-parameter", "MIST_PA_CAPTURED_BINDING")]
     [InlineData("lambda-captures-frozen-parameter", "MIST_PA_CAPTURED_BINDING")]
     [InlineData("lambda-captures-owned-binding", "MIST_PA_CAPTURED_BINDING")]
@@ -125,12 +143,49 @@ public sealed class OwnershipRefusalTests
     [InlineData("stack-span-returned")]
     [InlineData("field-assigned-in-readonly-method")]
     [InlineData("ref-struct-field-in-class")]
+    [InlineData("handed-to-a-static-method-then-returned-owned")]
+    [InlineData("handed-then-moved-into-an-owned-binding")]
+    [InlineData("handed-owned-field-then-field-returned-owned")]
     public void RefusalPointsAtTheUseCaptureReturnWriteOrDeclaration(string site)
     {
         var diagnostic = Assert.Single(new OwnershipFragments().Analyze(site));
 
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(38, diagnostic.Location.Start.Column);
+    }
+
+    [Theory]
+    [InlineData("handed-to-a-static-method-then-returned-owned", "'c' was handed to parameter 'c' of 'Keep' without a move")]
+    [InlineData("handed-to-a-constructor-then-returned-owned", "'c' was handed to parameter 'c' of 'Sink' without a move")]
+    [InlineData("handed-to-a-function-value-then-returned-owned", "'c' was handed to a function value without a move")]
+    [InlineData("handed-owned-field-then-holder-returned-owned", "its owned field 'Left' was handed to parameter 'c' of 'Keep' without a move")]
+    [InlineData("handed-then-moved-into-an-owned-parameter", "Cannot move this value into owned parameter 'c': 'c' was handed to parameter 'c' of 'Keep'")]
+    public void AHandoffRefusalNamesTheRecipient(string caseName, string named)
+    {
+        Assert.Contains(named, Assert.Single(new OwnershipFragments().Analyze(caseName)).Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Owned-fields Requirement 18.9 bites at the owned claim, not at the handoff: a frozen, borrowed or
+    /// readonly ref parameter gives the value back, a fresh value replaces what was handed away on
+    /// whichever path handed it, a value that cannot change or a copied field leaves no second holder to
+    /// speak of, and a plain use after the handoff claims nothing.
+    /// </summary>
+    [Theory]
+    [InlineData("handed-to-a-frozen-parameter-then-returned-owned")]
+    [InlineData("handed-to-a-borrowed-parameter-then-returned-owned")]
+    [InlineData("handed-to-a-readonly-ref-parameter-then-returned-owned")]
+    [InlineData("handed-then-replaced-then-returned-owned")]
+    [InlineData("handed-on-one-branch-and-replaced-there-then-returned-owned")]
+    [InlineData("handed-in-a-loop-and-replaced-then-returned-owned")]
+    [InlineData("handed-then-used-plainly")]
+    [InlineData("handed-value-field-then-returned-owned")]
+    [InlineData("handed-string-then-moved-into-an-owned-binding")]
+    [InlineData("handed-owned-field-then-sibling-returned-owned")]
+    [InlineData("handed-owned-field-then-restored-then-holder-returned-owned")]
+    public void AHandoffTheContractAdmits_IsAdmitted(string caseName)
+    {
+        Assert.Empty(new OwnershipFragments().Analyze(caseName));
     }
 
     [Theory]

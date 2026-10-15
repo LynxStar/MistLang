@@ -382,6 +382,43 @@ public struct ShapePair<Type[2]:TShapes> where TShapes : IShape
     }
 }
 
+// PROOF: a base whose only constructor takes a value pack is callable with nothing exactly when
+//        the base clause closes the pack empty (R4.3), so a derived constructor may omit its chain;
+//        the omitted chain passes the empty tuple the flattened convention packs (R7.1).
+public class Counted<params TArgs>
+{
+    public int Width;
+
+    public Counted(params TArgs values)
+    {
+        Width = TArgs.Length;
+    }
+}
+
+public class Uncounted : Counted<[]>
+{
+    public Uncounted()
+    {
+    }
+}
+
+public struct Sized<params TArgs>
+{
+    public int Width;
+
+    public Sized(params TArgs values)
+    {
+        Width = TArgs.Length;
+    }
+}
+
+public struct Unsized : Sized<[]>
+{
+    public Unsized()
+    {
+    }
+}
+
 // PROOF: a variadic abstract type (Mist's interface-like construct) declared with a pack.
 abstract ICountable<params TArgs>
 {
@@ -499,6 +536,10 @@ public class Program
         ICountable<char> single = new Tup<char>();
         Console.WriteLine($"abstractCountOne={single.Count()} describeOne={Describe(5)} describeZero={Describe()}");
 
+        // PROOF: an omitted chain to a pack-only base closed empty runs that constructor with the
+        //        empty tuple, for a class and for a flattened struct alike.
+        Console.WriteLine($"emptyPackChain={new Uncounted().Width} {new Unsized().Width}");
+
         Console.WriteLine("=== Variadics Done ===");
     }
 
@@ -603,6 +644,7 @@ sum=10
 sumEmpty=0
 widths=2210
 abstractCountOne=1 describeOne=1 describeZero=0
+emptyPackChain=0 0
 === Variadics Done ===
 ```
 

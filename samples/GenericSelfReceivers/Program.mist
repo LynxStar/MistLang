@@ -1,0 +1,288 @@
+using Standard;
+
+namespace GenericSelfReceivers;
+
+// Inside a generic declaration's body, `this` is a value of the declaration applied to its own
+// parameters -- Tag<T>, Bundle<[Ts...]>, Outer<T>.Inner<U> -- so it reaches every parameter, operand,
+// local and conversion written for that construction, exactly as a parameter declared Tag<T> does.
+// Written 2026-10-15, after classic was retired, so this sample is banked on AllFeaturesV2 alone.
+public class Tag<T>
+{
+    public T Held;
+
+    public Tag<T> FromConstructor;
+
+    public Tag(T held)
+    {
+        this.Held = held;
+        FromConstructor = Same(this);
+    }
+
+    public static Tag<T> Same(Tag<T> other)
+    {
+        return other;
+    }
+
+    public static T operator +(Tag<T> left, Tag<T> right)
+    {
+        return right.Held;
+    }
+
+    public Tag<T> Me()
+    {
+        return Same(this);
+    }
+
+    public Tag<T> Typed(Tag<T> typed)
+    {
+        return Same(typed);
+    }
+
+    public Tag<T> Itself()
+    {
+        Tag<T> own = this;
+        return own;
+    }
+
+    public Tag<T> Via<U>(U ignored)
+    {
+        return Same(this);
+    }
+
+    public T Twice()
+    {
+        return this + this;
+    }
+
+    public Tag<T> Self
+    {
+        get
+        {
+            return Same(this);
+        }
+    }
+
+    public Func<Tag<T>> Group()
+    {
+        Func<Tag<T>> group = this.Me;
+        return group;
+    }
+
+    public T Explicit()
+    {
+        return this.Held;
+    }
+
+    public T Bare()
+    {
+        return Held;
+    }
+}
+
+public class Bundle<params Ts>
+{
+    public Ts... Item;
+
+    public Bundle(params Ts values)
+    {
+        Item... = values...;
+    }
+
+    public static Bundle<Ts...> Same(Bundle<Ts...> value)
+    {
+        return value;
+    }
+
+    public Bundle<Ts...> Me()
+    {
+        return Same(this);
+    }
+
+    public int Width()
+    {
+        return Ts.Length;
+    }
+}
+
+public class Both<T, params Ts>
+{
+    public T Lead;
+
+    public Both(T lead, params Ts rest)
+    {
+        Lead = lead;
+    }
+
+    public static Both<T, Ts...> Same(Both<T, Ts...> value)
+    {
+        return value;
+    }
+
+    public Both<T, Ts...> Me()
+    {
+        return Same(this);
+    }
+
+    public int Width()
+    {
+        return Ts.Length;
+    }
+}
+
+public class Outer<T>
+{
+    public class Inner<U>
+    {
+        public static Inner<U> Same(Inner<U> value)
+        {
+            return value;
+        }
+
+        public Inner<U> Me()
+        {
+            return Same(this);
+        }
+    }
+
+    public class Plain
+    {
+        public static Plain Same(Plain value)
+        {
+            return value;
+        }
+
+        public Plain Me()
+        {
+            return Same(this);
+        }
+    }
+
+    public Inner<string> Make()
+    {
+        return new Inner<string>();
+    }
+
+    public Plain MakePlain()
+    {
+        return new Plain();
+    }
+}
+
+public class Base<T>
+{
+    public static Base<T> Same(Base<T> value)
+    {
+        return value;
+    }
+}
+
+public class Child<T> : Base<(T, int)>
+{
+    public Base<(T, int)> Me()
+    {
+        return Same(this);
+    }
+}
+
+public struct Pair<T>
+{
+    public T First;
+
+    public Pair(T first)
+    {
+        First = first;
+    }
+
+    public static Pair<T> Same(Pair<T> value)
+    {
+        return value;
+    }
+
+    public Pair<T> Me()
+    {
+        return Same(this);
+    }
+}
+
+public abstract Holder<T>
+{
+    T Item();
+
+    T Through()
+    {
+        return Holders.Same(this).Item();
+    }
+}
+
+public class Holders
+{
+    public static Holder<T> Same<T>(Holder<T> value)
+    {
+        return value;
+    }
+}
+
+public class IntHolder : Holder<int>
+{
+    public int Item()
+    {
+        return 5;
+    }
+}
+
+public class Early<U>
+{
+    public string UsesLater(Box<unknown> box)
+    {
+        return "later";
+    }
+}
+
+public class Box<T>
+{
+    public T Value;
+
+    public Box(T value)
+    {
+        this.Value = value;
+    }
+
+    public string Through(Early<unknown> early)
+    {
+        return early.UsesLater(this);
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Generic Self Receivers ===");
+
+        var tag = new Tag<int>(7);
+        Console.WriteLine($"Me={tag.Me().Held} Typed={tag.Typed(tag).Held} Itself={tag.Itself().Held} Via={tag.Via("u").Held}");
+        var group = tag.Group();
+        Console.WriteLine($"Twice={tag.Twice()} Self={tag.Self.Held} Group={group().Held} Explicit={tag.Explicit()} Bare={tag.Bare()} FromConstructor={tag.FromConstructor.Held}");
+
+        Console.WriteLine($"Bundle widths={new Bundle<[]>().Me().Width()} {new Bundle<int>(1).Me().Width()} {new Bundle<int, string>(7, "v").Me().Width()} {new Bundle<int, int, int, int, int, int, int, int, int>(1, 2, 3, 4, 5, 6, 7, 8, 9).Me().Width()}");
+        Console.WriteLine($"Both width={new Both<string, int, bool>("lead", 1, true).Me().Width()} lead={new Both<string, int, bool>("lead", 1, true).Me().Lead}");
+
+        var inner = new Outer<int>().Make().Me();
+        var plain = new Outer<int>().MakePlain().Me();
+        Console.WriteLine($"Inner={inner is Outer<int>.Inner<string>} Plain={plain is Outer<int>.Plain}");
+
+        var child = new Child<string>().Me();
+        Console.WriteLine($"Child={child is Base<(string, int)>}");
+
+        Console.WriteLine($"Pair={new Pair<int>(3).Me().First}");
+        Console.WriteLine($"Holder={new IntHolder().Through()}");
+        Console.WriteLine($"Box={new Box<int>(1).Through(new Early<int>())}");
+
+        Console.WriteLine("=== Generic Self Receivers Done ===");
+    }
+}

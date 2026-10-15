@@ -2470,3 +2470,14 @@ bare slice, no Slice call
 --- CLR sequences slice through their own Slice ---
 memory=2 segment=3
 === Sliceable Types Done ===
+=== Generic Self Receivers ===
+Me=7 Typed=7 Itself=7 Via=7
+Twice=7 Self=7 Group=7 Explicit=7 Bare=7 FromConstructor=7
+Bundle widths=0 1 2 9
+Both width=2 lead=lead
+Inner=True Plain=True
+Child=True
+Pair=3
+Holder=5
+Box=later
+=== Generic Self Receivers Done ===

@@ -210,12 +210,18 @@ internal static class ExpressionBinder
     /// placements are rejected here rather than left for the C# backend -- but neither is checked
     /// for: the receiver is RESOLVED, like any other name, and the two failures are just the two
     /// ways that resolution can come back. A static member answers that it has no instance; a
-    /// chain with no type in it at all runs out and answers nothing.
+    /// chain with no type in it at all runs out and answers nothing. A type scope answers with its
+    /// definition, which a value never has as its type; <see cref="SelfConstruction"/> is what a value
+    /// of a generic declaration's own body has. A receiver already typed by the scope that supplied
+    /// it, as a clone body's is, is kept.
     /// </summary>
     private static Expression BindThis(ThisExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
         switch(ctx.Scope.Lookup(LookupRequest.Receiver(node)))
         {
+            case ReceiverResult { Type: MemberType definition }:
+                return new ThisExpression(node, SelfConstruction.Of(definition, context.ProgramModel.TypeInterner));
+
             case ReceiverResult receiver:
                 return new ThisExpression(node, receiver.Type);
 

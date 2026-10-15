@@ -118,5 +118,6 @@ public class Program
         ClrCallContracts.Program.RunDemo();
         ClosedOperators.Program.RunDemo();
         SliceableTypes.Program.RunDemo();
+        GenericSelfReceivers.Program.RunDemo();
     }
 }

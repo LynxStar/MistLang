@@ -339,10 +339,11 @@ issues:
   area: binding
 - id: MIST-054
   title: Validate purity of setters run by default synthesis
-  status: unverified
-  summary: JudgeDefaults inspects slot initializers/default-entry value expressions; no setter invocation
-    appears in that walk. Retained synthesized setter-effect lead is source-supported but not exercised
-    through current emitted defaults; verify the runtime route before implementing.
+  status: confirmed
+  summary: Synthesized default(Box) and implicit new Box() both execute a custom property setter, printing
+    setter before the stored zero. The default data route assigns through the public property rather than
+    backing storage; defaultability Requirement6 requires side-effect-free data realization. Preserve explicit
+    user setter behavior.
   source_refs:
   - file: backlog/analysis-v2-capability-progression.yaml
     selector: rules[id=declaration-shape-checks].tasks[10]
@@ -360,10 +361,35 @@ issues:
     - file: Source/Mist/Backends/CSharpTranspiler/Lowering/DefaultSynthesis.cs
       selector: FlattenedAssignments
       line: 167
+  - kind: executed CLI probe
+    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
+    date: '2026-10-15'
+    source: 'using Standard; namespace Probe; public class Box { public int Value { get{return field;} set{Console.WriteLine("setter");field=value;}
+      } } public class Program { public static void Main(){Console.WriteLine(default(Box).Value);Console.WriteLine(new
+      Box().Value);} }
+
+      '
+    manifest: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: 'setter
+
+      0
+
+      setter
+
+      0
+
+      '
   related:
   - emitter default synthesis/purity
   priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  priority_rationale: Current executed default and implicit construction probes establish the setter-effect
+    route; this is independent of computed getter storage policy.
   audit_key: analysis:analysis-030
   area: analysis
 - id: MIST-055
@@ -426,10 +452,11 @@ issues:
   area: analysis
 - id: MIST-057
   title: Revalidate zero-argument value-pack constructor eligibility
-  status: unverified
-  summary: CalledWithNothing accepts a single IsFlattened parameter without examining pack cardinality.
-    Source-only concern, explicitly never measured in register; closed-pack adaptation must be checked
-    before classifying as a defect.
+  status: confirmed
+  summary: Implicit base chains treat any sole flattened parameter as callable with no arguments, regardless
+    of its closed pack cardinality. Base<int> wrongly reaches C# without the required ValueTuple<int> argument;
+    valid Base<[]> also reaches C# without its empty ValueTuple argument. Eligibility and emitted materialization
+    must agree after closure.
   source_refs:
   - file: backlog/analysis-v2-capability-progression.yaml
     selector: rules[id=declaration-shape-checks].tasks[11]
@@ -444,10 +471,37 @@ issues:
     - file: Source/Mist/ProgramAnalysis/ImplicitChains.cs
       selector: 'candidate.ParametersList is [{ IsFlattened: true }]'
       line: 34
+  - kind: executed CLI probe
+    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
+    date: '2026-10-15'
+    source: using Standard;namespace Probe;public class Base<params Ts>{public Base(params Ts args){}}public
+      class Derived:Base<int>{public Derived(){}}public class Program{public static void Main(){new Derived();Console.WriteLine("bad");}}
+    manifest: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_CS_ERROR missing required args parameter: Base_1<int>.Base_1(ValueTuple<int>)'
+  - kind: executed CLI probe
+    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
+    date: '2026-10-15'
+    source: using Standard;namespace Probe;public class Base<params Ts>{public Base(params Ts args){}}public
+      class Derived:Base<[]>{public Derived(){}}public class Program{public static void Main(){new Derived();Console.WriteLine("ok");}}
+    manifest: 'name="Probe"
+
+      namespace_root="Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 1
+    observed: 'MIST_CS_ERROR missing required args parameter: Base_0.Base_0(ValueTuple)'
   related:
   - emitter constructor pack specialization
   priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  priority_rationale: Current executed nonempty and empty pack cases establish both invalid source admission
+    and valid implicit-chain failure.
   audit_key: analysis:analysis-034
   area: analysis
 - id: MIST-058
@@ -613,11 +667,12 @@ issues:
   area: analysis
 - id: MIST-068
   title: Revalidate purity aliases crossing ordinary call arguments/results
-  status: unverified
-  summary: Origins.Survey now MarkHanded records non-owned arguments as escaped, so the literal historical
-    statement that nothing is tracked is too broad. Explicit owned origin and returned alias provenance
-    may still retain gaps. Validate Keep/Id behaviors under current Origins before treating this category
-    as confirmed.
+  status: confirmed
+  summary: Current executed programs can return an explicit owned mutable Cell after Keep(c) retains it
+    or Id(c) exposes an alias; mutating Saved subsequently changes the claimed owned result. Owned-fields
+    Requirement18.9 already requires refusing explicit-owned reuse after an ordinary non-owned-parameter
+    call, including the nonretaining Inspect control. No new callee-retention precision policy is required
+    to fix these cases.
   source_refs:
   - file: backlog/analysis-v2-capability-progression.yaml
     selector: rules[id=purity-checking].tasks[3]
@@ -639,10 +694,70 @@ issues:
     - file: Source/Mist/ProgramAnalysis/Origins.cs
       selector: public bool Escapes
       line: 423
+  - kind: executed CLI probe
+    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
+    date: '2026-10-15'
+    source: using Standard; namespace Probe; public class Cell { public int N; } public class Program {
+      public static Cell Saved = new Cell(); public static void Keep(Cell c) { Saved = c; } public static
+      owned Cell Make() { owned var c = new Cell(); Keep(c); return c; } public static void Main() { owned
+      var result = Make(); Saved.N = 7; Console.WriteLine(result.N); } }
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: '7
+
+      '
+    limits: Actual Main execution; Inspect is a negative reuse control under owned-fields R18.9, not a required
+      admission. No whole-program retention framework is established by this probe.
+  - kind: executed CLI probe
+    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
+    date: '2026-10-15'
+    source: using Standard; namespace Probe; public class Cell { public int N; } public class Program {
+      public static void Inspect(Cell c) { Console.WriteLine(c.N); } public static owned Cell Make() { owned
+      var c = new Cell(); Inspect(c); return c; } public static void Main() { owned var result = Make();
+      result.N = 9; Console.WriteLine(result.N); } }
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: '0
+
+      9
+
+      '
+    limits: Actual Main execution; Inspect is a negative reuse control under owned-fields R18.9, not a required
+      admission. No whole-program retention framework is established by this probe.
+  - kind: executed CLI probe
+    revision: 0f41d2b8ea4a4576a8a5fedc28ad091f645c7618
+    date: '2026-10-15'
+    source: using Standard; namespace Probe; public class Cell { public int N; } public class Program {
+      public static Cell Saved = new Cell(); public static Cell Id(Cell c) { return c; } public static owned
+      Cell Make() { owned var c = new Cell(); var alias = Id(c); Saved = alias; return c; } public static
+      void Main() { owned var result = Make(); Saved.N = 7; Console.WriteLine(result.N); } }
+    manifest: 'name = "Probe"
+
+      namespace_root = "Probe"
+
+      '
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet
+    exit_code: 0
+    observed: '7
+
+      '
+    limits: Actual Main execution; Inspect is a negative reuse control under owned-fields R18.9, not a required
+      admission. No whole-program retention framework is established by this probe.
   related:
   - analysis11 owned provenance
   priority: P2
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  priority_rationale: Current executed argument/result alias probes violate the accepted owned-source and
+    call-boundary contract.
   audit_key: analysis:analysis-081
   area: analysis
 - id: MIST-069

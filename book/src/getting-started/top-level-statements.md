@@ -55,8 +55,8 @@ A top-level statement file must always be the entry point when present — you c
 If your project has multiple classes with `static void Main` (and no top-level statements), the compiler also reports an error:
 
 ```
-error MIST_EP_0004: Multiple classes contain static void Main: MyApp.Program,
-MyApp.Launcher. Add entry_point = "MyApp.Program" to mist.toml to specify
+error MIST_EP_0004: Multiple classes contain static void Main: MyApp.Launcher,
+MyApp.Program. Add entry_point = "MyApp.Launcher" to mist.toml to specify
 which one to use.
 ```
 

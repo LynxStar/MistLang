@@ -515,9 +515,9 @@ internal static class TypeEmitter
         using var emitting = DelegateCeiling.Emitting(method.DeclarationNode, $"{MistType.StripArity(type.Name)}.{method.Name}");
         MethodEmitter.ReportReadonlyRefReturn(method, type.DeclarationNode, diagnostics);
 
-        if(type is AbstractType)
+        if(type is AbstractType abstractType)
         {
-            EmitInterfaceMethod(method, writer, diagnostics);
+            EmitInterfaceMethod(method, writer, diagnostics, InterfaceHiding.Hides(method, abstractType));
         }
         else
         {
@@ -525,14 +525,15 @@ internal static class TypeEmitter
         }
     }
 
-    internal static void EmitInterfaceMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics)
+    internal static void EmitInterfaceMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics, bool hides = false)
     {
         var signature = MethodEmitter.EmitSignature(method, diagnostics);
+        var hiding = hides ? "new " : "";
         var constraints = MethodEmitter.ConstraintLines(method);
 
         if(method.Body is null)
         {
-            writer.WriteLine(constraints.Count == 0 ? $"{signature};" : signature);
+            writer.WriteLine(constraints.Count == 0 ? $"{hiding}{signature};" : hiding + signature);
             writer.Indent();
 
             for(var i = 0; i < constraints.Count; i++)
@@ -544,7 +545,7 @@ internal static class TypeEmitter
             return;
         }
 
-        writer.WriteLine($"{(method.Modifiers.IsAsync ? "async " : "")}{signature}");
+        writer.WriteLine($"{hiding}{(method.Modifiers.IsAsync ? "async " : "")}{signature}");
         writer.Indent();
 
         foreach(var constraint in constraints)

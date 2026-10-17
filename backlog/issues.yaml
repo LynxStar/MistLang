@@ -4739,6 +4739,45 @@ issues:
 
       **Why it exists:** the arg'
     source_symbols: []
+  - revision: 03508b07acd8164966343eb97a736a1fbe2c254f
+    date: '2026-10-17'
+    kind: bounded documentation alignment of the variadic diagnostics subscope (Carbonek MIST-6); the other subscopes stay open
+    implementation:
+    - 'The Diagnostics list in .kiro/specs/variadics/requirements.md and the Error Handling table in
+      .kiro/specs/variadics/design.md now list MIST_VAR_0012 (ParamsArrayNotLast: a value-side params
+      collection that is not the last parameter; a value pack may sit anywhere) and MIST_VAR_0013
+      (ParamsParameterMalformed: a params parameter that is neither a value pack nor a params collection,
+      or is passed by reference), describe MIST_VAR_0011 as UnprovableSpread defines it (a spread whose
+      operand length is not known and whose destination is not the same pack; a known tuple is expanded
+      and judged as ordinary arguments), and mark MIST_VAR_0006, MIST_VAR_0008 and MIST_VAR_0009 as
+      reserved because no descriptor defines them. Codes 0001 to 0005, 0007 and 0010 were checked and
+      left as written.'
+    - 'Definitions checked: ProgramModelDiagnostics (MultipleUnbracketedPacks and MultipleParamsParameters
+      share 0001, PackInTypePosition 0002, UnprovenPackIndex 0003, PackIndexOutOfBounds 0004,
+      TooFewTypeArgumentsForPack 0005, SpreadStemCollision 0007, UnprovableSpread 0011, ParamsArrayNotLast
+      0012, ParamsParameterMalformed 0013), BackendDiagnostics (DelegateCeilingExceeded 0010), and the
+      report sites ParameterBuilder.Resolve, ParamsModifiers.WhyMalformed, ParamsCollection.ElementOf and
+      ArgumentBinder.Add. Not edited: spec task checklists, compiler behavior, the two-pipeline wording in
+      requirements.md line 14 and design.md Backend and the Arity Ceiling, structured-context documentation,
+      and the Type checker stage labels, which name the design vocabulary rather than the PipelineStage a
+      descriptor declares.'
+    verification:
+    - 'dotnet build Mist.slnx: 0 Warning(s), 0 Error(s). dotnet test --no-build filtered to
+      SpecProofCodeMatchesSampleTest, ValuePackTests, PackForwardingTests and DelegateCeilingDecisionTests:
+      Passed 96, Failed 0. git diff --check clean; CRLF line endings preserved in both spec files.'
+    source_symbols:
+    - file: Source/Mist/Common/Diagnostics/Descriptors/ProgramModelDiagnostics.cs
+      symbol: ParamsArrayNotLast
+      line: 1160
+    - file: Source/Mist/Common/Diagnostics/Descriptors/ProgramModelDiagnostics.cs
+      symbol: ParamsParameterMalformed
+      line: 1166
+    - file: Source/Mist/Common/Diagnostics/Descriptors/ProgramModelDiagnostics.cs
+      symbol: UnprovableSpread
+      line: 1177
+    - file: Source/Mist/Common/Diagnostics/Descriptors/BackendDiagnostics.cs
+      symbol: DelegateCeilingExceeded
+      line: 382
   related:
   - root/binding documentation reconciliation
   - general historical leads

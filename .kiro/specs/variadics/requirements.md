@@ -48,19 +48,21 @@ These requirements are derived from and consistent with the approved design docu
 
 ### Diagnostics
 
-The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements reference these codes where relevant:
+The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements reference these codes where relevant. The compiler declares the range's descriptors in `ProgramModelDiagnostics` and, for the Backend ceiling, in `BackendDiagnostics`; a code marked reserved has no descriptor at the current revision, so no diagnostic carries it:
 
 - **MIST_VAR_0001** (Program model): More than one Unbracketed_Pack (`params`) in a single type-parameter or value-parameter list.
 - **MIST_VAR_0002** (Type checker): A pack identifier used in bare type position.
 - **MIST_VAR_0003** (Type checker): Indexing `TArgs[i]` where the length is not proven to be at least `i + 1`.
 - **MIST_VAR_0004** (Type checker): Out-of-bounds index on a fixed-size pack `Type[N]` (for example `TArgs[N]`).
 - **MIST_VAR_0005** (Type checker): A flat argument list that cannot be bound because there are too few arguments to fill the fixed and bracketed slots.
-- **MIST_VAR_0006** (Type checker): A Zip between operands not proven to have equal length.
+- **MIST_VAR_0006** (Type checker, reserved): A Zip between operands not proven to have equal length. No descriptor defines this code.
 - **MIST_VAR_0007** (Program model): A Spread Stem that collides with another member.
-- **MIST_VAR_0008** (Program model): An empty Spread Stem.
-- **MIST_VAR_0009** (Type checker): A pack element that does not satisfy a Whole_Pack_Constraint.
+- **MIST_VAR_0008** (Program model, reserved): An empty Spread Stem. No descriptor defines this code: the grammar requires a Stem identifier on a Spread member declaration, so there is no declaration for it to report on.
+- **MIST_VAR_0009** (Type checker, reserved): A pack element that does not satisfy a Whole_Pack_Constraint. No descriptor defines this code.
 - **MIST_VAR_0010** (Backend): A construction that exceeds the target CLR type capacity.
-- **MIST_VAR_0011** (Type checker): A value-side spread whose expansion does not match its destination slots (the wrong number of slots, or an element not assignable to the corresponding slot), including a symbolic value pack (args...) spread into a fixed-arity destination not provably (TArgs...)-compatible for every instantiation.
+- **MIST_VAR_0011** (Type checker): A value-side spread whose expansion cannot be proven: the operand's length is not known where it is spread and the destination is not a slot declared over the same pack, so the number of arguments it stands for is not known for every instantiation (for example a symbolic value pack `args...` spread into a fixed-arity destination such as `Sum3(args...)`). A spread of a tuple whose shape is known is expanded into its elements and judged as ordinary arguments.
+- **MIST_VAR_0012** (Program model): A value-side `params` collection parameter (`params T[] xs`, or another collection a flat list is gathered into) that is not the last parameter. Only the homogeneous collection form is pinned to the end; a Value_Pack (`params TArgs args`) binds inward from both ends and may sit anywhere in the list.
+- **MIST_VAR_0013** (Program model): A `params` parameter that is neither a Value_Pack nor a collection a flat list is gathered into (an array, a span, a list, or an enumerable interface), or that is passed by reference.
 
 ## Requirements
 

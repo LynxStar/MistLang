@@ -6018,29 +6018,6 @@ issues:
   - MIST-142
   priority_rationale: Language contract needs resolution before selecting behavior.
   area: backend
-- id: MIST-231
-  title: Mark a user abstract's restatement of a CLR base interface member as hiding it
-  status: confirmed
-  summary: A user abstract over a CLR interface that declares a member of the same signature as one the CLR base
-    interface declares, such as a Dispose default on an abstract over IEnumerator<int>, is emitted as an interface member
-    without new, so the generated consumer warns CS0108. The program compiles and runs.
-  source_refs: []
-  evidence:
-  - revision: e7c379a4, the packet 28 head before its rebase; the same code is 3a730938 on main 3e2f6e47
-    date: '2026-10-11'
-    kind: executed CLI probe and generated consumer build
-    source: 'using Standard; namespace Probe; public abstract ICursor : IEnumerator<int> { void Dispose() { Console.WriteLine("default
-      disposed"); } } public class Cursor : ICursor { public int Current => 3; public bool MoveNext() { return false; } } public
-      class Program { public static void Main() { var c = new Cursor(); c.Dispose(); Console.WriteLine("ok"); } }'
-    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet build <scratch-project>/out/Probe.csproj --no-incremental
-    observed: 'Prints default disposed and ok. The consumer reports warning CS0108: ''ICursor.Dispose()'' hides inherited
-      member ''IDisposable.Dispose()''. Use the new keyword if hiding was intended.'
-    detail: Found while verifying MIST-023, whose adapters now keep such a default rather than duplicating it.
-  related:
-  - MIST-023
-  priority: P3
-  priority_rationale: Generated consumer warning only; no runtime defect.
-  area: backend
 - id: MIST-232
   title: Annotate a type parameter answering a nullable native slot parameter
   status: confirmed
@@ -6109,7 +6086,63 @@ issues:
   priority: P3
   priority_rationale: A widening Mist admits reaches the target compiler as an error.
   area: backend
+- id: MIST-244
+  title: Mark a user abstract's property slot restating an inherited interface property as hiding it
+  status: confirmed
+  summary: A user abstract that restates a property slot an interface it reaches declares, such as int Current { get; } on an
+    abstract over IEnumerator<int>, is emitted as an interface property without new, so the generated consumer warns CS0108.
+    MIST-231 marks only methods.
+  source_refs: []
+  evidence:
+  - revision: 0f1297a9, on main 03508b07
+    date: '2026-10-17'
+    kind: executed CLI probe and generated consumer build
+    source: 'using Standard; namespace Probe2; public abstract INum : IEnumerator<int> { int Current { get; } } public class
+      Program { public static void Main() { Console.WriteLine("ok"); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet build <scratch-project>/out/Probe2.csproj --no-incremental
+    observed: 'warning CS0108: ''INum.Current'' hides inherited member ''IEnumerator<int>.Current''. Use the new keyword if
+      hiding was intended.'
+    detail: Found while closing MIST-231; this minimal program prints ok and its consumer reports the one warning.
+  related:
+  - MIST-231
+  priority: P3
+  priority_rationale: Generated consumer warning only; no runtime defect.
+  area: backend
 archive:
+- id: MIST-231
+  title: Mark a user abstract's restatement of a CLR base interface member as hiding it
+  status: implemented
+  summary: 'Delivered 2026-10-17: an abstract''s method that hides a member of an interface it reaches is emitted with new, so the recorded ICursor : IEnumerator<int> probe still prints default disposed and ok and its generated consumer builds with no CS0108. Hiding is judged as C# judges it: same name, arity and parameter spelling through the reached base, return type ignored, plus the Reset and Dispose the CLR enumerator inherits beyond Standard''s IEnumerator. Before, the restatement was emitted bare and the consumer warned CS0108.'
+  source_refs: []
+  evidence:
+  - revision: e7c379a4, the packet 28 head before its rebase; the same code is 3a730938 on main 3e2f6e47
+    date: '2026-10-11'
+    kind: executed CLI probe and generated consumer build
+    source: 'using Standard; namespace Probe; public abstract ICursor : IEnumerator<int> { void Dispose() { Console.WriteLine("default
+      disposed"); } } public class Cursor : ICursor { public int Current => 3; public bool MoveNext() { return false; } } public
+      class Program { public static void Main() { var c = new Cursor(); c.Dispose(); Console.WriteLine("ok"); } }'
+    command: dotnet run --project Source/Mist.CLI --no-build -- run <scratch-project> --quiet; dotnet build <scratch-project>/out/Probe.csproj --no-incremental
+    observed: 'Prints default disposed and ok. The consumer reports warning CS0108: ''ICursor.Dispose()'' hides inherited
+      member ''IDisposable.Dispose()''. Use the new keyword if hiding was intended.'
+    detail: Found while verifying MIST-023, whose adapters now keep such a default rather than duplicating it.
+  - revision: '0f1297a9 (fix(emitter): Mark an abstract''s restatement of an inherited interface member new), on main 03508b07'
+    date: '2026-10-17'
+    kind: implementation and executed verification
+    implementation:
+    - 'InterfaceHiding (Source/Mist/Backends/CSharpTranspiler/Emitter) decides whether an abstract''s method hides one an interface it reaches through AbstractInheritance.Reached declares: same name, type-parameter count, parameter count and direction, and every parameter''s unannotated C# spelling equal once the inherited one is read through the reached substitution with its method type parameters renamed by position. SlotSignatures is not reused because it lets an abstract''s own type parameter agree with anything. IteratorBoilerplateEmitter.InheritsUndeclared adds the parameterless Reset and Dispose the CLR IEnumerator<T> inherits beyond Standard.IEnumerator, beside the adapters it already synthesizes for them. TypeEmitter.EmitInterfaceMethod writes new before a hiding slot or default; nothing else in emission changed.'
+    acceptance:
+    - 'The recorded probe, extended with a non-hiding int Peek() slot answered by the conformer, prints default disposed, 7, ok (exit 0); the emitted interface reads new void Dispose() with a body and a bare int Peek();, and dotnet build of out/Probe.csproj --no-incremental reports 0 warnings (CS0108 before the change at 03508b07).'
+    - 'Controls: abstract IOverloads<T> : IEquatable<int> { bool Equals(T other); } stays bare and abstract IRestates : IEquatable<int> with a bool Equals(int other) default is emitted new; the program prints True and False and its consumer builds with 0 warnings. A Mist-over-Mist restatement (IDer : IBase restating void Ping()) is also emitted new, and its CS0108 is gone.'
+    verification:
+    - 'Tier 1: InterfaceHidingTests (9 cases: Dispose and Reset restated over the enumerator stand-in hide; a MoveNext the stand-in declares hides; a Peek and a one-parameter Dispose hide nothing; Equals(int) over IEquatable<int> hides; Equals(T) over IEquatable<int> with the abstract''s own T does not; EmitInterfaceMethod writes new only where told it hides).'
+    - 'Full ledger TestResults/ledger/20261017-124617 on 0f1297a9 (test exit 0: Mist.Tests 10829, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910, Storm.ConsumerIntegration.Tests 46, all passed, AllFeaturesV2 included); dotnet build Mist.slnx 0 warnings 0 errors; dotnet format Mist.slnx --verify-no-changes clean.'
+    limitations:
+    - 'Methods only: a property slot restating an inherited one, such as int Current { get; } on an abstract over IEnumerator<int>, still warns CS0108 and is recorded as MIST-244. Hidden witness parameters a generic method may gain in emission are not part of the comparison.'
+  related:
+  - MIST-023
+  priority: P3
+  priority_rationale: Generated consumer warning only; no runtime defect.
+  area: backend
 - id: MIST-054
   title: Validate purity of setters run by default synthesis
   status: implemented

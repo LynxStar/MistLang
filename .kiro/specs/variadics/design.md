@@ -964,7 +964,7 @@ emission is monomorphization:
 
 Diagnostics use a dedicated `MIST_VAR_*` range so they do not collide with existing ranges. Front-end
 diagnostics are emitted at the earliest stage that can detect them; the arity ceiling is a backend
-diagnostic.
+diagnostic. A code marked reserved has no descriptor at the current revision, so no diagnostic carries it.
 
 | ID | Stage | Condition |
 |----|-------|-----------|
@@ -973,12 +973,14 @@ diagnostic.
 | `MIST_VAR_0003` | Type checker | Indexing `TArgs[i]` where the length is not proven to be at least `i + 1` |
 | `MIST_VAR_0004` | Type checker | Out-of-bounds index on a fixed-size pack `Type[N]` (for example `TArgs[N]`) |
 | `MIST_VAR_0005` | Type checker | Flat argument list cannot be bound: too few arguments to fill the fixed and bracketed slots |
-| `MIST_VAR_0006` | Type checker | Zip between operands not proven to have equal length (different origin, no equal-length proof) |
+| `MIST_VAR_0006` | Type checker (reserved) | Zip between operands not proven to have equal length (different origin, no equal-length proof); no descriptor defines this code |
 | `MIST_VAR_0007` | Program model | Spread stem collides with another member (equals the stem, uses it as a prefix, or two stems prefix one another) |
-| `MIST_VAR_0008` | Program model | Empty spread stem |
-| `MIST_VAR_0009` | Type checker | A pack element does not satisfy a whole-pack constraint |
+| `MIST_VAR_0008` | Program model (reserved) | Empty spread stem; no descriptor defines this code, since the grammar requires a stem identifier |
+| `MIST_VAR_0009` | Type checker (reserved) | A pack element does not satisfy a whole-pack constraint; no descriptor defines this code |
 | `MIST_VAR_0010` | Backend | Construction exceeds the target CLR type capacity (`Func`/`Action` over 16 inputs, or non-nestable ValueTuple over 7) |
-| `MIST_VAR_0011` | Type checker | A value-side spread whose expansion does not match its destination slots -- the wrong number of slots, or an element not assignable to the corresponding slot -- including a symbolic value pack (`args...`) spread into a fixed-arity destination that is not provably `(TArgs...)`-compatible for every instantiation |
+| `MIST_VAR_0011` | Type checker | A value-side spread whose expansion cannot be proven: the operand's length is not known where it is spread and the destination is not a slot declared over the same pack, so the number of arguments it stands for is not known for every instantiation -- a symbolic value pack (`args...`) spread into a fixed-arity destination, for example. A spread of a tuple whose shape is known is expanded into its elements and judged as ordinary arguments |
+| `MIST_VAR_0012` | Program model | A value-side `params` collection parameter (`params T[] xs`, or another collection a flat list is gathered into) that is not the last parameter; a value pack (`params TArgs args`) binds inward from both ends and may sit anywhere |
+| `MIST_VAR_0013` | Program model | A `params` parameter that is neither a value pack nor a collection a flat list is gathered into (an array, a span, a list, or an enumerable interface), or that is passed by reference |
 
 Recovery follows the established pattern: on a binding or position error the offending slot is treated
 as an error type so downstream analysis can continue and report additional diagnostics in one pass.

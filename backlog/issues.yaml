@@ -798,32 +798,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-097
   area: analysis
-- id: MIST-071
-  title: Align book entry-point ambiguity example with ordinal suggestions
-  status: unverified
-  summary: EntryPointSelection uses ordinal choices; book example exact statement not rechecked in this
-    audit. Small documentation validation retained rather than claiming runtime selection wrong.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=entry-point-resolution].tasks[2]
-    line_at_baseline: 5618
-    lead_excerpt: 'The book''s MIST_EP_0004 example lists the classes in declaration order and suggests
-      the first declared; the message lists them in ordinal order and suggests the first of that.
-
-      '
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/EntryPointSelection.cs
-      selector: StringComparer.Ordinal
-      line: 41
-  related: []
-  priority: P3
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-101
-  area: analysis
 - id: MIST-072
   title: Identify external runtime entry attributes for context requirements
   status: unverified
@@ -6110,6 +6084,51 @@ issues:
   priority_rationale: A widening Mist admits reaches the target compiler as an error.
   area: backend
 archive:
+- id: MIST-071
+  title: Align book entry-point ambiguity example with ordinal suggestions
+  status: implemented
+  summary: Corrected the book MIST_EP_0004 diagnostic example to list MyApp.Launcher before
+    MyApp.Program and suggest MyApp.Launcher, matching current ordinal selection.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=entry-point-resolution].tasks[2]
+    line_at_baseline: 5618
+    lead_excerpt: 'The book''s MIST_EP_0004 example lists the classes in declaration order and suggests
+      the first declared; the message lists them in ordinal order and suggests the first of that.
+
+      '
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/EntryPointSelection.cs
+      selector: StringComparer.Ordinal
+      line: 41
+  - revision: 03508b07acd8164966343eb97a736a1fbe2c254f
+    date: '2026-10-17'
+    implementation: Documentation-only correction; entry-point policy and compiler behavior unchanged.
+    sources:
+    - file: book/src/getting-started/top-level-statements.md
+      selector: Multiple Main Methods / MIST_EP_0004
+      line: 58
+    - file: Source/Mist/ProgramAnalysis/EntryPointSelection.cs
+      selector: classes use Distinct and Order with StringComparer.Ordinal; MultipleMains receives classes[0]
+      line: 43
+    - file: Source/Mist/Common/Diagnostics/Descriptors/EntryPointDiagnostics.cs
+      selector: MultipleMains formats candidates as argument 0 and suggestion as argument 1
+      line: 28
+    verification: Diagnostic example compared with ordinal candidate ordering and descriptor template;
+      Python assertions passed for both candidate order and suggestion, all 8 Markdown include
+      targets and paired snippet references. mdbook build book (v0.5.2) succeeded with no warnings.
+      Ruby YAML parse and comparison against the starting revision confirmed only MIST-071 changed
+      in the ledger. git diff --check passed. No Mist snippets, Source or Test files changed;
+      compiler build and SnippetEmitter not required.
+  related: []
+  priority: P3
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-101
+  area: analysis
 - id: MIST-054
   title: Validate purity of setters run by default synthesis
   status: implemented

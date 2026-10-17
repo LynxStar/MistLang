@@ -86,6 +86,11 @@ internal static class IteratorBoilerplateEmitter
         return false;
     }
 
+    public static bool InheritsUndeclared(AbstractType definition, Method method)
+    {
+        return Is(definition, WellKnownTypes.IEnumerator) && (Parameterless(method, "Reset") || Parameterless(method, "Dispose"));
+    }
+
     private static bool Parameterless(Method method, string name)
     {
         return method.Name == name

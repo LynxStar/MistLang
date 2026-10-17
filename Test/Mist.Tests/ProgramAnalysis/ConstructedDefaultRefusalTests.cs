@@ -6,6 +6,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 using static Mist.Tests.Helpers.GenericDefaultShapes;
 
@@ -21,6 +22,29 @@ public sealed class ConstructedDefaultRefusalTests
     public ConstructedDefaultRefusalTests()
     {
         shapes = new GenericDefaultShapes(fragment.Types);
+    }
+
+    [Theory]
+    [InlineData("List", "List<int>")]
+    [InlineData("Array", "int[]")]
+    public void DefaultOfAnIntrinsicConstruction_AdvisesExplicitConstruction(string name, string displayed)
+    {
+        var definition = new ClassType(name == "Array" ? "Array<,>" : "List<>", "Standard", null, null, null)
+        {
+            Modifiers = DeclarationFragments.Public with { IsIntrinsic = true },
+        };
+        _ = Parameter(definition);
+        IMistType[] arguments = name == "Array"
+            ? [shapes.Integer, new UnknownValueType(shapes.Integer)]
+            : [shapes.Integer];
+        var closed = Construct(definition, arguments);
+        fragment.Root = Local(closed, new DefaultExpression(DeclarationFragments.At<DefaultExpressionPrimaryNode>(30), closed));
+
+        var finding = Assert.Single(fragment.Run(new DefaultabilityAnalyzer()));
+
+        Assert.Equal("MIST_PA_NOT_DEFAULTABLE", finding.Id.Value);
+        Assert.Equal(31, finding.Location.Start.Column);
+        Assert.Equal($"Type '{displayed}' has no default. Construct it explicitly, or use a type that has a default.", finding.Message);
     }
 
     [Theory]
@@ -124,7 +148,9 @@ public sealed class ConstructedDefaultRefusalTests
         var findings = fragment.Run(new DefaultabilityAnalyzer());
 
         Assert.Equal(named is null ? [] : ["MIST_PA_BASE_NOT_DEFAULTABLE"], findings.Select(finding => finding.Id.Value));
-        Assert.All(findings, finding => Assert.Contains($"its base '{named}' has none", finding.Message, StringComparison.Ordinal));
+        Assert.All(findings, finding => Assert.Equal(
+            $"Type 'Sub' needs a default because it declares no constructor, and its base '{named}' has none to start from. Use a base type that has a default, or give 'Sub' a constructor and no default block.",
+            finding.Message));
     }
 
     [Theory]

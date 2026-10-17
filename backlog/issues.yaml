@@ -367,34 +367,6 @@ issues:
   priority_rationale: Retained finite obligation; scope and verification limits are explicit.
   audit_key: analysis:analysis-031
   area: analysis
-- id: MIST-056
-  title: Correct defaultability diagnostics for intrinsic constructions and closed bases
-  status: unverified
-  summary: Old lead distinguishes actual reason from message advice (List<int>/int[] and Box<Connection>).
-    Current descriptor/model paths exist but exact wording/repro not exercised; retain as small diagnostic
-    validation, not defaultability redesign.
-  source_refs:
-  - file: backlog/analysis-v2-capability-progression.yaml
-    selector: rules[id=declaration-shape-checks].tasks[10]
-    line_at_baseline: 2183
-    lead_excerpt: NOT_DEFAULTABLE names constructor/field/base for intrinsic construction; BASE_NOT_DEFAULTABLE
-      advises a block on a closed instantiation whose argument lacks a default.
-    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-  evidence:
-  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
-    verification: source inspection only; no test execution is claimed
-    sources:
-    - file: Source/Mist/ProgramAnalysis/Rules/DefaultabilityAnalyzer.cs
-      selector: Analyze(
-      line: 32
-    - file: Source/Mist/Common/Diagnostics/Descriptors/ProgramAnalysisDiagnostics.cs
-      selector: NotDefaultable
-      line: 193
-  related: []
-  priority: P3
-  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
-  audit_key: analysis:analysis-032
-  area: analysis
 - id: MIST-058
   title: Revalidate bodiless operator and static abstract slot obligations
   status: unverified
@@ -6110,6 +6082,57 @@ issues:
   priority_rationale: A widening Mist admits reaches the target compiler as an error.
   area: backend
 archive:
+- id: MIST-056
+  title: Correct defaultability diagnostics for intrinsic constructions and closed bases
+  status: implemented
+  summary: Confirmed and corrected misleading defaultability advice with two descriptor-only changes.
+    NOT_DEFAULTABLE advises explicit construction or a defaultable type without inventing a constructor/storage
+    cause. BASE_NOT_DEFAULTABLE advises a defaultable base rather than adding a block to a closed instantiation.
+    Defaultability decisions, diagnostic IDs, severity and reporting sites are unchanged.
+  source_refs:
+  - file: backlog/analysis-v2-capability-progression.yaml
+    selector: rules[id=declaration-shape-checks].tasks[10]
+    line_at_baseline: 2183
+    lead_excerpt: NOT_DEFAULTABLE names constructor/field/base for intrinsic construction; BASE_NOT_DEFAULTABLE
+      advises a block on a closed instantiation whose argument lacks a default.
+    revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+  evidence:
+  - revision: da1aaa8fd416bd3bdf93e496281e7b2cbf52594c
+    verification: source inspection only; no test execution is claimed
+    sources:
+    - file: Source/Mist/ProgramAnalysis/Rules/DefaultabilityAnalyzer.cs
+      selector: Analyze(
+      line: 32
+    - file: Source/Mist/Common/Diagnostics/Descriptors/ProgramAnalysisDiagnostics.cs
+      selector: NotDefaultable
+      line: 193
+  - revision: 03508b07acd8164966343eb97a736a1fbe2c254f
+    date: '2026-10-17'
+    implementation: MIST-056 implementation commit based on this revision; changes are limited to two
+      ProgramAnalysisDiagnostics descriptor strings and Tier 2 ConstructedDefaultRefusalTests coverage.
+    cause: Defaultability.DeclarationOf excludes intrinsic definitions, so Synthesizes refuses constructed
+      List<int> and int[] independently of constructor or storage shape. For Box<Connection>, receiver
+      substitution makes the Value slot require Connection's missing default even when Box has a default
+      block; Box<int> with that block is admitted. Adding a block alone does not fix this closed base.
+    verification: >-
+      git submodule update --init --recursive initialized Storm at 83410653c7d722868a5001d2ef71e6692ec012b3.
+      Initial tools/test-ledger/run.sh Test/Mist.Tests --filter 'FullyQualifiedName~ConstructedDefaultRefusalTests'
+      produced 28 passes and four expected wording failures (TestResults/ledger/20261017-122434/summary.txt
+      and failures.txt); the array fixture was then refined to Standard.Array<,> with literal int[] expectation.
+      dotnet build Mist.slnx passed with 0 warnings and 0 errors.
+      LEDGER_NO_BUILD=1 tools/test-ledger/run.sh Test/Mist.Tests --filter
+      'FullyQualifiedName~ConstructedDefaultRefusalTests|FullyQualifiedName~DefaultabilityRefusalTests|FullyQualifiedName~BaseConstructorRefusalTests'
+      passed 89/89 (TestResults/ledger/20261017-122711/summary.txt; failures.txt empty).
+      DOTNET_USE_POLLING_FILE_WATCHER=1 LEDGER_NO_BUILD=1 tools/test-ledger/run.sh passed all four
+      assemblies: Mist.Tests 10822, Mist.CLI.Tests 115, Storm.SourceGenerator.Tests 910,
+      Storm.ConsumerIntegration.Tests 46 (11893 total, no failures;
+      TestResults/ledger/20261017-122725/summary.txt; failures.txt empty).
+      dotnet format Mist.slnx --verify-no-changes exited 0; git diff --check passed.
+  related: []
+  priority: P3
+  priority_rationale: Retained finite obligation; scope and verification limits are explicit.
+  audit_key: analysis:analysis-032
+  area: analysis
 - id: MIST-054
   title: Validate purity of setters run by default synthesis
   status: implemented

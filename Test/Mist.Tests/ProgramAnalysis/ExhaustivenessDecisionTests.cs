@@ -1,7 +1,7 @@
 // Tier 3 (Component): switch shapes ExhaustivenessAnalyzer admits over a real model -- relational
 // partitions and finite products it proves complete, guards it does not evaluate, and the closed enum
 // domain -- plus the two findings whose arm shapes only the binder can vouch for: value arms over an
-// optional and literal elements of a tuple pattern. Switch severity remains MIST-106 in backlog/issues.yaml.
+// optional and literal elements of a tuple pattern. Switch severity remains MIST-106 in Carbonek.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

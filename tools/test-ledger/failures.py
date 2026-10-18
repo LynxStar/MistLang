@@ -3,7 +3,7 @@
 
     python3 tools/test-ledger/failures.py <ledger-dir> [repo-root]
 
-The classifier recognises the signatures recorded in backlog/issues.yaml, so a mass failure
+The classifier recognises the signatures recorded in Carbonek project MIST, so a mass failure
 is named by its shape rather than by 400 messages read one at a time.
 
 A trx is written only when its assembly finishes, so a stopped run leaves none for the assembly

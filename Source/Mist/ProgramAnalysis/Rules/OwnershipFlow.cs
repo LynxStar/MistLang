@@ -33,7 +33,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// complained of settles the place, so one mistake is one complaint per path; and a struct is never
 /// tracked, since a copy of it is a value of its own. The rest of what classic admits here -- a call as
 /// no move for a linear value, a frozen lender lent borrowed by call -- remains under MIST-122 and
-/// MIST-061 in backlog/issues.yaml.
+/// MIST-061 in Carbonek.
 /// </summary>
 internal sealed partial class OwnershipFlow(
     AnalysisContext context,

@@ -1,7 +1,7 @@
 // Tier 3 (Component): admitted moves, leases, lends, receivers, disciplines, readonly contexts and
 // captures, plus model reach facts. OwnershipAnalyzer, ThisTiers and the readonly/escape rules state
 // the current contracts. Unresolved plain-linear-parameter transfer and frozen-lease call policies
-// remain MIST-122 and MIST-061 in backlog/issues.yaml.
+// remain MIST-122 and MIST-061 in Carbonek.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

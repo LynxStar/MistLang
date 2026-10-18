@@ -16,7 +16,7 @@ namespace Mist.ProgramAnalysis;
 /// that parameter's tier, and a call through an explicit `this.` needs whatever the callee needs. An
 /// implicit call is NOT followed and a bare field's call is judged as unrestricted where `this.field`
 /// is not, because that is exactly the line classic draws, measured; receiver/lending inference
-/// precision remains MIST-153 in backlog/issues.yaml. Which fields of `this` a method touches, for a
+/// precision remains MIST-153 in Carbonek. Which fields of `this` a method touches, for a
 /// call on a holder whose owned fields are partly moved or lent (owned-fields Requirement 16.23), does
 /// follow implicit calls too: a sibling the callee never reaches is the question, and a helper reached
 /// without `this.` reaches fields all the same.

@@ -241,7 +241,7 @@ without crashing, since the parser is shared.
    body-walking rules to Tier 2. Higher tiers SHALL be used only for their own invariants.
 5. `samples/AllFeaturesV2` and `samples/AllFeatures` SHALL remain identical to their baselines.
 6. Outstanding capability and rule obligations, implementation evidence and closure SHALL be
-   recorded in `backlog/issues.yaml`.
+   recorded in Carbonek project MIST.
 
 ### Requirement 10: Book
 

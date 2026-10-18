@@ -8,7 +8,7 @@ public static partial class ProgramAnalysisDiagnostics
     /// A switch expression some value of its scrutinee reaches no arm of. A WARNING, which is classic's
     /// severity for the same finding (MIST_TC_0090): the program compiles, and an unmatched value throws
     /// at runtime. Whether Mist should refuse instead is the open policy MIST-106 in
-    /// backlog/issues.yaml, not one this descriptor gets to make.
+    /// Carbonek, not one this descriptor gets to make.
     /// </summary>
     public static readonly DiagnosticDescriptor SwitchNotExhaustive = new(
         new DiagnosticId("MIST_PA_SWITCH_NOT_EXHAUSTIVE"),

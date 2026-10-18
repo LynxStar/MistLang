@@ -158,7 +158,7 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
     /// running the suite, and it re-runs Mist.CLI's Content copy of Source/Standard into the very
     /// directory the `mist` it launches then reads through AppContext.BaseDirectory. A test that
     /// rewrites the standard library out from under a concurrently starting compiler is the
-    /// suite-wide flake recorded in backlog/issues.yaml (ARCH-135/ARCH-136) -- whole classes failing together with
+    /// suite-wide flake recorded in Carbonek as ARCH-135/ARCH-136 -- whole classes failing together with
     /// MIST_UNDEFINED_NAMESPACE for `Standard`, and recovering on the next run. The copy is
     /// PreserveNewest, so it is a no-op until a Source/Standard file's timestamp moves, which is why
     /// the flake clusters in sessions that touch the standard library.

@@ -24,7 +24,7 @@
       SamplesCompileAndMatchBaselineTest runs the CLI with the no-build flag, so something must
       guarantee the CLI is built before these tests run; without this edge the solution constrains
       nothing between the two. Building it here rather than letting the test build it is the fix
-      for the suite-wide flake in backlog/issues.yaml (ARCH-135/ARCH-136), where a nested MSBuild rewrites
+      for the suite-wide flake recorded in Carbonek as ARCH-135/ARCH-136, where a nested MSBuild rewrites
       Mist.CLI's copy of Source/Standard while the compiler it launches is reading it.
     -->
     <ProjectReference Include="..\..\Source\Mist.CLI\Mist.CLI.csproj"

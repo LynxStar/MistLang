@@ -58,7 +58,7 @@ old one, or at a call site that restates what the thing it calls already documen
 
 The reader is looking at the current code and needs to understand it. A now-fixed bug is not
 part of that -- it is a distraction that costs them a paragraph to discover is irrelevant.
-History has homes already: the commit message, and the relevant `backlog/*.yaml` register. A
+History has homes already: the commit message, and the matching Carbonek task's evidence. A
 comment is the one place it does not belong.
 
 The tell is past or counterfactual tense: *previously*, *used to*, *no longer*, *without

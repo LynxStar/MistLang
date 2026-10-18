@@ -2,7 +2,7 @@
 
 The rules that judge a finished program model. Their contracts live in the requirements,
 current rule implementations and tests. Outstanding work, deliberate policy limits and
-closure evidence are tracked in `backlog/issues.yaml`.
+closure evidence are tracked in Carbonek project MIST; see the root `AGENTS.md`.
 
 ## Isolation
 

@@ -10,7 +10,7 @@ namespace Mist.ProgramModel.Contracts.Types;
 /// This is a <em>logical</em> boundary. Referenced Mist projects are currently emitted
 /// into a single CLR assembly alongside the project being compiled, so an assembly here
 /// does not correspond one-to-one with an emitted DLL. Splitting emission per assembly
-/// is tracked in <c>backlog/issues.yaml MIST-172</c>; until then any rule expressed
+/// is tracked in Carbonek task <c>MIST-172</c>; until then any rule expressed
 /// against this boundary is enforced by the Mist frontend alone.
 /// </para>
 /// </summary>

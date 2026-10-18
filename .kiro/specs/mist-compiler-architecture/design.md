@@ -782,8 +782,9 @@ children and local initializer provenance after those decisions. It reports the 
 if no positive owner exists. `ErrorType`, `UnresolvedExpression` and unrelated diagnostics do not
 establish ownership. Sound overload and await errors remain reportable, independent errors remain
 independent, and no failed shape represents successful lowering. Intrinsic indexing of a sound
-non-indexable value remains outside this recovery contract. Verification evidence belongs in the
-error-sentinel item (5) and operator-and-positional-checks entries in `backlog/`.
+non-indexable value remains outside this recovery contract. Verification evidence belongs in
+Carbonek project MIST, on the tasks imported from the former error-sentinel item (5) and
+operator-and-positional-checks entries.
 
 ### Backend resolution
 

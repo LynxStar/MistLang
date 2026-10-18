@@ -84,7 +84,7 @@ and choosing an integral type that can represent it. Unary binding admits the si
 boundaries. Dependent integer arguments use that same reader through `LiftIntegerLiteral`,
 including positive values through `ulong.MaxValue`; `CharacterLiterals` decodes character escapes
 for expressions and dependent arguments. Current unresolved obligations and historical closure
-evidence are recorded in `backlog/issues.yaml`.
+evidence are recorded in Carbonek project MIST.
 
 `BodyEmitter.EmitLiteral` writes literals with the invariant culture, using `R` for `double`
 and `float` and decimal's invariant form with its `m`. Diagnostics format arguments invariantly,

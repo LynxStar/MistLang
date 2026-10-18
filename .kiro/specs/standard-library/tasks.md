@@ -115,8 +115,9 @@ Stages:
     `MIST_PA_OPERATOR_NOT_APPLICABLE` (Requirements 6.3/6.6). Failed overload/await binding retains
     these expressions for `BodyWalker`; a fallback remains pending until analysis records an actual
     owner, so inline and local-initializer forms preserve the same source refusal. ErrorType alone
-    does not prove a prior diagnostic. Recovery evidence and verification belong to error-sentinel
-    item (5) and operator-and-positional-checks in `backlog/`; this does not close unary work.
+    does not prove a prior diagnostic. Recovery evidence and verification belong in Carbonek project
+    MIST, on the tasks imported from the former error-sentinel item (5) and
+    operator-and-positional-checks entries; this does not close unary work.
     In `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`, add two new private helpers per design § 4:
     - `ResolveBinaryOperator(string op, ExpressionNode left, ExpressionNode right, SyntaxNode surrounding, ISemanticModel model, DiagnosticBag diagnostics)` — gathers operator-member candidates from BOTH operand types, calls `OverloadResolver.Resolve`, emits `MIST_TC_0003`/`MIST_TC_0005`/`MIST_TC_0006` on `NoApplicableCandidate` (selecting the ID by which `Check*Node` wrapper is calling), emits `MIST_TC_0032` on `AmbiguousCall`, calls `RecordResolvedOperator` on `Success`, sets the expression type to the selected candidate's `DeclaredType`.
     - `ResolveUnaryOperator(string op, ExpressionNode operand, SyntaxNode surrounding, ISemanticModel model, DiagnosticBag diagnostics)` — analogous, one operand.

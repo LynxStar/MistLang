@@ -49,19 +49,9 @@ were captured from v2 and checked against the programs by hand. Note the blind s
 
 ## Backlog
 
-`backlog/issues.yaml` is the **single source of truth for outstanding work**. Each obligation
-has a stable ID, status and evidence at an identified revision. Distinguish confirmed gaps,
-unverified leads, language/product decisions and optional work. Preserve IDs and add closure
-evidence when moving implemented work to the archive. `backlog/README.md` explains maintenance.
-
-The 15 former ledgers have been deleted after reconciliation. Their historical source selectors
-and coverage maps remain in the canonical ledger with explicit Git revisions. They are provenance,
-not documents to recreate or update. Complete flaky-test observations also live on the matching
-canonical records; `Test/CLAUDE.md` requires recording every sighting there.
-
-The owner confirms the spec task documents are implemented; do not harvest them as another
-backlog. Requirements, design and grammar remain contract references. Workstream packets assign
-work, and test-run ledgers record verification; neither is an additional work queue.
+Carbonek project MIST is the **only record of outstanding work**, its evidence and every flaky-test
+observation. `AGENTS.md` states the contract: how to find work, record a flake and close a task, and
+which task kinds are the owner's.
 
 Representation and emission belong to the frontend/backend. Rules that judge a finished model
 belong to Stage 5, whichever stage a diagnostic is declared at. `samples/AllFeaturesV2` is a stdout
@@ -172,8 +162,8 @@ The one comment is earned only by reasoning the code cannot carry: why this appr
 obvious alternative, a constraint imposed from outside the file, an invariant a reader could
 break without the compiler noticing, or why something is deliberately absent.
 
-Applies to `Source/`, `Test/`, and `.mist` files. Exempt: commit messages, and the
-`evidence:` fields in `backlog/*.yaml`, which exist to record what was measured.
+Applies to `Source/`, `Test/`, and `.mist` files. Exempt: commit messages, and Carbonek
+evidence entries, which exist to record what was measured.
 
 Run `/code-comment-rationale` for worked examples — read it when a rule seems wrong, not
 before writing.

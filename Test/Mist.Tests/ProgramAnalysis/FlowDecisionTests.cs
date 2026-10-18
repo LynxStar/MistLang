@@ -1,6 +1,6 @@
 // Tier 3 (Component): admitted assigned reads, constructor-field access, stampable element types and
 // model reach facts. DefiniteAssignmentAnalyzer and Stampability state these decisions; the stricter
-// constructor this/field policy remains MIST-120 in backlog/issues.yaml.
+// constructor this/field policy remains MIST-120 in Carbonek.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

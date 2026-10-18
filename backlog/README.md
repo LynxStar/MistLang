@@ -1,36 +1,19 @@
 # Backlog
 
-[issues.yaml](issues.yaml) is the only work ledger. Add, prioritize, assign and close work there.
-The former ledgers, dated inventory tables, completed migration checklist and empty placeholders
-have been deleted. Git retains the original documents at the revisions recorded in the ledger.
+Outstanding work lives in Carbonek project MIST. The root `AGENTS.md` states how to find, record
+and close it. Nothing in this folder is a work queue.
 
-## Using the ledger
+The former ledger is frozen at `6d862f638e1b32cf0dc7bcd80e7d83b18617ebf7`, the revision Carbonek
+imported. Each imported task keeps its ledger ID as its key, and its `sourceReference` names the
+record's entry in the frozen file. Read that file with:
 
-Each record has a stable ID, expected obligation and evidence at an identified revision.
-`confirmed` means current source or an executed probe supports a missing or violated contract;
-read the evidence to see which. `unverified` needs confirmation or attribution. `decision`
-requires a language/product choice. `optional` covers deferred features, refactors and performance
-explorations. The archive retains completed, stale and superseded leads with their disposition.
+```bash
+git show 6d862f638e1b32cf0dc7bcd80e7d83b18617ebf7:backlog/issues.yaml
+```
 
-Counts under `reconciliation` describe the 2026-10-03 audit, not later current status.
-Count the open `issues` by status when planning work. Preserve IDs when moving closed records
-to `archive`, and add implementation, revision and verification evidence.
+The `source_refs` an imported task carries are provenance: each path is read from Git at the
+revision it records, even when the file is gone from the checkout. The workstream packets that
+assigned ledger records to worker sessions are under `backlog/workstreams/` at the frozen revision.
 
-## Evidence and observations
-
-Record intermittent test sightings in `observations` on the matching issue, as `Test/CLAUDE.md`
-requires. Keep failing and passing run evidence, test names, discovery dates, symptoms and
-causes; use `unknown` when attribution is unknown. A green rerun does not close an unexplained
-failure. The 15 imported flake reports retain their complete evidence on the existing issue or
-archive record; `status_at_import` is their old observation label, not current work status.
-
-`source_refs`, `sources` and the coverage maps are historical provenance. An explicit `revision`
-means the path is read from Git at that revision, even when the file no longer exists in the
-checkout. These entries do not point to another list to update. The clean-room restriction on
-classic implementation still applies.
-
-Requirements, designs and the grammar remain contracts. The owner confirms spec task documents
-are implemented; do not harvest them as another backlog. Workstream packets are assignments,
-test-run ledgers are verification, and AllFeaturesV2 remains the sole sample stdout bank.
-The regions/lifetimes discussion in `design-notes/` is an excluded pre-design note, not requirements
-or an additional work queue.
+`design-notes/` holds the regions and lifetimes discussion, a pre-design note that is neither
+requirements nor work.

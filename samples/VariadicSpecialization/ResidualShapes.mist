@@ -1,0 +1,62 @@
+using Standard;
+
+namespace VariadicSpecialization;
+
+public class PackBox<params Ts>
+{
+    public int Count<params Us>(params Us us)
+    {
+        return Ts.Length * 10 + Us.Length;
+    }
+}
+
+public class PackHolder { }
+
+extension(PackHolder self)
+{
+    public int Count<params Us>(params Us us)
+    {
+        return Us.Length;
+    }
+}
+
+public class ResidualShapes
+{
+    public static string First<params TArgs>(params TArgs args)
+    {
+        if (TArgs is Type[2] narrowed)
+        {
+            return "two:" + narrowed[0].Name;
+        }
+
+        return "other:" + TArgs.Length;
+    }
+
+    public static int Describe<params TArgs>(params TArgs args)
+    {
+        return TArgs.Length;
+    }
+
+    public static R Apply<T, R>(T value, Func<T, R> f)
+    {
+        return f(value);
+    }
+
+    public static void RunDemo()
+    {
+        var box = new PackBox<int, string>();
+        Console.WriteLine($"[nested packs] {box.Count(true, 'c', 3)} {box.Count()}");
+
+        var holder = new PackHolder();
+        Console.WriteLine($"[extension packs] {holder.Count(true, 'c', 3)} {holder.Count(1)}");
+
+        var two = First(4, "x");
+        var one = First(true);
+        Console.WriteLine($"[pack types] {two} {one}");
+
+        Func<int, string, int> inferred = ResidualShapes.Describe;
+        Func<int, string, int> stated = ResidualShapes.Describe<[int, string]>;
+        var fromCall = Apply(4, ResidualShapes.Describe);
+        Console.WriteLine($"[method groups] {inferred(4, "x")} {stated(4, "x")} {fromCall}");
+    }
+}

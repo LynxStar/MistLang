@@ -2304,6 +2304,10 @@ eight levels: 8
 [abstract] fixed e
 [bridge] 101
 [method] maybe 5 | maybe absent | maybe 9
+[nested packs] 23 20
+[extension packs] 3 1
+[pack types] two:Int32 other:1
+[method groups] 2 2 1
 === Sized Sequence Patterns Sample ===
 [is] True False True False
 [switch] three summing to 0 | five of 5 | another length | not an int array

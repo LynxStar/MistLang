@@ -119,13 +119,7 @@ What a pack can do depends on what is proven about its length:
 | Unknown (`Type[]`) | yes | yes | yes | no |
 | Fixed (`Type[N]`) | yes | yes | yes | yes, 0..N-1 |
 
-Narrowing restores indexing for an unknown-length pack:
-
-```mist
-if (TArgs is Type[3] fixed) {
-    // fixed[0], fixed[1], fixed[2] are legal here
-}
-```
+In expression position, a specialized pack supplies a runtime `Type[]` containing its element types. A guard such as `if (TArgs is Type[3] narrowed)` permits reading `narrowed[0].Name` within the branch. The narrowed binding is not yet available in type positions: a declaration using `narrowed[0]` as its type is refused. Indexing the original unknown-length pack in type position still requires a fixed-size declaration.
 
 ## The Value Side
 
@@ -146,7 +140,7 @@ The value counterpart of a type pack is a tuple. Declaring `params TArgs args` g
 
 Key distinctions:
 
-- `params TArgs args` -- the flattened-call form. The caller writes a flat argument list; the slurp collects the middle.
+- `params TArgs args` -- the flattened-call form. A spread suffix on a value parameter, `TArgs... args`, is refused; use `params`. The caller writes a flat argument list; the slurp collects the middle.
 - `(TArgs...) args` -- an ordinary tuple parameter. The caller passes one tuple.
 - `args...` -- the spread operator, decomposing the tuple into argument slots.
 

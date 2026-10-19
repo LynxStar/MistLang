@@ -211,6 +211,8 @@ A generic method works the same way. Its type arguments come from the target: ea
 
 Stated type arguments are read as such only where the expression ends there -- before `;`, `,`, `)`, `]` or `}` -- which is what keeps `Use(a < b, c > d)` two comparisons. A generic method converts by exact signature like any other, and an inferred or stated type argument is held to the method's `where` clauses.
 
+A variadic method group closes its value pack across the target function's input positions, with fixed parameters before and after the pack matched from their respective ends. The pack can be inferred from the target or stated as a bracketed type list. When the group is an argument to an inferred generic call, its closed return type also supplies result-type inference. Whole-pack constraints still apply to every element.
+
 A synchronous method group keeps its Mist `func` signature even when the method completes async work internally. The compiler adapts the task-returning C# implementation so the delegate returns the completed value. Instance receivers are captured once when the function value is formed, including receivers produced by a call. Generic targets retain their selected type arguments. An explicitly async method instead fills a task-returning function type.
 
 ## Static Lambdas

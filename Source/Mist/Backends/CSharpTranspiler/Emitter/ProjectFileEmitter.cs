@@ -10,12 +10,13 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class ProjectFileEmitter
 {
-    public static string Emit(CompilerOptions options, bool carriesEntryPoint)
+    public static string Emit(CompilerOptions options, bool carriesEntryPoint, string? mainTypeName = null)
     {
         var outputType = options.OutputType == ProjectOutputType.Executable ? "Exe" : "Library";
 
         var sections = string.Concat(
             EmitEntryPointSuppression(options.OutputType, carriesEntryPoint),
+            mainTypeName is null ? "" : $"\n  <PropertyGroup>\n    <StartupObject>{SecurityElement.Escape(mainTypeName)}</StartupObject>\n  </PropertyGroup>",
             EmitPropertyGroup(options.CsprojProperties),
             EmitItemGroup(options.Packages, p => $"""<PackageReference Include="{p.Name}" Version="{p.Version}" />"""),
             EmitItemGroup(options.FrameworkReferences, f => $"""<FrameworkReference Include="{f.Name}" />"""));

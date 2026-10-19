@@ -24,7 +24,8 @@ public sealed class ProjectFileEmitterTests
         ImmutableArray<NuGetPackageReference> packages = default,
         ImmutableArray<FrameworkReference> frameworkReferences = default,
         ImmutableArray<CsprojProperty> csprojProperties = default,
-        bool carriesEntryPoint = false)
+        bool carriesEntryPoint = false,
+        string? mainTypeName = null)
     {
         var options = new CompilerOptions(
             ProjectFolder: "probe",
@@ -39,7 +40,7 @@ public sealed class ProjectFileEmitterTests
             CsprojProperties: csprojProperties,
             OutputType: outputType);
 
-        return XDocument.Parse(ProjectFileEmitter.Emit(options, carriesEntryPoint));
+        return XDocument.Parse(ProjectFileEmitter.Emit(options, carriesEntryPoint, mainTypeName));
     }
 
     private static IEnumerable<string> Items(XDocument project, string element, params string[] attributes)
@@ -47,6 +48,27 @@ public sealed class ProjectFileEmitterTests
         return project
             .Descendants(element)
             .Select(e => string.Join(" ", attributes.Select(a => e.Attribute(a)?.Value)));
+    }
+
+    [Fact]
+    public void NamedMain_SelectsTheSameEntryTypeAsInProcessCompilation()
+    {
+        Assert.Equal("App.Program", Emit(mainTypeName: "App.Program", carriesEntryPoint: true)
+            .Descendants("StartupObject").Single().Value);
+    }
+
+    [Theory]
+    [InlineData(ProjectOutputType.Executable, false)]
+    [InlineData(ProjectOutputType.Executable, true)]
+    [InlineData(ProjectOutputType.Library, false)]
+    [InlineData(ProjectOutputType.Library, true)]
+    public void NoNamedMain_LeavesProjectPropertiesUnchanged(ProjectOutputType outputType, bool carriesEntryPoint)
+    {
+        var project = Emit(outputType, carriesEntryPoint: carriesEntryPoint);
+
+        Assert.Empty(project.Descendants("StartupObject"));
+        Assert.Equal(6 + (outputType == ProjectOutputType.Library && carriesEntryPoint ? 1 : 0),
+            project.Descendants("PropertyGroup").Elements().Count());
     }
 
     [Fact]

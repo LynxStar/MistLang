@@ -24,11 +24,13 @@ internal sealed class Monomorph
     private static Monomorph? inScope;
 
     private readonly IReadOnlyList<IReadOnlyList<TypeParameter>> expansions;
+    private readonly Monomorph? parent;
 
-    private Monomorph(IReadOnlyList<TypeParameter> packs, IReadOnlyList<IReadOnlyList<TypeParameter>> expansions)
+    private Monomorph(IReadOnlyList<TypeParameter> packs, IReadOnlyList<IReadOnlyList<TypeParameter>> expansions, Monomorph? parent = null)
     {
         Packs = packs;
         this.expansions = expansions;
+        this.parent = parent;
     }
 
     /// <summary>
@@ -57,12 +59,12 @@ internal sealed class Monomorph
     public IReadOnlyList<TypeParameter> Expansion(TypeParameter pack)
     {
         var index = IndexOf(pack);
-        return index < 0 ? [] : expansions[index];
+        return index < 0 ? parent?.Expansion(pack) ?? [] : expansions[index];
     }
 
     public bool Binds(TypeParameter pack)
     {
-        return IndexOf(pack) >= 0;
+        return IndexOf(pack) >= 0 || parent?.Binds(pack) == true;
     }
 
     /// <summary>
@@ -101,7 +103,7 @@ internal sealed class Monomorph
         }
 
         var expansions = new List<IReadOnlyList<TypeParameter>>(packs.Count);
-        var ordinal = 0;
+        var ordinal = inScope?.ElementCount() ?? 0;
 
         for(var i = 0; i < packs.Count; i++)
         {
@@ -141,7 +143,7 @@ internal sealed class Monomorph
     public IDisposable Enter()
     {
         var restored = inScope;
-        inScope = this;
+        inScope = restored is null ? this : new Monomorph(Packs, expansions, restored);
         return new Scoped(restored);
     }
 
@@ -178,6 +180,11 @@ internal sealed class Monomorph
     {
         var expansion = Expansion(pack);
         return index >= 0 && index < expansion.Count ? expansion[index] : null;
+    }
+
+    private int ElementCount()
+    {
+        return expansions.Sum(expansion => expansion.Count) + (parent?.ElementCount() ?? 0);
     }
 
     private int IndexOf(TypeParameter pack)

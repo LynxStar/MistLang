@@ -788,7 +788,7 @@ internal sealed class CSharpEmitterV2
 
         foreach(var block in blocks)
         {
-            ExtensionBlockEmitter.Emit(block, writer, diagnostics, ref anyEmitted);
+            ExtensionBlockEmitter.Emit(block, writer, diagnostics, ref anyEmitted, variadicUses);
         }
     }
 

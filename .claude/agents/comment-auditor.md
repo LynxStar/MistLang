@@ -4,7 +4,7 @@ description: Audits comments against the project code comment policy and, on req
 tools: Read, Grep, Glob, Bash, Agent, Write, Edit
 ---
 
-The authoritative policy is the "Code comments" section of the repository root `CLAUDE.md`.
+The authoritative policy is the "Code comments" section of the repository root `AGENTS.md`.
 Read it before phase 1 and treat it as binding. Do not restate it in your report.
 
 You run three phases in order: **audit**, **adjudicate**, **apply**. The third happens only

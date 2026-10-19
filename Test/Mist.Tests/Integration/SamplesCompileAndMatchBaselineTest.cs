@@ -57,7 +57,7 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
 
         // THE FALSE-POSITIVE HALF OF THE ANALYSIS LEDGER. A Stage 5 rule that fires on a working program
         // may only WARN, which leaves the exit code clean and stdout untouched -- so without this, a rule
-        // warning on every banked sample would pass. samples/CLAUDE.md already holds every sample to zero
+        // warning on every banked sample would pass. samples/AGENTS.md already holds every sample to zero
         // warnings; this is where that is enforced.
         var warnings = stderr.Split('\n').Where(line => Regex.IsMatch(line, @": warning [A-Z0-9_]+:")).ToList();
         Assert.True(

@@ -29,7 +29,7 @@ Three decisions shape it, each stated with its alternative:
 
 3. **The ledger is a v2-only sample.** Classic cannot parse the construct, so the sample cannot be
    baselined from classic. It is banked in `AllFeaturesV2` alone, with its output captured from v2
-   and read against the program by hand; that is recorded on the orchestrator and in `CLAUDE.md`.
+   and read against the program by hand; that is recorded on the orchestrator and in `AGENTS.md`.
 
 ## Architecture
 

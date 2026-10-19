@@ -14,7 +14,7 @@ each carry half of one idea, the answer may be to delete the summary and keep th
 or to fold both into a single line. Only something holding the whole member can see that
 trade.
 
-The "Code comments" section of the repository root `CLAUDE.md` is the authoritative policy.
+The "Code comments" section of the repository root `AGENTS.md` is the authoritative policy.
 Read it first. Do not restate it back; apply it.
 
 ## In scope versus visible

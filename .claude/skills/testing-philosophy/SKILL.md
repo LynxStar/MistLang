@@ -1,12 +1,12 @@
 ---
 name: testing-philosophy
-description: The 6-tier test pyramid for MistLang in full - what tier a test belongs at, what infrastructure each tier may use, what is forbidden at each, and why. The binding rules are summarized in the root CLAUDE.md under "Tests". Use when writing, moving, or reviewing any test, or when deciding whether a test should exist at all. Strict adherence is required for all test code.
+description: The 6-tier test pyramid for MistLang in full - what tier a test belongs at, what infrastructure each tier may use, what is forbidden at each, and why. The binding rules are summarized in the root AGENTS.md under "Tests". Use when writing, moving, or reviewing any test, or when deciding whether a test should exist at all. Strict adherence is required for all test code.
 ---
 
 
 # Testing Philosophy
 
-The binding rules are summarized in the root `CLAUDE.md` under `## Tests`, which is always loaded. This is the full text: every tier's allowed and forbidden infrastructure, and the reasoning behind each rule.
+The binding rules are summarized in the root `AGENTS.md` under `## Tests`, which is always loaded. This is the full text: every tier's allowed and forbidden infrastructure, and the reasoning behind each rule.
 
 ## Core Principle
 
@@ -229,7 +229,7 @@ otherwise tag individual methods and leave the class untagged. Class and method 
 so method traits cannot override a class tier. `[Fact]`, `[Theory]` and FsCheck `[Property]` all
 follow this rule; split theory rows requiring different tiers into different methods. Do not
 use an assembly or shared base fixture to assign a blanket tier. Keep feature traits and
-scheduling collections independent. See `Test/CLAUDE.md`, "Test tier classification", for examples
+scheduling collections independent. See `Test/AGENTS.md`, "Test tier classification", for examples
 and runner filters. If another framework is used, use its native category/tag mechanism with
 the same six-tier meaning.
 

@@ -4,7 +4,7 @@
 
 Grammar first, so the node exists; then the model and scope; then the binder; then the tables every
 statement kind must appear in; then emission; then the analysis rules; then the proof. Verification
-is batched per phase as `Source/Mist/ProgramModel/CLAUDE.md` asks.
+is batched per phase as `Source/Mist/ProgramModel/AGENTS.md` asks.
 
 ## Tasks
 

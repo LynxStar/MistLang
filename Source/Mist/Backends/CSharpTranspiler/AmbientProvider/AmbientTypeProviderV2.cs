@@ -82,6 +82,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeSource
         // Pull well-known Standard Library types out of the ProgramModel.
         var wellKnownTypes = ResolveWellKnownTypes(programModel);
         NameIntrinsicRuntimeTypes(programModel);
+        NameIntrinsicsByClrName(programModel, wellKnownTypes);
 
         // Phase 1: Create shells for all exported types.
         var (shells, clrTypes) = CreateShells(wellKnownTypes);
@@ -158,6 +159,19 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeSource
             if(programModel.TypesByFQN.TryGetValue(mistName, out var type) && type is DeclaredType declared)
             {
                 declared.ClrMetadataName = ClrSpelling.MetadataName(declared);
+            }
+        }
+    }
+
+    // An entry generic on either side is left out: the CLR and Mist arities differ for some families (a
+    // span's is one short, a bare System.Action is a Mist pack), so no one name answers a written use.
+    private static void NameIntrinsicsByClrName(ProgramModelType programModel, Dictionary<string, IMistType> wellKnownTypes)
+    {
+        foreach(var (clrFqn, intrinsic) in wellKnownTypes)
+        {
+            if(!clrFqn.Contains('`') && !intrinsic.FullyQualifiedName.Contains('<'))
+            {
+                programModel.RegisterClrName(clrFqn, intrinsic);
             }
         }
     }

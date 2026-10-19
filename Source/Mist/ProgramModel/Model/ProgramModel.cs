@@ -17,6 +17,7 @@ public sealed class ProgramModel : IProgramModel
 {
     private readonly Dictionary<string, MistNamespace> namespaces = [];
     private readonly Dictionary<string, IMistType> typesByFQN = [];
+    private readonly Dictionary<string, IMistType> intrinsicsByClrName = [];
     private readonly List<MistAssembly> assemblies = [];
     private readonly Dictionary<string, MistAssembly> referencesByProjectPath = [];
 
@@ -214,6 +215,22 @@ public sealed class ProgramModel : IProgramModel
         return true;
     }
 
+    /// <summary>
+    /// Names a Standard intrinsic by the CLR type it stands for, as the ambient provider's substitution
+    /// does. Kept beside <see cref="TypesByFQN"/> rather than in it, because that registry enumerates each
+    /// type once, and answered only by <see cref="FindQualifiedType"/>, so a using directive still reaches
+    /// the intrinsic through Standard alone and the Mist-first import tier is untouched.
+    /// </summary>
+    internal void RegisterClrName(string clrName, IMistType intrinsic)
+    {
+        intrinsicsByClrName[clrName] = intrinsic;
+    }
+
+    internal IMistType? FindQualifiedType(string qualifiedName)
+    {
+        return FindType("", qualifiedName) ?? intrinsicsByClrName.GetValueOrDefault(qualifiedName);
+    }
+
     internal void ReplaceType(IMistType replaced, IMistType replacement)
     {
         typesByFQN[replaced.FullyQualifiedName] = replacement;
@@ -247,12 +264,12 @@ public sealed class ProgramModel : IProgramModel
     /// </summary>
     internal LookupResult LookupQualified(string namespaceName, string memberName)
     {
-        if(FindType(namespaceName, memberName) is { } type)
+        var qualified = $"{namespaceName}.{memberName}";
+
+        if(FindQualifiedType(qualified) is { } type)
         {
             return new TypeResult(type);
         }
-
-        var qualified = $"{namespaceName}.{memberName}";
 
         if(IsKnownNamespace(qualified))
         {

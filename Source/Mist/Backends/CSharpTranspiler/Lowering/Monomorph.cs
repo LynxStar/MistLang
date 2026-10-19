@@ -24,12 +24,16 @@ internal sealed class Monomorph
     private static Monomorph? inScope;
 
     private readonly IReadOnlyList<IReadOnlyList<TypeParameter>> expansions;
+    private readonly IReadOnlyCollection<string> parameterNames;
     private readonly Monomorph? parent;
 
-    private Monomorph(IReadOnlyList<TypeParameter> packs, IReadOnlyList<IReadOnlyList<TypeParameter>> expansions, Monomorph? parent = null)
+    private Monomorph(
+        IReadOnlyList<TypeParameter> packs, IReadOnlyList<IReadOnlyList<TypeParameter>> expansions,
+        IReadOnlyCollection<string> parameterNames, Monomorph? parent = null)
     {
         Packs = packs;
         this.expansions = expansions;
+        this.parameterNames = parameterNames;
         this.parent = parent;
     }
 
@@ -93,7 +97,9 @@ internal sealed class Monomorph
         return Packs.Any(pack => parameters.Any(parameter => ReferenceEquals(parameter, pack)));
     }
 
-    public static Monomorph? For(IReadOnlyList<TypeParameter> parameters, IReadOnlyList<int> widths)
+    public static Monomorph? For(
+        IReadOnlyList<TypeParameter> parameters, IReadOnlyList<int> widths,
+        IEnumerable<TypeParameter>? enclosingParameters = null)
     {
         var packs = PacksIn(parameters);
 
@@ -104,6 +110,10 @@ internal sealed class Monomorph
 
         var expansions = new List<IReadOnlyList<TypeParameter>>(packs.Count);
         var ordinal = inScope?.ElementCount() ?? 0;
+        var nameIndex = ordinal;
+        var names = new HashSet<string>(inScope?.parameterNames ?? [], StringComparer.Ordinal);
+        names.UnionWith(parameters.Concat(enclosingParameters ?? [])
+            .Where(parameter => !parameter.IsPack).Select(DependentCarrierNames.Parameter));
 
         for(var i = 0; i < packs.Count; i++)
         {
@@ -111,8 +121,13 @@ internal sealed class Monomorph
 
             for(var element = 0; element < widths[i]; element++)
             {
-                var parameter = new TypeParameter(
-                    $"T{++ordinal}", ordinal - 1, new Scope(null), declaringType: null);
+                var name = $"T{++nameIndex}";
+                while(!names.Add(name))
+                {
+                    name = $"T{++nameIndex}";
+                }
+
+                var parameter = new TypeParameter(name, ordinal++, new Scope(null), declaringType: null);
 
                 // A constraint on the pack is a constraint on every element -- what makes a
                 // constrained member callable on each of them -- and C# has only per-parameter
@@ -126,7 +141,7 @@ internal sealed class Monomorph
             expansions.Add(expansion);
         }
 
-        return new Monomorph(packs, expansions);
+        return new Monomorph(packs, expansions, names);
     }
 
     private static TypeParameterConstraint ForElement(TypeParameterConstraint constraint, TypeSubstitution element)
@@ -143,7 +158,7 @@ internal sealed class Monomorph
     public IDisposable Enter()
     {
         var restored = inScope;
-        inScope = restored is null ? this : new Monomorph(Packs, expansions, restored);
+        inScope = restored is null ? this : new Monomorph(Packs, expansions, parameterNames, restored);
         return new Scoped(restored);
     }
 

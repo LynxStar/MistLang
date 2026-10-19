@@ -60,16 +60,21 @@ public sealed class VariadicExtensionEmissionTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void ClosedGenericBlockUsesSpecializeTheSourceDeclaration(bool forwarded)
+    [InlineData(false, "T", "T1", "T1, T2, T3")]
+    [InlineData(true, "T", "T1", "T1, T2, T3")]
+    [InlineData(false, "T1", "T2", "T2, T3, T4")]
+    [InlineData(true, "T1", "T2", "T2, T3, T4")]
+    [InlineData(false, "T2", "T1", "T1, T3, T4")]
+    [InlineData(true, "T2", "T1", "T1, T3, T4")]
+    public void ClosedGenericBlockUsesSpecializeTheSourceDeclaration(
+        bool forwarded, string blockParameter, string singleElement, string threeElements)
     {
         var built = new HandBuiltModel();
         var block = new ExtensionBlock("self", "Probe", new Scope(null), null)
         {
             CarrierName = "HolderExtensions",
         };
-        var item = new TypeParameter("T", 0, block.Scope, null);
+        var item = new TypeParameter(blockParameter, 0, block.Scope, null);
         block.TypeParametersList.Add(item);
         var holder = HandBuiltModel.Class("Holder<>");
         holder.TypeParametersList.Add(item);
@@ -115,8 +120,8 @@ public sealed class VariadicExtensionEmissionTests
         ExtensionBlockEmitter.Emit(block, writer, diagnostics, ref anyEmitted, MonomorphSet.Discover(built.Model).Methods);
 
         var text = writer.ToString();
-        Assert.Contains("Count_1<T, T1>(this Probe.Holder<T> self, System.ValueTuple<T1> us)", text);
-        Assert.Contains("Count_3<T, T1, T2, T3>(this Probe.Holder<T> self, (T1, T2, T3) us)", text);
+        Assert.Contains($"Count_1<{blockParameter}, {singleElement}>(this Probe.Holder<{blockParameter}> self, System.ValueTuple<{singleElement}> us)", text);
+        Assert.Contains($"Count_3<{blockParameter}, {threeElements}>(this Probe.Holder<{blockParameter}> self, ({threeElements}) us)", text);
         Assert.Contains("return 1;", text);
         Assert.Contains("return 3;", text);
         Assert.Equal(2, text.Split("public static int Count_").Length - 1);

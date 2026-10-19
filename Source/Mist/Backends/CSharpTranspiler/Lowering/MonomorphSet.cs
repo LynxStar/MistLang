@@ -49,9 +49,31 @@ internal static class MonomorphSet
     {
         foreach(var widths in uses.WidthsOf(method))
         {
-            if(Monomorph.For(method.TypeParametersList, widths) is { } monomorph)
+            if(Monomorph.For(method.TypeParametersList, widths, EnclosingParameters(method)) is { } monomorph)
             {
                 yield return monomorph;
+            }
+        }
+    }
+
+    private static IEnumerable<TypeParameter> EnclosingParameters(Method method)
+    {
+        if(method.DeclaringBlock is { } block)
+        {
+            foreach(var parameter in block.TypeParametersList)
+            {
+                yield return parameter;
+            }
+        }
+
+        for(MistType? type = method.DeclaringType; type is not null; type = type.DeclaringType)
+        {
+            if(type is IHasTypeParameters generic)
+            {
+                foreach(var parameter in generic.TypeParametersList)
+                {
+                    yield return parameter;
+                }
             }
         }
     }

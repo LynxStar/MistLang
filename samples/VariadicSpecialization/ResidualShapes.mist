@@ -20,8 +20,23 @@ extension(PackHolder self)
     }
 }
 
+public class GenericPackHolder<T> { }
+
+<T> extension(GenericPackHolder<T> self)
+{
+    public int Count<params Us>(params Us us)
+    {
+        return Us.Length;
+    }
+}
+
 public class ResidualShapes
 {
+    public static int ForwardCount<params Ts>(GenericPackHolder<int> holder, params Ts args)
+    {
+        return holder.Count(args...);
+    }
+
     public static string First<params TArgs>(params TArgs args)
     {
         if (TArgs is Type[2] narrowed)
@@ -49,6 +64,9 @@ public class ResidualShapes
 
         var holder = new PackHolder();
         Console.WriteLine($"[extension packs] {holder.Count(true, 'c', 3)} {holder.Count(1)}");
+
+        var genericHolder = new GenericPackHolder<int>();
+        Console.WriteLine($"[generic extension packs] {genericHolder.Count(true, 'c', 3)} {ForwardCount(genericHolder, 1)}");
 
         var two = First(4, "x");
         var one = First(true);

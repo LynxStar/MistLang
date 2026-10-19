@@ -450,18 +450,22 @@ internal class Program
         }
 
         // Resolve SDK + package + framework assemblies (same as a build would use)
-        var packageDiagnostics = new DiagnosticBag();
+        var resolutionDiagnostics = new DiagnosticBag();
         var packageResult = PackageResolver.ResolvePackages(
             config.Packages,
             config.FrameworkReferences,
             config.TargetFramework,
-            packageDiagnostics);
+            resolutionDiagnostics);
 
-        var frameworkDiagnostics = new DiagnosticBag();
         var frameworkResult = FrameworkReferenceResolver.Resolve(
             config.FrameworkReferences,
             config.TargetFramework,
-            frameworkDiagnostics);
+            resolutionDiagnostics);
+
+        if(InspectFeedback.Report(resolutionDiagnostics.ToImmutableArray(), Console.Error))
+        {
+            return 1;
+        }
 
         // Merge additional assembly paths from packages and framework references
         var additionalPaths = packageResult.AssemblyPaths

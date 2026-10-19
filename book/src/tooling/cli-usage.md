@@ -21,13 +21,13 @@ Running `mist` with no arguments prints the usage help. A project folder with no
 | `run` | Yes | Runs the artifact with `dotnet` | Compiles, then executes the resulting binary. Executable projects only: a project with `output_type = "library"` is refused before compiling. |
 | `test` | Yes | Runs `dotnet test` on the emitted `.csproj` | Compiles, then runs the project's tests. Warns with `MIST_TEST_0001` when it finds test-attributed methods but no test framework package. |
 | `restore` | No | — | Resolves `[packages]` and `[framework_references]` only, and always prints the resolver's detail and summary. It never lexes, type-checks or emits. |
-| `inspect <TypeName>` | No | — | Resolves the same assemblies a build would and prints a CLR type's projected and hidden members. It does not report dependency failures; run `mist restore` for those. |
+| `inspect <TypeName>` | No | — | Resolves the same assemblies a build would and prints a CLR type's projected and hidden members. It prints the same dependency diagnostics a build does to standard error, once each, and exits 1 without a report when one is an error. |
 | `steering` | No | — | Installs the bundled Mist steering files into the project's `.kiro/steering/` directory. |
 | `version` | No | — | Prints the compiler version. |
 
 `build`, `run` and `test` discover all `.mist` source files recursively within the project folder, clean the output and binary directories (Stage 0), and run the full compilation pipeline. If compilation fails, diagnostics are printed, the command exits with code 1, and `run` and `test` launch nothing. Otherwise `run` exits with the program's exit code and `test` with `dotnet test`'s.
 
-`restore` and `inspect` require a `mist.toml` in the project folder and exit non-zero without one. `restore` exits non-zero when any dependency fails to resolve; see [.NET Interop](../advanced/dotnet-interop.md) for its output and the dependency diagnostics.
+`restore` and `inspect` require a `mist.toml` in the project folder and exit non-zero without one. `restore` and `inspect` exit non-zero when any dependency fails to resolve, and both print the dependency diagnostics; see [.NET Interop](../advanced/dotnet-interop.md) for `restore`'s output and the diagnostics.
 
 ## Flags
 

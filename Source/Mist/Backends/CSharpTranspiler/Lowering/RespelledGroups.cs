@@ -25,6 +25,7 @@ internal static class RespelledGroups
             || ContextKeyWitnesses.Ordinals(reference.Method).Count > 0
             || (reference.Method is { Modifiers.IsStatic: true, DeclaringType: ConcreteType owner }
                 && ConstructorWitnesses.Stored(owner).Count > 0)
+            || ExtensionCalls.Carrier(reference.Method) is not null
             || IntrinsicCalls.Respells(reference.Method)
             || (InvariantCulture.FormatsItself(reference.Method) && reference.Receiver is { } receiver && !InvariantCulture.Fixes(receiver.Type));
     }
@@ -49,9 +50,19 @@ internal static class RespelledGroups
                 ? TypeNameEmitter.Emit(receiverType is null ? declaring : UnsafeReach.ClosedOwner(declaring, receiverType))
                 : null
             : ReceiverSpelling.This);
+        var carrier = ExtensionCalls.Carrier(method);
+        if(carrier is not null)
+        {
+            target = carrier;
+            if(!method.Modifiers.IsStatic)
+            {
+                callArguments = new[] { captured ?? ReceiverSpelling.This }.Concat(callArguments);
+            }
+        }
+
         var call = IntrinsicCalls.Respells(method)
             ? IntrinsicCalls.Rewrite(method, captured, receiverType, arguments)
-            : InvariantCulture.FormatsItself(method) && receiverType is not null && !InvariantCulture.Fixes(receiverType)
+            : carrier is null && InvariantCulture.FormatsItself(method) && receiverType is not null && !InvariantCulture.Fixes(receiverType)
                 ? InvariantCulture.ObjectText(Bound, receiverType)
                 : $"{(target is null ? "" : target + ".")}{BodyEmitter.FunctionName(reference)}({string.Join(", ", callArguments)})";
         // The delegate retains Mist's synchronous result contract, so completion must precede its return.

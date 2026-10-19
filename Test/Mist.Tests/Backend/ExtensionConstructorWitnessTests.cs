@@ -95,7 +95,7 @@ public sealed class ExtensionConstructorWitnessTests
 
         var actual = Emit(reference);
 
-        Assert.Contains("__receiver.Make<int, Product>(() => Product.__CreateDefault(), (__arg0_0) => new Product(__arg0_0), __arg0)", actual, StringComparison.Ordinal);
+        Assert.Contains("Probe.HolderExtensions.Make<int, Product>(__receiver, () => Product.__CreateDefault(), (__arg0_0) => new Product(__arg0_0), __arg0)", actual, StringComparison.Ordinal);
         Assert.EndsWith(")(self)", actual, StringComparison.Ordinal);
     }
 

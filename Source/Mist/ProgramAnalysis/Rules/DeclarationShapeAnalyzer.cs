@@ -106,6 +106,11 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             }
         }
 
+        foreach(var backing in context.Nodes.OfType<BackingFieldReferenceExpression>().Where(backing => ComputedPropertyDecision.RefusesField(backing.Property)))
+        {
+            Report(context, backing.Node, ProgramAnalysisDiagnostics.FieldInComputedProperty, backing.Property.Name);
+        }
+
         var purity = new PurityInference(context);
 
         foreach(var declared in DeclaredPredicates.Of(context))

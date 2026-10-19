@@ -330,7 +330,7 @@ New checks added to `TypeCheckerAnalyzer`:
 | Property type mismatch | MIST_TC_0021 | Assigned value type incompatible with property type |
 | Accessor modifier restrictiveness | MIST_TC_0022 | Accessor modifier must be more restrictive than property |
 | `field` outside accessor | MIST_TC_0023 | `field` keyword used outside property accessor body |
-| `field` in computed property | MIST_TC_0024 | `field` keyword used in computed property (no backing field) |
+| `field` in computed property | MIST_PA_FIELD_IN_COMPUTED_PROPERTY (classic MIST_TC_0024) | `field` keyword used in computed property (no backing field) |
 | `init` outside constructor/initializer | MIST_TC_0025 | `init`-only property assigned outside constructor context |
 | `this` in static accessor | MIST_TC_0026 | `this` referenced in static property accessor |
 | Static property via instance | MIST_TC_0027 | Static property accessed through instance reference |

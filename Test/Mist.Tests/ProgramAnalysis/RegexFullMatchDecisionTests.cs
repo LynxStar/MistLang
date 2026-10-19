@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Types;
@@ -55,9 +56,20 @@ public sealed class RegexFullMatchDecisionTests
         Assert.Null(Decide(body, input));
     }
 
+    [Fact]
+    public void AMatchThatExceedsItsBudget_IsUndecided()
+    {
+        Assert.Null(Decide("(a+)+b", new string('a', 64), TimeSpan.FromMilliseconds(1)));
+    }
+
     private static bool? Decide(string body, string input)
     {
+        return Decide(body, input, Regex.InfiniteMatchTimeout);
+    }
+
+    private static bool? Decide(string body, string input, TimeSpan matchLimit)
+    {
         var target = new RefinedType(Text, null!, "Shaped") { Predicate = new RegexPattern(null!, Text, body) };
-        return LiteralPredicates.Decide(target, new LiteralValue(input, Text.FullyQualifiedName));
+        return LiteralPredicates.Decide(target, new LiteralValue(input, Text.FullyQualifiedName), matchLimit);
     }
 }

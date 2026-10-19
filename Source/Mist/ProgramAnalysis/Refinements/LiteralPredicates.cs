@@ -44,6 +44,11 @@ internal static class LiteralPredicates
 
     public static bool? Decide(IMistType target, LiteralValue? value)
     {
+        return Decide(target, value, MatchLimit);
+    }
+
+    internal static bool? Decide(IMistType target, LiteralValue? value, TimeSpan matchLimit)
+    {
         if(value is null || (value.Value is double number && !double.IsFinite(number))
             || (value.Value is float single && !float.IsFinite(single)))
         {
@@ -52,28 +57,28 @@ internal static class LiteralPredicates
 
         return target switch
         {
-            TypeAlias { AliasedType: { } aliased } => Decide(aliased, value),
+            TypeAlias { AliasedType: { } aliased } => Decide(aliased, value, matchLimit),
             RefinedType refined when value.ConvertedTo(refined.BaseType) is { } converted =>
-                And(DecideBase(refined.BaseType, converted), Decide(refined.Predicate, converted)),
+                And(DecideBase(refined.BaseType, converted, matchLimit), Decide(refined.Predicate, converted, matchLimit)),
             _ => null,
         };
     }
 
-    private static bool? DecideBase(IMistType type, LiteralValue value)
+    private static bool? DecideBase(IMistType type, LiteralValue value, TimeSpan matchLimit)
     {
-        return Requirement.Refined(type) is null ? true : Decide(type, value);
+        return Requirement.Refined(type) is null ? true : Decide(type, value, matchLimit);
     }
 
-    private static bool? Decide(Pattern? predicate, LiteralValue value)
+    private static bool? Decide(Pattern? predicate, LiteralValue value, TimeSpan matchLimit)
     {
         return predicate switch
         {
             ComparisonPattern comparison when Comparability.Misordered(comparison) is null => Compare(value, comparison),
-            RegexPattern regex when value.Value is string input => Match(input, regex.Pattern),
-            ConjunctionPattern conjunction => All(conjunction.Operands.Select(operand => Decide(operand, value))),
-            DisjunctionPattern disjunction => Any(disjunction.Operands.Select(operand => Decide(operand, value))),
-            NegatedPattern negated => Decide(negated.Operand, value) is { } inner ? !inner : null,
-            TypeTestPattern { Refinement: { } refinement } => Decide(refinement, value),
+            RegexPattern regex when value.Value is string input => Match(input, regex.Pattern, matchLimit),
+            ConjunctionPattern conjunction => All(conjunction.Operands.Select(operand => Decide(operand, value, matchLimit))),
+            DisjunctionPattern disjunction => Any(disjunction.Operands.Select(operand => Decide(operand, value, matchLimit))),
+            NegatedPattern negated => Decide(negated.Operand, value, matchLimit) is { } inner ? !inner : null,
+            TypeTestPattern { Refinement: { } refinement } => Decide(refinement, value, matchLimit),
             CatchAllPattern => true,
             _ => null,
         };
@@ -125,7 +130,7 @@ internal static class LiteralPredicates
         } : null;
     }
 
-    private static bool? Match(string input, string body)
+    private static bool? Match(string input, string body, TimeSpan matchLimit)
     {
         if(LiteralValue.Decoded(body) is not { } pattern || RegexSyntax.ErrorIn(pattern) is not null)
         {
@@ -135,12 +140,12 @@ internal static class LiteralPredicates
         // The timeout bounds compiler work; options and anchoring retain the emitted runtime test's semantics.
         try
         {
-            if(Regex.IsMatch(pattern, @"\(\?[imnsx-]*i", RegexOptions.CultureInvariant, MatchLimit))
+            if(Regex.IsMatch(pattern, @"\(\?[imnsx-]*i", RegexOptions.CultureInvariant, matchLimit))
             {
                 return null;
             }
 
-            return Regex.IsMatch(input, $"\\A(?:{pattern}(?#\n(?#))\\z", RegexOptions.None, MatchLimit);
+            return Regex.IsMatch(input, $"\\A(?:{pattern}(?#\n(?#))\\z", RegexOptions.None, matchLimit);
         }
         catch(ArgumentException)
         {

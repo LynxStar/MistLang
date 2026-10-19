@@ -81,8 +81,7 @@ occurred. Every agent returns it, it needs no permission, and Done comes from it
 **A finding** is a fact recorded on a task about the task's own claim: a reproduction, a probe that
 found nothing, a flake sighting, a decision a spec has settled, the history imported from the
 ledger. It is appended with `add_finding`, which needs the `tasks:findings` scope, and it is never a
-report of work. Until Carbonek's rename lands, the tool is still named `add_evidence` and the scope
-`tasks:evidence`.
+report of work.
 
 ### Kinds
 

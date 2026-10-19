@@ -31,7 +31,7 @@ internal static class OverloadPinning
 
     public static string? CastFor(Expression argument, IMistType target, bool overloaded)
     {
-        if(!overloaded)
+        if(!overloaded || UnknownUnions.Widens(argument.Type, target))
         {
             return null;
         }

@@ -13,6 +13,7 @@ internal static class BooleanPatternConditions
     {
         return pattern switch
         {
+            TypeTestPattern tested when UnknownUnions.Carrier(tested.NarrowedType) is not null => true,
             ComparisonPattern comparison => PromotesSingle(comparison),
             NegatedPattern negated => ContainsCondition(negated.Operand),
             DisjunctionPattern disjunction => disjunction.Operands.Any(ContainsCondition),
@@ -25,6 +26,7 @@ internal static class BooleanPatternConditions
         return pattern switch
         {
             RegexPattern => true,
+            TypeTestPattern tested when UnknownUnions.Carrier(tested.NarrowedType) is not null => true,
             ComparisonPattern comparison => PromotesSingle(comparison),
             NegatedPattern negated => ContainsCondition(negated.Operand),
             ConjunctionPattern conjunction => conjunction.Operands.Any(ContainsCondition),
@@ -59,6 +61,7 @@ internal static class BooleanPatternConditions
     {
         return pattern switch
         {
+            TypeTestPattern carrierTest when UnknownUnions.Carrier(carrierTest.NarrowedType) is not null => UnknownUnions.Test(carrierTest, value, structural),
             RegexPattern regex => RegexLowering.IsFullMatch(value, RegexLowering.Quote(regex.Pattern)),
             ComparisonPattern comparison when PromotesSingle(comparison) => $"({value} {Symbol(comparison.Kind)} {expression(comparison.Bound)})",
             NegatedPattern negated => $"!({Render(negated.Operand, value, structural, expression, tested)})",

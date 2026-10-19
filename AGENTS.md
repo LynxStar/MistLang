@@ -49,7 +49,7 @@ were captured from v2 and checked against the programs by hand. Note the blind s
 
 ## Backlog
 
-Carbonek project MIST is the **only record of outstanding work**, its evidence and every flaky-test
+Carbonek project MIST is the **only record of outstanding work**, its findings and every flaky-test
 observation. The Carbonek contract below states how to find work, record a flake and close a task,
 and which task kinds are the owner's.
 
@@ -64,7 +64,7 @@ against the decision, Tier 2 for rules that walk bodies, and Tier 3 rarely. See
 
 ### The record
 
-Carbonek project `MIST` is the only record of obligations, evidence, flake observations and
+Carbonek project `MIST` is the only record of obligations, findings, flake observations and
 execution. Nothing in this repository is a work queue: not `backlog/`, not the spec `tasks.md`
 documents, not the test-run ledgers under `TestResults/`.
 
@@ -72,13 +72,25 @@ Task keys `MIST-NNN` and `ARCH-NNN` are the original ledger IDs, so a spec or co
 cites one names that task. Every imported task's `sourceReference` names its entry in the frozen
 ledger at the import revision. `backlog/README.md` says how to read it. It is history, not edited.
 
+### Two words
+
+**Evidence** is what a Session reports when it ends: the completion report's `summary`,
+`evidence` and `artifacts`, and for a workflow step its `stepEvidence`. It is proof that work
+occurred. Every agent returns it, it needs no permission, and Done comes from it.
+
+**A finding** is a fact recorded on a task about the task's own claim: a reproduction, a probe that
+found nothing, a flake sighting, a decision a spec has settled, the history imported from the
+ledger. It is appended with `add_finding`, which needs the `tasks:findings` scope, and it is never a
+report of work. Until Carbonek's rename lands, the tool is still named `add_evidence` and the scope
+`tasks:evidence`.
+
 ### Kinds
 
 Every Backlog task has a kind:
 
 - **Confirmed**: current source or an executed probe shows the contract absent or violated.
 - **Unverified**: a lead that needs confirmation or attribution. It becomes Confirmed only by
-  `update_task` with `kind: Confirmed` and an Evidence-category entry that carries the proof.
+  `update_task` with `kind: Confirmed` and a finding that carries the proof.
 - **Decision** and **Optional**: the owner's. They are never dispatched. No agent changes their
   kind or implements an invented policy to close one.
 
@@ -89,28 +101,29 @@ criteria and delivery instructions.
 
 Call `list_tasks` with `project: MIST` and the `status` and `kind` filters, for example
 `status: [Backlog]` with `kind: [Confirmed]`. Its `text` filter searches titles, descriptions and
-source references. `get_task` returns the body, revision and evidence entries. Read every entry
+source references. `get_task` returns the body, revision and findings. Read every finding
 before acting: each says what was measured, at which revision, and its limits.
 
 ### Recording a flaky test
 
 `Test/AGENTS.md` rule 2 says when a sighting is owed and which fields it carries. Append it to the
-matching task with `add_evidence`, category `Observation`. A sighting with no matching task goes in
+matching task with `add_finding`, category `Observation`. A sighting with no matching task goes in
 your report, with the same fields, for the operator to file as Unverified.
 
 ### Closing work
 
-Append an Evidence-category entry with `revision` (the commit that holds the change), `date`, `kind`
-(for example `implementation and executed verification`) and `detail`. The detail states what
-changed, the acceptance probes, the tests and their tiers, the ledger run path, the build and format
-results, and the limits. Done comes from the Session outcome, never from an agent: Completed with a
-summary and evidence finishes the task, and Blocked or Failed leaves it Blocked.
+Closure is the completion report. Its `summary` says what changed; its `evidence` lists the
+acceptance probes with their output before and after, the tests and their tiers, the ledger run
+path, and the build and format results, with the limits; its `artifacts` name the commit that holds
+the change. Nothing is appended to the task for closure: a finding is not a report of work. Done
+comes from the Session outcome, never from an agent: Completed finishes the task, and Blocked or
+Failed leaves it Blocked.
 
 ### New work
 
 `create_tasks` makes Ready work with acceptance criteria and delivery instructions. It never makes
 a Backlog record. Before calling it, check for a duplicate: `list_tasks` with `sourceReference` for
-an exact source and `text` for the ID, symptom or path. Extend a match with `add_evidence` instead.
+an exact source and `text` for the ID, symptom or path. Extend a match with a finding instead.
 Give every new task a `sourceReference` that names its origin, so the next check finds it. A lead
 that is not yet Confirmed goes in your report for the operator to file.
 
@@ -217,7 +230,7 @@ obvious alternative, a constraint imposed from outside the file, an invariant a 
 break without the compiler noticing, or why something is deliberately absent.
 
 Applies to `Source/`, `Test/`, and `.mist` files. Exempt: commit messages, and Carbonek
-evidence entries, which exist to record what was measured.
+findings, which exist to record what was measured.
 
 See `.claude/skills/code-comment-rationale/SKILL.md` for worked examples — read it when a rule
 seems wrong, not before writing.

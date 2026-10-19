@@ -313,7 +313,7 @@ When a test fails and then passes without any code change between the runs, you 
 
 Fixing it is optional. Recording it is not.
 
-Append it with `add_evidence`, category `Observation`, as the root `AGENTS.md` describes. If no
+Append it as a finding with `add_finding`, category `Observation`, as the root `AGENTS.md` describes. If no
 task matches, put the observation in your report with an expected obligation and the captured
 failure evidence, for the operator to file as Unverified. A recurrence of a fixed symptom needs
 fresh attribution; keep it separate when the recorded cause does not explain it. The task's status

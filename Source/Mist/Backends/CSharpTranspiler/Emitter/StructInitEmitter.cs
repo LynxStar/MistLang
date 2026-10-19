@@ -53,7 +53,7 @@ internal static class StructInitEmitter
         var names = new Dictionary<StructType, string>();
         foreach(var ancestor in flattened.Ancestors)
         {
-            var baseName = $"__{TypeEmitter.CleanName(ancestor.Definition)}_ctor";
+            var baseName = $"__{TypeEmitter.DeclaredName(ancestor.Definition)}_ctor";
             var name = baseName;
             var suffix = 2;
 
@@ -150,7 +150,7 @@ internal static class StructInitEmitter
         {
             var substitution = TypeSubstitution.ForReceiver(declaringStruct.BaseType as ConstructedType);
             var parameterType = substitution.Apply(parameter.Type, interner: null);
-            writer.WriteLine($"{name}({parameter.Name}: new {TypeNameEmitter.Emit(parameterType)} {{ }});");
+            writer.WriteLine($"{name}({IdentifierSpelling.Of(parameter.Name)}: new {TypeNameEmitter.Emit(parameterType)} {{ }});");
             return;
         }
 

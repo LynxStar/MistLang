@@ -26,7 +26,7 @@ internal static class CloneCopyEmitter
 
         if(Definition(to) is not StructType)
         {
-            writer.WriteLine($"if({conversion.SourceParameter.Name} is null)");
+            writer.WriteLine($"if({IdentifierSpelling.Of(conversion.SourceParameter.Name)} is null)");
 
             using(writer.Block())
             {
@@ -44,7 +44,7 @@ internal static class CloneCopyEmitter
 
         foreach(var (write, read) in Slots(to, diagnostics).Zip(Slots(from, diagnostics)))
         {
-            writer.WriteLine($"{Call(clone, write, "copy")} = {Call(clone, read, conversion.SourceParameter.Name)};");
+            writer.WriteLine($"{Call(clone, write, "copy")} = {Call(clone, read, IdentifierSpelling.Of(conversion.SourceParameter.Name))};");
         }
 
         writer.WriteLine("return copy;");

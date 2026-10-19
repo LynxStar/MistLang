@@ -80,7 +80,7 @@ internal static class MethodEmitter
         // in its name, exactly as a specialized TYPE does -- and for the same reason: the widths
         // differ in what they declare, so they cannot be one C# method.
         var declared = Declared(method);
-        var name = method.Name;
+        var name = IdentifierSpelling.Of(method.Name);
 
         if(Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList))
         {
@@ -184,7 +184,7 @@ internal static class MethodEmitter
             }
         }
 
-        arguments.AddRange(slot.ParametersList.Select(parameter => $"{ArgumentKeywords.For(parameter)}{parameter.Name}"));
+        arguments.AddRange(slot.ParametersList.Select(parameter => $"{ArgumentKeywords.For(parameter)}{IdentifierSpelling.Of(parameter.Name)}"));
         return string.Join(", ", arguments);
     }
 

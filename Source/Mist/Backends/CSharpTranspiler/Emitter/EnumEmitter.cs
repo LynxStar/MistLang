@@ -30,7 +30,7 @@ internal static class EnumEmitter
         // Sealed because the variants ARE the type's population: a C#-side subclass could mint
         // values no Mist variant names, which every emitted comparison chain assumes cannot exist.
         AttributeEmitter.EmitLines(type.DeclaredAttributesList, writer, diagnostics);
-        writer.WriteLine($"{accessibility}sealed record class {type.Name}({underlying} Value)");
+        writer.WriteLine($"{accessibility}sealed record class {IdentifierSpelling.Of(type.Name)}({underlying} Value)");
         using(writer.Block())
         {
             // A variant with no value was reported during construction, so the compilation is
@@ -39,7 +39,7 @@ internal static class EnumEmitter
             // the variant. Declared(type) keeps every other walk consistent with this one.
             foreach(var member in Declared(type))
             {
-                writer.Write($"public static readonly {type.Name} {member.Name} = new {type.Name}(");
+                writer.Write($"public static readonly {IdentifierSpelling.Of(type.Name)} {IdentifierSpelling.Of(member.Name)} = new {IdentifierSpelling.Of(type.Name)}(");
                 BodyEmitter.EmitExpression(member.Value!, writer, diagnostics);
                 writer.Append(");");
                 writer.AppendLine();
@@ -47,7 +47,7 @@ internal static class EnumEmitter
 
             writer.WriteBlankLine();
             writer.WriteLine(
-                $"public static implicit operator {underlying}({type.Name} e) => e.Value;");
+                $"public static implicit operator {underlying}({IdentifierSpelling.Of(type.Name)} e) => e.Value;");
 
             writer.WriteBlankLine();
             EmitFromUnderlying(type, underlying, writer);
@@ -59,14 +59,14 @@ internal static class EnumEmitter
             {
                 writer.WriteBlankLine();
                 writer.WriteLine(
-                    $"public static {type.Name} {DefaultSynthesis.FactoryName}() => {Q(type, fallback)};");
+                    $"public static {IdentifierSpelling.Of(type.Name)} {DefaultSynthesis.FactoryName}() => {Q(type, fallback)};");
             }
         }
     }
 
     private static void EmitFromUnderlying(EnumType type, string underlying, CSharpWriter writer)
     {
-        writer.WriteLine($"public static explicit operator {type.Name}?({underlying} value)");
+        writer.WriteLine($"public static explicit operator {IdentifierSpelling.Of(type.Name)}?({underlying} value)");
         using(writer.Block())
         {
             foreach(var member in Declared(type))
@@ -101,7 +101,7 @@ internal static class EnumEmitter
     /// </summary>
     private static string Q(EnumType type, EnumMember member)
     {
-        return $"{type.Name}.{member.Name}";
+        return $"{IdentifierSpelling.Of(type.Name)}.{IdentifierSpelling.Of(member.Name)}";
     }
 
     private static IEnumerable<EnumMember> Declared(EnumType type)

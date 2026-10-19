@@ -158,7 +158,7 @@ internal static partial class BodyEmitter
                 ? $"MistContext.Peek({held})"
                 : $"MistContext.Peek<{TypeNameEmitter.EmitContextKey(binding.ContextType)}>()";
 
-            writer.WriteLine($"var {binding.Identifier} = ({type}){peek};");
+            writer.WriteLine($"var {IdentifierSpelling.Of(binding.Identifier)} = ({type}){peek};");
         }
     }
 
@@ -170,7 +170,7 @@ internal static partial class BodyEmitter
         foreach(var (parameter, release) in DropInsertion.ReleasedParameters(method, body, LifetimeLowering.Active))
         {
             var flag = release is LifetimeRelease.Guarded ? LifetimeLowering.Flag(parameter, owned: true, writer) : null;
-            held.Add((flag, Released(spell?.Invoke(parameter) ?? parameter.Name, parameter.Type)));
+            held.Add((flag, Released(spell?.Invoke(parameter) ?? IdentifierSpelling.Of(parameter.Name), parameter.Type)));
         }
 
         if(owner is not null)
@@ -885,8 +885,8 @@ internal static partial class BodyEmitter
             LocalVariable local => (LocalNames.Of(local), local.Type),
             Parameter parameter when value is LocalReferenceExpression { Local: { } reached } && ReferenceEquals(reached.Parameter, parameter)
                 => (LocalNames.Of(reached), parameter.Type),
-            Parameter parameter => (parameter.Name, parameter.Type),
-            Field field => ($"this.{field.Name}", field.Type),
+            Parameter parameter => (IdentifierSpelling.Of(parameter.Name), parameter.Type),
+            Field field => ($"this.{IdentifierSpelling.Of(field.Name)}", field.Type),
             _ => throw new InvalidOperationException($"ICE: a with scope cannot release a {held.GetType().Name}."),
         };
 
@@ -1667,16 +1667,16 @@ internal static partial class BodyEmitter
             case FieldReferenceExpression fieldRef:
                 writer.Append(
                     UnsafeReach.Implicit(fieldRef.Field)
-                    ?? ReceiverSpelling.Qualifier(fieldRef.Field.DeclaringType, fieldRef.Field.Modifiers.IsStatic) + fieldRef.Field.Name);
+                    ?? ReceiverSpelling.Qualifier(fieldRef.Field.DeclaringType, fieldRef.Field.Modifiers.IsStatic) + IdentifierSpelling.Of(fieldRef.Field.Name));
                 break;
             case PropertyReferenceExpression projected when ProjectedValueAccess.Declaring(projected) is { } declaring:
-                writer.Append($"{TypeNameEmitter.Emit(declaring)}.{projected.Property.Name}");
+                writer.Append($"{TypeNameEmitter.Emit(declaring)}.{IdentifierSpelling.Of(projected.Property.Name)}");
                 break;
 
             case PropertyReferenceExpression propertyRef:
                 writer.Append(
                     UnsafeReach.Implicit(propertyRef.Property)
-                    ?? ReceiverSpelling.Qualifier(propertyRef.Property.DeclaringType, propertyRef.Property.Modifiers.IsStatic) + propertyRef.Property.Name);
+                    ?? ReceiverSpelling.Qualifier(propertyRef.Property.DeclaringType, propertyRef.Property.Modifiers.IsStatic) + IdentifierSpelling.Of(propertyRef.Property.Name));
                 break;
             case BackingFieldReferenceExpression backing:
                 writer.Append(BackingStorage.DeclaredField(backing.Property) ?? "field");
@@ -1774,7 +1774,7 @@ internal static partial class BodyEmitter
                 writer.Append(", ");
             }
 
-            writer.Append($"{names[i]} = ");
+            writer.Append($"{IdentifierSpelling.Of(names[i])} = ");
             EmitExpression(anonymous.Values[i], writer, diagnostics);
         }
 
@@ -1798,7 +1798,7 @@ internal static partial class BodyEmitter
 
             if(tupleLiteral.ElementNames.Count > i && tupleLiteral.ElementNames[i] is { } name)
             {
-                writer.Append($"{name}: ");
+                writer.Append($"{IdentifierSpelling.Of(name)}: ");
             }
 
             EmitEntering(tupleLiteral.Elements[i], slots?[i], writer, diagnostics);
@@ -2660,7 +2660,7 @@ internal static partial class BodyEmitter
             writer.Append(shape.Count > 0 && property.Subpatterns.Count > 0 ? ", " : "");
             EmitList.Separated(property.Subpatterns, ", ", writer, subpattern =>
             {
-                writer.Append($"{subpattern.MemberName}: ");
+                writer.Append($"{IdentifierSpelling.Of(subpattern.MemberName)}: ");
                 EmitPattern(subpattern.Pattern, 0, hoisted, writer, diagnostics);
             });
             writer.Append(" }");
@@ -2710,7 +2710,7 @@ internal static partial class BodyEmitter
         {
             var (text, nested) = RenderPattern(subpattern.Pattern, diagnostics);
 
-            hoisted.Add(new HoistedTest($"((dynamic){bound}).{subpattern.MemberName} is {text}"));
+            hoisted.Add(new HoistedTest($"((dynamic){bound}).{IdentifierSpelling.Of(subpattern.MemberName)} is {text}"));
             hoisted.AddRange(nested);
         }
     }
@@ -2855,7 +2855,7 @@ internal static partial class BodyEmitter
             // which is what the model already resolved it to.
             if(assignment.MemberName is { } member)
             {
-                writer.Append($"{member} = ");
+                writer.Append($"{IdentifierSpelling.Of(member)} = ");
             }
 
             EmitExpression(assignment.Value, writer, diagnostics);
@@ -2900,7 +2900,7 @@ internal static partial class BodyEmitter
 
         if(ProjectedValueAccess.Declaring(memberAccess) is { } declaring)
         {
-            writer.Append($"{TypeNameEmitter.Emit(declaring)}.{memberAccess.MemberName}");
+            writer.Append($"{TypeNameEmitter.Emit(declaring)}.{IdentifierSpelling.Of(memberAccess.MemberName)}");
             return;
         }
 
@@ -3159,7 +3159,7 @@ internal static partial class BodyEmitter
 
         return MonomorphReference.MethodWidths([.. typeArguments.Select(TypeNameEmitter.Closed)], parameters) is { } widths
             ? MonomorphSet.SpecializedName(declaredName, widths)
-            : declaredName;
+            : IdentifierSpelling.Of(declaredName);
     }
 
     private static string EmitTypeArguments(

@@ -105,7 +105,7 @@ internal static class TypeNameEmitter
             TupleType tuple => EmitTuple(tuple.ElementTypes, elementNames: null),
             FunctionType function => EmitFunction(function),
             MemberType memberType => MapMemberType(memberType),
-            EnumType enumType => ShouldQualify(enumType) ? Qualified(enumType) : enumType.Name,
+            EnumType enumType => ShouldQualify(enumType) ? Qualified(enumType) : IdentifierSpelling.Of(enumType.Name),
             PackElementType element => Emit(
                 Monomorph.InScope()?.Element(element.Pack, element.Index) ?? element.Pack),
             TypeParameter typeParameter => DependentCarrierNames.Parameter(typeParameter),
@@ -342,7 +342,7 @@ internal static class TypeNameEmitter
             var spelled = Emit(expanded[i]);
 
             parts[i] = named is not null && i < named.Count && named[i] is { } name
-                ? $"{spelled} {name}"
+                ? $"{spelled} {IdentifierSpelling.Of(name)}"
                 : spelled
                 ;
         }
@@ -443,7 +443,7 @@ internal static class TypeNameEmitter
         }
 
         // Generic types: Definition<Arg1, Arg2, ...>
-        var baseName = MistType.StripArity(constructed.Definition.Name);
+        var baseName = IdentifierSpelling.Of(MistType.StripArity(constructed.Definition.Name));
         var args = string.Join(", ", constructed.TypeArguments.Select(
             (argument, ordinal) => EmitArgument(constructed.Definition, ordinal, argument)));
 
@@ -459,7 +459,7 @@ internal static class TypeNameEmitter
 
         // Qualified for the reason ShouldQualify gives.
         return definition is DeclaredType { NamespaceName: { Length: > 0 } namespaceName }
-            ? $"{namespaceName}.{name}"
+            ? $"{IdentifierSpelling.Qualified(namespaceName)}.{name}"
             : name
             ;
     }
@@ -483,7 +483,7 @@ internal static class TypeNameEmitter
             return outer;
         }
 
-        var segment = MistType.StripArity(nested.Definition.Name);
+        var segment = IdentifierSpelling.Of(MistType.StripArity(nested.Definition.Name));
 
         if(nested.TypeArguments.Count == 0)
         {
@@ -538,7 +538,7 @@ internal static class TypeNameEmitter
             return substituted;
         }
 
-        return ShouldQualify(memberType) ? Qualified(memberType) : memberType.Name;
+        return ShouldQualify(memberType) ? Qualified(memberType) : IdentifierSpelling.Of(memberType.Name);
     }
 
     /// <summary>
@@ -548,8 +548,8 @@ internal static class TypeNameEmitter
     private static string Qualified(DeclaredType type)
     {
         var segment = type is MemberType { TypeParametersList.Count: > 0 } generic
-            ? $"{MistType.StripArity(generic.Name)}<{string.Join(", ", generic.TypeParametersList.Select(p => p.Name))}>"
-            : type.Name;
+            ? $"{IdentifierSpelling.Of(MistType.StripArity(generic.Name))}<{string.Join(", ", generic.TypeParametersList.Select(p => IdentifierSpelling.Of(p.Name)))}>"
+            : IdentifierSpelling.Of(type.Name);
 
         if(type.DeclaringType is DeclaredType declaring)
         {
@@ -558,7 +558,7 @@ internal static class TypeNameEmitter
 
         return string.IsNullOrEmpty(type.NamespaceName)
             ? segment
-            : $"{type.NamespaceName}.{segment}"
+            : $"{IdentifierSpelling.Qualified(type.NamespaceName)}.{segment}"
             ;
     }
 

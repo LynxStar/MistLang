@@ -15,7 +15,7 @@ internal static class AsyncSlotBridgeEmitter
         var fillers = ConformanceAnalyzer.Fillers(type).ToList();
         var bridged = type.ConformancesList.SelectMany(conformance => conformance.Mappings.OfType<MethodMapping>())
             .Select(mapping => MethodEmitter.EmitSignature(mapping.Target, diagnostics,
-                $"{TypeNameEmitter.Emit(mapping.Declarer)}.{mapping.Target.Name}"))
+                $"{TypeNameEmitter.Emit(mapping.Declarer)}.{IdentifierSpelling.Of(mapping.Target.Name)}"))
             .ToHashSet(StringComparer.Ordinal);
 
         foreach(var (reached, definition, substitution) in AbstractInheritance.Reached(SlotLift.Reached(type), interner: null))
@@ -43,7 +43,7 @@ internal static class AsyncSlotBridgeEmitter
 
                 using(TypeNameEmitter.Substituting(substitution))
                 {
-                    signature = MethodEmitter.EmitSignature(slot, diagnostics, $"{interfaceName}.{slot.Name}");
+                    signature = MethodEmitter.EmitSignature(slot, diagnostics, $"{interfaceName}.{IdentifierSpelling.Of(slot.Name)}");
                 }
 
                 if(!bridged.Add(signature))
@@ -55,7 +55,7 @@ internal static class AsyncSlotBridgeEmitter
                 var arguments = MethodEmitter.ForwardingArguments(slot, source, SlotSignatures.Closing(slot, source!, substitution));
 
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
-                writer.WriteLine($"{signature} => this.{source!.Name}{typeParameters}({arguments}).GetAwaiter().GetResult();");
+                writer.WriteLine($"{signature} => this.{IdentifierSpelling.Of(source!.Name)}{typeParameters}({arguments}).GetAwaiter().GetResult();");
             }
         }
     }

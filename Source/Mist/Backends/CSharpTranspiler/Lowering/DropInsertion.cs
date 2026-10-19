@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel;
@@ -150,8 +151,8 @@ internal static class DropInsertion
     public static string FieldDrop(Field field)
     {
         return IsDroppableParameter(field.Type)
-            ? $"((dynamic)this.{field.Name}).Drop();"
-            : $"{DropChain($"this.{field.Name}", field.Type)};"
+            ? $"((dynamic)this.{IdentifierSpelling.Of(field.Name)}).Drop();"
+            : $"{DropChain($"this.{IdentifierSpelling.Of(field.Name)}", field.Type)};"
             ;
     }
 

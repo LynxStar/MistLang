@@ -59,8 +59,8 @@ internal static class SlotBridgeEmitter
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
                 writer.WriteLine(
                     $"{TypeNameEmitter.Emit(substitution.Apply(erased, interner: null))}"
-                    + $" {interfaceName}.{method.Name}({Parameters(method, substitution)})"
-                    + $" => this.{method.Name}({Arguments(method)}){completion};");
+                    + $" {interfaceName}.{IdentifierSpelling.Of(method.Name)}({Parameters(method, substitution)})"
+                    + $" => this.{IdentifierSpelling.Of(method.Name)}({Arguments(method)}){completion};");
             }
         }
     }
@@ -84,11 +84,11 @@ internal static class SlotBridgeEmitter
     private static string Parameters(Method method, TypeSubstitution substitution)
     {
         return string.Join(", ", ContextKeyWitnesses.Parameters(method).Concat(method.ParametersList.Select(parameter =>
-            $"{TypeNameEmitter.Emit(substitution.Apply(parameter.Type, interner: null))} {parameter.Name}")));
+            $"{TypeNameEmitter.Emit(substitution.Apply(parameter.Type, interner: null))} {IdentifierSpelling.Of(parameter.Name)}")));
     }
 
     private static string Arguments(Method method)
     {
-        return string.Join(", ", ContextKeyWitnesses.Names(method).Concat(method.ParametersList.Select(parameter => parameter.Name)));
+        return string.Join(", ", ContextKeyWitnesses.Names(method).Concat(method.ParametersList.Select(parameter => IdentifierSpelling.Of(parameter.Name))));
     }
 }

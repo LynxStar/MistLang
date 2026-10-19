@@ -35,7 +35,7 @@ internal static class NewtypeEmitter
     private static void EmitIntrinsicWrapper(Newtype type, ConcreteType source, CSharpWriter writer)
     {
         var accessibility = AccessibilityKeyword(type);
-        var name = type.Name;
+        var name = IdentifierSpelling.Of(type.Name);
         var valueType = TypeNameEmitter.Emit(source);
 
         writer.WriteLine($"{accessibility}readonly struct {name}");
@@ -68,7 +68,7 @@ internal static class NewtypeEmitter
                 "[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]");
         }
 
-        writer.WriteLine($"{AccessibilityKeyword(type)}{readonlyModifier}{keyword} {type.Name}");
+        writer.WriteLine($"{AccessibilityKeyword(type)}{readonlyModifier}{keyword} {IdentifierSpelling.Of(type.Name)}");
         using(writer.Block())
         {
             var anyEmitted = false;
@@ -83,7 +83,7 @@ internal static class NewtypeEmitter
             {
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
                 ConstructorEmitter.Emit(
-                    constructor, source, writer, diagnostics, structInitNames: null, nameOverride: type.Name);
+                    constructor, source, writer, diagnostics, structInitNames: null, nameOverride: IdentifierSpelling.Of(type.Name));
             }
 
             foreach(var property in source.PropertiesList)

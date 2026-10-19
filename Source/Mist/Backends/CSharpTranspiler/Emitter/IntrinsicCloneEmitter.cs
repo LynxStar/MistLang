@@ -48,7 +48,7 @@ internal static class IntrinsicCloneEmitter
         var counterpart = Counterpart(clone.CloneSource!.EnumerateDelegates(), method.DeclarationNode);
         var call = counterpart is not null && IntrinsicCalls.Respells(counterpart)
             ? IntrinsicCalls.Rewrite(counterpart, "Value", clone.CloneSource, arguments)
-            : $"{Receiver(method.Modifiers, clone)}.{method.Name}({string.Join(", ", arguments)})";
+            : $"{Receiver(method.Modifiers, clone)}.{IdentifierSpelling.Of(method.Name)}({string.Join(", ", arguments)})";
 
         writer.WriteLine($"{MemberModifierEmitter.Emit(method.Modifiers, emitReadonly: false)}{MethodEmitter.EmitSignature(method, diagnostics)}");
         writer.WriteLine($"    => {Wrap(method.ReturnType, clone, call)};");
@@ -86,9 +86,9 @@ internal static class IntrinsicCloneEmitter
         var clone = (ConcreteType)property.DeclaringType!;
         var read = IntrinsicCalls.RespellsProperty(property.Name, clone.CloneSource)
             ? IntrinsicCalls.RewriteProperty("Value")
-            : $"{Receiver(property.Modifiers, clone)}.{property.Name}";
+            : $"{Receiver(property.Modifiers, clone)}.{IdentifierSpelling.Of(property.Name)}";
 
-        writer.WriteLine($"{MemberModifierEmitter.Emit(property.Modifiers, emitReadonly: false)}{TypeNameEmitter.Emit(property.Type)} {property.Name} => {Wrap(property.Type, clone, read)};");
+        writer.WriteLine($"{MemberModifierEmitter.Emit(property.Modifiers, emitReadonly: false)}{TypeNameEmitter.Emit(property.Type)} {IdentifierSpelling.Of(property.Name)} => {Wrap(property.Type, clone, read)};");
     }
 
     public static void EmitIndexer(Indexer indexer, CSharpWriter writer, DiagnosticBag diagnostics)
@@ -128,7 +128,7 @@ internal static class IntrinsicCloneEmitter
         var absentStaysAbsent = clone is ClassType && castOperator is { CopiesClone: true, IsImplicit: true };
 
         writer.WriteLine(absentStaysAbsent
-            ? $"    => {castOperator.SourceParameter.Name} is null ? null! : {result};"
+            ? $"    => {IdentifierSpelling.Of(castOperator.SourceParameter.Name)} is null ? null! : {result};"
             : $"    => {result};");
     }
 
@@ -156,7 +156,7 @@ internal static class IntrinsicCloneEmitter
 
     private static string Unwrap(Parameter parameter, ConcreteType clone)
     {
-        return IsItself(parameter.Type, clone) ? $"{parameter.Name}.Value" : parameter.Name;
+        return IsItself(parameter.Type, clone) ? $"{IdentifierSpelling.Of(parameter.Name)}.Value" : IdentifierSpelling.Of(parameter.Name);
     }
 
     private static string Wrap(IMistType type, ConcreteType clone, string expression)

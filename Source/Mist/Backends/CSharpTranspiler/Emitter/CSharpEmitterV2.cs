@@ -686,7 +686,7 @@ internal sealed class CSharpEmitterV2
     {
         foreach(var ns in usings.Directives(unit, assembly))
         {
-            writer.WriteLine($"using {ns};");
+            writer.WriteLine($"using {IdentifierSpelling.Qualified(ns)};");
         }
 
         writer.WriteBlankLine();
@@ -698,7 +698,7 @@ internal sealed class CSharpEmitterV2
 
         foreach(var name in declared)
         {
-            writer.WriteLine($"using {name};");
+            writer.WriteLine($"using {IdentifierSpelling.Qualified(name)};");
         }
 
         if(declared.Count > 0)
@@ -735,7 +735,7 @@ internal sealed class CSharpEmitterV2
 
         if(namespaces.Count == 1 && !hasTopLevelStatements)
         {
-            writer.WriteLine($"namespace {namespaces[0]};");
+            writer.WriteLine($"namespace {IdentifierSpelling.Qualified(namespaces[0])};");
             writer.WriteBlankLine();
             EmitDeclarations(types, blocks, closures, writer);
             return;
@@ -750,7 +750,7 @@ internal sealed class CSharpEmitterV2
             }
 
             first = false;
-            writer.WriteLine($"namespace {namespaceName}");
+            writer.WriteLine($"namespace {IdentifierSpelling.Qualified(namespaceName)}");
             using(writer.Block())
             {
                 EmitDeclarations(

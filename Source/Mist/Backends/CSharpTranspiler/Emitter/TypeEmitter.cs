@@ -411,7 +411,7 @@ internal static class TypeEmitter
             DefaultWitnesses.EmitAssignments(type, writer);
             for(var i = 0; i < members.Length; i++)
             {
-                writer.WriteLine($"this.{members[i].Name} = p{i};");
+                writer.WriteLine($"this.{IdentifierSpelling.Of(members[i].Name)} = p{i};");
             }
         }
 
@@ -617,6 +617,11 @@ internal static class TypeEmitter
     /// </para>
     /// </summary>
     internal static string CleanName(MemberType type)
+    {
+        return IdentifierSpelling.Of(DeclaredName(type));
+    }
+
+    internal static string DeclaredName(MemberType type)
     {
         // A specialization's name carries its arity, and every member that WRITES the type name
         // rather than referring to it -- a constructor above all -- has to use the same one.

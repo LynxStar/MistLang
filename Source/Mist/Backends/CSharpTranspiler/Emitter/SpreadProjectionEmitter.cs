@@ -29,7 +29,7 @@ internal static class SpreadProjectionEmitter
 
         foreach(var (field, held, modifiers) in fields)
         {
-            EmitFamily(field.Name, field.Type, held, modifiers, item => $"set => {field.Name}.{item} = value;", writer, ref anyEmitted);
+            EmitFamily(field.Name, field.Type, held, modifiers, item => $"set => {IdentifierSpelling.Of(field.Name)}.{item} = value;", writer, ref anyEmitted);
         }
 
         foreach(var property in flattened?.Properties ?? (IReadOnlyList<Property>)type.PropertiesList)
@@ -55,7 +55,7 @@ internal static class SpreadProjectionEmitter
 
         var accessibility = setter.Accessibility == Accessibility.Private ? "private " : "";
 
-        return item => $"{accessibility}set {{ var aggregate = {property.Name}; aggregate.{item} = value; {property.Name} = aggregate; }}";
+        return item => $"{accessibility}set {{ var aggregate = {IdentifierSpelling.Of(property.Name)}; aggregate.{item} = value; {IdentifierSpelling.Of(property.Name)} = aggregate; }}";
     }
 
     private static void EmitFamily(
@@ -78,7 +78,8 @@ internal static class SpreadProjectionEmitter
         {
             var element = TypeNameEmitter.Emit(expansion[i]);
             var item = $"Item{i + 1}";
-            var accessors = write is null ? $"get => {stem}.{item};" : $"get => {stem}.{item}; {write(item)}";
+            var read = $"get => {IdentifierSpelling.Of(stem)}.{item};";
+            var accessors = write is null ? read : $"{read} {write(item)}";
 
             TypeEmitter.SeparateMember(writer, ref anyEmitted);
             writer.WriteLine($"{emitted}{element} {stem}{i + 1} {{ {accessors} }}");

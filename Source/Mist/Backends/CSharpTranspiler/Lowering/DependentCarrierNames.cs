@@ -1,4 +1,5 @@
 using System.Globalization;
+using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
@@ -42,7 +43,7 @@ internal static class DependentCarrierNames
             return specialized.Name;
         }
 
-        return parameter.IsDependent && !parameter.IsPack ? $"T{parameter.Name}" : parameter.Name;
+        return parameter.IsDependent && !parameter.IsPack ? $"T{parameter.Name}" : IdentifierSpelling.Of(parameter.Name);
     }
 
     /// <summary>
@@ -72,7 +73,7 @@ internal static class DependentCarrierNames
     public static string? ValueProperty(TypeParameter parameter)
     {
         return parameter is { ValueProperty: not null, Domain: { } domain } && Keyword(domain) is { } keyword && ValueRead(parameter) is { } read
-            ? $"public static {keyword} {parameter.Name} => {read};"
+            ? $"public static {keyword} {IdentifierSpelling.Of(parameter.Name)} => {read};"
             : null;
     }
 

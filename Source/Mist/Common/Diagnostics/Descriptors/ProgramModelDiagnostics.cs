@@ -7,7 +7,7 @@ namespace Mist.Common.Diagnostics;
 /// Covers namespace validation, type registration, type resolution,
 /// base type resolution, and member resolution.
 /// </summary>
-public static class ProgramModelDiagnostics
+public static partial class ProgramModelDiagnostics
 {
     // ── Internal / driver-level errors ────────────────────────────────────
 

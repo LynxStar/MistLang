@@ -116,7 +116,7 @@ internal static class PostfixBinder
             return new ErrorExpression(node);
         }
 
-        var typeArgs = context.Resolver.BindPack(definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
+        var typeArgs = context.Resolver.BindPack(definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope, definition), node);
         var enclosing = context.Resolver.InheritedEnclosing(definition, ctx.Scope);
         context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node, enclosing, ctx.Scope);
         var type = definition is TypeAlias alias

@@ -341,7 +341,7 @@ internal sealed partial class ScopeResolver
         // family is constructed even when NONE are written, since absorbing nothing is a binding
         // like any other -- a bare `Action` is Action<[]>, not an unconstructed definition.
         var written = typeArguments is { } typeArgList
-            ? ResolveTypeArguments(typeArgList, scope)
+            ? ResolveTypeArguments(typeArgList, scope, baseType)
             : [];
 
         if(typeArguments is not null || Absorbs(baseType))
@@ -428,7 +428,7 @@ internal sealed partial class ScopeResolver
         }
 
         var interner = context.ProgramModel.TypeInterner;
-        var arguments = BindPack(definition, ResolveTypeArguments(outerArgs, scope), node);
+        var arguments = BindPack(definition, ResolveTypeArguments(outerArgs, scope, definition), node);
         IMistType current;
 
         if(definition is TypeAlias alias)
@@ -465,7 +465,7 @@ internal sealed partial class ScopeResolver
 
             if(generic)
             {
-                var own = BindPack(member, ResolveTypeArguments(typeArgs!, scope), node);
+                var own = BindPack(member, ResolveTypeArguments(typeArgs!, scope, member), node);
                 var enclosing = substitution.EnclosingInstantiation(member.DeclaringType, interner);
                 context.ProgramModel.ConstructorConstraintClosures.RecordType(member, own, node, enclosing, scope);
                 current = interner.GetOrCreateConstructedType(member, own, enclosing);
@@ -630,7 +630,7 @@ internal sealed partial class ScopeResolver
         // has the same gap between its slot count and a flat use site, and substituting by ordinal
         // across that gap silently drops the surplus.
         var typeArgs = typeArguments is { } typeArgList
-            ? BindPack(alias, ResolveTypeArguments(typeArgList, scope), node)
+            ? BindPack(alias, ResolveTypeArguments(typeArgList, scope, alias), node)
             : Absorbs(alias) ? BindPack(alias, [], node) : null;
 
         return ExpandAlias(alias, typeArgs, node, scope);

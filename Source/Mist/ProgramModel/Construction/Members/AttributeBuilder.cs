@@ -116,7 +116,7 @@ internal sealed class AttributeBuilder(BuilderContext context)
             return definition;
         }
 
-        var typeArguments = context.Resolver.ResolveTypeArguments(node.TypeArgs, scope);
+        var typeArguments = context.Resolver.ResolveTypeArguments(node.TypeArgs, scope, definition);
         return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArguments);
     }
 
@@ -182,7 +182,7 @@ internal sealed class AttributeBuilder(BuilderContext context)
             return new ErrorExpression(node);
         }
 
-        var typeArguments = context.Resolver.ResolveTypeArguments(node.TypeArgs, scope);
+        var typeArguments = context.Resolver.ResolveTypeArguments(node.TypeArgs, scope, definition);
         var referenced = context.ProgramModel.TypeInterner.GetOrCreateConstructedType(definition, typeArguments);
 
         return new TypeLiteralExpression(node, referenced, context.Resolver.LookupWellKnown(WellKnownTypes.Type));

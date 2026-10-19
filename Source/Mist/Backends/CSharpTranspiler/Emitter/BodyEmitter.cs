@@ -1578,7 +1578,8 @@ internal static class BodyEmitter
 
             case TypeReferenceExpression typeRef:
                 writer.Append(
-                    DependentCarrierNames.ValueRead(typeRef.ReferencedType)
+                    PackValues.Read(typeRef.ReferencedType)
+                        ?? DependentCarrierNames.ValueRead(typeRef.ReferencedType)
                         ?? TypeNameEmitter.Emit(typeRef.ReferencedType));
                 break;
 

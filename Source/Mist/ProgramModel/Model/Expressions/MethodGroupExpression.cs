@@ -70,11 +70,6 @@ internal sealed class MethodGroupExpression : Expression
     /// </summary>
     public bool IsConditional { get; }
 
-    /// <summary>
-    /// The type arguments written after the name where the group is a VALUE, a generic method named with
-    /// no call after it, or null where none were. A call states its own beside its arguments and never sets
-    /// this, the grammar admitting the list here only where no call follows.
-    /// </summary>
     public IReadOnlyList<IMistType>? StatedTypeArguments { get; init; }
 
     public override IMistType Type { get; } = MethodGroupType.Instance;

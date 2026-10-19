@@ -16,6 +16,12 @@ namespace Mist.ProgramModel.Construction.Resolution;
 /// </summary>
 internal static class PackBinding
 {
+    public static bool AcceptsSpread(IReadOnlyList<TypeParameter> parameters, int argumentCount, int index)
+    {
+        return AbsorbingSlot(parameters) is { } slot
+            && index >= slot && index < argumentCount - (parameters.Count - slot - 1);
+    }
+
     /// <summary>
     /// The index of the slot that absorbs the middle, or null when this declaration has none and
     /// the ordinary one-for-one rule applies.

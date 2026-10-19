@@ -18,7 +18,6 @@ internal sealed partial class ScopeResolver
         }
 
         var parameters = generic.TypeParametersList;
-        var absorbing = PackBinding.AbsorbingSlot(parameters);
         var nodes = new[] { syntax.TypeArgument }.Concat(syntax.TypeArguments).ToList();
         for(var i = 0; i < arguments.Count; i++)
         {
@@ -27,8 +26,7 @@ internal sealed partial class ScopeResolver
                 continue;
             }
 
-            var inPack = absorbing is { } slot && i >= slot && i < arguments.Count - (parameters.Count - slot - 1);
-            if(inPack)
+            if(PackBinding.AcceptsSpread(parameters, arguments.Count, i))
             {
                 continue;
             }

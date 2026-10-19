@@ -128,7 +128,10 @@ internal static class ExpressionBinder
             ThisExpressionPrimaryNode thisExpr => BindThis(thisExpr, ctx, context),
             ObjectCreationExpressionPrimaryNode objectCreation => BindObjectCreation(objectCreation, ctx, context),
             ObjectCreationExpressionNoArgsPrimaryNode noArgs => BindObjectCreationNoArgs(noArgs, ctx, context),
-            TargetTypedNewExpressionPrimaryNode targetTypedNew => BindTargetTypedNew(targetTypedNew, ctx, context),
+            TargetTypedNewExpressionPrimaryNode targetTypedNew => BindTargetTypedNew(
+                targetTypedNew, targetTypedNew.Arguments, targetTypedNew.Initializer, ctx, context),
+            TargetTypedNewExpressionNoArgsPrimaryNode initializerOnly => BindTargetTypedNew(
+                initializerOnly, null, initializerOnly.Initializer, ctx, context),
             FieldKeywordExpressionPrimaryNode fieldKeyword => BindFieldKeyword(fieldKeyword, ctx, context),
             DefaultExpressionPrimaryNode named => new DefaultExpression(
                 named, context.Resolver.Resolve(named.Type, ctx.Scope)),
@@ -326,14 +329,18 @@ internal static class ExpressionBinder
     }
 
     /// <summary>
-    /// Binds <c>new(...)</c>, which names no type and takes the one the position expects.
+    /// Binds <c>new(...)</c> and <c>new { }</c>, which name no type and take the one the position expects.
     /// </summary>
     private static Expression BindTargetTypedNew(
-        TargetTypedNewExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+        Storm.Runtime.SyntaxNode node,
+        ArgumentListNode? arguments,
+        PropertyInitializerBlockNode? initializer,
+        BindingContext ctx,
+        BuilderContext context)
     {
         if(ctx.TargetTypeIsFailed)
         {
-            return new ErrorExpression(node, [BindConstruction(node, ctx.TargetType ?? ErrorType.Instance, node.Arguments, node.Initializer, ctx, context)]);
+            return new ErrorExpression(node, [BindConstruction(node, ctx.TargetType ?? ErrorType.Instance, arguments, initializer, ctx, context)]);
         }
 
         if(ctx.TargetType is not { } target || target is ErrorType)
@@ -351,7 +358,7 @@ internal static class ExpressionBinder
             return new ErrorExpression(node);
         }
 
-        return BindConstruction(node, target, node.Arguments, node.Initializer, ctx, context);
+        return BindConstruction(node, target, arguments, initializer, ctx, context);
     }
 
     private static Expression BindConstruction(

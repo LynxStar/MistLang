@@ -21,6 +21,8 @@ internal sealed class AmbientTypeResolver
     private readonly TypeInterner typeInterner;
     private readonly HashSet<string> unavailable = [];
 
+    public TupleNameRows TupleNames { get; } = new();
+
     public AmbientTypeResolver(
         Dictionary<string, DeclaredType> shells,
         Dictionary<string, IMistType> wellKnownTypes,

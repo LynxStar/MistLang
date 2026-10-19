@@ -36,7 +36,7 @@ internal static class GenericConstraintProjector
                     continue;
                 }
 
-                var resolved = resolver.Resolve(constraint, scope);
+                var resolved = resolver.Resolve(constraint, scope, resolver.TupleNames.OfConstraint(clrParameter, constraint));
                 if(resolved is ErrorType or NotProjectedType)
                 {
                     return false;

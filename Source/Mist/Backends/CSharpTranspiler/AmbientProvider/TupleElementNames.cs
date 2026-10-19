@@ -22,7 +22,7 @@ internal sealed class TupleElementNames
     /// </summary>
     public static TupleElementNames? Of(ICustomAttributeProvider owner, Type type)
     {
-        return OfNames(Read(owner), type);
+        return ClrValueTuple.NameSlots(type) == 0 ? null : OfNames(Read(owner), type);
     }
 
     internal static TupleElementNames? OfNames(string?[]? names, Type type)

@@ -338,6 +338,7 @@ public class Program
         var given = Maybe<[int, string]>(5);
         var absent = Maybe<[int, string]>(void);
         Console.WriteLine($"[method] {given} | {absent} | {Twice<[long, bool]>(9)}");
+        ResidualShapes.RunDemo();
     }
 
     public static void Main(string[] args)

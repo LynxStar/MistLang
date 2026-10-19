@@ -60,7 +60,8 @@ internal static class OverloadFailure
     {
         // AN ARGUMENT THAT ALREADY FAILED MAKES THIS FAILURE DERIVED, so it is not reported: no
         // overload could have matched, and saying so adds a second complaint about one mistake.
-        if(arguments.Any(PriorFailure.Of))
+        if(arguments.Any(PriorFailure.Of)
+            || (candidates.Count > 0 && candidates.All(candidate => candidate.ParametersList.Any(parameter => parameter.IsFailed))))
         {
             return;
         }

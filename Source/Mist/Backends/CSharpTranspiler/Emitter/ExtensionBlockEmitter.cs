@@ -20,7 +20,8 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 internal static class ExtensionBlockEmitter
 {
     public static void Emit(
-        ExtensionBlock block, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted)
+        ExtensionBlock block, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted,
+        VariadicUseRegistry? uses = null)
     {
         if(block.ResolvedReceiverType is not { } receiver)
         {
@@ -43,7 +44,18 @@ internal static class ExtensionBlockEmitter
 
             foreach(var method in block.MethodsList)
             {
-                EmitMember(method, block, receiver, writer, diagnostics, ref first);
+                foreach(var monomorph in MonomorphSet.MethodSpecializations(method, uses ?? new VariadicUseRegistry()))
+                {
+                    using(monomorph.Enter())
+                    {
+                        EmitMember(method, block, receiver, writer, diagnostics, ref first);
+                    }
+                }
+
+                if(Monomorph.PacksIn(method.TypeParametersList).Count == 0)
+                {
+                    EmitMember(method, block, receiver, writer, diagnostics, ref first);
+                }
             }
 
             foreach(var property in block.PropertiesList)
@@ -66,14 +78,18 @@ internal static class ExtensionBlockEmitter
         var returnType = MethodEmitter.EmitReturnType(method);
         var asyncModifier = AsyncPromotion.EmitsAsync(method) ? "async " : "";
 
-        var typeParameters = CarrierTypeParameters(method, block);
-        var parameters = DefaultConstraintWitness.Parameters(method.TypeParametersList);
-        parameters.AddRange(ConstructorWitnesses.Parameters(ConstructorWitnesses.Of(method.TypeParametersList)));
+        var declared = Monomorph.InScope()?.Parameters(method.TypeParametersList) ?? method.TypeParametersList;
+        var typeParameters = block.TypeParametersList.Concat(declared).ToList();
+        var name = Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList)
+            ? MonomorphSet.SpecializedName(method.Name, monomorph.Widths)
+            : method.Name;
+        var parameters = DefaultConstraintWitness.Parameters(declared);
+        parameters.AddRange(ConstructorWitnesses.Parameters(ConstructorWitnesses.Of(declared)));
         parameters.AddRange(ContextKeyWitnesses.Parameters(method));
         parameters.Add(ParameterEmitter.Emit(method.ParametersList, diagnostics));
 
         writer.WriteLine(
-            $"public static {asyncModifier}{returnType} {method.Name}{TypeParameters(typeParameters)}"
+            $"public static {asyncModifier}{returnType} {name}{TypeParameters(typeParameters)}"
             + $"({Parameters(parameters, method.Modifiers.IsStatic, block, receiver)})");
         ConstraintEmitter.Emit(typeParameters, writer);
 

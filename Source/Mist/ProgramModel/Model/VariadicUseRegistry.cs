@@ -55,6 +55,7 @@ internal sealed class VariadicUseRegistry
     /// </summary>
     public bool Record(Method method, IReadOnlyList<int> observed)
     {
+        method = method.SourceDeclaration ?? method;
         if(!widths.TryGetValue(method, out var recorded))
         {
             recorded = new(StringComparer.Ordinal);
@@ -81,6 +82,7 @@ internal sealed class VariadicUseRegistry
     /// </summary>
     public IReadOnlyCollection<IReadOnlyList<int>> WidthsOf(Method method)
     {
+        method = method.SourceDeclaration ?? method;
         return widths.TryGetValue(method, out var recorded) ? recorded.Values : [];
     }
 }

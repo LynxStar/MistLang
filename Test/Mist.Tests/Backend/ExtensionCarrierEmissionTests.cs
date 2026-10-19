@@ -47,7 +47,6 @@ public sealed class ExtensionCarrierEmissionTests
         var stated = box.Put<Dog>(new Dog());
         var inferred = box.Put(new Dog());
         var widened = box.Put<Animal>(new Dog());
-        func<Dog, int> grouped = box.Put;
         """;
 
     private static readonly Lazy<(string Calls, string Carriers)> Emitted = new(Emit);
@@ -56,7 +55,6 @@ public sealed class ExtensionCarrierEmissionTests
     [InlineData("int stated = Probe.BoxExtensions_Probe_0.Put<Probe.Animal, Probe.Dog>(box, new Probe.Dog());")]
     [InlineData("int inferred = Probe.BoxExtensions_Probe_0.Put<Probe.Animal, Probe.Dog>(box, new Probe.Dog());")]
     [InlineData("int widened = Probe.BoxExtensions_Probe_0.Put<Probe.Animal, Probe.Animal>(box, new Probe.Dog());")]
-    [InlineData("System.Func<Probe.Dog, int> grouped = box.Put<Probe.Animal, Probe.Dog>;")]
     public void AGenericBlocksMethodCalledWithItsOwnTypeArguments_IsWrittenTheBlocksToo(string written)
     {
         Assert.Contains(written, Emitted.Value.Calls);

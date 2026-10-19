@@ -279,7 +279,7 @@ internal static class ExpressionBinder
             }
 
             var typeArgs = context.Resolver.BindPack(
-                definition, context.Resolver.ResolveTypeArguments(typeArgList, ctx.Scope), node);
+                definition, context.Resolver.ResolveTypeArguments(typeArgList, ctx.Scope, definition), node);
 
             if(definition is TypeAlias alias)
             {

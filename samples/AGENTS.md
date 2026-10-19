@@ -32,6 +32,7 @@ the record of which samples run.
 | `GenericExtensionMethods` | Classic could not resolve generic extension-block parameters. |
 | `ConstructorConstraintSignatures` | Classic could not resolve a type parameter in a constructor constraint. |
 | `VariadicSpecialization` | Written 2026-10-03, after classic was retired. |
+| `VariadicSpecialization`, `ResidualShapes` section | V2-ONLY: added 2026-10-19 for nested and extension method packs (including generic receivers and forwarded packs), pack type values and variadic method groups; captured from v2 and read against the program by hand. |
 | `SizedSequencePatterns` | Written 2026-10-03, after classic was retired. |
 | `ResourceTransfer` | Written 2026-10-11, after classic was retired. |
 | `ClrCallContracts` | Written 2026-10-11, after classic was retired. |

@@ -24,6 +24,41 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 internal static class MonomorphSet
 {
+    public static Monomorph? TypeSpecialization(MemberType type, IReadOnlyList<int> widths)
+    {
+        return Monomorph.For(type.TypeParametersList, widths, ContainedParameters(type));
+    }
+
+    private static IEnumerable<TypeParameter> ContainedParameters(MistType type)
+    {
+        if(type is IHasTypeParameters generic)
+        {
+            foreach(var parameter in generic.TypeParametersList)
+            {
+                yield return parameter;
+            }
+        }
+
+        if(type is MemberType member)
+        {
+            foreach(var method in member.EnumerateDelegates())
+            {
+                foreach(var parameter in method.TypeParametersList)
+                {
+                    yield return parameter;
+                }
+            }
+        }
+
+        foreach(var nested in type.NestedTypes)
+        {
+            foreach(var parameter in ContainedParameters(nested))
+            {
+                yield return parameter;
+            }
+        }
+    }
+
     /// <summary>
     /// The C# name a family takes at one combination of widths.
     /// <para>
@@ -49,9 +84,31 @@ internal static class MonomorphSet
     {
         foreach(var widths in uses.WidthsOf(method))
         {
-            if(Monomorph.For(method.TypeParametersList, widths) is { } monomorph)
+            if(Monomorph.For(method.TypeParametersList, widths, EnclosingParameters(method)) is { } monomorph)
             {
                 yield return monomorph;
+            }
+        }
+    }
+
+    private static IEnumerable<TypeParameter> EnclosingParameters(Method method)
+    {
+        if(method.DeclaringBlock is { } block)
+        {
+            foreach(var parameter in block.TypeParametersList)
+            {
+                yield return parameter;
+            }
+        }
+
+        for(MistType? type = method.DeclaringType; type is not null; type = type.DeclaringType)
+        {
+            if(type is IHasTypeParameters generic)
+            {
+                foreach(var parameter in generic.TypeParametersList)
+                {
+                    yield return parameter;
+                }
             }
         }
     }

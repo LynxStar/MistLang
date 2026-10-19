@@ -214,16 +214,15 @@ internal static class MethodGroupConversion
         TypeSubstitution substitution,
         TypeInterner interner)
     {
-        if(candidate.ParametersList.Count != parameterTypes.Count)
+        var parameters = ValuePack.Expand(candidate.ParametersList, substitution, interner);
+        if(parameters.Count != parameterTypes.Count)
         {
             return false;
         }
 
-        for(var i = 0; i < candidate.ParametersList.Count; i++)
+        for(var i = 0; i < parameters.Count; i++)
         {
-            var parameter = substitution.Apply(candidate.ParametersList[i].Type, interner);
-
-            if(!IsTheSame(parameter, parameterTypes[i]))
+            if(!IsTheSame(parameters[i].Type, parameterTypes[i]))
             {
                 return false;
             }

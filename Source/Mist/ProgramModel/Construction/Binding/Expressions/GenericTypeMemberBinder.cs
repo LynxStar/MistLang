@@ -41,7 +41,7 @@ internal static class GenericTypeMemberBinder
         }
 
         var typeArgs = context.Resolver.BindPack(
-            definition, context.Resolver.ResolveTypeArguments(stated, ctx.Scope), node);
+            definition, context.Resolver.ResolveTypeArguments(stated, ctx.Scope, definition), node);
         var enclosing = context.Resolver.InheritedEnclosing(definition, ctx.Scope);
         context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node, enclosing, ctx.Scope);
         var type = definition is TypeAlias alias

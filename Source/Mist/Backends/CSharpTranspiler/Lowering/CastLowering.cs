@@ -25,7 +25,7 @@ internal static class CastLowering
     {
         if(cast.ParameterType is not { } parameter)
         {
-            return operand;
+            return UnknownUnions.Widening(cast.Operand.Type, cast.Type, operand) ?? operand;
         }
 
         return cast.Operator is { Modifiers.IsIntrinsic: false } && OverloadPinning.CastFor(cast.Operand, parameter, overloaded: true) is { } pinned
@@ -37,7 +37,7 @@ internal static class CastLowering
     {
         if(conversion is not { Operator: { } called, ParameterType: { } parameter })
         {
-            return operand;
+            return UnknownUnions.Widening(conversion.Operand.Type, conversion.TargetType, operand) ?? operand;
         }
 
         var argument = !called.Modifiers.IsIntrinsic && OverloadPinning.CastFor(conversion.Operand, parameter, overloaded: true) is { } pinned
@@ -53,6 +53,8 @@ internal static class CastLowering
                 ? $"{entry}({result})"
                 : $"(({TypeNameEmitter.Emit(carrier)})({result}))";
         }
+
+        result = UnknownUnions.Widening(conversion.Type, conversion.TargetType, result) ?? result;
 
         return RegexLowering.Is(conversion.Type) && !ConversionClassifier.IsFree(conversion.Type, conversion.TargetType, interner: null)
             ? Pattern(result)
@@ -72,6 +74,11 @@ internal static class CastLowering
 
     private static string Step(IMistType from, IMistType parameter, string operand)
     {
+        if(UnknownUnions.Widening(from, parameter, operand) is { } widened)
+        {
+            return widened;
+        }
+
         if(RegexLowering.Is(from) && !ConversionClassifier.IsFree(from, parameter, interner: null))
         {
             var pattern = Pattern(operand);

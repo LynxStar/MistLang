@@ -275,7 +275,9 @@ internal static class TypeArgumentInference
     public static IReadOnlyList<IMistType>? FromSignature(
         Method method, IReadOnlyList<IMistType> parameterTypes, IMistType? returnType)
     {
-        if(method.ParametersList.Count != parameterTypes.Count)
+        var flattened = ValuePack.FlattenedSlot(method.ParametersList);
+        var pack = flattened is { } slot ? ValuePack.PackParameterOf(method.ParametersList[slot]) : null;
+        if(pack is null ? method.ParametersList.Count != parameterTypes.Count : parameterTypes.Count < method.ParametersList.Count - 1)
         {
             return null;
         }
@@ -284,7 +286,17 @@ internal static class TypeArgumentInference
 
         for(var i = 0; i < method.ParametersList.Count; i++)
         {
-            Match(method.ParametersList[i].Type, parameterTypes[i], method.TypeParametersList, bounds);
+            if(pack is not null && i == flattened)
+            {
+                var absorbed = ValuePack.Absorbed(method.ParametersList, parameterTypes, i);
+                Record(pack, new LiftedType(pack.Domain ?? pack, new TypePackValue(absorbed)), method.TypeParametersList, bounds);
+                continue;
+            }
+
+            var position = pack is not null && i > flattened
+                ? parameterTypes.Count - (method.ParametersList.Count - i)
+                : i;
+            Match(method.ParametersList[i].Type, parameterTypes[position], method.TypeParametersList, bounds);
         }
 
         if(returnType is not null)

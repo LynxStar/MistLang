@@ -81,13 +81,11 @@ internal static class PostfixBinder
             return new ErrorExpression(node);
         }
 
-        return BindInvocation(
-            node,
+        var member = StatedMethodArguments.Bind(
             new MethodGroupExpression(node, null, name, group.Methods, null) { Paths = group.Paths },
-            node.Arguments,
-            context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope),
-            ctx,
-            context);
+            node.TypeArgs, name, node, ctx, context);
+        return BindInvocation(node, member, node.Arguments,
+            (member as MethodGroupExpression)?.StatedTypeArguments, ctx, context);
     }
 
     /// <summary>
@@ -102,11 +100,9 @@ internal static class PostfixBinder
 
         if(ctx.Scope.Lookup(new LookupRequest(name, MemberVisibility.InstanceAndStatic, node)) is MethodGroupResult { Methods.Count: > 0 } group)
         {
-            return new MethodGroupExpression(node, null, name, group.Methods, null)
-            {
-                Paths = group.Paths,
-                StatedTypeArguments = context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope),
-            };
+            return StatedMethodArguments.Bind(
+                new MethodGroupExpression(node, null, name, group.Methods, null) { Paths = group.Paths },
+                node.TypeArgs, name, node, ctx, context);
         }
 
         var definition = context.Resolver.ResolveGenericDefinition(name, 1 + node.TypeArgs.TypeArguments.Length, ctx.Scope, node);
@@ -116,7 +112,7 @@ internal static class PostfixBinder
             return new ErrorExpression(node);
         }
 
-        var typeArgs = context.Resolver.BindPack(definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope), node);
+        var typeArgs = context.Resolver.BindPack(definition, context.Resolver.ResolveTypeArguments(node.TypeArgs, ctx.Scope, definition), node);
         var enclosing = context.Resolver.InheritedEnclosing(definition, ctx.Scope);
         context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node, enclosing, ctx.Scope);
         var type = definition is TypeAlias alias
@@ -126,33 +122,12 @@ internal static class PostfixBinder
         return new TypeLiteralExpression(node, type, context.Resolver.LookupWellKnown(WellKnownTypes.Type));
     }
 
-    private static Expression WithStatedTypeArguments(
-        Expression member, TypeArgumentListNode stated, string name, PostfixSuffixNode node, BindingContext ctx, BuilderContext context)
-    {
-        if(member is ErrorExpression)
-        {
-            return member;
-        }
-
-        if(member is not MethodGroupExpression group)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.TypeArgumentsOnANonMethod, node, null, name);
-            return new ErrorExpression(node);
-        }
-
-        return new MethodGroupExpression(group.Node, group.Receiver, group.MemberName, group.Candidates, group.ReceiverConstructed, group.IsConditional)
-        {
-            Paths = group.Paths,
-            StatedTypeArguments = context.Resolver.ResolveTypeArguments(stated, ctx.Scope),
-        };
-    }
-
     private static Expression BindPostfixSuffix(PostfixSuffixNode suffix, Expression receiver, BindingContext ctx, BuilderContext context)
     {
         switch(suffix)
         {
             case GenericMethodGroupSuffixPostfixSuffixNode stated:
-                return WithStatedTypeArguments(
+                return StatedMethodArguments.Bind(
                     BindMemberAccess(suffix, receiver, stated.Name.Lexeme, ctx, context), stated.TypeArgs, stated.Name.Lexeme, suffix, ctx, context);
 
             case InvocationSuffixPostfixSuffixNode invocation:
@@ -164,12 +139,13 @@ internal static class PostfixBinder
             case MethodCallSuffixPostfixSuffixNode methodCall:
                 {
                     var memberExpr = BindMemberAccess(suffix, receiver, methodCall.Name.Lexeme, ctx, context);
-                    var typeArguments = methodCall.TypeArgs is { } stated
-                        ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
-                        : null
-                        ;
+                    if(methodCall.TypeArgs is { } stated)
+                    {
+                        memberExpr = StatedMethodArguments.Bind(memberExpr, stated, methodCall.Name.Lexeme, suffix, ctx, context);
+                    }
 
-                    return BindInvocation(suffix, memberExpr, methodCall.Arguments, typeArguments, ctx, context);
+                    return BindInvocation(suffix, memberExpr, methodCall.Arguments,
+                        (memberExpr as MethodGroupExpression)?.StatedTypeArguments, ctx, context);
                 }
 
             case OptionalMemberAccessSuffixPostfixSuffixNode optionalMemberAccess:
@@ -179,12 +155,13 @@ internal static class PostfixBinder
                 {
                     var memberExpr = BindConditionalAccess(
                         suffix, receiver, optionalMethodCall.Name.Lexeme, ctx, context);
-                    var typeArguments = optionalMethodCall.TypeArgs is { } stated
-                        ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
-                        : null
-                        ;
+                    if(optionalMethodCall.TypeArgs is { } stated)
+                    {
+                        memberExpr = StatedMethodArguments.Bind(memberExpr, stated, optionalMethodCall.Name.Lexeme, suffix, ctx, context);
+                    }
 
-                    return BindInvocation(suffix, memberExpr, optionalMethodCall.Arguments, typeArguments, ctx, context);
+                    return BindInvocation(suffix, memberExpr, optionalMethodCall.Arguments,
+                        (memberExpr as MethodGroupExpression)?.StatedTypeArguments, ctx, context);
                 }
 
             case IndexSuffixPostfixSuffixNode indexSuffix:

@@ -17,6 +17,8 @@ internal static class UnionCarrierEmitter
             writer.WriteLine("private readonly byte _tag;");
             writer.WriteLine("private readonly object _value;");
             writer.WriteBlankLine();
+            writer.WriteLine("public object Payload => _value;");
+            writer.WriteBlankLine();
             writer.WriteLine($"private {name}(byte tag, object value)");
 
             using(writer.Block())

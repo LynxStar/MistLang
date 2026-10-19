@@ -157,7 +157,7 @@ internal sealed class CSharpEmitterV2
         EmitInvariantRuntime(outputDir, emittedFiles);
         LocaleStartup.EmitFile(options, outputDir, emittedFiles);
 
-        var csprojContent = ProjectFileEmitter.Emit(options, carriesEntryPoint);
+        var csprojContent = ProjectFileEmitter.Emit(options, carriesEntryPoint, startup.MainTypeName);
         var csprojPath = Path.Combine(outputDir, $"{options.ProjectName}.csproj");
         File.WriteAllText(csprojPath, csprojContent);
 
@@ -446,8 +446,7 @@ internal sealed class CSharpEmitterV2
         {
             if(definition is not MemberType member
                 || UnionSpecialization.Specializes(member)
-                || definition is not IHasTypeParameters generic
-                || Monomorph.For(generic.TypeParametersList, widths) is not { } monomorph)
+                || MonomorphSet.TypeSpecialization(member, widths) is not { } monomorph)
             {
                 continue;
             }
@@ -788,7 +787,7 @@ internal sealed class CSharpEmitterV2
 
         foreach(var block in blocks)
         {
-            ExtensionBlockEmitter.Emit(block, writer, diagnostics, ref anyEmitted);
+            ExtensionBlockEmitter.Emit(block, writer, diagnostics, ref anyEmitted, variadicUses);
         }
     }
 

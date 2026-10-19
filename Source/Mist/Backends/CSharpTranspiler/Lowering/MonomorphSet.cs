@@ -24,6 +24,41 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 internal static class MonomorphSet
 {
+    public static Monomorph? TypeSpecialization(MemberType type, IReadOnlyList<int> widths)
+    {
+        return Monomorph.For(type.TypeParametersList, widths, ContainedParameters(type));
+    }
+
+    private static IEnumerable<TypeParameter> ContainedParameters(MistType type)
+    {
+        if(type is IHasTypeParameters generic)
+        {
+            foreach(var parameter in generic.TypeParametersList)
+            {
+                yield return parameter;
+            }
+        }
+
+        if(type is MemberType member)
+        {
+            foreach(var method in member.EnumerateDelegates())
+            {
+                foreach(var parameter in method.TypeParametersList)
+                {
+                    yield return parameter;
+                }
+            }
+        }
+
+        foreach(var nested in type.NestedTypes)
+        {
+            foreach(var parameter in ContainedParameters(nested))
+            {
+                yield return parameter;
+            }
+        }
+    }
+
     /// <summary>
     /// The C# name a family takes at one combination of widths.
     /// <para>

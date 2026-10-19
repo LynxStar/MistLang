@@ -99,7 +99,7 @@ internal sealed class Monomorph
 
     public static Monomorph? For(
         IReadOnlyList<TypeParameter> parameters, IReadOnlyList<int> widths,
-        IEnumerable<TypeParameter>? enclosingParameters = null)
+        IEnumerable<TypeParameter>? reservedParameters = null)
     {
         var packs = PacksIn(parameters);
 
@@ -112,7 +112,7 @@ internal sealed class Monomorph
         var ordinal = inScope?.ElementCount() ?? 0;
         var nameIndex = ordinal;
         var names = new HashSet<string>(inScope?.parameterNames ?? [], StringComparer.Ordinal);
-        names.UnionWith(parameters.Concat(enclosingParameters ?? [])
+        names.UnionWith(parameters.Concat(reservedParameters ?? [])
             .Where(parameter => !parameter.IsPack).Select(DependentCarrierNames.Parameter));
 
         for(var i = 0; i < packs.Count; i++)

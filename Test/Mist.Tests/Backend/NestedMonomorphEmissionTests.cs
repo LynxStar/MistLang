@@ -14,6 +14,63 @@ namespace Mist.Tests.Backend;
 public sealed class NestedMonomorphEmissionTests
 {
     [Theory]
+    [InlineData(0, false)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    public void OuterPackTypeValuesCannotBeShadowedByDeclaredMethodParameters(int width, bool nested)
+    {
+        var outer = Pack("Ts");
+        var inner = Pack("Us");
+        var type = new ClassType("Box", "Probe", null, null, null);
+        type.TypeParametersList.Add(outer);
+        var owner = type;
+        if(nested)
+        {
+            owner = new ClassType("Inner", "Probe", type.Scope, type, null);
+            owner.TypeParametersList.Add(new TypeParameter("T2", 0, owner.Scope, owner));
+            type.NestedTypes.Add(owner);
+        }
+
+        var first = new TypeParameter("T1", 0, new Scope(null), null);
+        var last = new TypeParameter("T3", 2, new Scope(null), null);
+        var runtimeType = new ClassType("Type", "Standard", null, null, null);
+        var result = SizedSequenceTypes.ArrayOf(runtimeType, 2);
+        var method = new Method("Types", result,
+            [new Parameter("first", first),
+                new Parameter("args", new TupleType([new SpreadType(inner)])) { IsFlattened = true },
+                new Parameter("last", last)], default)
+        {
+            DeclaringType = owner,
+            Body = new Block(null!)
+            {
+                Statements = [new ReturnStatement(new TypeReferenceExpression(null!, outer), result)],
+            },
+        };
+        method.TypeParametersList.AddRange([first, inner, last]);
+        owner.MethodsList.Add(method);
+        var enclosing = MonomorphSet.TypeSpecialization(type, [2])!;
+        using var outerScope = enclosing.Enter();
+        var specialized = Monomorph.For(method.TypeParametersList, [width])!;
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+
+        using(specialized.Enter())
+        {
+            MethodEmitter.Emit(method, false, writer, diagnostics);
+        }
+
+        var outerNames = enclosing.Expansion(outer).Select(parameter => parameter.Name).ToArray();
+        var methodParameters = specialized.Parameters(method.TypeParametersList);
+        Assert.Empty(outerNames.Intersect(methodParameters.Concat(owner.TypeParametersList)
+            .Select(parameter => parameter.Name)));
+        Assert.Same(first, methodParameters[0]);
+        Assert.Same(last, methodParameters[^1]);
+        Assert.Contains($"Types_{width}<{string.Join(", ", methodParameters.Select(parameter => parameter.Name))}>", writer.ToString());
+        Assert.Contains($"return new System.Type[] {{ typeof({outerNames[0]}), typeof({outerNames[1]}) }};", writer.ToString());
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(3)]
     public void MethodSpecializationRetainsOuterPackAndRestoresItsScope(int width)

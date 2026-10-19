@@ -446,8 +446,7 @@ internal sealed class CSharpEmitterV2
         {
             if(definition is not MemberType member
                 || UnionSpecialization.Specializes(member)
-                || definition is not IHasTypeParameters generic
-                || Monomorph.For(generic.TypeParametersList, widths) is not { } monomorph)
+                || MonomorphSet.TypeSpecialization(member, widths) is not { } monomorph)
             {
                 continue;
             }

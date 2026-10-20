@@ -154,13 +154,10 @@ internal static class OwnedProvenance
     /// <see cref="At"/> reads, because nothing synthesizes a <c>Clone</c> for a derived type and implicit
     /// cloning needs one to call.
     /// </summary>
-    public static bool IsClonable(IMistType type)
+    public static bool IsClonable(IMistType type, Derivations? deriving = null)
     {
-        return IsClonable(type, new HashSet<ConcreteType>(ReferenceEqualityComparer.Instance));
-    }
+        deriving ??= new Derivations();
 
-    private static bool IsClonable(IMistType type, HashSet<ConcreteType> deriving)
-    {
         return type switch
         {
             TypeAlias { AliasedType: { } aliased } => IsClonable(aliased, deriving),
@@ -169,7 +166,7 @@ internal static class OwnedProvenance
             RefinedType refined => IsClonable(refined.BaseType, deriving),
             UnionType union => union.Constituents.All(constituent => OptionalUnion.IsVoid(constituent) || IsClonable(constituent, deriving)),
             Newtype { SourceType: { } source } => IsClonable(source, deriving),
-            TypeParameter parameter => deriving.Any(definition => Declares(definition, parameter))
+            TypeParameter parameter => deriving.Pending.Any(definition => Declares(definition, parameter))
                 || parameter.ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Struct
                     || (constraint is TypeConstraint { ConstraintType: var bound } && IsClonable(bound, deriving))),
             StructType or ConstructedType { Definition: StructType } or EnumType or ITupleType => true,
@@ -188,7 +185,7 @@ internal static class OwnedProvenance
                     || (concrete.BaseType is { } baseType && ConformsToClonable(baseType))));
     }
 
-    private static bool Derives(IMistType type, HashSet<ConcreteType> deriving)
+    private static bool Derives(IMistType type, Derivations deriving)
     {
         if((type is ConstructedType constructed ? constructed.Definition : type) is not ConcreteType { IsIntrinsic: false, DeclarationNode: not null } concrete
             || !Arguments(type).All(argument => IsClonable(argument, deriving)))
@@ -196,20 +193,59 @@ internal static class OwnedProvenance
             return false;
         }
 
-        if(!deriving.Add(concrete))
+        if(deriving.Settled.TryGetValue(concrete, out var settled))
+        {
+            return settled;
+        }
+
+        if(!deriving.Pending.Add(concrete))
         {
             return true;
         }
 
+        var mark = deriving.Provisional.Count;
+
         try
         {
-            return (concrete.BaseType is not { } baseType || IsClonable(baseType, deriving))
+            var derives = (concrete.BaseType is not { } baseType || IsClonable(baseType, deriving))
                 && InstanceStorage.Of(concrete).All(slot => IsClonable(slot.Type, deriving));
+
+            if(derives)
+            {
+                deriving.Provisional.Add(concrete);
+            }
+            else
+            {
+                for(var i = mark; i < deriving.Provisional.Count; i++)
+                {
+                    _ = deriving.Settled.Remove(deriving.Provisional[i]);
+                }
+
+                deriving.Provisional.RemoveRange(mark, deriving.Provisional.Count - mark);
+            }
+
+            deriving.Settled[concrete] = derives;
+            return derives;
         }
         finally
         {
-            _ = deriving.Remove(concrete);
+            _ = deriving.Pending.Remove(concrete);
         }
+    }
+
+    /// <summary>
+    /// What deriving has decided so far, shared across the questions one analysis asks so that a type every path
+    /// reaches is derived once rather than once per path. A type met again while it is still being derived counts
+    /// as clonable, so what is admitted beneath it is provisional: a refusal of that type retracts those admissions,
+    /// while a refusal reached on the assumption would stand without it and settles at once.
+    /// </summary>
+    public sealed class Derivations
+    {
+        internal HashSet<ConcreteType> Pending { get; } = new(ReferenceEqualityComparer.Instance);
+
+        internal Dictionary<ConcreteType, bool> Settled { get; } = new(ReferenceEqualityComparer.Instance);
+
+        internal List<ConcreteType> Provisional { get; } = [];
     }
 
     private static IEnumerable<IMistType> Arguments(IMistType type)

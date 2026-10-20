@@ -1,5 +1,6 @@
 using Mist.Generated;
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -92,6 +93,39 @@ public sealed class OwnedFieldTypeDecisionTests
         Hold(journal, "Entries", log);
 
         Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(journal));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AWideDeepGraphIsDerivedOncePerType(bool bottomRefused)
+    {
+        var level = Declared("A40");
+        Hold(level, "Value", bottomRefused ? stringBuilder : int32);
+
+        for(var i = 39; i >= 0; i--)
+        {
+            var above = Declared($"A{i}");
+            Hold(above, "Left", level);
+            Hold(above, "Right", level);
+            level = above;
+        }
+
+        Assert.Equal(bottomRefused ? NotOwnedOrClonable : null, OwnedFieldTypes.WhyRefused(level));
+    }
+
+    [Fact]
+    public void ARefusalRetractsWhatWasAdmittedOnTheAssumptionItWasClonable()
+    {
+        var outer = Declared("Outer");
+        var inner = Declared("Inner");
+        Hold(outer, "Inner", inner);
+        Hold(outer, "Text", stringBuilder);
+        Hold(inner, "Outer", outer);
+        var derived = new OwnedProvenance.Derivations();
+
+        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(outer, derived));
+        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(inner, derived));
     }
 
     [Fact]

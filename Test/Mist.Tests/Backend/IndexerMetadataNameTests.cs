@@ -16,6 +16,73 @@ public sealed class IndexerMetadataNameTests
 
     [Theory]
     [Trait("Tier", "1")]
+    [InlineData("get", false, false)]
+    [InlineData("set", false, false)]
+    [InlineData("get", true, false)]
+    [InlineData("set", true, false)]
+    [InlineData("get", true, true)]
+    [InlineData("set", true, true)]
+    public void RenamedCandidatesReserveDeclaredAndInheritedAccessorNames(string accessor, bool inherited, bool ambient)
+    {
+        var declaring = HandBuiltModel.Class("Base");
+        if(ambient)
+        {
+            declaring.Assembly = MistAssembly.Ambient;
+        }
+
+        AddMember(declaring, "method", accessor + "_Indexer");
+        var type = inherited ? HandBuiltModel.Class("Shelf", declaring) : declaring;
+        AddMember(type, "field", "Item");
+
+        Assert.Equal("Indexer1", IndexerMetadataName.Of(type));
+    }
+
+    [Fact]
+    [Trait("Tier", "1")]
+    public void RenamedCandidatesSkipOccupiedNumberedAccessorNames()
+    {
+        var type = HandBuiltModel.Class("Shelf");
+        AddMember(type, "field", "Item");
+        AddMember(type, "method", "get_Indexer");
+        AddMember(type, "method", "set_Indexer1");
+        AddMember(type, "method", "get_Indexer2");
+
+        Assert.Equal("Indexer3", IndexerMetadataName.Of(type));
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void AccessorCollisionsKeepOverloadAttributesAndUnsafeAccessorsConsistent()
+    {
+        var type = HandBuiltModel.Class("Shelf");
+        AddMember(type, "field", "Item");
+        AddMember(type, "method", "get_Indexer");
+        AddMember(type, "method", "set_Indexer1");
+        AddMember(type, "method", "get_Indexer2");
+        var first = AddIndexer(type, "Int32");
+        var second = AddIndexer(type, "String");
+        var diagnostics = new DiagnosticBag();
+        var writer = new CSharpWriter();
+        var anyEmitted = false;
+
+        TypeEmitter.Emit(type, ConstraintClosureMap.Build(model.Model, diagnostics), model.Model.VariadicUses,
+            writer, diagnostics, ref anyEmitted);
+        var accessors = new UnsafeAccessors(type, "probe", diagnostics);
+        foreach(var indexer in new[] { first, second })
+        {
+            _ = accessors.Indexer(indexer, type, isSetter: false);
+            _ = accessors.Indexer(indexer, type, isSetter: true);
+        }
+
+        Assert.Equal(2, writer.ToString().Split("[System.Runtime.CompilerServices.IndexerName(\"Indexer3\")]").Length - 1);
+        var declarations = string.Join("\n", accessors.Declarations.SelectMany(lines => lines));
+        Assert.Equal(2, declarations.Split("Name = \"get_Indexer3\"").Length - 1);
+        Assert.Equal(2, declarations.Split("Name = \"set_Indexer3\"").Length - 1);
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
+    [Trait("Tier", "1")]
     [InlineData("Item", false, "Indexer")]
     [InlineData("Item", true, "Indexer")]
     [InlineData("Indexer", false, "Indexer1")]

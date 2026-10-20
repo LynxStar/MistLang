@@ -50,7 +50,7 @@ internal static class IndexerMetadataName
         }
 
         var candidate = "Indexer";
-        for(var suffix = 1; names.Contains(candidate); suffix++)
+        for(var suffix = 1; names.Contains(candidate) || names.Contains("get_" + candidate) || names.Contains("set_" + candidate); suffix++)
         {
             candidate = "Indexer" + suffix.ToString(CultureInfo.InvariantCulture);
         }

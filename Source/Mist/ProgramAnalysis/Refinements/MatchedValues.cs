@@ -99,7 +99,7 @@ internal static class MatchedValues
         return comparison.Kind == ComparisonKind.Equal || Comparability.Supports(Requirement.Unrefined(input));
     }
 
-    private static T? Tested<T>(TypeTestPattern test, ValueAlgebra<T> algebra)
+    internal static T? Tested<T>(TypeTestPattern test, ValueAlgebra<T> algebra)
         where T : class
     {
         if(Requirement.Refined(test.NarrowedType) is null)

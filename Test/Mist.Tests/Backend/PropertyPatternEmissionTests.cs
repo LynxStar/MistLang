@@ -1,4 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -112,6 +113,24 @@ public sealed class PropertyPatternEmissionTests
 
         Assert.Equal("h is Holder { Data: int[] { Length: 3 } d }",
             Emit(new IsPatternExpression(null!, Reference("h", UnknownType.Instance), pattern, Boolean)));
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void AMemberPredicateWithNoPatternForm_IsHoistedIntoTheArmsGuard()
+    {
+        var letters = new PropertyPattern(null!, Animal,
+            [new PropertySubpattern(null!, "Breed", new RegexPattern(null!, String, "a.*"), String, new NotFoundResult())]);
+        var any = new PropertyPattern(null!, Animal,
+            [new PropertySubpattern(null!, "Breed", new CatchAllPattern(null!, String, null), String, new NotFoundResult())]);
+        var switched = new SwitchExpression(null!, Reference("value", Animal),
+            [new SwitchArm(null!, letters, null, Number(1)), new SwitchArm(null!, any, null, Number(2))], Integer);
+
+        var emitted = Emit(switched);
+
+        Assert.Contains("{ Breed: var __e1 } when ", emitted, StringComparison.Ordinal);
+        Assert.Contains(RegexLowering.IsFullMatch("__e1", RegexLowering.Quote("a.*")), emitted, StringComparison.Ordinal);
+        Assert.Contains("{ Breed: var _ } => 2", emitted, StringComparison.Ordinal);
     }
 
     [Fact]

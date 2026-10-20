@@ -4,7 +4,7 @@ using Mist.Generated;
 
 namespace Mist.Tests.Parsing;
 
-[Trait("Tier", "1")]
+[Trait("Tier", "4")]
 public sealed class UninitializedGenericLocalParseTests
 {
     [Theory]

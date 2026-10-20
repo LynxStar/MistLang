@@ -184,6 +184,29 @@ public sealed class KeywordIdentifierEmissionTests
     }
 
     [Fact]
+    public void ADefaultBindingsFieldAndNestedOverrideAreVerbatim()
+    {
+        var square = HandBuiltModel.Class("Sq");
+        square.FieldsList.Add(new Field("checked", Integer, OwnershipKind.Unrestricted, Public) { DeclaringType = square });
+        var holder = HandBuiltModel.Class("Holder");
+        holder.FieldsList.Add(new Field("lock", square, OwnershipKind.Unrestricted, Public) { DeclaringType = holder });
+        holder.DefaultBlock = new DefaultBlock(
+            [new DefaultBindingEntry("lock", square, [new DefaultValueEntry("checked", HandBuiltModel.Literal(Integer, 15L))],
+                new DefaultTypeBindingDefaultFieldInitializerNode())],
+            new DefaultBlockDeclarationNode());
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+        var anyEmitted = false;
+
+        DefaultEmitter.Emit(holder, writer, diagnostics, ref anyEmitted);
+
+        var text = writer.ToString();
+        Assert.Empty(diagnostics.ToImmutableArray());
+        Assert.Contains("__default_lock.@checked = 15;", text, StringComparison.Ordinal);
+        Assert.Contains("this.@lock = __default_lock;", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ANamespaceSegmentIsVerbatimWhereATypeIsQualifiedByIt()
     {
         var helper = new ClassType("Helper<>", "HelloMist.unsafe", new Scope(null), null, null);

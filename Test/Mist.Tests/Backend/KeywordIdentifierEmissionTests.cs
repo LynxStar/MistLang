@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.Generated;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -189,6 +190,19 @@ public sealed class KeywordIdentifierEmissionTests
         helper.TypeParametersList.Add(new TypeParameter("T", 0, helper.Scope, helper));
 
         Assert.Equal("HelloMist.@unsafe.Helper<int>", TypeNameEmitter.Emit(new ConstructedType(helper, [Integer])));
+    }
+
+    [Fact]
+    public void AnExtensionCarriersNamespaceSegmentIsVerbatimWhereItsMethodIsCalled()
+    {
+        var greeting = new ClassType("Greeting", "HelloMist.unsafe", new Scope(null), null, null);
+        var block = new ExtensionBlock("this2", "HelloMist.unsafe", new Scope(null), new ExtensionBlockDeclarationNode())
+        { ResolvedReceiverType = greeting, CarrierName = "GreetingExtensions" };
+        var method = new Method("goto", Integer, [new Parameter("lock", Integer)], Public) { DeclaringBlock = block };
+        var access = new MemberAccessExpression(HandBuiltModel.Node(), Read(new LocalVariable("g", greeting)), "goto", Integer);
+
+        Assert.Equal("HelloMist.@unsafe.GreetingExtensions.@goto(g, 70)", EmitExpression(new InvocationExpression(
+            HandBuiltModel.Node(), access, [HandBuiltModel.Literal(Integer, 70L)], Integer, method, [Integer])));
     }
 
     private static Method Method(string name, ClassType returnType, List<Parameter> parameters, params Statement[] statements)

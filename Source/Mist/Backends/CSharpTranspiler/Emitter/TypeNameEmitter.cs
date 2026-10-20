@@ -411,11 +411,6 @@ internal static class TypeNameEmitter
             return task;
         }
 
-        if(constructed.Definition is ConcreteType { IsIntrinsic: true } intrinsic && ClrSpelling.Spelling(intrinsic) is { } substituted)
-        {
-            return $"{substituted}<{string.Join(", ", constructed.TypeArguments.Select(Emit))}>";
-        }
-
         // A construction reaching `unknown` anywhere in its arguments is spelled `dynamic`, NOT
         // `Definition<object, ...>`. Mist admits `MyList<int>` where `MyList<unknown>` is expected
         // because unknown is the top type, and C# class generics are invariant, so the `object`
@@ -426,6 +421,11 @@ internal static class TypeNameEmitter
         if(ContainsUnknown(constructed))
         {
             return "dynamic";
+        }
+
+        if(constructed.Definition is ConcreteType { IsIntrinsic: true } intrinsic && ClrSpelling.Spelling(intrinsic) is { } substituted)
+        {
+            return $"{substituted}<{string.Join(", ", constructed.TypeArguments.Select(Emit))}>";
         }
 
         if(UnionSpecialization.NameOf(constructed) is { } specializedName)

@@ -146,6 +146,96 @@ internal static class OwnedProvenance
     }
 
     /// <summary>
+    /// Whether a value of the type can be copied into an independent one (ownership-v2 Requirement 8): a value
+    /// type, a declared <c>Clone</c>, a conformance to IClonable, or a Mist class every field of which is
+    /// clonable in turn (8.6, 8.7), a type met again while deriving counting as clonable. A generic class is
+    /// derived once, its own parameters taken as clonable, and an instantiation of it also needs every
+    /// argument clonable, which keeps the walk finite however its fields nest it. Broader than what
+    /// <see cref="At"/> reads, because nothing synthesizes a <c>Clone</c> for a derived type and implicit
+    /// cloning needs one to call.
+    /// </summary>
+    public static bool IsClonable(IMistType type)
+    {
+        return IsClonable(type, new HashSet<ConcreteType>(ReferenceEqualityComparer.Instance));
+    }
+
+    private static bool IsClonable(IMistType type, HashSet<ConcreteType> deriving)
+    {
+        return type switch
+        {
+            TypeAlias { AliasedType: { } aliased } => IsClonable(aliased, deriving),
+            ConstructedType { Definition: TypeAlias { AliasedType: { } aliased } } alias
+                => IsClonable(TypeSubstitution.ForReceiver(alias).Apply(aliased, interner: null), deriving),
+            RefinedType refined => IsClonable(refined.BaseType, deriving),
+            Newtype { SourceType: { } source } => IsClonable(source, deriving),
+            TypeParameter parameter => deriving.Any(definition => Declares(definition, parameter))
+                || parameter.ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Struct
+                    || (constraint is TypeConstraint { ConstraintType: var bound } && IsClonable(bound, deriving))),
+            StructType or ConstructedType { Definition: StructType } or EnumType or ITupleType => true,
+            _ => Clonable(type) || ConformsToClonable(type) || Derives(type, deriving),
+        };
+    }
+
+    private static bool ConformsToClonable(IMistType type)
+    {
+        var definition = type is ConstructedType constructed ? constructed.Definition : type;
+
+        return definition.FullyQualifiedName == WellKnownTypes.IClonable.FullyQualifiedName
+            || (definition is MemberType member && member.BaseAbstractTypes.Exists(ConformsToClonable))
+            || (definition is ConcreteType concrete
+                && (concrete.ConformancesList.Exists(conformance => ConformsToClonable(conformance.AbstractType))
+                    || (concrete.BaseType is { } baseType && ConformsToClonable(baseType))));
+    }
+
+    private static bool Derives(IMistType type, HashSet<ConcreteType> deriving)
+    {
+        if((type is ConstructedType constructed ? constructed.Definition : type) is not ConcreteType { IsIntrinsic: false, DeclarationNode: not null } concrete
+            || !Arguments(type).All(argument => IsClonable(argument, deriving)))
+        {
+            return false;
+        }
+
+        if(!deriving.Add(concrete))
+        {
+            return true;
+        }
+
+        try
+        {
+            return (concrete.BaseType is not { } baseType || IsClonable(baseType, deriving))
+                && InstanceStorage.Of(concrete).All(slot => IsClonable(slot.Type, deriving));
+        }
+        finally
+        {
+            _ = deriving.Remove(concrete);
+        }
+    }
+
+    private static IEnumerable<IMistType> Arguments(IMistType type)
+    {
+        for(var constructed = type as ConstructedType; constructed is not null; constructed = constructed.Enclosing)
+        {
+            foreach(var argument in constructed.TypeArguments)
+            {
+                yield return argument;
+            }
+        }
+    }
+
+    private static bool Declares(ConcreteType definition, TypeParameter parameter)
+    {
+        for(MistType? declaring = definition; declaring is not null; declaring = declaring.DeclaringType)
+        {
+            if(declaring is IHasTypeParameters generic && generic.TypeParametersList.Contains(parameter))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Whether the type offers the clone. Read off a declared <c>Clone</c> rather than off conformance
     /// to Standard's IClonable, so a type that declares one directly is not made to name the abstract
     /// as well -- what emission needs is a member to call.

@@ -39,6 +39,7 @@ internal static class ProgramAnalysisRunner
         new OwnershipAnalyzer(),
         new TierAnalyzer(),
         new DisciplineAnalyzer(),
+        new OwnedFieldTypeAnalyzer(),
         new RefStructPositionAnalyzer(),
         new ReadonlyAnalyzer(),
         new PurityAnalyzer(),

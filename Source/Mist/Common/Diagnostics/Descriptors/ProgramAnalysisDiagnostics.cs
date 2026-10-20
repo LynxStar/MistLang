@@ -544,6 +544,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "The 'owned' modifier cannot be applied to abstract type '{0}'.");
 
+    public static readonly DiagnosticDescriptor OwnedFieldType = new(
+        new DiagnosticId("MIST_PA_OWNED_FIELD_TYPE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Field '{0}' of owned type '{1}' has type '{2}', {3}. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be a value type, so that the owned type owns its whole graph.");
+
     public static readonly DiagnosticDescriptor OwnedSubstructuralBinding = new(
         new DiagnosticId("MIST_PA_OWNED_SUBSTRUCTURAL_BINDING"),
         DiagnosticSeverity.Error,

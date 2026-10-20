@@ -11,7 +11,7 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 internal static class PropertyEmitter
 {
     public static void Emit(
-        Property property, bool emitReadonly, bool readonlyGetter, CSharpWriter writer, DiagnosticBag diagnostics)
+        Property property, bool emitReadonly, bool readonlyGetter, CSharpWriter writer, DiagnosticBag diagnostics, bool hides = false)
     {
         if(IntrinsicCloneEmitter.Forwards(property.Modifiers, property.DeclaringType))
         {
@@ -22,7 +22,7 @@ internal static class PropertyEmitter
         using var constructionScope = property.Modifiers.IsStatic ? ConstructorWitnesses.NativeScope() : null;
         var modifiers = MemberModifierEmitter.Emit(property.Modifiers, emitReadonly);
         var typeName = TypeNameEmitter.Emit(property.Type);
-        var declaration = $"{modifiers}{typeName} {IdentifierSpelling.Of(property.Name)}";
+        var declaration = $"{modifiers}{(hides ? "new " : "")}{typeName} {IdentifierSpelling.Of(property.Name)}";
         var storage = BackingStorage.DeclaredField(property);
         var hosted = storage is null ? null : EmitDeclaredField(property, storage, typeName, writer, diagnostics);
 

@@ -83,6 +83,77 @@ public sealed class InterfaceHidingTests
         Assert.Equal(expected, writer.ToString().Trim());
     }
 
+    [Theory]
+    [InlineData("Int32")]
+    [InlineData("Boolean")]
+    public void RestatingAPropertyTheStandardEnumeratorDeclares_Hides(string propertyType)
+    {
+        _ = DeclareProperty(enumerator, "Current", enumerator.TypeParametersList[0]);
+        var cursor = Abstract("ICursor", new ConstructedType(enumerator, [built.Type("Int32")]));
+
+        Assert.True(InterfaceHiding.Hides(DeclareProperty(cursor, "Current", built.Type(propertyType)), cursor));
+    }
+
+    [Theory]
+    [InlineData("Peek")]
+    [InlineData("current")]
+    public void APropertyNoReachedInterfaceDeclares_HidesNothing(string name)
+    {
+        _ = DeclareProperty(enumerator, "Current", enumerator.TypeParametersList[0]);
+        var cursor = Abstract("ICursor", new ConstructedType(enumerator, [built.Type("Int32")]));
+
+        Assert.False(InterfaceHiding.Hides(DeclareProperty(cursor, name, built.Type("Int32")), cursor));
+    }
+
+    [Fact]
+    public void RestatingAPropertyThroughAMistAbstract_Hides()
+    {
+        var parent = Abstract("IBase");
+        _ = DeclareProperty(parent, "Value", built.Type("Int32"));
+        var child = Abstract("IDer", Abstract("IMiddle", parent));
+
+        Assert.True(InterfaceHiding.Hides(DeclareProperty(child, "Value", built.Type("Boolean")), child));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnInterfaceProperty_IsMarkedNewOnlyWhereItHides(bool hasBody)
+    {
+        var property = DeclareProperty(Abstract("ICursor"), "Current", built.Type("Int32"));
+
+        if(hasBody)
+        {
+            property.Getter!.ExpressionBody = HandBuiltModel.Literal(built.Type("Int32"), 7L);
+        }
+
+        var hiding = new CSharpWriter();
+        var bare = new CSharpWriter();
+        var unspecified = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+        var accessors = hasBody ? "\n{\n    get => 7;\n}" : " { get; }";
+
+        PropertyEmitter.Emit(property, false, false, hiding, diagnostics, hides: true);
+        PropertyEmitter.Emit(property, false, false, bare, diagnostics, hides: false);
+        PropertyEmitter.Emit(property, false, false, unspecified, diagnostics);
+
+        Assert.Equal($"public new int Current{accessors}", hiding.ToString().Trim().Replace("\r\n", "\n", StringComparison.Ordinal));
+        Assert.Equal($"public int Current{accessors}", bare.ToString().Trim().Replace("\r\n", "\n", StringComparison.Ordinal));
+        Assert.Equal(bare.ToString(), unspecified.ToString());
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    private static Property DeclareProperty(AbstractType owner, string name, IMistType type)
+    {
+        var property = new Property(name, type, default)
+        {
+            DeclaringType = owner,
+            Getter = new PropertyAccessor(),
+        };
+        owner.PropertiesList.Add(property);
+        return property;
+    }
+
     private AbstractType Equatable()
     {
         var equatable = new AbstractType("IEquatable<>", "System", new Scope(null), null, null) { Assembly = MistAssembly.Ambient };

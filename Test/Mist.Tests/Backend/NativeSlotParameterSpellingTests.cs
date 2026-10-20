@@ -53,15 +53,20 @@ public sealed class NativeSlotParameterSpellingTests
         var modifier = new ParameterModifier(direction == ByRefDirection.In, IsRef: true, OwnershipKind.Unrestricted, direction);
 
         Assert.Equal("string", ParameterEmitter.SpelledType(new Parameter("text", Text, modifier), slotDeclaresNullable: true));
+        Assert.Equal("T", ParameterEmitter.SpelledType(new Parameter("other", TypeParameter(constraint: null), modifier), slotDeclaresNullable: true));
     }
 
     [Theory]
-    [InlineData(TypeParameterConstraintKind.Class, "T?")]
-    [InlineData(TypeParameterConstraintKind.Struct, "T")]
-    [InlineData(null, "T")]
-    public void ATypeParameter_IsAnnotatedOnlyWhereItsConstraintMakesItAReference(TypeParameterConstraintKind? constraint, string expected)
+    [InlineData(TypeParameterConstraintKind.Class, true, "T?")]
+    [InlineData(TypeParameterConstraintKind.Struct, true, "T")]
+    [InlineData(TypeParameterConstraintKind.Stampable, true, "T")]
+    [InlineData(null, true, "T?")]
+    [InlineData(null, false, "T")]
+    [InlineData(TypeParameterConstraintKind.Class, false, "T")]
+    public void ATypeParameter_IsAnnotatedOnlyForANullableSlotUnlessItIsAValueKind(
+        TypeParameterConstraintKind? constraint, bool slotDeclaresNullable, string expected)
     {
-        Assert.Equal(expected, ParameterEmitter.SpelledType(new Parameter("other", TypeParameter(constraint)), slotDeclaresNullable: true));
+        Assert.Equal(expected, ParameterEmitter.SpelledType(new Parameter("other", TypeParameter(constraint)), slotDeclaresNullable));
     }
 
     [Fact]
@@ -87,6 +92,7 @@ public sealed class NativeSlotParameterSpellingTests
         using(TypeNameEmitter.Oblivious())
         {
             Assert.Equal("string", ParameterEmitter.SpelledType(new Parameter("format", Text), slotDeclaresNullable: true));
+            Assert.Equal("T", ParameterEmitter.SpelledType(new Parameter("other", TypeParameter(constraint: null)), slotDeclaresNullable: true));
         }
     }
 

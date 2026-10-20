@@ -148,11 +148,12 @@ internal static class OwnedProvenance
     /// <summary>
     /// Whether a value of the type can be copied into an independent one (ownership-v2 Requirement 8): a value
     /// type, a declared <c>Clone</c>, a conformance to IClonable, or a Mist class every field of which is
-    /// clonable in turn (8.6, 8.7), a type met again while deriving counting as clonable. A generic class is
-    /// derived once, its own parameters taken as clonable, and an instantiation of it also needs every
-    /// argument clonable, which keeps the walk finite however its fields nest it. Broader than what
-    /// <see cref="At"/> reads, because nothing synthesizes a <c>Clone</c> for a derived type and implicit
-    /// cloning needs one to call.
+    /// clonable in turn (8.6, 8.7). A generic class is derived once, its own parameters taken as clonable, and an
+    /// instantiation of it also needs every argument clonable, which keeps the walk finite however its fields
+    /// nest it. One <see cref="Derivations"/> is shared across an analysis so each type is derived once; a type
+    /// met again while still being derived counts as clonable, so what is admitted beneath it is provisional and
+    /// a refusal of that type withdraws those admissions. Broader than what <see cref="At"/> reads, because
+    /// nothing synthesizes a <c>Clone</c> for a derived type and implicit cloning needs one to call.
     /// </summary>
     public static bool IsClonable(IMistType type, Derivations? deriving = null)
     {
@@ -233,12 +234,6 @@ internal static class OwnedProvenance
         }
     }
 
-    /// <summary>
-    /// What deriving has decided so far, shared across the questions one analysis asks so that a type every path
-    /// reaches is derived once rather than once per path. A type met again while it is still being derived counts
-    /// as clonable, so what is admitted beneath it is provisional: a refusal of that type retracts those admissions,
-    /// while a refusal reached on the assumption would stand without it and settles at once.
-    /// </summary>
     public sealed class Derivations
     {
         internal HashSet<ConcreteType> Pending { get; } = new(ReferenceEqualityComparer.Instance);

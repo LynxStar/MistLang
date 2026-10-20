@@ -26,6 +26,7 @@ internal static class IndexerMetadataName
 
             names.UnionWith(current.UnprojectedMemberNames);
             names.UnionWith(current.TypeParametersList.Select(parameter => parameter.Name));
+            names.UnionWith(SlotLift.Lifted(current).Select(slot => MistType.StripArity(slot.Name)));
             names.UnionWith(current.NestedTypes.Select(nested => MistType.StripArity(nested.Name)));
             names.UnionWith(current.PropertiesList.Select(property => property.Name));
             names.UnionWith(current.MethodsList.Select(method => method.Name));

@@ -16,6 +16,39 @@ public sealed class IndexerMetadataNameTests
 
     [Theory]
     [Trait("Tier", "1")]
+    [InlineData("Item", false, "Indexer")]
+    [InlineData("Item", true, "Indexer")]
+    [InlineData("Indexer", false, "Indexer1")]
+    [InlineData("Indexer", true, "Indexer1")]
+    [InlineData("Indexer,Indexer1,Indexer2", false, "Indexer3")]
+    [InlineData("Indexer,Indexer1,Indexer2", true, "Indexer3")]
+    public void LiftedSlotsReserveDefaultAndNumberedCandidates(string slotNames, bool inherited, string expected)
+    {
+        var contract = new AbstractType("IReadable", "Probe", null, null, null);
+        foreach(var name in slotNames.Split(','))
+        {
+            contract.TypeSlotsList.Add(new TypeSlot(name, contract.TypeSlotsList.Count, contract.Scope, contract));
+        }
+
+        var type = contract;
+        if(inherited)
+        {
+            var middle = new AbstractType("IMiddle", "Probe", null, null, null);
+            middle.BaseAbstractTypes.Add(contract);
+            type = new AbstractType("IDerived", "Probe", null, null, null);
+            type.BaseAbstractTypes.Add(middle);
+        }
+
+        if(slotNames != "Item")
+        {
+            type.PropertiesList.Add(new Property("Item", model.Type("Int32"), DeclarationFragments.Public) { DeclaringType = type });
+        }
+
+        Assert.Equal(expected, IndexerMetadataName.Of(type));
+    }
+
+    [Theory]
+    [Trait("Tier", "1")]
     [InlineData("Item", "Indexer")]
     [InlineData("Indexer", "Indexer1")]
     [InlineData("Indexer,Indexer1,Indexer2", "Indexer3")]

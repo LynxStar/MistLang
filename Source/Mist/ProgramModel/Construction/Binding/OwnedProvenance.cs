@@ -167,6 +167,7 @@ internal static class OwnedProvenance
             ConstructedType { Definition: TypeAlias { AliasedType: { } aliased } } alias
                 => IsClonable(TypeSubstitution.ForReceiver(alias).Apply(aliased, interner: null), deriving),
             RefinedType refined => IsClonable(refined.BaseType, deriving),
+            UnionType union => union.Constituents.All(constituent => OptionalUnion.IsVoid(constituent) || IsClonable(constituent, deriving)),
             Newtype { SourceType: { } source } => IsClonable(source, deriving),
             TypeParameter parameter => deriving.Any(definition => Declares(definition, parameter))
                 || parameter.ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Struct

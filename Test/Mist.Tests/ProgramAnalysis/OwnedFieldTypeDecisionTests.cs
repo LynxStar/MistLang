@@ -20,6 +20,7 @@ public sealed class OwnedFieldTypeDecisionTests
     private readonly StructType int32 = new("Int32", "Standard", new Scope(null), null, null);
     private readonly AbstractType clonable = new("IClonable<>", "Standard", new Scope(null), null, null);
     private readonly ClassType stringBuilder = new("StringBuilder", "System.Text", new Scope(null), null, null);
+    private readonly StructType nothing = new("Void", "Standard", new Scope(null), null, null);
 
     [Fact]
     public void AnOwnedFieldTypeIsAdmitted()
@@ -28,7 +29,7 @@ public sealed class OwnedFieldTypeDecisionTests
         engine.Modifiers = DeclarationFragments.Public with { IsOwned = true };
         Hold(engine, "Text", stringBuilder);
 
-        Assert.Null(OwnedFieldTypes.WhyRefused(FieldOf(engine)));
+        Assert.Null(OwnedFieldTypes.WhyRefused(engine));
     }
 
     [Fact]
@@ -38,7 +39,7 @@ public sealed class OwnedFieldTypeDecisionTests
         Hold(config, "Text", stringBuilder);
         _ = DeclarationFragments.Method(config, "Clone", config);
 
-        Assert.Null(OwnedFieldTypes.WhyRefused(FieldOf(config)));
+        Assert.Null(OwnedFieldTypes.WhyRefused(config));
     }
 
     [Fact]
@@ -47,7 +48,7 @@ public sealed class OwnedFieldTypeDecisionTests
         var shell = new ClassType("Shell", "System", new Scope(null), null, null);
         shell.BaseAbstractTypes.Add(Clonable(shell));
 
-        Assert.Null(OwnedFieldTypes.WhyRefused(FieldOf(shell)));
+        Assert.Null(OwnedFieldTypes.WhyRefused(shell));
     }
 
     [Fact]
@@ -59,7 +60,7 @@ public sealed class OwnedFieldTypeDecisionTests
         Hold(widget, "Value", int32);
         Hold(widget, "Label", text);
 
-        Assert.Null(OwnedFieldTypes.WhyRefused(FieldOf(widget)));
+        Assert.Null(OwnedFieldTypes.WhyRefused(widget));
     }
 
     [Fact]
@@ -69,7 +70,7 @@ public sealed class OwnedFieldTypeDecisionTests
         Hold(node, "Next", node);
         Hold(node, "Value", int32);
 
-        Assert.Null(OwnedFieldTypes.WhyRefused(FieldOf(node)));
+        Assert.Null(OwnedFieldTypes.WhyRefused(node));
     }
 
     [Fact]
@@ -78,7 +79,7 @@ public sealed class OwnedFieldTypeDecisionTests
         var log = Declared("Log");
         Hold(log, "Text", stringBuilder);
 
-        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(FieldOf(log)));
+        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(log));
     }
 
     [Fact]
@@ -90,13 +91,13 @@ public sealed class OwnedFieldTypeDecisionTests
         Hold(journal, "Count", int32);
         Hold(journal, "Entries", log);
 
-        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(FieldOf(journal)));
+        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(journal));
     }
 
     [Fact]
     public void AClrShapedReferenceTypeWithoutCloneIsRefused()
     {
-        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(FieldOf(stringBuilder)));
+        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(stringBuilder));
     }
 
     [Theory]
@@ -114,7 +115,7 @@ public sealed class OwnedFieldTypeDecisionTests
             _ => HandBuiltModel.Enum("Color", int32),
         };
 
-        Assert.Null(OwnedFieldTypes.WhyRefused(FieldOf(type)));
+        Assert.Null(OwnedFieldTypes.WhyRefused(type));
     }
 
     [Theory]
@@ -132,7 +133,7 @@ public sealed class OwnedFieldTypeDecisionTests
             _ => new TypeConstraint(Clonable(t)),
         });
 
-        Assert.Null(OwnedFieldTypes.WhyRefused(FieldOf(t)));
+        Assert.Null(OwnedFieldTypes.WhyRefused(t));
     }
 
     [Theory]
@@ -147,7 +148,7 @@ public sealed class OwnedFieldTypeDecisionTests
             t.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Class));
         }
 
-        Assert.Equal("a type parameter not constrained to an owned type or 'IClonable<T>'", OwnedFieldTypes.WhyRefused(FieldOf(t)));
+        Assert.Equal("a type parameter not constrained to an owned type or 'IClonable<T>'", OwnedFieldTypes.WhyRefused(t));
     }
 
     [Fact]
@@ -157,11 +158,11 @@ public sealed class OwnedFieldTypeDecisionTests
         var t = DeclarationFragments.Parameter(box, box.Scope, "T");
         Hold(box, "Value", t);
 
-        Assert.Null(OwnedFieldTypes.WhyRefused(FieldOf(model.Interner.GetOrCreateConstructedType(box, [int32]))));
-        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(FieldOf(model.Interner.GetOrCreateConstructedType(box, [stringBuilder]))));
+        Assert.Null(OwnedFieldTypes.WhyRefused(model.Interner.GetOrCreateConstructedType(box, [int32])));
+        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(model.Interner.GetOrCreateConstructedType(box, [stringBuilder])));
 
         var nested = model.Interner.GetOrCreateConstructedType(box, [model.Interner.GetOrCreateConstructedType(box, [stringBuilder])]);
-        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(FieldOf(nested)));
+        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(nested));
     }
 
     [Fact]
@@ -172,7 +173,105 @@ public sealed class OwnedFieldTypeDecisionTests
         var holder = Declared("Holder");
         var u = DeclarationFragments.Parameter(holder, holder.Scope, "U");
 
-        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(FieldOf(model.Interner.GetOrCreateConstructedType(box, [u]))));
+        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(model.Interner.GetOrCreateConstructedType(box, [u])));
+    }
+
+    [Fact]
+    public void AnOptionalOrUnionTypeIsJudgedByItsConstituents()
+    {
+        var box = Declared("Box");
+        var t = DeclarationFragments.Parameter(box, box.Scope, "T");
+
+        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(new UnionType([stringBuilder, nothing])));
+        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(new UnionType([int32, stringBuilder])));
+        Assert.Equal("a type parameter not constrained to an owned type or 'IClonable<T>'", OwnedFieldTypes.WhyRefused(new UnionType([t, nothing])));
+        Assert.Null(OwnedFieldTypes.WhyRefused(new UnionType([int32, nothing])));
+    }
+
+    [Fact]
+    public void ATypeHoldingAnOptionalIsDerivedThroughItsConstituents()
+    {
+        var cell = Declared("Cell");
+        Hold(cell, "Value", new UnionType([int32, nothing]));
+        var log = Declared("Log");
+        Hold(log, "Text", new UnionType([stringBuilder, nothing]));
+
+        Assert.Null(OwnedFieldTypes.WhyRefused(cell));
+        Assert.Equal(NotOwnedOrClonable, OwnedFieldTypes.WhyRefused(log));
+    }
+
+    [Fact]
+    public void AnAutoPropertyOfTheOwnedTypeIsJudgedLikeAField()
+    {
+        var holder = Owned("Holder");
+        var text = AutoProperty(holder, "Text", stringBuilder);
+        _ = AutoProperty(holder, "Count", int32);
+
+        var violation = Assert.Single(OwnedFieldTypes.Of(holder));
+
+        Assert.Same(text, violation.Slot.Property);
+        Assert.Null(violation.InheritedFrom);
+    }
+
+    [Fact]
+    public void AFieldInheritedFromANonOwnedBaseIsJudged()
+    {
+        var root = Declared("Root");
+        Hold(root, "Text", stringBuilder);
+        var middle = Declared("Middle");
+        middle.BaseType = root;
+        Hold(middle, "Count", int32);
+        var holder = Owned("Holder");
+        holder.BaseType = middle;
+
+        var violation = Assert.Single(OwnedFieldTypes.Of(holder));
+
+        Assert.Equal("Text", violation.Slot.Name);
+        Assert.Same(root, violation.InheritedFrom);
+    }
+
+    [Fact]
+    public void AnOwnedBaseJudgesItsOwnFields()
+    {
+        var engine = Owned("Engine");
+        Hold(engine, "Text", stringBuilder);
+        var holder = Owned("Holder");
+        holder.BaseType = engine;
+
+        Assert.Empty(OwnedFieldTypes.Of(holder));
+    }
+
+    [Fact]
+    public void AFieldInheritedFromAGenericBaseIsJudgedAtTheBaseArguments()
+    {
+        var box = Declared("Box");
+        Hold(box, "Value", DeclarationFragments.Parameter(box, box.Scope, "T"));
+        var admitted = Owned("Admitted");
+        admitted.BaseType = model.Interner.GetOrCreateConstructedType(box, [int32]);
+        var refused = Owned("Refused");
+        refused.BaseType = model.Interner.GetOrCreateConstructedType(box, [stringBuilder]);
+
+        Assert.Empty(OwnedFieldTypes.Of(admitted));
+        var violation = Assert.Single(OwnedFieldTypes.Of(refused));
+        Assert.Same(stringBuilder, violation.Type);
+        Assert.Equal(NotOwnedOrClonable, violation.Reason);
+    }
+
+    [Fact]
+    public void AnInheritedRefusalIsReportedAtTheOwnedTypeNamingTheBase()
+    {
+        var root = fragment.Class("Root");
+        root.FieldsList.Add(new Field("Text", stringBuilder, OwnershipKind.Unrestricted, default) { DeclaringType = root, DeclarationNode = HandBuiltModel.Node(37) });
+        var holder = fragment.Class("Holder");
+        holder.Modifiers = DeclarationFragments.Public with { IsOwned = true };
+        holder.BaseType = root;
+
+        var diagnostic = Assert.Single(fragment.Run(new OwnedFieldTypeAnalyzer()));
+
+        Assert.Equal(11, diagnostic.Location.Start.Column);
+        Assert.Equal(
+            "Field 'Root.Text' of owned type 'Holder' has type 'StringBuilder', which is neither owned, clonable nor a value type. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be a value type, so that the owned type owns its whole graph.",
+            diagnostic.Message);
     }
 
     [Fact]
@@ -199,14 +298,28 @@ public sealed class OwnedFieldTypeDecisionTests
         return new ClassType(name, "Probe", new Scope(null), null, DeclarationFragments.At<BodyTypeTypeDeclarationNode>()) { Modifiers = DeclarationFragments.Public };
     }
 
+    private static ClassType Owned(string name)
+    {
+        var type = Declared(name);
+        type.Modifiers = DeclarationFragments.Public with { IsOwned = true };
+        return type;
+    }
+
+    private static Property AutoProperty(ConcreteType holder, string name, IMistType type)
+    {
+        var property = new Property(name, type, DeclarationFragments.Public)
+        {
+            Getter = new PropertyAccessor { IsAuto = true },
+            Setter = new PropertyAccessor { IsAuto = true },
+            DeclaringType = holder,
+        };
+        holder.PropertiesList.Add(property);
+        return property;
+    }
+
     private static void Hold(ConcreteType holder, string name, IMistType type)
     {
         holder.FieldsList.Add(new Field(name, type, OwnershipKind.Unrestricted, default) { DeclaringType = holder });
-    }
-
-    private static Field FieldOf(IMistType type)
-    {
-        return new Field("Held", type, OwnershipKind.Unrestricted, default);
     }
 
     private ConstructedType Clonable(IMistType itself)

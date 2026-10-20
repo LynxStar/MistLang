@@ -29,7 +29,7 @@ internal static class ParameterEmitter
                 AttributeEmitter.Inline(parameter.DeclaredAttributesList, diagnostics)
                 + $"{RefKeywords.For(parameter.Modifier.IsRef, parameter.Modifier.IsReadonly)}"
                 + Collects(parameter)
-                + $"{SpelledType(parameter, NativeSlotNullability.Declares(parameter))} {spell?.Invoke(parameter) ?? parameter.Name}");
+                + $"{SpelledType(parameter, NativeSlotNullability.Declares(parameter))} {spell?.Invoke(parameter) ?? IdentifierSpelling.Of(parameter.Name)}");
         }
 
         return string.Join(", ", parts);

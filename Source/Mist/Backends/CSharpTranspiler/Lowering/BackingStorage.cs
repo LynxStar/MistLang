@@ -23,6 +23,6 @@ internal static class BackingStorage
 
     public static string Slot(InstanceStorage storage)
     {
-        return storage.Property is { } property && DeclaredField(property) is { } field ? field : storage.Name;
+        return storage.Property is { } property && DeclaredField(property) is { } field ? field : IdentifierSpelling.Of(storage.Name);
     }
 }

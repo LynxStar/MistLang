@@ -45,7 +45,7 @@ internal static class PackSlotBridgeEmitter
 
                 using(TypeNameEmitter.Substituting(substitution))
                 {
-                    head = $"{MethodEmitter.EmitReturnType(slot)} {interfaceName}.{slot.Name}{typeParameters}"
+                    head = $"{MethodEmitter.EmitReturnType(slot)} {interfaceName}.{IdentifierSpelling.Of(slot.Name)}{typeParameters}"
                         + $"({ParameterEmitter.Emit(slot.ParametersList, diagnostics)})";
                 }
 
@@ -53,7 +53,7 @@ internal static class PackSlotBridgeEmitter
                 {
                     TypeEmitter.SeparateMember(writer, ref anyEmitted);
                     var completion = AsyncPromotion.IsPromoted(source) ? ".GetAwaiter().GetResult()" : "";
-                    writer.WriteLine($"{head} => this.{source.Name}{typeParameters}({arguments}){completion};");
+                    writer.WriteLine($"{head} => this.{IdentifierSpelling.Of(source.Name)}{typeParameters}({arguments}){completion};");
                 }
             }
         }
@@ -70,7 +70,7 @@ internal static class PackSlotBridgeEmitter
                 || substitution.Apply(pack, interner: null) is not LiftedType { Value: TypePackValue bound }
                 || bound.Elements is [SpreadType])
             {
-                arguments.Add($"{ArgumentKeywords.For(parameter)}{parameter.Name}");
+                arguments.Add($"{ArgumentKeywords.For(parameter)}{IdentifierSpelling.Of(parameter.Name)}");
                 continue;
             }
 
@@ -81,7 +81,7 @@ internal static class PackSlotBridgeEmitter
             {
                 if(element is not SpreadType spread)
                 {
-                    arguments.Add($"{parameter.Name}.Item{++item}");
+                    arguments.Add($"{IdentifierSpelling.Of(parameter.Name)}.Item{++item}");
                     continue;
                 }
 
@@ -90,7 +90,7 @@ internal static class PackSlotBridgeEmitter
                     return null;
                 }
 
-                var items = spliced.Select(_ => $"{parameter.Name}.Item{++item}").ToList();
+                var items = spliced.Select(_ => $"{IdentifierSpelling.Of(parameter.Name)}.Item{++item}").ToList();
 
                 arguments.Add(items.Count switch
                 {

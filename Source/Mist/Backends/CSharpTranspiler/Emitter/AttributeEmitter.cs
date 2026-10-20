@@ -67,7 +67,7 @@ internal static class AttributeEmitter
 
         foreach(var (name, value) in attribute.NamedArguments)
         {
-            writer.Append($"{lead}{name} = ");
+            writer.Append($"{lead}{IdentifierSpelling.Of(name)} = ");
             BodyEmitter.EmitExpression(value, writer, diagnostics);
             lead = ", ";
         }

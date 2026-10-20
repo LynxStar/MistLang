@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
@@ -21,6 +22,6 @@ internal static class ExtensionCalls
             return null;
         }
 
-        return string.IsNullOrEmpty(block.NamespaceName) ? block.CarrierName : $"{block.NamespaceName}.{block.CarrierName}";
+        return string.IsNullOrEmpty(block.NamespaceName) ? block.CarrierName : $"{IdentifierSpelling.Qualified(block.NamespaceName)}.{block.CarrierName}";
     }
 }

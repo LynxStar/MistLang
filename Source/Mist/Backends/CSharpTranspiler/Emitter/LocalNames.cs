@@ -49,12 +49,12 @@ internal static class LocalNames
 
         return local.IsDiscard
             ? Discards.GetValue(local, _ => $"__discard_{Interlocked.Increment(ref nextDiscard)}")
-            : local.Name;
+            : IdentifierSpelling.Of(local.Name);
     }
 
     public static string Of(Method function)
     {
-        return activeFunctions is { } map && map.TryGetValue(function, out var name) ? name : function.Name;
+        return activeFunctions is { } map && map.TryGetValue(function, out var name) ? name : IdentifierSpelling.Of(function.Name);
     }
 
     internal sealed class Body : IDisposable

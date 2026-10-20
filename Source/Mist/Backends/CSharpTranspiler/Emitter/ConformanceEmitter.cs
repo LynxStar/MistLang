@@ -53,8 +53,8 @@ internal static class ConformanceEmitter
         var completion = AsyncPromotion.IsPromoted(mapping.Source) ? ".GetAwaiter().GetResult()" : "";
 
         writer.WriteLine(
-            MethodEmitter.EmitSignature(slot, diagnostics, $"{interfaceName}.{slot.Name}")
-            + $" => {aliased}this.{mapping.Source.Name}{typeParams}({arguments}){completion};");
+            MethodEmitter.EmitSignature(slot, diagnostics, $"{interfaceName}.{IdentifierSpelling.Of(slot.Name)}")
+            + $" => {aliased}this.{IdentifierSpelling.Of(mapping.Source.Name)}{typeParams}({arguments}){completion};");
     }
 
     private static void EmitProperty(PropertyMapping mapping, string interfaceName, CSharpWriter writer)
@@ -64,16 +64,16 @@ internal static class ConformanceEmitter
 
         if(slot.Getter is not null)
         {
-            accessors.Add($"get => this.{mapping.Source.Name};");
+            accessors.Add($"get => this.{IdentifierSpelling.Of(mapping.Source.Name)};");
         }
 
         if(slot.Setter is not null)
         {
-            accessors.Add($"set => this.{mapping.Source.Name} = value;");
+            accessors.Add($"set => this.{IdentifierSpelling.Of(mapping.Source.Name)} = value;");
         }
 
         writer.WriteLine(
-            $"{TypeNameEmitter.Emit(slot.Type)} {interfaceName}.{slot.Name}"
+            $"{TypeNameEmitter.Emit(slot.Type)} {interfaceName}.{IdentifierSpelling.Of(slot.Name)}"
             + $" {{ {string.Join(" ", accessors)} }}");
     }
 }

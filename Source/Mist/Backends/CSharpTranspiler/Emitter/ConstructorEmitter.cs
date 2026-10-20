@@ -58,7 +58,7 @@ internal static class ConstructorEmitter
         {
             var supplied = DefaultWitnesses.CompatibilityArguments(concrete, factory: false);
             supplied.AddRange(ContextKeyWitnesses.Erased(constructor));
-            supplied.AddRange(constructor.ParametersList.Select(parameter => ArgumentKeywords.For(parameter) + parameter.Name));
+            supplied.AddRange(constructor.ParametersList.Select(parameter => ArgumentKeywords.For(parameter) + IdentifierSpelling.Of(parameter.Name)));
             writer.WriteLine($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({parameters}) : this({string.Join(", ", supplied)})");
             using(writer.Block())
             {

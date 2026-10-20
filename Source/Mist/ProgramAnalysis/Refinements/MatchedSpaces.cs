@@ -11,34 +11,58 @@ namespace Mist.ProgramAnalysis.Refinements;
 /// carrier and runs a catch-all after all of them, and refusing that catch-all is an open policy, not a
 /// containment fact.
 /// </summary>
-internal static class MatchedSpaces
+internal static partial class MatchedSpaces
 {
     private const int BoxLimit = 256;
 
     public static ValueAlgebra<object>? Of(IMistType input)
+    {
+        return Of(input, nullable: true);
+    }
+
+    // A reference C# judges may be null, which no structural arm reaches, so a class or sequence read
+    // directly -- the scrutinee, a tuple element, a list element, a member -- keeps a slot only a catch-all
+    // or a negation fills: Covered refuses nothing C# would run. An optional's held value has no such
+    // slot, its absence being that null.
+    private static ValueAlgebra<object>? Of(IMistType input, bool nullable)
     {
         if(MatchedValues.Scalar(input) is { } scalar)
         {
             return scalar;
         }
 
-        return Structure(Requirement.Unrefined(input)) switch
+        var structure = Structure(Requirement.Unrefined(input));
+
+        return structure switch
         {
             UnionType union when OptionalUnion.IsOptional(union) => Optional(union),
             UnionType union => Carrier(union),
             ITupleType tuple => Product(tuple),
-            _ => null,
+            _ when Lengths.IsSized(structure) => Sequence(structure, nullable),
+            _ => Members(structure, nullable),
         };
     }
 
-    private static ValueAlgebra<object> Element(IMistType type)
+    private static ValueAlgebra<object> Element(IMistType type, bool nullable = true)
     {
-        return Of(type) ?? Token(pattern => pattern is TypeTestPattern { Refinement: null } test && Same(test.NarrowedType, type));
+        return Of(type, nullable) ?? Token(pattern => pattern is TypeTestPattern { Refinement: null } test && Same(test.NarrowedType, type));
+    }
+
+    private static ValueAlgebra<object> WithNull(ValueAlgebra<object> value)
+    {
+        var absent = Token(_ => false);
+
+        return Sum([value, absent], pattern => value.Primary(pattern, value) is { } held ? [held, absent.Nothing] : null);
+    }
+
+    private static bool IsReference(IMistType structure)
+    {
+        return ((structure as ConstructedType)?.Definition ?? structure) is ClassType or AbstractType;
     }
 
     private static ValueAlgebra<object> Optional(UnionType union)
     {
-        var value = Element(union.Constituents.First(constituent => !OptionalUnion.IsVoid(constituent)));
+        var value = Element(union.Constituents.First(constituent => !OptionalUnion.IsVoid(constituent)), nullable: false);
         var absent = Token(_ => false);
 
         return Sum([value, absent], pattern => pattern is TypeTestPattern { TestsAbsence: true }
@@ -103,10 +127,10 @@ internal static class MatchedSpaces
 
     private static ValueAlgebra<object> Product(ITupleType tuple)
     {
-        var boxes = new Boxes([.. tuple.ElementTypes.Select(Element)]);
-        IReadOnlyList<object[]> everything = [boxes.Everything];
+        var boxes = new Boxes(tuple.ElementTypes.Select(type => Element(type)));
+        IReadOnlyList<object?[]> everything = [Boxes.Everything];
 
-        return new ValueAlgebra<IReadOnlyList<object[]>>(
+        return new ValueAlgebra<IReadOnlyList<object?[]>>(
             everything, [],
             boxes.Meet,
             (left, right) => Limited([.. left, .. right]),
@@ -114,7 +138,7 @@ internal static class MatchedSpaces
             (values, other) => boxes.Subtract(values, other) is { Count: 0 },
             (pattern, _) => pattern switch
             {
-                TuplePattern positional => boxes.Read(positional),
+                TuplePattern positional when positional.Elements.Count == boxes.Count => boxes.Read(positional.Elements),
                 TypeTestPattern { Refinement: null } test when Same(test.NarrowedType, tuple) => everything,
                 _ => null,
             }).Erased();
@@ -136,6 +160,11 @@ internal static class MatchedSpaces
         return ReferenceEquals(Structure(tested), Structure(type)) || ConversionRelation.IsIdentity(Structure(tested), Structure(type));
     }
 
+    private static bool Tests(TypeTestPattern test, IMistType type)
+    {
+        return !test.TestsAbsence && Same(Requirement.Unrefined(test.NarrowedType), type);
+    }
+
     private static IMistType Structure(IMistType type)
     {
         return type switch
@@ -146,150 +175,8 @@ internal static class MatchedSpaces
         };
     }
 
-    private static IReadOnlyList<object[]>? Limited(List<object[]> boxes)
+    private static IReadOnlyList<object?[]>? Limited(List<object?[]> boxes)
     {
         return boxes.Count > BoxLimit ? null : boxes;
-    }
-
-    private sealed class Boxes(IReadOnlyList<ValueAlgebra<object>> elements)
-    {
-        public object[] Everything { get; } = [.. elements.Select(element => element.Everything)];
-
-        public IReadOnlyList<object[]>? Read(TuplePattern positional)
-        {
-            if(positional.Elements.Count != elements.Count)
-            {
-                return null;
-            }
-
-            var box = new object[elements.Count];
-
-            for(var i = 0; i < elements.Count; i++)
-            {
-                if(elements[i].Read(positional.Elements[i]) is not { } part)
-                {
-                    return null;
-                }
-
-                if(elements[i].IsEmpty(part))
-                {
-                    return [];
-                }
-
-                box[i] = part;
-            }
-
-            return [box];
-        }
-
-        public IReadOnlyList<object[]>? Meet(IReadOnlyList<object[]> left, IReadOnlyList<object[]> right)
-        {
-            var met = new List<object[]>();
-
-            foreach(var mine in left)
-            {
-                foreach(var theirs in right)
-                {
-                    if(!Intersection(mine, theirs, out var box))
-                    {
-                        return null;
-                    }
-
-                    if(box is not null)
-                    {
-                        met.Add(box);
-                    }
-                }
-            }
-
-            return Limited(met);
-        }
-
-        public IReadOnlyList<object[]>? Subtract(IReadOnlyList<object[]> from, IReadOnlyList<object[]> removed)
-        {
-            var remaining = from;
-
-            foreach(var cut in removed)
-            {
-                var next = new List<object[]>();
-
-                foreach(var box in remaining)
-                {
-                    if(Difference(box, cut) is not { } pieces || next.Count + pieces.Count > BoxLimit)
-                    {
-                        return null;
-                    }
-
-                    next.AddRange(pieces);
-                }
-
-                remaining = next;
-            }
-
-            return remaining;
-        }
-
-        private bool Intersection(object[] mine, object[] theirs, out object[]? box)
-        {
-            box = null;
-            var met = new object[elements.Count];
-
-            for(var i = 0; i < elements.Count; i++)
-            {
-                if(elements[i].And(mine[i], theirs[i]) is not { } part)
-                {
-                    return false;
-                }
-
-                if(elements[i].IsEmpty(part))
-                {
-                    return true;
-                }
-
-                met[i] = part;
-            }
-
-            box = met;
-            return true;
-        }
-
-        private List<object[]>? Difference(object[] box, object[] cut)
-        {
-            if(!Intersection(box, cut, out var met))
-            {
-                return null;
-            }
-
-            if(met is null)
-            {
-                return [box];
-            }
-
-            var pieces = new List<object[]>();
-
-            for(var i = 0; i < elements.Count; i++)
-            {
-                if(elements[i].Not(cut[i]) is not { } outside || elements[i].And(box[i], outside) is not { } part)
-                {
-                    return null;
-                }
-
-                if(elements[i].IsEmpty(part))
-                {
-                    continue;
-                }
-
-                var piece = new object[elements.Count];
-
-                for(var j = 0; j < elements.Count; j++)
-                {
-                    piece[j] = j < i ? met[j] : j == i ? part : box[j];
-                }
-
-                pieces.Add(piece);
-            }
-
-            return pieces;
-        }
     }
 }

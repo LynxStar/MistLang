@@ -41,7 +41,7 @@ internal static class UnspellableTypeGuard
             {
                 diagnostics.ReportAtNode(
                     BackendDiagnostics.DependentTypeParameter, node, null,
-                    parameter.Name, TypeEmitter.CleanName(type));
+                    parameter.Name, TypeEmitter.DeclaredName(type));
             }
         }
 
@@ -51,7 +51,7 @@ internal static class UnspellableTypeGuard
             {
                 diagnostics.ReportAtNode(
                     BackendDiagnostics.UnspecializedPack, node, null,
-                    $"{TypeEmitter.CleanName(type)}.{member}", pack.Name);
+                    $"{TypeEmitter.DeclaredName(type)}.{member}", pack.Name);
             }
         }
     }
@@ -102,7 +102,7 @@ internal static class UnspellableTypeGuard
             foreach(var parameter in constructor.ParametersList)
             {
                 yield return new Signature(
-                    $"{TypeEmitter.CleanName(type)}({parameter.Name})", parameter.Type, []);
+                    $"{TypeEmitter.DeclaredName(type)}({parameter.Name})", parameter.Type, []);
             }
         }
     }

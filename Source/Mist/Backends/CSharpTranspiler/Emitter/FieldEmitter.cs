@@ -53,11 +53,11 @@ internal static class FieldEmitter
 
         if(field.Initializer is null || (!modifiers.IsStatic && DefaultWitnesses.Deferred(field.Initializer)))
         {
-            writer.WriteLine($"{emittedModifiers}{typeName} {field.Name};");
+            writer.WriteLine($"{emittedModifiers}{typeName} {IdentifierSpelling.Of(field.Name)};");
             return;
         }
 
-        writer.Write($"{emittedModifiers}{typeName} {field.Name} = ");
+        writer.Write($"{emittedModifiers}{typeName} {IdentifierSpelling.Of(field.Name)} = ");
         var hosted = StatementHost.Emit(field.Initializer, $"__Initialize{field.Name}", type, [], writer, diagnostics);
         writer.Append(";");
         writer.AppendLine();

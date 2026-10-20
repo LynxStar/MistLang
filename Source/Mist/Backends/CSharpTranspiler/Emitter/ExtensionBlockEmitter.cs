@@ -82,7 +82,7 @@ internal static class ExtensionBlockEmitter
         var typeParameters = block.TypeParametersList.Concat(declared).ToList();
         var name = Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList)
             ? MonomorphSet.SpecializedName(method.Name, monomorph.Widths)
-            : method.Name;
+            : IdentifierSpelling.Of(method.Name);
         var parameters = DefaultConstraintWitness.Parameters(declared);
         parameters.AddRange(ConstructorWitnesses.Parameters(ConstructorWitnesses.Of(declared)));
         parameters.AddRange(ContextKeyWitnesses.Parameters(method));
@@ -156,7 +156,7 @@ internal static class ExtensionBlockEmitter
 
         if(!isStatic)
         {
-            parts.Insert(0, $"this {TypeNameEmitter.Emit(receiver)} {block.ReceiverParameterName}");
+            parts.Insert(0, $"this {TypeNameEmitter.Emit(receiver)} {IdentifierSpelling.Of(block.ReceiverParameterName)}");
         }
 
         return string.Join(", ", parts);

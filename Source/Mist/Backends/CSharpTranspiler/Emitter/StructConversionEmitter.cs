@@ -38,7 +38,7 @@ internal static class StructConversionEmitter
         {
             var arguments = DefaultWitnesses.Arguments(DefaultWitnesses.Stored(ancestor.Definition), ancestor.Reference, "value") ?? [];
             arguments.AddRange(ConstructorWitnesses.Arguments(ConstructorWitnesses.Stored(ancestor.Definition), ancestor.Reference, "value"));
-            arguments.AddRange(members.Select(member => $"value.{member.Name}"));
+            arguments.AddRange(members.Select(member => $"value.{IdentifierSpelling.Of(member.Name)}"));
             arguments.Add("default");
 
             writer.WriteLine($"return {ancestorName}.{factory}({string.Join(", ", arguments)});");

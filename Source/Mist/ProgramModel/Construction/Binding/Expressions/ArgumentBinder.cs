@@ -151,7 +151,7 @@ internal static class ArgumentBinder
 
         return node is PostfixNode { Suffix.Length: 0 } value && value.Target switch
         {
-            TargetTypedNewExpressionPrimaryNode or DefaultLiteralExpressionPrimaryNode => true,
+            TargetTypedNewExpressionPrimaryNode or TargetTypedNewExpressionNoArgsPrimaryNode or DefaultLiteralExpressionPrimaryNode => true,
             ArrayLiteralExpressionPrimaryNode { Elements: null } => true,
             ParenthesizedExpressionPrimaryNode parenthesized => NeedsTarget(parenthesized.Inner),
             _ => false,

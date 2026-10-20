@@ -64,6 +64,7 @@ internal static class IntegralConstant
             BinaryExpression binary => Arithmetic(binary),
             ImplicitConversionExpression conversion => Fold(conversion.Operand),
             CloneExpression clone => Fold(clone.Source),
+            _ when ClrConstant.Of(expression) is { } stored => Of(stored.Value),
             _ => null,
         };
 

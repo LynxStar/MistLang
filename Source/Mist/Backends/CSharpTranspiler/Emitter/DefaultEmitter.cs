@@ -180,7 +180,7 @@ internal static class DefaultEmitter
 
         foreach(var nested in binding.NestedEntries.OfType<DefaultValueEntry>())
         {
-            BodyEmitter.EmitSequenced(nested.Value, $"{local}.{nested.FieldName} = ", writer, diagnostics);
+            BodyEmitter.EmitSequenced(nested.Value, $"{local}.{IdentifierSpelling.Of(nested.FieldName)} = ", writer, diagnostics);
         }
 
         writer.WriteLine($"this.{BackingStorage.Slot(field)} = {local};");

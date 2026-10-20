@@ -31,7 +31,7 @@ internal static class StatementHost
 
         var read = Read(value, parameters);
 
-        writer.Append($"{name}({string.Join(", ", read.Select(parameter => ArgumentKeywords.For(parameter) + parameter.Name))})");
+        writer.Append($"{name}({string.Join(", ", read.Select(parameter => ArgumentKeywords.For(parameter) + IdentifierSpelling.Of(parameter.Name)))})");
         return new Hosted(name, value, type, read);
     }
 

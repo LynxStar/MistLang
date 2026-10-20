@@ -462,8 +462,8 @@ rule Statement
     | withVarBlockStatement:WithVarBlockStatement            as WithVarBlockStatement
     | withBlockStatement:WithBlockStatement                  as WithBlockStatement
     | blockStatement:Block                                   as BlockStatement
-    | expressionStatement:ExpressionStatement             as ExpressionStatement
     | uninitializedVariable:UninitializedVariableDeclaration as UninitializedVariableStatement
+    | expressionStatement:ExpressionStatement             as ExpressionStatement
     ;
 
 // A local function is tried FIRST because no other statement has the shape
@@ -478,11 +478,12 @@ rule LocalFunctionDeclaration : HasModifiers
       body:Block
     ;
 
-// Uninitialized variable declaration: `type name;` (no initializer).
-// Placed after ExpressionStatement in Statement to avoid ambiguity with cast
-// expression statements like `(ulong)a;` which would otherwise match as a
-// parenthesized-type variable declaration.
-rule UninitializedVariableDeclaration = ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:IDENTIFIER SEMICOLON;
+// Tried ahead of ExpressionStatement so `List<int> s;` declares rather than reading as the
+// comparison chain `List < int > s`. The one statement both alternatives accept that must stay an
+// expression is a cast, `(ulong)a;`, which CastStatementPrefix refuses here.
+rule UninitializedVariableDeclaration = !CastStatementPrefix ownershipSpecifier:OwnershipSpecifier? type:TypeReference name:IDENTIFIER SEMICOLON;
+
+rule CastStatementPrefix = LEFT_PARENTHESIS type:TypeReference RIGHT_PARENTHESIS name:IDENTIFIER;
 
 rule ReadonlyBlockStatement = READONLY body:Block;
 

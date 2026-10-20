@@ -181,6 +181,7 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
             UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true }, Operand: var operand }
                 when Constant(operand) is { } constant && constant != long.MinValue => -constant,
             CloneExpression clone => Constant(clone.Source),
+            _ when ClrConstant.Of(expression) is { } stored => Constant(stored),
             _ => null,
         };
     }

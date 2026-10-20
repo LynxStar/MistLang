@@ -39,7 +39,7 @@ internal static class BaseTypeProjector
             return;
         }
 
-        concreteType.BaseType = resolver.Resolve(baseClrType, concreteType.Scope);
+        concreteType.BaseType = resolver.Resolve(baseClrType, concreteType.Scope, TupleElementNames.Of(clrType, baseClrType));
     }
 
     /// <summary>
@@ -57,7 +57,7 @@ internal static class BaseTypeProjector
                 continue;
             }
 
-            var resolved = resolver.Resolve(iface, memberType.Scope);
+            var resolved = resolver.Resolve(iface, memberType.Scope, resolver.TupleNames.OfInterface(clrType, iface));
             memberType.BaseAbstractTypes.Add(resolved);
         }
     }

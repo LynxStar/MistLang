@@ -607,8 +607,23 @@ internal static class PostfixBinder
         {
             TypeResult type => new TypeReferenceExpression(node, type.Type),
             NamespaceResult ns => new NamespaceReferenceExpression(node, ns.NamespaceName),
-            _ => new UnresolvedExpression(node),
+            _ => ReportUnresolvedQualification(node, $"{namespaceRef.NamespaceName}.{memberName}", context),
         };
+    }
+
+    private static ErrorExpression ReportUnresolvedQualification(
+        Storm.Runtime.SyntaxNode node, string qualifiedName, BuilderContext context)
+    {
+        var segment = node switch
+        {
+            MemberAccessSuffixPostfixSuffixNode access => access.Name.Span,
+            MethodCallSuffixPostfixSuffixNode call => call.Name.Span,
+            GenericMethodGroupSuffixPostfixSuffixNode stated => stated.Name.Span,
+            _ => node.Span,
+        };
+
+        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedIdentifier, node, segment, null, qualifiedName);
+        return new ErrorExpression(node);
     }
 
     /// <summary>

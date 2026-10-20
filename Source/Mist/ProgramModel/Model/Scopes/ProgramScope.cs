@@ -10,7 +10,7 @@ internal sealed class ProgramScope(ProgramModel programModel) : Scope(parent: nu
     {
         // One probe serves two cases: a type in the global namespace has its simple name AS its
         // fully qualified name, so `Foo` and `A.B.Foo` are looked up the same way.
-        if(programModel.FindType("", request.Name) is { } type)
+        if(programModel.FindQualifiedType(request.Name) is { } type)
         {
             return new TypeResult(type);
         }

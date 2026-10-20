@@ -16,6 +16,27 @@ public sealed class IndexerMetadataNameTests
 
     [Theory]
     [Trait("Tier", "1")]
+    [InlineData("Item", "Indexer")]
+    [InlineData("Indexer", "Indexer1")]
+    [InlineData("Indexer,Indexer1,Indexer2", "Indexer3")]
+    public void TypeParametersReserveDefaultAndNumberedCandidates(string parameterNames, string expected)
+    {
+        var type = HandBuiltModel.Class("Shelf");
+        foreach(var name in parameterNames.Split(','))
+        {
+            type.TypeParametersList.Add(new TypeParameter(name, type.TypeParametersList.Count, type.Scope, type));
+        }
+
+        if(parameterNames != "Item")
+        {
+            AddMember(type, "field", "Item");
+        }
+
+        Assert.Equal(expected, IndexerMetadataName.Of(type));
+    }
+
+    [Theory]
+    [Trait("Tier", "1")]
     [InlineData("field")]
     [InlineData("property")]
     [InlineData("method")]

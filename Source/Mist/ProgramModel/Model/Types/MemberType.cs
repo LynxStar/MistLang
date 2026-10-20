@@ -65,6 +65,9 @@ internal abstract class MemberType : DeclaredType, IMemberType, IHasTypeParamete
 
     public List<Indexer> IndexersList { get; } = [];
 
+    // CLR declarations can reserve names even when their members cannot be projected into Mist.
+    public HashSet<string> UnprojectedMemberNames { get; } = new(StringComparer.Ordinal);
+
     public List<Operator> OperatorsList { get; } = [];
 
     /// <summary>

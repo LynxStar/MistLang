@@ -11,6 +11,12 @@ internal static class IndexerEmitter
     public static void Emit(
         Indexer indexer, bool emitReadonly, bool readonlyGetter, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        var metadataName = IndexerMetadataName.Of(indexer.DeclaringType);
+        if(metadataName != "Item")
+        {
+            writer.WriteLine($"[System.Runtime.CompilerServices.IndexerName(\"{metadataName}\")]");
+        }
+
         if(IntrinsicCloneEmitter.Forwards(indexer.Modifiers, indexer.DeclaringType))
         {
             IntrinsicCloneEmitter.EmitIndexer(indexer, writer, diagnostics);

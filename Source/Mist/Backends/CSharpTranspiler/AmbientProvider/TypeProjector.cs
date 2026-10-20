@@ -1,3 +1,4 @@
+using System.Reflection;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -45,6 +46,11 @@ internal static class TypeProjector
 
         if(shell is MemberType memberType)
         {
+            var declarations = clrType.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);
+            memberType.UnprojectedMemberNames.UnionWith(declarations
+                .Where(member => member is not PropertyInfo property || property.GetIndexParameters().Length == 0)
+                .Select(member => MistType.StripArity(NameFormatTranslator.ClrNameToMistName(member.Name))));
+
             var isStaticClass = clrType.IsAbstract && clrType.IsSealed;
 
             memberType.Modifiers = new MemberModifiers

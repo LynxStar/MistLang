@@ -56,7 +56,7 @@ internal sealed class UnsafeAccessors(MemberType home, string prefix, Diagnostic
     public string Indexer(Indexer indexer, IMistType owner, bool isSetter)
     {
         var declaring = indexer.DeclaringType!;
-        var accessor = isSetter ? "set_Item" : "get_Item";
+        var accessor = $"{(isSetter ? "set" : "get")}_{IndexerMetadataName.Of(declaring)}";
         return Declare((indexer, isSetter), declaring, owner, accessor, (accessibility, name) =>
         [
             $"{Attribute}.Method, Name = \"{accessor}\")]",

@@ -459,6 +459,15 @@ int Categorize<params TArgs>(params TArgs args) {
 ```
 
 Narrowing does not relax the destination check; it only supplies a proven shape to check against.
+
+The positional pattern is the same test spelled element by element (Requirement 12.10): inside the body,
+`args is (int a, int b)` asks what `args is (int, int) pair` asks, binding each element where the type
+test binds the whole. The pack's length and element types are open there, so the pattern is judged at
+each instantiation rather than refused in the body. Each width is specialized to its own C# method, in
+which the pattern at its own width is an ordinary tuple pattern; at any other width it lowers to a test
+that compiles, declares every binding at the type its element has there, and never matches. An element
+type the instantiation does not hold -- `(int a, int b)` over `(int, string)` -- is a runtime non-match
+in the same way, never the never-match error a closed tuple draws.
 The following contrasts the two ways a forward is still rejected -- a wrong-shape forward inside a
 branch, and an unnarrowed forward with no proven shape -- so every claim above appears as an annotated
 line rather than only in prose:

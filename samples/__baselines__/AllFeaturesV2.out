@@ -2324,6 +2324,9 @@ eight levels: 8
 [generic extension packs] 3 1
 [pack types] two:Int32 other:1
 [method groups] 2 2 1
+[tuple patterns] pair 3 | other | other | other
+[tuple arms] int-string 7s | pair | width 3 | width 0
+[pack fields] flag True t | some pair | three 1aTrue | width 1
 === Sized Sequence Patterns Sample ===
 [is] True False True False
 [switch] three summing to 0 | five of 5 | another length | not an int array

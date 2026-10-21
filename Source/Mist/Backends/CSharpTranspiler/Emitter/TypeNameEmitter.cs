@@ -111,8 +111,7 @@ internal static class TypeNameEmitter
             FunctionType function => EmitFunction(function),
             MemberType memberType => MapMemberType(memberType),
             EnumType enumType => ShouldQualify(enumType) ? Qualified(enumType) : IdentifierSpelling.Of(enumType.Name),
-            PackElementType element => Emit(
-                Monomorph.InScope()?.Element(element.Pack, element.Index) ?? element.Pack),
+            PackElementType element => Emit(Specialized(element)),
             TypeParameter typeParameter => DependentCarrierNames.Parameter(typeParameter),
             RefinedType refined => Emit(refined.BaseType),
             TypeAlias { AliasedType: { } aliased } => Emit(aliased),
@@ -121,6 +120,19 @@ internal static class TypeNameEmitter
             UnknownType => "object",
             _ => type.Name,
         };
+    }
+
+    /// <summary>
+    /// An index past the width the specialization fixes is reachable only in code that width rules out --
+    /// a tuple pattern or a narrowing guard spelling another width -- and that code must still compile, so
+    /// it reads as <c>object</c>, which can hold anything it is never handed.
+    /// </summary>
+    private static IMistType Specialized(PackElementType element)
+    {
+        var monomorph = Monomorph.InScope();
+
+        return monomorph?.Element(element.Pack, element.Index)
+            ?? (monomorph?.Binds(element.Pack) == true ? UnknownType.Instance : element.Pack);
     }
 
     /// <summary>

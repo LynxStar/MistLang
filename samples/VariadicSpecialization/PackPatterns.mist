@@ -1,0 +1,68 @@
+using Standard;
+
+namespace VariadicSpecialization;
+
+public class Parcel<params Ts>
+{
+    public Ts... Item;
+
+    public Parcel(params Ts values)
+    {
+        Item = values;
+    }
+
+    public string Shape()
+    {
+        if (Item is (bool flag, string text))
+        {
+            return "flag " + flag + " " + text;
+        }
+
+        if (Item is (_, _))
+        {
+            return "some pair";
+        }
+
+        if (Item is (var a, var b, var c))
+        {
+            return "three " + a.ToString() + b.ToString() + c.ToString();
+        }
+
+        return "width " + Ts.Length;
+    }
+}
+
+public class PackPatterns
+{
+    public static string Shape<params TArgs>(params TArgs args)
+    {
+        if (args is (int a, int b))
+        {
+            return "pair " + (a + b);
+        }
+
+        return "other";
+    }
+
+    public static string Arm<params TArgs>(params TArgs args)
+    {
+        return args switch
+        {
+            (int n, string s) => "int-string " + n + s,
+            (_, _) => "pair",
+            _ => "width " + TArgs.Length,
+        };
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine($"[tuple patterns] {Shape(1, 2)} | {Shape(1, "x")} | {Shape(1)} | {Shape()}");
+        Console.WriteLine($"[tuple arms] {Arm(7, "s")} | {Arm(7, 8)} | {Arm(7, 8, 9)} | {Arm()}");
+
+        var flagged = new Parcel<bool, string>(true, "t");
+        var mixed = new Parcel<int, string>(1, "a");
+        var triple = new Parcel<int, string, bool>(1, "a", true);
+        var single = new Parcel<int>(5);
+        Console.WriteLine($"[pack fields] {flagged.Shape()} | {mixed.Shape()} | {triple.Shape()} | {single.Shape()}");
+    }
+}

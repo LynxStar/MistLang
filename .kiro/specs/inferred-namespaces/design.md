@@ -364,7 +364,7 @@ GlobalScope
 
 ### Property 15: C# Emitter Using Directive Output
 
-*For any* Mist source file with `using` declarations, the emitted C# output SHALL contain corresponding `using` directives for each declared namespace.
+*For any* Mist source file with `using` declarations, the emitted C# output SHALL contain a corresponding `using` directive for each declared namespace that C# has, and none for a namespace whose declarations all erase.
 
 **Validates: Requirements 8.6**
 

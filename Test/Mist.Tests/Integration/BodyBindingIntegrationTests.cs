@@ -391,8 +391,8 @@ public sealed class BodyBindingIntegrationTests : IDisposable
         Assert.NotNull(parseResult.Root);
         Assert.Empty(diagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
 
-        var unit = new CompilationUnit(sourceText);
-        var compilation = new MistCompilation(ImmutableArray.Create(unit));
+        var unit = new CompilationUnit(sourceText, namespaceRoot, outputDir) { Ast = parseResult.Root };
+        var compilation = new MistCompilation(ImmutableArray.Create(unit), OutputType: ProjectOutputType.Library);
 
         var options = new CompilerOptions(
             ProjectFolder: outputDir,
@@ -401,12 +401,12 @@ public sealed class BodyBindingIntegrationTests : IDisposable
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: namespaceRoot,
-            NamespaceRoot: namespaceRoot);
+            NamespaceRoot: namespaceRoot,
+            OutputType: ProjectOutputType.Library);
 
         var buildDiagnostics = new DiagnosticBag();
         var programModel = ProgramModelBuilder.Build(
             compilation,
-            ImmutableArray.Create(parseResult.Root),
             options,
             buildDiagnostics,
             new StandardTypesAmbientProvider());

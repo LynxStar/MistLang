@@ -105,12 +105,14 @@ Critically, global usings are scoped to the declaring project only. When project
 
 **User Story:** As a Mist developer, I want the generated C# code to include the correct `using` directives for globally-used namespaces, so that the transpiled output compiles correctly.
 
+Emitted using selection is separate from source using resolution. Requirement 5 governs how Mist resolves names through a Global_Using; nothing here changes that. The emitter writes only the directives C# can name. A namespace whose Mist declarations all erase (aliases, `with` declarations, intrinsics, a variadic family written as top-level monomorphs) is one a Mist file may import but no C# namespace corresponds to, so its directive is omitted. Every type the emitter writes is spelled in full, so the omission loses nothing. C# has a namespace when an emitted declaration or extension block sits in it, when a referenced CLR assembly declares it, or when it encloses either. The selection is decided over the whole program model before any file is written (`UsingSelection`).
+
 #### Acceptance Criteria
 
-1. WHEN a Compilation_Unit has Global_Usings applied, THE CSharp_Emitter SHALL emit a `using` directive in the generated C# file for each Global_Using namespace.
-2. THE CSharp_Emitter SHALL emit all `using` directives (from Global_Usings, backend namespaces, and explicit Using_Declarations) as a single merged block, sorted in ordinal alphabetical order.
+1. WHEN a Compilation_Unit has Global_Usings applied, THE CSharp_Emitter SHALL emit a `using` directive in the generated C# file for each Global_Using namespace that C# has, and SHALL omit one naming a namespace whose declarations all erase.
+2. THE CSharp_Emitter SHALL emit the selected `using` directives (from Global_Usings and explicit Using_Declarations) as a single merged block, sorted in ordinal alphabetical order. It SHALL NOT add a directive for its own sake.
 3. WHEN a source file contains an explicit Using_Declaration for a namespace that is also a Global_Using, THE CSharp_Emitter SHALL emit the `using` directive only once (deduplicated by case-sensitive string equality).
-4. WHEN a Global_Using namespace is also present in the backend namespaces collected from the Semantic_Model, THE CSharp_Emitter SHALL emit the `using` directive only once (deduplicated).
+4. WHEN a Global_Using names a namespace that has no C# counterpart, THE CSharp_Emitter SHALL omit its directive without reporting a diagnostic, and the Global_Using SHALL still take part in source name resolution as Requirement 5 states.
 
 ---
 

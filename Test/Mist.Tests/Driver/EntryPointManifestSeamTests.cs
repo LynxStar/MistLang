@@ -31,6 +31,7 @@ public sealed class EntryPointManifestSeamTests : IDisposable
         """;
 
     private readonly string scratchDir = Path.Combine(Path.GetTempPath(), "mist-entry-seam-" + Guid.NewGuid().ToString("N"));
+    private PipelineInput? observedInput;
 
     public void Dispose()
     {
@@ -69,6 +70,15 @@ public sealed class EntryPointManifestSeamTests : IDisposable
         var result = Compile(app, entryPoint: null);
 
         Assert.True(result.Succeeded, Errors(result));
+        Assert.NotNull(observedInput);
+        Assert.All(observedInput.Compilation.Projects, project =>
+        {
+            var unit = Assert.Single(observedInput.Compilation.Units, unit => unit.OriginProjectPath == project.CanonicalTomlPath);
+            Assert.Equal(project.Name, unit.NamespaceRoot);
+            Assert.Equal(project.ProjectFolder, unit.ProjectFolder);
+            Assert.Equal(Path.Combine(project.ProjectFolder, "Program.mist"), unit.Source.Path);
+            Assert.NotNull(unit.Ast);
+        });
     }
 
     [Fact]
@@ -90,9 +100,13 @@ public sealed class EntryPointManifestSeamTests : IDisposable
         return projectDir;
     }
 
-    private static CompilerResult Compile(string projectDir, string? entryPoint)
+    private CompilerResult Compile(string projectDir, string? entryPoint)
     {
-        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser(), ambientTypes: _ => StubAmbientTypeSource.Instance);
+        var driver = new CompilerDriver(new Mist.Lexing.MistLexer(), new Mist.Parsing.MistParser(), ambientTypes: input =>
+        {
+            observedInput = input;
+            return StubAmbientTypeSource.Instance;
+        });
         var name = Path.GetFileName(projectDir);
 
         return driver.Compile(new CompilerOptions(

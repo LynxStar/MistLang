@@ -51,8 +51,7 @@ public sealed class StandardPipeline : ICompilationPipeline
         // is worth reporting. This is the opposite call from Stages 4 and 5 below, which are
         // gathered together -- those two are peers reading one model, where more diagnostics
         // means more information about the same thing. Here it would only mean noise derived
-        // from bad input, up to and including MIST_INTERNAL_AST_UNIT_MISMATCH, which a dropped
-        // AST provokes out of Stage 4 and which says nothing about the source.
+        // from bad input.
         //
         // Returning before the ambient provider is created also skips SDK and package assembly
         // resolution, which there is no point paying for on the way out.
@@ -122,7 +121,6 @@ public sealed class StandardPipeline : ICompilationPipeline
         {
             var programModel = ProgramModelBuilder.Build(
                 input.Compilation,
-                input.Asts,
                 input.Options,
                 input.Diagnostics,
                 ambientProvider);

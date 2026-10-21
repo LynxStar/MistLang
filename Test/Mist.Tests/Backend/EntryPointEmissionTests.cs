@@ -99,27 +99,6 @@ public sealed class EntryPointEmissionTests : ProgramModelProbe
         Assert.Empty(emitDiagnostics.ToImmutableArray());
     }
 
-    [Fact]
-    public void AnExecutableThatStartsAtNothing_IsRefusedBeforeAnythingIsWritten()
-    {
-        var startup = Transpile("namespace Probe; public class A { }");
-
-        Assert.Null(startup);
-        Assert.Equal("MIST_MISSING_ENTRY_POINT", Assert.Single(emitDiagnostics.ToImmutableArray()).Id.Value);
-        Assert.False(Directory.Exists(emitDir));
-    }
-
-    [Fact]
-    public void ARefusedSelection_IsReportedRatherThanEmittedAround()
-    {
-        var startup = Transpile(TwoMains);
-
-        Assert.Null(startup);
-        var refusal = Assert.Single(emitDiagnostics.ToImmutableArray());
-        Assert.Equal(("MIST_EP_0004", "Probe"), (refusal.Id.Value, refusal.CompilationUnitPath));
-        Assert.False(Directory.Exists(emitDir));
-    }
-
     protected override void Dispose(bool disposing)
     {
         if(disposing && Directory.Exists(emitDir))
@@ -136,7 +115,8 @@ public sealed class EntryPointEmissionTests : ProgramModelProbe
         string? entryPoint = null,
         ProjectOutputType outputType = ProjectOutputType.Executable)
     {
-        var model = Build(source, referenced, out var built, entryPoint: entryPoint, outputType: outputType);
+        var model = Build(source, referenced, out var built, entryPoint: entryPoint, outputType: outputType,
+            referencedOutputType: ProjectOutputType.Executable);
         Assert.Empty(built.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var options = new CompilerOptions(

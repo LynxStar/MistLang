@@ -92,16 +92,6 @@ public static class BackendDiagnostics
         "This expression is not supported by the compiler yet, so no C# can be emitted for it.");
 
     /// <summary>
-    /// An executable was requested but the project declares no entry point. Reported by the
-    /// emitter, which cannot produce a runnable artifact without one. Libraries are exempt.
-    /// </summary>
-    public static readonly DiagnosticDescriptor MissingEntryPoint = new(
-        new DiagnosticId("MIST_MISSING_ENTRY_POINT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Backend,
-        "Project '{0}' produces an executable but declares no entry point. Add a 'static void Main()' method, or set output type to library.");
-
-    /// <summary>
     /// A method is declared both <c>readonly</c> and <c>ref</c>, which has two readings that differ in
     /// whether the returned alias may be written through. On a struct, <c>readonly</c> is already the
     /// modifier meaning the method does not mutate the receiver, so the pair reads either as that

@@ -16,6 +16,7 @@ public sealed class StandardPipelineProgressSeamTests : IDisposable
 {
     private readonly string scratchDir = Path.Combine(Path.GetTempPath(), "mist-v2-progress-" + Guid.NewGuid().ToString("N"));
     private readonly RecordingProgressReporter reporter = new();
+    private PipelineInput? observedInput;
 
     public StandardPipelineProgressSeamTests()
     {
@@ -55,6 +56,18 @@ public sealed class StandardPipelineProgressSeamTests : IDisposable
         Assert.Equal(0, reporter.Summaries);
         Assert.Equal(["1 top-level constructs"], reporter.DetailsOf("4"));
         Assert.Equal(result.PrimaryOutputArtifactPath, reporter.DetailsOf("6")[^1]);
+        Assert.NotNull(observedInput);
+        var userUnit = Assert.Single(observedInput.Compilation.Units, unit => !unit.IsStdlib);
+        Assert.Equal("Probe", userUnit.NamespaceRoot);
+        Assert.Equal(scratchDir, userUnit.ProjectFolder);
+        Assert.Equal(Path.Combine(scratchDir, "Program.mist"), userUnit.Source.Path);
+        Assert.NotNull(userUnit.Ast);
+        Assert.All(observedInput.Compilation.Units.Where(unit => unit.IsStdlib), unit =>
+        {
+            Assert.Equal("Standard", unit.NamespaceRoot);
+            Assert.Equal(Path.Combine(AppContext.BaseDirectory, "Standard"), unit.ProjectFolder);
+            Assert.NotNull(unit.Ast);
+        });
     }
 
     [Fact]
@@ -93,7 +106,11 @@ public sealed class StandardPipelineProgressSeamTests : IDisposable
         var sourcePath = Path.Combine(scratchDir, "Program.mist");
         File.WriteAllText(sourcePath, source);
 
-        var driver = new CompilerDriver(new MistLexer(), new MistParser(), reporter, ambientTypes: _ => StubAmbientTypeSource.Instance);
+        var driver = new CompilerDriver(new MistLexer(), new MistParser(), reporter, ambientTypes: input =>
+        {
+            observedInput = input;
+            return StubAmbientTypeSource.Instance;
+        });
 
         return driver.Compile(new CompilerOptions(
             ProjectFolder: scratchDir,

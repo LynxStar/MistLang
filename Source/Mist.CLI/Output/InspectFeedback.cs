@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 
 namespace Mist.CLI.Output;
@@ -7,18 +8,19 @@ namespace Mist.CLI.Output;
 /// <see cref="DiagnosticFormatter"/> text. An error withholds the report, which would describe assemblies the
 /// project does not resolve.
 /// </summary>
-public static class InspectFeedback
+public sealed class InspectFeedback(TextWriter error)
 {
-    public static bool Report(IEnumerable<Diagnostic> diagnostics, TextWriter error)
+    private int written;
+
+    public bool Failed { get; private set; }
+
+    public void Report(ImmutableArray<Diagnostic> reported)
     {
-        var failed = false;
-
-        foreach(var diagnostic in diagnostics)
+        for(; written < reported.Length; written++)
         {
+            var diagnostic = reported[written];
             error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-            failed |= diagnostic.Severity == DiagnosticSeverity.Error;
+            Failed |= diagnostic.Severity == DiagnosticSeverity.Error;
         }
-
-        return failed;
     }
 }

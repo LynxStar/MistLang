@@ -277,6 +277,56 @@ public sealed class SdkReferencePathCacheTests
         Assert.Equal(2, sdk.Discoveries.Count);
     }
 
+    [Theory]
+    [InlineData(Net10, Net8)]
+    [InlineData(Net8, Net10)]
+    public void PublicationFromAnotherCache_DuringDiscovery_IsKept(string early, string late)
+    {
+        var sdk = new FakeSdk();
+        var earlyPath = sdk.Install(early);
+        var latePath = sdk.Install(late);
+        var earlyCache = sdk.NewCache();
+        var lateCache = sdk.NewCache();
+        sdk.DuringDiscovery = () =>
+        {
+            sdk.DuringDiscovery = null;
+            Assert.Equal(earlyPath, earlyCache.Find(early, new DiagnosticBag()));
+            Assert.Equal($"{early}\t{earlyPath}", sdk.Persisted);
+        };
+
+        Assert.Equal(latePath, lateCache.Find(late, new DiagnosticBag()));
+
+        var reopened = sdk.NewCache();
+        Assert.Equal(earlyPath, reopened.Find(early, new DiagnosticBag()));
+        Assert.Equal(latePath, reopened.Find(late, new DiagnosticBag()));
+        Assert.Equal([late, early], sdk.Discoveries);
+    }
+
+    [Fact]
+    public void SameFrameworkFromAnotherCache_IsReplacedByTheLaterPublication()
+    {
+        var sdk = new FakeSdk();
+        var net8Path = sdk.Install(Net8);
+        var oldNet10 = sdk.Install(Net10);
+        var earlyCache = sdk.NewCache();
+        _ = earlyCache.Find(Net8, new DiagnosticBag());
+        var lateCache = sdk.NewCache();
+        var newNet10 = "";
+        sdk.DuringDiscovery = () =>
+        {
+            sdk.DuringDiscovery = null;
+            Assert.Equal(oldNet10, earlyCache.Find(Net10, new DiagnosticBag()));
+            newNet10 = sdk.Install(Net10, "pack-2");
+        };
+
+        var answered = lateCache.Find(Net10, new DiagnosticBag());
+
+        Assert.Equal(newNet10, answered);
+        Assert.NotEqual(oldNet10, newNet10);
+        Assert.Equal($"{Net10}\t{newNet10}\n{Net8}\t{net8Path}", sdk.Persisted);
+        Assert.Equal([Net8, Net10, Net10], sdk.Discoveries);
+    }
+
     [Fact]
     public void ConcurrentRequests_NeverCrossFrameworks()
     {
@@ -350,7 +400,7 @@ public sealed class SdkReferencePathCacheTests
 
         public SdkReferencePathCache NewCache()
         {
-            return new SdkReferencePathCache(Discover, Exists, Read, Write);
+            return new SdkReferencePathCache(Discover, Exists, Read, Update);
         }
 
         private string? Discover(string targetFramework, DiagnosticBag diagnostics)
@@ -398,16 +448,20 @@ public sealed class SdkReferencePathCacheTests
             return PersistenceDisabled ? null : Persisted;
         }
 
-        private void Write(string contents)
+        private void Update(Func<string?, string> revise)
         {
             if(WriteFailure is not null)
             {
                 throw WriteFailure;
             }
 
-            if(!PersistenceDisabled)
+            lock(gate)
             {
-                Persisted = contents;
+                var revised = revise(Persisted);
+                if(!PersistenceDisabled)
+                {
+                    Persisted = revised;
+                }
             }
         }
     }

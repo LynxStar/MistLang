@@ -489,7 +489,8 @@ public sealed class CompilerDriver : ICompilerDriver
         // Resolve NuGet packages (passes framework references for deduplication
         // against framework-provided assemblies to prevent duplicate loading)
         var packageResult = PackageResolver.ResolvePackages(
-            options.Packages, options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics.Reported);
+            options.Packages, options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics.Reported,
+            resolutionDiagnostics.Deliver);
 
         // Resolve framework references
         var frameworkResult = FrameworkReferenceResolver.Resolve(

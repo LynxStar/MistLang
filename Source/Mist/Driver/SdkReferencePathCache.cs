@@ -6,7 +6,7 @@ internal sealed class SdkReferencePathCache(
     Func<string, DiagnosticBag, string?> discover,
     Func<string, bool> directoryExists,
     Func<string?> readPersisted,
-    Action<string> writePersisted)
+    Action<Func<string?, string>> updatePersisted)
 {
     private const char Separator = '\t';
 
@@ -67,35 +67,41 @@ internal sealed class SdkReferencePathCache(
         lock(gate)
         {
             remembered[targetFramework] = path;
+        }
 
-            var entries = ReadPersistedEntries();
-            entries[targetFramework] = path;
-            try
+        try
+        {
+            updatePersisted(persisted =>
             {
-                writePersisted(Format(entries));
-            }
-            catch
-            {
-            }
+                var entries = ParseEntries(persisted);
+                entries[targetFramework] = path;
+                return Format(entries);
+            });
+        }
+        catch
+        {
         }
     }
 
     private Dictionary<string, string> ReadPersistedEntries()
     {
-        var entries = new Dictionary<string, string>(StringComparer.Ordinal);
-        string text;
         try
         {
-            text = readPersisted() ?? "";
+            return ParseEntries(readPersisted());
         }
         catch
         {
-            return entries;
+            return new Dictionary<string, string>(StringComparer.Ordinal);
         }
+    }
+
+    private static Dictionary<string, string> ParseEntries(string? text)
+    {
+        var entries = new Dictionary<string, string>(StringComparer.Ordinal);
 
         // A line naming no framework, such as a bare path, is a miss rather than inferred from the path's layout:
         // a miss costs one rediscovery, which rewrites it qualified; a wrong inference serves another framework.
-        foreach(var line in text.Split('\n'))
+        foreach(var line in (text ?? "").Split('\n'))
         {
             var entry = line.TrimEnd('\r');
             var separator = entry.IndexOf(Separator);

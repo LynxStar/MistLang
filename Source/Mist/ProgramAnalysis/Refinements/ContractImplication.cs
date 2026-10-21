@@ -111,11 +111,19 @@ internal static class ContractImplication
             TypeAlias { AliasedType: { } aliased } => Contains(aliased, target),
             RefinedType refined =>
                 (ReferenceEquals(refined.Declaration, target.Declaration)
+                    && SameClosing(refined.Closing, target.Closing)
                     && ConversionClassifier.Classify(Requirement.Unrefined(refined), Requirement.Unrefined(target)) == ConversionKind.Identity
                     && InvariantRefinement(refined.BaseType, target.BaseType))
                 || Contains(refined.BaseType, target),
             _ => false,
         };
+    }
+
+    private static bool SameClosing(IReadOnlyDictionary<TypeParameter, IMistType> source, IReadOnlyDictionary<TypeParameter, IMistType> target)
+    {
+        return source.Count == target.Count && source.All(pair => target.TryGetValue(pair.Key, out var other)
+            && (ReferenceEquals(pair.Value, other)
+                || (Requirement.ValuesOf(pair.Value) is { } supplied && Lengths.Exact(supplied) is not null && supplied.Equals(Requirement.ValuesOf(other)))));
     }
 
     private static bool HasRefinement(IMistType type)

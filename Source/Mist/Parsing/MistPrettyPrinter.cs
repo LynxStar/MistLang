@@ -1703,26 +1703,36 @@ public sealed class MistPrettyPrinter
     {
         var left = EmitLogicalAnd(logicalOr.Left);
 
-        if(logicalOr.Right is not null && !ReferenceEquals(logicalOr.Right, logicalOr.Left))
+        if(logicalOr.LogicalAnds.IsDefaultOrEmpty)
         {
-            var right = EmitLogicalAnd(logicalOr.Right);
-            return $"{left} || {right}";
+            return left;
         }
 
-        return left;
+        var parts = new List<string> { left };
+        foreach(var right in logicalOr.LogicalAnds)
+        {
+            parts.Add(EmitLogicalAnd(right));
+        }
+
+        return string.Join(" || ", parts);
     }
 
     private string EmitLogicalAnd(LogicalAndNode logicalAnd)
     {
         var left = EmitEquality(logicalAnd.Left);
 
-        if(logicalAnd.Right is not null && !ReferenceEquals(logicalAnd.Right, logicalAnd.Left))
+        if(logicalAnd.Equalitys.IsDefaultOrEmpty)
         {
-            var right = EmitEquality(logicalAnd.Right);
-            return $"{left} && {right}";
+            return left;
         }
 
-        return left;
+        var parts = new List<string> { left };
+        foreach(var right in logicalAnd.Equalitys)
+        {
+            parts.Add(EmitEquality(right));
+        }
+
+        return string.Join(" && ", parts);
     }
 
     private string EmitEquality(EqualityNode equality)

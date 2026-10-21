@@ -44,7 +44,7 @@ internal static partial class PatternBinder
     private static Pattern? BindOr(
         OrPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
-        if(OperatorBinder.IsBare(node.AndPatterns, node.Left, node.Right))
+        if(OperatorBinder.IsBare(node.AndPatterns))
         {
             return BindAnd(node.Left, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
         }
@@ -67,7 +67,7 @@ internal static partial class PatternBinder
     private static Pattern? BindAnd(
         AndPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
-        if(OperatorBinder.IsBare(node.UnaryPatterns, node.Left, node.Right))
+        if(OperatorBinder.IsBare(node.UnaryPatterns))
         {
             return BindUnary(node.Left, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
         }

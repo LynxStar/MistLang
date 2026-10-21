@@ -46,7 +46,6 @@ public class AbstractRoundTripPropertyTests
         return new BaseListNode
         {
             First = baseTypeRef,
-            Rest = baseTypeRef,
             BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
         };
     }

@@ -7,13 +7,11 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// silently loses or duplicates an operand -- which is what makes this a shared home rather than a walk
 /// per caller.
 /// <para>
-/// The generated parser declares a variable for the repetition element, reassigns it per iteration AND
-/// pushes it into the array. So the LAST named slot of a rule that repeats is a duplicate of the array's
-/// final entry, never an operand of its own. What separates the two shapes is where the required
-/// operands sit relative to that: <c>a or b or c</c> is one required operand and a repetition, so
-/// <see cref="LeadAndRepeated"/> reads the lead and the array; a tuple is TWO required operands and a
-/// repetition, so <see cref="TwoLeadsAndRepeated"/> reads both leads and the array. Either way the
-/// duplicating slot is not read.
+/// The repeated operands are only in the array; a label on the repeated element names no property of its
+/// own. What separates the two shapes is how many required operands precede the array: <c>a or b or c</c>
+/// is one required operand and a repetition, so <see cref="LeadAndRepeated"/> reads the lead and the
+/// array; a tuple is TWO required operands and a repetition, so <see cref="TwoLeadsAndRepeated"/> reads
+/// both leads and the array.
 /// </para>
 /// </summary>
 internal static class GrammarRepetition

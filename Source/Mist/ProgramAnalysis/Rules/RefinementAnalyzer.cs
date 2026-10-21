@@ -31,8 +31,13 @@ namespace Mist.ProgramAnalysis.Rules;
 /// neither an interval nor a sound literal decision is met only by a value already of that refinement,
 /// so anything else must pass an `is` first; one refused at its declaration owes nothing more.
 /// </summary>
-internal sealed class RefinementAnalyzer : IProgramAnalyzer
+internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
 {
+    public RefinementAnalyzer()
+        : this(LiteralPredicates.MatchLimit)
+    {
+    }
+
     public string Id => "refinement-proving";
 
     public void Analyze(AnalysisContext context)
@@ -41,19 +46,19 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
 
         foreach(var root in context.Bodies)
         {
-            new Proving(context, lifted, UnseenWrites.Of(root.Root)).Judge(FlowGraphBuilder.Build(root.Root), RefinementFlow.Nothing);
+            new Proving(context, lifted, UnseenWrites.Of(root.Root), matchLimit).Judge(FlowGraphBuilder.Build(root.Root), RefinementFlow.Nothing);
         }
 
         foreach(var list in context.Nodes.OfType<ListPattern>())
         {
             if(list.Reads is { } reads)
             {
-                new Proving(context, lifted, UnseenWrites.None).NeedElements(list, reads);
+                new Proving(context, lifted, UnseenWrites.None, matchLimit).NeedElements(list, reads);
             }
 
             if(list.Slice is { Method: { } slice } sliced)
             {
-                new Proving(context, lifted, UnseenWrites.None).NeedSliceElements(list, sliced, slice);
+                new Proving(context, lifted, UnseenWrites.None, matchLimit).NeedSliceElements(list, sliced, slice);
             }
         }
 
@@ -75,7 +80,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             {
                 if(constructor is { ChainedConstructor: { } chained, DeclarationNode: { } declared } && context.IsInSource(declared))
                 {
-                    new Proving(context, lifted, UnseenWrites.None).NeedArguments(
+                    new Proving(context, lifted, UnseenWrites.None, matchLimit).NeedArguments(
                         RefinementFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList, callee: chained);
                 }
             }
@@ -184,7 +189,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
         };
     }
 
-    private sealed class Proving(AnalysisContext context, LiftedReturns lifted, IReadOnlySet<object> unseenWrites)
+    private sealed class Proving(AnalysisContext context, LiftedReturns lifted, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit)
     {
         public void Judge(FlowGraph graph, ImmutableDictionary<object, Knowledge> entry)
         {
@@ -240,7 +245,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Proving(context, lifted, unseenWrites).Judge(nested, RefinementFlow.Nothing);
+                    new Proving(context, lifted, unseenWrites, matchLimit).Judge(nested, RefinementFlow.Nothing);
                     break;
             }
         }
@@ -440,7 +445,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             var decided = considered.All(constituent => Requirement.OfType(constituent) is not { Bounds.Length: > 0 });
 
             if(decided
-                ? RefinementDecision.Judge(value, target, known.Values, literal, known.Real, onConstraint is not null) is null
+                ? RefinementDecision.Judge(value, target, known.Values, literal, known.Real, onConstraint is not null, matchLimit) is null
                 : AnySatisfied(known, considered, value.Type, reading, measured, Length(state, measured), literal, value))
             {
                 return;
@@ -450,7 +455,7 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             {
                 RefinementFindings.ReportLiteral(
                     context, value, considered[0], TypeDisplay.Mist(target), at,
-                    Requirement.IsAnonymous(target) ? onConstraint : null, literal);
+                    Requirement.IsAnonymous(target) ? onConstraint : null, literal, matchLimit);
             }
             else if(Requirement.OfType(considered[0]) is { } required)
             {
@@ -584,8 +589,8 @@ internal sealed class RefinementAnalyzer : IProgramAnalyzer
             LiteralValue? literal = null, Expression? expression = null)
         {
             return considered.Any(constituent => LiteralPredicates.Applies(constituent)
-                ? LiteralPredicates.Satisfied(constituent, valueType, literal, expression)
-                    || (LiteralPredicates.Decide(constituent, literal) is null && RealKnowledge.Satisfied(known.Real, constituent))
+                ? LiteralPredicates.Satisfied(constituent, valueType, literal, expression, matchLimit)
+                    || (LiteralPredicates.Decide(constituent, literal, matchLimit) is null && RealKnowledge.Satisfied(known.Real, constituent))
                 : Requirement.OfType(constituent) is { } required
                 ? Satisfied(known, Read(required, proving: true, reading), measured, length)
                 : !Requirement.IsUnreadable(constituent) || ReferenceEquals(Requirement.Refined(valueType), Requirement.Refined(constituent)));

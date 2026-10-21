@@ -23,7 +23,7 @@ An abstract type is declared with the `abstract` keyword followed by a name and 
 {{#endtab }}
 {{#endtabs }}
 
-An abstract type can contain method signatures (like `Describe()` and `Area()`) and property signatures (like `Name { get; }`).
+An abstract type can contain method signatures (like `Describe()` and `Area()`) and property signatures (like `Name { get; }`). Every member it declares is an instance member a conforming type supplies, so `static` on a method, property or indexer of an abstract type is refused with `MIST_PM_STATIC_ON_ABSTRACT_MEMBER`; declare a static helper on a concrete type instead.
 
 ## Abstract Type Inheritance
 

@@ -64,6 +64,11 @@ internal static class TypeNameEmitter
         return new ObliviousScope(outer);
     }
 
+    internal static bool IsOblivious()
+    {
+        return oblivious;
+    }
+
     /// <summary>
     /// A type as the enclosing scopes close it, innermost first: a generic method emitted inside a
     /// specialized type binds its own parameters and leaves the type's to the scope around it.

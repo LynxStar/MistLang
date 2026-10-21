@@ -13,7 +13,7 @@ The implementation spans the full compiler pipeline:
 5. **C# Emitter** — Generates `try/finally` push/pop patterns and a `MistContext.g.cs` runtime helper file.
 6. **Pretty Printer** — Formats all new AST nodes for round-trip fidelity.
 
-Context values are keyed by exact resolved type (aliases resolve through, unions are distinct from constituents, generic instantiations with different type args are distinct keys). The runtime representation is a static `Dictionary<Type, Stack<object>>` in the emitted C#.
+Context values are keyed by exact resolved type (aliases resolve through, unions are distinct from constituents, generic instantiations with different type args are distinct keys). The emitted C# holds a snapshot of the type-to-stack map in `AsyncLocal<Dictionary<Type, Frame>>`. Stack frames are immutable, and each push or pop copies the map before publishing it to the current logical execution flow.
 
 ## Architecture
 
@@ -225,40 +225,36 @@ clause holds; those file under the CLR-erased key.
 
 ### 5. MistContext.g.cs Runtime Helper
 
-Generated when any compilation unit uses structured context:
+Generated when any compilation unit uses structured context. The runtime keeps these entry points:
 
 ```csharp
-internal static class MistContext
-{
-    private static readonly Dictionary<Type, Stack<object>> _stacks = new();
-
-    public static void Push<T>(object value)
-    {
-        var type = typeof(T);
-        if (!_stacks.TryGetValue(type, out var stack))
-        {
-            stack = new Stack<object>();
-            _stacks[type] = stack;
-        }
-        stack.Push(value);
-    }
-
-    public static void Pop<T>()
-    {
-        _stacks[typeof(T)].Pop();
-    }
-
-    public static T Peek<T>()
-    {
-        return (T)_stacks[typeof(T)].Peek();
-    }
-
-    // The generic members delegate to these, which a key carried as a System.Type parameter uses.
-    public static void Push(Type key, object value) { ... }
-    public static void Pop(Type key) { ... }
-    public static object Peek(Type key) { ... }
-}
+public static void Push<T>(object value);
+public static void Push(Type key, object value);
+public static void Pop<T>();
+public static void Pop(Type key);
+public static object Peek<T>();
+public static object Peek(Type key);
 ```
+
+The generic entry points delegate to the `Type` overloads. The store is an
+`AsyncLocal<Dictionary<Type, Frame>>`; each immutable frame holds a value and its previous
+frame. A push links a new frame to the current top for that key. A pop selects the previous
+frame. Both operations copy the current map, update only the selected key, and publish the
+copy through `AsyncLocal.Value`. Published maps and frames are never mutated, because an
+inherited execution context shares their references.
+
+Awaited calls and child tasks inherit the current snapshot. Their later pushes and pops
+remain local to their execution flow, so siblings and parents cannot change each other's
+stacks. Normal return and exception unwinding use the same emitted `try/finally` cleanup.
+Execution-context flow suppression follows the CLR contract: a task started under
+`ExecutionContext.SuppressFlow()` begins with an empty store. No scheduling or child-failure
+policy is added by this helper. Values themselves are shared normally; isolation applies to
+the context stacks, not to mutable objects stored in them.
+
+An absent map or key throws `KeyNotFoundException`; a key whose stack has been exhausted
+throws `InvalidOperationException`. Empty entries retain that distinction, and the helper's
+existing nullable-oblivious value contract permits absent optional values. The `Optional<T>`
+and `Pure<T>` key markers remain separate from the value store.
 
 ### 6. Pretty Printer Extensions
 
@@ -378,7 +374,7 @@ Type equality for context keying uses reference equality on the resolved `IType`
 
 ### Runtime Errors
 
-The runtime context infrastructure (`MistContext.g.cs`) does not throw exceptions under normal operation because the compile-time context checker guarantees that `Peek<T>()` is only called when a value of type `T` exists on the stack. If the checker has a bug and a `Peek` is called on an empty stack, the .NET `Stack<T>.Peek()` will throw `InvalidOperationException` — this is an internal compiler error, not a user-facing error.
+The runtime context infrastructure (`MistContext.g.cs`) does not throw exceptions under normal operation because the compile-time context checker guarantees that `Peek<T>()` is only called when a value of type `T` exists on the stack. If the checker has a bug and a `Peek` is called on an empty stack, the runtime helper throws `InvalidOperationException` (or `KeyNotFoundException` when that key has never been pushed in the flow) — this is an internal compiler error, not a user-facing error.
 
 ### Graceful Degradation
 

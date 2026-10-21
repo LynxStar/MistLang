@@ -1047,16 +1047,7 @@ public sealed class MistPrettyPrinter
             case PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef:
                 {
                     var keyword = PurePrefix(primitiveRef.Pure) + EmitPrimitiveType(primitiveRef.PrimitiveType);
-                    if(primitiveRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
-                    {
-                        return $"{keyword}[{sizedRank.Size.Lexeme}]";
-                    }
-                    else if(primitiveRef.ArrayRank is not null)
-                    {
-                        return $"{keyword}[]";
-                    }
-
-                    return keyword;
+                    return keyword + EmitTypeSuffixes(primitiveRef.ArrayRank, primitiveRef.Optional);
                 }
             case VoidSingleTypeRefSingleTypeRefNode:
                 return "void";
@@ -1070,31 +1061,13 @@ public sealed class MistPrettyPrinter
                 {
                     var name = $"{ExtractQualifiedName(nestedRef.Outer)}{EmitTypeArgumentList(nestedRef.OuterArgs)}.{ExtractQualifiedName(nestedRef.Nested)}";
                     var typeArgs = EmitTypeArgumentList(nestedRef.TypeArgs);
-                    if(nestedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
-                    {
-                        return $"{name}{typeArgs}[{sizedRank.Size.Lexeme}]";
-                    }
-                    else if(nestedRef.ArrayRank is not null)
-                    {
-                        return $"{name}{typeArgs}[]";
-                    }
-
-                    return $"{name}{typeArgs}";
+                    return $"{name}{typeArgs}{EmitTypeSuffixes(nestedRef.ArrayRank, nestedRef.Optional)}";
                 }
             case NamedSingleTypeRefSingleTypeRefNode namedRef:
                 {
                     var name = PurePrefix(namedRef.Pure) + ExtractQualifiedName(namedRef.Name);
                     var typeArgs = EmitTypeArgumentList(namedRef.TypeArgs);
-                    if(namedRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
-                    {
-                        return $"{name}{typeArgs}[{sizedRank.Size.Lexeme}]";
-                    }
-                    else if(namedRef.ArrayRank is not null)
-                    {
-                        return $"{name}{typeArgs}[]";
-                    }
-
-                    return $"{name}{typeArgs}";
+                    return $"{name}{typeArgs}{EmitTypeSuffixes(namedRef.ArrayRank, namedRef.Optional)}";
                 }
             case ParenthesizedTypeRefSingleTypeRefNode parenRef:
                 {

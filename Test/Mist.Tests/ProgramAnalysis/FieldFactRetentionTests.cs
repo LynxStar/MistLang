@@ -1,7 +1,5 @@
 using Mist.ProgramAnalysis.Rules;
-using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
 using Mist.Tests.Helpers;
 

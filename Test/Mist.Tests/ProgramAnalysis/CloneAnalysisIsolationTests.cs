@@ -400,7 +400,7 @@ public sealed class CloneAnalysisIsolationTests
 
         public Fixture()
         {
-            Assembly = Model.AddSelfAssembly("Probe");
+            Assembly = Model.AddSelfAssembly("Probe", isLibrary: true);
             var declaration = new BodyTypeTypeDeclarationNode { Span = new Storm.Runtime.SourceSpan(0, 100), Origin = Origin("source.mist") };
             Source = new ClassType("Tiger", "Probe", new Scope(null), null, declaration) { Modifiers = Public, Assembly = Assembly };
             Clone = new ClassType("Jaguar", "Probe", new Scope(null), null, declaration)

@@ -83,7 +83,7 @@ public sealed class CompilerDriver : ICompilerDriver
         var lexResult = Lex(compilation, allDiagnostics);
 
         // Stage 3: Parsing
-        var asts = Parse(
+        compilation = Parse(
             compilation,
             lexResult.TokenStreams,
             lexResult.StdlibTokensForCache,
@@ -92,7 +92,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         // Dispatch to the compilation pipeline (Stages 4-6).
         var pipelineInput = new PipelineInput(
-            compilation, asts, resolvedAssemblyPaths,
+            compilation, resolvedAssemblyPaths,
             options, allDiagnostics, resolutionDiagnostics.Reported);
 
         return resolutionDiagnostics.JoinInto(pipeline.Execute(pipelineInput));
@@ -157,7 +157,7 @@ public sealed class CompilerDriver : ICompilerDriver
             {
                 var contents = File.ReadAllText(path);
                 var sourceText = new SourceText(path, contents);
-                userUnits.Add(new CompilationUnit(sourceText));
+                userUnits.Add(new CompilationUnit(sourceText, options.NamespaceRoot, options.ProjectFolder));
             }
             catch(Exception ex)
             {
@@ -264,10 +264,8 @@ public sealed class CompilerDriver : ICompilerDriver
                                 {
                                     var contents = File.ReadAllText(path);
                                     var sourceText = new SourceText(path, contents);
-                                    refUnitBuilder.Add(new CompilationUnit(sourceText)
+                                    refUnitBuilder.Add(new CompilationUnit(sourceText, proj.Configuration.NamespaceRoot, proj.ProjectFolder)
                                     {
-                                        NamespaceRoot = proj.Configuration.NamespaceRoot,
-                                        ProjectFolder = proj.ProjectFolder,
                                         OriginProjectPath = proj.CanonicalTomlPath,
                                     });
                                 }
@@ -386,7 +384,7 @@ public sealed class CompilerDriver : ICompilerDriver
     /// Stage 3 – Parsing: parses each unit's token stream, collects diagnostics,
     /// and writes the stdlib cache if this is the first successful compile.
     /// </summary>
-    private ImmutableArray<Storm.Runtime.SyntaxNode> Parse(
+    internal MistCompilation Parse(
         MistCompilation compilation,
         Dictionary<CompilationUnit, TokenStream> tokenStreams,
         ImmutableArray<TokenStream>.Builder? stdlibTokensForCache,
@@ -396,19 +394,27 @@ public sealed class CompilerDriver : ICompilerDriver
         var parsingStopwatch = Stopwatch.StartNew();
         progressReporter.ReportStageStart("3", "Parsing");
 
-        var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
+        var units = ImmutableArray.CreateBuilder<CompilationUnit>(compilation.Units.Length);
         var stdlibAstsForCache = cachedStdlib is not null
             ? null
             : ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>();
 
-        // If we have cached stdlib ASTs, prepend them first.
-        if(cachedStdlib is not null)
-        {
-            asts.AddRange(cachedStdlib.Asts);
-        }
+        var cachedIndex = 0;
 
-        foreach(var (unit, tokenStream) in tokenStreams)
+        foreach(var unit in compilation.Units)
         {
+            if(unit.IsStdlib && cachedStdlib is not null)
+            {
+                units.Add(unit with { Ast = cachedStdlib.Asts[cachedIndex++] });
+                continue;
+            }
+
+            if(!tokenStreams.TryGetValue(unit, out var tokenStream))
+            {
+                units.Add(unit);
+                continue;
+            }
+
             var parseBag = new DiagnosticBag();
             var unitParseResult = parser.Parse(tokenStream, parseBag);
 
@@ -422,16 +428,20 @@ public sealed class CompilerDriver : ICompilerDriver
                 allDiagnostics.Add(d);
             }
 
-            if(unitParseResult.Root is not null && !parseBag.HasErrors)
+            if(unitParseResult.Root is not null && !parseBag.HasErrors
+                && !unitParseResult.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
             {
                 unitParseResult.Root.SetParentLinks();
-                asts.Add(unitParseResult.Root);
+                units.Add(unit with { Ast = unitParseResult.Root });
                 if(unit.IsStdlib)
                 {
                     stdlibAstsForCache?.Add(unitParseResult.Root);
                 }
             }
-            // If parse errors, exclude AST from the program model (R16.4)
+            else
+            {
+                units.Add(unit);
+            }
         }
 
         // Populate the stdlib cache if this is the first successful compile.
@@ -444,13 +454,13 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         parsingStopwatch.Stop();
-        var totalNodes = asts.Sum(SyntaxTreeMetrics.CountNodes);
+        var totalNodes = units.Sum(unit => unit.Ast is { } ast ? SyntaxTreeMetrics.CountNodes(ast) : 0);
         progressReporter.ReportStageComplete("3", parsingStopwatch.Elapsed, new[]
         {
             $"{totalNodes} AST nodes",
         });
 
-        return asts.ToImmutable();
+        return compilation with { Units = units.MoveToImmutable() };
     }
 
     /// <summary>

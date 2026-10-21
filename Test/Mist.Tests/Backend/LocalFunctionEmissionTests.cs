@@ -6,6 +6,7 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.Driver.Contracts;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -92,7 +93,7 @@ public sealed class LocalFunctionEmissionTests : ProgramModelProbe
             var r = Twice(2);
             """;
 
-        var model = Build(source, out var diagnostics);
+        var model = Build(source, out var diagnostics, outputType: ProjectOutputType.Executable);
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var unit = Assert.Single(model.SelfAssembly!.CompilationUnits);

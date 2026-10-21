@@ -11,13 +11,6 @@ public static partial class ProgramModelDiagnostics
 {
     // ── Internal / driver-level errors ────────────────────────────────────
 
-    /// <summary>AST array length does not match compilation unit array length.</summary>
-    public static readonly DiagnosticDescriptor AstUnitMismatch = new(
-        new DiagnosticId("MIST_INTERNAL_AST_UNIT_MISMATCH"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Internal compiler error: AST count ({0}) does not match compilation unit count ({1}). This indicates a driver bug where a failed lex/parse dropped an AST without dropping its corresponding compilation unit.");
-
     /// <summary>An unexpected namespace declaration node type was encountered.</summary>
     public static readonly DiagnosticDescriptor UnexpectedNamespaceNode = new(
         new DiagnosticId("MIST_INTERNAL_UNEXPECTED_NS_NODE"),

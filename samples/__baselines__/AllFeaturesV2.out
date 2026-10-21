@@ -32,6 +32,7 @@ bracket=[Mist]
 doubled=42
 length=5
 constant wrap: -2147483648 44 -9223372036854775808 0
+closing brace: 42} and }}
 === ArrayLiterals Sample ===
 --- Single-element array ---
   [1]

@@ -215,5 +215,7 @@ public class Program
         long longWrapped = 9223372036854775807L + 1L;
         int productWrapped = 65536 * 65536;
         Console.WriteLine($"constant wrap: {wrapped} {narrowWrapped} {longWrapped} {productWrapped}");
+
+        Console.WriteLine($"closing brace: {i}} and }}");
     }
 }

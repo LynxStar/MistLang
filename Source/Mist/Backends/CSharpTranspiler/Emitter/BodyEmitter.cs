@@ -482,7 +482,8 @@ internal static partial class BodyEmitter
         Expression operand, Operator? declared, IReadOnlyList<IMistType>? closed, int position, int precedence, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         if(declared is { Modifiers.IsIntrinsic: false } && position < declared.ParametersList.Count
-            && OverloadPinning.CastFor(operand, declared.ParametersList[position], closed?[position] ?? declared.ParametersList[position].Type, declared) is { } pinned)
+            && (OverloadPinning.CastFor(operand, declared.ParametersList[position], closed?[position] ?? declared.ParametersList[position].Type, declared)
+                ?? InheritedStructOperands.Conversion(operand.Type, closed?[position] ?? declared.ParametersList[position].Type)) is { } pinned)
         {
             writer.Append($"(({pinned})");
             EmitSubExpression(operand, PrefixPrecedence, writer, diagnostics);
@@ -1398,7 +1399,7 @@ internal static partial class BodyEmitter
             case BinaryExpression binary when NarrowArithmetic.Promotes(binary.Type):
                 writer.Append(NarrowArithmetic.Spell(
                     binary.Type,
-                    $"{RenderAt(binary.Left, GetPrecedence(binary.OperatorKind), diagnostics)} {MapBinaryOperator(binary.OperatorKind)} {RenderAt(binary.Right, GetPrecedence(binary.OperatorKind) + 1, diagnostics)}"));
+                    $"{RenderOperand(binary.Left, binary.Operator, binary.ParameterTypes, 0, GetPrecedence(binary.OperatorKind), diagnostics)} {MapBinaryOperator(binary.OperatorKind)} {RenderOperand(binary.Right, binary.Operator, binary.ParameterTypes, 1, GetPrecedence(binary.OperatorKind) + 1, diagnostics)}"));
                 break;
 
             case BinaryExpression binary:

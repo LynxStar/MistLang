@@ -637,6 +637,8 @@ Done!
 --- Value preservation through conversion ---
   origin.X=77, converted.X=77
   origin.Y=88, converted.Y=88
+--- Base operator on derived operands ---
+  sum.Value = 7
 Done!
 === Pattern Matching Sample ===
 --- Type Patterns ---

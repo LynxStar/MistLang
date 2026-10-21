@@ -16,24 +16,71 @@ internal static class TypeDisplay
 {
     public static string Mist(IMistType type)
     {
+        return Render(type, spell: null);
+    }
+
+    /// <summary>
+    /// The types of one message, spelled as <see cref="Mist(IMistType)"/> spells them except where two
+    /// distinct type parameters it shows share a name -- an enclosing method's <c>T</c> beside the callee's --
+    /// which are then named with their declaration, <c>T of method Api.Pick</c>, so the reader can tell them
+    /// apart. Only the parameters actually shown count, so a message with no such pair is unchanged.
+    /// </summary>
+    public static IReadOnlyList<string> Distinguished(IReadOnlyList<IMistType> types)
+    {
+        var shown = new HashSet<TypeParameter>(ReferenceEqualityComparer.Instance);
+        var plain = types.Select(type => Render(type, parameter =>
+        {
+            _ = shown.Add(parameter);
+            return null;
+        })).ToList();
+        var colliding = shown.GroupBy(parameter => parameter.Name).Where(named => named.Count() > 1)
+            .SelectMany(named => named).ToHashSet(ReferenceEqualityComparer.Instance);
+
+        return colliding.Count == 0
+            ? plain
+            : [.. types.Select(type => Render(type, parameter => colliding.Contains(parameter) ? Qualified(parameter) : null))];
+    }
+
+    private static string Render(IMistType type, Func<TypeParameter, string?>? spell)
+    {
+        string mist(IMistType inner)
+        {
+            return Render(inner, spell);
+        }
+
         return type switch
         {
             // Before the general constructed case: an array is spelled with a rank suffix, not as
             // the Standard.Array<,> it is represented by, and its second argument is a length
             // rather than a type -- so the general case would render `int[]` as `Array<int, int>`.
-            ConstructedType array when IsArray(array) => $"{Mist(array.TypeArguments[0])}{Rank(array.TypeArguments[1])}",
-            ConstructedType { Enclosing: { } enclosing } nested => $"{Mist(enclosing)}.{Segment(nested)}",
-            ConstructedType constructed => Segment(constructed),
-            UnionType union => string.Join(" | ", union.Constituents.Select(Mist)),
-            TupleType tuple => $"({string.Join(", ", tuple.ElementTypes.Select(Mist))})",
-            NamedTupleType named => $"({string.Join(", ", named.ElementTypes.Select(Mist))})",
-            FunctionType function => $"{(function.IsPure ? "pure " : string.Empty)}func<{string.Join(", ", function.TypeArgumentsInSourceOrder().Select(Mist))}>",
+            ConstructedType array when IsArray(array) => $"{mist(array.TypeArguments[0])}{Rank(array.TypeArguments[1])}",
+            ConstructedType { Enclosing: { } enclosing } nested => $"{mist(enclosing)}.{Segment(nested, mist)}",
+            ConstructedType constructed => Segment(constructed, mist),
+            UnionType union => string.Join(" | ", union.Constituents.Select(mist)),
+            TupleType tuple => $"({string.Join(", ", tuple.ElementTypes.Select(mist))})",
+            NamedTupleType named => $"({string.Join(", ", named.ElementTypes.Select(mist))})",
+            FunctionType function => $"{(function.IsPure ? "pure " : string.Empty)}func<{string.Join(", ", function.TypeArgumentsInSourceOrder().Select(mist))}>",
 
             // A dependent argument shows its domain, since its value is the thing not known.
-            UnknownValueType unknownValue => Mist(unknownValue.Domain),
-            RefinedType refined when refined.IsAnonymous || refined.IsSubstituted => Mist(refined.BaseType),
+            UnknownValueType unknownValue => mist(unknownValue.Domain),
+            RefinedType refined when refined.IsAnonymous || refined.IsSubstituted => mist(refined.BaseType),
+            TypeParameter parameter when spell?.Invoke(parameter) is { } spelled => spelled,
             _ => MistType.StripArity(Keyword(type)),
         };
+    }
+
+    private static string Qualified(TypeParameter parameter)
+    {
+        var name = MistType.StripArity(parameter.Name);
+
+        if(parameter.DeclaringMethod is { } method)
+        {
+            return method.DeclaringType is { } owner
+                ? $"{name} of method {MistType.StripArity(owner.Name)}.{method.Name}"
+                : $"{name} of method {method.Name}";
+        }
+
+        return parameter.DeclaringType is { } declaring ? $"{name} of type {MistType.StripArity(declaring.Name)}" : name;
     }
 
     /// <summary>
@@ -70,13 +117,13 @@ internal static class TypeDisplay
         };
     }
 
-    private static string Segment(ConstructedType constructed)
+    private static string Segment(ConstructedType constructed, Func<IMistType, string> mist)
     {
         var name = MistType.StripArity(constructed.Definition.Name);
 
         return constructed.TypeArguments.Count == 0
             ? name
-            : $"{name}<{string.Join(", ", constructed.TypeArguments.Select(Mist))}>"
+            : $"{name}<{string.Join(", ", constructed.TypeArguments.Select(mist))}>"
             ;
     }
 

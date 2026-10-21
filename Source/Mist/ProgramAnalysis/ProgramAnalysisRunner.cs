@@ -26,6 +26,7 @@ internal static class ProgramAnalysisRunner
         new AssignabilityAnalyzer(),
         new AccessibilityAnalyzer(),
         new DeclarationShapeAnalyzer(),
+        new DeclarationPlacementAnalyzer(),
         new ConstraintAnalyzer(),
         new DefaultabilityAnalyzer(),
         new UnknownClosureAnalyzer(),

@@ -52,7 +52,8 @@ public sealed class EntryPointRecordingTests : ProgramModelProbe
                 public static void Run() { }
             }
             """,
-            out var diagnostics);
+            out var diagnostics,
+            outputType: ProjectOutputType.Executable);
 
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
         Assert.Equal(
@@ -70,7 +71,8 @@ public sealed class EntryPointRecordingTests : ProgramModelProbe
             out _,
             entryPoint: "Probe.A",
             outputType: ProjectOutputType.Library,
-            referencedEntryPoint: "top-level");
+            referencedEntryPoint: "top-level",
+            referencedOutputType: ProjectOutputType.Executable);
 
         var library = Assert.Single(model.Assemblies, assembly => assembly.Name == "Library");
         Assert.Equal(("Probe.A", true), (model.SelfAssembly!.EntryPointSetting, model.SelfAssembly.IsLibrary));
@@ -86,7 +88,7 @@ public sealed class EntryPointRecordingTests : ProgramModelProbe
     public void TheOutermostBlockNamespacesOfEveryFileAreRecordedByDeclaredNameInDeclarationOrder(
         string source, bool hasStatements, string blockNamespaces)
     {
-        var model = Build(source, out var diagnostics);
+        var model = Build(source, out var diagnostics, outputType: ProjectOutputType.Executable);
 
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
         var unit = Assert.Single(model.SelfAssembly!.CompilationUnits);
@@ -99,7 +101,9 @@ public sealed class EntryPointRecordingTests : ProgramModelProbe
         var model = Build(
             "namespace Shared; var first = 1;",
             "namespace Shared; var second = 2;",
-            out var diagnostics);
+            out var diagnostics,
+            outputType: ProjectOutputType.Executable,
+            referencedOutputType: ProjectOutputType.Executable);
 
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
         Assert.Equal(

@@ -43,7 +43,7 @@ internal static class StandardModelProbe
             }
             """;
 
-        var (stdlibUnits, stdlibAsts) = StdlibTestHelper.LoadStdlib();
+        var stdlibUnits = StdlibTestHelper.LoadStdlib();
 
         var parseDiagnostics = new DiagnosticBag();
         var sourceText = new SourceText("Probe.mist", source);
@@ -62,16 +62,16 @@ internal static class StandardModelProbe
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "Probe",
-            NamespaceRoot: "Probe");
+            NamespaceRoot: "Probe",
+            OutputType: ProjectOutputType.Library);
 
         var buildDiagnostics = new DiagnosticBag();
 
         var model = ProgramModelBuilder.Build(
-            new MistCompilation(stdlibUnits.Add(new CompilationUnit(sourceText)))
+            new MistCompilation(stdlibUnits.Add(new CompilationUnit(sourceText, "Probe", outputDir) { Ast = parseResult.Root }), OutputType: ProjectOutputType.Library)
             {
                 HasStandardLibrary = true,
             },
-            stdlibAsts.Add(parseResult.Root),
             options,
             buildDiagnostics,
             ambient ?? NullAmbientTypeProvider.Instance);

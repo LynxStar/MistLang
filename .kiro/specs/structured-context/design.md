@@ -8,12 +8,12 @@ The implementation spans the full compiler pipeline:
 
 1. **Grammar** — New `Statement` alternatives for context declarations/blocks, and a `WithClause` list on method-like declarations (methods, constructors, interface methods, trait methods).
 2. **Parser** — Storm-generated parser produces new AST node types from the grammar additions.
-3. **Semantic Model Builder** — Registers context-bound locals as `SymbolKind.LocalVariable`, resolves context types, and records `with` clause metadata on method symbols.
-4. **Context Checker (new analyzer)** — Walks the call graph to verify that every method with a `with` clause is always called within a scope that provides the required context type. Also enforces that implementing types match interface/trait method `with` clauses exactly (no variance).
+3. **Program Model Builder** — `ProgramModelBuilder` binds context-bound locals as `LocalVariable`s marked `IsContextBound`, resolves context types, and records each method-like declaration's `with` clauses as `ContextBinding`s.
+4. **Context Checker (Stage 5 analyzer)** — Walks the call graph to verify that every method with a `with` clause is always called within a scope that provides the required context type. Also enforces that implementing types match interface/trait method `with` clauses exactly (no variance).
 5. **C# Emitter** — Generates `try/finally` push/pop patterns and a `MistContext.g.cs` runtime helper file.
 6. **Pretty Printer** — Formats all new AST nodes for round-trip fidelity.
 
-Context values are keyed by exact resolved type (aliases resolve through, unions are distinct from constituents, generic instantiations with different type args are distinct keys). The runtime representation is a static `Dictionary<Type, Stack<object>>` in the emitted C#.
+Context values are keyed by exact resolved type (aliases resolve through, unions are distinct from constituents, generic instantiations with different type args are distinct keys). The emitted C# holds a snapshot of the type-to-stack map in `AsyncLocal<Dictionary<Type, Frame>>`. Stack frames are immutable, and each push or pop copies the map before publishing it to the current logical execution flow.
 
 ## Architecture
 
@@ -21,7 +21,7 @@ Context values are keyed by exact resolved type (aliases resolve through, unions
 flowchart TD
     subgraph "Compiler Pipeline"
         A[Lex] --> B[Parse]
-        B --> C[Semantic Model Builder]
+        B --> C[Program Model Builder]
         C --> D[Readonly Inference]
         D --> E[Analysis]
         E --> F[Emit]
@@ -29,9 +29,9 @@ flowchart TD
 
     subgraph "New/Modified Components"
         G[Grammar: Mist.storm additions]
-        H[SemanticModelBuilder: context symbol registration]
-        I[ContextCheckerAnalyzer: call-graph walk]
-        J[CSharpEmitter: push/pop emission]
+        H[ProgramModelBuilder: context binding]
+        I[ContextAnalyzer: call-graph walk]
+        J[CSharpEmitterV2: push/pop emission]
         K[MistContext.g.cs: runtime helper]
         L[MistPrettyPrinter: new node formatting]
     end
@@ -44,7 +44,7 @@ flowchart TD
     L -.-> B
 ```
 
-The context checker is a **new** `IAnalyzer` implementation (`ContextCheckerAnalyzer`) registered alongside the existing `TypeCheckerAnalyzer`. It runs after the semantic model is fully built and readonly inference is complete, so it has access to resolved types and the full call graph.
+The context checker is `ContextAnalyzer` (`Source/Mist/ProgramAnalysis/Rules/ContextAnalyzer.cs`), a Stage 5 `IProgramAnalyzer`. It runs after the program model is fully built, so it has access to resolved types and the full call graph.
 
 ## Components and Interfaces
 
@@ -89,38 +89,33 @@ rule WithClause = WITH type:TypeReference name:IDENTIFIER;
 
 **Note on `_` token:** The grammar needs an `UNDERSCORE` token or the parser must recognize `IDENTIFIER` with text `"_"` as the discard marker. Since `_` is a valid identifier in the current grammar (`[a-zA-Z_][a-zA-Z0-9_]*`), the `WithDiscardDeclarationStatement` rule will match `WITH TypeReference IDENTIFIER EQUAL` where the identifier text is `_`. The semantic model builder will check the identifier text to distinguish discard from binding.
 
-### 2. Semantic Model Builder Extensions
+### 2. Program Model Construction
 
-**Pass 1 additions:**
-- When visiting method-like declarations, extract `WithClause` nodes and store them as metadata on the method symbol (a new `WithClauses` property on the method symbol, containing a list of `(IType Type, string Identifier)` pairs).
+**Member construction:**
+- When building method-like declarations, `ProgramModelBuilder` records each `WithClause` as a `ContextBinding` (its resolved context type and identifier) on the method or constructor (`ContextBindingsList`).
 
-**Pass 2 additions:**
-- For `WithVarDeclarationStatement`: infer the type from the initializer expression, register a `SymbolKind.LocalVariable` with that type.
-- For `WithTypedDeclarationStatement`: resolve the type reference, register a `SymbolKind.LocalVariable` with the resolved type.
-- For `WithDiscardDeclarationStatement`: resolve the type reference, no local variable registration.
-- For `WithPushStatement`: infer the type from the expression, no local variable registration.
-- For `WithBlockStatement`: infer the type from the expression, process the block body.
-- For method `WithClause`: resolve the type reference, register a `SymbolKind.LocalVariable` in the method body scope.
+**Body binding:**
+- For `WithVarDeclarationStatement`: infer the type from the initializer expression, bind a context-bound local of that type.
+- For `WithTypedDeclarationStatement`: resolve the type reference, bind a context-bound local of the resolved type.
+- For `WithDiscardDeclarationStatement`: resolve the type reference, no local.
+- For `WithPushStatement`: infer the type from the expression, no local.
+- For `WithBlockStatement`: infer the type from the expression, bind the block body.
+- For method `WithClause`: resolve the type reference, bind a context-bound local in the method body.
 
-**Context type resolution** follows the type keying rules:
-- `TypeAliasType` → resolve to `UnderlyingType` before keying (so alias and underlying type share a key).
-- `UnionType` → treated as its own distinct key (not decomposed into constituents; `int | string` is independent from `int` and `string`).
-- `ConstructedType` (generics) → each distinct type argument combination is a separate key.
-- `RefinementType` → keyed by the refined type (the base type with its predicate is the key).
+**Context type resolution** follows the type keying rules, decided in one place, `ContextKeys` (`Source/Mist/ProgramAnalysis/ContextKeys.cs`):
+- A type alias, a refinement and a named tuple key as what they stand for: the aliased type, the refinement's base type (the predicate narrows which values may be offered, not where they are kept) and the underlying tuple.
+- A union is its own key, compared constituent by constituent in any order and not decomposed (`int | string` is independent from `int` and `string`).
+- A constructed type (generics) keys by its definition, each type argument and its enclosing type, so each distinct type argument combination is a separate key.
+- A tuple keys element by element; a function type by purity, return type and parameter types, so a pure function type is not the plain one.
+- A type parameter is only ever itself: two that share a name are still two keys. What it keys as is each caller's to say.
+- Nothing is found through a base type.
 
-### 3. ContextCheckerAnalyzer (New)
+### 3. ContextAnalyzer
 
-```csharp
-public sealed class ContextCheckerAnalyzer : IAnalyzer
-{
-    public string AnalyzerId => "ContextChecker";
-    
-    public void Analyze(ISemanticModel model, DiagnosticBag diagnostics) { ... }
-}
-```
+`ContextAnalyzer` (`Source/Mist/ProgramAnalysis/Rules/ContextAnalyzer.cs`) is an `IProgramAnalyzer` with the id `structured-context-checking`. It reads the program model and reports; it changes nothing.
 
 **Algorithm — Context Availability Checking:**
-1. Collect all method symbols that have `WithClauses`.
+1. Collect all methods and constructors that have context bindings.
 2. For each call site in the program that invokes such a method:
    a. Walk up the enclosing scopes and call chain looking for a context declaration whose resolved type matches the required type (exact match after alias resolution).
    b. A context declaration satisfies the requirement if it appears before the call site in the same block, or in any enclosing block/method that transitively calls the current method.
@@ -140,13 +135,7 @@ public sealed class ContextCheckerAnalyzer : IAnalyzer
    c. This means the type will fail trait satisfaction if no other method matches, which is reported through the existing trait satisfaction diagnostic infrastructure.
 3. When a call is dispatched through an interface or trait type, the context checker uses the `with` clauses from the **interface or trait method signature** (not the concrete type) to determine context requirements at the call site.
 
-**Diagnostic IDs:**
-- `MIST_CTX_0001` — Missing context: "Method `{method}` requires context of type `{type}`, but no matching context declaration is in scope at {location}."
-- `MIST_CTX_0002` — Duplicate context binding: "Method `{method}` has multiple `with` clauses binding type `{type}`."
-- `MIST_CTX_0003` — Context declaration outside method body.
-- `MIST_CTX_0004` — Cannot infer context type from expression.
-- `MIST_CTX_0005` — Context-bound variable is not reassignable.
-- `MIST_CTX_0006` — Interface/trait with-clause contract violation: "Method `{method}` on type `{type}` must declare `with {contextType}` to satisfy interface/trait `{contract}` at {location}."
+**Diagnostic IDs:** listed with their message templates under [Error Handling](#compile-time-errors-diagnostics).
 
 ### 4. C# Emitter Extensions
 
@@ -225,40 +214,36 @@ clause holds; those file under the CLR-erased key.
 
 ### 5. MistContext.g.cs Runtime Helper
 
-Generated when any compilation unit uses structured context:
+Generated when any compilation unit uses structured context. The runtime keeps these entry points:
 
 ```csharp
-internal static class MistContext
-{
-    private static readonly Dictionary<Type, Stack<object>> _stacks = new();
-
-    public static void Push<T>(object value)
-    {
-        var type = typeof(T);
-        if (!_stacks.TryGetValue(type, out var stack))
-        {
-            stack = new Stack<object>();
-            _stacks[type] = stack;
-        }
-        stack.Push(value);
-    }
-
-    public static void Pop<T>()
-    {
-        _stacks[typeof(T)].Pop();
-    }
-
-    public static T Peek<T>()
-    {
-        return (T)_stacks[typeof(T)].Peek();
-    }
-
-    // The generic members delegate to these, which a key carried as a System.Type parameter uses.
-    public static void Push(Type key, object value) { ... }
-    public static void Pop(Type key) { ... }
-    public static object Peek(Type key) { ... }
-}
+public static void Push<T>(object value);
+public static void Push(Type key, object value);
+public static void Pop<T>();
+public static void Pop(Type key);
+public static object Peek<T>();
+public static object Peek(Type key);
 ```
+
+The generic entry points delegate to the `Type` overloads. The store is an
+`AsyncLocal<Dictionary<Type, Frame>>`; each immutable frame holds a value and its previous
+frame. A push links a new frame to the current top for that key. A pop selects the previous
+frame. Both operations copy the current map, update only the selected key, and publish the
+copy through `AsyncLocal.Value`. Published maps and frames are never mutated, because an
+inherited execution context shares their references.
+
+Awaited calls and child tasks inherit the current snapshot. Their later pushes and pops
+remain local to their execution flow, so siblings and parents cannot change each other's
+stacks. Normal return and exception unwinding use the same emitted `try/finally` cleanup.
+Execution-context flow suppression follows the CLR contract: a task started under
+`ExecutionContext.SuppressFlow()` begins with an empty store. No scheduling or child-failure
+policy is added by this helper. Values themselves are shared normally; isolation applies to
+the context stacks, not to mutable objects stored in them.
+
+An absent map or key throws `KeyNotFoundException`; a key whose stack has been exhausted
+throws `InvalidOperationException`. Empty entries retain that distinction, and the helper's
+existing nullable-oblivious value contract permits absent optional values. The `Optional<T>`
+and `Pure<T>` key markers remain separate from the value store.
 
 ### 6. Pretty Printer Extensions
 
@@ -280,54 +265,23 @@ The `with` keyword already has scope `keyword.other.mist`. The TextMate grammar 
 
 ## Data Models
 
-### Context Clause Metadata (on Method Symbols)
+### Context Bindings (on Methods and Constructors)
 
-```csharp
-/// <summary>
-/// Represents a single with-clause on a method signature.
-/// </summary>
-public sealed class ContextClauseInfo
-{
-    /// <summary>The resolved context type (after alias resolution).</summary>
-    public required IType ContextType { get; init; }
-    
-    /// <summary>The bound identifier name within the method body.</summary>
-    public required string Identifier { get; init; }
-    
-    /// <summary>Source span of the with clause for diagnostics.</summary>
-    public required SourceSpan Span { get; init; }
-}
-```
+Each `with` clause on a method or constructor is a `ContextBinding` (`Source/Mist/ProgramModel/Model/ContextBinding.cs`) in that member's `ContextBindingsList`: the resolved `ContextType`, the bound `Identifier`, and the clause's syntax `Node` for diagnostics. Key identity is not decided here but by `ContextKeys` when keys are compared.
 
-### Context Declaration Info (for the checker)
+### Context Declarations (for the checker)
 
-```csharp
-/// <summary>
-/// Tracks a context declaration within a scope for the context checker.
-/// </summary>
-public sealed class ContextDeclarationInfo
-{
-    /// <summary>The resolved context type being pushed.</summary>
-    public required IType ContextType { get; init; }
-    
-    /// <summary>The AST node of the declaration (for location reporting).</summary>
-    public required SyntaxNode DeclarationNode { get; init; }
-    
-    /// <summary>The scope in which this declaration appears.</summary>
-    public required IScope DeclaringScope { get; init; }
-}
-```
+The checker keeps no separate declaration record. Each context declaration form is a `WithBlockStatement` in the program model (`Source/Mist/ProgramModel/Model/Statements/WithBlockStatement.cs`), carrying the value, the scoped body, the optional binding and the `KeyType` the value is filed under: the written type where the form names one, otherwise the value's own type. The checker reads these and the call sites `ContextCalls` collects.
 
 ### Context Type Resolution
 
-The context type key is determined by:
-1. If the declared type is a `TypeAliasType`, unwrap to `UnderlyingType` recursively. This means `type Name = string;` and `string` share the same context key.
-2. If the declared type is a `ConstructedType`, use the full constructed type (including type arguments) as the key. `List<int>` and `List<string>` are independent keys.
-3. If the declared type is a `UnionType`, use the union type itself as the key (distinct from any constituent). `int | string` is a different key from `int` and from `string`.
-4. If the declared type is a `RefinementType`, use the refinement type as the key.
-5. Otherwise, use the type directly.
+The context type key is determined by `ContextKeys`, with the rules listed under [Program Model Construction](#2-program-model-construction):
+1. A type alias, a refinement or a named tuple is unwrapped, repeatedly, to the type it stands for. This means `type Name = string;` and `string` share the same context key, and a refinement shares its base type's key.
+2. Two keys are the same when they are the same instance, or else structurally: a constructed type by definition, type arguments and enclosing type (`List<int>` and `List<string>` are independent keys); a union by its constituents in any order (`int | string` is a different key from `int` and from `string`); a tuple by its elements; a function type by purity, return type and parameter types.
+3. A type parameter is the same key only as itself.
+4. Any other type compares by fully qualified name (ordinal).
 
-Type equality for context keying uses reference equality on the resolved `IType` instance from the semantic model (since the model canonicalizes types).
+Because the CLR erases distinctions between Mist keys (`string?` and `string` are one `System.String`), a `with` clause whose key names a type parameter is lowered with a `System.Type` witness parameter that the call site fills; see `ContextKeyWitnesses`.
 
 ## Correctness Properties
 
@@ -369,16 +323,18 @@ Type equality for context keying uses reference equality on the resolved `IType`
 
 | ID | Condition | Message Template |
 |----|-----------|-----------------|
-| `MIST_CTX_0001` | Method with `with` clause called without matching context in scope | "Method '{method}' requires context of type '{type}', but no matching context declaration is in scope at {location}." |
-| `MIST_CTX_0002` | Method has multiple `with` clauses binding the same type | "Method '{method}' has duplicate context binding for type '{type}' at {location}." |
-| `MIST_CTX_0003` | Context declaration statement appears outside a method body | "Context declaration is only valid inside a method body, at {location}." |
-| `MIST_CTX_0004` | Context expression type cannot be inferred | "Cannot determine context type from expression at {location}." |
-| `MIST_CTX_0005` | Assignment to a context-bound variable | "Context-bound variable '{name}' is not reassignable, at {location}." |
-| `MIST_CTX_0006` | Implementing method missing required with-clause from interface/trait | "Method '{method}' on type '{type}' must declare `with {contextType}` to satisfy interface/trait '{contract}' at {location}." |
+| `MIST_CTX_0001` | Method or constructor with a `with` clause called without matching context in scope | "{Method\|Constructor} '{name}' requires context of type '{type}', but no matching context declaration is in scope at {location}." |
+| `MIST_CTX_0002` | Method or constructor has multiple `with` clauses binding the same key | "{Method\|Constructor} '{name}' has duplicate context binding for type '{type}': '{earlier}' already binds it at {location}." |
+| ~~`MIST_CTX_0003`~~ | Reserved: no descriptor defines it | — |
+| `MIST_CTX_0004` | A `with` block's value has a type holding an anonymous type, which no `with` clause can name | "Cannot determine a context type from this expression: its type '{type}' holds an anonymous type, which no `with` clause can name." |
+| `MIST_CTX_0005` | Assignment to a context-bound variable, binding it to a writable ref local, or passing it to a writable argument position | "Context-bound variable '{name}' is not reassignable{reason}." where `{reason}` is empty for an assignment, otherwise names the ref local or the position |
+| `MIST_CTX_0006` | A member filling a slot on an abstract type declares different `with` clauses from the slot | "Method '{method}' on type '{type}' must declare the same `with` clauses as the slot it fills on abstract '{abstract}': {differences}." where each difference reads "`with T` is missing" or "`with T` is not declared by the slot" |
+
+The descriptors are `ProgramAnalysisDiagnostics` in `Source/Mist/Common/Diagnostics/Descriptors/ProgramAnalysisDiagnostics.Context.cs`; all are errors reported at Stage 5.
 
 ### Runtime Errors
 
-The runtime context infrastructure (`MistContext.g.cs`) does not throw exceptions under normal operation because the compile-time context checker guarantees that `Peek<T>()` is only called when a value of type `T` exists on the stack. If the checker has a bug and a `Peek` is called on an empty stack, the .NET `Stack<T>.Peek()` will throw `InvalidOperationException` — this is an internal compiler error, not a user-facing error.
+The runtime context infrastructure (`MistContext.g.cs`) does not throw exceptions under normal operation because the compile-time context checker guarantees that `Peek<T>()` is only called when a value of type `T` exists on the stack. If the checker has a bug and a `Peek` is called on an empty stack, the runtime helper throws `InvalidOperationException` (or `KeyNotFoundException` when that key has never been pushed in the flow) — this is an internal compiler error, not a user-facing error.
 
 ### Graceful Degradation
 
@@ -426,7 +382,7 @@ Each correctness property maps to a property-based test with minimum 100 iterati
 ### Integration Tests
 
 - Sample app (`samples/StructuredContext/Program.mist`) compiles and runs with expected output (Requirements 16.1–16.21)
-- Semantic model correctly registers with-clause locals as `SymbolKind.LocalVariable` (Requirements 4.6, 7.2)
+- Program model binds with-clause locals as context-bound local variables (Requirements 4.6, 7.2)
 - `WithBlockRegistry` continues to work for trait-with blocks (Requirement 13.5)
 - Interface method dispatch uses interface with-clauses for context checking (Requirement 8.6)
 - Constructor with-clause verified at `new` expression call sites (Requirement 3.6)

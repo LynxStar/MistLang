@@ -34,10 +34,11 @@ internal sealed class CompilationUnitBuilder
     /// </summary>
     public Scope? Build(DriverCompilationUnit unit)
     {
-        var ast = (CompilationUnitNode)unit.Ast!;
+        var ast = unit.Ast as CompilationUnitNode
+            ?? throw new InvalidOperationException($"ICE: unit '{unit.Source.Path}' has no parsed compilation root.");
         var sourceText = unit.Source;
-        var namespaceRoot = unit.NamespaceRoot!;
-        var projectFolder = unit.ProjectFolder!;
+        var namespaceRoot = unit.NamespaceRoot;
+        var projectFolder = unit.ProjectFolder;
 
         // The assembly is resolved before the file scope rather than with the type registration
         // below, because it decides which implicit usings this file resolves through.

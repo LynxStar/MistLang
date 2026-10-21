@@ -122,14 +122,16 @@ References are declared in the `mist.toml` project file using a `[[references]]`
 
 ### Requirement 6: Transitive Reference Visibility
 
-**User Story:** As a Mist developer, I want transitive references to be compiled but not automatically visible to my project, so that my project's dependencies are explicit and I am not surprised by types appearing from projects I did not directly reference.
+**User Story:** As a Mist developer, I want every project my project reaches through references to be compiled and visible on the same terms as C# gives them, so that what my code can use depends on accessibility, not on how many hops away a project sits.
+
+Visibility is deliberately flat. Mist mirrors C#, where the only visibility boundary is the assembly: the compilation records its projects as a flat list (`MistProject`) with no reference edges and no direct-versus-transitive marking, and a type's reachability follows its declared accessibility. This requirement does not introduce a separate output assembly per project.
 
 #### Acceptance Criteria
 
 1. WHEN project A references project B and project B references project C, THE `Compiler_Driver` SHALL compile C's sources so that B can use C's types.
-2. WHEN project A references project B and project B references project C, THE `Compiler_Driver` SHALL NOT make C's types directly available to A unless A also declares an explicit `[[references]]` entry for C.
-3. WHEN project B exposes a type from C in its public API and project A references only B, THE `Compiler_Driver` SHALL report a diagnostic requiring A to add an explicit reference to C in order to use that type.
-4. THE `Compiler_Driver` SHALL apply the same transitive visibility rules at all depths of the reference graph.
+2. WHEN project A references project B and project B references project C, THE `Compiler_Driver` SHALL make C's types available to A on the same terms as B's, whether or not A also declares a `[[references]]` entry for C.
+3. WHEN project B exposes a type from C in its public API and project A references only B, THE `Compiler_Driver` SHALL NOT require A to add an explicit reference to C in order to use that type.
+4. THE `Compiler_Driver` SHALL apply the same visibility rules at all depths of the reference graph.
 
 ---
 

@@ -7,6 +7,12 @@ namespace Mist.Common.Diagnostics;
 /// </summary>
 public static class EntryPointDiagnostics
 {
+    public static readonly DiagnosticDescriptor MissingEntryPoint = new(
+        new DiagnosticId("MIST_MISSING_ENTRY_POINT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "Project '{0}' produces an executable but declares no entry point. Add a 'static void Main()' method, or set output type to library.");
+
     public static readonly DiagnosticDescriptor MultipleTopLevelFiles = new(
         new DiagnosticId("MIST_EP_0001"),
         DiagnosticSeverity.Error,

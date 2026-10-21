@@ -1,13 +1,14 @@
-// Tier 2: whole contract implication cannot use unrelated union or generic members as refinement proofs.
-
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
+[Trait("Tier", "1")]
 public sealed class ContractImplicationTests
 {
     [Fact]
@@ -59,5 +60,24 @@ public sealed class ContractImplicationTests
 
         Assert.True(ContractImplication.Proves(first, second));
         Assert.False(ContractImplication.Proves(first, separate));
+    }
+
+    [Fact]
+    public void ADeclarationClosedOverAnotherLength_IsNotTheSameRefinement()
+    {
+        var h = new HandBuiltRefinements();
+        var size = new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true, Domain = h.Built.Type("Int32") };
+        var index = HandBuiltRefinements.RefinePattern(h.Int, new ConjunctionPattern(HandBuiltModel.Node(), h.Int,
+            [h.Compare(h.Int, ComparisonKind.GreaterThanOrEqual, 0L),
+                h.Compare(h.Int, ComparisonKind.LessThan, new TypeReferenceExpression(HandBuiltModel.Node(), size))]), "Index");
+
+        RefinedType closed(long length)
+        {
+            return new RefinedType(index, h.Int, new Dictionary<TypeParameter, IMistType> { [size] = new LiftedType(h.Int, length) });
+        }
+
+        Assert.True(ContractImplication.Proves(closed(3), closed(3)));
+        Assert.True(ContractImplication.Proves(closed(3), closed(5)));
+        Assert.False(ContractImplication.Proves(closed(5), closed(3)));
     }
 }

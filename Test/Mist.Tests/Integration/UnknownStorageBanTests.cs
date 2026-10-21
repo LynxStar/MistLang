@@ -234,12 +234,12 @@ public sealed class UnknownStorageBanTests : IDisposable
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "Probe",
-            NamespaceRoot: "Probe");
+            NamespaceRoot: "Probe",
+            OutputType: ProjectOutputType.Library);
 
         var buildDiagnostics = new DiagnosticBag();
         var programModel = ProgramModelBuilder.Build(
-            new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText))),
-            ImmutableArray.Create(parseResult.Root),
+            new MistCompilation(ImmutableArray.Create(new CompilationUnit(sourceText, "Probe", outputDir) { Ast = parseResult.Root }), OutputType: ProjectOutputType.Library),
             options,
             buildDiagnostics,
             new StandardTypesAmbientProvider());

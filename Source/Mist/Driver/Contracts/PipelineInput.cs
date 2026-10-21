@@ -9,7 +9,6 @@ namespace Mist.Driver.Contracts;
 /// </summary>
 public sealed record PipelineInput(
     MistCompilation Compilation,
-    ImmutableArray<Storm.Runtime.SyntaxNode> Asts,
     ImmutableArray<string> ResolvedAssemblyPaths,
     CompilerOptions Options,
     DiagnosticBag Diagnostics,

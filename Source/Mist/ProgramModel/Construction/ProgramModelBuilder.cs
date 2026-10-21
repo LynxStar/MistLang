@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 using Mist.ProgramModel.Construction.Binding;
@@ -20,32 +19,15 @@ public sealed class ProgramModelBuilder
     /// Constructs an <see cref="IProgramModel"/> from the parsed ASTs and compilation metadata.
     /// </summary>
     /// <param name="compilation">The compilation containing units with metadata.</param>
-    /// <param name="asts">The syntax trees produced by Stage 3 (parsing).</param>
-    /// <param name="options">Compiler options with namespace root and project folder.</param>
     /// <param name="diagnostics">Diagnostic bag to report construction errors.</param>
     /// <param name="ambientProvider">Provider for resolving CLR types from loaded assemblies.</param>
     /// <returns>The built program model, or null on fatal failure.</returns>
     public static IProgramModel? Build(
         MistCompilation compilation,
-        ImmutableArray<Storm.Runtime.SyntaxNode> asts,
         CompilerOptions options,
         DiagnosticBag diagnostics,
         IAmbientTypeProvider ambientProvider)
     {
-        if(asts.Length != compilation.Units.Length)
-        {
-            diagnostics.Add(new Diagnostic(
-                ProgramModelDiagnostics.AstUnitMismatch.Id,
-                ProgramModelDiagnostics.AstUnitMismatch.DefaultSeverity,
-                ProgramModelDiagnostics.AstUnitMismatch.Stage,
-                string.Format(ProgramModelDiagnostics.AstUnitMismatch.MessageTemplate, asts.Length, compilation.Units.Length),
-                Location: default,
-                CompilationUnitPath: "<internal>",
-                AnalyzerName: null));
-
-            return null;
-        }
-
         var programModel = new Model.ProgramModel();
 
         // Phase 0: Establish the compilation's declaration boundaries before any type is
@@ -84,15 +66,8 @@ public sealed class ProgramModelBuilder
         var unitBuilder = new CompilationUnitBuilder(context);
 
         // Process each compilation unit.
-        for(var i = 0; i < asts.Length; i++)
+        foreach(var unit in compilation.Units)
         {
-            var unit = compilation.Units[i] with
-            {
-                Ast = asts[i],
-                NamespaceRoot = compilation.Units[i].NamespaceRoot ?? options.NamespaceRoot,
-                ProjectFolder = compilation.Units[i].ProjectFolder ?? options.ProjectFolder,
-            };
-
             _ = unitBuilder.Build(unit);
         }
 

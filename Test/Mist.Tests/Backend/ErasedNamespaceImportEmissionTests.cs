@@ -33,7 +33,8 @@ public sealed class ErasedNamespaceImportEmissionTests : ProgramModelProbe
             Count answer = 42;
             """,
             referenced: "namespace Aliases; public type Count = int;",
-            out var built);
+            out var built,
+            outputType: ProjectOutputType.Executable);
         Assert.Empty(built.Where(d => d.Severity == DiagnosticSeverity.Error));
 
         var options = new CompilerOptions(

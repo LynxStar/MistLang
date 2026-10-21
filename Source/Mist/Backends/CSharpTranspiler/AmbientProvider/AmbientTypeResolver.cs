@@ -14,7 +14,7 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// Handles closed generics by interning <see cref="ConstructedType"/> instances.
 /// Returns <see cref="ErrorType"/> silently for unresolvable metadata types.
 /// </summary>
-internal sealed class AmbientTypeResolver
+internal sealed partial class AmbientTypeResolver
 {
     private readonly Dictionary<string, DeclaredType> shells;
     private readonly Dictionary<string, IMistType> wellKnownTypes;

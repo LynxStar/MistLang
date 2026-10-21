@@ -166,6 +166,14 @@ public class Program
         Action<int> discardSum = x => Noted(x) + 1;
         discardSum(8);
 
+        Console.WriteLine("--- Void Lambda At Inferred Result ---");
+        var voidCall = Invoke(() => Note("expression body"));
+        var voidBlock = Invoke(() =>
+        {
+            Note("block body");
+        });
+        Console.WriteLine($"voidCall={voidCall} voidBlock={voidBlock}");
+
         Console.WriteLine("=== FirstClassFunctions Done ===");
     }
 
@@ -208,6 +216,16 @@ public class Program
     {
         Console.WriteLine($"noted {x}");
         return x;
+    }
+
+    public static void Note(string text)
+    {
+        Console.WriteLine($"note: {text}");
+    }
+
+    public static R Invoke<R>(func<R> f)
+    {
+        return f();
     }
 
     public static void Main(string[] args)

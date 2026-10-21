@@ -127,7 +127,9 @@ internal static partial class BodyEmitter
         LocalFunctionStatement function, Func<Parameter, string> spell, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var enclosing = blockingAwaits;
+        var enclosingReturns = returnsUnit;
         blockingAwaits = false;
+        returnsUnit = false;
 
         try
         {
@@ -136,6 +138,7 @@ internal static partial class BodyEmitter
         finally
         {
             blockingAwaits = enclosing;
+            returnsUnit = enclosingReturns;
         }
     }
 
@@ -622,6 +625,11 @@ internal static partial class BodyEmitter
             return;
         }
 
+        if(EmitUnitResult(argument, parameter, closedTarget, writer, diagnostics))
+        {
+            return;
+        }
+
         if(parameter is not null
             && OverloadPinning.CastFor(argument, parameter, closedTarget ?? parameter.Type, callee) is { } pinned)
         {
@@ -659,7 +667,7 @@ internal static partial class BodyEmitter
                 }
             }
 
-            writer.WriteLine("return;");
+            writer.WriteLine(BareReturn());
         }
         else if(returnStmt is { IsExitCode: true, Value: { } exitCode })
         {
@@ -672,7 +680,7 @@ internal static partial class BodyEmitter
         }
         else
         {
-            writer.WriteLine("return;");
+            writer.WriteLine(BareReturn());
         }
     }
 
@@ -1251,7 +1259,7 @@ internal static partial class BodyEmitter
 
                 using(writer.Block())
                 {
-                    EmitBlock(asyncBlock.Body, writer, diagnostics);
+                    EmitReturningUnit(false, asyncBlock.Body, writer, diagnostics);
                 }
 
                 writer.Append(asyncBlock.IsValueTask ? "))" : ")");
@@ -1879,7 +1887,7 @@ internal static partial class BodyEmitter
 
         if(lambda.Result is { } result)
         {
-            var discarded = ReturnsNothing(lambda);
+            var discarded = ReturnsNothing(lambda) && !YieldsUnit(lambda);
             var discard = discarded ? DiscardedResult.Lead(result) : null;
 
             var slot = lambda.IsAsync ? TaskResult.Of(ResultTypeOf(lambda)) : ResultTypeOf(lambda);
@@ -1907,7 +1915,7 @@ internal static partial class BodyEmitter
         {
             if(lambda.Body is { } body)
             {
-                EmitBlock(body, writer, diagnostics);
+                EmitReturningUnit(YieldsUnit(lambda), body, writer, diagnostics);
             }
         }
     }

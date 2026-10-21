@@ -44,7 +44,7 @@ public sealed class StdlibParseCacheTests : IDisposable
         var whole = StdlibLoader.LoadFor(new DiagnosticBag());
         Assert.NotEmpty(whole);
         Assert.Equal(whole.Length, cache.TryGet(whole.Length)?.Asts.Length);
-        Assert.DoesNotContain(result.Diagnostics, d => d.Id == ProgramModelDiagnostics.AstUnitMismatch.Id);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Stage == PipelineStage.Parsing);
     }
 
     [Fact]

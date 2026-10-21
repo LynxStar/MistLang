@@ -1,4 +1,3 @@
-using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Contracts;
@@ -16,7 +15,7 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal sealed record Startup(CompilationUnit? TopLevelUnit, string? MainTypeName)
 {
-    public static Startup? Of(IProgramModel programModel, CompilerOptions options, DiagnosticBag diagnostics)
+    public static Startup? Of(IProgramModel programModel, CompilerOptions options)
     {
         var selection = programModel.SelfAssembly is MistAssembly self
             ? EntryPointSelection.Of(self)
@@ -24,13 +23,10 @@ internal sealed record Startup(CompilationUnit? TopLevelUnit, string? MainTypeNa
 
         switch(selection)
         {
-            case EntryPointSelection.Refused refused:
-                diagnostics.Report(refused.Descriptor, default, options.ProjectName, [.. refused.Arguments]);
+            case EntryPointSelection.Refused:
                 return null;
 
             case EntryPointSelection.None when options.OutputType == ProjectOutputType.Executable:
-                diagnostics.Report(
-                    BackendDiagnostics.MissingEntryPoint, default, options.ProjectName, (object?)options.ProjectName);
                 return null;
 
             case EntryPointSelection.TopLevelStatements statements:

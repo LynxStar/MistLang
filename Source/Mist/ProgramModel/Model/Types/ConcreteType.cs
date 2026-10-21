@@ -68,6 +68,8 @@ internal abstract class ConcreteType : MemberType, IConcreteType
 
     public List<Field> FieldsList { get; } = [];
 
+    public StorageLayout? ImportedStorage { get; internal set; }
+
     public List<Constructor> ConstructorsList { get; } = [];
 
     public List<CastOperator> CastOperatorsList { get; } = [];

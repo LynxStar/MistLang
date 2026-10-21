@@ -21,7 +21,7 @@ namespace Mist.Tests.Integration;
 public sealed class StructuredContextRuntimeBoundaryTests
 {
     [Fact]
-    public void ModelToEmitterToRoslynToRuntime_KeepsStructuredStacksSeparateAndRestoresThemOnEveryExit()
+    public async Task ModelToEmitterToRoslynToRuntime_KeepsStructuredStacksSeparateAndRestoresThemOnEveryExit()
     {
         var model = new HandBuiltModel();
         var text = model.Type("String");
@@ -33,10 +33,20 @@ public sealed class StructuredContextRuntimeBoundaryTests
         var plainTuple = new TupleType([plainStep, integer]);
         var pureTuple = new TupleType([pureStep, integer]);
 
-        Statement call(string name)
+        Statement call(string name, bool awaited = false)
         {
-            var reference = new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable(name, new FunctionType([], nothing)));
-            return new ExpressionStatement(new InvocationExpression(HandBuiltModel.Node(), reference, [], nothing, null, []));
+            var task = model.Type("Task<>");
+            var result = awaited ? (IMistType)new ConstructedType(task, [nothing]) : nothing;
+            var reference = new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable(name, new FunctionType([], result)));
+            var invocation = new InvocationExpression(HandBuiltModel.Node(), reference, [], result, null, []);
+            if(!awaited)
+            {
+                return new ExpressionStatement(invocation);
+            }
+
+            var drop = new Method("Drop", nothing, [], new MemberModifiers { IsIntrinsic = true }) { DeclaringType = task };
+            var access = new MemberAccessExpression(HandBuiltModel.Node(), invocation, "Drop", nothing);
+            return new ExpressionStatement(new InvocationExpression(HandBuiltModel.Node(), access, [], nothing, drop, []));
         }
 
         WithBlockStatement under(IMistType key, Expression value, params Statement[] statements)
@@ -69,12 +79,22 @@ public sealed class StructuredContextRuntimeBoundaryTests
         var throwing = HandBuiltModel.Block(under(text, HandBuiltModel.Literal(text, "boom"),
             under(optionalText, HandBuiltModel.Literal(text, "boom-opt"), call("Record"), call("Raise"))));
         var throwingOuter = outer(call("Raise"));
+        var worker = HandBuiltModel.Block(under(text,
+            new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("name", text)),
+            under(optionalText, new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("optional", optionalText)),
+                under(text, HandBuiltModel.Literal(text, "nested"), call("Observe")),
+                call("Observe"), call("HoldAndObserve", awaited: true))));
+        var concurrent = outer(call("RunChildren", awaited: true));
         var consumers = new[] { (Name: "ReadText", Key: (IMistType)text), ("ReadOptionalText", optionalText),
             ("ReadPlainTuple", plainTuple), ("ReadPureTuple", pureTuple) };
         var methods = string.Join("\n", consumers.Select(consumer => Consumer(consumer.Name, consumer.Key)));
         var runtime = new CSharpWriter();
         ContextLowering.Emit(runtime);
         var source = $$"""
+            using System;
+            using System.Threading;
+            using System.Threading.Tasks;
+
             public static class Probe
             {
                 private static readonly System.Collections.Generic.List<string> observations = new();
@@ -115,12 +135,90 @@ public sealed class StructuredContextRuntimeBoundaryTests
                         && Empty(() => { ReadPlainTuple(); }) && Empty(() => { ReadPureTuple(); })
                         ? "empty" : "leaked";
                 }
-                public static string[] Run()
+                private static string Snapshot()
+                {
+                    return ReadText() + "|" + ReadOptionalText()
+                        + "|" + (ReadPlainTuple().Item1(5) + ReadPlainTuple().Item2)
+                        + "|" + (ReadPureTuple().Item1(5) + ReadPureTuple().Item2);
+                }
+                private static async Task<string> ReadAfterAwait()
+                {
+                    await Task.Yield();
+                    return Snapshot();
+                }
+                private static async Task<string[]> Worker(string name, TaskCompletionSource ready, Task release, bool fail)
+                {
+                    var values = new System.Collections.Generic.List<string> { Snapshot() };
+                    string? optional = name + "?";
+                    void Observe() { values.Add(Snapshot()); }
+                    async Task HoldAndObserve()
+                    {
+                        ready.SetResult();
+                        await release.WaitAsync(TimeSpan.FromSeconds(5));
+                        values.Add(await ReadAfterAwait());
+                        if (fail) { Raise(); }
+                    }
+                    try
+                    {
+                        {{Emit(worker, "name", "optional")}}
+                    }
+                    catch(InvalidOperationException error) when(error.Message == "scope failure") { }
+                    values.Add(Snapshot());
+                    return values.ToArray();
+                }
+                private static async Task RunChildren()
+                {
+                    var firstReady = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var secondReady = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var releaseSecond = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var first = Task.Run(() => Worker("first", firstReady, releaseFirst.Task, false));
+                    await firstReady.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                    var second = Task.Run(() => Worker("second", secondReady, releaseSecond.Task, true));
+                    await secondReady.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                    observations.Add("parent-overlap:" + Snapshot());
+                    releaseFirst.SetResult();
+                    observations.AddRange(await first.WaitAsync(TimeSpan.FromSeconds(5)));
+                    observations.Add("parent-after-first:" + Snapshot());
+                    releaseSecond.SetResult();
+                    observations.AddRange(await second.WaitAsync(TimeSpan.FromSeconds(5)));
+                    observations.Add("parent-after-second:" + Snapshot());
+                    observations.Add(await Task.Run(() =>
+                    {
+                        MistContext.Pop(typeof(string));
+                        var empty = Empty(() => ReadText());
+                        MistContext.Push(typeof(string), "replacement");
+                        return "child-pop:" + empty + "|" + MistContext.Peek(typeof(string));
+                    }));
+                    observations.Add("parent-after-pop:" + Snapshot());
+                    Task<string> suppressed;
+                    using(ExecutionContext.SuppressFlow())
+                    {
+                        suppressed = Task.Run(async () =>
+                        {
+                            var empty = AllEmpty();
+                            MistContext.Push<string>("isolated");
+                            await Task.Yield();
+                            var value = ReadText();
+                            MistContext.Pop<string>();
+                            return "suppressed:" + empty + "|" + value + "|" + AllEmpty();
+                        });
+                    }
+                    observations.Add(await suppressed.WaitAsync(TimeSpan.FromSeconds(5)));
+                    observations.Add("parent-after-suppressed:" + Snapshot());
+                }
+                private static async Task Concurrent(System.Func<int, int> plainStep, System.Func<int, int> pureStep)
+                {
+                    {{Emit(concurrent, "plainStep", "pureStep")}}
+                }
+                public static async Task<string[]> Run()
                 {
                     Normal(value => value + 10, value => value + 100);
                     observations.Add(AllEmpty());
                     try { ThrowingOuter(value => value + 10, value => value + 100); }
                     catch(System.InvalidOperationException error) when(error.Message == "scope failure") { }
+                    observations.Add(AllEmpty());
+                    await Concurrent(value => value + 10, value => value + 100);
                     observations.Add(AllEmpty());
                     return observations.ToArray();
                 }
@@ -140,9 +238,15 @@ public sealed class StructuredContextRuntimeBoundaryTests
         try
         {
             var assembly = context.LoadFromStream(stream);
-            var actual = Assert.IsType<string[]>(assembly.GetType("Probe")!.GetMethod("Run")!.Invoke(null, null));
+            var actual = await Assert.IsAssignableFrom<Task<string[]>>(assembly.GetType("Probe")!.GetMethod("Run")!.Invoke(null, null));
             Assert.Equal(["outer|optional|16|106", "inner|<null>|16|106", "outer|optional|16|106",
-                "boom|boom-opt|16|106", "outer|optional|16|106", "empty", "empty"], actual);
+                "boom|boom-opt|16|106", "outer|optional|16|106", "empty", "empty",
+                "parent-overlap:outer|optional|16|106",
+                "outer|optional|16|106", "nested|first?|16|106", "first|first?|16|106", "first|first?|16|106", "outer|optional|16|106",
+                "parent-after-first:outer|optional|16|106",
+                "outer|optional|16|106", "nested|second?|16|106", "second|second?|16|106", "second|second?|16|106", "outer|optional|16|106",
+                "parent-after-second:outer|optional|16|106", "child-pop:True|replacement", "parent-after-pop:outer|optional|16|106",
+                "suppressed:empty|isolated|empty", "parent-after-suppressed:outer|optional|16|106", "empty"], actual);
         }
         finally
         {

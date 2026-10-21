@@ -82,6 +82,11 @@ The C# backend uses `unmanaged` for the representation guarantee needed by gener
 | Ref struct | No |
 | Unconstrained stored type parameter | No proof |
 | Enum, newtype, or refinement type | Excluded by the current rules |
-| Arbitrary imported CLR struct | No complete layout proof yet |
+| Imported CLR struct with complete, recursively stampable instance storage | Yes |
+| Imported CLR struct with unknown or incomplete storage | No proof |
+
+Imported storage is checked independently of member visibility. Private fields and compiler-generated property backing fields participate, including their substituted generic types. These fields do not become accessible Mist members. The CLR's implicit `System.ValueType` ancestor contributes no instance field; actual reference-valued storage still prevents stampability. Reference assemblies and unresolved or unsupported metadata can leave the layout unknown, so public fields alone never prove stampability.
+
+CLR inline arrays and fixed buffers currently retain an unknown remainder because a single metadata field can represent repeated storage. Pointer and by-reference fields also prevent a complete value-storage proof.
 
 Stampability is independent of mutability and readonly status. It also does not grant a constructor, create a new default, or replace the `default` constraint. See [Definite Assignment](./definite-assignment.md) for array initialization and [Stack-Only Spans](../advanced/stack-only-spans.md) for stack allocation and lifetime rules.

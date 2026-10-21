@@ -249,7 +249,11 @@ internal static class TypeMemberLookup
             {
                 candidates.Add(
                     new FieldResult(
-                        new Field(request.Name, element, field.Ownership, field.Modifiers), type, path),
+                        new Field(request.Name, element, field.Ownership, field.Modifiers)
+                        {
+                            StorageSource = field,
+                            StorageElementIndex = element.Index,
+                        }, type, path),
                     depth);
             }
         }

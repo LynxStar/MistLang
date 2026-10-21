@@ -68,7 +68,7 @@ public sealed class AnalysisTimingsTests
     public void TheRunnerTimesEachAnalyzerOnceAcrossTheScopesItActuallyAnalyses()
     {
         var model = new Model();
-        var assembly = model.AddSelfAssembly("Probe");
+        var assembly = model.AddSelfAssembly("Probe", isLibrary: true);
         var declaration = new BodyTypeTypeDeclarationNode { Span = new Storm.Runtime.SourceSpan(0, 100), Origin = Origin("source.mist") };
         var source = new ClassType("Tiger", "Probe", new Scope(null), null, declaration) { Modifiers = Public, Assembly = assembly };
         var clone = new ClassType("Jaguar", "Probe", new Scope(null), null, declaration)

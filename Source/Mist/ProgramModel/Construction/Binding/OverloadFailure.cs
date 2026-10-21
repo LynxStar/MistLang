@@ -86,11 +86,14 @@ internal static class OverloadFailure
 
         if(choice.UninferredConflict is { } conflict)
         {
+            var declared = choice.Uninferred[0].TypeParametersList;
+            var spelled = TypeDisplay.Distinguished([conflict.Parameter, .. conflict.Bounds, .. declared])
+                .Select(spelling => $"'{spelling}'").ToList();
             diagnostics.ReportAtNode(
                 ProgramModelDiagnostics.TypeArgumentsConflict, node, null,
-                description, conflict.Parameter.Name,
-                string.Join(", ", conflict.Bounds.Select(bound => $"'{TypeDisplay.Mist(bound)}'")),
-                DescribeTypeParameters(choice.Uninferred));
+                description, spelled[0],
+                string.Join(", ", spelled.Skip(1).Take(conflict.Bounds.Count)),
+                string.Join(", ", spelled.Skip(1 + conflict.Bounds.Count)));
 
             return;
         }

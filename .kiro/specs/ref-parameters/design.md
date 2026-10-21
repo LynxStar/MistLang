@@ -145,6 +145,7 @@ The `TypeCheckerAnalyzer` gains new validation passes:
 | Ref readonly return assignment | Assignment through ref readonly return | `MIST_REF_0009` |
 | Ref local requires initializer | `ref int x;` without `= ref ...` | `MIST_REF_0010` |
 | Ref lambda capture prohibition | Ref local captured by closure | `MIST_REF_0011` |
+| Ref on an operator or cast-operator parameter (Requirement 1.2, corrected 2026-10-21) | Bare `ref` on such a parameter, refused at the parameter | `MIST_PM_REF_ON_OPERATOR_PARAMETER` |
 | Ref overload distinction | Overload resolution considers RefKind | (no diagnostic — resolution logic) |
 | Interface/trait RefKind match | Implementing method RefKind ≠ interface | `MIST_REF_0012` |
 
@@ -336,7 +337,7 @@ This ensures downstream phases see a consistent model even for erroneous or redu
 
 Unit tests cover specific scenarios and edge cases:
 
-- **Parser tests**: Verify AST structure for each ref-annotated declaration kind (method, constructor, indexer, operator, cast operator parameters; ref returns; ref locals; ref arguments).
+- **Parser tests**: Verify AST structure for each ref-annotated declaration kind (method, constructor, indexer, operator, cast operator parameters; ref returns; ref locals; ref arguments). The operator and cast-operator forms parse but are refused once the declaration is built (Requirement 1.2, corrected 2026-10-21).
 - **Diagnostic tests**: Verify each diagnostic ID is produced for its triggering condition with the correct message and location.
 - **Emitter tests**: Verify emitted C# for specific ref patterns matches expected output.
 - **TextMate grammar tests**: Verify scope assignment for `ref` in various positions using vscode-textmate or snapshot tests.

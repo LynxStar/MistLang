@@ -15,6 +15,7 @@ namespace Mist.ProgramAnalysis;
 internal static class ProgramAnalysisRunner
 {
     private static readonly InheritanceCycleAnalyzer HierarchyAnalyzer = new();
+    private static readonly EntryPointAnalyzer ProjectAnalyzer = new();
 
     private static readonly IProgramAnalyzer[] Analyzers =
     [
@@ -25,6 +26,7 @@ internal static class ProgramAnalysisRunner
         new AssignabilityAnalyzer(),
         new AccessibilityAnalyzer(),
         new DeclarationShapeAnalyzer(),
+        new DeclarationPlacementAnalyzer(),
         new ConstraintAnalyzer(),
         new DefaultabilityAnalyzer(),
         new UnknownClosureAnalyzer(),
@@ -45,7 +47,6 @@ internal static class ProgramAnalysisRunner
         new PurityAnalyzer(),
         new EscapeAnalyzer(),
         new RefinementAnalyzer(),
-        new EntryPointAnalyzer(),
         new ContextAnalyzer(),
     ];
 
@@ -53,6 +54,11 @@ internal static class ProgramAnalysisRunner
     {
         timings ??= new AnalysisTimings();
         var sourcePaths = SourceTypes.UnitsOf(model).Select(source => source.Unit.SourcePath).ToHashSet(StringComparer.Ordinal);
+        var projectStarted = Stopwatch.GetTimestamp();
+        ProjectAnalyzer.Analyze(new AnalysisContext(model, new AnalysisScope([], [], [], []), [],
+            new Dictionary<object, SourceRoot>(), new Dictionary<object, AssignmentExpression>(),
+            sourcePaths, diagnostics, ProjectAnalyzer.Id, CloneConversionRefusals.None));
+        timings.Record(ProjectAnalyzer, Stopwatch.GetElapsedTime(projectStarted));
         var types = SourceTypes.Of(model).ToList();
         var hierarchyStarted = Stopwatch.GetTimestamp();
         var cycles = InheritanceCycleAnalyzer.Decide(types);

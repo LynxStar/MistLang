@@ -543,6 +543,10 @@ public class Program
         with 42;
         Console.WriteLine($"  Get<int?>={Generics.Get<int?>()} Get<int>={Generics.Get<int>()}");
 
+        Console.WriteLine("--- 20. Execution flow isolation ---");
+        FlowIsolation.RunDemo();
+        Console.WriteLine($"  caller after children={Consumers.GetString()}");
+
         Console.WriteLine("=== Structured Context Done ===");
     }
 }

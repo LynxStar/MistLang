@@ -147,13 +147,14 @@ public abstract class ProgramModelProbe : IDisposable
     /// asserted clean separately so a malformed fixture fails as itself rather than as a missing or
     /// unexpected diagnostic.
     /// </summary>
-    private protected ProgramModelClass Build(string source, out ImmutableArray<Diagnostic> diagnostics)
+    private protected ProgramModelClass Build(
+        string source, out ImmutableArray<Diagnostic> diagnostics, ProjectOutputType outputType = ProjectOutputType.Library)
     {
-        return Build(source, referenced: null, out diagnostics);
+        return Build(source, referenced: null, out diagnostics, outputType: outputType);
     }
 
     /// <summary>
-    /// As <see cref="Build(string, out ImmutableArray{Diagnostic})"/>, with <paramref name="referenced"/> compiled
+    /// As <see cref="Build(string, out ImmutableArray{Diagnostic}, ProjectOutputType)"/>, with <paramref name="referenced"/> compiled
     /// alongside as a referenced project's file, which puts its declarations in an assembly of their own -- the
     /// only way a probe can reach something another compilation declares internal.
     /// </summary>
@@ -164,13 +165,13 @@ public abstract class ProgramModelProbe : IDisposable
         ImmutableArray<string> globalUsings = default,
         ImmutableArray<string> referencedGlobalUsings = default,
         string? entryPoint = null,
-        ProjectOutputType outputType = ProjectOutputType.Executable,
-        string? referencedEntryPoint = null)
+        ProjectOutputType outputType = ProjectOutputType.Library,
+        string? referencedEntryPoint = null,
+        ProjectOutputType referencedOutputType = ProjectOutputType.Library)
     {
         var fileName = Path.Combine(outputDir, "Program.mist");
         var (sourceText, root) = Parse(fileName, source);
-        var units = new List<CompilationUnit> { new(sourceText) };
-        var roots = new List<Storm.Runtime.SyntaxNode> { root };
+        var units = new List<CompilationUnit> { new(sourceText, "Probe", outputDir) { Ast = root } };
         var projects = ImmutableArray<MistProject>.Empty;
 
         if(referenced is not null)
@@ -180,12 +181,12 @@ public abstract class ProgramModelProbe : IDisposable
             {
                 GlobalUsings = referencedGlobalUsings.IsDefault ? [] : referencedGlobalUsings,
                 EntryPoint = referencedEntryPoint,
+                OutputType = referencedOutputType,
             };
 
             var (libraryText, libraryRoot) = Parse(Path.Combine(folder, "Library.mist"), referenced);
 
-            units.Add(new CompilationUnit(libraryText) { OriginProjectPath = library.CanonicalTomlPath, ProjectFolder = folder });
-            roots.Add(libraryRoot);
+            units.Add(new CompilationUnit(libraryText, "Probe", folder) { OriginProjectPath = library.CanonicalTomlPath, Ast = libraryRoot });
             projects = [library];
         }
 
@@ -196,7 +197,8 @@ public abstract class ProgramModelProbe : IDisposable
             OutputDirectory: outputDir,
             BinDirectory: Path.Combine(outputDir, "bin"),
             ProjectName: "Probe",
-            NamespaceRoot: "Probe");
+            NamespaceRoot: "Probe",
+            OutputType: outputType);
 
         var buildDiagnostics = new DiagnosticBag();
         var programModel = ProgramModelBuilder.Build(
@@ -205,7 +207,6 @@ public abstract class ProgramModelProbe : IDisposable
                 Projects = projects,
                 GlobalUsings = globalUsings.IsDefault ? [] : globalUsings,
             },
-            [.. roots],
             options,
             buildDiagnostics,
             new StandardTypesAmbientProvider());

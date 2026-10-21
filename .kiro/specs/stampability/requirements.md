@@ -20,7 +20,7 @@ This specification supersedes the blanket prohibition on type-parameter fields i
 - Treating all value types, CLR `unmanaged` types, or `readonly` types as stampable.
 - Admitting reference types, ref structs, refinements, newtypes, or enums that the existing classifier excludes.
 - Changing unrelated generic constraint semantics, allocation grammar, or stack lifetimes. Indirect bounds such as `where U : T` do not gain stampability entailment from this feature; open allocation requires a directly declared `stampable` bound.
-- Establishing complete storage-layout proof for arbitrary imported CLR structs. This implementation covers source-defined structs, intrinsic primitives, and supported tuples; imported layouts without that proof remain conservatively non-stampable.
+- Inferring complete imported storage from public members alone. Imported layouts without complete metadata proof remain conservatively non-stampable.
 - Reading, porting, or extending the classic semantic implementation to implement v2.
 
 ## Glossary
@@ -52,7 +52,7 @@ This specification supersedes the blanket prohibition on type-parameter fields i
 9. An unmarked `Box<T>` with a stored field of type `T` SHALL be a valid declaration. `Box<int>` SHALL be stampable; `Box<string>` SHALL be non-stampable and SHALL remain usable through ordinary explicit initialization.
 10. THE classifier SHALL terminate on recursive and expanding generic storage graphs, SHALL refuse actual recursive value storage conservatively, and SHALL accept finite nesting such as `Box<Box<int>>` when its storage is stampable.
 11. THE classifier SHALL NOT confuse differently constructed instances of the same generic definition or mutate type identities while proving stampability.
-12. THE classifier SHALL NOT infer stampability from an incomplete imported instance layout. Arbitrary imported CLR structs remain outside this implementation's structural proof until ambient projection can establish complete storage information.
+12. THE classifier SHALL NOT infer stampability from an incomplete imported instance layout. A complete imported layout SHALL include hidden and compiler-generated instance fields with constructed generic substitution, independently of member visibility. The implicit CLR `System.ValueType` ancestor SHALL NOT count as reference-valued storage. Unresolved, unsupported and opaque reference-assembly layouts SHALL remain unknown.
 
 ## Requirement 3: Open Generic Proof
 

@@ -1,4 +1,5 @@
 using System.Reflection;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -43,6 +44,11 @@ internal static class TypeProjector
         };
 
         shell.ClrMetadataName = clrType.FullName;
+
+        if(shell is StructType concreteType)
+        {
+            concreteType.ImportedStorage = new StorageLayout(false, []);
+        }
 
         if(shell is MemberType memberType)
         {

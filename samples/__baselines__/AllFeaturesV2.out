@@ -1757,6 +1757,8 @@ evens[1]=4
 item=10
 item=20
 item=30
+--- Discarded Lambda Result ---
+noted 8
 === FirstClassFunctions Done ===
 === AsyncDropChaining Sample ===
 --- 1. Func auto-unwrap in sync context ---

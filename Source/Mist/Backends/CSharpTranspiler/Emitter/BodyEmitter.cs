@@ -1880,10 +1880,11 @@ internal static partial class BodyEmitter
         if(lambda.Result is { } result)
         {
             var discarded = ReturnsNothing(lambda);
+            var discard = discarded ? DiscardedResult.Lead(result) : null;
 
             var slot = lambda.IsAsync ? TaskResult.Of(ResultTypeOf(lambda)) : ResultTypeOf(lambda);
 
-            if(!NeedsStatements(result, discarded) && LentValues.Within(result).Count == 0)
+            if(!NeedsStatements(result, discarded) && LentValues.Within(result).Count == 0 && discard is null)
             {
                 EmitEntering(result, slot, writer, diagnostics);
                 return;
@@ -1894,7 +1895,7 @@ internal static partial class BodyEmitter
             using(writer.Block())
             {
                 List<(string?, string)> held = [.. LifetimeLowering.Lend(result, writer).Select(value => ((string?)value.Flag, Released(value.Temp, value.Type)))];
-                EmitWrapped(held, 0, () => EmitSequenced(result, discarded ? null : "return ", writer, diagnostics, slot: slot), writer);
+                EmitWrapped(held, 0, () => EmitSequenced(result, discarded ? discard : "return ", writer, diagnostics, slot: slot), writer);
             }
 
             return;

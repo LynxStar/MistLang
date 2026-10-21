@@ -259,6 +259,7 @@ internal sealed partial class ScopeResolver
             NamedSingleTypeRefSingleTypeRefNode namedRef => namedRef.Optional is not null,
             NestedGenericSingleTypeRefSingleTypeRefNode nestedRef => nestedRef.Optional is not null,
             FuncSingleTypeRefSingleTypeRefNode funcRef => funcRef.Optional is not null,
+            ParenthesizedTypeRefSingleTypeRefNode parenRef => parenRef.Optional is not null,
             _ => false,
         };
     }

@@ -87,6 +87,76 @@ public sealed class FunctionTypeSuffixParseTests
     }
 
     [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("class Probe { private (func<int, int>)? held; }")]
+    [InlineData("class Probe { public (func<int, int>)? Held { get; set; } }")]
+    [InlineData("class Probe { void Run((func<int, int>)? step) { } }")]
+    [InlineData("class Probe { (func<int, int>)? Make() { return step; } }")]
+    [InlineData("class Probe { void Run() { (func<int, int>)? step = f; } }")]
+    [InlineData("class Probe { void Run(List<(func<int, int>)?> steps) { } }")]
+    [InlineData("class Probe { void Run(((func<int, int>)? step, int count) pair) { } }")]
+    [InlineData("type MaybeStep = (func<int, int>)?;")]
+    public void AnOptionalSuffixAfterParenthesesBelongsToTheParentheses(string source)
+    {
+        var nodes = Descendants(Parse(source)).ToList();
+
+        var parenRef = Assert.Single(nodes.OfType<ParenthesizedTypeRefSingleTypeRefNode>());
+        Assert.Null(parenRef.ArrayRank);
+        _ = Assert.NotNull(parenRef.Optional);
+        var funcRef = Assert.Single(nodes.OfType<FuncSingleTypeRefSingleTypeRefNode>());
+        Assert.Null(funcRef.ArrayRank);
+        Assert.Null(funcRef.Optional);
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void AParenthesizedArrayIsItselfOptionalWhenBothSuffixesAreWritten()
+    {
+        var nodes = Descendants(Parse("class Probe { void Run((func<int, int>)[]? steps) { } }")).ToList();
+
+        var parenRef = Assert.Single(nodes.OfType<ParenthesizedTypeRefSingleTypeRefNode>());
+        _ = Assert.IsType<UnsizedArrayRankArrayRankSuffixNode>(parenRef.ArrayRank);
+        _ = Assert.NotNull(parenRef.Optional);
+        var funcRef = Assert.Single(nodes.OfType<FuncSingleTypeRefSingleTypeRefNode>());
+        Assert.Null(funcRef.ArrayRank);
+        Assert.Null(funcRef.Optional);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("class Probe { void Run((func<int, int>)?[] steps) { } }")]
+    [InlineData("class Probe { void Run((func<int, int>)?? step) { } }")]
+    [InlineData("class Probe { void Run((func<int, int>)[]?[] steps) { } }")]
+    public void ASuffixOutOfOrderAfterParenthesesIsRefused(string source)
+    {
+        var diagnostics = new DiagnosticBag();
+        var text = new Mist.Common.Source.SourceText("probe.mist", source);
+        _ = new Mist.Parsing.MistParser().Parse(new Mist.Lexing.MistLexer().Lex(text, diagnostics), diagnostics);
+
+        Assert.Contains(diagnostics.ToImmutableArray(), diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("class Probe { void Run((func<int, int>)? step) { } }")]
+    [InlineData("class Probe { void Run((func<int, int>)[]? steps) { } }")]
+    [InlineData("class Probe { void Run((func<int, int>)[2]? steps) { } }")]
+    [InlineData("class Probe { void Run((func<int, int>?)? step) { } }")]
+    public void PrintingAnOptionalParenthesizedTypeAndParsingItBackIsTheSameTree(string source)
+    {
+        var first = Parse(source);
+        var printed = MistPrettyPrinter.Print(first, source);
+        var second = Parse(printed);
+
+        var firstRef = Assert.Single(Descendants(first).OfType<ParenthesizedTypeRefSingleTypeRefNode>());
+        var secondRef = Assert.Single(Descendants(second).OfType<ParenthesizedTypeRefSingleTypeRefNode>());
+
+        Assert.Equal(Shape(first), Shape(second));
+        Assert.Equal(firstRef.ArrayRank?.GetType(), secondRef.ArrayRank?.GetType());
+        _ = Assert.NotNull(secondRef.Optional);
+    }
+
+    [Theory]
     [InlineData("class Probe { void Run(func<int, int>[] steps) { } }")]
     [InlineData("class Probe { void Run(func<int, int>[2] steps) { } }")]
     [InlineData("class Probe { void Run(func<int, int>? step) { } }")]

@@ -425,7 +425,7 @@ rule SingleTypeRef
     // `>` is followed by `.`, which no named reference can be, so it takes nothing from it.
     | outer:QualifiedIdentifier outerArgs:TypeArgumentList DOT nested:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION? as NestedGenericSingleTypeRef
     | pure:PURE? name:QualifiedIdentifier typeArgs:TypeArgumentList? arrayRank:ArrayRankSuffix? optional:QUESTION? as NamedSingleTypeRef
-    | LEFT_PARENTHESIS inner:TypeReference RIGHT_PARENTHESIS arrayRank:ArrayRankSuffix? as ParenthesizedTypeRef
+    | LEFT_PARENTHESIS inner:TypeReference RIGHT_PARENTHESIS arrayRank:ArrayRankSuffix? optional:QUESTION? as ParenthesizedTypeRef
     | LEFT_PARENTHESIS first:TupleTypeElement COMMA rest:TupleTypeElement (COMMA additional:TupleTypeElement)* RIGHT_PARENTHESIS as TupleSingleTypeRef
     | pure:PURE? FUNC typeArgs:TypeArgumentList arrayRank:ArrayRankSuffix? optional:QUESTION? as FuncSingleTypeRef
     ;

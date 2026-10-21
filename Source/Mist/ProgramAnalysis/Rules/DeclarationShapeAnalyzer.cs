@@ -8,6 +8,7 @@ using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -20,7 +21,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// logical operator off Boolean, or takes no parameter of the type declaring it, a refinement predicate
 /// -- every one <see cref="DeclaredPredicates"/> finds -- that orders a type <see cref="Comparability"/>
 /// gives no order, compares a constant no value of the type could equal, so that nothing could ever
-/// discharge it, or reads a member <see cref="StableMembers"/> does not vouch for, a method,
+/// discharge it, or reads a member <see cref="StableMembers"/> does not vouch for or that has no getter, a method,
 /// constructor or indexer repeating an earlier one's signature on its type, a member hiding one its
 /// type inherits, which Mist admits only as an overload, and a constructor writing no chain to a base
 /// <see cref="ImplicitChains"/> finds nothing to run in, and a dependent parameter named like a member its
@@ -271,13 +272,30 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                 constrained, TypeDisplay.Mist(mismatched.Bound.Type), TypeDisplay.Mist(mismatched.NarrowedType));
         }
 
-        foreach(var unstable in UnstableMembers(predicate, purity))
+        foreach(var (read, refusal) in RefusedReads(predicate, purity))
         {
-            Report(context, unstable.Node, ProgramAnalysisDiagnostics.RefinementOverMutableMember, constrained, unstable.MemberName);
+            if(refusal == ProgramAnalysisDiagnostics.NoGetAccessor)
+            {
+                Report(context, read.Node, refusal, read.MemberName);
+            }
+            else
+            {
+                Report(context, read.Node, refusal, constrained, read.MemberName);
+            }
         }
     }
 
-    private static IEnumerable<PropertySubpattern> UnstableMembers(Pattern? predicate, PurityInference purity)
+    public static DiagnosticDescriptor? PredicateRead(LookupResult member, PurityInference? purity)
+    {
+        if(member is PropertyResult { Property.Getter: null })
+        {
+            return ProgramAnalysisDiagnostics.NoGetAccessor;
+        }
+
+        return StableMembers.IsStable(member, purity) ? null : ProgramAnalysisDiagnostics.RefinementOverMutableMember;
+    }
+
+    private static IEnumerable<(PropertySubpattern Read, DiagnosticDescriptor Refusal)> RefusedReads(Pattern? predicate, PurityInference purity)
     {
         var operands = predicate switch
         {
@@ -287,19 +305,19 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             _ => [],
         };
 
-        foreach(var found in operands.SelectMany(operand => UnstableMembers(operand, purity)))
+        foreach(var found in operands.SelectMany(operand => RefusedReads(operand, purity)))
         {
             yield return found;
         }
 
         foreach(var subpattern in (predicate as PropertyPattern)?.Subpatterns ?? [])
         {
-            if(!subpattern.IsMemberFailed && !StableMembers.IsStable(subpattern.Member, purity))
+            if(!subpattern.IsMemberFailed && PredicateRead(subpattern.Member, purity) is { } refusal)
             {
-                yield return subpattern;
+                yield return (subpattern, refusal);
             }
 
-            foreach(var nested in UnstableMembers(subpattern.Pattern, purity))
+            foreach(var nested in RefusedReads(subpattern.Pattern, purity))
             {
                 yield return nested;
             }

@@ -64,6 +64,8 @@ public sealed class PredicateDeclarationRefusalTests
     [InlineData("refinement-over-an-expression-bodied-property-reading-a-mutable-field", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER")]
     [InlineData("refinement-over-getters-that-read-each-other", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER")]
     [InlineData("where-pattern-over-a-mutable-member", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER")]
+    [InlineData("refinement-over-a-write-only-property", "MIST_PA_NO_GET_ACCESSOR")]
+    [InlineData("refinement-over-a-nested-write-only-member", "MIST_PA_NO_GET_ACCESSOR")]
     public void RefusesNamedCase(string name, string expected)
     {
         var fragment = name.StartsWith("refinement-not-comparable-", StringComparison.Ordinal) ? Misordered(name)
@@ -92,6 +94,29 @@ public sealed class PredicateDeclarationRefusalTests
                 Getter = new PropertyAccessor { IsAuto = true },
             }, owner, []);
         Alias(fragment, owner, Property(owner, integer, member));
+        Assert.Empty(fragment.Run(new DeclarationShapeAnalyzer()));
+    }
+
+    [Fact]
+    public void AGetterReadingAWriteOnlyPropertyIsLeftToTheAccessorRule()
+    {
+        var fragment = new DeclarationFragments();
+        var owner = fragment.Class("Jar");
+        var integer = fragment.Built.Type("Int32");
+        var hidden = new Property("Hidden", integer, DeclarationFragments.Public)
+        {
+            DeclaringType = owner,
+            Setter = new PropertyAccessor { IsAuto = true },
+        };
+        var size = new Property("Size", integer, DeclarationFragments.Public)
+        {
+            DeclaringType = owner,
+            Getter = new PropertyAccessor { Body = DeclarationFragments.Returning(new PropertyReferenceExpression(HandBuiltModel.Node(), hidden)) },
+        };
+        owner.PropertiesList.Add(hidden);
+        owner.PropertiesList.Add(size);
+        Alias(fragment, owner, Property(owner, integer, new PropertyResult(size, owner, [])));
+
         Assert.Empty(fragment.Run(new DeclarationShapeAnalyzer()));
     }
 
@@ -309,7 +334,8 @@ public sealed class PredicateDeclarationRefusalTests
         }
 
         var field = new Field("size", integer, OwnershipKind.Unrestricted, DeclarationFragments.Public) { DeclaringType = owner };
-        var getter = new PropertyAccessor { IsAuto = owner is ConcreteType && name != "refinement-over-a-clr-property" };
+        var getter = name == "refinement-over-a-write-only-property"
+            ? null : new PropertyAccessor { IsAuto = owner is ConcreteType && name != "refinement-over-a-clr-property" };
         PropertyAccessor? setter = new() { IsAuto = true };
         IMistType memberType = integer;
 
@@ -347,6 +373,23 @@ public sealed class PredicateDeclarationRefusalTests
             {
                 DeclaringType = lid,
                 Getter = new PropertyAccessor { IsAuto = true },
+                Setter = new PropertyAccessor { IsAuto = true },
+            };
+            var top = new Property("Top", lid, DeclarationFragments.Public)
+            {
+                DeclaringType = owner,
+                Getter = new PropertyAccessor { IsAuto = true },
+            };
+            predicate = new PropertyPattern(HandBuiltModel.Node(), owner,
+                [new PropertySubpattern(HandBuiltModel.Node(), "Top", Property(lid, integer, new PropertyResult(width, lid, [])), lid,
+                    new PropertyResult(top, owner, []))]);
+        }
+        else if(name == "refinement-over-a-nested-write-only-member")
+        {
+            var lid = fragment.Class("Lid");
+            var width = new Property("Width", integer, DeclarationFragments.Public)
+            {
+                DeclaringType = lid,
                 Setter = new PropertyAccessor { IsAuto = true },
             };
             var top = new Property("Top", lid, DeclarationFragments.Public)

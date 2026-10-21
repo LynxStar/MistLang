@@ -43,22 +43,23 @@ internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
     public void Analyze(AnalysisContext context)
     {
         var lifted = new LiftedReturns();
+        var effects = new FieldEffects();
 
         foreach(var root in context.Bodies)
         {
-            new Proving(context, lifted, UnseenWrites.Of(root.Root), matchLimit).Judge(FlowGraphBuilder.Build(root.Root), RefinementFlow.Nothing);
+            new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit).Judge(FlowGraphBuilder.Build(root.Root), RefinementFlow.Nothing);
         }
 
         foreach(var list in context.Nodes.OfType<ListPattern>())
         {
             if(list.Reads is { } reads)
             {
-                new Proving(context, lifted, UnseenWrites.None, matchLimit).NeedElements(list, reads);
+                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit).NeedElements(list, reads);
             }
 
             if(list.Slice is { Method: { } slice } sliced)
             {
-                new Proving(context, lifted, UnseenWrites.None, matchLimit).NeedSliceElements(list, sliced, slice);
+                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit).NeedSliceElements(list, sliced, slice);
             }
         }
 
@@ -80,7 +81,7 @@ internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
             {
                 if(constructor is { ChainedConstructor: { } chained, DeclarationNode: { } declared } && context.IsInSource(declared))
                 {
-                    new Proving(context, lifted, UnseenWrites.None, matchLimit).NeedArguments(
+                    new Proving(context, lifted, effects, UnseenWrites.None, matchLimit).NeedArguments(
                         RefinementFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList, callee: chained);
                 }
             }
@@ -189,11 +190,11 @@ internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
         };
     }
 
-    private sealed class Proving(AnalysisContext context, LiftedReturns lifted, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit)
+    private sealed class Proving(AnalysisContext context, LiftedReturns lifted, FieldEffects effects, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit)
     {
         public void Judge(FlowGraph graph, ImmutableDictionary<object, Knowledge> entry)
         {
-            var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(graph, new RefinementFlow(unseenWrites, lifted), entry);
+            var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(graph, new RefinementFlow(unseenWrites, lifted, effects), entry);
             solution.Replay((state, step) => Judge(graph, state, step));
         }
 
@@ -245,7 +246,7 @@ internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Proving(context, lifted, unseenWrites, matchLimit).Judge(nested, RefinementFlow.Nothing);
+                    new Proving(context, lifted, effects, unseenWrites, matchLimit).Judge(nested, RefinementFlow.Nothing);
                     break;
             }
         }

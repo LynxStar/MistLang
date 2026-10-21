@@ -26,6 +26,36 @@ public sealed class SequenceLengthDecisionTests
     }
 
     [Theory]
+    [InlineData("AsSpan", "Array", "Span")]
+    [InlineData("ToArray", "Array", "Array")]
+    [InlineData("AsSpan", "String", "ReadOnlySpan")]
+    public void AResolvedClrExtensionCalledByItsStaticNameKeepsTheLengthOfItsExtensionForm(string name, string source, string result)
+    {
+        var h = new HandBuiltRefinements();
+        var extension = Call(Receiver(h, source), Method(name, h.Sequence(result), SequenceLengthOperation.Preserved));
+        var argument = Receiver(h, source);
+        var passed = name == "ToArray"
+            ? new ImplicitConversionExpression(HandBuiltModel.Node(), argument, HandBuiltModel.Class("IEnumerable"), []) : argument;
+
+        Assert.Equal(Admitted.Exactly(3), Lengths.Of(extension, Tracked));
+        Assert.Equal(Lengths.Of(extension, Tracked), Lengths.Of(Static(name, h.Sequence(result), SequenceLengthOperation.Preserved, passed), Tracked));
+    }
+
+    [Theory]
+    [InlineData("an-unsized-source")]
+    [InlineData("a-user-method")]
+    [InlineData("an-offset-overload")]
+    public void AStaticCallManufacturesNoLengthItsResolvedOperationDoesNotState(string form)
+    {
+        var operation = form == "an-unsized-source" ? SequenceLengthOperation.Preserved : SequenceLengthOperation.None;
+        var h = new HandBuiltRefinements();
+        var source = form == "an-unsized-source" ? HandBuiltRefinements.Local(HandBuiltModel.Class("IEnumerable"), "values") : Receiver(h, "Array");
+        Expression[] arguments = form == "an-offset-overload" ? [source, h.Literal(1L)] : [source];
+
+        Assert.Null(Lengths.Of(Static("AsSpan", h.Sequence("Span"), operation, arguments), Tracked));
+    }
+
+    [Theory]
     [InlineData("Slice", "Custom", "Array", 2)]
     [InlineData("ToArray", "Array", "Array", 0)]
     [InlineData("AsSpan", "Array", "Span", 0)]
@@ -113,6 +143,18 @@ public sealed class SequenceLengthDecisionTests
             SequenceLengthOperation = operation,
             DeclaringType = intrinsicHost,
         };
+    }
+
+    private static InvocationExpression Static(string name, IMistType returns, SequenceLengthOperation operation, params Expression[] arguments)
+    {
+        var method = new Method(
+            name, returns, arguments.Select((argument, i) => new Parameter($"p{i}", argument.Type)).ToList(),
+            new MemberModifiers { IsStatic = true, IsClrProjected = true })
+        {
+            SequenceLengthOperation = operation,
+        };
+        return new InvocationExpression(
+            HandBuiltModel.Node(), new MethodReferenceExpression(HandBuiltModel.Node(), method), arguments, returns, method, method.ParametersList.ConvertAll(parameter => parameter.Type));
     }
 
     private static InvocationExpression Call(Expression receiver, Method method, params Expression[] arguments)

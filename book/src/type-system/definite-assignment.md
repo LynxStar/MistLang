@@ -45,6 +45,10 @@ Locals declared with an initializer (`var x = expr`) are immediately considered 
 
 Compound assignment (`x += 1`) counts as a read followed by a write, so using it on an unassigned local is also an error.
 
+For value-type locals, assignment tracks the field paths used in the body, including imported fields, tuple elements and synthesized spread-field projections. Tuple names and positional names refer to the same element. Writing one field establishes that field only; reading the whole value requires every field and any hidden or unknown storage remainder. A whole-value assignment establishes all of them. Intrinsic types and incomplete imported layouts can expose known fields while still requiring whole-value assignment for the remainder.
+
+Structs with demonstrably empty storage need no assignment, including finite nesting of closed generic wrappers around an empty type. Recursive or expanding layouts remain conservative. The tracked path set is finite, and the same slots are used for whole writes, branch joins and loop analysis. These rules do not infer writes performed by a local function or through an alias.
+
 ## Stampable Types and Bare Array Creation
 
 When you write `new T[size]`, the question is: what value goes in each slot? For types whose default value is a flat, copyable bit pattern — primitives like `int`, and structs whose fields are all primitives or other such structs — the answer is straightforward: the CLR's zero-fill produces a valid default. These types are called **stampable**.

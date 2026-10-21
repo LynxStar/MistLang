@@ -107,6 +107,11 @@ internal static class MethodProjector
         };
 
         projected.TypeParametersList.AddRange(typeParameters);
+        foreach(var typeParameter in projected.TypeParametersList)
+        {
+            typeParameter.DeclaringMethod = projected;
+        }
+
         AttributeProjector.Project(method, projected.AttributesList, methodScope, resolver);
         SentinelAttributes.ApplyMethodAttributes(method, projected.AttributesList);
 

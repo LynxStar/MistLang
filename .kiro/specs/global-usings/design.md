@@ -342,7 +342,7 @@ Unknown fields in `[global_usings]` are silently discarded during parsing (forwa
 
 ### Property 8: Emitter deduplication and sorting
 
-*For any* compilation unit with global usings, explicit using declarations, and backend namespaces, the emitted C# file SHALL contain each namespace as a `using` directive exactly once, and the directives SHALL be sorted in ordinal alphabetical order.
+*For any* compilation unit with global usings and explicit using declarations, the emitted C# file SHALL contain each of those namespaces that C# has as a `using` directive exactly once, SHALL omit each whose declarations all erase, and the directives SHALL be sorted in ordinal alphabetical order.
 
 **Validates: Requirements 6.1, 6.2, 6.3, 6.4**
 

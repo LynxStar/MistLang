@@ -925,7 +925,7 @@ public static partial class ProgramModelDiagnostics
         new DiagnosticId("MIST_PM_TYPE_ARGUMENTS_CONFLICT"),
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
-        "Cannot infer the type arguments of {0}: the arguments give '{1}' the types {2}, and none of them is a type the others all convert to. State all of them explicitly at the call: {3}.");
+        "Cannot infer the type arguments of {0}: the arguments give {1} the types {2}, and none of them is a type the others all convert to. State all of them explicitly at the call: {3}.");
 
     public static readonly DiagnosticDescriptor TypeArgumentCountMismatch = new(
         new DiagnosticId("MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH"),

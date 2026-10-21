@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -224,6 +225,17 @@ public sealed class RefinementFlowRefusalTests
         if(guard is null) { statements.AddRange(inside); }
         else { statements.Add(HandBuiltRefinements.If(guard, [.. inside])); }
 
-        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value);
+        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(Regex.InfiniteMatchTimeout), HandBuiltModel.Block([.. statements]))).Id.Value);
+    }
+
+    [Fact]
+    public void ALiteralWhoseMatchExceedsTheAnalyzersBudget_IsUnprovenRatherThanViolated()
+    {
+        var h = new HandBuiltRefinements();
+        var text = HandBuiltRefinements.Local(h.String, "text");
+        var body = HandBuiltModel.Block(
+            HandBuiltRefinements.Give(text, h.Literal(new string('a', 64))), HandBuiltRefinements.Need(text, h.Regex("(a+)+b", "Catastrophic")));
+
+        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(h.Built.Analyze(new RefinementAnalyzer(TimeSpan.FromMilliseconds(1)), body)).Id.Value);
     }
 }

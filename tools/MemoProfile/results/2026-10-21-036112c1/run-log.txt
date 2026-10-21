@@ -1,0 +1,24 @@
+design: 10 rounds over 5 variants; every variant-position count equal = True; ordered successor pairs 20/20, each 2 times
+load at start: loadavg={ 10.93 11.01 9.21 } total_pcpu=151.4 dotnet_processes=20 top=32.7 WindowServer; 20.4 dotnet; 13.9 Codex (Renderer)
+source checks: passed
+workload: 244 inputs (195 valid files, 49 derived invalid), 858186 bytes, 176746 tokens
+equivalence: 244 inputs x 5 variants, 0 mismatches against mist-core; 0 inputs yield no tree; parse stops before end of input on 34 inputs (23 invalid-truncate-half, 11 invalid-drop-first-rparen), 210 reach it
+memo entries mist-core: 702704 total over the workload
+memo entries production: 702704 total over the workload
+memo entries auto-only: 702100 total over the workload
+memo entries explicit-only: 118955 total over the workload
+memo entries no-memo: 0 total over the workload
+warm: complete in 86s; 3 discarded warm-up passes per variant, then 100 recorded passes
+warm mist-core: n=20 wall_ms median 163.4 [154.7..299.1] iqr 158.3..214.5; cpu_ms median 166.5; alloc MB median 485.34 [485.34..485.34]; gen0/1/2 per pass median 52/14/0; gc pause ms median 93.57; per-round wall ratio to production median 1.001 [0.913..1.065]
+warm production: n=20 wall_ms median 163.0 [154.1..272.1] iqr 158.0..213.8; cpu_ms median 164.2; alloc MB median 485.34 [485.34..485.34]; gen0/1/2 per pass median 52/14/0; gc pause ms median 92.87; per-round wall ratio to production median 1.000 [1.000..1.000]
+warm auto-only: n=20 wall_ms median 178.8 [155.4..285.2] iqr 160.9..248.9; cpu_ms median 179.2; alloc MB median 485.33 [485.33..485.33]; gen0/1/2 per pass median 52/14/0; gc pause ms median 103.59; per-round wall ratio to production median 1.033 [0.930..1.192]
+warm explicit-only: n=20 wall_ms median 115.3 [97.7..192.8] iqr 103.7..141.9; cpu_ms median 114.7; alloc MB median 633.52 [633.52..633.52]; gen0/1/2 per pass median 75/9/0; gc pause ms median 47.60; per-round wall ratio to production median 0.645 [0.557..0.809]
+warm no-memo: n=20 wall_ms median 3262.3 [3004.2..4372.4] iqr 3111.0..3820.2; cpu_ms median 3258.5; alloc MB median 23559.49 [23559.49..23559.49]; gen0/1/2 per pass median 2816/14/0; gc pause ms median 614.87; per-round wall ratio to production median 19.498 [16.047..21.816]
+warm production heaviest inputs (median us): samples/Ownership/Program.mist 5194; samples/Ownership/Program.mist#drop-first-rparen 5141; samples/StructuredContext/Program.mist 5111; samples/VoidType/HoistingDemo.mist 4766; samples/RefParameters/Program.mist 4671
+cold: complete in 139s, 30 fresh processes
+cold mist-core: n=6 generation_ms 0 [0..0]; compile_load_ms 0 [0..0]; first_pass_ms 492 [438..642]; second_pass_ms 365 [312..502]; process_total_ms 1017 [912..1338]
+cold production: n=6 generation_ms 548 [523..798]; compile_load_ms 1448 [1321..2470]; first_pass_ms 503 [464..725]; second_pass_ms 454 [347..641]; process_total_ms 3110 [2848..4921]
+cold auto-only: n=6 generation_ms 584 [526..821]; compile_load_ms 1462 [1356..2203]; first_pass_ms 486 [459..677]; second_pass_ms 454 [426..639]; process_total_ms 3180 [2930..4617]
+cold explicit-only: n=6 generation_ms 551 [521..669]; compile_load_ms 1520 [1278..1664]; first_pass_ms 379 [330..432]; second_pass_ms 327 [242..357]; process_total_ms 3008 [2545..3247]
+cold no-memo: n=6 generation_ms 591 [538..773]; compile_load_ms 1482 [1301..2593]; first_pass_ms 5995 [5252..7435]; second_pass_ms 3687 [3350..4781]; process_total_ms 11644 [10901..15335]
+load at end: loadavg={ 15.30 13.26 10.65 } total_pcpu=594.0 dotnet_processes=21 top=135.8 grotto; 126.8 dotnet; 71.7 dotnet

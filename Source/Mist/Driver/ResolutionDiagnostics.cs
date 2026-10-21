@@ -10,13 +10,16 @@ namespace Mist.Driver;
 /// </summary>
 internal sealed class ResolutionDiagnostics(int preceding, IResolutionDiagnosticListener? listener)
 {
+    private int delivered;
+
     public DiagnosticBag Reported { get; } = new();
 
     public void Deliver()
     {
-        foreach(var diagnostic in Reported.ToImmutableArray())
+        var reported = Reported.ToImmutableArray();
+        for(; delivered < reported.Length; delivered++)
         {
-            listener?.Receive(diagnostic);
+            listener?.Receive(reported[delivered]);
         }
     }
 

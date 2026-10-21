@@ -86,6 +86,24 @@ public sealed class ResolutionDiagnosticsTests
     }
 
     [Fact]
+    public void ALaterDeliveryPassesOnOnlyWhatWasReportedSince()
+    {
+        var listener = new RecordingListener();
+        var early = Error("MIST_PKG_002", "Package 'A'");
+        var late = Error("MIST_FWREF_002", "Framework 'C'");
+        var resolution = Reporting(0, listener, early);
+
+        resolution.Deliver();
+        resolution.Reported.Add(late);
+        resolution.Deliver();
+        resolution.Deliver();
+
+        Assert.Equal(2, listener.Received.Count);
+        Assert.Same(early, listener.Received[0]);
+        Assert.Same(late, listener.Received[1]);
+    }
+
+    [Fact]
     public void NothingReportedReachesTheListenerNever()
     {
         var listener = new RecordingListener();

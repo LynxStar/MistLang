@@ -489,14 +489,18 @@ Over the effective grammar (R7):
 
 | ID | Constant | Trigger |
 |---|---|---|
-| STORM0001 | `STORM_IMPORT_NOT_FOUND` | Import path cannot be resolved (R6.6) |
-| STORM0002 | `STORM_DUPLICATE_NAME` | Duplicate unnamespaced declaration name (R6.5) |
-| STORM0003 | `STORM_UNDEFINED_REFERENCE` | Reference to undefined rule/token/fragment (R7.1) |
-| STORM0004 | `STORM_LEFT_RECURSION` | Unresolvable left-recursion detected (R7.3) |
-| STORM0005 | `STORM_UNREACHABLE_ALTERNATIVE` | Alternative shadowed by earlier alternative (R7.2) — Error |
-| ~~STORM0006~~ | ~~`STORM_AMBIGUOUS_RULE`~~ | ~~Removed — overlapping FIRST sets are expected in PEG parsers~~ |
+| STORM0001 | `STORM_SYNTAX_ERROR` | A Storm grammar file contains a syntax error (R2.5) |
+| STORM0002 | `STORM_IMPORT_NOT_FOUND` | Import path cannot be resolved (R6.6) |
+| STORM0003 | `STORM_DUPLICATE_NAME` | Duplicate unnamespaced declaration name (R6.5) |
+| STORM0004 | `STORM_UNDEFINED_REFERENCE` | Reference to undefined rule/token/fragment (R7.1) |
+| STORM0005 | `STORM_LEFT_RECURSION` | Unresolvable left-recursion detected (R7.3) |
+| STORM0006 | `STORM_UNREACHABLE_ALTERNATIVE` | Alternative shadowed by earlier alternative (R7.2) — Error; Warning when the finding goes through an inline block |
+| ~~STORM0007~~ | ~~`STORM_AMBIGUOUS_RULE`~~ | ~~Removed — overlapping FIRST sets are expected in PEG parsers~~ |
+| STORM0008 | `STORM_UNSUPPORTED_CONSTRUCT` | A grammar construct the source generator cannot lower to C# (R9.8) |
 | STORM0009 | `STORM_NO_ROOT_GRAMMAR` | No file declares a `grammar` directive |
 | STORM0010 | `STORM_MULTIPLE_ROOT_GRAMMARS` | Multiple files declare a `grammar` directive |
+
+`StormDiagnosticIds` in `Source/Storm.SourceGenerator/Diagnostics/` is the authoritative list. STORM0011 onward belong to later Storm features and are specified there: lexer modes (`storm-lexer-modes`), memoization (`parser-memoization-expansion`), inline-rule prefixes (`inline-rule-prefix`) and traits (`storm-trait-keyword`).
 
 Validation passes run in the order listed. Later passes depend on earlier passes succeeding.
 

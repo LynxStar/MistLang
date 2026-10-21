@@ -7,8 +7,8 @@ namespace Mist.Driver;
 /// The standard library's token streams and syntax trees, lexed and parsed once and reused by
 /// every later compile. An entry is recorded only when it holds one of each for every stdlib unit:
 /// the lexer and parser are injected per driver while <see cref="Shared"/> serves every driver in
-/// the process, and both pipelines pair syntax trees with units by index, so a short entry would
-/// misalign every compile that followed it.
+/// the process. Cached trees follow the loader's stable unit order, so a short entry would
+/// attach a tree to the wrong source on every compile that followed it.
 /// </summary>
 internal sealed class StdlibParseCache
 {

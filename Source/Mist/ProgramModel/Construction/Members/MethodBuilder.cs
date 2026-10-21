@@ -79,6 +79,10 @@ internal sealed class MethodBuilder
 
         // Transfer type parameters to the final method instance.
         resolvedMethod.TypeParametersList.AddRange(method.TypeParametersList);
+        foreach(var typeParameter in resolvedMethod.TypeParametersList)
+        {
+            typeParameter.DeclaringMethod = resolvedMethod;
+        }
 
         // Resolve constraints on method-level type parameters and parameter refinements.
         constraintResolver.Resolve(methodDecl.Constraints, resolvedMethod.TypeParametersList, resolvedMethod.ParametersList, methodScope);

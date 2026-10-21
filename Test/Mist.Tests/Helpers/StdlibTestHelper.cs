@@ -30,18 +30,18 @@ internal static class StdlibTestHelper
 
     /// <summary>
     /// Loads stdlib compilation units, lexes/parses them, and returns the
-    /// units and their ASTs ready to be prepended to a test compilation.
+    /// parsed units ready to be prepended to a test compilation.
     /// Results are cached for the process lifetime.
     /// </summary>
-    public static (ImmutableArray<CompilationUnit> Units, ImmutableArray<Storm.Runtime.SyntaxNode> Asts) LoadStdlib()
+    public static ImmutableArray<CompilationUnit> LoadStdlib()
     {
         return Stdlib.Value;
     }
 
-    private static readonly Lazy<(ImmutableArray<CompilationUnit> Units, ImmutableArray<Storm.Runtime.SyntaxNode> Asts)> Stdlib =
+    private static readonly Lazy<ImmutableArray<CompilationUnit>> Stdlib =
         new(ReadStdlib);
 
-    private static (ImmutableArray<CompilationUnit> Units, ImmutableArray<Storm.Runtime.SyntaxNode> Asts) ReadStdlib()
+    private static ImmutableArray<CompilationUnit> ReadStdlib()
     {
         var repoRoot = FindRepoRoot();
         var stdlibRoot = Path.Combine(repoRoot, "Source", "Standard");
@@ -57,7 +57,7 @@ internal static class StdlibTestHelper
 
         ILexer lexer = new MistLexer();
         IParser parser = new MistParser();
-        var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>(units.Length);
+        var parsedUnits = ImmutableArray.CreateBuilder<CompilationUnit>(units.Length);
 
         foreach(var unit in units)
         {
@@ -71,9 +71,10 @@ internal static class StdlibTestHelper
                     + string.Join("; ", parseDiag.ToImmutableArray().Concat(parseResult.Diagnostics).Select(d => d.Message)));
             }
 
-            asts.Add(parseResult.Root);
+            parseResult.Root.SetParentLinks();
+            parsedUnits.Add(unit with { Ast = parseResult.Root });
         }
 
-        return (units, asts.ToImmutable());
+        return parsedUnits.MoveToImmutable();
     }
 }

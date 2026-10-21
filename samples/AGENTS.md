@@ -40,6 +40,7 @@ the record of which samples run.
 | `ClosedOperators` | Written 2026-10-13, after classic was retired. |
 | `SliceableTypes` | Written 2026-10-14, after classic was retired. |
 | `GenericSelfReceivers` | Written 2026-10-15, after classic was retired. |
+| `StructuredContext`, section 20 | V2-ONLY: added 2026-10-21 for MIST-168; gated overlapping task contexts and parent restoration, captured from v2 and checked against the program by hand. |
 | `StructuredContext`, section 19 | Added 2026-10-11, after classic was retired; classic erased a generic clause's key to its CLR type. |
 | `Variadics`, `RefinementTypes`, `DropSemantics`, `DelegateFuncConversion`, `OptionalDefaultability`, `DefaultKeyword` and `VoidType` (`HoistingDemo`), the sections added 2026-10-12 | Bank the claims of the retired compile-and-run tests; captured from v2 and read against the programs by hand. |
 | `Variadics` (`emptyPackChain`), the section added 2026-10-15 | Classic never ran an omitted chain to a pack-only base closed empty; captured from v2 and read against the program by hand. |

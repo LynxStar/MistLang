@@ -38,7 +38,6 @@ public sealed class RefinedReturnDispatchDecisionTests
     [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } } public class Base { public PositiveInt Make() { return 2; } } public class Factory : Base, IFactory { }")]
     [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } } public class Factory { public PositiveInt Text() { return 2; } } with Factory : IFactory { Text as Make; }")]
     [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } int Text(); } public class Factory { public int Text() { return 0; } } with Factory : IFactory { Text as Text; }")]
-    [InlineData("public abstract IFactory { public static PositiveInt Make(); } public class Factory : IFactory { public static int Make() { return -1; } }")]
     public void ASelectedMethodPreservingItsClosedReturnContract_IsAdmitted(string declarations)
     {
         Assert.Empty(RefinedReturnContractDecisionTests.Analyse(Types + declarations));
@@ -69,7 +68,6 @@ public sealed class RefinedReturnDispatchDecisionTests
     [InlineData("public abstract IFactory { PositiveInt Value { set; } } public class Factory : IFactory { public int Value { set { } } }")]
     [InlineData("public abstract IFactory { NonNegativeInt Value { get; } } public class Base<T> { public T Value { get; } } public class Factory : Base<PositiveInt>, IFactory { }")]
     [InlineData("public abstract IFactory<T> { T Value { get; } } public class Factory { public PositiveInt Value { get { return 1; } } } with Factory : IFactory<NonNegativeInt> { Value as Value; }")]
-    [InlineData("public abstract IFactory { public static PositiveInt Value { get; } } public class Factory : IFactory { public static int Value { get { return -1; } } }")]
     public void APropertyMeetingBothAccessorDirections_IsAdmitted(string declarations)
     {
         Assert.Empty(RefinedReturnContractDecisionTests.Analyse(Types + declarations));

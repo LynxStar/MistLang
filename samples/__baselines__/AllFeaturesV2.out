@@ -1880,6 +1880,13 @@ voidCall=Void voidBlock=Void
   abstract Get<string?>=generic-optional Get<string>=generic-required
   closed answer Read()=generic-optional
   Get<int?>=21 Get<int>=42
+--- 20. Execution flow isolation ---
+  parent with overlapping children=parent ready=True
+  first child=parent|first|released=True
+  parent while second remains=parent
+  second child=parent|second|released=True
+  parent after children=parent
+  caller after children=generic-required
 === Structured Context Done ===
 --- Ownership ---
 [non-owned-binding] readonly method=10

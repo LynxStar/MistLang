@@ -39,6 +39,8 @@ internal class TypeParameter : MistType, ITypeParameter
     /// </summary>
     public int Ordinal { get; }
 
+    public Method? DeclaringMethod { get; internal set; }
+
     /// <summary>
     /// The domain of this type parameter — the type whose values can fill this slot.
     /// For regular type parameters (<c>T</c>), this resolves to <c>Standard.Type</c>.

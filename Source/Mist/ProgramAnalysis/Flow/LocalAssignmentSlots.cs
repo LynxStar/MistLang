@@ -1,14 +1,12 @@
-using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Flow;
 
-// Expand only observed field paths before solving, so the leaf universe is finite even for recursive
-// layouts, and whole-value writes and individual field writes intersect in exactly the same slots.
+// Observed paths bound expansion, while unknown and hidden storage retain independent remainder slots.
 internal sealed class LocalAssignmentSlots
 {
     private readonly Dictionary<LocalVariable, Slot> roots = new(ReferenceEqualityComparer.Instance);
@@ -68,6 +66,36 @@ internal sealed class LocalAssignmentSlots
         return Find(path, expand: false)?.Leaves() ?? [];
     }
 
+    internal static bool IsEmpty(IMistType type)
+    {
+        return IsEmpty(type, new StorageRecursion());
+    }
+
+    private static bool IsEmpty(IMistType type, StorageRecursion visiting)
+    {
+        if(!IsValueStorage(type) || !visiting.Enter(Definition(type), type))
+        {
+            return false;
+        }
+
+        var layout = ValueStorage.Describe(type);
+        var empty = layout.IsComplete
+            && layout.Fields.All(field => IsEmpty(field.Type, visiting))
+            && (layout.BaseType is not { } baseType || IsEmpty(baseType, visiting));
+        visiting.Exit();
+        return empty;
+    }
+
+    private static bool IsValueStorage(IMistType type)
+    {
+        return type is StructType or ConstructedType { Definition: StructType } or ITupleType;
+    }
+
+    private static IMistType Definition(IMistType type)
+    {
+        return type is ConstructedType constructed ? constructed.Definition : type;
+    }
+
     private Slot? Find(LocalStoragePath path, bool expand)
     {
         if(path.Receiver is null)
@@ -82,60 +110,68 @@ internal sealed class LocalAssignmentSlots
             receiver?.Expand();
         }
 
-        return receiver?.Fields?.GetValueOrDefault(path.Field!);
+        return receiver?.Fields?.GetValueOrDefault(path.Key!);
     }
 
     private sealed class Slot(IMistType type)
     {
+        private readonly List<Slot> hidden = [];
         private readonly List<object> opaque = [];
 
-        public Dictionary<Field, Slot>? Fields { get; private set; }
+        public Dictionary<object, Slot>? Fields { get; private set; }
 
         public void Expand()
         {
-            if(Fields is not null || Definition(type) is not { IsIntrinsic: false, DeclarationNode: not null })
+            if(Fields is not null || !IsValueStorage(type))
             {
                 return;
             }
 
-            Fields = new Dictionary<Field, Slot>(ReferenceEqualityComparer.Instance);
-            var visited = new HashSet<StructType>(ReferenceEqualityComparer.Instance);
+            Fields = [];
+            Add(type, new StorageRecursion());
+        }
 
-            for(var current = type; Definition(current) is { } definition;)
+        private void Add(IMistType candidate, StorageRecursion visiting)
+        {
+            if(!IsValueStorage(candidate) || !visiting.Enter(Definition(candidate), candidate))
             {
-                if(definition.IsIntrinsic || definition.DeclarationNode is null || !visited.Add(definition))
-                {
-                    opaque.Add(new object());
-                    break;
-                }
-
-                var substitution = TypeSubstitution.ForReceiver(current as ConstructedType);
-
-                foreach(var field in definition.FieldsList.Where(field => !field.Modifiers.IsStatic))
-                {
-                    Fields.Add(field, new Slot(substitution.Apply(field.Type, interner: null)));
-                }
-
-                if(definition.PropertiesList.Any(property =>
-                    !property.Modifiers.IsStatic && (property.Getter is { IsAuto: true } || property.Setter is { IsAuto: true })))
-                {
-                    opaque.Add(new object());
-                }
-
-                if(definition.BaseType is not { } baseType)
-                {
-                    break;
-                }
-
-                current = substitution.Apply(baseType, interner: null);
+                opaque.Add(new object());
+                return;
             }
+
+            var layout = ValueStorage.Describe(candidate);
+            for(var index = 0; index < layout.Fields.Count; index++)
+            {
+                var field = layout.Fields[index];
+                var child = new Slot(field.Type);
+                if(candidate is ITupleType)
+                {
+                    Fields!.Add(index, child);
+                }
+                else if(field.Field is not { } member || !Fields!.TryAdd(member, child))
+                {
+                    hidden.Add(child);
+                }
+            }
+
+            if(!layout.IsComplete)
+            {
+                opaque.Add(new object());
+            }
+
+            if(layout.BaseType is { } baseType)
+            {
+                Add(baseType, visiting);
+            }
+
+            visiting.Exit();
         }
 
         public IEnumerable<object> Leaves()
         {
             if(Fields is null)
             {
-                if(!Empty(type, []))
+                if(!IsEmpty(type))
                 {
                     yield return this;
                 }
@@ -143,7 +179,7 @@ internal sealed class LocalAssignmentSlots
                 yield break;
             }
 
-            foreach(var child in Fields.Values)
+            foreach(var child in Fields.Values.Concat(hidden))
             {
                 foreach(var leaf in child.Leaves())
                 {
@@ -151,32 +187,10 @@ internal sealed class LocalAssignmentSlots
                 }
             }
 
-            foreach(var hidden in opaque)
+            foreach(var remainder in opaque)
             {
-                yield return hidden;
+                yield return remainder;
             }
-        }
-
-        private static bool Empty(IMistType candidate, HashSet<StructType> visiting)
-        {
-            if(Definition(candidate) is not { IsIntrinsic: false, DeclarationNode: not null } definition || !visiting.Add(definition))
-            {
-                return false;
-            }
-
-            var substitution = TypeSubstitution.ForReceiver(candidate as ConstructedType);
-            var empty = !definition.PropertiesList.Any(property => !property.Modifiers.IsStatic
-                    && (property.Getter is { IsAuto: true } || property.Setter is { IsAuto: true }))
-                && definition.FieldsList.Where(field => !field.Modifiers.IsStatic)
-                    .All(field => Empty(substitution.Apply(field.Type, interner: null), visiting))
-                && (definition.BaseType is not { } baseType || Empty(substitution.Apply(baseType, interner: null), visiting));
-            _ = visiting.Remove(definition);
-            return empty;
-        }
-
-        private static StructType? Definition(IMistType candidate)
-        {
-            return (candidate is ConstructedType constructed ? constructed.Definition : candidate) as StructType;
         }
     }
 }

@@ -55,6 +55,15 @@ internal static class StableMembers
         return stable;
     }
 
+    /// <summary>
+    /// A body's read of a property with no getter is refused at that read by <see cref="Rules.AccessorAnalyzer"/>,
+    /// so it does not also make every getter around it unstable: one missing getter, one complaint.
+    /// </summary>
+    private static bool ReadsStable(Property property, HashSet<Property> reading, PurityInference? purity)
+    {
+        return property.Getter is null || IsStable(property, reading, purity);
+    }
+
     private static bool OwnsItsStorage(Property property)
     {
         return property is { Getter.IsAuto: true, Modifiers: { IsClrProjected: false, IsIntrinsic: false } }
@@ -66,11 +75,11 @@ internal static class StableMembers
         return node switch
         {
             FieldReferenceExpression { Field: var field } => field.Modifiers.IsReadonly,
-            PropertyReferenceExpression { Property: var property } => IsStable(property, reading, purity),
+            PropertyReferenceExpression { Property: var property } => ReadsStable(property, reading, purity),
             MemberAccessExpression { Member: FieldResult { Field: var field } } => field.Modifiers.IsReadonly,
-            MemberAccessExpression { Member: PropertyResult { Property: var property } } => IsStable(property, reading, purity),
+            MemberAccessExpression { Member: PropertyResult { Property: var property } } => ReadsStable(property, reading, purity),
             PropertySubpattern { IsMemberFailed: false, Member: FieldResult { Field: var field } } => field.Modifiers.IsReadonly,
-            PropertySubpattern { IsMemberFailed: false, Member: PropertyResult { Property: var property } } => IsStable(property, reading, purity),
+            PropertySubpattern { IsMemberFailed: false, Member: PropertyResult { Property: var property } } => ReadsStable(property, reading, purity),
             BinaryExpression { Operator.Modifiers.IsIntrinsic: false } or UnaryExpression { Operator.Modifiers.IsIntrinsic: false } => false,
             CastExpression { Operator.Modifiers.IsIntrinsic: false } or ImplicitConversionExpression { Operator.Modifiers.IsIntrinsic: false } => false,
             MemberAccessExpression or PropertySubpattern or BinaryExpression or UnaryExpression or CastExpression

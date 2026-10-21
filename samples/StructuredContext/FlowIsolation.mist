@@ -1,0 +1,41 @@
+using Standard;
+using System.Threading;
+
+namespace StructuredContext;
+
+public class FlowIsolation
+{
+    public static string Worker(string label, ManualResetEventSlim ready, ManualResetEventSlim release) with string inherited
+    {
+        with(label)
+        {
+            ready.Set();
+            var released = release.Wait(5000);
+            return $"{inherited}|{Consumers.GetString()}|released={released}";
+        }
+    }
+
+    public static void RunDemo()
+    {
+        with "parent";
+        var firstReady = new ManualResetEventSlim(false);
+        var secondReady = new ManualResetEventSlim(false);
+        var releaseFirst = new ManualResetEventSlim(false);
+        var releaseSecond = new ManualResetEventSlim(false);
+        var firstTask = async FlowIsolation.Worker("first", firstReady, releaseFirst);
+        var firstEntered = firstReady.Wait(5000);
+        var secondTask = async FlowIsolation.Worker("second", secondReady, releaseSecond);
+        var secondEntered = secondReady.Wait(5000);
+        Console.WriteLine($"  parent with overlapping children={Consumers.GetString()} ready={firstEntered && secondEntered}");
+        releaseFirst.Set();
+        Console.WriteLine($"  first child={await firstTask}");
+        Console.WriteLine($"  parent while second remains={Consumers.GetString()}");
+        releaseSecond.Set();
+        Console.WriteLine($"  second child={await secondTask}");
+        Console.WriteLine($"  parent after children={Consumers.GetString()}");
+        firstReady.Dispose();
+        secondReady.Dispose();
+        releaseFirst.Dispose();
+        releaseSecond.Dispose();
+    }
+}

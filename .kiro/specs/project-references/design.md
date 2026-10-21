@@ -4,7 +4,7 @@
 
 This feature adds multi-project support to the Mist compiler. A project declares dependencies on other Mist projects via a `[[references]]` array in `mist.toml`. The compiler resolves each reference, recompiles the referenced project's sources from scratch, and makes its public symbols available to the referencing project's semantic model.
 
-The design mirrors C# project references in spirit: transitive projects are compiled so intermediate projects work, but their types are not directly visible to the top-level project unless it explicitly references them.
+Visibility is deliberately flat (Requirement 6): every project the reference graph reaches, at any depth, is compiled, and its types are reachable from every other project on the terms their declared accessibility gives, as in C#, where the only visibility boundary is the assembly.
 
 ### Key Design Decisions
 
@@ -12,7 +12,7 @@ The design mirrors C# project references in spirit: transitive projects are comp
 2. **Path resolution in parser**: Relative/absolute path normalization happens inside `ProjectFileParser`. Existence checks and file-vs-directory disambiguation happen in `ProjectReferenceResolver`.
 3. **Resolver owns the graph walk**: A new `ProjectReferenceResolver` class performs DFS-based recursive resolution, cycle detection, deduplication, and topological ordering. `CompilerDriver` delegates entirely to it.
 4. **Unit ordering**: `stdlib → referenced project units (deepest first) → user units`. This mirrors the existing stdlib-prepend pattern.
-5. **Transitive visibility**: Enforced by tagging each `CompilationUnit` with its originating project's canonical path. The semantic model uses this tag to restrict type lookups to units that are directly visible to the current project.
+5. **Transitive visibility**: Not restricted. Each `CompilationUnit` is tagged with its originating project's canonical path so the program model can group units into that project's assembly, but no lookup is filtered by reference depth.
 
 ---
 
@@ -60,15 +60,13 @@ The third parameter defaults to `ImmutableArray<ProjectReference>.Empty` when no
 
 ### `CompilationUnit` (updated)
 
-A new `ReferencingProjectPath` init property is added to support transitive visibility enforcement:
+An `OriginProjectPath` init property records which project a unit came from:
 
 ```csharp
 /// <summary>
 /// The canonical path of the project that directly declared this unit as a
 /// reference. Null for stdlib units and for the top-level user project's own
-/// units. Used by the semantic model to enforce transitive visibility rules:
-/// a unit is directly visible to project P only if P's canonical path matches
-/// this value, or if this value is null (stdlib / user's own units).
+/// units. Groups a unit with the MistProject it came from.
 /// </summary>
 public string? OriginProjectPath { get; init; }
 ```
@@ -309,19 +307,11 @@ combinedUnits.AddRange(userUnits);
 
 The driver re-parses the root project's `mist.toml` here (it was already parsed by the CLI to build `CompilerOptions`, but the driver needs the `References` list). This is acceptable because the driver is the authoritative orchestrator and the parse is cheap. Alternatively, `CompilerOptions` could carry the parsed `ProjectConfiguration` — this is noted as a possible future refactor.
 
-### Transitive visibility enforcement
+### Transitive visibility
 
-**Mechanism**: Each `CompilationUnit` carries `OriginProjectPath` — the canonical path of the `mist.toml` of the project that owns that unit. Units from the user's own project and stdlib have `OriginProjectPath = null`.
+**Mechanism**: Each `CompilationUnit` carries `OriginProjectPath` — the canonical path of the `mist.toml` of the project that owns that unit. Units from the user's own project and stdlib have `OriginProjectPath = null`. The program model uses the tag only to place each unit in its project's assembly (`MistAssemblyKind.Reference` for a referenced project).
 
-**Semantic model integration**: The `SemanticModelBuilder` receives the compilation's units. To enforce transitive visibility, the builder needs to know which units are "directly visible" to the user project. A unit is directly visible if:
-- `OriginProjectPath` is null (stdlib or user's own code), OR
-- `OriginProjectPath` matches the canonical path of one of the user project's direct references.
-
-The set of direct reference canonical paths is derived from `options.ProjectFolder`'s parsed `ProjectConfiguration.References`.
-
-**Implementation approach**: Pass the set of directly-referenced canonical paths to `SemanticModelBuilder.Build` (or via a new parameter on `CompilerOptions`). The builder uses this set when registering symbols: symbols from units whose `OriginProjectPath` is not in the direct-reference set are registered in a "transitive-only" scope that is not searched during name resolution for the user project.
-
-**Complexity note**: Full enforcement of Requirement 6.3 (diagnostic when A uses a type from C via B's public API) requires the semantic model to track which types in B's public API originate from C. This is a non-trivial semantic analysis pass. The initial implementation will enforce the simpler form: types declared in C's source files are not directly resolvable by A unless A explicitly references C. The "type leakage via B's API" diagnostic (6.3) is noted as a follow-up that requires deeper semantic model changes.
+**Flat by design**: The driver records the compilation's projects as `MistProject` values in a flat list, with no reference edges and no direct-versus-transitive marking. Name resolution therefore does not depend on how many reference hops separate two projects: a type declared in a transitively referenced project resolves from the root project exactly as one from a direct reference does, subject to its declared accessibility. No diagnostic asks a project to reference a transitive dependency explicitly (Requirements 6.2–6.4).
 
 ---
 
@@ -402,9 +392,9 @@ After reflection, the consolidated set of properties is:
 
 ---
 
-### Property 8: Transitive types are not directly visible
+### Property 8: Transitive types are visible on the same terms as direct ones
 
-*For any* reference graph where A references B and B references C (but A does not reference C), types declared in C's source files SHALL NOT be resolvable by name from A's compilation context.
+*For any* reference graph where A references B and B references C (but A does not reference C), a public type declared in C's source files SHALL be resolvable by name from A's compilation context.
 
 **Validates: Requirements 6.2, 6.4**
 
@@ -495,7 +485,7 @@ Specific example-based tests for deterministic error paths:
 ### Integration tests (`CompilerDriverReferenceIntegrationTests`)
 
 - Single reference: A references B; B's types are visible in A
-- Transitive reference: A→B→C; C's types visible in B, not in A
+- Transitive reference: A→B→C; C's types visible in both A and B
 - Explicit transitive: A→B, A→C, B→C; C's types visible in both A and B
 - Ordering: units from C appear before B, B before A in `compilation.Units`
 - Error propagation: invalid reference in A aborts compilation with correct diagnostic
@@ -550,7 +540,7 @@ All property tests use **in-process compilation** via `CompilerDriver.Compile()`
 **Property 8 — Transitive visibility** (100 iterations, FsCheck):
 - Generator: A→B→C where C declares a type with a random valid name
 - Compile A in-process; attempt to resolve C's type from A's semantic model
-- Assert the type is not found (or a diagnostic is reported)
+- Assert the type is found and no diagnostic is reported
 - No process spawning
 
 **Property 9 — All errors reported** (100 iterations, FsCheck):

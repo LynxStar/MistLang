@@ -89,7 +89,7 @@ internal sealed class CSharpEmitterV2
     /// </summary>
     internal Startup? Transpile()
     {
-        if(Startup.Of(programModel, options, diagnostics) is not { } startup)
+        if(Startup.Of(programModel, options) is not { } startup)
         {
             return null;
         }

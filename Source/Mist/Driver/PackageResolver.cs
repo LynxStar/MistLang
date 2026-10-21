@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using Mist.Common.Diagnostics;
@@ -21,11 +20,6 @@ public static class PackageResolver
     /// </summary>
     private static readonly string GlobalPackagesFolder =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
-
-    /// <summary>
-    /// Maximum time allowed for the <c>dotnet restore</c> process to complete.
-    /// </summary>
-    private static readonly TimeSpan RestoreTimeout = TimeSpan.FromSeconds(120);
 
     /// <summary>
     /// Resolves all package references to assembly paths by generating a temporary
@@ -59,6 +53,10 @@ public static class PackageResolver
     /// </param>
     /// <param name="targetFramework">The project's target framework (e.g., "net10.0").</param>
     /// <param name="diagnostics">Diagnostic bag for reporting errors.</param>
+    /// <param name="beforeRestore">
+    /// Called once the diagnostics known without a feed are in <paramref name="diagnostics"/>, so a caller can
+    /// show them before a restore that may run for seconds.
+    /// </param>
     /// <returns>
     /// A <see cref="PackageResolutionResult"/> carrying the flattened assembly
     /// paths (excluding framework-provided assemblies), a per-declared-package
@@ -68,7 +66,19 @@ public static class PackageResolver
         ImmutableArray<NuGetPackageReference> packages,
         ImmutableArray<FrameworkReference> frameworkReferences,
         string targetFramework,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Action? beforeRestore = null)
+    {
+        return ResolvePackages(packages, frameworkReferences, targetFramework, diagnostics, beforeRestore, DotnetRestoreProcess.Run);
+    }
+
+    internal static PackageResolutionResult ResolvePackages(
+        ImmutableArray<NuGetPackageReference> packages,
+        ImmutableArray<FrameworkReference> frameworkReferences,
+        string targetFramework,
+        DiagnosticBag diagnostics,
+        Action? beforeRestore,
+        Func<string, string, (int ExitCode, string Stdout, string Stderr)> restore)
     {
         if(packages.IsDefaultOrEmpty)
         {
@@ -110,6 +120,8 @@ public static class PackageResolver
                 FailureCount: failureCount);
         }
 
+        beforeRestore?.Invoke();
+
         // Generate a temporary .csproj and run dotnet restore
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist-restore-{Guid.NewGuid():N}");
 
@@ -118,7 +130,7 @@ public static class PackageResolver
             _ = Directory.CreateDirectory(tempDir);
 
             var csprojPath = GenerateCsproj(tempDir, validPackages.ToImmutable(), frameworkReferences, targetFramework);
-            var (restoreExitCode, restoreStdout, restoreStderr) = RunDotnetRestore(csprojPath, tempDir);
+            var (restoreExitCode, restoreStdout, restoreStderr) = restore(csprojPath, tempDir);
 
             if(restoreExitCode != 0)
             {
@@ -222,61 +234,6 @@ public static class PackageResolver
         var csprojPath = Path.Combine(directory, "_MistRestore.csproj");
         File.WriteAllText(csprojPath, sb.ToString());
         return csprojPath;
-    }
-
-    /// <summary>
-    /// Runs <c>dotnet restore</c> on the generated .csproj.
-    /// </summary>
-    private static (int ExitCode, string Stdout, string Stderr) RunDotnetRestore(
-        string csprojPath, string workingDirectory)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "dotnet",
-            Arguments = $"restore \"{csprojPath}\" --verbosity quiet",
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        using var process = new Process { StartInfo = psi };
-
-        var stdoutBuilder = new StringBuilder();
-        var stderrBuilder = new StringBuilder();
-
-        process.OutputDataReceived += (_, e) =>
-        {
-            if(e.Data is not null)
-            {
-                _ = stdoutBuilder.AppendLine(e.Data);
-            }
-        };
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if(e.Data is not null)
-            {
-                _ = stderrBuilder.AppendLine(e.Data);
-            }
-        };
-
-        _ = process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        var completed = process.WaitForExit((int)RestoreTimeout.TotalMilliseconds);
-
-        if(!completed)
-        {
-            try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
-
-            return (-1, stdoutBuilder.ToString(), "Restore timed out after 120 seconds.");
-        }
-
-        return (process.ExitCode, stdoutBuilder.ToString(), stderrBuilder.ToString());
     }
 
     /// <summary>

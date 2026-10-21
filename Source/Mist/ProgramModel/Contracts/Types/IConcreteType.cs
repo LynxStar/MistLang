@@ -8,6 +8,8 @@ namespace Mist.ProgramModel.Contracts.Types;
 /// </summary>
 public interface IConcreteType : IMemberType
 {
+    StorageLayout? ImportedStorage { get; }
+
     /// <summary>
     /// Whether this type is sealed (cannot be inherited from).
     /// Separate from <see cref="IMemberType.Modifiers"/> — sealed is a type-level

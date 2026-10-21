@@ -32,7 +32,7 @@ public sealed class StructImplicitBaseEmissionTests
 
         var text = Emit(dial);
 
-        Assert.Contains("__Meter_ctor();\n        face = face;", text, StringComparison.Ordinal);
+        Assert.Contains("__Meter_ctor();\n        this.face = face;", text, StringComparison.Ordinal);
         Assert.Contains("reading = 7;", text, StringComparison.Ordinal);
         Assert.Equal(1, Count(text, "__Meter_ctor();"));
     }
@@ -54,8 +54,8 @@ public sealed class StructImplicitBaseEmissionTests
 
         Assert.Equal(1, Count(text, "__Middle_ctor();"));
         Assert.Equal(1, Count(text, "__Root_ctor();"));
-        Assert.Contains("__Middle_ctor();\n        leafValue = 3;", text, StringComparison.Ordinal);
-        Assert.Contains("__Root_ctor();\n        middleValue = 5;", text, StringComparison.Ordinal);
+        Assert.Contains("__Middle_ctor();\n        this.leafValue = 3;", text, StringComparison.Ordinal);
+        Assert.Contains("__Root_ctor();\n        this.middleValue = 5;", text, StringComparison.Ordinal);
         Assert.Contains("rootValue = 7;", text, StringComparison.Ordinal);
     }
 
@@ -83,8 +83,8 @@ public sealed class StructImplicitBaseEmissionTests
         Assert.Equal(1, Count(text, "__Middle_ctor();"));
         Assert.Equal(1, Count(text, "__Middle_ctor(4);"));
         Assert.Equal(1, Count(text, "__Root_ctor();"));
-        Assert.Contains("__Root_ctor();\n        middleValue = 5;", text, StringComparison.Ordinal);
-        Assert.Contains("__Middle_ctor();\n        leafValue = 3;", text, StringComparison.Ordinal);
+        Assert.Contains("__Root_ctor();\n        this.middleValue = 5;", text, StringComparison.Ordinal);
+        Assert.Contains("__Middle_ctor();\n        this.leafValue = 3;", text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -106,7 +106,7 @@ public sealed class StructImplicitBaseEmissionTests
         Assert.Contains("public Dial() : this(4)", text, StringComparison.Ordinal);
         Assert.DoesNotContain("this = new Dial", text, StringComparison.Ordinal);
         Assert.Equal(1, Count(text, "__Meter_ctor();"));
-        Assert.Contains("__Meter_ctor();\n        face = 3;", text, StringComparison.Ordinal);
+        Assert.Contains("__Meter_ctor();\n        this.face = 3;", text, StringComparison.Ordinal);
     }
 
     [Fact]

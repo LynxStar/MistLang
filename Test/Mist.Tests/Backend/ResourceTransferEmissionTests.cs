@@ -72,7 +72,7 @@ public sealed class ResourceTransferEmissionTests
                 {
                     if (flag)
                     {
-                        MistOwnership.Handed(Second, ref __e1).Drop();
+                        MistOwnership.Handed(this.Second, ref __e1).Drop();
                     }
                 }
                 finally

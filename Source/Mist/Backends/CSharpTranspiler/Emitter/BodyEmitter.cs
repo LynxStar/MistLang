@@ -1680,7 +1680,7 @@ internal static partial class BodyEmitter
             case FieldReferenceExpression fieldRef:
                 writer.Append(
                     UnsafeReach.Implicit(fieldRef.Field)
-                    ?? ReceiverSpelling.Qualifier(fieldRef.Field.DeclaringType, fieldRef.Field.Modifiers.IsStatic) + IdentifierSpelling.Of(fieldRef.Field.Name));
+                    ?? FieldReceiver.Of(fieldRef.Field) + IdentifierSpelling.Of(fieldRef.Field.Name));
                 break;
             case PropertyReferenceExpression projected when ProjectedValueAccess.Declaring(projected) is { } declaring:
                 writer.Append($"{TypeNameEmitter.Emit(declaring)}.{IdentifierSpelling.Of(projected.Property.Name)}");

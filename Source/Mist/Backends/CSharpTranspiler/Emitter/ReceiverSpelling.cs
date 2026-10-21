@@ -22,6 +22,8 @@ internal static class ReceiverSpelling
 
     public static string This => carried is null ? "this" : Carrier;
 
+    public static bool Carries => carried is not null;
+
     public static string Qualifier(MemberType? declaringType, bool isStatic)
     {
         if(carried is null || declaringType is null || (!qualifiesEveryMember && !ReferenceEquals(declaringType, carried)))

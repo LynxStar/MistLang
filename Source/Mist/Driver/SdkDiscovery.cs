@@ -22,7 +22,7 @@ public static partial class SdkDiscovery
         RunFullDiscovery,
         Directory.Exists,
         CacheFile.Read,
-        CacheFile.Write);
+        CacheFile.Update);
 
     /// <summary>
     /// Timeout for the <c>dotnet --list-sdks</c> process spawn.

@@ -451,18 +451,21 @@ internal class Program
 
         // Resolve SDK + package + framework assemblies (same as a build would use)
         var resolutionDiagnostics = new DiagnosticBag();
+        var feedback = new InspectFeedback(Console.Error);
         var packageResult = PackageResolver.ResolvePackages(
             config.Packages,
             config.FrameworkReferences,
             config.TargetFramework,
-            resolutionDiagnostics);
+            resolutionDiagnostics,
+            () => feedback.Report(resolutionDiagnostics.ToImmutableArray()));
 
         var frameworkResult = FrameworkReferenceResolver.Resolve(
             config.FrameworkReferences,
             config.TargetFramework,
             resolutionDiagnostics);
 
-        if(InspectFeedback.Report(resolutionDiagnostics.ToImmutableArray(), Console.Error))
+        feedback.Report(resolutionDiagnostics.ToImmutableArray());
+        if(feedback.Failed)
         {
             return 1;
         }

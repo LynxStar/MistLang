@@ -79,6 +79,21 @@ internal sealed class FieldEffectFragments
         return new Indexer(H.Int, [new Parameter("slot", H.Int)], new MemberModifiers()) { Getter = getter, DeclaringType = Owner };
     }
 
+    public Operator Operator(Block? body, MemberModifiers modifiers = default)
+    {
+        return new Operator(OperatorKind.Minus, H.Int, [new Parameter("value", H.Int)], modifiers with { IsStatic = true }) { Body = body, DeclaringType = Owner };
+    }
+
+    public UnaryExpression Negate(Operator called)
+    {
+        return new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, H.Literal(1L), H.Int) { Operator = called };
+    }
+
+    public ExtensionPropertyAccessExpression ReadExtension(Property property)
+    {
+        return new ExtensionPropertyAccessExpression(HandBuiltModel.Node(), This, property, "Extras", property.Type);
+    }
+
     public static Parameter ByRef(IMistType type)
     {
         return new Parameter("slot", type, new ParameterModifier(false, true, default, ByRefDirection.Ref));

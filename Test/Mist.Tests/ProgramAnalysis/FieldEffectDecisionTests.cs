@@ -21,6 +21,11 @@ public sealed class FieldEffectDecisionTests
     [InlineData("declared-readonly-static-call-on-a-type-with-a-static-initializer", true)]
     [InlineData("unmarked-abstract-slot-with-a-default-body", true)]
     [InlineData("object-creation", true)]
+    [InlineData("declared-readonly-user-operator", false)]
+    [InlineData("intrinsic-operator", false)]
+    [InlineData("clone-copying-conversion", false)]
+    [InlineData("user-operator-without-a-body", true)]
+    [InlineData("user-conversion-without-a-body", true)]
     public void ACallKeepsFieldFactsOnlyThroughAReadonlyCalleeAndNothingElseItRuns(string form, bool writes)
     {
         var f = new FieldEffectFragments();
@@ -44,6 +49,10 @@ public sealed class FieldEffectDecisionTests
                 f.Call(f.Method("Peek", null, readonlyModifiers, parameters: FieldEffectFragments.ByRef(h.Int)), HandBuiltRefinements.Local(h.Int, "slot")),
             "unmarked-abstract-slot-with-a-default-body" => f.Call(f.Method("Peek", f.Reads(), declaring: slot)),
             "object-creation" => new NewExpression(HandBuiltModel.Node(), f.Owner, [], null, [], []),
+            "declared-readonly-user-operator" => f.Negate(f.Operator(null, readonlyModifiers)),
+            "intrinsic-operator" => f.Negate(f.Operator(null, new MemberModifiers { IsIntrinsic = true })),
+            "user-operator-without-a-body" => f.Negate(f.Operator(null)),
+            "clone-copying-conversion" or "user-conversion-without-a-body" => Converted(f, form == "clone-copying-conversion"),
             _ => throw new InvalidOperationException(form),
         };
 
@@ -56,6 +65,11 @@ public sealed class FieldEffectDecisionTests
     [InlineData("write-through-an-auto-setter", false)]
     [InlineData("read-through-an-unmarked-abstract-getter-with-a-default-body", true)]
     [InlineData("write-through-an-unmarked-abstract-setter-with-a-default-body", true)]
+    [InlineData("read-through-a-bodiless-intrinsic-getter", false)]
+    [InlineData("read-through-a-declared-readonly-abstract-getter", false)]
+    [InlineData("read-through-a-bodiless-clr-getter", true)]
+    [InlineData("write-through-a-bodiless-clr-setter", true)]
+    [InlineData("read-through-an-unmarked-abstract-auto-getter", true)]
     public void AnAccessorKeepsFieldFactsOnlyWhenTheOneItRunsIsReadonly(string form, bool writes)
     {
         var f = new FieldEffectFragments();
@@ -70,10 +84,26 @@ public sealed class FieldEffectDecisionTests
             "read-through-an-unmarked-abstract-getter-with-a-default-body" => f.Read(f.Property(FieldEffectFragments.Accessor(f.Reads()), null, declaring: slot)),
             "write-through-an-unmarked-abstract-setter-with-a-default-body" =>
                 f.Write(f.Property(null, FieldEffectFragments.Accessor(HandBuiltModel.Block()), declaring: slot)),
+            "read-through-a-bodiless-intrinsic-getter" => f.Read(f.Property(new PropertyAccessor(), null, new MemberModifiers { IsIntrinsic = true })),
+            "read-through-a-declared-readonly-abstract-getter" =>
+                f.Read(f.Property(new PropertyAccessor { IsAuto = true, OwnModifiers = new MemberModifiers { IsReadonly = true } }, null, declaring: slot)),
+            "read-through-a-bodiless-clr-getter" => f.Read(f.Property(new PropertyAccessor(), null, new MemberModifiers { IsClrProjected = true })),
+            "write-through-a-bodiless-clr-setter" => f.Write(f.Property(null, new PropertyAccessor(), new MemberModifiers { IsClrProjected = true })),
+            "read-through-an-unmarked-abstract-auto-getter" => f.Read(f.Property(FieldEffectFragments.Accessor(isAuto: true), null, declaring: slot)),
             _ => throw new InvalidOperationException(form),
         };
 
         Assert.Equal(writes, new FieldEffects().MayWrite(node));
+    }
+
+    private static ImplicitConversionExpression Converted(FieldEffectFragments f, bool copiesClone)
+    {
+        var converter = new CastOperator(f.H.Int, new Parameter("value", f.Owner), true, new MemberModifiers { IsStatic = true })
+        {
+            DeclaringType = f.Owner,
+            CopiesClone = copiesClone,
+        };
+        return new ImplicitConversionExpression(HandBuiltModel.Node(), f.This, f.H.Int, [new ConversionFunction(converter, f.Owner, f.H.Int)]);
     }
 
     private static ClassType Initialized(ClassType holder, bool initialized, HandBuiltRefinements h)

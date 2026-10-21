@@ -16,6 +16,10 @@ public sealed class FieldFactRetentionTests
     [InlineData("readonly-getter-beside-a-writing-setter", null)]
     [InlineData("setter-that-writes-nothing", null)]
     [InlineData("inferred-readonly-indexer-getter", null)]
+    [InlineData("inferred-readonly-operator", null)]
+    [InlineData("inferred-readonly-extension-getter", null)]
+    [InlineData("operator-that-writes", "MIST_PA_INDEX_UNPROVEN")]
+    [InlineData("extension-getter-that-writes", "MIST_PA_INDEX_UNPROVEN")]
     [InlineData("mutator-call", "MIST_PA_INDEX_UNPROVEN")]
     [InlineData("readonly-looking-call-to-a-mutator", "MIST_PA_INDEX_UNPROVEN")]
     [InlineData("inferred-readonly-call-given-a-ref-argument", "MIST_PA_INDEX_UNPROVEN")]
@@ -67,6 +71,10 @@ public sealed class FieldFactRetentionTests
             "setter-that-writes" => f.Write(f.Property(FieldEffectFragments.Accessor(f.Reads()), FieldEffectFragments.Accessor(HandBuiltModel.Block(Counted(f))))),
             "inferred-readonly-indexer-getter" => f.Read(f.Indexer(FieldEffectFragments.Accessor(f.Reads()))),
             "indexer-getter-that-writes" => f.Read(f.Indexer(FieldEffectFragments.Accessor(f.Writes()))),
+            "inferred-readonly-operator" => f.Negate(f.Operator(f.Reads())),
+            "operator-that-writes" => f.Negate(f.Operator(f.Writes())),
+            "inferred-readonly-extension-getter" => f.ReadExtension(f.Property(FieldEffectFragments.Accessor(f.Reads()), null)),
+            "extension-getter-that-writes" => f.ReadExtension(f.Property(FieldEffectFragments.Accessor(f.Writes()), null)),
             _ => throw new InvalidOperationException(between),
         };
 

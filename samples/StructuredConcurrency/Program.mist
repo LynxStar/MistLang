@@ -210,6 +210,10 @@ public class Program
         var lifted = async reader.Read();
         Console.WriteLine($"  direct={reader.Read()} abstract={view.Read()} extension={2.ReadPromoted()} optional={absent?.Read() ?? -1} lifted={await lifted}");
 
+        Console.WriteLine("[async-void-value]");
+        var logged = Helpers.LogAsync("as-value");
+        Console.WriteLine($"  async void value={logged}");
+
         Console.WriteLine("=== Structured Concurrency Done ===");
     }
 }

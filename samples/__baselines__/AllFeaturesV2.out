@@ -1698,6 +1698,9 @@ sizeCalls=2
   entry point called async method, result=fetched
 [promotion-dispatch]
   direct=7 abstract=7 extension=7 optional=-1 lifted=7
+[async-void-value]
+  as-value: logged
+  async void value=Void
 === Structured Concurrency Done ===
 === FirstClassFunctions Sample ===
 --- Expression Lambda ---

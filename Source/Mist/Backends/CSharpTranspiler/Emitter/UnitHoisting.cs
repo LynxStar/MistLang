@@ -70,7 +70,9 @@ internal static class UnitHoisting
 
     private static bool YieldsNothing(InvocationExpression call)
     {
-        return OptionalUnion.IsVoid(call.Method?.ReturnType ?? call.Type);
+        return TaskResult.Dropped(call) is { } task
+            ? TaskResult.Of(task is InvocationExpression started ? started.Method?.ReturnType ?? task.Type : task.Type) is { } awaited && OptionalUnion.IsVoid(awaited)
+            : OptionalUnion.IsVoid(call.Method?.ReturnType ?? call.Type);
     }
 
     private static bool TakesUnit(Expression expression)

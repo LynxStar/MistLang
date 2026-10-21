@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
@@ -69,6 +70,13 @@ internal static partial class BodyEmitter
                     unitResult = enclosing;
                 }
 
+                return true;
+
+            case FunctionReferenceExpression group when group.Type is IFunctionType function:
+                writer.Append(RespelledGroups.Lambda(
+                    group,
+                    group.Receiver is { } receiver && !group.Method.Modifiers.IsStatic ? Render(receiver, diagnostics) : null,
+                    UnitResultSlots.Function(function)));
                 return true;
 
             default:

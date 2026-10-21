@@ -51,6 +51,11 @@ public class Api
         return value;
     }
 
+    public static void Record(int x)
+    {
+        Console.WriteLine($"recorded {x}");
+    }
+
     public static int Next(int x)
     {
         return x + 1;
@@ -183,6 +188,9 @@ public class Program
 
         var labeled = new Labeled(s => s.Length);
         Console.WriteLine(labeled.Text);
+
+        var recorded = Api.Apply(7, Api.Record);
+        Console.WriteLine($"void group: {recorded}");
 
         Console.WriteLine("=== CallableInference Done ===");
     }

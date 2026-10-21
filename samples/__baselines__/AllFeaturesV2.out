@@ -2239,6 +2239,8 @@ Measure(string) 4
 Widen(int) 2
 Widen(long) 2
 Labeled(string) 4
+recorded 7
+void group: Void
 === CallableInference Done ===
 === Generic Extension Methods Sample ===
 stated:   GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Animal] <- GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Dog]

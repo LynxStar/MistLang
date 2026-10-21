@@ -20,4 +20,9 @@ internal static class UnitResultSlots
             && OptionalUnion.IsVoid(shut.ReturnType)
             && !OptionalUnion.IsVoid(open.ReturnType);
     }
+
+    public static string Function(IFunctionType function)
+    {
+        return $"System.Func<{string.Join(", ", function.ParameterTypes.Append(function.ReturnType).Select(TypeNameEmitter.Emit))}>";
+    }
 }

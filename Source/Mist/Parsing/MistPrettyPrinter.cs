@@ -1098,17 +1098,7 @@ public sealed class MistPrettyPrinter
                 }
             case ParenthesizedTypeRefSingleTypeRefNode parenRef:
                 {
-                    var inner = EmitTypeReference(parenRef.Inner);
-                    if(parenRef.ArrayRank is SizedArrayRankArrayRankSuffixNode sizedRank)
-                    {
-                        return $"({inner})[{sizedRank.Size.Lexeme}]";
-                    }
-                    else if(parenRef.ArrayRank is not null)
-                    {
-                        return $"({inner})[]";
-                    }
-
-                    return $"({inner})";
+                    return $"({EmitTypeReference(parenRef.Inner)}){EmitTypeSuffixes(parenRef.ArrayRank, parenRef.Optional)}";
                 }
             case TupleSingleTypeRefSingleTypeRefNode tupleRef:
                 {
@@ -1134,18 +1124,23 @@ public sealed class MistPrettyPrinter
                     // Emit the lowercase `func` keyword form with its type arguments
                     // (e.g., func<int, string>). The last type argument is the return type.
                     var typeArgs = EmitTypeArgumentList(funcRef.TypeArgs);
-                    var rank = funcRef.ArrayRank switch
-                    {
-                        SizedArrayRankArrayRankSuffixNode sizedRank => $"[{sizedRank.Size.Lexeme}]",
-                        not null => "[]",
-                        _ => string.Empty,
-                    };
-
-                    return $"{PurePrefix(funcRef.Pure)}func{typeArgs}{rank}{(funcRef.Optional is not null ? "?" : string.Empty)}";
+                    return $"{PurePrefix(funcRef.Pure)}func{typeArgs}{EmitTypeSuffixes(funcRef.ArrayRank, funcRef.Optional)}";
                 }
             default:
                 return "object";
         }
+    }
+
+    private static string EmitTypeSuffixes(ArrayRankSuffixNode? rank, Token? optional)
+    {
+        var rankText = rank switch
+        {
+            SizedArrayRankArrayRankSuffixNode sizedRank => $"[{sizedRank.Size.Lexeme}]",
+            not null => "[]",
+            _ => string.Empty,
+        };
+
+        return optional is null ? rankText : rankText + "?";
     }
 
     private static string PurePrefix(Token? pure)

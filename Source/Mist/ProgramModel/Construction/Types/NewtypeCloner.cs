@@ -109,7 +109,7 @@ internal static class NewtypeCloner
             NestedGenericSingleTypeRefSingleTypeRefNode { TypeArgs: null, ArrayRank: null, Optional: null, Nested.IDENTIFIERs.IsEmpty: true } nested
                 => (context.Resolver.FindGenericDefinition(Stem(nested.Outer), Arity(nested.OuterArgs), scope) as MistType)?.NestedTypes
                     .Find(member => member.Name == nested.Nested.IDENTIFIER.Lexeme),
-            ParenthesizedTypeRefSingleTypeRefNode { ArrayRank: null, Inner.SingleTypeRefs.IsEmpty: true } parenthesized
+            ParenthesizedTypeRefSingleTypeRefNode { ArrayRank: null, Optional: null, Inner.SingleTypeRefs.IsEmpty: true } parenthesized
                 => DefinitionOf(parenthesized.Inner.First, scope, context, clones, visiting, aliases),
             _ => null,
         };

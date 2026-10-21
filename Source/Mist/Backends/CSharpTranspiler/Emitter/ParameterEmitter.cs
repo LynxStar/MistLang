@@ -39,9 +39,20 @@ internal static class ParameterEmitter
     {
         var closed = TypeNameEmitter.Closed(parameter.Type);
 
-        return slotDeclaresNullable && !parameter.Modifier.IsRef && TypeNameEmitter.IsReferenceKind(closed)
-            ? TypeNameEmitter.EmitOptional(closed)
-            : TypeNameEmitter.Emit(parameter.Type);
+        if(slotDeclaresNullable && !parameter.Modifier.IsRef)
+        {
+            if(TypeNameEmitter.IsReferenceKind(closed))
+            {
+                return TypeNameEmitter.EmitOptional(closed);
+            }
+
+            if(closed is TypeParameter && !TypeNameEmitter.IsValueKind(closed) && !TypeNameEmitter.IsOblivious())
+            {
+                return $"{TypeNameEmitter.Emit(parameter.Type)}?";
+            }
+        }
+
+        return TypeNameEmitter.Emit(parameter.Type);
     }
 
     /// <summary>

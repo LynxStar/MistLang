@@ -1,0 +1,16 @@
+captured_utc: 2026-10-21T04:46:28.1270080Z
+mist_commit: 036112c15640478e8a7d79e3afee047e1092caca
+mist_worktree_status: clean
+storm_commit: 83410653c7d722868a5001d2ef71e6692ec012b3
+runtime: .NET 10.0.3
+sdk: 10.0.103
+os: macOS 26.6.2
+process_architecture: Arm64
+processor_count: 18
+cpu: Apple M5 Pro
+memory_bytes: 25769803776
+gc: server=False latency=Interactive concurrent=default
+tiered_compilation: default
+tool_jit_optimizer_disabled: False
+mist_core_jit_optimizer_disabled: False
+dotnet_env: 

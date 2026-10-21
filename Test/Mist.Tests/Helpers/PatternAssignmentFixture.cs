@@ -16,9 +16,15 @@ internal sealed class PatternAssignmentFixture
 {
     private readonly HandBuiltModel model = new();
 
-    public IMistType Integer { get; } = HandBuiltModel.Struct("Int32");
+    public IMistType Integer { get; } = new StructType("Int32", "Standard", new Scope(null), null, null)
+    {
+        Modifiers = new MemberModifiers { IsIntrinsic = true },
+    };
 
-    public IMistType Boolean { get; } = HandBuiltModel.Struct("Boolean");
+    public IMistType Boolean { get; } = new StructType("Boolean", "Standard", new Scope(null), null, null)
+    {
+        Modifiers = new MemberModifiers { IsIntrinsic = true },
+    };
 
     public LocalVariable Variable(string name = "matched", IMistType? type = null)
     {

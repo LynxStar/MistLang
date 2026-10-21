@@ -6,7 +6,7 @@ This document specifies the requirements for adding structured context to the Mi
 
 The `with` keyword already exists in Mist for trait satisfaction blocks (`with TypeName : TraitName { mappings }`). This feature extends the keyword's usage to new syntactic positions for context declaration and consumption. The existing trait-with usage remains unchanged and the grammar must disambiguate between the two usages.
 
-Mist currently has no threading or concurrency, so there is only ever one unit of execution at any point in time. The context stack pushing and popping is tied to lexical scope exit.
+Context stacks belong to a logical execution flow. Awaited callees and child tasks inherit the current context through the runtime execution context; subsequent pushes and pops in a child or sibling do not change another flow's stacks. Suppressing execution-context flow starts a child without inherited context. Context pushes and pops remain tied to lexical scope exit, including exception unwinding.
 
 ## Glossary
 

@@ -43,6 +43,7 @@ the record of which samples run.
 | `Variadics`, `RefinementTypes`, `DropSemantics`, `DelegateFuncConversion`, `OptionalDefaultability`, `DefaultKeyword` and `VoidType` (`HoistingDemo`), the sections added 2026-10-12 | Bank the claims of the retired compile-and-run tests; captured from v2 and read against the programs by hand. |
 | `Variadics` (`emptyPackChain`), the section added 2026-10-15 | Classic never ran an omitted chain to a pack-only base closed empty; captured from v2 and read against the program by hand. |
 | `DefaultKeyword` (custom setter), the section added 2026-10-15 | Banks a default writing backing storage past a bodied setter, written after classic was retired; captured from v2 and read against the program by hand. |
+| `FirstClassFunctions`, `CallableInference`, `StructuredConcurrency`, `Primitives` and `StructInheritance`, the sections added 2026-10-20 | Bank MIST-1022's expression lowerings (a discarded lambda value, void lambdas and groups at an inferred-void result, an awaited async void value, wrapping constant arithmetic, a brace in interpolated text, a base-struct operator on derived operands), written after classic was retired; captured from v2 and read against the programs by hand. |
 
 `OptionalTypeParameters` is not V2-ONLY: its existing sample lines were cross-checked against
 classic even though it is composed only into `AllFeaturesV2`. Nor is the old

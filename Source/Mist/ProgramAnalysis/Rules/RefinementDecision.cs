@@ -13,6 +13,12 @@ internal static class RefinementDecision
         Expression value, IMistType target, Admitted known, LiteralValue? literal = null, RealSet? real = null,
         bool onConstraint = false)
     {
+        return Judge(value, target, known, literal, real, onConstraint, LiteralPredicates.MatchLimit);
+    }
+
+    internal static DiagnosticDescriptor? Judge(
+        Expression value, IMistType target, Admitted known, LiteralValue? literal, RealSet? real, bool onConstraint, TimeSpan matchLimit)
+    {
         if(value.Type is ErrorType)
         {
             return null;
@@ -23,7 +29,7 @@ internal static class RefinementDecision
             && (ConversionClassifier.Classify(Requirement.Unrefined(value.Type), Requirement.Unrefined(constituent))
                 is ConversionKind.Identity or ConversionKind.Implicit || ConstantConversion.Fits(value, constituent))).ToList();
 
-        if(considered.Count == 0 || considered.Any(constituent => Satisfied(value, constituent, known, literal, real)))
+        if(considered.Count == 0 || considered.Any(constituent => Satisfied(value, constituent, known, literal, real, matchLimit)))
         {
             return null;
         }
@@ -32,7 +38,7 @@ internal static class RefinementDecision
         var constraint = onConstraint && Requirement.IsAnonymous(target);
         if(LiteralPredicates.Applies(first))
         {
-            return LiteralPredicates.Decide(first, literal) == false
+            return LiteralPredicates.Decide(first, literal, matchLimit) == false
                 ? constraint ? ProgramAnalysisDiagnostics.ConstraintViolated : ProgramAnalysisDiagnostics.RefinementViolated
                 : constraint ? ProgramAnalysisDiagnostics.ConstraintUnproven : ProgramAnalysisDiagnostics.RefinementUnproven;
         }
@@ -53,7 +59,7 @@ internal static class RefinementDecision
             : ProgramAnalysisDiagnostics.RefinementUnproven;
     }
 
-    private static bool Satisfied(Expression value, IMistType target, Admitted known, LiteralValue? literal, RealSet? real)
+    private static bool Satisfied(Expression value, IMistType target, Admitted known, LiteralValue? literal, RealSet? real, TimeSpan matchLimit)
     {
         // An unknown enum can hold a value outside the signed interval domain, even when the predicate covers that whole domain.
         if(known.IsEverything && Requirement.Unrefined(value.Type) is EnumType && Requirement.Refined(value.Type) is null)
@@ -63,8 +69,8 @@ internal static class RefinementDecision
 
         if(LiteralPredicates.Applies(target))
         {
-            return LiteralPredicates.Satisfied(target, value.Type, literal, value)
-                || (LiteralPredicates.Decide(target, literal) is null && RealKnowledge.Satisfied(real, target));
+            return LiteralPredicates.Satisfied(target, value.Type, literal, value, matchLimit)
+                || (LiteralPredicates.Decide(target, literal, matchLimit) is null && RealKnowledge.Satisfied(real, target));
         }
 
         return Requirement.OfType(target) is { } required

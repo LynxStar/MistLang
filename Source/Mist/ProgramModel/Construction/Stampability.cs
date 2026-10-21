@@ -12,8 +12,7 @@ namespace Mist.ProgramModel.Construction;
 /// instance can be BUILT -- a class with no constructor of its own has a default and is still a
 /// reference, and a struct with a string field has one and still stamps a null. A refinement's zero
 /// need not satisfy its predicate, an enum's need not be a variant, and a newtype is neither primitive
-/// nor struct. Revisiting a generic declaration is finite only when its next instance occurs inside
-/// the earlier instance's arguments; this admits nested boxes and stops expanding storage cycles.
+/// nor struct. See <see cref="StorageRecursion"/> for the finite recursive storage proof.
 /// </summary>
 internal static class Stampability
 {
@@ -24,10 +23,10 @@ internal static class Stampability
 
     public static string? WhyNotStampable(IMistType type)
     {
-        return WhyNot(type, []);
+        return WhyNot(type, new StorageRecursion());
     }
 
-    private static string? WhyNot(IMistType type, List<Visit> visiting)
+    private static string? WhyNot(IMistType type, StorageRecursion visiting)
     {
         return type switch
         {
@@ -50,7 +49,7 @@ internal static class Stampability
         };
     }
 
-    private static string? StructWhyNot(StructType type, ConstructedType? receiver, List<Visit> visiting)
+    private static string? StructWhyNot(StructType type, ConstructedType? receiver, StorageRecursion visiting)
     {
         return type switch
         {
@@ -60,14 +59,14 @@ internal static class Stampability
         };
     }
 
-    private static string? AliasWhyNot(TypeAlias alias, ConstructedType? receiver, List<Visit> visiting)
+    private static string? AliasWhyNot(TypeAlias alias, ConstructedType? receiver, StorageRecursion visiting)
     {
         if(alias.AliasedType is not { } aliased)
         {
             return "it is not a resolved type";
         }
 
-        if(!Enter(alias, receiver ?? (IMistType)alias, visiting))
+        if(!visiting.Enter(alias, receiver ?? (IMistType)alias))
         {
             return "it contains itself";
         }
@@ -78,41 +77,35 @@ internal static class Stampability
         }
         finally
         {
-            visiting.RemoveAt(visiting.Count - 1);
+            visiting.Exit();
         }
     }
 
-    private static string? FieldsWhyNot(StructType type, ConstructedType? receiver, List<Visit> visiting)
+    private static string? FieldsWhyNot(StructType type, ConstructedType? receiver, StorageRecursion visiting)
     {
-        if(!Enter(type, receiver ?? (IMistType)type, visiting))
+        if(!visiting.Enter(type, receiver ?? (IMistType)type))
         {
             return "it contains itself";
         }
 
         try
         {
-            var substitution = TypeSubstitution.ForReceiver(receiver);
-            if(type.BaseType is { } baseType
-                && WhyNot(substitution.Apply(baseType, interner: null), visiting) is { } baseReason)
+            var layout = ValueStorage.Describe(receiver ?? (IMistType)type);
+            if(!layout.IsComplete)
+            {
+                return "its complete instance storage is unknown";
+            }
+
+            if(layout.BaseType is { } baseType && WhyNot(baseType, visiting) is { } baseReason)
             {
                 return baseReason;
             }
 
-            foreach(var field in Defaultability.InstanceFields(type))
+            foreach(var field in layout.Fields)
             {
-                var fieldType = substitution.Apply(field.Type, interner: null);
-                if(WhyNot(fieldType, visiting) is not null)
+                if(WhyNot(field.Type, visiting) is not null)
                 {
-                    return $"field '{field.Name}' of '{type.Name}' has type '{TypeDisplay.Mist(fieldType)}', which is not stampable";
-                }
-            }
-
-            foreach(var property in type.PropertiesList.Where(property => !property.Modifiers.IsStatic && property.HasBackingStorage))
-            {
-                var propertyType = substitution.Apply(property.Type, interner: null);
-                if(WhyNot(propertyType, visiting) is not null)
-                {
-                    return $"backing storage for property '{property.Name}' of '{type.Name}' has type '{TypeDisplay.Mist(propertyType)}', which is not stampable";
+                    return $"field '{field.Name}' of '{type.Name}' has type '{TypeDisplay.Mist(field.Type)}', which is not stampable";
                 }
             }
 
@@ -120,91 +113,8 @@ internal static class Stampability
         }
         finally
         {
-            visiting.RemoveAt(visiting.Count - 1);
+            visiting.Exit();
         }
     }
 
-    private static bool Enter(IMistType definition, IMistType instance, List<Visit> visiting)
-    {
-        for(var i = visiting.Count - 1; i >= 0; i--)
-        {
-            if(!ReferenceEquals(visiting[i].Definition, definition))
-            {
-                continue;
-            }
-
-            if(visiting[i].Instance is not ConstructedType previous
-                || !Children(previous).Any(child => Contains(child, instance, [])))
-            {
-                return false;
-            }
-
-            break;
-        }
-
-        visiting.Add(new Visit(definition, instance));
-        return true;
-    }
-
-    private static bool Contains(IMistType container, IMistType instance, HashSet<IMistType> visited)
-    {
-        return Same(container, instance)
-            || (visited.Add(container) && Children(container).Any(child => Contains(child, instance, visited)));
-    }
-
-    private static IEnumerable<IMistType> Children(IMistType type)
-    {
-        return type switch
-        {
-            ConstructedType constructed => constructed.Enclosing is { } enclosing
-                ? constructed.TypeArguments.Append(enclosing)
-                : constructed.TypeArguments,
-            ITupleType tuple => tuple.ElementTypes,
-            TypeAlias { AliasedType: { } aliased } => [aliased],
-            LiftedType { Value: TypePackValue pack } => pack.Elements,
-            _ => [],
-        };
-    }
-
-    private static bool Same(IMistType left, IMistType right)
-    {
-        if(left is NamedTupleType leftTuple)
-        {
-            left = leftTuple.Underlying;
-        }
-
-        if(right is NamedTupleType rightTuple)
-        {
-            right = rightTuple.Underlying;
-        }
-
-        if(ReferenceEquals(left, right))
-        {
-            return true;
-        }
-
-        return (left, right) switch
-        {
-            (ConstructedType first, ConstructedType second) => ReferenceEquals(first.Definition, second.Definition)
-                && SameElements(first.TypeArguments, second.TypeArguments)
-                && SameEnclosing(first.Enclosing, second.Enclosing),
-            (ITupleType first, ITupleType second) => SameElements(first.ElementTypes, second.ElementTypes),
-            (LiftedType { Value: TypePackValue first } firstLifted, LiftedType { Value: TypePackValue second } secondLifted) =>
-                Same(firstLifted.Type, secondLifted.Type) && SameElements(first.Elements, second.Elements),
-            (LiftedType first, LiftedType second) => Same(first.Type, second.Type) && Equals(first.Value, second.Value),
-            _ => false,
-        };
-    }
-
-    private static bool SameEnclosing(ConstructedType? left, ConstructedType? right)
-    {
-        return left is null || right is null ? ReferenceEquals(left, right) : Same(left, right);
-    }
-
-    private static bool SameElements(IReadOnlyList<IMistType> left, IReadOnlyList<IMistType> right)
-    {
-        return left.Count == right.Count && left.Zip(right).All(pair => Same(pair.First, pair.Second));
-    }
-
-    private sealed record Visit(IMistType Definition, IMistType Instance);
 }

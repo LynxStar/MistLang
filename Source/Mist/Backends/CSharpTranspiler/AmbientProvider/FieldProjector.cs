@@ -61,6 +61,11 @@ internal static class FieldProjector
             AttributeProjector.Project(field, projected.AttributesList, concreteType.Scope, resolver);
             concreteType.FieldsList.Add(projected);
         }
+
+        if(concreteType is StructType)
+        {
+            StorageProjector.Project(concreteType, clrType, resolver);
+        }
     }
 
     /// <summary>

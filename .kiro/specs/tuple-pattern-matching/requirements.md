@@ -80,6 +80,11 @@ The implementation touches every stage of the compiler pipeline: new grammar rul
 5. WHEN a Tuple_Positional_Pattern element contains a relational pattern applied to a tuple element whose type does not support comparison operators, THE Type_Checker SHALL emit a diagnostic error for that position.
 6. IF the scrutinee's type is an ErrorType, THEN THE Type_Checker SHALL skip validation of the Tuple_Positional_Pattern and emit no diagnostics for that pattern (to suppress cascading errors).
 
+> **Amendment note (2026-10-21, operator decision).** A scrutinee whose tuple type is a variadic pack of open length,
+> `(TArgs...)`, has no arity to compare, so criterion 2 does not apply to it and an element type no instantiation needs
+> to hold is not an error under criterion 3; variadics Requirement 12.10 gives its per-instantiation reading. A
+> fixed-size pack `Type[N]` spread into a tuple counts as its N elements, never as one.
+
 ### Requirement 5: Nested Tuple Positional Patterns
 
 **User Story:** As a Mist developer, I want to nest tuple positional patterns within other tuple positional patterns, so that I can match nested tuple structures concisely.

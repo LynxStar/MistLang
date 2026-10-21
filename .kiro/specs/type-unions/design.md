@@ -148,7 +148,7 @@ public sealed class UnionType : IType
 
 **Pattern matching rules:**
 - `x is T t` where `x: A | B | C`: valid if `T` is one of `A`, `B`, `C`. Introduces `t: T`.
-- `x is T t` where `T` is not a constituent: warning (pattern will never match).
+- `x is T t` where `T` is not a constituent: error (the pattern can never match, so the program is refused; Requirement 8.3 as amended 2026-10-20).
 - `x is var v`: introduces `v` with the full union type.
 
 ### 6. C# Emitter: Helper Type Generation
@@ -255,7 +255,7 @@ Union_{Type1}_{Type2}_...
 | `MIST_TC_0050` | Error | Non-constituent assigned to union target |
 | `MIST_TC_0051` | Error | Union assigned to non-union without narrowing |
 | `MIST_TC_0052` | Error | Member not present on all union constituents |
-| `MIST_TC_0053` | Warning | Pattern type is not a union constituent (never matches) |
+| `MIST_TC_0053` | Error | Pattern type is not a union constituent (never matches); reported as `MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT` |
 | `MIST_TC_0054` | Warning | Union has fewer than 2 distinct types after deduplication |
 | `MIST_TC_0055` | Error | Union-to-union assignment with incompatible constituents |
 
@@ -329,9 +329,9 @@ Union_{Type1}_{Type2}_...
 
 **Validates: Requirements 8.1, 8.2**
 
-### Property 12: Non-Constituent Pattern Warning
+### Property 12: Non-Constituent Pattern Error
 
-*For any* union type `U` and type `T` that is NOT a constituent of `U`, a type pattern `is T t` on a value of type `U` SHALL produce a diagnostic warning indicating the pattern will never match.
+*For any* union type `U` and type `T` that is NOT a constituent of `U`, a type pattern `is T t` on a value of type `U`, in an `is` test or a switch arm, SHALL produce exactly one diagnostic error, at the pattern's type, indicating the pattern can never match, and the program SHALL be refused.
 
 **Validates: Requirements 8.3, 12.5**
 
@@ -365,8 +365,12 @@ When a constituent type in a union cannot be resolved (e.g., `int | Foo` where `
 
 ### Pattern Matching on Unions
 
-- Pattern type not a constituent → warning `MIST_TC_0053` (pattern will never match at runtime).
-- The emitter still generates the check code (dead code) to maintain structural consistency.
+- Pattern type not a constituent → error `MIST_TC_0053` (the pattern can never match), so the program is refused and no check is emitted. A union narrows through its carrier's per-constituent accessor, and a type that is no constituent has none, so there is no test to lower.
+
+> **Amendment note (2026-10-20, operator decision).** This section, the diagnostic table and Property 12
+> originally made a non-constituent type pattern a warning with a kept dead check. The owner chose the
+> error on 2026-10-20 ("I think the error for the dead arm is the best. Amend the spec to match."); see
+> requirements.md Requirements 8.3 and 12.5. `MIST_TC_0054` stays a warning.
 
 ### C# Emission Edge Cases
 

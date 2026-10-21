@@ -188,7 +188,7 @@ internal sealed class FlowFragments
 
         if(name == "struct-local-unassigned-opaque-ambient-value")
         {
-            type = new StructType("DateTime", "System", new Scope(null), null, null);
+            type = new StructType("DateTime", "System", new Scope(null), null, null) { ClrMetadataName = "System.DateTime" };
         }
 
         Field? referenceValue = null;

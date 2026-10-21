@@ -165,6 +165,9 @@ internal static class TypeEmitter
         writer.WriteLine(
             $"{accessibility}{sealedModifier}{readonlyModifier}{refModifier}{typeKeyword} {typeName}{EmitBaseList(type, closedConstraints)}");
         ConstraintEmitter.Emit(Parameters(type), writer);
+        using var holding = type is ConcreteType holder
+            ? FieldReceiver.Holding(holder, typeName, flattened?.Fields.Select(field => field.Field) ?? holder.FieldsList)
+            : null;
         using(writer.Block())
         {
             var concrete = type as ConcreteType;

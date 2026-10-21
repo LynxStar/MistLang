@@ -23,13 +23,15 @@ internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds
 /// keeps the bound the outer condition gave, and a symbolic upper bound -- an index below `a.Length` --
 /// remembered against the array itself, which is what indexing an array of unknown length needs. The
 /// array may be a local or a field of this instance; the bound is forgotten when that holder is
-/// reassigned and, for a field that is not readonly, at any call, object creation or await, since code
-/// the flow cannot see may reassign it then. A local keeps nothing at all when
-/// <see cref="UnseenWrites"/> names it.
+/// reassigned and, for a field that is not readonly, at any step <see cref="FieldEffects"/> cannot
+/// prove writes no field, since code the flow cannot see may reassign it then. A local keeps nothing at
+/// all when <see cref="UnseenWrites"/> names it.
 /// </summary>
-internal sealed class RefinementFlow(IReadOnlySet<object> unseenWrites, LiftedReturns lifted)
+internal sealed class RefinementFlow(IReadOnlySet<object> unseenWrites, LiftedReturns lifted, FieldEffects? effects = null)
     : IFlowLattice<ImmutableDictionary<object, Knowledge>>
 {
+    private readonly FieldEffects effects = effects ?? new();
+
     public static readonly ImmutableDictionary<object, Knowledge> Nothing =
         ImmutableDictionary.Create<object, Knowledge>(ReferenceEqualityComparer.Instance);
 
@@ -136,13 +138,7 @@ internal sealed class RefinementFlow(IReadOnlySet<object> unseenWrites, LiftedRe
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: ThisExpression } }:
                 return Forget(state, holder => holder is Field);
 
-            case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression or NewExpression }:
-                return Forget(state, IsMutableField);
-
-            case { Kind: FlowStepKind.Evaluate, Node: Expression accessed } when RunsAccessor(accessed):
-                return Forget(state, IsMutableField);
-
-            case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: var written } } when RunsAccessor(written):
+            case { Kind: FlowStepKind.Evaluate, Node: var evaluated } when effects.MayWrite(evaluated):
                 return Forget(state, IsMutableField);
 
             default:
@@ -385,22 +381,6 @@ internal sealed class RefinementFlow(IReadOnlySet<object> unseenWrites, LiftedRe
     private static bool IsMutableField(object holder)
     {
         return holder is Field { Modifiers.IsReadonly: false };
-    }
-
-    private static bool RunsAccessor(Expression accessed)
-    {
-        return accessed switch
-        {
-            MemberAccessExpression { Member: PropertyResult { Property: var property } } => HasBody(property.Getter) || HasBody(property.Setter),
-            PropertyReferenceExpression { Property: var property } => HasBody(property.Getter) || HasBody(property.Setter),
-            IndexExpression { Indexer: { } indexer } => HasBody(indexer.Getter) || HasBody(indexer.Setter),
-            _ => false,
-        };
-    }
-
-    private static bool HasBody(PropertyAccessor? accessor)
-    {
-        return accessor is { IsAuto: false } && (accessor.Body is not null || accessor.ExpressionBody is not null);
     }
 
     public static object? Holder(Expression? array)

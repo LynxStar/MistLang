@@ -9,7 +9,7 @@ namespace Mist.ProgramAnalysis.Refinements;
 
 internal static class LiteralPredicates
 {
-    private static readonly TimeSpan MatchLimit = TimeSpan.FromMilliseconds(100);
+    internal static readonly TimeSpan MatchLimit = TimeSpan.FromMilliseconds(100);
 
     public static bool Applies(IMistType target)
     {
@@ -27,7 +27,12 @@ internal static class LiteralPredicates
 
     public static bool Satisfied(IMistType target, IMistType source, LiteralValue? value, Expression? expression)
     {
-        return IsRefused(target) || (Decide(target, value)
+        return Satisfied(target, source, value, expression, MatchLimit);
+    }
+
+    internal static bool Satisfied(IMistType target, IMistType source, LiteralValue? value, Expression? expression, TimeSpan matchLimit)
+    {
+        return IsRefused(target) || (Decide(target, value, matchLimit)
             ?? (TrustsType(expression) && ReferenceEquals(Requirement.Refined(source), Requirement.Refined(target))));
     }
 

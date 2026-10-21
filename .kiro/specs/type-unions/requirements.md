@@ -120,8 +120,14 @@ Out of scope for this spec: union type narrowing via control flow analysis (beyo
 
 1. WHEN a type pattern is used on a union-typed scrutinee (e.g., `x is string s` where `x: int | string`), THE Type_Checker SHALL validate that the pattern type is one of the union's constituent types.
 2. WHEN a type pattern matches a constituent of a union type, THE Semantic_Model_Builder SHALL introduce the pattern variable with the matched constituent type (not the union type).
-3. WHEN a type pattern references a type that is not a constituent of the union, THE Type_Checker SHALL emit a diagnostic warning indicating the pattern will never match.
+3. WHEN a type pattern references a type that is not a constituent of the union, THE Type_Checker SHALL emit a diagnostic error indicating the pattern can never match, and the program is refused: a test no value of the union can pass is a mistake rather than dead code worth keeping, which is also C#'s judgment of an impossible pattern (CS8121, CS8510).
 4. WHEN a `var` pattern is used on a union-typed scrutinee, THE Semantic_Model_Builder SHALL introduce the pattern variable with the full union type.
+
+> **Amendment note (2026-10-20, operator decision).** Criterion 3 originally required a warning, with the
+> emitter keeping the dead check. The owner settled it as an error on 2026-10-20 ("I think the error for
+> the dead arm is the best. Amend the spec to match."), which is what the compiler reports as
+> `MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT`. The same decision amends Requirement 12.5. Do not reopen it
+> without a new owner decision.
 
 ### Requirement 9: C# Emission — Helper Type Generation
 
@@ -169,8 +175,12 @@ Out of scope for this spec: union type narrowing via control flow analysis (beyo
 2. WHEN a member access is attempted on a union type and the member is not present on all constituents, THE Compiler SHALL emit a diagnostic error listing which constituent types lack the member.
 3. WHEN a non-constituent type is assigned to a union-typed target, THE Compiler SHALL emit a diagnostic error naming the source type and the union type.
 4. WHEN a union type is assigned to a non-union target without narrowing, THE Compiler SHALL emit a diagnostic error explaining that the union must be narrowed first.
-5. WHEN a type pattern on a union-typed scrutinee references a type that is not a constituent, THE Compiler SHALL emit a diagnostic warning indicating the pattern will never match.
+5. WHEN a type pattern on a union-typed scrutinee references a type that is not a constituent, THE Compiler SHALL emit a diagnostic error indicating the pattern can never match, at the pattern's type, and SHALL refuse the program (criterion 8.3).
 6. IF a constituent type reference in a union cannot be resolved, THEN THE Compiler SHALL emit a diagnostic error indicating the type is undefined.
+
+> **Amendment note (2026-10-20, operator decision).** Criterion 5 originally required a warning; it is an
+> error by the decision recorded under Requirement 8. Criterion 1's degenerate-union diagnostic stays a
+> warning.
 
 ### Requirement 13: Syntax Highlighting for Union Types
 

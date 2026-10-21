@@ -100,7 +100,7 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
             PropertyPattern property
                 => (property.TypeTest is { } typeTest ? Flatten(typeTest, input, interner) : [])
                     .Concat(property.Subpatterns.SelectMany(subpattern => Flatten(subpattern.Pattern, subpattern.MemberType, interner))),
-            TuplePattern tuple when Elements(input) is { } elements && elements.Count == tuple.Elements.Count
+            TuplePattern tuple when ElementInputs(tuple, input) is { } elements && elements.Count == tuple.Elements.Count
                 => tuple.Elements.SelectMany((element, i) => Flatten(element, elements[i], interner)),
             ListPattern list => list.Elements.SelectMany(element => element is { Subpattern: { } subpattern, ScrutineeType: { } scrutinee }
                 ? Flatten(subpattern, scrutinee, interner)
@@ -368,6 +368,11 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
     private static IMistType Definition(IMistType type)
     {
         return type is ConstructedType constructed ? constructed.Definition : type;
+    }
+
+    private static IReadOnlyList<IMistType>? ElementInputs(TuplePattern tuple, IMistType input)
+    {
+        return tuple.OpenPack is null ? PackTupleElements.Positions(Elements(input)) : Elements(tuple.NarrowedType);
     }
 
     private static IReadOnlyList<IMistType>? Elements(IMistType type)

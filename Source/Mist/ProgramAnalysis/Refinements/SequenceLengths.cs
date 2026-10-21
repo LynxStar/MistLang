@@ -7,7 +7,25 @@ namespace Mist.ProgramAnalysis.Refinements;
 
 internal static class SequenceLengths
 {
-    public static SequenceLengthOperation Of(InvocationExpression invocation, Expression? receiver)
+    public static (SequenceLengthOperation Operation, Expression? Source, IReadOnlyList<Expression> Arguments) Of(InvocationExpression invocation)
+    {
+        // A projected extension called by its static name hands the sequence over as its one argument rather than as the receiver.
+        if(invocation is { Method: { Modifiers.IsStatic: true, SequenceLengthOperation: SequenceLengthOperation.Preserved, ParametersList: [_] }, Arguments: [var argument] })
+        {
+            var source = Unconverted(argument);
+            return (Lengths.IsSized(source.Type) && Lengths.IsSized(invocation.Type) ? SequenceLengthOperation.Preserved : SequenceLengthOperation.None, source, []);
+        }
+
+        var receiver = invocation.Receiver is MemberAccessExpression access ? access.Receiver : null;
+        return (Of(invocation, receiver), receiver, invocation.Arguments);
+    }
+
+    private static Expression Unconverted(Expression argument)
+    {
+        return argument is ImplicitConversionExpression { Operator: null } conversion ? Unconverted(conversion.Operand) : argument;
+    }
+
+    private static SequenceLengthOperation Of(InvocationExpression invocation, Expression? receiver)
     {
         if(invocation.Method is not { } method || receiver is null
             || !Lengths.IsSized(receiver.Type) || !Lengths.IsSized(invocation.Type))

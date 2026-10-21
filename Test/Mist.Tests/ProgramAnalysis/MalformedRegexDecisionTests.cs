@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramAnalysis.Rules;
@@ -80,7 +81,26 @@ public sealed class MalformedRegexDecisionTests
 
         Assert.Empty(RegexSyntax.Malformed(target.Predicate));
         Assert.False(LiteralPredicates.IsRefused(target));
-        Assert.False(LiteralPredicates.Satisfied(target, Text, new LiteralValue(form == "negated" ? "abc" : "123", Text.FullyQualifiedName), null));
+        Assert.False(LiteralPredicates.Satisfied(
+            target, Text, new LiteralValue(form == "negated" ? "abc" : "123", Text.FullyQualifiedName), null, System.Text.RegularExpressions.Regex.InfiniteMatchTimeout));
+    }
+
+    [Fact]
+    public void AMatchThatExceedsItsBudget_IsNotSatisfied()
+    {
+        var target = Refined(Regex("(a+)+b"));
+
+        Assert.False(LiteralPredicates.Satisfied(target, Text, new LiteralValue(new string('a', 64), Text.FullyQualifiedName), null, TimeSpan.FromMilliseconds(1)));
+    }
+
+    [Fact]
+    public void AMatchThatExceedsItsBudget_IsJudgedUnprovenRatherThanViolated()
+    {
+        var target = Refined(Regex("(a+)+b"));
+        var value = new LiteralExpression(null!, new string('a', 64), Text);
+
+        Assert.Equal(ProgramAnalysisDiagnostics.RefinementUnproven,
+            RefinementDecision.Judge(value, target, Admitted.Everything, LiteralValue.Of(value), null, false, TimeSpan.FromMilliseconds(1)));
     }
 
     private static Pattern Predicate(string form, RegexPattern regex)

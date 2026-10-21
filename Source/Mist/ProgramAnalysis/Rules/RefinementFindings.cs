@@ -85,9 +85,9 @@ internal static class RefinementFindings
 
     public static void ReportLiteral(
         AnalysisContext context, Expression value, IMistType constituent, string target, Expression at, string? onConstraint,
-        LiteralValue? literal)
+        LiteralValue? literal, TimeSpan matchLimit)
     {
-        if(LiteralPredicates.Decide(constituent, literal) != false)
+        if(LiteralPredicates.Decide(constituent, literal, matchLimit) != false)
         {
             ReportUnreadable(context, value, constituent, target, at, onConstraint);
             return;

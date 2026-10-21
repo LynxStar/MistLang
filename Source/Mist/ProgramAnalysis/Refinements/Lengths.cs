@@ -69,12 +69,12 @@ internal static class Lengths
 
     private static Admitted? OfCall(InvocationExpression invocation, Func<Expression, Admitted?> tracked, Func<Expression, StoredRange?>? ranges)
     {
-        var receiver = invocation.Receiver is MemberAccessExpression access ? access.Receiver : null;
-        return (SequenceLengths.Of(invocation, receiver), invocation.Arguments) switch
+        var (operation, source, arguments) = SequenceLengths.Of(invocation);
+        return (operation, arguments) switch
         {
-            (SequenceLengthOperation.Preserved, []) => Of(receiver, tracked, ranges) ?? Typed(invocation.Type),
+            (SequenceLengthOperation.Preserved, []) => Of(source, tracked, ranges) ?? Typed(invocation.Type),
             (SequenceLengthOperation.Slice, [_, var count]) => Constant(count) ?? Typed(invocation.Type),
-            (SequenceLengthOperation.Slice, [var start]) => Shorten(Of(receiver, tracked, ranges), Constant(start)) ?? Typed(invocation.Type),
+            (SequenceLengthOperation.Slice, [var start]) => Shorten(Of(source, tracked, ranges), Constant(start)) ?? Typed(invocation.Type),
             _ => Typed(invocation.Type),
         };
     }

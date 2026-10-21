@@ -14,6 +14,11 @@ internal static class RefinedZero
 {
     public static bool IsAdmitted(IMistType type)
     {
+        return IsAdmitted(type, LiteralPredicates.MatchLimit);
+    }
+
+    internal static bool IsAdmitted(IMistType type, TimeSpan matchLimit)
+    {
         if(Requirement.Refined(type) is null)
         {
             return true;
@@ -26,7 +31,7 @@ internal static class RefinedZero
 
         if(LiteralPredicates.Applies(type))
         {
-            return LiteralPredicates.Decide(type, Zero(unrefined.FullyQualifiedName)) == true;
+            return LiteralPredicates.Decide(type, Zero(unrefined.FullyQualifiedName), matchLimit) == true;
         }
 
         return Requirement.OfType(type) is { Bounds.Length: 0 } required && required.Values.Contains(0);

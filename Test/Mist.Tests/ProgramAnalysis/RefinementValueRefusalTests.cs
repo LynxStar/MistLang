@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Contracts.Types;
@@ -235,6 +236,6 @@ public sealed class RefinementValueRefusalTests
 
         var known = Requirement.Constant(value) is { } constant ? Admitted.Exactly(constant) : Requirement.ValuesOf(value.Type) ?? Admitted.Everything;
         Assert.Equal(expected, RefinementDecision.Judge(value, target, known, LiteralValue.Of(value), value is UnaryExpression ? RealSet.Everything(RealKind.Double) : RealRequirement.OfType(value.Type),
-            Requirement.IsAnonymous(target))?.Id.Value);
+            Requirement.IsAnonymous(target), Regex.InfiniteMatchTimeout)?.Id.Value);
     }
 }

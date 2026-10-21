@@ -54,6 +54,26 @@ public class PackPatterns
         };
     }
 
+    public static T Same<T>(T value)
+    {
+        return value;
+    }
+
+    public static string Typed<params TArgs>(params TArgs args)
+    {
+        if (TArgs is Type[2] narrowed)
+        {
+            if (args is (var first, var second))
+            {
+                narrowed[0] head = first;
+                narrowed[1] tail = Same<narrowed[1]>(second);
+                return "two " + head.GetType().Name + " " + tail.GetType().Name + " " + head + tail;
+            }
+        }
+
+        return "width " + TArgs.Length;
+    }
+
     public static void RunDemo()
     {
         Console.WriteLine($"[tuple patterns] {Shape(1, 2)} | {Shape(1, "x")} | {Shape(1)} | {Shape()}");
@@ -64,5 +84,6 @@ public class PackPatterns
         var triple = new Parcel<int, string, bool>(1, "a", true);
         var single = new Parcel<int>(5);
         Console.WriteLine($"[pack fields] {flagged.Shape()} | {mixed.Shape()} | {triple.Shape()} | {single.Shape()}");
+        Console.WriteLine($"[narrowed types] {Typed(4, "x")} | {Typed(true, 'c')} | {Typed(1)} | {Typed()}");
     }
 }

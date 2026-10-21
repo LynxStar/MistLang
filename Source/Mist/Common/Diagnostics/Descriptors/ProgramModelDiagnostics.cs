@@ -1115,7 +1115,7 @@ public static partial class ProgramModelDiagnostics
         new DiagnosticId("MIST_VAR_0003"),
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
-        "'{0}[{1}]' indexes a pack whose length is not known here, so it may hold no element {1}. Only a pack declared with a fixed size, 'Type[N]:{0}', can be indexed in a type position.");
+        "'{0}[{1}]' indexes a pack whose length is not known here, so it may hold no element {1}. Only a pack declared with a fixed size, 'Type[N]:{0}', or the binding of a guard proving its size, 'if ({0} is Type[N] fixed)', can be indexed in a type position.");
 
     public static readonly DiagnosticDescriptor PackIndexOutOfBounds = new(
         new DiagnosticId("MIST_VAR_0004"),

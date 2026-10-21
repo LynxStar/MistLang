@@ -33,7 +33,7 @@ the record of which samples run.
 | `ConstructorConstraintSignatures` | Classic could not resolve a type parameter in a constructor constraint. |
 | `VariadicSpecialization` | Written 2026-10-03, after classic was retired. |
 | `VariadicSpecialization`, `ResidualShapes` section | V2-ONLY: added 2026-10-19 for nested and extension method packs (including generic receivers and forwarded packs), pack type values and variadic method groups; captured from v2 and read against the program by hand. |
-| `VariadicSpecialization`, `PackPatterns` section | V2-ONLY: added 2026-10-21 for positional tuple patterns over open packs (a method's value pack, a pack field and switch arms, at matching and other widths); captured from v2 and read against the program by hand. |
+| `VariadicSpecialization`, `PackPatterns` section | V2-ONLY: added 2026-10-21 for positional tuple patterns over open packs (a method's value pack, a pack field and switch arms, at matching and other widths) and a narrowed pack's elements in type position; captured from v2 and read against the program by hand. |
 | `SizedSequencePatterns` | Written 2026-10-03, after classic was retired. |
 | `ResourceTransfer` | Written 2026-10-11, after classic was retired. |
 | `ClrCallContracts` | Written 2026-10-11, after classic was retired. |

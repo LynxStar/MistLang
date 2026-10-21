@@ -142,7 +142,7 @@ internal static partial class PatternBinder
                             typePattern, namedTuple, typePattern.Name, scrutineeType, bindingsPermitted, ctx, context, failed);
                     }
 
-                    var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context, failed);
+                    var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context, failed, NarrowedPack(scrutineeType, tested));
                     return BindTypeTest(node, tested, binding, scrutineeType, ctx, context, failed);
                 }
 

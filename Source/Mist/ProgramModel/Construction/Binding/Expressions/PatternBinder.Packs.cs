@@ -1,4 +1,5 @@
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Types;
@@ -43,5 +44,10 @@ internal static partial class PatternBinder
             OpenPack = pack,
             IsFailed = scrutineeFailed || elements.Any(element => element.IsFailed),
         };
+    }
+
+    private static TypeParameter? NarrowedPack(IMistType scrutineeType, IMistType tested)
+    {
+        return scrutineeType is TypeParameter { IsPack: true } pack && PackTypePositions.ProvenLength(tested) is not null ? pack : null;
     }
 }

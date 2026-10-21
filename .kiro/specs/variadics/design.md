@@ -279,6 +279,11 @@ becomes more precisely known:
   }
   ```
 
+  In a type position `fixed[i]` names the pack's own element `TArgs[i]` rather than a type of its
+  own, so a value read out of the pack at that position -- `args is (var first, var second, var third)`
+  binds `first` at `TArgs[0]` -- is assignable to it. The binding exists only in the guarded branch, and
+  `fixed[3]` is the same out-of-bounds error `MIST_VAR_0004` a `Type[3]:TArgs` pack draws.
+
   The value-side counterpart narrows the pack value with `args is (concrete tuple) x` (for example
   `args is (int, int, int) triple`), enabling a matching fixed-arity forward within that branch; see
   "Generic Body Checking and Provable Forwarding".

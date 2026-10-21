@@ -1,7 +1,10 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Resolution;
@@ -43,5 +46,42 @@ internal static class PackTypePositions
         }
 
         return pack.ElementAt(index);
+    }
+
+    /// <summary>
+    /// <c>fixed[i]</c>, where <c>fixed</c> is the binding of a guard narrowing a pack to <c>Type[N]</c>
+    /// (variadics Requirement 6.7): the pack's own element, in range of what the guard proved. Null for
+    /// any other written type, which resolves as it would have.
+    /// </summary>
+    public static IMistType? NarrowedElement(
+        SingleTypeRefNode singleRef, Scope scope, DiagnosticBag diagnostics, Action? reportFailure = null)
+    {
+        if(singleRef is not NamedSingleTypeRefSingleTypeRefNode { Pure: null, TypeArgs: null, ArrayRank: SizedArrayRankArrayRankSuffixNode sized } named
+            || !named.Name.IDENTIFIERs.IsDefaultOrEmpty
+            || scope.Lookup(new LookupRequest(named.Name.IDENTIFIER.Lexeme, MemberVisibility.None, singleRef))
+                is not VariableResult { Variable: { NarrowedPack: { } pack } narrowing }
+            || ProvenLength(narrowing.Type) is not { } length
+            || IntegerLiterals.Length(sized.Size.Lexeme) is not { } index)
+        {
+            return null;
+        }
+
+        if(index >= length)
+        {
+            diagnostics.ReportAtNode(ProgramModelDiagnostics.PackIndexOutOfBounds, singleRef, null, narrowing.Name, index, length);
+            reportFailure?.Invoke();
+            return ErrorType.Instance;
+        }
+
+        return pack.ElementAt(index);
+    }
+
+    public static int? ProvenLength(IMistType tested)
+    {
+        return Indexability.ArrayElement(tested)?.FullyQualifiedName == WellKnownTypes.Type.FullyQualifiedName
+            && tested is ConstructedType { TypeArguments: [_, LiftedType { Value: long length }] }
+            && length is >= 0 and <= int.MaxValue
+            ? (int)length
+            : null;
     }
 }

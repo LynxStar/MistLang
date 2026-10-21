@@ -3,7 +3,6 @@ using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 

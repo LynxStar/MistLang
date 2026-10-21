@@ -251,7 +251,7 @@ internal static class TypeEmitter
                 SeparateMember(writer, ref anyEmitted);
                 PropertyEmitter.Emit(
                     property, readonlyMembers.OnProperty(property), readonlyMembers.OnGetterOf(property),
-                    writer, diagnostics);
+                    writer, diagnostics, type is AbstractType abstractType && InterfaceHiding.Hides(property, abstractType));
             }
 
             SpreadProjectionEmitter.Emit(type, flattened, writer, ref anyEmitted);

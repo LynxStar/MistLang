@@ -2088,7 +2088,7 @@ internal static partial class BodyEmitter
         EmitScrutinee(switchExpression.Scrutinee, SwitchPrecedence + 1, writer, diagnostics);
         writer.Append(" switch { ");
 
-        EmitList.Separated(switchExpression.Arms, ", ", writer, arm =>
+        EmitList.Separated(PackTuplePatterns.Reached(switchExpression.Arms), ", ", writer, arm =>
         {
             EmitArmHead(arm, narrowed, writer, diagnostics);
             writer.Append(" => ");
@@ -2503,7 +2503,14 @@ internal static partial class BodyEmitter
     private static void EmitTuplePattern(
         TuplePattern tuple, List<HoistedTest>? hoisted, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        if(tuple.TestedType is { } tested)
+        var (widthMissed, tested) = PackTuplePatterns.Lowering(tuple);
+
+        if(widthMissed)
+        {
+            writer.Append("(object and ");
+        }
+
+        if(tested is not null)
         {
             writer.Append(TypeNameEmitter.EmitAsPatternType(tested));
         }
@@ -2535,6 +2542,11 @@ internal static partial class BodyEmitter
         if(tuple.Binding is { } whole)
         {
             writer.Append($" {LocalNames.Of(whole)}");
+        }
+
+        if(widthMissed)
+        {
+            writer.Append(")");
         }
     }
 

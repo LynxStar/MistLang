@@ -279,6 +279,11 @@ becomes more precisely known:
   }
   ```
 
+  In a type position `fixed[i]` names the pack's own element `TArgs[i]` rather than a type of its
+  own, so a value read out of the pack at that position -- `args is (var first, var second, var third)`
+  binds `first` at `TArgs[0]` -- is assignable to it. The binding exists only in the guarded branch, and
+  `fixed[3]` is the same out-of-bounds error `MIST_VAR_0004` a `Type[3]:TArgs` pack draws.
+
   The value-side counterpart narrows the pack value with `args is (concrete tuple) x` (for example
   `args is (int, int, int) triple`), enabling a matching fixed-arity forward within that branch; see
   "Generic Body Checking and Provable Forwarding".
@@ -459,6 +464,15 @@ int Categorize<params TArgs>(params TArgs args) {
 ```
 
 Narrowing does not relax the destination check; it only supplies a proven shape to check against.
+
+The positional pattern is the same test spelled element by element (Requirement 12.10): inside the body,
+`args is (int a, int b)` asks what `args is (int, int) pair` asks, binding each element where the type
+test binds the whole. The pack's length and element types are open there, so the pattern is judged at
+each instantiation rather than refused in the body. Each width is specialized to its own C# method, in
+which the pattern at its own width is an ordinary tuple pattern; at any other width it lowers to a test
+that compiles, declares every binding at the type its element has there, and never matches. An element
+type the instantiation does not hold -- `(int a, int b)` over `(int, string)` -- is a runtime non-match
+in the same way, never the never-match error a closed tuple draws.
 The following contrasts the two ways a forward is still rejected -- a wrong-shape forward inside a
 branch, and an unnarrowed forward with no proven shape -- so every claim above appears as an annotated
 line rather than only in prose:

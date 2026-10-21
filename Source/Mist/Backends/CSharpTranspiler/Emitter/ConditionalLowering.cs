@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Expressions;
 
@@ -130,7 +131,7 @@ internal static class ConditionalLowering
 
         using(writer.Block())
         {
-            foreach(var arm in switchExpression.Arms)
+            foreach(var arm in PackTuplePatterns.Reached(switchExpression.Arms))
             {
                 writer.Write("case ");
                 BodyEmitter.EmitArmHead(arm, narrowed, writer, diagnostics);

@@ -142,7 +142,7 @@ internal static partial class PatternBinder
                             typePattern, namedTuple, typePattern.Name, scrutineeType, bindingsPermitted, ctx, context, failed);
                     }
 
-                    var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context, failed);
+                    var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context, failed, NarrowedPack(scrutineeType, tested));
                     return BindTypeTest(node, tested, binding, scrutineeType, ctx, context, failed);
                 }
 
@@ -339,7 +339,13 @@ internal static partial class PatternBinder
     {
         var elementNodes = GrammarRepetition.TwoLeadsAndRepeated(node.First, node.Rest, node.Patterns);
         var matched = OptionalLifting.NonVoidPortion(scrutineeType, context.ProgramModel.TypeInterner);
-        var scrutineeElements = (matched as ITupleType)?.ElementTypes;
+
+        if(PackTupleElements.OpenPack(matched) is { } pack)
+        {
+            return BindOverOpenPack(node, elementNodes, pack, bindingsPermitted, ctx, context, scrutineeFailed);
+        }
+
+        var scrutineeElements = PackTupleElements.Positions((matched as ITupleType)?.ElementTypes);
 
         if(scrutineeElements is { } held && held.Count != elementNodes.Count)
         {

@@ -2,6 +2,7 @@ using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Model;
 
@@ -60,4 +61,12 @@ internal sealed class LocalVariable(string name, IMistType type)
     /// be the one a callee reads.
     /// </summary>
     public bool IsContextBound { get; init; }
+
+    /// <summary>
+    /// The pack a <c>TArgs is Type[N] fixed</c> guard proved the size of, for the binding that guard
+    /// declares. Kept because the binding's own type, <c>Type[N]</c>, says how many elements there are
+    /// and not whose: <c>fixed[0]</c> in a type position has to BE <c>TArgs[0]</c>, the type every other
+    /// mention of that element names, or a value read out of the pack would not be assignable to it.
+    /// </summary>
+    public TypeParameter? NarrowedPack { get; init; }
 }

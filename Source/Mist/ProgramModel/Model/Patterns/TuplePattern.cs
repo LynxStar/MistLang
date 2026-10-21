@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Patterns;
@@ -34,6 +35,14 @@ internal sealed class TuplePattern(
     /// given.
     /// </summary>
     public IMistType? TestedType { get; } = testedType;
+
+    /// <summary>
+    /// The pack whose width matching tests, where the scrutinee is a pack of open width
+    /// (<c>args is (int a, int b)</c> over <c>params TArgs args</c>). Each element then matches the
+    /// pack's element at its index, and the pattern matches only where the pack holds exactly as many
+    /// -- a fact each specialization knows and the body it is written in does not.
+    /// </summary>
+    public TypeParameter? OpenPack { get; init; }
 
     public override IMistType NarrowedType { get; } = narrowedType;
 

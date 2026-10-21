@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -6,8 +7,10 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// Modifiers the grammar and the builders admit but a finished declaration's position rules out:
-/// <c>static</c> on a member of a Mist abstract type (abstract-type-unification Requirement 1.3). A CLR
-/// interface's static members are projected, not declared here, and fill no slot (Requirement 14.8).
+/// <c>static</c> on a member of a Mist abstract type (abstract-type-unification Requirement 1.3), whose CLR
+/// counterparts are projected rather than declared here and fill no slot (Requirement 14.8), and a bare
+/// <c>ref</c> on an operator or cast-operator parameter (ref-parameters Requirement 1.2). <c>readonly ref</c>
+/// on such a parameter is deliberately absent: no spec decides it.
 /// </summary>
 internal sealed class DeclarationPlacementAnalyzer : IProgramAnalyzer
 {
@@ -25,7 +28,26 @@ internal sealed class DeclarationPlacementAnalyzer : IProgramAnalyzer
                         member.Kind, member.Name, TypeDisplay.Mist(abstractType));
                 }
             }
+
+            if(type is ConcreteType { CloneSource: null } concrete)
+            {
+                foreach(var callable in concrete.OperatorsList.Concat<Method>(concrete.CastOperatorsList))
+                {
+                    foreach(var parameter in RefParameters(callable))
+                    {
+                        Report(context, parameter.DeclarationNode, DeclarationModifierDiagnostics.RefOnOperatorParameter,
+                            parameter.Name, Describe(callable));
+                    }
+                }
+            }
         }
+    }
+
+    public static IEnumerable<Parameter> RefParameters(Method callable)
+    {
+        return callable is Operator or CastOperator
+            ? callable.ParametersList.Where(parameter => parameter.Modifier is { IsRef: true, IsReadonly: false })
+            : [];
     }
 
     public static IEnumerable<StaticMember> StaticMembers(AbstractType type)
@@ -49,6 +71,13 @@ internal sealed class DeclarationPlacementAnalyzer : IProgramAnalyzer
         {
             yield return new StaticMember("indexer", "this[]", indexer.DeclarationNode);
         }
+    }
+
+    private static string Describe(Method callable)
+    {
+        return callable is CastOperator cast
+            ? $"the {(cast.IsImplicit ? "implicit" : "explicit")} cast operator to '{TypeDisplay.Mist(cast.TargetType)}'"
+            : $"operator '{((Operator)callable).Symbol}'";
     }
 
     private static void Report(AnalysisContext context, SyntaxNode? at, DiagnosticDescriptor descriptor, params object?[] args)

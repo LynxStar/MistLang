@@ -1179,7 +1179,7 @@ internal static partial class BodyEmitter
 
         if(!CompletesPromoted(expression))
         {
-            EmitDirect(expression, writer, diagnostics);
+            EmitUnchecked(expression, writer, diagnostics);
         }
         else if(expression is InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } conditional)
         {
@@ -1387,6 +1387,10 @@ internal static partial class BodyEmitter
                 writer.Append(
                     $"{Concatenated(concatenation.Left, GetPrecedence(concatenation.OperatorKind), diagnostics)} + "
                     + Concatenated(concatenation.Right, GetPrecedence(concatenation.OperatorKind) + 1, diagnostics));
+                break;
+
+            case BinaryExpression division when ConstantArithmetic.DividesByZero(division):
+                writer.Append(DividedByZero(division, diagnostics));
                 break;
 
             // Every binary operator Mist has is left-associative, so a right operand of the same precedence is

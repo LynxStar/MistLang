@@ -209,5 +209,11 @@ public class Program
         Console.WriteLine($"bracket={StringUtils.Bracket("Mist")}");
         Console.WriteLine($"doubled={StringUtils.DoubleNumeric("21")}");
         Console.WriteLine($"length={StringUtils.GetLength("Hello")}");
+
+        int wrapped = 2147483647 + 1;
+        byte narrowWrapped = (byte)200 + (byte)100;
+        long longWrapped = 9223372036854775807L + 1L;
+        int productWrapped = 65536 * 65536;
+        Console.WriteLine($"constant wrap: {wrapped} {narrowWrapped} {longWrapped} {productWrapped}");
     }
 }

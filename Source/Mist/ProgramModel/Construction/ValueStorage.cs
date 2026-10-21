@@ -27,8 +27,16 @@ internal static class ValueStorage
         var substitution = TypeSubstitution.ForReceiver(receiver);
         if(definition.ImportedStorage is { } imported)
         {
+            var storage = imported.Fields.AsEnumerable();
+            if(!imported.IsComplete)
+            {
+                storage = storage.Concat(definition.FieldsList
+                    .Where(field => !field.Modifiers.IsStatic && !imported.Fields.Any(known => ReferenceEquals(known.Field, field)))
+                    .Select(field => new StorageField(field.Name, field.Type, field)));
+            }
+
             return new StorageLayout(imported.IsComplete,
-                imported.Fields.Select(field => field with { Type = substitution.Apply(field.Type, interner: null) }).ToArray(),
+                storage.Select(field => field with { Type = substitution.Apply(field.Type, interner: null) }).ToArray(),
                 imported.BaseType is { } inherited ? substitution.Apply(inherited, interner: null) : null);
         }
 

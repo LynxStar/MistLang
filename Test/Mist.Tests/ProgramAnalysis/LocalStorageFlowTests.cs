@@ -247,7 +247,7 @@ public sealed class LocalStorageFlowTests
                 if(shape is "imported" or "unknown" or "hidden")
                 {
                     structure.ClrMetadataName = "Probe.Pair";
-                    structure.ImportedStorage = new StorageLayout(shape != "unknown", fields);
+                    structure.ImportedStorage = new StorageLayout(shape != "unknown", shape == "unknown" ? [] : fields);
                 }
 
                 if(shape == "intrinsic")

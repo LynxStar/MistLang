@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
@@ -35,7 +36,7 @@ public sealed class RefinedZeroDecisionTests
     [InlineData("unrefined", true)]
     public void BasesZero_IsAdmittedOnlyWhereThePredicateProvesIt(string shape, bool admitted)
     {
-        Assert.Equal(admitted, RefinedZero.IsAdmitted(Shaped(shape)));
+        Assert.Equal(admitted, RefinedZero.IsAdmitted(Shaped(shape), Regex.InfiniteMatchTimeout));
     }
 
     private IMistType Shaped(string shape)

@@ -94,6 +94,29 @@ public struct ExtendedContainer<T> : Container<T> {
     }
 }
 
+public struct Amount {
+    public int Value;
+
+    public Amount(int value)
+    {
+        Value = value;
+    }
+
+    public static Amount operator +(Amount a, Amount b)
+    {
+        return new Amount(a.Value + b.Value);
+    }
+}
+
+public struct TaggedAmount : Amount {
+    public int Tag;
+
+    public TaggedAmount(int value, int tag) : base(value)
+    {
+        Tag = tag;
+    }
+}
+
 public class Program
 {
     // --- Function accepting base type Point (proves derived-to-base conversion) ---
@@ -202,6 +225,12 @@ public class Program
         Point converted = origin;
         Console.WriteLine($"  origin.X={origin.X}, converted.X={converted.X}");
         Console.WriteLine($"  origin.Y={origin.Y}, converted.Y={converted.Y}");
+
+        Console.WriteLine("--- Base operator on derived operands ---");
+        var left = new TaggedAmount(3, 1);
+        var right = new TaggedAmount(4, 2);
+        Amount sum = left + right;
+        Console.WriteLine($"  sum.Value = {sum.Value}");
 
         Console.WriteLine("Done!");
     }

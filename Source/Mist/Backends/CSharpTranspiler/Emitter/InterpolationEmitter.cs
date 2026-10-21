@@ -19,7 +19,7 @@ internal static class InterpolationEmitter
             switch(part)
             {
                 case InterpolatedStringText literal:
-                    _ = text.Append(literal.Text);
+                    _ = text.Append(literal.Text.Replace("{", "{{", StringComparison.Ordinal).Replace("}", "}}", StringComparison.Ordinal));
                     break;
 
                 case InterpolatedStringHole hole:

@@ -471,6 +471,18 @@ public class Program
         items.Add(30);
         items.ForEach(item => Console.WriteLine($"item={item}"));
 
+        Console.WriteLine("--- Discarded Lambda Result ---");
+        Action<int> discardSum = x => Noted(x) + 1;
+        discardSum(8);
+
+        Console.WriteLine("--- Void Lambda At Inferred Result ---");
+        var voidCall = Invoke(() => Note("expression body"));
+        var voidBlock = Invoke(() =>
+        {
+            Note("block body");
+        });
+        Console.WriteLine($"voidCall={voidCall} voidBlock={voidBlock}");
+
         Console.WriteLine("=== FirstClassFunctions Done ===");
     }
 
@@ -507,6 +519,22 @@ public class Program
     public static int Negate(int x)
     {
         return -x;
+    }
+
+    public static int Noted(int x)
+    {
+        Console.WriteLine($"noted {x}");
+        return x;
+    }
+
+    public static void Note(string text)
+    {
+        Console.WriteLine($"note: {text}");
+    }
+
+    public static R Invoke<R>(func<R> f)
+    {
+        return f();
     }
 
     public static void Main(string[] args)
@@ -593,6 +621,12 @@ evens[1]=4
 item=10
 item=20
 item=30
+--- Discarded Lambda Result ---
+noted 8
+--- Void Lambda At Inferred Result ---
+note: expression body
+note: block body
+voidCall=Void voidBlock=Void
 === FirstClassFunctions Done ===
 ```
 

@@ -32,10 +32,10 @@ internal static class RespelledGroups
             || (InvariantCulture.FormatsItself(reference.Method) && reference.Receiver is { } receiver && !InvariantCulture.Fixes(receiver.Type));
     }
 
-    public static string Lambda(FunctionReferenceExpression reference, string? receiver)
+    public static string Lambda(FunctionReferenceExpression reference, string? receiver, string? unitFunction = null)
     {
         var method = reference.Method;
-        var function = TypeNameEmitter.Emit(reference.Type);
+        var function = unitFunction ?? TypeNameEmitter.Emit(reference.Type);
         var arguments = Enumerable.Range(0, ((IFunctionType)reference.Type).ParameterTypes.Count).Select(i => $"__arg{i}").ToList();
         var receiverType = reference.Receiver?.Type;
         if(receiver is null && !method.Modifiers.IsStatic && method.DeclaringType is StructType owner)
@@ -73,7 +73,9 @@ internal static class RespelledGroups
             call += ".GetAwaiter().GetResult()";
         }
 
-        var lambda = $"({string.Join(", ", arguments)}) => {call}";
+        var lambda = unitFunction is null
+            ? $"({string.Join(", ", arguments)}) => {call}"
+            : $"({string.Join(", ", arguments)}) => {{ {call}; return Standard.Void.Instance; }}";
 
         return receiver is null || receiverType is null
             ? $"(({function})({lambda}))"

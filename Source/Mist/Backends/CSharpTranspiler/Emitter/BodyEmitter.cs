@@ -127,7 +127,9 @@ internal static partial class BodyEmitter
         LocalFunctionStatement function, Func<Parameter, string> spell, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var enclosing = blockingAwaits;
+        var enclosingReturns = returnsUnit;
         blockingAwaits = false;
+        returnsUnit = false;
 
         try
         {
@@ -136,6 +138,7 @@ internal static partial class BodyEmitter
         finally
         {
             blockingAwaits = enclosing;
+            returnsUnit = enclosingReturns;
         }
     }
 
@@ -479,7 +482,8 @@ internal static partial class BodyEmitter
         Expression operand, Operator? declared, IReadOnlyList<IMistType>? closed, int position, int precedence, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         if(declared is { Modifiers.IsIntrinsic: false } && position < declared.ParametersList.Count
-            && OverloadPinning.CastFor(operand, declared.ParametersList[position], closed?[position] ?? declared.ParametersList[position].Type, declared) is { } pinned)
+            && (OverloadPinning.CastFor(operand, declared.ParametersList[position], closed?[position] ?? declared.ParametersList[position].Type, declared)
+                ?? InheritedStructOperands.Conversion(operand.Type, closed?[position] ?? declared.ParametersList[position].Type)) is { } pinned)
         {
             writer.Append($"(({pinned})");
             EmitSubExpression(operand, PrefixPrecedence, writer, diagnostics);
@@ -622,6 +626,11 @@ internal static partial class BodyEmitter
             return;
         }
 
+        if(EmitUnitResult(argument, parameter, closedTarget, writer, diagnostics))
+        {
+            return;
+        }
+
         if(parameter is not null
             && OverloadPinning.CastFor(argument, parameter, closedTarget ?? parameter.Type, callee) is { } pinned)
         {
@@ -659,7 +668,7 @@ internal static partial class BodyEmitter
                 }
             }
 
-            writer.WriteLine("return;");
+            writer.WriteLine(BareReturn());
         }
         else if(returnStmt is { IsExitCode: true, Value: { } exitCode })
         {
@@ -672,7 +681,7 @@ internal static partial class BodyEmitter
         }
         else
         {
-            writer.WriteLine("return;");
+            writer.WriteLine(BareReturn());
         }
     }
 
@@ -1171,7 +1180,7 @@ internal static partial class BodyEmitter
 
         if(!CompletesPromoted(expression))
         {
-            EmitDirect(expression, writer, diagnostics);
+            EmitUnchecked(expression, writer, diagnostics);
         }
         else if(expression is InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } conditional)
         {
@@ -1251,7 +1260,7 @@ internal static partial class BodyEmitter
 
                 using(writer.Block())
                 {
-                    EmitBlock(asyncBlock.Body, writer, diagnostics);
+                    EmitReturningUnit(false, asyncBlock.Body, writer, diagnostics);
                 }
 
                 writer.Append(asyncBlock.IsValueTask ? "))" : ")");
@@ -1381,12 +1390,16 @@ internal static partial class BodyEmitter
                     + Concatenated(concatenation.Right, GetPrecedence(concatenation.OperatorKind) + 1, diagnostics));
                 break;
 
+            case BinaryExpression division when ConstantArithmetic.DividesByZero(division):
+                writer.Append(DividedByZero(division, diagnostics));
+                break;
+
             // Every binary operator Mist has is left-associative, so a right operand of the same precedence is
             // one the source parenthesized: `a - (b - c)` written bare is `(a - b) - c`.
             case BinaryExpression binary when NarrowArithmetic.Promotes(binary.Type):
                 writer.Append(NarrowArithmetic.Spell(
                     binary.Type,
-                    $"{RenderAt(binary.Left, GetPrecedence(binary.OperatorKind), diagnostics)} {MapBinaryOperator(binary.OperatorKind)} {RenderAt(binary.Right, GetPrecedence(binary.OperatorKind) + 1, diagnostics)}"));
+                    $"{RenderOperand(binary.Left, binary.Operator, binary.ParameterTypes, 0, GetPrecedence(binary.OperatorKind), diagnostics)} {MapBinaryOperator(binary.OperatorKind)} {RenderOperand(binary.Right, binary.Operator, binary.ParameterTypes, 1, GetPrecedence(binary.OperatorKind) + 1, diagnostics)}"));
                 break;
 
             case BinaryExpression binary:
@@ -1879,11 +1892,12 @@ internal static partial class BodyEmitter
 
         if(lambda.Result is { } result)
         {
-            var discarded = ReturnsNothing(lambda);
+            var discarded = ReturnsNothing(lambda) && !YieldsUnit(lambda);
+            var discard = discarded ? DiscardedResult.Lead(result) : null;
 
             var slot = lambda.IsAsync ? TaskResult.Of(ResultTypeOf(lambda)) : ResultTypeOf(lambda);
 
-            if(!NeedsStatements(result, discarded) && LentValues.Within(result).Count == 0)
+            if(!NeedsStatements(result, discarded) && LentValues.Within(result).Count == 0 && discard is null)
             {
                 EmitEntering(result, slot, writer, diagnostics);
                 return;
@@ -1894,7 +1908,7 @@ internal static partial class BodyEmitter
             using(writer.Block())
             {
                 List<(string?, string)> held = [.. LifetimeLowering.Lend(result, writer).Select(value => ((string?)value.Flag, Released(value.Temp, value.Type)))];
-                EmitWrapped(held, 0, () => EmitSequenced(result, discarded ? null : "return ", writer, diagnostics, slot: slot), writer);
+                EmitWrapped(held, 0, () => EmitSequenced(result, discarded ? discard : "return ", writer, diagnostics, slot: slot), writer);
             }
 
             return;
@@ -1906,7 +1920,7 @@ internal static partial class BodyEmitter
         {
             if(lambda.Body is { } body)
             {
-                EmitBlock(body, writer, diagnostics);
+                EmitReturningUnit(YieldsUnit(lambda), body, writer, diagnostics);
             }
         }
     }

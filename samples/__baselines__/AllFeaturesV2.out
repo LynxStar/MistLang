@@ -31,6 +31,8 @@ isGreeting=True
 bracket=[Mist]
 doubled=42
 length=5
+constant wrap: -2147483648 44 -9223372036854775808 0
+closing brace: 42} and }}
 === ArrayLiterals Sample ===
 --- Single-element array ---
   [1]
@@ -635,6 +637,8 @@ Done!
 --- Value preservation through conversion ---
   origin.X=77, converted.X=77
   origin.Y=88, converted.Y=88
+--- Base operator on derived operands ---
+  sum.Value = 7
 Done!
 === Pattern Matching Sample ===
 --- Type Patterns ---
@@ -1698,6 +1702,9 @@ sizeCalls=2
   entry point called async method, result=fetched
 [promotion-dispatch]
   direct=7 abstract=7 extension=7 optional=-1 lifted=7
+[async-void-value]
+  as-value: logged
+  async void value=Void
 === Structured Concurrency Done ===
 === FirstClassFunctions Sample ===
 --- Expression Lambda ---
@@ -1757,6 +1764,12 @@ evens[1]=4
 item=10
 item=20
 item=30
+--- Discarded Lambda Result ---
+noted 8
+--- Void Lambda At Inferred Result ---
+note: expression body
+note: block body
+voidCall=Void voidBlock=Void
 === FirstClassFunctions Done ===
 === AsyncDropChaining Sample ===
 --- 1. Func auto-unwrap in sync context ---
@@ -2233,6 +2246,8 @@ Measure(string) 4
 Widen(int) 2
 Widen(long) 2
 Labeled(string) 4
+recorded 7
+void group: Void
 === CallableInference Done ===
 === Generic Extension Methods Sample ===
 stated:   GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Animal] <- GenericExtensionMethods.Shelf`1[GenericExtensionMethods.Dog]

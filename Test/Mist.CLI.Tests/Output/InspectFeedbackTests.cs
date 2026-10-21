@@ -14,10 +14,11 @@ public sealed class InspectFeedbackTests
     public void AnError_IsWrittenOnceInTheBuildsText_AndFails()
     {
         using var error = new StringWriter();
+        var feedback = new InspectFeedback(error);
 
-        var failed = InspectFeedback.Report([Package], error);
+        feedback.Report([Package]);
 
-        Assert.True(failed);
+        Assert.True(feedback.Failed);
         Assert.Equal(DiagnosticFormatter.Format(Package) + Environment.NewLine, error.ToString());
     }
 
@@ -25,10 +26,11 @@ public sealed class InspectFeedbackTests
     public void AWarning_IsWrittenAndDoesNotFail()
     {
         using var error = new StringWriter();
+        var feedback = new InspectFeedback(error);
 
-        var failed = InspectFeedback.Report([Warning], error);
+        feedback.Report([Warning]);
 
-        Assert.False(failed);
+        Assert.False(feedback.Failed);
         Assert.Equal(DiagnosticFormatter.Format(Warning) + Environment.NewLine, error.ToString());
     }
 
@@ -36,22 +38,47 @@ public sealed class InspectFeedbackTests
     public void PackageAndFrameworkDiagnosticsTogether_AreEachWrittenOnceInOrder()
     {
         using var error = new StringWriter();
+        var feedback = new InspectFeedback(error);
 
-        var failed = InspectFeedback.Report([Package, Warning, Framework], error);
+        feedback.Report([Package, Warning, Framework]);
 
-        Assert.True(failed);
+        Assert.True(feedback.Failed);
         Assert.Equal(
             [DiagnosticFormatter.Format(Package), DiagnosticFormatter.Format(Warning), DiagnosticFormatter.Format(Framework)],
-            error.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries));
+            Lines(error));
+    }
+
+    [Fact]
+    public void AnErrorWrittenBeforeTheRestore_IsNotWrittenAgainWithWhatFollowed_AndStillFails()
+    {
+        using var error = new StringWriter();
+        var feedback = new InspectFeedback(error);
+
+        feedback.Report([Package]);
+        var beforeRestore = Lines(error);
+        feedback.Report([Package, Warning]);
+        feedback.Report([Package, Warning]);
+
+        Assert.Equal([DiagnosticFormatter.Format(Package)], beforeRestore);
+        Assert.Equal([DiagnosticFormatter.Format(Package), DiagnosticFormatter.Format(Warning)], Lines(error));
+        Assert.True(feedback.Failed);
     }
 
     [Fact]
     public void NoDiagnostics_WritesNothing()
     {
         using var error = new StringWriter();
+        var feedback = new InspectFeedback(error);
 
-        Assert.False(InspectFeedback.Report([], error));
+        feedback.Report([]);
+
+        Assert.False(feedback.Failed);
         Assert.Empty(error.ToString());
+    }
+
+    private static string[] Lines(StringWriter error)
+    {
+        return error.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
     }
 
     private static Diagnostic Make(string id, DiagnosticSeverity severity, string message)

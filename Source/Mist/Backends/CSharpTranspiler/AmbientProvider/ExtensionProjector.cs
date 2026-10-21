@@ -186,6 +186,11 @@ internal static class ExtensionProjector
         };
 
         projected.TypeParametersList.AddRange(methodTypeParameters);
+        foreach(var typeParameter in projected.TypeParametersList)
+        {
+            typeParameter.DeclaringMethod = projected;
+        }
+
         AttributeProjector.Project(method, projected.AttributesList, methodScope, resolver);
 
         extensionBlock.MethodsList.Add(projected);

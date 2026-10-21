@@ -6,18 +6,18 @@ This document specifies the requirements for adding structured context to the Mi
 
 The `with` keyword already exists in Mist for trait satisfaction blocks (`with TypeName : TraitName { mappings }`). This feature extends the keyword's usage to new syntactic positions for context declaration and consumption. The existing trait-with usage remains unchanged and the grammar must disambiguate between the two usages.
 
-Mist currently has no threading or concurrency, so there is only ever one unit of execution at any point in time. The context stack pushing and popping is tied to lexical scope exit.
+Context stacks belong to a logical execution flow. Awaited callees and child tasks inherit the current context through the runtime execution context; subsequent pushes and pops in a child or sibling do not change another flow's stacks. Suppressing execution-context flow starts a child without inherited context. Context pushes and pops remain tied to lexical scope exit, including exception unwinding.
 
 ## Glossary
 
-- **Compiler**: The Mist compiler pipeline, including lexing, parsing, semantic model construction, analysis, and C# code emission.
+- **Compiler**: The Mist compiler's standard pipeline, including lexing, parsing, program-model construction, analysis, and C# code emission.
 - **Grammar**: The Storm grammar definition that specifies the syntax of the Mist language (`Mist.storm` and `keywords.storm`).
 - **Parser**: The component that reads Mist source tokens and produces an abstract syntax tree (AST) conforming to the Grammar.
 - **Pretty_Printer**: The component (`MistPrettyPrinter`) that formats a Mist AST back into valid Mist source text.
-- **Semantic_Model_Builder**: The component (`SemanticModelBuilder`) that constructs the semantic model from the AST in two passes: Pass 1 registers types and members, Pass 2 resolves type references and expressions.
-- **Type_Checker**: The analysis component (`TypeCheckerAnalyzer`) that validates type rules against the semantic model.
-- **Context_Checker**: A new analysis component that validates structured context availability at compile time by walking the call graph.
-- **Emitter**: The C# code emission component (`CSharpEmitter` / `CSharpSourceWriter`) that translates the Mist AST into C# source files.
+- **Semantic_Model_Builder**: The model-construction role, realized as `ProgramModelBuilder`, that builds the program model from the AST: member construction records types and members, and body binding resolves type references and expressions. Where these requirements say "semantic model" they mean the program model.
+- **Type_Checker**: The role that validates type rules against the program model, realized by diagnostics reported during program-model construction and by Stage 5 analysis rules (`Source/Mist/ProgramAnalysis/`).
+- **Context_Checker**: The Stage 5 analysis rule (`ContextAnalyzer`) that validates structured context availability at compile time by walking the call graph.
+- **Emitter**: The C# code emission component (`CSharpEmitterV2`) that translates the program model into C# source files.
 - **Context_Value**: A value pushed onto the context stack for a given type, available to callees that bind that type via a `with` parameter.
 - **Context_Stack**: A per-type stack of context values maintained at runtime. The top of the stack is the current context for that type.
 - **Context_Declaration**: A `with` statement or `with` block that pushes a value onto the Context_Stack for a given type.
@@ -79,7 +79,7 @@ Mist currently has no threading or concurrency, so there is only ever one unit o
 3. WHEN a `with TypeReference _ = expression ;` statement is executed, THE Compiler SHALL push the value of the expression onto the Context_Stack keyed by the specified TypeReference without binding a local variable.
 4. WHEN a `with expression ;` statement is executed, THE Compiler SHALL push the value of the expression onto the Context_Stack keyed by the inferred type of the expression without binding a local variable.
 5. WHEN the enclosing block scope (`{ }`) containing one or more context declarations exits, THE Compiler SHALL pop the corresponding values from the Context_Stack in reverse declaration order (last declared is popped first).
-6. THE Semantic_Model_Builder SHALL register the local variable introduced by `with var x = expression` and `with TypeReference x = expression` as a symbol with `SymbolKind.LocalVariable` in the declaring block scope.
+6. THE Semantic_Model_Builder SHALL register the local variable introduced by `with var x = expression` and `with TypeReference x = expression` as a context-bound local variable in the declaring block scope.
 7. WHEN a `with var x = expression` statement uses type inference, THE Semantic_Model_Builder SHALL resolve the type of `x` to the static type of the expression.
 8. WHEN multiple context declarations for the same type appear in the same block scope, THE Compiler SHALL push each value onto the Context_Stack in declaration order, shadowing the previous value of that type until the scope exits.
 
@@ -117,7 +117,7 @@ Mist currently has no threading or concurrency, so there is only ever one unit o
 #### Acceptance Criteria
 
 1. WHEN a method with a `with TypeReference identifier` clause is called, THE Compiler SHALL read the top value from the Context_Stack for the specified type and bind it to the identifier as a read-only local variable within the method body.
-2. THE Semantic_Model_Builder SHALL register the identifier from a `with` clause as a symbol with `SymbolKind.LocalVariable` in the method body scope, with its resolved type set to the type denoted by the `with` clause's TypeReference.
+2. THE Semantic_Model_Builder SHALL register the identifier from a `with` clause as a context-bound local variable in the method body scope, with its resolved type set to the type denoted by the `with` clause's TypeReference.
 3. THE Type_Checker SHALL verify that the type specified in the `with` clause resolves to a defined type in the semantic model.
 4. WHEN a method has multiple `with` clauses, THE Compiler SHALL bind each one independently from the Context_Stack for its respective type.
 5. IF the identifier from a `with` clause is the target of an assignment expression within the method body, THEN THE Compiler SHALL emit a diagnostic error indicating that context-bound variables are not reassignable.

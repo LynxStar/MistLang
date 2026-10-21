@@ -5,6 +5,7 @@ using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Statements;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -17,6 +18,76 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class EntryPointAnalyzerTests
 {
     private readonly HandBuiltModel hand = new();
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TheCompiledExecutableRequiresItsOwnEntryPointRegardlessOfAReferencedMain(bool referencedMain)
+    {
+        _ = hand.Model.AddSelfAssembly("Probe");
+        if(referencedMain)
+        {
+            Main(hand.Model.AddReferenceAssembly("Library", "/library/mist.toml"), "Program");
+        }
+
+        var refusal = Assert.Single(hand.Analyze(new EntryPointAnalyzer()));
+
+        Assert.Equal("MIST_MISSING_ENTRY_POINT", refusal.Id.Value);
+        Assert.Equal(DiagnosticSeverity.Error, refusal.Severity);
+        Assert.Equal(PipelineStage.Analysis, refusal.Stage);
+        Assert.Equal("entry-point-resolution", refusal.AnalyzerName);
+        Assert.Equal("Probe", refusal.CompilationUnitPath);
+        Assert.Equal(default, refusal.Location);
+        Assert.Equal(
+            "Project 'Probe' produces an executable but declares no entry point. Add a 'static void Main()' method, or set output type to library.",
+            refusal.Message);
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AReferencedExecutableWithoutAnEntryPointDoesNotProduceItsOwnArtifact(bool compiledLibrary)
+    {
+        var self = hand.Model.AddSelfAssembly("Probe", isLibrary: compiledLibrary);
+        if(!compiledLibrary)
+        {
+            Main(self, "Program");
+        }
+
+        _ = hand.Model.AddReferenceAssembly("Library", "/library/mist.toml");
+
+        Assert.Empty(hand.Analyze(new EntryPointAnalyzer()));
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void LibrariesWithoutAnEntryPointAreAdmittedInEitherProjectRole()
+    {
+        _ = hand.Model.AddSelfAssembly("Probe", isLibrary: true);
+        _ = hand.Model.AddReferenceAssembly("Library", "/library/mist.toml", isLibrary: true);
+
+        Assert.Empty(hand.Analyze(new EntryPointAnalyzer()));
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void AnIndependentAnalysisRefusalDoesNotHideTheMissingEntryPoint()
+    {
+        _ = hand.Model.AddSelfAssembly("Probe");
+        var statement = new ReturnStatement(HandBuiltModel.Literal(hand.Type("String"), "wrong"), hand.Type("Int32"));
+        var diagnostics = new DiagnosticBag();
+        var assignability = new AssignabilityAnalyzer();
+        assignability.Analyze(hand.Context(assignability, diagnostics, statement));
+        var entryPoint = new EntryPointAnalyzer();
+
+        entryPoint.Analyze(hand.Context(entryPoint, diagnostics));
+
+        Assert.Equal(
+            ["MIST_PA_NO_IMPLICIT_CONVERSION", "MIST_MISSING_ENTRY_POINT"],
+            diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Id.Value));
+    }
 
     [Fact]
     [Trait("Tier", "2")]

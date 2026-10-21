@@ -187,7 +187,7 @@ public sealed class StandardPipelineProgressTests
     private PipelineInput Input()
     {
         var options = new CompilerOptions("probe", [], new BackendId("csharp"), "out", "bin", "Probe", "Probe");
-        return new PipelineInput(new MistCompilation([]), [], [], options, diagnostics, resolution);
+        return new PipelineInput(new MistCompilation([]), [], options, diagnostics, resolution);
     }
 
     private static Diagnostic Error()

@@ -112,11 +112,9 @@ public static class StdlibLoader
             }
 
             var sourceText = new SourceText(path, contents);
-            units.Add(new CompilationUnit(sourceText)
+            units.Add(new CompilationUnit(sourceText, "Standard", stdlibRoot)
             {
                 IsStdlib = true,
-                NamespaceRoot = "Standard",
-                ProjectFolder = stdlibRoot,
             });
         }
 

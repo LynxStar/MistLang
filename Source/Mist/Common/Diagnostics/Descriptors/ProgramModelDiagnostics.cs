@@ -11,13 +11,6 @@ public static partial class ProgramModelDiagnostics
 {
     // ── Internal / driver-level errors ────────────────────────────────────
 
-    /// <summary>AST array length does not match compilation unit array length.</summary>
-    public static readonly DiagnosticDescriptor AstUnitMismatch = new(
-        new DiagnosticId("MIST_INTERNAL_AST_UNIT_MISMATCH"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Internal compiler error: AST count ({0}) does not match compilation unit count ({1}). This indicates a driver bug where a failed lex/parse dropped an AST without dropping its corresponding compilation unit.");
-
     /// <summary>An unexpected namespace declaration node type was encountered.</summary>
     public static readonly DiagnosticDescriptor UnexpectedNamespaceNode = new(
         new DiagnosticId("MIST_INTERNAL_UNEXPECTED_NS_NODE"),
@@ -932,7 +925,7 @@ public static partial class ProgramModelDiagnostics
         new DiagnosticId("MIST_PM_TYPE_ARGUMENTS_CONFLICT"),
         DiagnosticSeverity.Error,
         PipelineStage.SemanticModelConstruction,
-        "Cannot infer the type arguments of {0}: the arguments give '{1}' the types {2}, and none of them is a type the others all convert to. State all of them explicitly at the call: {3}.");
+        "Cannot infer the type arguments of {0}: the arguments give {1} the types {2}, and none of them is a type the others all convert to. State all of them explicitly at the call: {3}.");
 
     public static readonly DiagnosticDescriptor TypeArgumentCountMismatch = new(
         new DiagnosticId("MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH"),

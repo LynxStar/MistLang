@@ -80,7 +80,7 @@ public static class TypeInspector
         var units = StdlibLoader.LoadFor(diagnostics);
         var lexer = new MistLexer();
         var parser = new MistParser();
-        var asts = ImmutableArray.CreateBuilder<Storm.Runtime.SyntaxNode>(units.Length);
+        var parsedUnits = ImmutableArray.CreateBuilder<CompilationUnit>(units.Length);
 
         foreach(var unit in units)
         {
@@ -90,7 +90,7 @@ public static class TypeInspector
             }
 
             root.SetParentLinks();
-            asts.Add(root);
+            parsedUnits.Add(unit with { Ast = root });
         }
 
         if(diagnostics.HasErrors)
@@ -108,8 +108,8 @@ public static class TypeInspector
             ProjectName: "Inspect",
             NamespaceRoot: "Inspect");
 
-        var compilation = new MistCompilation(units) { HasStandardLibrary = true };
-        return ProgramModelBuilder.Build(compilation, asts.MoveToImmutable(), options, diagnostics, provider) is not null
+        var compilation = new MistCompilation(parsedUnits.MoveToImmutable()) { HasStandardLibrary = true };
+        return ProgramModelBuilder.Build(compilation, options, diagnostics, provider) is not null
             && !diagnostics.HasErrors;
     }
 }

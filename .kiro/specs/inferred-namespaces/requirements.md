@@ -122,7 +122,7 @@ The Mist programming language currently supports a single optional namespace dec
 3. WHEN a type belongs to an Explicit_Namespace declared with block syntax, THE CSharp_Emitter SHALL emit a block namespace declaration in the generated C# file.
 4. WHEN a file contains multiple namespace declarations, THE CSharp_Emitter SHALL emit each namespace with its associated types in the generated C# file.
 5. WHEN a file contains types in both an explicit namespace and the inferred namespace, THE CSharp_Emitter SHALL emit both namespaces in the generated C# file.
-6. THE CSharp_Emitter SHALL emit `using` directives in the generated C# file for each Using_Declaration in the Mist source.
+6. THE CSharp_Emitter SHALL emit a `using` directive in the generated C# file for each Using_Declaration in the Mist source that names a namespace C# has, deduplicated and sorted with the file's global usings as global-usings Requirement 6 states. It SHALL omit one naming a namespace whose declarations all erase. The omission affects only the emitted C#; the Using_Declaration still takes part in Mist name resolution.
 
 ### Requirement 9: Inferred Namespace for Files with Explicit Namespaces
 

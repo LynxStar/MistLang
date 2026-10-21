@@ -243,3 +243,5 @@ Abstract types can declare parameter refinements as part of their contract. Impl
 {{#endtabs }}
 
 An implementor cannot use a **stronger** constraint than the abstract type declares — that would reject values the abstract type promises to accept.
+
+A bound that names a member, a parameter or a dependent type parameter (`where entry >= 0 and < Count`, `where lo < hi`) is compared by what it names, never by its spelling. The implementor's `Count` matches the abstract type's `Count` when it is the member that fills that slot, and a parameter matches the parameter in the same position. A strict bound implies the inclusive one, so an implementor may accept `<= Count` where the abstract type promises `< Count`, but not the reverse. The compiler does no arithmetic on bounds: `< Count` and `<= Count - 1` are not treated as the same, and neither are `lo < hi` and `hi > lo`. A return or property type follows the same rule in the other direction: the implementor may promise a stronger bound, but not a weaker one.

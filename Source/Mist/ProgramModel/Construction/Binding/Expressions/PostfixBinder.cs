@@ -60,7 +60,7 @@ internal static class PostfixBinder
             return new ErrorExpression(group.Node);
         }
 
-        return result;
+        return TypeNameValues.AsValue(result, context);
     }
 
     /// <summary>

@@ -53,7 +53,7 @@ public sealed class QualifiedNameBindingTests
 
         var bound = f.Bind(BindingFragments.Identifier("System"), Access("Int32", 20));
 
-        Assert.Same(f.Built.Type("Int32"), Assert.IsType<TypeReferenceExpression>(bound).ReferencedType);
+        Assert.Same(f.Built.Type("Int32"), Assert.IsType<TypeLiteralExpression>(bound).ReferencedType);
         Assert.Empty(f.Diagnostics.ToImmutableArray());
     }
 

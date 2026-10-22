@@ -146,6 +146,7 @@ The `TypeCheckerAnalyzer` gains new validation passes:
 | Ref local requires initializer | `ref int x;` without `= ref ...` | `MIST_REF_0010` |
 | Ref lambda capture prohibition | Ref local captured by closure | `MIST_REF_0011` |
 | Ref on an operator or cast-operator parameter (Requirement 1.2, corrected 2026-10-21) | Bare `ref` on such a parameter, refused at the parameter | `MIST_PM_REF_ON_OPERATOR_PARAMETER` |
+| Readonly ref on an operator or cast-operator parameter (Requirement 1.2, decided 2026-10-22) | `readonly ref` on such a parameter, refused at the parameter | `MIST_PM_READONLY_REF_ON_OPERATOR_PARAMETER` |
 | Ref overload distinction | Overload resolution considers RefKind | (no diagnostic — resolution logic) |
 | Interface/trait RefKind match | Implementing method RefKind ≠ interface | `MIST_REF_0012` |
 

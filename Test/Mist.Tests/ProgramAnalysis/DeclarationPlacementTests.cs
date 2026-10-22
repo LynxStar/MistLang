@@ -107,12 +107,29 @@ public sealed class DeclarationPlacementTests
 
     [Fact]
     [Trait("Tier", "1")]
-    public void AReadonlyRefOperatorParameterIsLeftUndecided()
+    public void AReadonlyRefOperatorParameterIsRefused()
     {
         var vec = HandBuiltModel.Struct("Vec");
-        var view = new ParameterModifier(IsReadonly: true, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.In);
 
-        Assert.Empty(DeclarationPlacementAnalyzer.RefParameters(Callable(vec, "binary-first", view)));
+        var refused = Assert.Single(DeclarationPlacementAnalyzer.RefParameters(Callable(vec, "binary-first", ReadonlyRef)));
+
+        Assert.Equal("a", refused.Name);
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void AReadonlyRefOperatorParameterIsReportedWithItsOwnDiagnostic()
+    {
+        var fragment = new DeclarationFragments();
+        var vec = HandBuiltModel.Struct("Vec");
+        fragment.Types.Add(vec);
+        _ = Callable(vec, "implicit-cast", ReadonlyRef, offset: 30);
+
+        var diagnostic = Assert.Single(fragment.Run(new DeclarationPlacementAnalyzer()));
+
+        Assert.Equal("MIST_PM_READONLY_REF_ON_OPERATOR_PARAMETER", diagnostic.Id.Value);
+        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Contains("parameter 'a' of the implicit cast operator to 'int'", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -144,6 +161,8 @@ public sealed class DeclarationPlacementTests
     }
 
     private static ParameterModifier ByRef => new(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.Ref);
+
+    private static ParameterModifier ReadonlyRef => new(IsReadonly: true, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.In);
 
     private static Method Callable(StructType vec, string callable, ParameterModifier modifier, int offset = 20)
     {

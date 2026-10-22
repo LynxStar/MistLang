@@ -16,6 +16,12 @@ public static class DeclarationModifierDiagnostics
         PipelineStage.SemanticModelConstruction,
         "The 'ref' modifier is not valid on parameter '{0}' of {1}: an operator is applied without an argument list, so no use of it can write the 'ref' a reference argument needs. Take the parameter by value.");
 
+    public static readonly DiagnosticDescriptor ReadonlyRefOnOperatorParameter = new(
+        new DiagnosticId("MIST_PM_READONLY_REF_ON_OPERATOR_PARAMETER"),
+        DiagnosticSeverity.Error,
+        PipelineStage.SemanticModelConstruction,
+        "The 'readonly ref' modifier is not valid on parameter '{0}' of {1}: an operator takes its operands by value. Take the parameter by value.");
+
     public static readonly DiagnosticDescriptor SealedOnOperator = new(
         new DiagnosticId("MIST_PM_SEALED_ON_OPERATOR"),
         DiagnosticSeverity.Error,

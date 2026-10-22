@@ -8,9 +8,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// <summary>
 /// Modifiers the grammar and the builders admit but a finished declaration's position rules out:
 /// <c>static</c> on a member of a Mist abstract type (abstract-type-unification Requirement 1.3), whose CLR
-/// counterparts are projected rather than declared here and fill no slot (Requirement 14.8), and a bare
-/// <c>ref</c> on an operator or cast-operator parameter (ref-parameters Requirement 1.2). <c>readonly ref</c>
-/// on such a parameter is deliberately absent: no spec decides it.
+/// counterparts are projected rather than declared here and fill no slot (Requirement 14.8), and <c>ref</c>
+/// or <c>readonly ref</c> on an operator or cast-operator parameter (ref-parameters Requirement 1.2).
 /// </summary>
 internal sealed class DeclarationPlacementAnalyzer : IProgramAnalyzer
 {
@@ -35,8 +34,10 @@ internal sealed class DeclarationPlacementAnalyzer : IProgramAnalyzer
                 {
                     foreach(var parameter in RefParameters(callable))
                     {
-                        Report(context, parameter.DeclarationNode, DeclarationModifierDiagnostics.RefOnOperatorParameter,
-                            parameter.Name, Describe(callable));
+                        var refusal = parameter.Modifier.IsReadonly
+                            ? DeclarationModifierDiagnostics.ReadonlyRefOnOperatorParameter
+                            : DeclarationModifierDiagnostics.RefOnOperatorParameter;
+                        Report(context, parameter.DeclarationNode, refusal, parameter.Name, Describe(callable));
                     }
                 }
             }
@@ -46,7 +47,7 @@ internal sealed class DeclarationPlacementAnalyzer : IProgramAnalyzer
     public static IEnumerable<Parameter> RefParameters(Method callable)
     {
         return callable is Operator or CastOperator
-            ? callable.ParametersList.Where(parameter => parameter.Modifier is { IsRef: true, IsReadonly: false })
+            ? callable.ParametersList.Where(parameter => parameter.Modifier.IsRef)
             : [];
     }
 

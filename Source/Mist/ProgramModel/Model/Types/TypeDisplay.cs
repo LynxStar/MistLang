@@ -1,4 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Types;
 
@@ -23,7 +25,9 @@ internal static class TypeDisplay
     /// The types of one message, spelled as <see cref="Mist(IMistType)"/> spells them except where two
     /// distinct type parameters it shows share a name -- an enclosing method's <c>T</c> beside the callee's --
     /// which are then named with their declaration, <c>T of method Api.Pick</c>, so the reader can tell them
-    /// apart. Only the parameters actually shown count, so a message with no such pair is unchanged.
+    /// apart. Where that still reads alike, as for two overloads' <c>T</c>, the declaration is spelled in full:
+    /// the method's parameter types, the type's namespace. Only the parameters actually shown count, so a
+    /// message with no such pair is unchanged.
     /// </summary>
     public static IReadOnlyList<string> Distinguished(IReadOnlyList<IMistType> types)
     {
@@ -33,12 +37,18 @@ internal static class TypeDisplay
             _ = shown.Add(parameter);
             return null;
         })).ToList();
-        var colliding = shown.GroupBy(parameter => parameter.Name).Where(named => named.Count() > 1)
-            .SelectMany(named => named).ToHashSet(ReferenceEqualityComparer.Instance);
+        var labels = shown.GroupBy(parameter => parameter.Name).Where(named => named.Count() > 1).SelectMany(named => named)
+            .ToDictionary<TypeParameter, TypeParameter, string>(parameter => parameter, parameter => Declared(parameter, detailed: false),
+                ReferenceEqualityComparer.Instance);
 
-        return colliding.Count == 0
+        foreach(var tied in labels.GroupBy(label => label.Value).Where(alike => alike.Count() > 1).SelectMany(alike => alike).ToList())
+        {
+            labels[tied.Key] = Declared(tied.Key, detailed: true);
+        }
+
+        return labels.Count == 0
             ? plain
-            : [.. types.Select(type => Render(type, parameter => colliding.Contains(parameter) ? Qualified(parameter) : null))];
+            : [.. types.Select(type => Render(type, parameter => labels.GetValueOrDefault(parameter)))];
     }
 
     private static string Render(IMistType type, Func<TypeParameter, string?>? spell)
@@ -69,18 +79,28 @@ internal static class TypeDisplay
         };
     }
 
-    private static string Qualified(TypeParameter parameter)
+    private static string Declared(TypeParameter parameter, bool detailed)
     {
+        var declaration = parameter switch
+        {
+            { DeclaringMethod: { } method } => DeclaredBy(method, detailed),
+            { DeclaringType: { } type } => $"type {MistType.StripArity(detailed ? type.FullyQualifiedName : type.Name)}",
+            { Scope: ExtensionScope { Block: { } block } } =>
+                $"extension({(block.ResolvedReceiverType is { } receiver ? Mist(receiver) : "")} {block.ReceiverParameterName})",
+            _ => null,
+        };
         var name = MistType.StripArity(parameter.Name);
 
-        if(parameter.DeclaringMethod is { } method)
-        {
-            return method.DeclaringType is { } owner
-                ? $"{name} of method {MistType.StripArity(owner.Name)}.{method.Name}"
-                : $"{name} of method {method.Name}";
-        }
+        return declaration is null ? name : $"{name} of {declaration}";
+    }
 
-        return parameter.DeclaringType is { } declaring ? $"{name} of type {MistType.StripArity(declaring.Name)}" : name;
+    private static string DeclaredBy(Method method, bool detailed)
+    {
+        var kind = method.DeclaringBlock is null ? "method" : "extension method";
+        var owner = method.DeclaringType is { } type ? $"{MistType.StripArity(detailed ? type.FullyQualifiedName : type.Name)}." : "";
+        var signature = detailed ? $"({string.Join(", ", method.ParametersList.Select(parameter => Mist(parameter.Type)))})" : "";
+
+        return $"{kind} {owner}{method.Name}{signature}";
     }
 
     /// <summary>

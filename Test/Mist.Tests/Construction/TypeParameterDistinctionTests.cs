@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -87,14 +88,59 @@ public sealed class TypeParameterDistinctionTests
         Assert.Equal(31, diagnostic.Location.Start.Column);
     }
 
+    [Fact]
+    public void AnExtensionBlocksTIsNamedWithItsReceiver()
+    {
+        var (_, callee) = Generic(HandBuiltModel.Class("Api"), "Pick");
+        var block = new ExtensionBlock("self", "Probe", new ExtensionScope(null), null);
+        var extended = new TypeParameter("T", 0, block.Scope, null!);
+        block.TypeParametersList.Add(extended);
+        block.ResolvedReceiverType = built.Interner.GetOrCreateConstructedType(HandBuiltModel.Class("List<>"), [extended]);
+
+        Assert.Equal(["T of method Api.Pick", "T of extension(List<T> self)"], TypeDisplay.Distinguished([callee, extended]));
+    }
+
+    [Fact]
+    public void AnExtensionMethodsTIsNamedAsOne()
+    {
+        var (_, callee) = Generic(HandBuiltModel.Class("Api"), "Pick");
+        var block = new ExtensionBlock("self", "Probe", new ExtensionScope(null), null);
+        var map = new Method("Map", Int, [], DeclarationFragments.Public) { DeclaringBlock = block, Scope = new MethodScope(block.Scope) };
+        var mapped = new TypeParameter("T", 0, map.Scope, null!) { DeclaringMethod = map };
+
+        Assert.Equal(["T of method Api.Pick", "T of extension method Map"], TypeDisplay.Distinguished([callee, mapped]));
+    }
+
+    [Fact]
+    public void TwoOverloadsTsAreNamedWithTheirParameterTypes()
+    {
+        var api = HandBuiltModel.Class("Api");
+        var (_, both) = Generic(api, "Pick");
+        var (_, mixed) = Generic(api, "Pick", second: Int);
+
+        Assert.Equal(["T of method Probe.Api.Pick(T, T)", "T of method Probe.Api.Pick(T, int)"], TypeDisplay.Distinguished([both, mixed]));
+    }
+
+    [Fact]
+    public void TwoSameNamedTypesTsAreNamedWithTheirNamespaces()
+    {
+        var first = new ClassType("Box<>", "A", new Scope(null), null, null);
+        var second = new ClassType("Box<>", "B", new Scope(null), null, null);
+
+        var spelled = TypeDisplay.Distinguished([new TypeParameter("T", 0, first.Scope, first), new TypeParameter("T", 0, second.Scope, second)]);
+
+        Assert.Equal(["T of type A.Box", "T of type B.Box"], spelled);
+    }
+
     private IMistType Int => built.Type("Int32");
 
-    private (Method Method, TypeParameter Parameter) Generic(ClassType owner, string name, string parameterName = "T")
+    private (Method Method, TypeParameter Parameter) Generic(ClassType owner, string name, string parameterName = "T", IMistType? second = null)
     {
         var method = new Method(name, Int, [], DeclarationFragments.Public) { DeclaringType = owner, Scope = new MethodScope(owner.Scope) };
         var parameter = new TypeParameter(parameterName, 0, method.Scope, owner) { DeclaringMethod = method };
         method.TypeParametersList.Add(parameter);
         method.ParametersList.Add(new Parameter("a", parameter));
+        method.ParametersList.Add(new Parameter("b", second ?? parameter));
         return (method, parameter);
     }
 

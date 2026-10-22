@@ -95,7 +95,7 @@ public sealed class PackElementDefaultEmissionTests
     [InlineData("Crate", "this.Kept = __default_T2();")]
     [InlineData("Blocked", $"protected Blocked_2({Marker} marker, System.Func<T1> __default_T1)")]
     [InlineData("Blocked", "public static Blocked_2<T1, T2> __CreateDefault(System.Func<T1> __default_T1)")]
-    [InlineData("Holder", "this.Inner = Pair_2<T1, T2>.__CreateDefault(__default_T1, __default_T2);")]
+    [InlineData("Holder", "this.Inner = Probe.Pair_2<T1, T2>.__CreateDefault(__default_T1, __default_T2);")]
     [InlineData("Holder", "this.Own = __default_T2();")]
     [InlineData("Values", $"protected Values_2({Marker} marker, System.Func<T1> __default_T1)")]
     [InlineData("Values", "this.Maybe = null;")]
@@ -114,10 +114,10 @@ public sealed class PackElementDefaultEmissionTests
     }
 
     [Theory]
-    [InlineData("Pair_2<int, string> pair = Pair_2<int, string>.__CreateDefault(() => default(int), () => \"\");")]
-    [InlineData("Holder_2<Probe.Widget, string> keeper = Holder_2<Probe.Widget, string>.__CreateDefault(() => Probe.Widget.__CreateDefault(), () => \"\");")]
-    [InlineData("Blocked_2<string, int> blocked = Blocked_2<string, int>.__CreateDefault(() => \"\");")]
-    [InlineData("Values_2<int, bool> values = Values_2<int, bool>.__CreateDefault(() => default(int));")]
+    [InlineData("Probe.Pair_2<int, string> pair = Probe.Pair_2<int, string>.__CreateDefault(() => default(int), () => \"\");")]
+    [InlineData("Probe.Holder_2<Probe.Widget, string> keeper = Probe.Holder_2<Probe.Widget, string>.__CreateDefault(() => Probe.Widget.__CreateDefault(), () => \"\");")]
+    [InlineData("Probe.Blocked_2<string, int> blocked = Probe.Blocked_2<string, int>.__CreateDefault(() => \"\");")]
+    [InlineData("Probe.Values_2<int, bool> values = Probe.Values_2<int, bool>.__CreateDefault(() => default(int));")]
     [InlineData("string zero = Probe.Calls.Zero_2<int, string>(() => default(int), () => \"\");")]
     [InlineData("int defaulted = Probe.Calls.Defaulted_2<int, string>(() => default(int), () => \"\", (1, \"x\"));")]
     public void AUse_PassesTheDefaultOfTheTypeItsClosingPutAtEachElement(string line)

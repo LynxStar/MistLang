@@ -43,12 +43,12 @@ public sealed class PackSlotBridgeEmissionTests
     });
 
     [Theory]
-    [InlineData("Adder", "int IApplier_2<int, int, int>.Apply((int, int) args) => this.Apply(args.Item1, args.Item2);")]
-    [InlineData("Lengther", "int IApplier_1<string, int>.Apply(System.ValueTuple<string> args) => this.Apply(args.Item1);")]
-    [InlineData("Constant", "int IApplier_0<int>.Apply(System.ValueTuple args) => this.Apply();")]
-    [InlineData("Printer", "void IHandler_2<int, bool>.Handle(string tag, (int, bool) args) => this.Handle(tag, args.Item1, args.Item2);")]
-    [InlineData("Pre", "int IApplier_3<int, T1, T2, int>.Apply((int, T1, T2) args) => this.Apply(args.Item1, (args.Item2, args.Item3));")]
-    [InlineData("Own", "int ICounter_2<int, int>.Count((int, int) args) => this.Count(args.Item1, args.Item2);")]
+    [InlineData("Adder", "int Probe.IApplier_2<int, int, int>.Apply((int, int) args) => this.Apply(args.Item1, args.Item2);")]
+    [InlineData("Lengther", "int Probe.IApplier_1<string, int>.Apply(System.ValueTuple<string> args) => this.Apply(args.Item1);")]
+    [InlineData("Constant", "int Probe.IApplier_0<int>.Apply(System.ValueTuple args) => this.Apply();")]
+    [InlineData("Printer", "void Probe.IHandler_2<int, bool>.Handle(string tag, (int, bool) args) => this.Handle(tag, args.Item1, args.Item2);")]
+    [InlineData("Pre", "int Probe.IApplier_3<int, T1, T2, int>.Apply((int, T1, T2) args) => this.Apply(args.Item1, (args.Item2, args.Item3));")]
+    [InlineData("Own", "int Probe.ICounter_2<int, int>.Count((int, int) args) => this.Count(args.Item1, args.Item2);")]
     public void AMemberWrittenAtThePacksArity_IsReachedThroughAnExplicitImplementation(string typeName, string bridge)
     {
         _ = Assert.Single(Lines(Emit(typeName)), line => line == bridge);
@@ -89,7 +89,7 @@ public sealed class PackSlotBridgeEmissionTests
         Assert.Empty(diagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
         _ = Assert.Single(
             Lines(writer.ToString()),
-            line => line == "int IApplier_2<int, string, int>.Apply((int, string) args) => this.Apply(args.Item1, System.ValueTuple.Create(args.Item2));");
+            line => line == "int Probe.IApplier_2<int, string, int>.Apply((int, string) args) => this.Apply(args.Item1, System.ValueTuple.Create(args.Item2));");
     }
 
     private static string Emit(string typeName)

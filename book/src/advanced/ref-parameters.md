@@ -12,7 +12,7 @@ Mist provides three ways to pass parameters by reference, each with different gu
 
 The `readonly ref` specifier declares that the callee receives a live, read-only view of the caller's variable. The callee can read the value and call readonly methods on it, but cannot mutate it. The view is non-storable — it cannot be assigned to a field or returned from the function.
 
-Because `readonly ref` is an ownership-tier constraint, it is enforced entirely at compile time. The emitted C# contains no `ref` keyword — the parameter is passed by value at the runtime level.
+The read-only rules are enforced at compile time. The parameter emits as a C# `ref readonly` parameter, and the caller writes no annotation: the compiler passes the argument with `in`, as the emitted tab shows.
 
 {{#tabs }}
 {{#tab name="Mist" }}

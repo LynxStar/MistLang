@@ -1,0 +1,61 @@
+// TypeValues -- a type named by a whole expression is the Type value it names (type-literals
+// Requirements 1.3 and 3.3), whether it is a declared type or a type parameter; followed by a member
+// read or call, the same name is still the static receiver.
+//
+// V2-ONLY: written after classic was retired. Its lines were captured from v2 and read against the
+// program by hand.
+
+using Standard;
+
+namespace TypeValues;
+
+public class Gadget
+{
+    public int Size = 3;
+
+    public static Gadget Make()
+    {
+        return new Gadget();
+    }
+}
+
+public class Shelf<T>
+{
+    public string Holds()
+    {
+        Type held = T;
+        return "shelf of " + held.Name;
+    }
+}
+
+public class Program
+{
+    public static string Describe(Type described)
+    {
+        return described.Name;
+    }
+
+    public static string Named<T>()
+    {
+        Type named = T;
+        var inferred = T;
+        return named.Name + "/" + inferred.Name + "/" + Describe(T);
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Type Values Sample ===");
+
+        Type stated = Gadget;
+        var inferred = Gadget;
+        Console.WriteLine($"[declared] {stated.Name} {inferred.Name} {Describe(Gadget)}");
+        Console.WriteLine($"[parameter] {Named<int>()} {Named<Gadget>()}");
+        Console.WriteLine($"[class parameter] {new Shelf<bool>().Holds()}");
+        Console.WriteLine($"[receiver] {Gadget.Make().Size}");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

@@ -119,5 +119,6 @@ public class Program
         ClosedOperators.Program.RunDemo();
         SliceableTypes.Program.RunDemo();
         GenericSelfReceivers.Program.RunDemo();
+        TypeValues.Program.RunDemo();
     }
 }

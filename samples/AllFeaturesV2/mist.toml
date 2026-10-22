@@ -101,3 +101,4 @@ ClrCallContracts = { path = "../ClrCallContracts" }
 ClosedOperators = { path = "../ClosedOperators" }
 SliceableTypes = { path = "../SliceableTypes" }
 GenericSelfReceivers = { path = "../GenericSelfReceivers" }
+TypeValues = { path = "../TypeValues" }

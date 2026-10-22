@@ -2518,3 +2518,8 @@ Pair=3
 Holder=5
 Box=later
 === Generic Self Receivers Done ===
+=== Type Values Sample ===
+[declared] Gadget Gadget Gadget
+[parameter] Int32/Int32/Int32 Gadget/Gadget/Gadget
+[class parameter] shelf of Boolean
+[receiver] 3

@@ -69,6 +69,7 @@ internal static class NewtypeEmitter
         }
 
         writer.WriteLine($"{AccessibilityKeyword(type)}{readonlyModifier}{keyword} {IdentifierSpelling.Of(type.Name)}");
+        using var holding = FieldReceiver.Holding(source, IdentifierSpelling.Of(type.Name), source.FieldsList);
         using(writer.Block())
         {
             var anyEmitted = false;

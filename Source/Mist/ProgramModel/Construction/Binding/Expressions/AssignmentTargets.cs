@@ -12,9 +12,9 @@ internal static class AssignmentTargets
 {
     public static SyntaxNode? AccessNodeOf(VoidCoalescingNode target)
     {
-        if(!OperatorBinder.IsBare(target.LogicalOrs, target.Left, target.Right)
-            || !OperatorBinder.IsBare(target.Left.LogicalAnds, target.Left.Left, target.Left.Right)
-            || !OperatorBinder.IsBare(target.Left.Left.Equalitys, target.Left.Left.Left, target.Left.Left.Right)
+        if(!OperatorBinder.IsBare(target.LogicalOrs)
+            || !OperatorBinder.IsBare(target.Left.LogicalAnds)
+            || !OperatorBinder.IsBare(target.Left.Left.Equalitys)
             || target.Left.Left.Left is not { Group0.IsDefaultOrEmpty: true, Left: RelationalComparisonRelationalNode { Group0.IsDefaultOrEmpty: true, Left: { Group0.IsDefaultOrEmpty: true, Left: { Group0.IsDefaultOrEmpty: true, Left: NonRangeRangeNode { Operand: PostfixExpressionUnaryNode { Primary: var postfix } } } } } })
         {
             return null;

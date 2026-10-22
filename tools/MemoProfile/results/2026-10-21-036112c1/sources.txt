@@ -1,0 +1,17 @@
+PASS Storm.Runtime.g.cs identical across every generated variant
+PASS .Ast.g.cs identical across every generated variant
+PASS .Lexer.g.cs identical across every generated variant
+PASS ParserEmitter.Emit over the analysed production plan reproduces the generator's production parser byte for byte
+PASS production: parser text memoizes 85 rules, plan says 85
+PASS auto-only: parser text memoizes 84 rules, plan says 84
+PASS explicit-only: parser text memoizes 7 rules, plan says 7
+PASS no-memo: parser text memoizes 0 rules, plan says 0
+PASS MSBuild output Source/Mist/obj/Release/net10.0/generated/Storm.SourceGenerator/Storm.SourceGenerator.Generator.StormIncrementalGenerator/Mist.Parser.g.cs equals the harness production parser
+PASS MSBuild output Source/Mist/obj/Debug/net10.0/generated/Storm.SourceGenerator/Storm.SourceGenerator.Generator.StormIncrementalGenerator/Mist.Parser.g.cs equals the harness production parser
+no-memo parser: 23021 lines vs production 24470; lines only in production: 348 distinct, only in no-memo: 0 distinct
+  distinct production-only lines: [ThreadStatic] private static Dictionary<long, (SyntaxNode? Node, int End)>? _memo; | _memo = new Dictionary<long, (SyntaxNode?, int)>(); | private static long MemoKey(int ruleId, int pos) => ((long)ruleId << 32) | (uint)pos; | var _key = MemoKey(0, _pos); | if (_memo!.TryGetValue(_key, out var _hit)) | _pos = _hit.End; | return (TopLevelItemNode?)_hit.Node; | var _entryPos = _pos; | var _result = _ParseTopLevelItem_Body(); | _memo[_key] = (_result, _result == null ? _entryPos : _pos); | return _result; | private static TopLevelItemNode? _ParseTopLevelItem_Body()
+  distinct no-memo-only lines: 
+production parser sha256 D60EE0165A36B410FBEE1E3C91D4B8931C0C97D8A3AF566944B35E01AABA6293
+auto-only parser sha256 C268EE58E93D5A1DAC3AC21159E7C1680562D0000233EAE1B3243E2B57D66D81
+explicit-only parser sha256 336279FB55C83190DEF9E5CE05F680BB4E7E46B58F5F24F7310164D4C583DF80
+no-memo parser sha256 4ABD157B6660D1B86E6C5924F13A1C49D277569C85285A03F3FF2767100E767A

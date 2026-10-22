@@ -185,7 +185,7 @@ public static class MistAstGenerator
         var rightRel = new RelationalComparisonRelationalNode { Left = rightAdd };
         var leftEq = new EqualityNode { Left = leftRel };
         var rightEq = new EqualityNode { Left = rightRel };
-        var logAnd = new LogicalAndNode { Left = leftEq, Right = rightEq };
+        var logAnd = new LogicalAndNode { Left = leftEq, Equalitys = [rightEq] };
         var logOr = new LogicalOrNode { Left = logAnd };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new AssignmentFormExpressionNode { Assignment = assign };
@@ -206,7 +206,7 @@ public static class MistAstGenerator
         var rightEq = new EqualityNode { Left = rightRel };
         var leftLogAnd = new LogicalAndNode { Left = leftEq };
         var rightLogAnd = new LogicalAndNode { Left = rightEq };
-        var logOr = new LogicalOrNode { Left = leftLogAnd, Right = rightLogAnd };
+        var logOr = new LogicalOrNode { Left = leftLogAnd, LogicalAnds = [rightLogAnd] };
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new AssignmentFormExpressionNode { Assignment = assign };
     }

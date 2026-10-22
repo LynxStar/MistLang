@@ -62,7 +62,7 @@ public sealed class PackWidthEmissionTests
     [InlineData("Open", 3, "public int Count((T1, T2, T3) args)", "return 3;")]
     [InlineData("Open", 3, "public int Through(System.Func<T1, T2, T3, int> f, (T1, T2, T3) args)", "return f(args.Item1, args.Item2, args.Item3) + 3;")]
     [InlineData("Open", 3, "public int Forwarded((T1, T2, T3) args)", "return Probe.Helper.Width_3<T1, T2, T3>(args) + 100;")]
-    [InlineData("Derived", null, "public readonly int Count()", "return 2 + Seed;")]
+    [InlineData("Derived", null, "public readonly int Count()", "return 2 + this.Seed;")]
     public void AMemberWrittenIntoAnotherType_ReadsThePackAsThatTypesBaseListClosedIt(
         string typeName, int? width, string declaration, string body)
     {

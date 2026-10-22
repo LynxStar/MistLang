@@ -26,6 +26,10 @@ internal sealed class Field(
 
     public MemberModifiers Modifiers { get; } = modifiers;
 
+    public Field? StorageSource { get; init; }
+
+    public int? StorageElementIndex { get; init; }
+
     public MemberType? DeclaringType { get; init; }
 
     public Storm.Runtime.SyntaxNode? DeclarationNode { get; init; }

@@ -656,7 +656,7 @@ public static class MistPatternGenerator
     {
         var leftUnary = new DirectPatternUnaryPatternNode { Primary = left };
         var rightUnary = new DirectPatternUnaryPatternNode { Primary = right };
-        var and = new AndPatternNode { Left = leftUnary, Right = rightUnary };
+        var and = new AndPatternNode { Left = leftUnary, UnaryPatterns = [rightUnary] };
         var or = new OrPatternNode { Left = and };
         return new PatternNode { OrPattern = or };
     }
@@ -668,7 +668,7 @@ public static class MistPatternGenerator
         var rightUnary = new DirectPatternUnaryPatternNode { Primary = right };
         var leftAnd = new AndPatternNode { Left = leftUnary };
         var rightAnd = new AndPatternNode { Left = rightUnary };
-        var or = new OrPatternNode { Left = leftAnd, Right = rightAnd };
+        var or = new OrPatternNode { Left = leftAnd, AndPatterns = [rightAnd] };
         return new PatternNode { OrPattern = or };
     }
 

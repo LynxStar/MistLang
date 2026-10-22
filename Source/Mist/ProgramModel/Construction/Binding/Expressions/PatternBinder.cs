@@ -44,7 +44,7 @@ internal static partial class PatternBinder
     private static Pattern? BindOr(
         OrPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
-        if(OperatorBinder.IsBare(node.AndPatterns, node.Left, node.Right))
+        if(OperatorBinder.IsBare(node.AndPatterns))
         {
             return BindAnd(node.Left, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
         }
@@ -67,7 +67,7 @@ internal static partial class PatternBinder
     private static Pattern? BindAnd(
         AndPatternNode node, IMistType scrutineeType, bool bindingsPermitted, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
     {
-        if(OperatorBinder.IsBare(node.UnaryPatterns, node.Left, node.Right))
+        if(OperatorBinder.IsBare(node.UnaryPatterns))
         {
             return BindUnary(node.Left, scrutineeType, bindingsPermitted, ctx, context, scrutineeFailed);
         }
@@ -142,7 +142,7 @@ internal static partial class PatternBinder
                             typePattern, namedTuple, typePattern.Name, scrutineeType, bindingsPermitted, ctx, context, failed);
                     }
 
-                    var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context, failed);
+                    var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context, failed, NarrowedPack(scrutineeType, tested));
                     return BindTypeTest(node, tested, binding, scrutineeType, ctx, context, failed);
                 }
 
@@ -339,7 +339,13 @@ internal static partial class PatternBinder
     {
         var elementNodes = GrammarRepetition.TwoLeadsAndRepeated(node.First, node.Rest, node.Patterns);
         var matched = OptionalLifting.NonVoidPortion(scrutineeType, context.ProgramModel.TypeInterner);
-        var scrutineeElements = (matched as ITupleType)?.ElementTypes;
+
+        if(PackTupleElements.OpenPack(matched) is { } pack)
+        {
+            return BindOverOpenPack(node, elementNodes, pack, bindingsPermitted, ctx, context, scrutineeFailed);
+        }
+
+        var scrutineeElements = PackTupleElements.Positions((matched as ITupleType)?.ElementTypes);
 
         if(scrutineeElements is { } held && held.Count != elementNodes.Count)
         {

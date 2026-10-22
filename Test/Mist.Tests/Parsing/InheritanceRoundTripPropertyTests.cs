@@ -120,7 +120,6 @@ public class InheritanceRoundTripPropertyTests
             var baseList = new BaseListNode
             {
                 First = new BaseTypeRefNode { Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(baseClassName) } },
-                Rest = new BaseTypeRefNode { Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(baseClassName) } },
                 BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty
             };
             classDecl.BaseClause = baseList;

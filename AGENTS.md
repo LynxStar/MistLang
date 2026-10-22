@@ -65,12 +65,14 @@ against the decision, Tier 2 for rules that walk bodies, and Tier 3 rarely. See
 ### The record
 
 Carbonek project `MIST` is the only record of obligations, findings, flake observations and
-execution. Nothing in this repository is a work queue: not `backlog/`, not the spec `tasks.md`
-documents, not the test-run ledgers under `TestResults/`.
+execution. Nothing in this repository is a work queue: not the spec `tasks.md` documents, not the
+test-run ledgers under `TestResults/`.
 
 Task keys `MIST-NNN` and `ARCH-NNN` are the original ledger IDs, so a spec or code comment that
 cites one names that task. Every imported task's `sourceReference` names its entry in the frozen
-ledger at the import revision. `backlog/README.md` says how to read it. It is history, not edited.
+ledger at the import revision, `6d862f638e1b32cf0dc7bcd80e7d83b18617ebf7`. The ledger is history,
+gone from the checkout; read it with `git show 6d862f63:backlog/issues.yaml`. The paths an
+imported task's `source_refs` name are read from Git at the revision each records.
 
 ### Two words
 

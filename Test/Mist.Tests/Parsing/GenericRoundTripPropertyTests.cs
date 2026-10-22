@@ -108,7 +108,6 @@ public class GenericRoundTripPropertyTests
                select new BaseListNode
                {
                    First = new BaseTypeRefNode { Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) }, TypeArgs = typeArgs },
-                   Rest = new BaseTypeRefNode { Name = new QualifiedIdentifierNode { IDENTIFIER = Tok(name) }, TypeArgs = typeArgs },
                    BaseTypeRefs = ImmutableArray<BaseTypeRefNode>.Empty,
                };
     }
@@ -135,7 +134,6 @@ public class GenericRoundTripPropertyTests
         return new BaseListNode
         {
             First = entries[0],
-            Rest = entries[0],
             BaseTypeRefs = entries.Skip(1).ToImmutableArray(),
         };
     }

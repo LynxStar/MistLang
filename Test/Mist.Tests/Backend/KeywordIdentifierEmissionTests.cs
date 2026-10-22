@@ -107,7 +107,7 @@ public sealed class KeywordIdentifierEmissionTests
         Assert.Contains("public int @checked;", text, StringComparison.Ordinal);
         Assert.Contains("public int @virtual { get; }", text, StringComparison.Ordinal);
         Assert.Contains("public int @volatile()", text, StringComparison.Ordinal);
-        Assert.Contains("return @checked + @virtual;", text, StringComparison.Ordinal);
+        Assert.Contains("return this.@checked + @virtual;", text, StringComparison.Ordinal);
         Assert.Equal("@event", TypeNameEmitter.Emit(type));
     }
 

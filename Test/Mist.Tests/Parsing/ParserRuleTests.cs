@@ -120,8 +120,8 @@ public class ParserRuleTests
             var assignment = expr.AsAssignment();
             var logicalOr = assignment.Target.Left;
 
-            // LogicalOr should have Right (b && c)
-            Assert.NotNull(logicalOr.Right);
+            // LogicalOr should have one repeated operand (b && c)
+            _ = Assert.Single(logicalOr.LogicalAnds);
         }
     }
 
@@ -145,7 +145,7 @@ public class ParserRuleTests
             var logicalOr = assignment.Target.Left;
             var logicalAnd = logicalOr.Left;
 
-            var equality = logicalAnd.Right;
+            var equality = Assert.Single(logicalAnd.Equalitys);
             Assert.Equal((int)TokenKind.EQUAL_EQUAL, equality.Group0[^1].Operator.Kind);
         }
     }

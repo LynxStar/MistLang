@@ -184,9 +184,16 @@ public sealed class RefinementIndexRefusalTests
         if(name.Contains("accessor", StringComparison.Ordinal))
         {
             var owner = HandBuiltModel.Class("Owner");
+            var reads = new Field("reads", h.Int, default, new MemberModifiers()) { DeclaringType = owner };
             var property = new Property("Shrunk", h.Int, new MemberModifiers())
             {
-                Getter = new PropertyAccessor { Body = HandBuiltModel.Block(new ReturnStatement(h.Literal(1L), h.Int)) },
+                Getter = new PropertyAccessor
+                {
+                    Body = HandBuiltModel.Block(
+                        HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(new FieldReferenceExpression(HandBuiltModel.Node(), reads), h.Literal(1L))),
+                        new ReturnStatement(h.Literal(1L), h.Int)),
+                },
+                DeclaringType = owner,
             };
             return new MemberAccessExpression(HandBuiltModel.Node(), new ThisExpression(HandBuiltModel.Node(), owner), "Shrunk", h.Int,
                 member: new PropertyResult(property, owner, []));

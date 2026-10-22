@@ -57,7 +57,11 @@ internal static class SpreadProjection
             if(Element(receiver, field.Name, field.Type, memberName, inherited, context) is { } type)
             {
                 return new FieldResult(
-                    new Field(memberName, type, field.Ownership, field.Modifiers), declaring, []);
+                    new Field(memberName, type, field.Ownership, field.Modifiers)
+                    {
+                        StorageSource = field,
+                        StorageElementIndex = int.Parse(memberName.AsSpan(field.Name.Length)) - 1,
+                    }, declaring, []);
             }
         }
 

@@ -190,6 +190,11 @@ internal sealed partial class ScopeResolver
     /// </summary>
     public IMistType Resolve(SingleTypeRefNode singleRef, Scope scope)
     {
+        if(PackTypePositions.NarrowedElement(singleRef, scope, context.Diagnostics, MarkResolutionFailure) is { } narrowed)
+        {
+            return Optional(narrowed, singleRef, scope);
+        }
+
         var inner = singleRef switch
         {
             VoidSingleTypeRefSingleTypeRefNode => LookupWellKnown(WellKnownTypes.Void),
@@ -232,6 +237,11 @@ internal sealed partial class ScopeResolver
             }
         }
 
+        return Optional(inner, singleRef, scope);
+    }
+
+    private IMistType Optional(IMistType inner, SingleTypeRefNode singleRef, Scope scope)
+    {
         if(HasOptionalToken(singleRef) && inner is not ErrorType)
         {
             context.ProgramModel.OptionalApplications.Record(inner, singleRef, scope);
@@ -249,6 +259,7 @@ internal sealed partial class ScopeResolver
             NamedSingleTypeRefSingleTypeRefNode namedRef => namedRef.Optional is not null,
             NestedGenericSingleTypeRefSingleTypeRefNode nestedRef => nestedRef.Optional is not null,
             FuncSingleTypeRefSingleTypeRefNode funcRef => funcRef.Optional is not null,
+            ParenthesizedTypeRefSingleTypeRefNode parenRef => parenRef.Optional is not null,
             _ => false,
         };
     }

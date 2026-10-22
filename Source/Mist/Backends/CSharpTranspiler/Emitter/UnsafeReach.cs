@@ -384,7 +384,7 @@ internal sealed class UnsafeReach : IDisposable
         return false;
     }
 
-    private static bool DerivesFrom(IMistType? type, MistType ancestor)
+    internal static bool DerivesFrom(IMistType? type, MistType ancestor)
     {
         for(var current = type; current is not null; current = (Definition(current) as ConcreteType)?.BaseType)
         {

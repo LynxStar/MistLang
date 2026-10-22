@@ -19,7 +19,7 @@ internal static class OperatorBinder
     {
         var left = BindLogicalOr(node.Left, ctx, context);
 
-        if(IsBare(node.LogicalOrs, node.Left, node.Right))
+        if(IsBare(node.LogicalOrs))
         {
             return left;
         }
@@ -52,7 +52,7 @@ internal static class OperatorBinder
     {
         var left = BindLogicalAnd(node.Left, ctx, context);
 
-        if(IsBare(node.LogicalAnds, node.Left, node.Right))
+        if(IsBare(node.LogicalAnds))
         {
             return left;
         }
@@ -71,7 +71,7 @@ internal static class OperatorBinder
     {
         var left = BindEquality(node.Left, ctx, context);
 
-        if(IsBare(node.Equalitys, node.Left, node.Right))
+        if(IsBare(node.Equalitys))
         {
             return left;
         }
@@ -580,9 +580,8 @@ internal static class OperatorBinder
     /// Determines whether a precedence-chain node has no operator applied. Shared with
     /// <see cref="PatternBinder"/>, whose or/and levels repeat their operands the same way.
     /// </summary>
-    internal static bool IsBare<T>(ImmutableArray<T> repeatedOperands, T left, T? right)
-        where T : class
+    internal static bool IsBare<T>(ImmutableArray<T> repeatedOperands)
     {
-        return repeatedOperands.IsDefaultOrEmpty && (right is null || ReferenceEquals(right, left));
+        return repeatedOperands.IsDefaultOrEmpty;
     }
 }

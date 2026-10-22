@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
@@ -20,11 +21,11 @@ internal static partial class PatternBinder
         IMistType type,
         bool bindingsPermitted,
         BindingContext ctx,
-        BuilderContext context, bool scrutineeFailed)
+        BuilderContext context, bool scrutineeFailed, TypeParameter? narrowedPack = null)
     {
         return name.Kind == (int)TokenKind.DISCARD
             ? null
-            : DeclareNamed(node, name.Lexeme, type, bindingsPermitted, ctx, context, scrutineeFailed, name.Span)
+            : DeclareNamed(node, name.Lexeme, type, bindingsPermitted, ctx, context, scrutineeFailed, name.Span, narrowedPack)
             ;
     }
 
@@ -34,7 +35,7 @@ internal static partial class PatternBinder
         IMistType type,
         bool bindingsPermitted,
         BindingContext ctx,
-        BuilderContext context, bool scrutineeFailed, SourceSpan? nameSpan = null)
+        BuilderContext context, bool scrutineeFailed, SourceSpan? nameSpan = null, TypeParameter? narrowedPack = null)
     {
         if(!bindingsPermitted)
         {
@@ -44,7 +45,7 @@ internal static partial class PatternBinder
             return null;
         }
 
-        var local = new LocalVariable(name, type) { IsFailed = scrutineeFailed };
+        var local = new LocalVariable(name, type) { IsFailed = scrutineeFailed, NarrowedPack = narrowedPack };
         ctx.Scope.DeclareLocal(local, node, context.Diagnostics, nameSpan);
 
         return local;

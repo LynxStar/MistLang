@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -165,6 +166,14 @@ internal static class MonomorphReference
         }
 
         var name = MonomorphSet.SpecializedName(definition.Name, widths);
-        return arguments.Count == 0 ? name : $"{name}<{string.Join(", ", arguments)}>";
+        var qualified = NamespaceOf(definition) is { Length: > 0 } namespaceName
+            ? $"{IdentifierSpelling.Qualified(namespaceName)}.{name}"
+            : name;
+        return arguments.Count == 0 ? qualified : $"{qualified}<{string.Join(", ", arguments)}>";
+    }
+
+    public static string NamespaceOf(MistType definition)
+    {
+        return definition is DeclaredType declared ? declared.NamespaceName : "";
     }
 }

@@ -99,7 +99,7 @@ public sealed class PackTypePositionEmissionTests
     [InlineData("Indexed", "public Indexed_2(T1 first, T2 second)")]
     [InlineData("Indexed", "public T2 Copy()")]
     [InlineData("Indexed", "T2 copy = this.Second;")]
-    [InlineData("Through", "public Indexed_2<T1, T2> Inner;")]
+    [InlineData("Through", "public Probe.Indexed_2<T1, T2> Inner;")]
     [InlineData("Through", "public Through_2(T1 first, T2 second)")]
     [InlineData("Through", "public T2 Last()")]
     public void AnIndexedPackElement_IsSpelledAsTheSpecializationsParameterAtThatIndex(string typeName, string line)
@@ -109,7 +109,7 @@ public sealed class PackTypePositionEmissionTests
 
     [Theory]
     [InlineData("string second = indexed.Second;")]
-    [InlineData("string last = new Through_2<bool, string>(true, \"last\").Last();")]
+    [InlineData("string last = new Probe.Through_2<bool, string>(true, \"last\").Last();")]
     public void AnIndexedPackElement_IsTheClosingsTypeAtTheUse(string line)
     {
         Assert.Contains(line, Lines(Emit("Probe", widths: null)));

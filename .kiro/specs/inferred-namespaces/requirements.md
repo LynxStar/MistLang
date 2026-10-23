@@ -7,8 +7,8 @@ The Mist programming language currently supports a single optional namespace dec
 ## Glossary
 
 - **Compiler_Driver**: The `CompilerDriver` component that orchestrates the full compilation pipeline (lex, parse, semantic model, analyzers, backend emit).
-- **Semantic_Model_Builder**: The `SemanticModelBuilder` component that constructs the semantic model from parsed ASTs, registering types into scopes and resolving symbols.
-- **CSharp_Emitter**: The `CSharpEmitter` and `CSharpSourceWriter` components that walk the semantic model and ASTs to produce C# source files.
+- **Semantic_Model_Builder**: The model-construction role that builds the program model from parsed ASTs, registering types into scopes and resolving symbols. It is realized as `ProgramModelBuilder`; the name is kept from the classic `SemanticModelBuilder` it was first written against, and "semantic model" here means the program model.
+- **CSharp_Emitter**: The C# emission component, `CSharpEmitterV2`, that walks the program model to produce C# source files.
 - **Project_File_Parser**: The `ProjectFileParser` component that reads and validates `mist.toml`.
 - **Project_Configuration**: The `ProjectConfiguration` record representing parsed `mist.toml` fields.
 - **Compiler_Options**: The `CompilerOptions` record carrying all options for a compilation run.

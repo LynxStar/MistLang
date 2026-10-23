@@ -13,6 +13,12 @@ The implementation touches four pipeline stages:
 
 The design prioritizes simplicity: global usings are represented as an `ImmutableArray<string>` on `ProjectConfiguration` and flow through the existing pipeline without introducing new abstractions.
 
+### Current implementation and historical sections
+
+The feature now runs through the standard pipeline. Each project's global usings are recorded on its assembly (`MistAssembly.GlobalUsings`) and searched by `AssemblyScope`. `UsingValidation` reports `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE`. `CSharpEmitterV2` writes the directives that `UsingSelection` keeps (Requirement 6).
+
+The Architecture diagram, Data Flow, and the `ISemanticModelBuilder`, `SemanticModelBuilder` and `CSharpSourceWriter` sections, together with "Semantic-Time Warnings (SemanticModelBuilder)", are historical, as is every other mention of those classes (the Overview's component list, the CompilerDriver section, Backward Compatibility and the unit-test notes). They describe the classic compiler this feature was first built in, which is no longer in the tree, and are not current compiler guidance. The requirements and correctness properties are the contract.
+
 ## Architecture
 
 ```mermaid

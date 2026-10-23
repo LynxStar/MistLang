@@ -21,6 +21,12 @@ The design mirrors C#'s namespace semantics because Mist targets C# as its prima
 
 Files without an explicit namespace currently place types in the global scope. After this change, they will be placed under the inferred namespace (equal to `NamespaceRoot`). This is an intentional behavioral change documented in Requirement 12.3. Developers needing the old behavior can add explicit namespace declarations.
 
+### Current implementation and historical sections
+
+The feature now runs through the standard pipeline. `NamespaceBuilder` decides each file's namespace, inferring it from `NamespaceRoot` and the file's folder where none is declared, while `CompilationUnitBuilder` builds the program model's units. `CSharpEmitterV2` writes the namespace declarations and the `using` directives that `UsingSelection` keeps (Requirement 8).
+
+Section 5 (`SemanticModelBuilder` and `ISemanticModelBuilder`), section 7 (`CSharpEmitter` / `CSharpSourceWriter`) and "Semantic Errors (SemanticModelBuilder)" are historical. They describe the classic compiler this feature was first built in, which is no longer in the tree, and are not current compiler guidance. The same applies wherever those classes are named elsewhere: the Overview's component list, the Architecture diagram and the unit-test notes. The requirements and correctness properties are the contract.
+
 ## Architecture
 
 The feature flows through the compilation pipeline in this order:

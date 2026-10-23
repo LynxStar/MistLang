@@ -17,8 +17,8 @@ Critically, global usings are scoped to the declaring project only. When project
 - **Project_File_Parser**: The `ProjectFileParser` component that reads and validates `mist.toml` files.
 - **Project_Configuration**: The `ProjectConfiguration` record representing the parsed `mist.toml` fields in memory.
 - **Compiler_Driver**: The `CompilerDriver` component that orchestrates the full compilation pipeline.
-- **Semantic_Model_Builder**: The `SemanticModelBuilder` component that constructs the semantic model from parsed ASTs, registering types into scopes and resolving symbols.
-- **CSharp_Emitter**: The `CSharpEmitter` and `CSharpSourceWriter` components that produce C# source files from the semantic model.
+- **Semantic_Model_Builder**: The model-construction role that builds the program model from parsed ASTs, registering types into scopes and resolving symbols. It is realized as `ProgramModelBuilder`; the name is kept from the classic `SemanticModelBuilder` it was first written against, and "semantic model" here means the program model.
+- **CSharp_Emitter**: The C# emission component, `CSharpEmitterV2`, that produces C# source files from the program model.
 - **Global_Using**: A namespace listed in the `[global_usings]` section of `mist.toml` that is implicitly imported into every source file within that project.
 - **Compilation_Unit**: A single Mist source file passed through the compilation pipeline.
 - **Using_Declaration**: A `using X.Y.Z;` statement in a source file that brings all types from namespace `X.Y.Z` into scope for that file.

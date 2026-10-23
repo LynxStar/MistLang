@@ -73,7 +73,7 @@ public sealed class PackForwardingEmissionTests
     [InlineData("public static int Outer_3<T1, T2, T3>((T1, T2, T3) args)", "return Count_3<T1, T2, T3>(args);")]
     [InlineData("public static int Outer_0(System.ValueTuple args)", "return Count_0(args);")]
     [InlineData("public static int OuterTagged_2<T1, T2>((T1, T2) args)", "return Tagged_2<T1, T2>(\"t\", args);")]
-    [InlineData("public static Bundle_2<T1, T2> Build_2<T1, T2>((T1, T2) args)", "return new Bundle_2<T1, T2>(args);")]
+    [InlineData("public static Probe.Bundle_2<T1, T2> Build_2<T1, T2>((T1, T2) args)", "return new Probe.Bundle_2<T1, T2>(args);")]
     public void AForwardedPack_IsPassedWholeToTheSpecializationOfItsWidth(string declaration, string forward)
     {
         var lines = Lines(Emit("Calls", widths: null));

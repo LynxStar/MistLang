@@ -419,45 +419,11 @@ internal sealed class CSharpEmitterV2
         }
     }
 
-    /// <summary>
-    /// One C# declaration per (variadic family, arity) the program uses, in a single generated file.
-    /// <para>
-    /// MONOMORPHIZATION IS THE TARGET'S REQUIREMENT AND NOT THE LANGUAGE'S. Mist writes a variadic
-    /// family once and its arity is unbounded; C# has no pack, so a program that used the family at
-    /// two widths needs two declarations. Nothing about this reaches the model, which keeps the pack
-    /// symbolic -- what changes is only what is WRITTEN, and only here.
-    /// </para>
-    /// <para>
-    /// Emitted top-level rather than into the declaring namespace, as the union and dependent
-    /// carriers are, so a construction in any namespace can name one.
-    /// </para>
-    /// </summary>
     private void EmitMonomorphs(string outputDir, List<string> emittedFiles, ConstraintClosureMap closures)
     {
-        if(monomorphs.Count == 0)
-        {
-            return;
-        }
-
         var writer = new CSharpWriter();
-        var anyEmitted = false;
 
-        foreach(var (definition, widths) in monomorphs)
-        {
-            if(definition is not MemberType member
-                || UnionSpecialization.Specializes(member)
-                || MonomorphSet.TypeSpecialization(member, widths) is not { } monomorph)
-            {
-                continue;
-            }
-
-            using(monomorph.Enter())
-            {
-                TypeEmitter.Emit(member, closures, variadicUses, writer, diagnostics, ref anyEmitted);
-            }
-        }
-
-        if(!anyEmitted)
+        if(!MonomorphEmitter.Emit(monomorphs, closures, variadicUses, writer, diagnostics))
         {
             return;
         }

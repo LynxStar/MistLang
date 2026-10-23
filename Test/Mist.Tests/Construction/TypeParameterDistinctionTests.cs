@@ -112,6 +112,20 @@ public sealed class TypeParameterDistinctionTests
     }
 
     [Fact]
+    public void AProjectedExtensionMethodsTIsNamedAsOne()
+    {
+        var (_, callee) = Generic(HandBuiltModel.Class("Api"), "Pick");
+        var block = new ExtensionBlock("self", "System.Linq", new ExtensionScope(null), null);
+        var select = new Method("Select", Int, [], DeclarationFragments.Public with { IsClrProjected = true })
+        {
+            Scope = new MethodScope(block.Scope),
+        };
+        var projected = new TypeParameter("T", 0, select.Scope, null!) { DeclaringMethod = select };
+
+        Assert.Equal(["T of method Api.Pick", "T of extension method Select"], TypeDisplay.Distinguished([callee, projected]));
+    }
+
+    [Fact]
     public void TwoOverloadsTsAreNamedWithTheirParameterTypes()
     {
         var api = HandBuiltModel.Class("Api");

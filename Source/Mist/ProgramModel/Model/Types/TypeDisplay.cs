@@ -96,7 +96,7 @@ internal static class TypeDisplay
 
     private static string DeclaredBy(Method method, bool detailed)
     {
-        var kind = method.DeclaringBlock is null ? "method" : "extension method";
+        var kind = (method.DeclaringBlock ?? (method.Scope?.Parent as ExtensionScope)?.Block) is null ? "method" : "extension method";
         var owner = method.DeclaringType is { } type ? $"{MistType.StripArity(detailed ? type.FullyQualifiedName : type.Name)}." : "";
         var signature = detailed ? $"({string.Join(", ", method.ParametersList.Select(parameter => Mist(parameter.Type)))})" : "";
 

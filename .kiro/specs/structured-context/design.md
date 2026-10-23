@@ -129,10 +129,10 @@ rule WithClause = WITH type:TypeReference name:IDENTIFIER;
    b. For each implementing type's corresponding method, verify that it declares the **exact same** `with` clauses (matched by resolved type, no variance — not even subtype/supertype relationships).
    c. If the implementing method omits a `with` clause, emit `MIST_CTX_0006`.
    d. If the implementing method declares a `with` clause with a different type (including via inheritance), emit `MIST_CTX_0006`.
-2. For each trait method that declares `with` clauses:
-   a. During structural matching (trait satisfaction resolution), a type's method is only considered a structural match if it also declares the same `with` clauses (matched by exact resolved type).
-   b. If a type's method matches in name, parameters, and return type but differs in `with` clauses, it is **not** a structural match for trait satisfaction.
-   c. This means the type will fail trait satisfaction if no other method matches, which is reported through the existing trait satisfaction diagnostic infrastructure.
+2. Trait methods follow the same rule, because interfaces and traits are both abstract types and share one conformance path:
+   a. A slot is filled by name and signature (`ConformanceAnswers.Method`, through `SlotSignatures.Answers`), by a structural match or a Trait_With_Block mapping alike; `with` clauses take no part in choosing the filler.
+   b. `ContextAnalyzer` then compares the filler's clauses with the slot's (`ContextDecision.Contract`) and emits `MIST_CTX_0006` listing each difference.
+   c. A clause mismatch therefore never surfaces as a missing-member conformance failure: the diagnostic names the clause to add or remove.
 3. When a call is dispatched through an interface or trait type, the context checker uses the `with` clauses from the **interface or trait method signature** (not the concrete type) to determine context requirements at the call site.
 
 **Diagnostic IDs:** listed with their message templates under [Error Handling](#compile-time-errors-diagnostics).
@@ -313,7 +313,7 @@ Because the CLR erases distinctions between Mist keys (`string?` and `string` ar
 
 ### Property 5: Interface and trait with-clause contract enforcement
 
-*For any* Mist program where an interface method declares `with` clauses, every implementing type's corresponding method SHALL declare the exact same `with` clauses (matched by resolved type, no variance). Conversely, *for any* implementing method that omits or mismatches a `with` clause from the interface method, the compiler SHALL emit a diagnostic. For traits, *for any* type's method that matches a trait method in name, parameters, and return type but differs in `with` clauses, the compiler SHALL NOT consider it a structural match for trait satisfaction.
+*For any* Mist program where an interface method declares `with` clauses, every implementing type's corresponding method SHALL declare the exact same `with` clauses (matched by resolved type, no variance). Conversely, *for any* implementing method that omits or mismatches a `with` clause from the interface method, the compiler SHALL emit a diagnostic. For traits, *for any* type's method that matches a trait method in name, parameters, and return type but differs in `with` clauses, the compiler SHALL treat it as filling the trait method and emit the same diagnostic.
 
 **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
 
@@ -377,7 +377,7 @@ Each correctness property maps to a property-based test with minimum 100 iterati
 - TextMate grammar scope assertions (Requirements 15.1–15.7)
 - Backward compatibility: existing trait-with programs produce identical results (Requirement 13.4)
 - Interface contract violation diagnostic format (Requirement 8.2, 8.3)
-- Trait structural matching failure when with-clauses differ (Requirement 8.4, 8.5)
+- Trait method filled with differing with-clauses reports `MIST_CTX_0006` (Requirement 8.4, 8.5)
 
 ### Integration Tests
 

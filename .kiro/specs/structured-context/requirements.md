@@ -131,8 +131,8 @@ Context stacks belong to a logical execution flow. Awaited callees and child tas
 1. WHEN an interface method declares one or more `with` clauses, THE Compiler SHALL require that any class or struct implementing that interface method also declares the same `with` clauses (matching by exact resolved type).
 2. IF an implementing method omits a `with` clause that is declared on the interface method, THEN THE Compiler SHALL emit a diagnostic error naming the missing context type, the interface method, and the implementing type.
 3. IF an implementing method declares a `with` clause with a type that differs from the interface method's `with` clause (including via inheritance — no variance allowed), THEN THE Compiler SHALL emit a diagnostic error indicating the type mismatch.
-4. WHEN a trait method declares one or more `with` clauses, THE Compiler SHALL only consider a type's method as structurally matching the trait method if the type's method also declares the same `with` clauses (matching by exact resolved type, no variance).
-5. IF a type's method matches a trait method in name, parameters, and return type but differs in `with` clauses, THE Compiler SHALL NOT consider it a structural match for trait satisfaction.
+4. WHEN a trait method declares one or more `with` clauses, THE Compiler SHALL require that the type's method filling it, whether matched structurally or mapped by a Trait_With_Block, also declares the same `with` clauses (matching by exact resolved type, no variance), exactly as 8.1 requires for interfaces.
+5. IF a type's method matches a trait method in name, parameters, and return type but differs in `with` clauses, THEN THE Compiler SHALL still treat it as filling the trait method and SHALL emit the same diagnostic error as 8.2 and 8.3 (`MIST_CTX_0006`), naming each clause that is missing or not declared by the trait method.
 6. WHEN a call is dispatched through an interface or trait type, THE Context_Checker SHALL use the `with` clauses from the interface or trait method signature to determine context requirements at the call site.
 
 ### Requirement 9: Compile-Time Context Availability Checker

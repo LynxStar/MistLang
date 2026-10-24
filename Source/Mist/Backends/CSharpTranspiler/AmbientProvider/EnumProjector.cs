@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -14,6 +15,7 @@ internal static class EnumProjector
     /// Projects the underlying type and all public members of a CLR enum
     /// onto the given Mist EnumType shell.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(EnumType enumType, Type clrType, AmbientTypeResolver resolver)
     {
         // Project underlying type (int, byte, short, etc.).

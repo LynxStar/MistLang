@@ -62,7 +62,7 @@ Write-Host "Detected platform: $rid"
 Write-Host "Publishing Mist CLI (Release, $rid)..."
 
 $cliProject = Join-Path $repoRoot 'Source/Mist.CLI/Mist.CLI.csproj'
-dotnet publish $cliProject -c Release -r $rid
+dotnet publish $cliProject -c Release -r $rid -p:TreatWarningsAsErrors=true
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Error: dotnet publish failed."
     exit 1

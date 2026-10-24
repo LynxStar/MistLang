@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.ProgramModel.Model.Types;
 
@@ -11,6 +12,7 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// </summary>
 internal static class NativeSlotOverrides
 {
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(AbstractType derived, Type clrType, AmbientTypeResolver resolver)
     {
         foreach(var method in clrType.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Model.Members;
@@ -163,6 +164,7 @@ internal sealed class IntrinsicSupply
         }
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = MetadataOnlyReflection.Justification)]
     private static Kind Classify(Method method, Func<string, Type?> clrType)
     {
         if(IntrinsicCalls.Respells(method) || TaskResult.IsDrop(method))
@@ -197,6 +199,7 @@ internal sealed class IntrinsicSupply
         return found ? Kind.Metadata : Kind.Missing;
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = MetadataOnlyReflection.Justification)]
     private static Kind Classify(Property property, Func<string, Type?> clrType)
     {
         if(IntrinsicCalls.RespellsProperty(property.Name, property.DeclaringType))
@@ -219,6 +222,7 @@ internal sealed class IntrinsicSupply
             : Kind.Missing;
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = MetadataOnlyReflection.Justification)]
     private static Type? Backing(MemberType? type, Func<string, Type?> clrType)
     {
         if(type is null)
@@ -254,6 +258,7 @@ internal sealed class IntrinsicSupply
         return null;
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     private static Type? ReturnedWhere(MemberType outer, MemberType nested, Type outerClr)
     {
         foreach(var method in outer.MethodsList)

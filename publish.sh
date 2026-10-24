@@ -70,7 +70,7 @@ echo "Detected platform: ${RID}"
 # ---------------------------------------------------------------------------
 echo "Publishing Mist CLI (Release, ${RID})..."
 
-if ! dotnet publish Source/Mist.CLI/Mist.CLI.csproj -c Release -r "$RID"; then
+if ! dotnet publish Source/Mist.CLI/Mist.CLI.csproj -c Release -r "$RID" -p:TreatWarningsAsErrors=true; then
     echo "Error: dotnet publish failed." >&2
     exit 1
 fi

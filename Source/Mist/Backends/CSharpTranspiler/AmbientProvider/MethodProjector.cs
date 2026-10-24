@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -17,6 +18,7 @@ internal static class MethodProjector
     /// Skips property accessors, event accessors, operators, and methods
     /// with unresolvable parameter or return types.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
     {
         var methods = clrType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);

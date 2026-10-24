@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -13,6 +14,7 @@ internal static class ConstructorProjector
     /// Projects all public and protected constructors onto the given ConcreteType.
     /// Skips constructors with pointer or unresolvable parameter types.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(ConcreteType concreteType, Type clrType, AmbientTypeResolver resolver)
     {
         var constructors = clrType.GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);

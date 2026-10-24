@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
@@ -33,6 +34,7 @@ internal sealed partial class AmbientTypeResolver
             : resolved;
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2055", Justification = MetadataOnlyReflection.Justification)]
     private MistType ConstructStorageType(Type clrType, Scope scope)
     {
         var definitionClrType = clrType.GetGenericTypeDefinition();

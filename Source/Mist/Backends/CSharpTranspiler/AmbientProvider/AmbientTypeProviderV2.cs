@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
@@ -260,6 +261,7 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeSource
     /// Protected nested types are projected for inheritance scenarios — a Mist subclass
     /// needs access to protected nested types to call protected methods that reference them.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     private static void CreateNestedShells(
         Type declaringClrType,
         MistType declaringShell,

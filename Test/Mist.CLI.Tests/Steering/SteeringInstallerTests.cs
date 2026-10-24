@@ -7,6 +7,7 @@ namespace Mist.CLI.Tests.Steering;
 /// "source" directory (the bundled set) and an isolated temp "project" directory,
 /// then exercises <see cref="SteeringInstaller.InstallFrom"/> against them.
 /// </summary>
+[Trait("Tier", "3")]
 public sealed class SteeringInstallerTests : IDisposable
 {
     private readonly string root;
@@ -20,6 +21,7 @@ public sealed class SteeringInstallerTests : IDisposable
         projectFolder = Path.Combine(root, "project");
         _ = Directory.CreateDirectory(sourceRoot);
         _ = Directory.CreateDirectory(projectFolder);
+        File.WriteAllText(Path.Combine(sourceRoot, SteeringInstaller.BlockTemplateFileName), BlockBody);
     }
 
     public void Dispose()
@@ -30,7 +32,13 @@ public sealed class SteeringInstallerTests : IDisposable
         }
     }
 
-    private string SteeringDir => Path.Combine(projectFolder, ".kiro", "steering");
+    private const string BlockBody = "Read `.mist/agents/mist-language.md`.";
+
+    private string SteeringDir => SteeringInstaller.ReferenceDirectory(projectFolder);
+
+    private string AgentsMd => Path.Combine(projectFolder, "AGENTS.md");
+
+    private string ClaudeMd => Path.Combine(projectFolder, "CLAUDE.md");
 
     /// <summary>Writes a bundled (managed) steering file with the sentinel marker embedded.</summary>
     private void WriteBundled(string fileName, string body = "content")
@@ -208,7 +216,7 @@ public sealed class SteeringInstallerTests : IDisposable
     [Fact]
     public void InstallFrom_EmptySourceRoot_ReturnsFailure()
     {
-        // _sourceRoot exists but contains no .md files.
+        // _sourceRoot exists but contains no mist-*.md files.
         var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
 
         Assert.False(result.Succeeded);
@@ -227,5 +235,110 @@ public sealed class SteeringInstallerTests : IDisposable
         Assert.False(result.Succeeded);
         // The user's file must survive a failed run (failure occurs before any deletion).
         Assert.True(File.Exists(Path.Combine(SteeringDir, "my-rules.md")));
+    }
+
+    [Fact]
+    public void InstallFrom_MissingBlockTemplate_ReturnsFailure()
+    {
+        WriteBundled("mist-language.md");
+        File.Delete(Path.Combine(sourceRoot, SteeringInstaller.BlockTemplateFileName));
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(SteeringInstaller.BlockTemplateFileName, result.Error!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InstallFrom_NoAgentsMd_CreatesOneHoldingTheBlock()
+    {
+        WriteBundled("mist-language.md");
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(ManagedBlock.Merge(null, BlockBody).Text, File.ReadAllText(AgentsMd));
+        Assert.Contains(result.InstructionFiles, f => f.Path == AgentsMd && f.Outcome == ManagedBlockOutcome.Created);
+    }
+
+    [Fact]
+    public void InstallFrom_ExistingAgentsMd_KeepsTheUserText()
+    {
+        WriteBundled("mist-language.md");
+        File.WriteAllText(AgentsMd, "# Our rules\n");
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(ManagedBlock.Merge("# Our rules\n", BlockBody).Text, File.ReadAllText(AgentsMd));
+    }
+
+    [Fact]
+    public void InstallFrom_BrokenFenceInAgentsMd_FailsBeforeWritingAnything()
+    {
+        WriteBundled("mist-language.md");
+        var broken = "# Our rules\n<!-- BEGIN MIST-MANAGED -->\n";
+        File.WriteAllText(AgentsMd, broken);
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("AGENTS.md", result.Error!, StringComparison.Ordinal);
+        Assert.Equal(broken, File.ReadAllText(AgentsMd));
+        Assert.False(Directory.Exists(SteeringDir));
+    }
+
+    [Fact]
+    public void InstallFrom_NoClaudeMd_DoesNotCreateOne()
+    {
+        WriteBundled("mist-language.md");
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.True(result.Succeeded);
+        Assert.True(result.ClaudeMdAbsent);
+        Assert.False(File.Exists(ClaudeMd));
+    }
+
+    [Fact]
+    public void InstallFrom_ClaudeMdImportingAgentsMd_IsLeftAlone()
+    {
+        WriteBundled("mist-language.md");
+        File.WriteAllText(ClaudeMd, "@AGENTS.md\n");
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal("@AGENTS.md\n", File.ReadAllText(ClaudeMd));
+        Assert.DoesNotContain(result.InstructionFiles, f => f.Path == ClaudeMd);
+    }
+
+    [Fact]
+    public void InstallFrom_ClaudeMdNotImportingAgentsMd_GetsTheBlock()
+    {
+        WriteBundled("mist-language.md");
+        File.WriteAllText(ClaudeMd, "# Claude rules\n");
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(ManagedBlock.Merge("# Claude rules\n", BlockBody).Text, File.ReadAllText(ClaudeMd));
+    }
+
+    [Fact]
+    public void InstallFrom_RemovesManagedFilesFromKiroSteering_KeepsTheUsers()
+    {
+        var kiro = Path.Combine(projectFolder, ".kiro", "steering");
+        _ = Directory.CreateDirectory(kiro);
+        File.WriteAllText(Path.Combine(kiro, "mist-language.md"), $"<!-- {SteeringInstaller.ManagedMarker} -->\nold\n");
+        File.WriteAllText(Path.Combine(kiro, "my-rules.md"), "user content");
+        WriteBundled("mist-language.md");
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.True(result.Succeeded);
+        Assert.False(File.Exists(Path.Combine(kiro, "mist-language.md")));
+        Assert.Equal("user content", File.ReadAllText(Path.Combine(kiro, "my-rules.md")));
+        Assert.Empty(result.SkippedUserFiles);
     }
 }

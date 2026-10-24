@@ -400,8 +400,7 @@ internal class Program
 
         if(!cliArgs.Quiet)
         {
-            var steeringDir = Path.Combine(projectFolder, ".kiro", "steering");
-            Console.WriteLine($"Installed Mist steering files into {steeringDir}");
+            Console.WriteLine($"Installed Mist agent references into {SteeringInstaller.ReferenceDirectory(projectFolder)}");
 
             foreach(var path in result.Installed)
             {
@@ -410,7 +409,24 @@ internal class Program
 
             if(result.SkippedUserFiles.Count > 0)
             {
-                Console.WriteLine($"Left {result.SkippedUserFiles.Count} of your own steering file(s) untouched.");
+                Console.WriteLine($"Left {result.SkippedUserFiles.Count} of your own file(s) there untouched.");
+            }
+
+            foreach(var file in result.InstructionFiles)
+            {
+                var action = file.Outcome switch
+                {
+                    ManagedBlockOutcome.Created => "Created",
+                    ManagedBlockOutcome.Appended => "Added the Mist block to",
+                    ManagedBlockOutcome.Replaced => "Updated the Mist block in",
+                    _ => "Mist block already current in",
+                };
+                Console.WriteLine($"{action} {Path.GetFileName(file.Path)}");
+            }
+
+            if(result.ClaudeMdAbsent)
+            {
+                Console.WriteLine("No CLAUDE.md found. If you use Claude Code, add a CLAUDE.md containing @AGENTS.md.");
             }
         }
 

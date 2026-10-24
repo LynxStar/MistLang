@@ -76,6 +76,13 @@ public sealed class StandardStageDetailsTests
         Assert.Equal(["4 .cs files written"], StandardStageDetails.Emission(4, null));
     }
 
+    [Fact]
+    public void EmissionReportsDeployedRuntimeAssetsOnlyWhenThereAreAny()
+    {
+        Assert.Equal(["9 .cs files written", "bin/Probe.dll", "3 runtime assets deployed"], StandardStageDetails.Emission(9, "bin/Probe.dll", 3));
+        Assert.Equal(["9 .cs files written", "bin/Probe.dll"], StandardStageDetails.Emission(9, "bin/Probe.dll", 0));
+    }
+
     private static AnalysisTimings Timings()
     {
         var timings = new AnalysisTimings();

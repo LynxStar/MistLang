@@ -88,7 +88,8 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeSource
         var (shells, clrTypes) = CreateShells(wellKnownTypes);
 
         // Phase 2: Project type details onto shells (type params, base types, members).
-        resolver = new AmbientTypeResolver(shells, wellKnownTypes, programModel.TypeInterner, diagnostics);
+        resolver = new AmbientTypeResolver(
+            shells, wellKnownTypes, programModel.TypeInterner, diagnostics, clrName => DeclaredByClrName(programModel, clrName));
         ProjectTypes(shells, clrTypes, resolver, wellKnownTypes);
 
         // Merge into ProgramModel FQN dictionary. This loop is the single funnel for
@@ -112,6 +113,17 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeSource
     public void Dispose()
     {
         metadataContext?.Dispose();
+    }
+
+    private static MistType? DeclaredByClrName(ProgramModelType programModel, string clrName)
+    {
+        var mistName = clrName.Contains('`')
+            ? string.Join(".", clrName.Split('.').Select(NameFormatTranslator.ClrNameToMistName))
+            : clrName;
+
+        return programModel.TypesByFQN.GetValueOrDefault(mistName) is MistType { Assembly.HasMistSource: true } declared
+            ? declared
+            : null;
     }
 
     private AmbientTypeResolver ProjectingResolver()

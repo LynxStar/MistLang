@@ -57,6 +57,10 @@ public static class PackageResolver
     /// Called once the diagnostics known without a feed are in <paramref name="diagnostics"/>, so a caller can
     /// show them before a restore that may run for seconds.
     /// </param>
+    /// <param name="runtimeIdentifier">
+    /// The target runtime identifier whose fallback order selects each package's runtime assets; <see langword="null"/>
+    /// selects none.
+    /// </param>
     /// <returns>
     /// A <see cref="PackageResolutionResult"/> carrying the flattened assembly
     /// paths (excluding framework-provided assemblies), a per-declared-package
@@ -67,9 +71,11 @@ public static class PackageResolver
         ImmutableArray<FrameworkReference> frameworkReferences,
         string targetFramework,
         DiagnosticBag diagnostics,
-        Action? beforeRestore = null)
+        Action? beforeRestore = null,
+        string? runtimeIdentifier = null)
     {
-        return ResolvePackages(packages, frameworkReferences, targetFramework, diagnostics, beforeRestore, DotnetRestoreProcess.Run);
+        return ResolvePackages(
+            packages, frameworkReferences, targetFramework, diagnostics, beforeRestore, DotnetRestoreProcess.Run, runtimeIdentifier);
     }
 
     internal static PackageResolutionResult ResolvePackages(
@@ -78,7 +84,8 @@ public static class PackageResolver
         string targetFramework,
         DiagnosticBag diagnostics,
         Action? beforeRestore,
-        Func<string, string, (int ExitCode, string Stdout, string Stderr)> restore)
+        Func<string, string, (int ExitCode, string Stdout, string Stderr)> restore,
+        string? runtimeIdentifier = null)
     {
         if(packages.IsDefaultOrEmpty)
         {
@@ -159,7 +166,7 @@ public static class PackageResolver
             }
 
             return ParseAssetsFile(assetsPath, validPackages.ToImmutable(),
-                targetFramework, failureCount, diagnostics);
+                targetFramework, failureCount, diagnostics, runtimeIdentifier);
         }
         catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
@@ -335,10 +342,10 @@ public static class PackageResolver
     private static PackageResolutionResult ParseAssetsFile(
         string assetsPath,
         ImmutableArray<NuGetPackageReference> declaredPackages,
-
         string targetFramework,
         int priorFailureCount,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        string? runtimeIdentifier)
     {
         JsonDocument doc;
         try
@@ -382,153 +389,127 @@ public static class PackageResolver
             var resolvedDeclaredPackages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // Parse the "targets" section to get resolved libraries and their assemblies.
-            // The target key is the TFM (e.g., "net10.0" or ".NETCoreApp,Version=v10.0").
-            if(doc.RootElement.TryGetProperty("targets", out var targets))
+            var targetEntry = PackageAssets.Target(doc.RootElement, targetFramework);
+
+            if(targetEntry.HasValue)
             {
-                // Find the target entry that matches our framework
-                JsonElement? targetEntry = null;
-                foreach(var target in targets.EnumerateObject())
+                foreach(var library in targetEntry.Value.EnumerateObject())
                 {
-                    // The key can be either short form (net10.0) or long form
-                    // (.NETCoreApp,Version=v10.0). Check both.
-                    if(target.Name.Contains(targetFramework, StringComparison.OrdinalIgnoreCase)
-                        || target.Name.Contains(GetLongFrameworkName(targetFramework), StringComparison.OrdinalIgnoreCase))
+                    // Library key format: "PackageName/Version"
+                    var parts = library.Name.Split('/');
+                    if(parts.Length != 2)
                     {
-                        targetEntry = target.Value;
-                        break;
+                        continue;
                     }
-                }
 
-                // If we didn't find an exact match, take the first (there's usually only one)
-                if(targetEntry is null)
-                {
-                    foreach(var target in targets.EnumerateObject())
+                    var packageName = parts[0];
+                    var packageVersion = parts[1];
+
+                    // Skip if this is a "project" type (not a package)
+                    if(library.Value.TryGetProperty("type", out var typeElement)
+                        && typeElement.GetString() == "project")
                     {
-                        targetEntry = target.Value;
-                        break;
+                        continue;
                     }
-                }
 
-                if(targetEntry.HasValue)
-                {
-                    foreach(var library in targetEntry.Value.EnumerateObject())
+                    // Extract compile-time assemblies from "compile" property
+                    string? selectedTfm = null;
+                    var packageAssemblies = ImmutableArray.CreateBuilder<string>();
+
+                    if(library.Value.TryGetProperty("compile", out var compileSection))
                     {
-                        // Library key format: "PackageName/Version"
-                        var parts = library.Name.Split('/');
-                        if(parts.Length != 2)
+                        foreach(var assembly in compileSection.EnumerateObject())
                         {
-                            continue;
-                        }
+                            var assemblyRelPath = assembly.Name;
 
-                        var packageName = parts[0];
-                        var packageVersion = parts[1];
-
-                        // Skip if this is a "project" type (not a package)
-                        if(library.Value.TryGetProperty("type", out var typeElement)
-                            && typeElement.GetString() == "project")
-                        {
-                            continue;
-                        }
-
-                        // Extract compile-time assemblies from "compile" property
-                        string? selectedTfm = null;
-                        var packageAssemblies = ImmutableArray.CreateBuilder<string>();
-
-                        if(library.Value.TryGetProperty("compile", out var compileSection))
-                        {
-                            foreach(var assembly in compileSection.EnumerateObject())
+                            // Skip placeholder "_._" entries (runtime-provided packages)
+                            if(assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
                             {
-                                var assemblyRelPath = assembly.Name;
+                                continue;
+                            }
 
-                                // Skip placeholder "_._" entries (runtime-provided packages)
-                                if(assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
-                                {
-                                    continue;
-                                }
+                            // Extract TFM from path (e.g., "lib/net8.0/Assembly.dll")
+                            var pathParts = assemblyRelPath.Split('/');
+                            if(pathParts.Length >= 3 && pathParts[0] == "lib")
+                            {
+                                selectedTfm = pathParts[1];
+                            }
 
-                                // Extract TFM from path (e.g., "lib/net8.0/Assembly.dll")
-                                var pathParts = assemblyRelPath.Split('/');
-                                if(pathParts.Length >= 3 && pathParts[0] == "lib")
-                                {
-                                    selectedTfm = pathParts[1];
-                                }
+                            var assemblyName = Path.GetFileNameWithoutExtension(
+                                Path.GetFileName(assemblyRelPath));
 
-                                var assemblyName = Path.GetFileNameWithoutExtension(
-                                    Path.GetFileName(assemblyRelPath));
+                            // Deduplicate against framework-provided assemblies (issue 3)
+                            if(frameworkAssemblyNames.Contains(assemblyName))
+                            {
+                                continue;
+                            }
 
-                                // Deduplicate against framework-provided assemblies (issue 3)
-                                if(frameworkAssemblyNames.Contains(assemblyName))
-                                {
-                                    continue;
-                                }
+                            // Resolve to full path in global packages folder
+                            var fullPath = Path.Combine(
+                                GlobalPackagesFolder,
+                                packageName.ToLowerInvariant(),
+                                packageVersion.ToLowerInvariant(),
+                                assemblyRelPath.Replace('/', Path.DirectorySeparatorChar));
 
-                                // Resolve to full path in global packages folder
-                                var fullPath = Path.Combine(
-                                    GlobalPackagesFolder,
-                                    packageName.ToLowerInvariant(),
-                                    packageVersion.ToLowerInvariant(),
-                                    assemblyRelPath.Replace('/', Path.DirectorySeparatorChar));
-
-                                if(File.Exists(fullPath))
-                                {
-                                    packageAssemblies.Add(fullPath);
-                                }
+                            if(File.Exists(fullPath))
+                            {
+                                packageAssemblies.Add(fullPath);
                             }
                         }
+                    }
 
-                        // Also check "runtime" assemblies as fallback (some packages
-                        // only specify runtime, not compile)
-                        if(packageAssemblies.Count == 0
-                            && library.Value.TryGetProperty("runtime", out var runtimeSection))
+                    // Also check "runtime" assemblies as fallback (some packages
+                    // only specify runtime, not compile)
+                    if(packageAssemblies.Count == 0
+                        && library.Value.TryGetProperty("runtime", out var runtimeSection))
+                    {
+                        foreach(var assembly in runtimeSection.EnumerateObject())
                         {
-                            foreach(var assembly in runtimeSection.EnumerateObject())
+                            var assemblyRelPath = assembly.Name;
+
+                            if(assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
                             {
-                                var assemblyRelPath = assembly.Name;
+                                continue;
+                            }
 
-                                if(assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
-                                {
-                                    continue;
-                                }
+                            var pathParts = assemblyRelPath.Split('/');
+                            if(pathParts.Length >= 3 && pathParts[0] == "lib")
+                            {
+                                selectedTfm = pathParts[1];
+                            }
 
-                                var pathParts = assemblyRelPath.Split('/');
-                                if(pathParts.Length >= 3 && pathParts[0] == "lib")
-                                {
-                                    selectedTfm = pathParts[1];
-                                }
+                            var assemblyName = Path.GetFileNameWithoutExtension(
+                                Path.GetFileName(assemblyRelPath));
 
-                                var assemblyName = Path.GetFileNameWithoutExtension(
-                                    Path.GetFileName(assemblyRelPath));
+                            if(frameworkAssemblyNames.Contains(assemblyName))
+                            {
+                                continue;
+                            }
 
-                                if(frameworkAssemblyNames.Contains(assemblyName))
-                                {
-                                    continue;
-                                }
+                            var fullPath = Path.Combine(
+                                GlobalPackagesFolder,
+                                packageName.ToLowerInvariant(),
+                                packageVersion.ToLowerInvariant(),
+                                assemblyRelPath.Replace('/', Path.DirectorySeparatorChar));
 
-                                var fullPath = Path.Combine(
-                                    GlobalPackagesFolder,
-                                    packageName.ToLowerInvariant(),
-                                    packageVersion.ToLowerInvariant(),
-                                    assemblyRelPath.Replace('/', Path.DirectorySeparatorChar));
-
-                                if(File.Exists(fullPath))
-                                {
-                                    packageAssemblies.Add(fullPath);
-                                }
+                            if(File.Exists(fullPath))
+                            {
+                                packageAssemblies.Add(fullPath);
                             }
                         }
+                    }
 
-                        assemblyPaths.AddRange(packageAssemblies);
+                    assemblyPaths.AddRange(packageAssemblies);
 
-                        // Record info for declared (direct) packages
-                        if(declaredPackageSet.ContainsKey(packageName))
-                        {
-                            _ = resolvedDeclaredPackages.Add(packageName);
-                            resolvedInfos.Add(new ResolvedPackageInfo(
-                                packageName,
-                                packageVersion,
-                                selectedTfm ?? string.Empty,
-                                packageAssemblies.Count));
-                        }
+                    // Record info for declared (direct) packages
+                    if(declaredPackageSet.ContainsKey(packageName))
+                    {
+                        _ = resolvedDeclaredPackages.Add(packageName);
+                        resolvedInfos.Add(new ResolvedPackageInfo(
+                            packageName,
+                            packageVersion,
+                            selectedTfm ?? string.Empty,
+                            packageAssemblies.Count));
                     }
                 }
             }
@@ -550,10 +531,40 @@ public static class PackageResolver
                 }
             }
 
-            return new PackageResolutionResult(
+            var result = new PackageResolutionResult(
                 assemblyPaths.ToImmutable(),
                 resolvedInfos.ToImmutable(),
                 failureCount);
+            if(runtimeIdentifier is null)
+            {
+                return result;
+            }
+
+            var graph = ReadRidGraph(PackageAssets.RuntimeIdentifierGraphPath(doc.RootElement, targetFramework));
+            var order = RidGraph.FallbackOrder(graph ?? RidGraph.BuiltIn, runtimeIdentifier);
+
+            return result with
+            {
+                RuntimeAssets = PackageAssets.SelectRuntimeAssets(doc.RootElement, targetFramework, GlobalPackagesFolder, order),
+                RuntimeIdentifierGraph = graph,
+            };
+        }
+    }
+
+    private static RidGraph? ReadRidGraph(string? path)
+    {
+        if(path is null || !File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            return RidGraph.Parse(File.ReadAllText(path));
+        }
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
         }
     }
 
@@ -634,21 +645,5 @@ public static class PackageResolver
         }
 
         return frameworkAssemblies;
-    }
-
-    /// <summary>
-    /// Converts a short TFM name (e.g., "net10.0") to the long-form NuGet target
-    /// name (e.g., ".NETCoreApp,Version=v10.0") for matching in assets.json.
-    /// </summary>
-    private static string GetLongFrameworkName(string shortTfm)
-    {
-        // net10.0 → .NETCoreApp,Version=v10.0
-        if(shortTfm.StartsWith("net", StringComparison.Ordinal) && shortTfm.Contains('.'))
-        {
-            var versionPart = shortTfm[3..]; // "10.0"
-            return $".NETCoreApp,Version=v{versionPart}";
-        }
-
-        return shortTfm;
     }
 }

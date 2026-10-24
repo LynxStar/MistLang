@@ -39,7 +39,8 @@ public sealed record CliArguments(
     bool Verbose = false,
     string? InspectTypeName = null,
     string Pipeline = "standard",
-    TargetPlatform? Platform = null);
+    TargetPlatform? Platform = null,
+    string? RuntimeIdentifier = null);
 
 /// <summary>
 /// The compiler execution mode.

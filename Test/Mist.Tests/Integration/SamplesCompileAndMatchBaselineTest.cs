@@ -152,6 +152,84 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
     }
 
     /// <summary>
+    /// Runs in place rather than through the helper's scratch output: the facade in the sample's own
+    /// App/bin is the claim, and the bridge writes Lib/bin in the sample whatever the output flags
+    /// say. MistCommand sends the bridge's nested `mist build` to the compiler under test instead of
+    /// the `mist` on PATH. This is the one test that runs MSBuild.
+    /// </summary>
+    [Fact]
+    [Trait("Tier", "5")]
+    public async Task CSharpReferences_RunsFromACleanTree()
+    {
+        var repoRoot = FindRepoRoot();
+        var sampleRoot = Path.Combine(repoRoot, "samples", "CSharpReferences");
+        var appDir = Path.Combine(sampleRoot, "App");
+        var cliProjectPath = Path.Combine(repoRoot, "Source", "Mist.CLI", "Mist.CLI.csproj");
+
+        Assert.True(Directory.Exists(appDir), $"Sample directory not found: {appDir}");
+        Assert.True(File.Exists(cliProjectPath), $"CLI project not found: {cliProjectPath}");
+
+        string[] buildArtifacts = ["App/bin", "App/out", "Lib/bin", "Lib/out", "Bridge/bin", "Bridge/obj"];
+        foreach(var relative in buildArtifacts)
+        {
+            var path = Path.Combine(sampleRoot, relative);
+            if(Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+
+        var environment = new Dictionary<string, string>
+        {
+            ["MistCommand"] = $"dotnet run --project \"{cliProjectPath}\" --no-build -v q --",
+        };
+
+        var (exitCode, stdout, stderr) = await RunMistCli(
+            cliProjectPath, appDir, environment: environment, redirectOutput: false);
+
+        Assert.True(
+            exitCode == 0,
+            $"CSharpReferences failed to compile/run (exit code {exitCode}).\nStdout:\n{stdout}\nStderr:\n{stderr}");
+        Assert.Contains("bridge:widget-1", NormalizeLineEndings(stdout), StringComparison.Ordinal);
+        Assert.True(
+            File.Exists(Path.Combine(appDir, "bin", "Lib.dll")),
+            $"The Lib facade was not written to App/bin.\nStdout:\n{stdout}");
+        Assert.DoesNotContain("warning CS", stdout, StringComparison.Ordinal);
+
+        string[] bridgeIdentifiers = ["osx-arm64", "osx-x64", "linux-x64", "linux-arm64", "win-x64", "win-arm64"];
+        string[] bridgeFileNames = ["libbridge-native.dylib", "libbridge-native.so", "bridge-native.dll"];
+        var hostIdentifier = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier;
+        Assert.True(
+            bridgeIdentifiers.Contains(hostIdentifier),
+            $"Bridge ships no fake native file for the host identifier '{hostIdentifier}'.");
+
+        var hostFileName = hostIdentifier.Split('-')[0] switch
+        {
+            "osx" => "libbridge-native.dylib",
+            "linux" => "libbridge-native.so",
+            _ => "bridge-native.dll",
+        };
+        var binDirectory = Path.Combine(appDir, "bin");
+        foreach(var fileName in bridgeFileNames)
+        {
+            var found = Directory.GetFiles(binDirectory, fileName, SearchOption.AllDirectories);
+            if(fileName == hostFileName)
+            {
+                var deployed = Assert.Single(found);
+                Assert.Equal(Path.Combine(binDirectory, fileName), deployed);
+            }
+            else
+            {
+                Assert.Empty(found);
+            }
+        }
+
+        Assert.Equal(
+            $"bridge-native {hostIdentifier}",
+            (await File.ReadAllTextAsync(Path.Combine(binDirectory, hostFileName))).Trim());
+    }
+
+    /// <summary>
     /// Runs a sample through the Mist CLI on its default pipeline.
     /// <para>
     /// --no-build IS LOAD-BEARING, not a speed-up. Without it this is a SECOND MSBuild inside the one
@@ -169,9 +247,15 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
     /// </para>
     /// </summary>
     private async Task<(int ExitCode, string Stdout, string Stderr)> RunMistCli(
-        string cliProjectPath, string sampleDir, string command = "run")
+        string cliProjectPath,
+        string sampleDir,
+        string command = "run",
+        IReadOnlyDictionary<string, string>? environment = null,
+        bool redirectOutput = true)
     {
-        var outputFlags = $" --output \"{Path.Combine(scratchDir, "out")}\" --bin \"{Path.Combine(scratchDir, "bin")}\"";
+        var outputFlags = redirectOutput
+            ? $" --output \"{Path.Combine(scratchDir, "out")}\" --bin \"{Path.Combine(scratchDir, "bin")}\""
+            : "";
 
         var process = new Process
         {
@@ -188,6 +272,11 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
                 StandardErrorEncoding = System.Text.Encoding.UTF8,
             }
         };
+
+        foreach(var (name, value) in environment ?? new Dictionary<string, string>())
+        {
+            process.StartInfo.Environment[name] = value;
+        }
 
         _ = process.Start();
 

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.CLI.Args;
@@ -12,7 +11,7 @@ using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
 
-internal class Program
+internal partial class Program
 {
     private static int Main(string[] args)
     {
@@ -39,7 +38,7 @@ internal class Program
             Console.Error.WriteLine("  test               Compile and run tests");
             Console.Error.WriteLine("  steering           Install Mist steering files");
             Console.Error.WriteLine("  inspect <TypeName> Inspect a CLR type's projected and hidden members");
-            Console.Error.WriteLine("  restore            Resolve packages and framework references without building");
+            Console.Error.WriteLine("  restore            Resolve packages, framework references and C# project references without building");
             Console.Error.WriteLine("  version            Print the compiler version");
             Console.Error.WriteLine();
             Console.Error.WriteLine("Options:");
@@ -49,6 +48,7 @@ internal class Program
             Console.Error.WriteLine("  --mode <mode>      Compiler mode: compile, lex");
             Console.Error.WriteLine("  --pipeline <name>  Compilation pipeline: standard (default: standard)");
             Console.Error.WriteLine("  --platform <os>    Platform to compile for: windows, linux, macos (default: this machine)");
+            Console.Error.WriteLine("  --rid <rid>        Runtime identifier whose native assets are deployed, e.g. linux-x64 (default: this machine)");
             Console.Error.WriteLine("  --verbose, -v      Show detailed output");
             Console.Error.WriteLine("  --quiet, -q        Suppress progress output");
             return 1;
@@ -102,7 +102,7 @@ internal class Program
         Console.WriteLine("  test               Compile and run tests");
         Console.WriteLine("  steering           Install Mist steering files");
         Console.WriteLine("  inspect <TypeName> Inspect a CLR type's projected and hidden members");
-        Console.WriteLine("  restore            Resolve packages and framework references without building");
+        Console.WriteLine("  restore            Resolve packages, framework references and C# project references without building");
         Console.WriteLine("  version            Print the compiler version");
         Console.WriteLine();
         Console.WriteLine("Options:");
@@ -112,6 +112,7 @@ internal class Program
         Console.WriteLine("  --mode <mode>      Compiler mode: compile, lex");
         Console.WriteLine("  --pipeline <name>  Compilation pipeline: standard (default: standard)");
         Console.WriteLine("  --platform <os>    Platform to compile for: windows, linux, macos (default: this machine)");
+        Console.WriteLine("  --rid <rid>        Runtime identifier whose native assets are deployed, e.g. linux-x64 (default: this machine)");
         Console.WriteLine("  --verbose, -v      Show detailed output");
         Console.WriteLine("  --quiet, -q        Suppress progress output");
     }
@@ -330,7 +331,8 @@ internal class Program
                 "standard" => PipelineMode.Standard,
                 _ => throw new InvalidOperationException($"Unknown pipeline: '{cliArgs.Pipeline}'."),
             },
-            Platform: cliArgs.Platform);
+            Platform: cliArgs.Platform,
+            RuntimeIdentifier: cliArgs.RuntimeIdentifier);
 
         var driver = new CompilerDriver(new MistLexer(), new MistParser(), progressReporter, resolutionListener);
 
@@ -449,6 +451,18 @@ internal class Program
             return 1;
         }
 
+        var referenceDiagnostics = new DiagnosticBag();
+        var references = ProjectReferenceLoader.Load(projectFolder, config.References, config.TargetFramework, referenceDiagnostics);
+        if(referenceDiagnostics.HasErrors)
+        {
+            foreach(var diagnostic in referenceDiagnostics.ToImmutableArray())
+            {
+                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+            }
+
+            return 1;
+        }
+
         // Resolve SDK + package + framework assemblies (same as a build would use)
         var resolutionDiagnostics = new DiagnosticBag();
         var feedback = new InspectFeedback(Console.Error);
@@ -472,7 +486,8 @@ internal class Program
 
         // Merge additional assembly paths from packages and framework references
         var additionalPaths = packageResult.AssemblyPaths
-            .AddRange(frameworkResult.AssemblyPaths);
+            .AddRange(frameworkResult.AssemblyPaths)
+            .AddRange(references.ExternalAssemblies.Select(external => external.Path));
 
         // Use the TypeInspector to resolve and print the inspection report
         var result = TypeInspector.Inspect(
@@ -509,99 +524,7 @@ internal class Program
             return 1;
         }
 
-        return DependencyRestore.Run(config, Console.Out, Console.Error);
-    }
-
-    private static int RunTestCommand(CliArguments cliArgs)
-    {
-        // For `test`, timing/progress output is hidden by default (clean stdout for test output).
-        // Use --verbose to see it. --quiet still suppresses everything.
-        ICompilationProgressReporter reporter = cliArgs.Verbose
-            ? new ConsoleProgressReporter(Console.Out)
-            : NullProgressReporter.Instance;
-        var totalStopwatch = Stopwatch.StartNew();
-
-        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), reporter);
-        if(sourceFiles is null)
-        {
-            return 1;
-        }
-
-        return CompileThen(sourceFiles, cliArgs, reporter, totalStopwatch, _ => RunBuiltTests(sourceFiles, cliArgs));
-    }
-
-    private static int RunBuiltTests(IReadOnlyList<string> sourceFiles, CliArguments cliArgs)
-    {
-        // Determine the .csproj path in the output directory
-        var parseDiagnostics = new DiagnosticBag();
-        var config = ProjectFileParser.Parse(Path.GetFullPath(cliArgs.ProjectFolder), parseDiagnostics);
-        var csprojPath = Path.Combine(cliArgs.OutputDirectory, $"{config!.Name}.csproj");
-
-        // Check for test-attributed methods without test framework packages (MIST_TEST_0001).
-        if(HasTestAttributedMethods(sourceFiles) && !HasTestFrameworkPackage(config))
-        {
-            var warning = new Diagnostic(
-                new DiagnosticId("MIST_TEST_0001"),
-                DiagnosticSeverity.Warning,
-                PipelineStage.Driver,
-                "Test-attributed methods found but no test framework package is referenced. Add xUnit, NUnit, or MSTest packages to [packages] in mist.toml.",
-                Location: default,
-                CompilationUnitPath: "<unknown>",
-                AnalyzerName: null);
-            Console.Error.WriteLine(DiagnosticFormatter.Format(warning));
-        }
-
-        return RunDotnetTest(csprojPath);
-    }
-
-    private static int RunDotnetTest(string csprojPath)
-    {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = $"test \"{csprojPath}\"",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
-
-            var process = Process.Start(startInfo);
-            if(process is null)
-            {
-                Console.Error.WriteLine("error: Failed to start 'dotnet' process.");
-                return 1;
-            }
-
-            // Stream stdout and stderr in real time using async reads
-            var stdoutTask = Task.Run(() =>
-            {
-                while(process.StandardOutput.ReadLine() is { } line)
-                {
-                    Console.WriteLine(line);
-                }
-            });
-
-            var stderrTask = Task.Run(() =>
-            {
-                while(process.StandardError.ReadLine() is { } line)
-                {
-                    Console.Error.WriteLine(line);
-                }
-            });
-
-            process.WaitForExit();
-            stdoutTask.Wait();
-            stderrTask.Wait();
-
-            return process.ExitCode;
-        }
-        catch(System.ComponentModel.Win32Exception)
-        {
-            Console.Error.WriteLine("error: Failed to start 'dotnet' process.");
-            return 1;
-        }
+        return DependencyRestore.Run(projectFolder, config, Console.Out, Console.Error);
     }
 
     private static int RunArtifact(string artifactPath)
@@ -667,59 +590,4 @@ internal class Program
         };
     }
 
-    /// <summary>
-    /// Scans source files for method declarations that have attributes whose unqualified
-    /// name ends in <c>Fact</c>, <c>Theory</c>, <c>Test</c>, or <c>TestMethod</c>.
-    /// Uses a regex-based heuristic over the source text since the compiled AST is not
-    /// retained in <see cref="CompilerResult"/>.
-    /// </summary>
-    private static bool HasTestAttributedMethods(IReadOnlyList<string> sourceFiles)
-    {
-        // Match attribute syntax: [SomeName] where SomeName ends with Fact, Theory, Test, or TestMethod.
-        // The pattern accounts for optional qualifiers (e.g., [Xunit.Fact]) and optional arguments.
-        var pattern = new Regex(
-            @"\[\s*[\w.]*(?:Fact|Theory|Test|TestMethod)\s*[\(\]]",
-            RegexOptions.Compiled);
-
-        foreach(var file in sourceFiles)
-        {
-            try
-            {
-                var contents = File.ReadAllText(file);
-                if(pattern.IsMatch(contents))
-                {
-                    return true;
-                }
-            }
-            catch(IOException)
-            {
-                // If we can't read the file, skip it.
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Returns <c>true</c> if any package in the project configuration has a name
-    /// containing "Test" or "xunit" (case-insensitive substring match).
-    /// </summary>
-    private static bool HasTestFrameworkPackage(ProjectConfiguration config)
-    {
-        if(config.Packages.IsDefaultOrEmpty)
-        {
-            return false;
-        }
-
-        foreach(var package in config.Packages)
-        {
-            if(package.Name.Contains("Test", StringComparison.OrdinalIgnoreCase)
-                || package.Name.Contains("xunit", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }

@@ -115,7 +115,7 @@ public static class DriverDiagnostics
         new DiagnosticId("MIST_PROJECT_REFERENCE_NO_PROJECT_FILE"),
         DiagnosticSeverity.Error,
         PipelineStage.Driver,
-        "Referenced directory '{0}' does not contain a 'mist.toml' file.");
+        "Referenced directory '{0}' holds no mist.toml, .csproj or .dll.");
 
     /// <summary>A circular reference was detected in the project reference graph.</summary>
     public static readonly DiagnosticDescriptor ProjectCircularReference = new(
@@ -164,7 +164,37 @@ public static class DriverDiagnostics
         new DiagnosticId("MIST_PROJECT_REFERENCE_NAME_MISMATCH"),
         DiagnosticSeverity.Error,
         PipelineStage.Driver,
-        "Reference key '{0}' does not match the target project's name '{1}' in '{2}'.");
+        "Reference key '{0}' does not match '{1}', the name the {2} '{3}' produces.");
+
+    public static readonly DiagnosticDescriptor ReferenceUnsupportedPath = new(
+        new DiagnosticId("MIST_REFERENCE_UNSUPPORTED_PATH"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Driver,
+        "Reference '{0}' names '{1}', which is not a mist.toml, a .csproj or a .dll.");
+
+    public static readonly DiagnosticDescriptor ReferenceFileNotFound = new(
+        new DiagnosticId("MIST_REFERENCE_FILE_NOT_FOUND"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Driver,
+        "Reference '{0}' names '{1}', which does not exist.");
+
+    public static readonly DiagnosticDescriptor ReferenceAmbiguous = new(
+        new DiagnosticId("MIST_REFERENCE_AMBIGUOUS"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Driver,
+        "Reference '{0}' names directory '{1}', which holds more than one referenceable file: {2}. Name the intended file in 'path'.");
+
+    public static readonly DiagnosticDescriptor CSharpProjectBuildFailed = new(
+        new DiagnosticId("MIST_CSHARP_PROJECT_BUILD_FAILED"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Driver,
+        "Building C# project '{0}' for reference '{1}' failed: {2}");
+
+    public static readonly DiagnosticDescriptor ReferenceCycle = new(
+        new DiagnosticId("MIST_REFERENCE_CYCLE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Driver,
+        "Reference cycle: {0}.");
 
     // ── Global using diagnostics ─────────────────────────────────────────
 
@@ -343,6 +373,12 @@ public static class DriverDiagnostics
         DiagnosticSeverity.Error,
         PipelineStage.Driver,
         "Unknown backend '{0}'.");
+
+    public static readonly DiagnosticDescriptor RuntimeIdentifierUnknown = new(
+        new DiagnosticId("MIST_RID_UNKNOWN"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Driver,
+        "Runtime identifier '{0}' is not in the SDK's runtime identifier graph.");
 
     /// <summary>A source file or referenced source file could not be read due to an I/O error.</summary>
     public static readonly DiagnosticDescriptor FileError = new(

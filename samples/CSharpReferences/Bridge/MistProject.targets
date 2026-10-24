@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <MistCommand Condition="'$(MistCommand)' == ''">mist</MistCommand>
+  </PropertyGroup>
+  <Target Name="BuildMistProject" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="'$(MistProject)' == '' Or '$(MistAssemblyName)' == ''"
+           Text="Set MistProject and MistAssemblyName before importing MistProject.targets." />
+    <Exec Command="$(MistCommand) build &quot;$(MistProject)&quot; --backend csharp --quiet" />
+    <Error Condition="!Exists('$(MistProject)/bin/$(MistAssemblyName).dll')"
+           Text="The Mist build produced no $(MistAssemblyName).dll in $(MistProject)/bin." />
+    <ItemGroup>
+      <Reference Include="$(MistAssemblyName)">
+        <HintPath>$(MistProject)/bin/$(MistAssemblyName).dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+    </ItemGroup>
+  </Target>
+</Project>

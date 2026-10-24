@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
@@ -27,23 +28,38 @@ internal sealed class CSharpEmitterV2
     private readonly ImmutableArray<string> referencePaths;
     private readonly DiagnosticBag diagnostics;
     private readonly Func<string, Type?> clrType;
+    private readonly ImmutableArray<ExternalAssembly> externalAssemblies;
+    private readonly ImmutableArray<ComposedProject> composedProjects;
+    private readonly ImmutableArray<string> runtimeIdentifiers;
+    private readonly ImmutableArray<RuntimeAsset> runtimeAssets;
     private readonly List<string> emittedFiles = [];
+    private readonly Dictionary<string, DeclarationOrigin> unitOrigins = [];
 
     public CSharpEmitterV2(
         IProgramModel programModel,
         CompilerOptions options,
         ImmutableArray<string> referencePaths,
         DiagnosticBag diagnostics,
-        Func<string, Type?> clrType)
+        Func<string, Type?> clrType,
+        ImmutableArray<ExternalAssembly> externalAssemblies = default,
+        ImmutableArray<ComposedProject> composedProjects = default,
+        ImmutableArray<string> runtimeIdentifiers = default,
+        ImmutableArray<RuntimeAsset> runtimeAssets = default)
     {
+        this.runtimeIdentifiers = runtimeIdentifiers;
+        this.runtimeAssets = runtimeAssets;
         this.programModel = programModel;
         this.options = options;
         this.referencePaths = referencePaths;
         this.diagnostics = diagnostics;
         this.clrType = clrType;
+        this.externalAssemblies = externalAssemblies;
+        this.composedProjects = composedProjects;
     }
 
     public int EmittedFileCount => emittedFiles.Count;
+
+    public int RuntimeAssetsDeployed { get; private set; }
 
     /// <summary>
     /// Emits all compilation units to disk and compiles the result.
@@ -73,13 +89,20 @@ internal sealed class CSharpEmitterV2
             emittedFileCount: emittedFiles.Count,
             mainTypeName: startup.MainTypeName,
             additionalReferencePaths: referencePaths,
-            outputType: options.OutputType);
+            outputType: options.OutputType,
+            externalAssemblies: externalAssemblies,
+            composedProjects: composedProjects,
+            declarationOrigins: FacadeTypeSelection.Origins(emittedFiles, unitOrigins),
+            frameworkReferences: options.FrameworkReferences,
+            runtimeIdentifiers: runtimeIdentifiers,
+            runtimeAssets: runtimeAssets);
 
         if(!compileResult.Succeeded)
         {
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());
         }
 
+        RuntimeAssetsDeployed = compileResult.RuntimeAssetsDeployed;
         return new CompilerResult(true, compileResult.PrimaryArtifactPath, diagnostics.ToImmutableArray());
     }
 
@@ -143,10 +166,16 @@ internal sealed class CSharpEmitterV2
                 continue;
             }
 
+            var origin = FacadeTypeSelection.OriginOf(assembly);
             foreach(var unit in assembly.CompilationUnits)
             {
+                var written = emittedFiles.Count;
                 EmitCompilationUnit(
                     unit, assembly, ReferenceEquals(unit, startup.TopLevelUnit), closures, usings, outputDir, emittedFiles);
+                if(emittedFiles.Count > written)
+                {
+                    unitOrigins[emittedFiles[^1]] = origin;
+                }
             }
         }
 

@@ -20,6 +20,9 @@ public sealed class CSharpCompilationDriver
     // Internal so that in-process Roslyn verification tests can reuse the same reference set.
     internal static readonly ImmutableArray<RoslynApi.MetadataReference> CoreReferences = BuildCoreReferences();
 
+    private static readonly StringComparer PathComparer =
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
     private static ImmutableArray<RoslynApi.MetadataReference> BuildCoreReferences()
     {
         // Locate the runtime directory so we can reference the core assemblies.
@@ -235,12 +238,33 @@ public sealed class CSharpCompilationDriver
         int emittedFileCount = 0,
         string? mainTypeName = null,
         ImmutableArray<string> additionalReferencePaths = default,
-        ProjectOutputType outputType = ProjectOutputType.Executable)
+        ProjectOutputType outputType = ProjectOutputType.Executable,
+        ImmutableArray<ExternalAssembly> externalAssemblies = default,
+        ImmutableArray<ComposedProject> composedProjects = default,
+        IReadOnlyDictionary<string, DeclarationOrigin>? declarationOrigins = null,
+        ImmutableArray<FrameworkReference> frameworkReferences = default,
+        ImmutableArray<string> runtimeIdentifiers = default,
+        ImmutableArray<RuntimeAsset> runtimeAssets = default)
     {
         if(!Directory.Exists(binDirectory))
         {
             _ = Directory.CreateDirectory(binDirectory);
         }
+
+        var plan = ExternalReferencePlanner.Plan(
+            projectName,
+            additionalReferencePaths,
+            externalAssemblies,
+            composedProjects,
+            frameworkReferences,
+            AssemblyMetadataFiles.Instance,
+            diagnostics);
+        if(plan.Failed)
+        {
+            return new BackendResult(false, null, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
+        }
+
+        var referencePaths = plan.Paths;
 
         // Collect all emitted .cs files
         var csFiles = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.AllDirectories);
@@ -275,13 +299,20 @@ public sealed class CSharpCompilationDriver
         var compilation = CSharpCompilation.Create(
             assemblyName: projectName,
             syntaxTrees: syntaxTrees,
-            references: additionalReferencePaths.IsDefaultOrEmpty
+            references: referencePaths.IsDefaultOrEmpty
                 ? CoreReferences
                 : CoreReferences.AddRange(
-                    additionalReferencePaths
+                    referencePaths
                         .Where(File.Exists)
                         .Select(p => (RoslynApi.MetadataReference)RoslynApi.MetadataReference.CreateFromFile(p))),
             options: compilationOptions);
+
+        var facades = Facades(compilation, plan.Facades, declarationOrigins);
+        if(!facades.IsEmpty)
+        {
+            compilation = compilation.AddReferences(
+                facades.Select(facade => RoslynApi.MetadataReference.CreateFromImage(facade.Image)));
+        }
 
         // Emit to the bin directory
         var outputPath = Path.Combine(binDirectory, $"{projectName}.dll");
@@ -321,25 +352,113 @@ public sealed class CSharpCompilationDriver
         }
 
         // Write a .runtimeconfig.json so `dotnet <dll>` knows which runtime to use
-        WriteRuntimeConfig(runtimeConfigPath, additionalReferencePaths);
+        WriteRuntimeConfig(runtimeConfigPath, referencePaths);
 
-        // Copy package assembly DLLs to the bin directory so they're found at runtime.
-        if(!additionalReferencePaths.IsDefaultOrEmpty)
+        var deployment = RuntimeAssetDeployment.Plan(
+            binDirectory, referencePaths, runtimeAssets, externalAssemblies, runtimeIdentifiers, DeploymentFiles.Instance);
+        Deploy(deployment.Copies);
+
+        foreach(var facade in facades)
         {
-            foreach(var refPath in additionalReferencePaths)
+            File.WriteAllBytes(Path.Combine(binDirectory, $"{facade.Name}.dll"), facade.Image.AsSpan());
+        }
+
+        return new BackendResult(
+            true,
+            outputPath,
+            diagnostics.ToImmutableArray(),
+            EmittedFileCount: emittedFileCount,
+            RuntimeAssetsDeployed: deployment.RuntimeAssetsDeployed);
+    }
+
+    private static void Deploy(ImmutableArray<FileCopy> copies)
+    {
+        foreach(var copy in copies)
+        {
+            try
             {
-                if(File.Exists(refPath))
-                {
-                    var destPath = Path.Combine(binDirectory, Path.GetFileName(refPath));
-                    if(!File.Exists(destPath))
-                    {
-                        try { File.Copy(refPath, destPath); } catch { /* best effort */ }
-                    }
-                }
+                File.Copy(copy.Source, copy.Destination, overwrite: true);
+            }
+            catch(Exception exception) when(exception is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+    }
+
+    private static ImmutableArray<(string Name, ImmutableArray<byte> Image)> Facades(
+        CSharpCompilation compilation,
+        ImmutableArray<ComposedProject> facadeProjects,
+        IReadOnlyDictionary<string, DeclarationOrigin>? declarationOrigins)
+    {
+        if(facadeProjects.IsDefaultOrEmpty)
+        {
+            return [];
+        }
+
+        var candidates = DeclaredTypes(compilation, declarationOrigins);
+        var identity = compilation.Assembly.Identity;
+        return [.. facadeProjects
+            .GroupBy(project => project.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => (group.Key, FacadeEmitter.Emit(
+                group.Key,
+                identity.Name,
+                identity.Version,
+                group.SelectMany(project => FacadeTypeSelection.Select(candidates, project.ManifestPath)))))];
+    }
+
+    private static List<ForwardingCandidate> DeclaredTypes(
+        CSharpCompilation compilation, IReadOnlyDictionary<string, DeclarationOrigin>? declarationOrigins)
+    {
+        var candidates = new List<ForwardingCandidate>();
+        if(declarationOrigins is null)
+        {
+            return candidates;
+        }
+
+        var origins = new Dictionary<string, DeclarationOrigin>(PathComparer);
+        foreach(var (path, origin) in declarationOrigins)
+        {
+            origins[Path.GetFullPath(path)] = origin;
+        }
+
+        var namespaces = new Stack<(RoslynApi.INamespaceSymbol Symbol, string Name)>();
+        namespaces.Push((compilation.Assembly.GlobalNamespace, ""));
+        while(namespaces.TryPop(out var current))
+        {
+            foreach(var member in current.Symbol.GetNamespaceMembers())
+            {
+                namespaces.Push((member, current.Name.Length == 0 ? member.Name : $"{current.Name}.{member.Name}"));
+            }
+
+            foreach(var type in current.Symbol.GetTypeMembers())
+            {
+                CollectDeclaredType(type, current.Name, type.MetadataName, origins, candidates);
             }
         }
 
-        return new BackendResult(true, outputPath, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
+        return candidates;
+    }
+
+    private static void CollectDeclaredType(
+        RoslynApi.INamedTypeSymbol type,
+        string namespaceName,
+        string typeName,
+        Dictionary<string, DeclarationOrigin> origins,
+        List<ForwardingCandidate> candidates)
+    {
+        foreach(var declaration in type.DeclaringSyntaxReferences)
+        {
+            if(origins.TryGetValue(Path.GetFullPath(declaration.SyntaxTree.FilePath), out var origin))
+            {
+                candidates.Add(new ForwardingCandidate(
+                    namespaceName, typeName, type.DeclaredAccessibility == RoslynApi.Accessibility.Public, origin));
+            }
+        }
+
+        foreach(var nested in type.GetTypeMembers())
+        {
+            CollectDeclaredType(nested, namespaceName, $"{typeName}/{nested.MetadataName}", origins, candidates);
+        }
     }
 
     private static void WriteRuntimeConfig(string path, ImmutableArray<string> additionalReferencePaths = default)

@@ -97,9 +97,14 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
                                 .Take(refCount)
                                 .ToArray();
 
-                            // Build references with synthetic absolute paths
+                            // Build references with synthetic absolute paths, one kind after another
                             var refs = distinctNames
-                                .Select(r => new ProjectReference(r, $"/refs/{r}/mist.toml"))
+                                .Select((r, i) => (ReferenceKind)(i % 3) switch
+                                {
+                                    ReferenceKind.CSharpProject => new ProjectReference(r, $"/refs/{r}/{r}.csproj", ReferenceKind.CSharpProject),
+                                    ReferenceKind.Assembly => new ProjectReference(r, $"/refs/{r}/{r}.dll", ReferenceKind.Assembly),
+                                    _ => new ProjectReference(r, $"/refs/{r}/mist.toml"),
+                                })
                                 .ToImmutableArray();
 
                             return new ProjectConfiguration(name, nsRoot, refs, GlobalUsings: globalUsings);
@@ -211,8 +216,9 @@ public sealed class ProjectConfigurationRoundTripPropertyTests
 
             for(var i = 0; i < original.References.Length; i++)
             {
-                // Compare Name field (should round-trip exactly)
-                if(parsed.References[i].Name != original.References[i].Name)
+                // Compare Name and Kind fields (should round-trip exactly)
+                if(parsed.References[i].Name != original.References[i].Name
+                    || parsed.References[i].Kind != original.References[i].Kind)
                 {
                     return false;
                 }

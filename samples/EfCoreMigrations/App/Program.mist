@@ -1,0 +1,29 @@
+using Standard;
+using App.Data;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
+
+namespace App;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        SQLitePCL.Batteries.Init();
+        var builder = new DbContextOptionsBuilder();
+        builder.UseSqlite("Data Source=store.db", sqlite => sqlite.MigrationsAssembly("App.Migrations"));
+        var db = new StoreContext(builder.Options);
+        db.Database.Migrate();
+        if (db.Items.Count() == 0)
+        {
+            var item = new Item();
+            item.Name = "from Mist";
+            item.Quantity = 7;
+            db.Items.Add(item);
+            db.SaveChanges();
+        }
+
+        var first = db.Items.First();
+        Console.WriteLine($"items={db.Items.Count()}, name={first.Name}, quantity={first.Quantity}");
+    }
+}

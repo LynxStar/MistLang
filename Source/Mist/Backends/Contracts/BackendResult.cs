@@ -10,4 +10,5 @@ public sealed record BackendResult(
     bool Succeeded,
     string? PrimaryArtifactPath,
     ImmutableArray<Diagnostic> Diagnostics,
-    int EmittedFileCount = 0);
+    int EmittedFileCount = 0,
+    int RuntimeAssetsDeployed = 0);

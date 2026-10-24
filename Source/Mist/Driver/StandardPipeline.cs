@@ -103,7 +103,7 @@ public sealed class StandardPipeline : ICompilationPipeline
         var emission = emit(programModel, built.ClrType, input);
         var emitElapsed = emitStopwatch.Elapsed;
         progressReporter.ReportStageComplete(
-            "6", emitElapsed, StandardStageDetails.Emission(emission.FilesWritten, emission.Result.PrimaryOutputArtifactPath));
+            "6", emitElapsed, StandardStageDetails.Emission(emission.FilesWritten, emission.Result.PrimaryOutputArtifactPath, emission.RuntimeAssetsDeployed));
 
         return emission.Result;
     }
@@ -136,10 +136,15 @@ public sealed class StandardPipeline : ICompilationPipeline
 
     private static IAmbientTypeSource LoadAmbientTypes(PipelineInput input)
     {
+        var externals = input.ExternalAssemblies.IsDefault ? [] : input.ExternalAssemblies;
+        var composed = input.ComposedProjects.IsDefault ? [] : input.ComposedProjects;
+
         return AmbientTypeProviderV2Factory.Create(
             input.Options.TargetFramework,
             input.ResolvedAssemblyPaths,
-            input.Diagnostics);
+            input.Diagnostics,
+            [.. externals.Where(external => !external.Closure.IsDefault).SelectMany(external => external.Closure).Select(file => Path.GetDirectoryName(file)!).Distinct(StringComparer.Ordinal)],
+            composed.Select(project => project.Name));
     }
 
     /// <summary>
@@ -161,10 +166,11 @@ public sealed class StandardPipeline : ICompilationPipeline
     private static Emission Emit(IProgramModel programModel, Func<string, Type?> clrType, PipelineInput input)
     {
         var emitter = new CSharpEmitterV2(
-            programModel, input.Options, input.ResolvedAssemblyPaths, input.Diagnostics, clrType);
+            programModel, input.Options, input.ResolvedAssemblyPaths, input.Diagnostics, clrType,
+            input.ExternalAssemblies, input.ComposedProjects, input.RuntimeIdentifiers, input.RuntimeAssets);
         var result = emitter.Emit();
 
-        return new Emission(result, emitter.EmittedFileCount);
+        return new Emission(result, emitter.EmittedFileCount, emitter.RuntimeAssetsDeployed);
     }
 }
 
@@ -176,4 +182,4 @@ internal sealed record ModelBuild(IProgramModel? Model, Func<string, Type?> ClrT
     }
 }
 
-internal sealed record Emission(CompilerResult Result, int FilesWritten);
+internal sealed record Emission(CompilerResult Result, int FilesWritten, int RuntimeAssetsDeployed = 0);

@@ -14,4 +14,12 @@ namespace Mist.Driver.Contracts;
 /// Normalized absolute path to the referenced project's <c>mist.toml</c> file,
 /// as computed by <see cref="ProjectFileParser"/>.
 /// </param>
-public sealed record ProjectReference(string Name, string Path);
+/// <param name="Kind">
+/// What the path names. A bare directory stays a Mist project with <paramref name="IsDirectory"/> set and
+/// the directory's <c>mist.toml</c> as its path, because only the resolver lists the directory to decide.
+/// </param>
+public sealed record ProjectReference(
+    string Name,
+    string Path,
+    ReferenceKind Kind = ReferenceKind.MistProject,
+    bool IsDirectory = false);

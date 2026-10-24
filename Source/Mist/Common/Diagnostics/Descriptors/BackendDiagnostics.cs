@@ -38,6 +38,18 @@ public static class BackendDiagnostics
         PipelineStage.Backend,
         "{0}");
 
+    public static readonly DiagnosticDescriptor ReferenceAssemblyConflict = new(
+        new DiagnosticId("MIST_REFERENCE_ASSEMBLY_CONFLICT"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Assembly '{0}' is supplied twice with different versions: '{1}' ({2}) and '{3}' ({4}).");
+
+    public static readonly DiagnosticDescriptor ReferenceFrameworkMissing = new(
+        new DiagnosticId("MIST_REFERENCE_FRAMEWORK_MISSING"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Backend,
+        "Referenced C# project '{0}' needs shared framework '{1}', which '[framework_references]' does not declare.");
+
     /// <summary>
     /// An assembly failed to load via <c>MetadataLoadContext</c> during
     /// ambient type provider initialization.

@@ -12,7 +12,7 @@ internal sealed partial class AmbientTypeResolver
     private AmbientTypeResolver? storageResolver;
 
     private AmbientTypeResolver(AmbientTypeResolver source)
-        : this(new Dictionary<string, DeclaredType>(source.shells), source.wellKnownTypes, source.typeInterner, new DiagnosticBag())
+        : this(new Dictionary<string, DeclaredType>(source.shells), source.wellKnownTypes, source.typeInterner, new DiagnosticBag(), source.declaredTypes)
     {
         storageResolver = this;
         unavailable.UnionWith(source.unavailable);

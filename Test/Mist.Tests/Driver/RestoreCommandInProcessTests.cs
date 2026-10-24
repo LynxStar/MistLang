@@ -127,4 +127,73 @@ public sealed class RestoreCommandInProcessTests
             Lines(output.ToString()));
         Assert.Equal(["error MIST_PKG_001: Package 'Old' does not support net10.0."], Lines(error.ToString()));
     }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void References_AreReportedByKind_AndOnlyACSharpProjectIsRestored()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "mist-restore-refs-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var bridge = Touch(root, "Bridge", "Bridge.csproj");
+            var widgets = Touch(root, "libs", "Widgets.dll");
+            _ = Touch(root, "App", "mist.toml");
+            var restored = new List<string>();
+            using var output = new StringWriter();
+
+            var errors = DependencyRestore.RestoreReferences(
+                Path.Combine(root, "App"),
+                [new ProjectReference("Bridge", bridge, ReferenceKind.CSharpProject), new ProjectReference("Widgets", widgets, ReferenceKind.Assembly)],
+                output,
+                (project, directory) =>
+                {
+                    restored.Add(project);
+                    Assert.Equal(Path.GetDirectoryName(project), directory);
+                    return (0, "", "");
+                });
+
+            Assert.Empty(errors);
+            Assert.Equal([bridge], restored);
+            Assert.Equal([$"Reference Bridge: C# project {bridge}", $"Reference Widgets: assembly {widgets}"], Lines(output.ToString()));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void AFailedCSharpRestore_IsAnErrorNamingTheReference()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "mist-restore-refs-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var bridge = Touch(root, "Bridge", "Bridge.csproj");
+            _ = Touch(root, "App", "mist.toml");
+            using var output = new StringWriter();
+
+            var errors = DependencyRestore.RestoreReferences(
+                Path.Combine(root, "App"),
+                [new ProjectReference("Bridge", bridge, ReferenceKind.CSharpProject)],
+                output,
+                (_, _) => (1, "Bridge.csproj : error NU1101: Unable to find package Nope.", ""));
+
+            Assert.Equal(
+                [$"error: dotnet restore of '{bridge}' for reference 'Bridge' failed: Bridge.csproj : error NU1101: Unable to find package Nope."],
+                errors);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static string Touch(string root, string directory, string file)
+    {
+        var path = Path.Combine(root, directory, file);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, file == "mist.toml" ? "name = \"App\"" : "");
+        return path;
+    }
 }

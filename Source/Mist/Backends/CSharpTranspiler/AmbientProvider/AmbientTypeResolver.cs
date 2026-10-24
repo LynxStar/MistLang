@@ -19,6 +19,7 @@ internal sealed partial class AmbientTypeResolver
     private readonly Dictionary<string, DeclaredType> shells;
     private readonly Dictionary<string, IMistType> wellKnownTypes;
     private readonly TypeInterner typeInterner;
+    private readonly Func<string, MistType?>? declaredTypes;
     private readonly HashSet<string> unavailable = [];
 
     public TupleNameRows TupleNames { get; } = new();
@@ -27,11 +28,13 @@ internal sealed partial class AmbientTypeResolver
         Dictionary<string, DeclaredType> shells,
         Dictionary<string, IMistType> wellKnownTypes,
         TypeInterner typeInterner,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        Func<string, MistType?>? declaredTypes = null)
     {
         this.shells = shells;
         this.wellKnownTypes = wellKnownTypes;
         this.typeInterner = typeInterner;
+        this.declaredTypes = declaredTypes;
         _ = diagnostics;
     }
 
@@ -252,6 +255,13 @@ internal sealed partial class AmbientTypeResolver
         if(shells.TryGetValue(fqn, out var shell))
         {
             return shell;
+        }
+
+        // A C# assembly compiled against a composed Mist project names that project's types; the stale
+        // standalone copy that defines them is never registered, so the declared type is what they mean.
+        if(declaredTypes?.Invoke(fqn) is { } declared)
+        {
+            return declared;
         }
 
         // ERROR WITHOUT A DIAGNOSTIC, because the caller already knows what to do with it: every

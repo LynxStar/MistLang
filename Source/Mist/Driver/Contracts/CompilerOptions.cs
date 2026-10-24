@@ -24,6 +24,7 @@ namespace Mist.Driver.Contracts;
 /// <param name="CsprojProperties">Arbitrary MSBuild properties declared in <c>[csproj_properties]</c> to emit into the generated csproj.</param>
 /// <param name="OutputType">Controls whether the project emits an executable or a class library.</param>
 /// <param name="Platform">The platform the program is compiled for; <see langword="null"/> means <see cref="TargetPlatforms.Host"/>.</param>
+/// <param name="RuntimeIdentifier">The runtime identifier named by <c>--rid</c>; <see langword="null"/> derives it from the host and the platform.</param>
 public sealed record CompilerOptions(
     string ProjectFolder,
     ImmutableArray<string> SourcePaths,
@@ -41,7 +42,8 @@ public sealed record CompilerOptions(
     ImmutableArray<CsprojProperty> CsprojProperties = default,
     ProjectOutputType OutputType = ProjectOutputType.Executable,
     PipelineMode Pipeline = PipelineMode.Standard,
-    TargetPlatform? Platform = null)
+    TargetPlatform? Platform = null,
+    string? RuntimeIdentifier = null)
 {
     public TargetPlatform EffectivePlatform => Platform ?? TargetPlatforms.Host;
 

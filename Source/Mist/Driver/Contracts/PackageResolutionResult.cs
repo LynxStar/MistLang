@@ -24,7 +24,13 @@ namespace Mist.Driver.Contracts;
 public sealed record PackageResolutionResult(
     ImmutableArray<string> AssemblyPaths,
     ImmutableArray<ResolvedPackageInfo> Resolved,
-    int FailureCount);
+    int FailureCount)
+{
+    public ImmutableArray<RuntimeAsset> RuntimeAssets { get; init; } = [];
+
+    /// <summary>The SDK graph the restore named; <see langword="null"/> when no restore ran or the graph could not be read.</summary>
+    public RidGraph? RuntimeIdentifierGraph { get; init; }
+}
 
 /// <summary>
 /// A per-declared-package resolution summary used by the verbose

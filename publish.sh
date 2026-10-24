@@ -107,7 +107,7 @@ fi
 
 # Copy the bundled steering files alongside the binary so that `mist steering`
 # can find them at AppContext.BaseDirectory/Steering/ and install them into a
-# project's .kiro/steering/ directory.
+# project's .mist/agents/ directory and AGENTS.md.
 STEERING_SRC="${PUBLISH_DIR}/Steering"
 STEERING_DST="${INSTALL_DIR}/Steering"
 

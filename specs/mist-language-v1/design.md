@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design document specifies the concrete language features, grammar, semantic model, type checker, C# transpiler, pretty printer, and sample application for Mist v1. It builds on the compiler architecture defined in `.kiro/specs/mist-compiler-architecture/`, which provides the pipeline skeleton (Storm source generator → lexer → parser → semantic model → analyzers → backend). This document fills in every architectural stub with concrete implementations.
+This design document specifies the concrete language features, grammar, semantic model, type checker, C# transpiler, pretty printer, and sample application for Mist v1. It builds on the compiler architecture defined in `specs/mist-compiler-architecture/`, which provides the pipeline skeleton (Storm source generator → lexer → parser → semantic model → analyzers → backend). This document fills in every architectural stub with concrete implementations.
 
 The design covers seven deliverables:
 
@@ -14,7 +14,7 @@ The design covers seven deliverables:
 6. **Pretty printer** — How `MistPrettyPrinter` formats an AST back to valid Mist source text.
 7. **Sample application** — The Mist source code exercising every language feature.
 
-Requirement references appear inline as `(R{n}.{m})` referring to the requirements document at `.kiro/specs/mist-language-v1/requirements.md`.
+Requirement references appear inline as `(R{n}.{m})` referring to the requirements document at `specs/mist-language-v1/requirements.md`.
 
 ## Architecture
 

@@ -1,8 +1,4 @@
----
-inclusion: manual
----
-
-<!-- MIST-MANAGED-STEERING: installed by `mist steering`. Do not edit — this file is overwritten on every reinstall. Do not add this marker to your own steering files; any file containing it is treated as Mist-managed and may be deleted. -->
+<!-- MIST-MANAGED-STEERING: installed by `mist steering`. Do not edit — this file is overwritten on every reinstall. Do not add this marker to your own files; any file containing it is treated as Mist-managed and may be deleted. -->
 
 # Mist Advanced Features
 
@@ -277,4 +273,4 @@ public class LinearBox<T> where T : linear { }
 public class Clonable<T> where T : IClonable<T> { }
 ```
 
-For the full ownership and drop-semantics model, see `#mist-ownership.md`.
+For the full ownership and drop-semantics model, see `mist-ownership.md`.

@@ -1,4 +1,4 @@
-// Tier 3 (Component): binding and admission rules from .kiro/specs/local-functions/design.md,
+// Tier 3 (Component): binding and admission rules from specs/local-functions/design.md,
 // including calls before declaration, recursion, captures and definite assignment. A write inside a
 // function does not assign the caller's local, as a lambda write does not (Requirement 5.4); the
 // read after that call is the finding pinned here.

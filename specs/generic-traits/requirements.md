@@ -9,8 +9,8 @@ With generic traits, a type can structurally satisfy a trait by matching the tra
 Additionally, this spec introduces trait inheritance (composition): a trait can extend one or more other traits, meaning that satisfying the child trait implies satisfying all parent traits as well. For example, `trait Sortable<T> : Comparable<T> { ... }` means any type satisfying `Sortable<T>` must also satisfy `Comparable<T>`. This enables building rich trait hierarchies while preserving structural typing semantics.
 
 This feature builds on two existing specs:
-- **Traits** (`.kiro/specs/traits/`): Structural typing, `with` blocks, trait member access, C# interface emission.
-- **Generics** (`.kiro/specs/generics-type-arguments/`): Type parameter lists, type argument lists, constructed types, generic type resolution.
+- **Traits** (`specs/traits/`): Structural typing, `with` blocks, trait member access, C# interface emission.
+- **Generics** (`specs/generics-type-arguments/`): Type parameter lists, type argument lists, constructed types, generic type resolution.
 
 The generics spec explicitly excludes traits. This spec fills that gap, and also adds trait inheritance which was not part of the original traits spec.
 

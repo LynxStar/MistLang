@@ -1,7 +1,7 @@
 // Tier 2 (Functional): Requirement 8's inference over hand-built members calling each other, observed
 // through a DECLARED pure caller, since an inferred promise is never reported on the member that keeps
 // it (Requirement 3). Every callee declares nothing; what it keeps is read off its body, its
-// implementations, or its storage, as .kiro/specs/purity/design.md's PurityInference section states.
+// implementations, or its storage, as specs/purity/design.md's PurityInference section states.
 
 using Mist.Tests.Helpers;
 

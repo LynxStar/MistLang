@@ -24,7 +24,7 @@ The design is grounded in the current state of the source (verified during resea
 
 ### Dependency and ordering relationship with `diagnostic-descriptor-system`
 
-The in-flight `.kiro/specs/diagnostic-descriptor-system/` spec migrates all diagnostics to the centralized `DiagnosticDescriptor` registry. Its infrastructure tasks (the `DiagnosticDescriptor` type, `DiagnosticBag.Report`/`ReportAtNode`, and every per-area registry class including `TypeCheckDiagnostics`, `ParserDiagnostics`, `SemanticDiagnostics`, `ProgramModelDiagnostics`) are **already complete** (tasks 1–23 done). The remaining tasks are a registry ID-uniqueness test (24), a grep check that forbids inline `new DiagnosticId(` outside registries (25), a steering file (26), and a final `dotnet format` (27).
+The in-flight `specs/diagnostic-descriptor-system/` spec migrates all diagnostics to the centralized `DiagnosticDescriptor` registry. Its infrastructure tasks (the `DiagnosticDescriptor` type, `DiagnosticBag.Report`/`ReportAtNode`, and every per-area registry class including `TypeCheckDiagnostics`, `ParserDiagnostics`, `SemanticDiagnostics`, `ProgramModelDiagnostics`) are **already complete** (tasks 1–23 done). The remaining tasks are a registry ID-uniqueness test (24), a grep check that forbids inline `new DiagnosticId(` outside registries (25), a steering file (26), and a final `dotnet format` (27).
 
 Consequences for this feature:
 

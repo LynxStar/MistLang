@@ -42,11 +42,12 @@
   <!--
     Package the distributable Mist steering files alongside the compiler binary
     so that `mist steering` can resolve AppContext.BaseDirectory/Steering/ at
-    runtime and install them into a project's .kiro/steering/ directory.
+    runtime, install them into a project's .mist/agents/ directory and merge
+    agents-block.md into its AGENTS.md.
     Mirrors the Standard Library bundling above.
   -->
   <ItemGroup>
-    <Content Include="..\..\distribute\steering\mist-*.md"
+    <Content Include="..\..\distribute\steering\mist-*.md;..\..\distribute\steering\agents-block.md"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest"
              ExcludeFromSingleFile="true"

@@ -9,8 +9,8 @@ The new approach keeps the Mist grammar (`Source/Mist/Grammar/Mist.storm`) exact
 This approach trades theoretical parsing efficiency for correctness, simplicity, and debuggability. The generated parser will be shorter, uniform, and trivially auditable. Memoization (packrat parsing) is noted as a future optimization but is not required for this spec.
 
 This spec builds on:
-- `.kiro/specs/mist-compiler-architecture/` — defines the compiler pipeline, Storm grammar system, and ParserEmitter
-- `.kiro/specs/mist-language-v1/` — defines the Mist grammar and language features
+- `specs/mist-compiler-architecture/` — defines the compiler pipeline, Storm grammar system, and ParserEmitter
+- `specs/mist-language-v1/` — defines the Mist grammar and language features
 
 This spec does not modify the Mist grammar or those existing specs. It replaces the ParserEmitter's code generation strategy.
 

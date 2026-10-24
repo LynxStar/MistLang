@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document specifies the concrete language features for Mist v1, building on the compiler architecture defined in `.kiro/specs/mist-compiler-architecture/`. The architecture spec defines the pipeline (lexer → parser → semantic model → analyzers → backend) and the Storm grammar system. This spec defines what the Mist language actually looks like and how each pipeline stage handles it.
+This document specifies the concrete language features for Mist v1, building on the compiler architecture defined in `specs/mist-compiler-architecture/`. The architecture spec defines the pipeline (lexer → parser → semantic model → analyzers → backend) and the Storm grammar system. This spec defines what the Mist language actually looks like and how each pipeline stage handles it.
 
 Mist v1 mirrors a subset of C# syntax 1:1. The goal is a working end-to-end language: a developer writes Mist source files using familiar C#-like syntax, runs the `mist` CLI, and gets a working .NET executable. The language is intentionally minimal — no generics, no inheritance, no async, no properties — but complete enough to write real console applications that exercise every supported feature.
 

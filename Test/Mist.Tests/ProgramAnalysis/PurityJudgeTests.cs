@@ -1,6 +1,6 @@
 // Tier 2 (Functional): every row of the purity design's judge table, once per scope kind, over a hand-built Host
 // world whose Bag, Vec, Holder, Loud, Res and Globals are consulted only as callees. WHY each row is admitted or
-// refused is the table in .kiro/specs/purity/design.md, and the ids are its findings list.
+// refused is the table in specs/purity/design.md, and the ids are its findings list.
 
 using Mist.Tests.Helpers;
 

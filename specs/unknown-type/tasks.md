@@ -9,8 +9,8 @@ All implementation tasks must build with zero warnings (per `zero-warnings-polic
 ## Tasks
 
 - [x] 1. Read the spec files and existing code
-  - Read `.kiro/specs/unknown-type/requirements.md` in full
-  - Read `.kiro/specs/unknown-type/design.md` in full
+  - Read `specs/unknown-type/requirements.md` in full
+  - Read `specs/unknown-type/design.md` in full
   - Read the existing `Source/Mist/Semantics/Model/Types/UnknownType.cs` (the sentinel to be renamed)
   - Skim `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`, `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`, `Source/Mist/Analysis/Builtin/OverloadResolver.cs`, and `Source/Mist/Backends/CSharpTranspiler/CSharpTypeMap.cs` to locate every reference to `UnknownType`
   - Skim `Source/Mist/Grammar/Mist.storm`, `Source/Mist/Grammar/keywords.storm`, and `Source/Mist/Parsing/MistPrettyPrinter.cs` to locate primitive-type keyword and `TypeReference` machinery

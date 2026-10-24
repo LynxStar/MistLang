@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Newtype clauses extend the basic newtype feature (see `.kiro/specs/newtypes/`) with member filtering (`where` clauses) and member transformation (`with` clauses). This enables compile-time metaprogramming over type members — selectively including, excluding, or modifying members when cloning a type.
+Newtype clauses extend the basic newtype feature (see `specs/newtypes/`) with member filtering (`where` clauses) and member transformation (`with` clauses). This enables compile-time metaprogramming over type members — selectively including, excluding, or modifying members when cloning a type.
 
 Where clauses use a predicate expression syntax with `and`, `or`, `not`, and parentheses for boolean logic over member attributes. Multiple `where` clauses targeting the same category produce a union (OR) of their results. For any category without an explicit `where` clause, all members of that category are implicitly included. With clauses transform member attributes (types, modifiers) on the filtered set.
 

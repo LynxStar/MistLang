@@ -14,7 +14,7 @@ is batched per phase as `Source/Mist/ProgramModel/AGENTS.md` asks.
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
   - [x] 1.2 Build; zero STORM warnings; confirm the generated `LocalFunctionDeclarationNode` and
         `LocalFunctionDeclarationStatementStatementNode`
-  - [x] 1.3 Amend `.kiro/specs/top-level-statements/requirements.md` Req 1.2 to list local function
+  - [x] 1.3 Amend `specs/top-level-statements/requirements.md` Req 1.2 to list local function
         declarations
     - _Requirements: 1.2_
 

@@ -5,8 +5,8 @@
 This design extends the Mist trait system with two capabilities: **type parameters on traits** (generic traits) and **trait inheritance** (trait composition). Together, these enable rich structural typing contracts like `trait Comparable<T> { int CompareTo(T other); }` and hierarchical composition like `trait Sortable<T> : Comparable<T> { int Priority(); }`.
 
 Generic traits build on two existing implementations:
-- **Traits** (`.kiro/specs/traits/`): Structural typing, `with` blocks, `TraitType`, `TraitSatisfactionMap`, C# interface emission.
-- **Generics** (`.kiro/specs/generics-type-arguments/`): `TypeParameterList`, `TypeArgumentList`, `ConstructedType`, `TypeParameterType`, generic resolution for classes/structs/interfaces/methods.
+- **Traits** (`specs/traits/`): Structural typing, `with` blocks, `TraitType`, `TraitSatisfactionMap`, C# interface emission.
+- **Generics** (`specs/generics-type-arguments/`): `TypeParameterList`, `TypeArgumentList`, `ConstructedType`, `TypeParameterType`, generic resolution for classes/structs/interfaces/methods.
 
 The generics spec explicitly excluded traits. This design fills that gap by reusing the existing `TypeParameterType` and introducing a `ConstructedTraitType` (analogous to `ConstructedType` for classes/structs/interfaces). Trait inheritance is a new concept not present in either existing spec.
 

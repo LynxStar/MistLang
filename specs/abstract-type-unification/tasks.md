@@ -382,7 +382,7 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
   - [x] 1.61 Phase 1 verification gate
     - Build entire solution: `dotnet build` — zero errors, zero warnings
     - Run full test suite: `dotnet test` — all tests pass
-    - Grep for `interface` across codebase (excluding `bin/`, `obj/`, `.kiro/specs/`):
+    - Grep for `interface` across codebase (excluding `bin/`, `obj/`, `specs/`):
       - ALLOWED in: C# `interface` declarations (like `interface IType`), C# emitter output strings producing `interface`, CLR/ambient type handling, `book/theme/highlight.js` (other language keywords)
       - NOT ALLOWED in: `.mist` files, `.storm` files, TextMate grammar JSON, `book/theme/mist-lang.js` (Mist keywords section), book markdown (when referring to Mist concept), test names/comments referring to Mist concept, sample comments referring to Mist concept
     - Compile and run all samples — verify expected output matches baselines

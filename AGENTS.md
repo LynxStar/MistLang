@@ -25,7 +25,7 @@ name the compiler it replaced, which is no longer in the tree.
 
 **The observable output of the compiled program is the contract. Classic's code is not a reference.**
 
-- Specify behavior from the grammar and from `.kiro/specs/` — the delivered feature specs,
+- Specify behavior from the grammar and from `specs/` — the delivered feature specs,
   each with `requirements.md` (formal acceptance criteria), `design.md` and `tasks.md`.
 - The contract is the **observable output of the compiled program**, held by the baseline
   below. The emitted C# is free to change.

@@ -159,7 +159,7 @@ This feature unifies Mist's `interface` and `trait` keywords into a single `abst
    - The ambient type provider's handling of CLR interfaces (loading interface metadata from assemblies)
    - C# emission output (the emitter generates `interface` in the C# code it produces)
    - Third-party/generated code (NuGet packages, `obj/`, `bin/`)
-   - The spec files themselves (`.kiro/specs/`)
+   - The spec files themselves (`specs/`)
 2. THE string "interface" SHALL NOT appear in: Mist source files (`.mist`), Storm grammar files (`.storm`), TextMate grammar JSON, book markdown, book highlighting JS (in the Mist keyword section), test names/comments referring to the Mist concept.
 3. All tests SHALL pass with zero failures.
 4. All samples SHALL compile and produce their expected output.
@@ -252,7 +252,7 @@ This feature unifies Mist's `interface` and `trait` keywords into a single `abst
 #### Acceptance Criteria
 
 1. A grep of the entire codebase for the string "trait" (case-insensitive) SHALL confirm it ONLY appears in:
-   - The spec files themselves (`.kiro/specs/`)
+   - The spec files themselves (`specs/`)
    - Third-party/generated code (NuGet packages, `obj/`, `bin/`)
    - Comments in C# source referencing the old system for historical context (if any remain, they should be minimal)
 2. THE string "trait" SHALL NOT appear in: Mist source files (`.mist`), Storm grammar files (`.storm`), TextMate grammar JSON, book markdown, book highlighting JS, test file names, test class names, or any active production code paths.
@@ -811,9 +811,9 @@ Done!
    - The ambient type provider's handling of CLR interfaces
    - C# emission output (the emitter generates `interface` in generated C# code)
    - Third-party/generated code (NuGet packages, `obj/`, `bin/`)
-   - Spec files (`.kiro/specs/`)
+   - Spec files (`specs/`)
 2. A grep of the entire codebase for "trait" (case-insensitive) SHALL confirm it exists NOWHERE except:
-   - Spec files (`.kiro/specs/`)
+   - Spec files (`specs/`)
    - Third-party/generated code
 3. All tests SHALL pass with zero failures.
 4. All samples SHALL compile and produce their expected output.

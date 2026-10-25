@@ -132,7 +132,20 @@ public static class DiagnosticFactory
         if(TemplateSyntax.IsPositional(segments))
         {
             var highest = placeholders.Max(name => int.Parse(name, CultureInfo.InvariantCulture));
-            return highest < values.Length ? null : $"placeholder {{{highest}}} has no argument ({values.Length} supplied)";
+            if(highest >= values.Length)
+            {
+                return $"placeholder {{{highest}}} has no argument ({values.Length} supplied)";
+            }
+
+            for(var i = 0; i < values.Length; i++)
+            {
+                if(Malformed($"argument {i}", values[i]) is { } reason)
+                {
+                    return reason;
+                }
+            }
+
+            return null;
         }
 
         if(values.Length != descriptor.Slots.Length)
@@ -143,10 +156,16 @@ public static class DiagnosticFactory
         for(var i = 0; i < descriptor.Slots.Length; i++)
         {
             var slot = descriptor.Slots[i];
+            var subject = $"slot '{slot.Name}'";
             var value = values[i];
+            if(value is null)
+            {
+                return $"{subject} is null";
+            }
+
             if(value.Kind != slot.Kind)
             {
-                return $"slot '{slot.Name}' is {slot.Kind} but the argument is {value.Kind}";
+                return $"{subject} is {slot.Kind} but the argument is {value.Kind}";
             }
 
             var element = value switch
@@ -158,10 +177,63 @@ public static class DiagnosticFactory
 
             if(slot.ElementKind is { } expected && element != expected)
             {
-                return $"slot '{slot.Name}' carries {expected} but the argument carries {element}";
+                return $"{subject} carries {expected} but the argument carries {element}";
+            }
+
+            if(Malformed(subject, value) is { } reason)
+            {
+                return reason;
             }
         }
 
         return null;
+    }
+
+    // A composite's declared element kind is a claim about its payload, which the record types cannot
+    // enforce; this walk is what makes "Optional of a kind" and "Sequence of a kind" true of the values.
+    private static string? Malformed(string subject, SlotValue? value)
+    {
+        switch(value)
+        {
+            case null:
+                return $"{subject} is null";
+
+            case OptionalValue { Value: { } payload } optional:
+                return Payload(subject, optional.ElementKind, payload, "its value");
+
+            case SequenceValue sequence:
+                if(sequence.Items.IsDefault)
+                {
+                    return $"{subject} has no item list";
+                }
+
+                for(var i = 0; i < sequence.Items.Length; i++)
+                {
+                    if(Payload(subject, sequence.ElementKind, sequence.Items[i], $"item {i}") is { } reason)
+                    {
+                        return reason;
+                    }
+                }
+
+                return null;
+
+            default:
+                return null;
+        }
+    }
+
+    private static string? Payload(string subject, SlotKind expected, SlotValue? item, string position)
+    {
+        if(item is null)
+        {
+            return $"{subject} has a null {position}";
+        }
+
+        if(item.Kind != expected)
+        {
+            return $"{subject} carries {expected} but {position} is {item.Kind}";
+        }
+
+        return Malformed($"{subject} {position}", item);
     }
 }

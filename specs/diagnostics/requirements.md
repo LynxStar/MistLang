@@ -6,6 +6,8 @@ This document is the contract for every diagnostic the Mist compiler produces: h
 
 It records eleven owner decisions taken on 2026-10-24 after a read-only review of the diagnostic system. The review was pinned at revision `d9fe430f92cde89735a1c5137d1d737ee7c13b82`; the measurements cited here were retaken at `af6a1f70352869d52958c7979274fb5ca718208a` with the Storm submodule at `86dfd33895ba15ec7a3187e00340b236e666ab19`. At that revision the registry holds 402 public codes declared by 414 descriptors; nine codes are shared by 21 declarations; eight descriptors have no production reporting site; six descriptors default to Warning and one to Info, and one further warning is built inline in the CLI; fourteen gates in the driver, the pipeline and the CLI read a default severity; and the emitted C# of the full sample suite compiles with 32 distinct Roslyn warning sites, 26 of them nullable-flow warnings about the emitted code rather than the Mist program.
 
+The reissue revision is `97569de18582fa91b2dafdfec0e3c8173ee93235` on `refactor/diagnostics`: the last registry-bearing checkpoint before the reissue commit, whose registry the one-commit reissue is computed from. The reissue commit itself is recorded at the head of `crosswalk.md`. Every count above was retaken at the reissue revision, with the Storm submodule still at `86dfd33895ba15ec7a3187e00340b236e666ab19`: the registry holds 418 distinct codes declared by 430 `MistDiagnostic` fields (the 414 fields of `af6a1f70`, the eight that `0df844d0` added for C# project and assembly references, and eight added by Phase 1 of the migration: the test-framework warning that was built inline in the CLI, two `ICE` descriptors for the factory's argument and span breaches, and five `CFG` descriptors for the `[diagnostics]` table); the same nine codes are shared by 21 declarations; eight descriptors have no production reporting site, which are the seven retired by Requirement 15.6 and the one held back by 15.7; seven descriptors default to Warning and one to Info, and no warning is built inline anywhere; twenty gates in the driver, the pipeline, the backend and the CLI read the effective severity and none reads a default; and the emitted C# of the full sample suite compiles with 28 distinct Roslyn warning sites, 22 of them nullable-flow warnings about the emitted code rather than the Mist program.
+
 The decisions in one sentence each:
 
 - **D01.** Public codes are `MIST` followed by four digits; every current code is reissued once; the compiler identifies a diagnostic by a typed descriptor and never by a string.
@@ -158,7 +160,7 @@ The twelfth question the review raised, how work enters the backlog, is not part
 6. THE Renderer SHALL be the only component that produces message text, and SHALL format under the invariant culture.
 7. Missing, null and empty Slot values SHALL be distinct, and a `Sequence` SHALL preserve source order where the condition has one and a stable ordinal order otherwise.
 8. A related declaration's position, a call site's position, a candidate list, a project path and a cause finding SHALL be carried in Related_Locations, Frames, `Sequence` Slots and the cause reference respectively, never serialized into a `Text` Slot.
-9. THROUGHOUT the Reissue, THE rendered message text of every existing Descriptor SHALL be identical, character for character, to the text produced at `af6a1f70`; a Tier 1 table built from the current templates SHALL pin this before any producer migrates.
+9. THROUGHOUT the Reissue, THE rendered message text of every existing Descriptor SHALL be identical, character for character, to the text produced at `af6a1f70`, which is the text at the reissue revision; a Tier 1 table built from the current templates SHALL pin this before any producer migrates.
 10. A wording change SHALL land only as a separate reviewed change that updates its own assertions on purpose; no change SHALL be accepted by bulk-accepting altered snapshots.
 11. A Descriptor that wraps a Provider_Code or a Storm runtime entry SHALL have a single `Text` Slot for the upstream message and SHALL never parse that message to recover structure.
 
@@ -268,7 +270,7 @@ The twelfth question the review raised, how work enters the backlog, is not part
 5. A Roslyn error SHALL continue to be admitted under the Mist wrapper Descriptor, and the Occurrence SHALL carry the Provider_Code, native severity and generated span.
 6. A native condition that merits a user-facing rule SHALL be introduced only as a Mist Descriptor with its own Number, Category and Policy_Class, decided in its own task; this specification decides no such rule.
 7. Ambient projection SHALL admit no Occurrence for a withheld CLR member unless the program names it, and then the use-site Occurrence SHALL carry the withholding reason as a Frame rather than a second Occurrence.
-8. THE nullable-flow warnings in the emitted C#, 26 sites at `af6a1f70`, SHALL be tracked as a backend quality item and SHALL NOT be surfaced to users.
+8. THE nullable-flow warnings in the emitted C#, 26 sites at `af6a1f70` and 22 at the reissue revision, SHALL be tracked as a backend quality item and SHALL NOT be surfaced to users.
 
 ### Requirement 15: The reissue and the crosswalk
 
@@ -277,7 +279,7 @@ The twelfth question the review raised, how work enters the backlog, is not part
 #### Acceptance Criteria
 
 1. THE Reissue SHALL happen once, in a single change, after the Registry types of Requirement 2 exist and after the merges and retirements of criteria 5 to 7 are applied.
-2. THE Crosswalk SHALL be committed at `specs/diagnostics/crosswalk.md` and SHALL list, for every descriptor field at `af6a1f70`, its old code, its Number or its disposition as merged or retired, its Title and its Category.
+2. THE Crosswalk SHALL be committed at `specs/diagnostics/crosswalk.md` and SHALL list, for every descriptor field at `af6a1f70` and every field added between it and the reissue revision, marked as such, its old code, its Number or its disposition as merged or retired, its Title and its Category.
 3. Book pages, specification documents, test assertions and the CLI help SHALL be rewritten through the Crosswalk; the frozen ledger, Carbonek findings and test-ledger history SHALL never be rewritten.
 4. Test assertions on codes SHALL be updated deliberately, one file at a time, and assertions on message text SHALL not change, per Requirement 7.9.
 5. THE two not-callable Descriptors for a named member, with and without the unimported-extension hint, SHALL merge into one Descriptor whose template has an `Optional<Name>` namespace Slot, and the Renderer SHALL produce the current text for both cases; the plain-value variant SHALL keep its own Number.

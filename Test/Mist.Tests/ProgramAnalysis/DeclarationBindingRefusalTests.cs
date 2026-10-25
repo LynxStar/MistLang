@@ -136,7 +136,7 @@ public sealed class DeclarationBindingRefusalTests
         puma.CloneSourceType = lion;
         puma.NewtypeDeclaration = BindingFragments.At<NewtypeDeclarationNode>();
         var original = Assert.Single(f.Diagnostics.Withhold(() =>
-            f.Diagnostics.ReportAtNode(ProgramAnalysisDiagnostics.NoImplicitConversion, HandBuiltModel.Node(40), null, "Puma", "Lion")));
+            f.Diagnostics.ReportAtNode(ProgramAnalysisDiagnostics.NoImplicitConversion, HandBuiltModel.Node(40), null, "Puma", "Lion")).Occurrences);
         Assert.Empty(f.Diagnostics.ToImmutableArray());
         CloneDiagnostics.Run([puma], _ => f.Diagnostics.Add(original), f.Diagnostics);
     }

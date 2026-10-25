@@ -57,7 +57,8 @@ public sealed class CompilerDriver : ICompilerDriver
             _ => throw new InvalidOperationException($"Unknown pipeline: {options.Pipeline}."),
         };
 
-        var allDiagnostics = new DiagnosticBag();
+        var operation = new DiagnosticOperation();
+        var allDiagnostics = new DiagnosticBag(operation);
 
         if(options.Backend != BackendId.CSharp)
         {
@@ -90,7 +91,7 @@ public sealed class CompilerDriver : ICompilerDriver
         options = ProjectDependencyUnion.Apply(options, loadResult.ReferencedConfigurations);
 
         // Stage 1.5: Package Resolution (runs only when deps are declared)
-        var resolutionDiagnostics = new ResolutionDiagnostics(allDiagnostics.ToImmutableArray().Length, resolutionListener);
+        var resolutionDiagnostics = new ResolutionDiagnostics(allDiagnostics.ToImmutableArray().Length, resolutionListener, operation);
         var (packagePaths, packages) = ResolvePackages(options, resolutionDiagnostics, runtimeIdentifier);
         var resolvedAssemblyPaths = WithExternalAssemblies(packagePaths.AddRange(options.AssemblyPaths), loadResult);
 
@@ -243,7 +244,7 @@ public sealed class CompilerDriver : ICompilerDriver
         // MIST_STDLIB_PARSE error, the compilation cannot proceed because
         // primitive keyword resolution (Stage 4) and operator overload
         // resolution depend on stdlib types being present.
-        var stdlibBag = new DiagnosticBag();
+        var stdlibBag = new DiagnosticBag(allDiagnostics.Operation);
         var stdlibUnits = StdlibLoader.LoadFor(stdlibBag);
 
         foreach(var d in stdlibBag.ToImmutableArray())
@@ -339,7 +340,7 @@ public sealed class CompilerDriver : ICompilerDriver
             return new ManifestLoad(globalUsings, none);
         }
 
-        var parseBag = new DiagnosticBag();
+        var parseBag = new DiagnosticBag(allDiagnostics.Operation);
         var projectConfig = ProjectFileParser.Parse(options.ProjectFolder, parseBag);
 
         foreach(var d in parseBag.ToImmutableArray())
@@ -363,7 +364,7 @@ public sealed class CompilerDriver : ICompilerDriver
             return new ManifestLoad(globalUsings, none);
         }
 
-        var resolveBag = new DiagnosticBag();
+        var resolveBag = new DiagnosticBag(allDiagnostics.Operation);
         var references = ProjectReferenceLoader.Load(
             options.ProjectFolder, projectConfig.References, options.TargetFramework, resolveBag);
 
@@ -425,7 +426,7 @@ public sealed class CompilerDriver : ICompilerDriver
                 continue;
             }
 
-            var lexBag = new DiagnosticBag();
+            var lexBag = new DiagnosticBag(allDiagnostics.Operation);
             var tokenStream = lexer.Lex(unit.Source, lexBag);
 
             foreach(var d in lexBag.ToImmutableArray())
@@ -494,7 +495,7 @@ public sealed class CompilerDriver : ICompilerDriver
                 continue;
             }
 
-            var parseBag = new DiagnosticBag();
+            var parseBag = new DiagnosticBag(allDiagnostics.Operation);
             var unitParseResult = parser.Parse(tokenStream, parseBag);
 
             foreach(var d in parseBag.ToImmutableArray())

@@ -17,31 +17,43 @@ internal static class CloneDiagnostics
     {
         foreach(var clone in clones)
         {
-            var newtypeLocation = DiagnosticHelper.ResolveLocation(clone.NewtypeDeclaration!).Location;
+            var newtype = DiagnosticHelper.ResolveLocation(clone.NewtypeDeclaration!);
+            var withheld = bag.Withhold(() => step(clone));
 
-            foreach(var withheld in bag.Withhold(() => step(clone)))
+            foreach(var occurrence in withheld.Occurrences)
             {
-                if(newtypeLocation.Contains(withheld.Location))
+                if(newtype.Location.Contains(occurrence.Location))
                 {
-                    bag.Add(withheld);
+                    withheld.Replay(occurrence);
                     continue;
                 }
 
-                if(withheld.Severity != DiagnosticSeverity.Error || bag.Contains(withheld))
+                if(occurrence.Severity != DiagnosticSeverity.Error || AlreadyReported(bag, occurrence))
                 {
                     continue;
                 }
 
-                bag.ReportAtNode(
+                bag.Admit(DiagnosticFactory.Create(
                     ProgramModelDiagnostics.NewtypeCloneInvalid,
-                    clone.NewtypeDeclaration!,
-                    null,
-                    TypeDisplay.Mist(clone),
-                    TypeDisplay.Mist(clone.CloneSourceType ?? clone.CloneSource!),
-                    MemberAt(clone, withheld.Location) ?? TypeDisplay.Mist(clone.CloneSource!),
-                    withheld.Message);
+                    newtype,
+                    bag.Stage,
+                    LegacyArguments.For(ProgramModelDiagnostics.NewtypeCloneInvalid,
+                    [
+                        TypeDisplay.Mist(clone),
+                        TypeDisplay.Mist(clone.CloneSourceType ?? clone.CloneSource!),
+                        MemberAt(clone, occurrence.Location) ?? TypeDisplay.Mist(clone.CloneSource!),
+                        occurrence.Message,
+                    ]).AsSpan(),
+                    cause: occurrence.Ordinal));
             }
+
+            withheld.Discard();
         }
+    }
+
+    private static bool AlreadyReported(DiagnosticBag bag, Diagnostic occurrence)
+    {
+        return bag.Admitted.Any(existing => existing.Number == occurrence.Number && existing.Location == occurrence.Location);
     }
 
     private static string? MemberAt(ConcreteType clone, Location location)

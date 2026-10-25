@@ -13,12 +13,13 @@ internal sealed class ContextualExpressionTrials(BindingContext ctx, BuilderCont
         if(!outcomes.TryGetValue((expression, target), out var fits))
         {
             Expression bound = null!;
-            var diagnostics = context.Diagnostics.Withhold(() => bound = context.ProgramModel.Discarding(
+            var trial = context.Diagnostics.Withhold(() => bound = context.ProgramModel.Discarding(
                 () => BindAgainst(expression, target, ctx, context)));
-            fits = !diagnostics.Exists(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            fits = !trial.Occurrences.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
                 && !PriorFailure.Of(bound)
                 && AcceptsConstruction(bound)
                 && ConversionClassifier.IsImplicit(bound.Type, target, context.ProgramModel.TypeInterner);
+            trial.Discard();
             outcomes[(expression, target)] = fits;
         }
 

@@ -20,10 +20,11 @@ public static class DiagnosticFactory
         ReadOnlySpan<SlotValue> arguments,
         ImmutableArray<RelatedLocation> related = default,
         ImmutableArray<Frame> frames = default,
+        int? cause = null,
         ProviderCode? native = null,
         string? analyzerName = null)
     {
-        return Create(descriptor, new OriginResolution(location, frames), stage, arguments, related, native, analyzerName);
+        return Create(descriptor, new OriginResolution(location, frames), stage, arguments, related, cause, native, analyzerName);
     }
 
     public static Admission Create(
@@ -32,6 +33,7 @@ public static class DiagnosticFactory
         PipelineStage stage,
         ReadOnlySpan<SlotValue> arguments,
         ImmutableArray<RelatedLocation> related = default,
+        int? cause = null,
         ProviderCode? native = null,
         string? analyzerName = null)
     {
@@ -39,7 +41,7 @@ public static class DiagnosticFactory
         var reason = Breach(descriptor, values);
         var occurrence = new Diagnostic(
             descriptor, values, descriptor.DefaultSeverity, stage, origin.Location, related, origin.Frames, analyzerName, native,
-            rendersFallback: reason is not null, legacyText: null);
+            rendersFallback: reason is not null, legacyText: null, cause);
 
         var breaches = ImmutableArray.CreateBuilder<Diagnostic>();
         if(reason is not null)

@@ -29,7 +29,7 @@ internal static class OverloadFailure
         if(retained.Any(FailureDependency.NeedsAnalysis))
         {
             var pending = diagnostics.Withhold(() => Report(choice, candidates, arguments, description, node, diagnostics));
-            return new ErrorExpression(node, retained, pending.Single());
+            return new ErrorExpression(node, retained, pending.Occurrences.Single());
         }
 
         Report(choice, candidates, arguments, description, node, diagnostics);

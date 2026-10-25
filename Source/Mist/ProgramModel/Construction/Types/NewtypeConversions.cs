@@ -63,7 +63,8 @@ internal static class NewtypeConversions
             var withheld = context.Diagnostics.Withhold(
                 () => BodyBinder.BindBody(conversion.Body!, new BodyScope(conversion.Scope), conversion.TargetType, context));
 
-            conversion.BindingFailure = withheld.Find(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+            conversion.BindingFailure = withheld.Occurrences.FirstOrDefault(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+            withheld.Discard();
         }
     }
 

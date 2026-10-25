@@ -67,7 +67,7 @@ internal static class IndexBinder
             if(FailureDependency.NeedsAnalysis(receiver) || FailureDependency.NeedsAnalysis(index))
             {
                 var pending = context.Diagnostics.Withhold(() => ReportNotIndexable(receiver.Type, node, context));
-                return new ErrorExpression(node, [receiver, index], pending.Single());
+                return new ErrorExpression(node, [receiver, index], pending.Occurrences.Single());
             }
 
             ReportNotIndexable(receiver.Type, node, context);
@@ -139,7 +139,7 @@ internal static class IndexBinder
         if(FailureDependency.NeedsAnalysis(receiver) || FailureDependency.NeedsAnalysis(index))
         {
             var pending = context.Diagnostics.Withhold(() => ReportNotSliceable(receiver.Type, node, context));
-            return new ErrorExpression(node, [receiver, index], pending.Single());
+            return new ErrorExpression(node, [receiver, index], pending.Occurrences.Single());
         }
 
         ReportNotSliceable(receiver.Type, node, context);

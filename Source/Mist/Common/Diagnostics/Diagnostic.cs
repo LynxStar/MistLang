@@ -20,9 +20,11 @@ public sealed record Diagnostic
         string? analyzerName,
         ProviderCode? native,
         bool rendersFallback,
-        string? legacyText)
+        string? legacyText,
+        int? cause = null)
     {
         Descriptor = descriptor;
+        Cause = cause;
         Arguments = arguments;
         Severity = severity;
         Stage = stage;
@@ -34,6 +36,8 @@ public sealed record Diagnostic
         RendersFallback = rendersFallback;
         LegacyText = legacyText;
     }
+
+    public int Ordinal { get; private set; }
 
     public MistDiagnostic Descriptor { get; }
 
@@ -57,15 +61,24 @@ public sealed record Diagnostic
 
     public ProviderCode? Native { get; }
 
+    public int? Cause { get; }
+
     internal bool RendersFallback { get; }
 
     internal string? LegacyText { get; }
 
     public string Message => DiagnosticRenderer.Render(this);
 
+    internal void Admit(int ordinal)
+    {
+        Ordinal = ordinal;
+    }
+
     public bool Equals(Diagnostic? other)
     {
         return other is not null
+            && Ordinal == other.Ordinal
+            && Cause == other.Cause
             && Descriptor == other.Descriptor
             && Arguments.SequenceEqual(other.Arguments)
             && Severity == other.Severity

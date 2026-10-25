@@ -85,7 +85,7 @@ internal static class ProgramAnalysisRunner
 
         var refusals = CloneConversionRefusals.Judge(conversions, root =>
         {
-            var findings = new DiagnosticBag();
+            var findings = new DiagnosticBag(diagnostics.Operation, diagnostics.Stage);
             Analyze(model, new AnalysisScope([], [root], [], [], RestrictToScope: true), whole, sourcePaths, findings, CloneConversionRefusals.None, timings, AnalysisScopeKind.CloneConversion);
 
             return findings.ToImmutableArray();

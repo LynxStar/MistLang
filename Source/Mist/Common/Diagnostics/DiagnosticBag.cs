@@ -12,14 +12,22 @@ public sealed class DiagnosticBag
     private List<Diagnostic> diagnostics = [];
 
     public DiagnosticBag()
-        : this(PipelineStage.Driver)
+        : this(new DiagnosticOperation(), PipelineStage.Driver)
     {
     }
 
     public DiagnosticBag(PipelineStage stage)
+        : this(new DiagnosticOperation(), stage)
     {
+    }
+
+    public DiagnosticBag(DiagnosticOperation operation, PipelineStage stage = PipelineStage.Driver)
+    {
+        Operation = operation;
         Stage = stage;
     }
+
+    public DiagnosticOperation Operation { get; }
 
     /// <summary>
     /// The stage currently reporting into this bag. A stage announces itself as it starts, so an
@@ -28,12 +36,20 @@ public sealed class DiagnosticBag
     public PipelineStage Stage { get; set; }
 
     /// <summary>
-    /// Forwards an occurrence the factory already built.
+    /// Admits an occurrence the factory already built: one not yet admitted anywhere receives the
+    /// operation's next ordinal, and one forwarded from another bag keeps the ordinal it has.
     /// </summary>
     public void Add(Diagnostic diagnostic)
     {
+        if(diagnostic.Ordinal == 0)
+        {
+            diagnostic.Admit(Operation.Next());
+        }
+
         diagnostics.Add(diagnostic);
     }
+
+    public IReadOnlyList<Diagnostic> Admitted => diagnostics;
 
     public void Admit(Admission admission)
     {
@@ -71,10 +87,11 @@ public sealed class DiagnosticBag
     }
 
     /// <summary>
-    /// What <paramref name="action"/> reports, returned rather than added, for a caller that decides
-    /// afterwards which of them the program should see.
+    /// What <paramref name="action"/> reports, held back rather than added, for a caller that decides
+    /// afterwards whether to commit, discard or replay it. Withholds nest, and an exception inside
+    /// the action leaves the parent exactly as it was.
     /// </summary>
-    public List<Diagnostic> Withhold(Action action)
+    public Withheld Withhold(Action action)
     {
         var kept = diagnostics;
         diagnostics = [];
@@ -82,18 +99,12 @@ public sealed class DiagnosticBag
         try
         {
             action();
-            return diagnostics;
+            return new Withheld(this, [.. diagnostics]);
         }
         finally
         {
             diagnostics = kept;
         }
-    }
-
-    public bool Contains(Diagnostic diagnostic)
-    {
-        return diagnostics.Exists(existing => existing.Number == diagnostic.Number
-            && existing.Location == diagnostic.Location);
     }
 
     /// <summary>

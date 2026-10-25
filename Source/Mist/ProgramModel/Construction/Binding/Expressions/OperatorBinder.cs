@@ -381,7 +381,7 @@ internal static class OperatorBinder
                         {
                             var pending = context.Diagnostics.Withhold(() => context.Diagnostics.ReportAtNode(
                                 ProgramModelDiagnostics.AwaitOfNonTask, node, null, operand.Type.Name));
-                            return new ErrorExpression(node, [operand], pending.Single());
+                            return new ErrorExpression(node, [operand], pending.Occurrences.Single());
                         }
 
                         context.Diagnostics.ReportAtNode(

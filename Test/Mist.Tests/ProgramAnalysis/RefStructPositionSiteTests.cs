@@ -198,6 +198,6 @@ public sealed class RefStructPositionSiteTests
     {
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(expected, diagnostic.Number.Value);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 }

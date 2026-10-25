@@ -75,7 +75,8 @@ internal sealed class ContextAnalyzer : IProgramAnalyzer
         {
             if((later.Node ?? method.DeclarationNode) is { } at)
             {
-                var (path, location, _) = DiagnosticHelper.ResolveLocation(earlier.Node ?? at);
+                var resolved = DiagnosticHelper.ResolveLocation(earlier.Node ?? at).Location;
+                var (path, location) = (resolved.Path ?? "<unknown>", resolved.Lines ?? default);
 
                 context.Report(
                     ProgramAnalysisDiagnostics.DuplicateContextBinding, at, [],

@@ -83,7 +83,7 @@ public sealed class ArmContainmentTests
 
         var finding = Assert.Single(findings);
         Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Number.Value);
-        Assert.Equal(42, finding.Location.Start.Column);
+        Assert.Equal(42, finding.Position().Start.Column);
     }
 
     private (IMistType Input, Pattern[] Earlier, Pattern Later) Arms(string shape)

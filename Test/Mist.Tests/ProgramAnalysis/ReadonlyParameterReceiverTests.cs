@@ -73,7 +73,7 @@ public sealed class ReadonlyParameterReceiverTests
 
         Assert.Equal(expected, finding.Number.Value);
         Assert.Equal(message, finding.Message);
-        Assert.Equal(38, finding.Location.Start.Column);
+        Assert.Equal(38, finding.Position().Start.Column);
     }
 
     [Theory]

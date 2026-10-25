@@ -48,7 +48,7 @@ public sealed class DefaultabilityRefusalTests
         var findings = fragment.Run(new DefaultabilityAnalyzer());
         int[] expected = use == "default" ? [31, 51] : [31];
 
-        Assert.Equal(expected, findings.Select(finding => finding.Location.Start.Column));
+        Assert.Equal(expected, findings.Select(finding => finding.Position().Start.Column));
         Assert.All(findings, finding => Assert.Equal("MIST_PA_NOT_DEFAULTABLE", finding.Number.Value));
     }
 
@@ -63,7 +63,7 @@ public sealed class DefaultabilityRefusalTests
 
         var findings = fragment.Run(new DefaultabilityAnalyzer());
 
-        Assert.Equal([31, 51], findings.Select(finding => finding.Location.Start.Column));
+        Assert.Equal([31, 51], findings.Select(finding => finding.Position().Start.Column));
         Assert.All(findings, finding => Assert.Equal("MIST_PA_NOT_DEFAULTABLE", finding.Number.Value));
         Assert.All(findings, finding => Assert.Contains("'Counter'", finding.Message, StringComparison.Ordinal));
     }
@@ -114,7 +114,7 @@ public sealed class DefaultabilityRefusalTests
         {
             Assert.Equal("MIST_PA_CONSTRAINT_NOT_SATISFIED", finding.Number.Value);
             Assert.Contains("'default' constraint", finding.Message, StringComparison.Ordinal);
-            Assert.Equal(56, finding.Location.Start.Column);
+            Assert.Equal(56, finding.Position().Start.Column);
         });
     }
 
@@ -142,7 +142,7 @@ public sealed class DefaultabilityRefusalTests
 
         var finding = Assert.Single(findings);
         Assert.Equal("MIST_PA_FIELD_HAS_NO_DEFAULT", finding.Number.Value);
-        Assert.Equal(41, finding.Location.Start.Column);
+        Assert.Equal(41, finding.Position().Start.Column);
         Assert.Contains($"Field 'link' of 'Holder' has no default, which 'Holder' needs because it declares {declares}: its type 'Connection'",
             finding.Message, StringComparison.Ordinal);
     }
@@ -213,7 +213,7 @@ public sealed class DefaultabilityRefusalTests
 
         var finding = Assert.Single(findings);
         Assert.Equal("MIST_PA_PROPERTY_HAS_NO_DEFAULT", finding.Number.Value);
-        Assert.Equal(41, finding.Location.Start.Column);
+        Assert.Equal(41, finding.Position().Start.Column);
         Assert.Contains($"Property 'Link' of 'Holder' has no default, which 'Holder' needs because it declares {declares}: its type 'Connection'",
             finding.Message, StringComparison.Ordinal);
     }
@@ -284,7 +284,7 @@ public sealed class DefaultabilityRefusalTests
 
         var finding = Assert.Single(findings);
         Assert.Equal("MIST_PA_REFINEMENT_ZERO_NOT_ADMITTED", finding.Number.Value);
-        Assert.Equal(41, finding.Location.Start.Column);
+        Assert.Equal(41, finding.Position().Start.Column);
         Assert.Contains($"'Held' of 'Factory' has no default, which 'Factory' needs because it declares {declares}: its type 'PositiveInt' would start from the zero of 'int'",
             finding.Message, StringComparison.Ordinal);
     }
@@ -302,7 +302,7 @@ public sealed class DefaultabilityRefusalTests
         var finding = Assert.Single(fragment.Run(new DefaultabilityAnalyzer()));
 
         Assert.Equal("MIST_PA_FIELD_HAS_NO_DEFAULT", finding.Number.Value);
-        Assert.Equal(61, finding.Location.Start.Column);
+        Assert.Equal(61, finding.Position().Start.Column);
     }
 
     [Fact]
@@ -317,7 +317,7 @@ public sealed class DefaultabilityRefusalTests
         var finding = Assert.Single(fragment.Run(new DefaultabilityAnalyzer()));
 
         Assert.Equal("MIST_PA_FIELD_HAS_NO_DEFAULT", finding.Number.Value);
-        Assert.Equal(61, finding.Location.Start.Column);
+        Assert.Equal(61, finding.Position().Start.Column);
     }
 
     [Fact]
@@ -333,7 +333,7 @@ public sealed class DefaultabilityRefusalTests
         var finding = Assert.Single(fragment.Run(new DefaultabilityAnalyzer()));
 
         Assert.Equal("MIST_PA_FIELD_HAS_NO_DEFAULT", finding.Number.Value);
-        Assert.Equal(41, finding.Location.Start.Column);
+        Assert.Equal(41, finding.Position().Start.Column);
     }
 
     [Theory]
@@ -354,7 +354,7 @@ public sealed class DefaultabilityRefusalTests
         var findings = fragment.Run(new DefaultabilityAnalyzer());
         int[] expected = throughAnother ? [41, 51] : [41];
 
-        Assert.Equal(expected, findings.Select(finding => finding.Location.Start.Column));
+        Assert.Equal(expected, findings.Select(finding => finding.Position().Start.Column));
         Assert.All(findings, finding => Assert.Equal("MIST_PA_FIELD_HAS_NO_DEFAULT", finding.Number.Value));
     }
 

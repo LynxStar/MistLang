@@ -34,8 +34,8 @@ public sealed class ContextualExpressionLookupContractTests
         Assert.Equal("MIST_PM_AMBIGUOUS_IDENTIFIER", diagnostic.Number.Value);
         Assert.Contains("property 'Probe.First.Value'", diagnostic.Message);
         Assert.Contains("property 'Probe.Second.Value'", diagnostic.Message);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 31), new LinePosition(1, 32)), diagnostic.Location);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 31), new LinePosition(1, 32)), diagnostic.Position());
     }
 
     [Fact]

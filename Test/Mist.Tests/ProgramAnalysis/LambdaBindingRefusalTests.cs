@@ -58,7 +58,7 @@ public sealed class LambdaBindingRefusalTests
         _ = f.Bind(BindingFragments.Identifier("api"), call);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal(diagnosticId, diagnostic.Number.Value);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     private static MemberAccessSuffixPostfixSuffixNode MissingMember(string name)

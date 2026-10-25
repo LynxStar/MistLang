@@ -13,4 +13,14 @@ public static class InternalDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("number", SlotKind.Name), new Slot("stage", SlotKind.Enum), new Slot("reason", SlotKind.Text)]);
+
+    public static readonly MistDiagnostic LocationOutOfBounds = new(
+        DiagnosticNumber.Mint("MIST_ICE_LOCATION_OUT_OF_BOUNDS"),
+        Title: "Diagnostic span outside its file",
+        Template: "Internal compiler error: stage '{stage}' reported diagnostic '{number}' with a source span that does not fit its file ({span}), so the occurrence carries no location. This is a compiler bug; please report it with the program that caused it.",
+        Description: "A compiler stage anchored a diagnostic to a span that starts before the file, has a negative length or ends past the end of the text, so the compiler refused to invent a position and reported the finding without one. The program is not at fault; report the compiler bug together with the program that triggered it.",
+        Category: DiagnosticCategory.Ice,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("stage", SlotKind.Enum), new Slot("number", SlotKind.Name), new Slot("span", SlotKind.Text)]);
 }

@@ -90,9 +90,7 @@ public class DiagnosticLocationResolutionPropertyTests
             Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
         };
 
-        var (path, _, _) = DiagnosticHelper.ResolveLocation(node);
-
-        return path == input.Source.Path;
+        return DiagnosticHelper.ResolveLocation(node).Location.Path == input.Source.Path;
     }
 
     /// <summary>
@@ -109,7 +107,7 @@ public class DiagnosticLocationResolutionPropertyTests
             Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
         };
 
-        var (_, location, _) = DiagnosticHelper.ResolveLocation(node);
+        var location = DiagnosticHelper.ResolveLocation(node).Location.Position();
 
         var expectedSpan = new SourceSpan(input.SpanStart, input.SpanLength);
         var expectedLocation = input.Source.ToLinePositionSpan(expectedSpan);
@@ -122,7 +120,7 @@ public class DiagnosticLocationResolutionPropertyTests
 
     /// <summary>
     /// For any node with a ParsedOrigin and a valid Span within content bounds,
-    /// DiagnosticHelper.ResolveLocation SHALL return null for SyntheticContext.
+    /// DiagnosticHelper.ResolveLocation SHALL return no frames and a source range.
     /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(DiagnosticLocationResolutionPropertyTests) })]
     public bool ResolveLocation_ParsedOrigin_HasNullSyntheticContext(LocationInput input)
@@ -133,8 +131,8 @@ public class DiagnosticLocationResolutionPropertyTests
             Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
         };
 
-        var (_, _, syntheticContext) = DiagnosticHelper.ResolveLocation(node);
+        var resolved = DiagnosticHelper.ResolveLocation(node);
 
-        return syntheticContext is null;
+        return resolved.Frames.IsEmpty && resolved.Location is SourceRange { File.Path: var path } && path == input.Source.Path;
     }
 }

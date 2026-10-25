@@ -164,10 +164,10 @@ public class ParserCompletenessPropertyTests
         var expectedLine = lastPos < defaultTokens.Length
             ? defaultTokens[lastPos].Start.Line
             : -1;
-        var hasCorrectLine = incompleteDiag?.Location.Start.Line == expectedLine;
+        var hasCorrectLine = incompleteDiag?.Position().Start.Line == expectedLine;
 
         // (5) File path must be present (Requirement 3.4)
-        var hasFilePath = incompleteDiag?.CompilationUnitPath == "test.mist";
+        var hasFilePath = incompleteDiag?.Location.Path == "test.mist";
 
         var allPass = hasDiag && hasCorrectSeverity && hasCorrectStage && hasCorrectLine && hasFilePath;
 
@@ -177,11 +177,11 @@ public class ParserCompletenessPropertyTests
                 $"scenario: {scenario.Description}\n"
                 + $"hasDiag={hasDiag}, severity={incompleteDiag?.Severity}, "
                 + $"stage={incompleteDiag?.Stage}, "
-                + $"actualLine={incompleteDiag?.Location.Start.Line}, "
+                + $"actualLine={incompleteDiag?.Position().Start.Line}, "
                 + $"expectedLine={expectedLine}, "
-                + $"filePath={incompleteDiag?.CompilationUnitPath}\n"
+                + $"filePath={incompleteDiag?.Location.Path}\n"
                 + $"lastPos={lastPos}, tokenCount={defaultTokens.Length}\n"
-                + $"all diagnostics: [{string.Join("; ", diagnostics.Select(d => $"{d.Number.Value}@L{d.Location.Start.Line}"))}]\n"
+                + $"all diagnostics: [{string.Join("; ", diagnostics.Select(d => $"{d.Number.Value}@L{d.Position().Start.Line}"))}]\n"
                 + $"source:\n{scenario.CombinedSource}");
     }
 }

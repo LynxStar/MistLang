@@ -33,8 +33,8 @@ public sealed class DeclaredTypeFailureBindingTests
         Assert.Same(ErrorType.Instance, local.Type);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_UNRESOLVED_TYPE", diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 19), new LinePosition(1, 20)), diagnostic.Location);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 19), new LinePosition(1, 20)), diagnostic.Position());
 
         ReportOverload(f, local);
         _ = Assert.Single(f.Diagnostics.ToImmutableArray());

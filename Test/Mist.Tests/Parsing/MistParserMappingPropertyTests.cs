@@ -3,7 +3,7 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Common.Diagnostics;
-using Mist.Common.Source;
+using Mist.Lexing;
 using Mist.Tests.Lexing;
 
 namespace Mist.Tests.Parsing;
@@ -16,7 +16,7 @@ namespace Mist.Tests.Parsing;
 /// Property 4: For any Storm DiagnosticEntry with a non-empty file path and positive
 /// line and column values, the Mist Diagnostic produced by the MistParser mapping SHALL
 /// have a Location field whose Start.Line and Start.Column match the entry's Line and
-/// Column, and a CompilationUnitPath matching the entry's FilePath.
+/// Column, and a path matching the entry's FilePath.
 /// </summary>
 public class MistParserMappingPropertyTests
 {
@@ -41,7 +41,7 @@ public class MistParserMappingPropertyTests
     ///
     /// For any Storm DiagnosticEntry with a non-empty file path and positive line/column,
     /// the mapping logic produces a Mist Diagnostic with Location.Start.Line == entry.Line,
-    /// Location.Start.Column == entry.Column, and CompilationUnitPath == entry.FilePath.
+    /// Location.Start.Column == entry.Column, and a path equal to entry.FilePath.
     /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(MistParserMappingPropertyTests) })]
     public bool MistParserMapping_PreservesStructuredFields(DiagnosticEntryData entryData)
@@ -50,43 +50,29 @@ public class MistParserMappingPropertyTests
         var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
         stormDiagnostics.Add(entryData.Message, entryData.FilePath, entryData.Line, entryData.Column);
 
-        // Apply the same mapping logic that MistParser uses
         var entry = stormDiagnostics.Entries[0];
-        var fallbackPath = "fallback.mist";
+        var source = SourceOf(entryData.FilePath, entryData.Line, entryData.Column);
+        var bag = new DiagnosticBag();
 
-        var location = (entry.Line > 0 && entry.Column > 0)
-            ? new LinePositionSpan(
-                new LinePosition(entry.Line, entry.Column),
-                new LinePosition(entry.Line, entry.Column))
-            : default;
+        bag.ReportAt(ParserDiagnostics.ParseError, StormEntryLocation.Of(source, entry.FilePath, entry.Line, entry.Column), entry.Message);
 
-        var diagnostic = DiagnosticFixtures.Occurrence("MIST_PARSE_ERROR",
-            DiagnosticSeverity.Error,
-            PipelineStage.Parsing,
-            entry.Message,
-            location: location,
-            compilationUnitPath: entry.FilePath ?? fallbackPath,
-            analyzerName: null);
-
-        // Verify: Location.Start.Line == entry.Line
-        if(diagnostic.Location == default)
+        var diagnostic = Assert.Single(bag.ToImmutableArray());
+        if(diagnostic.Location is not SourcePoint)
         {
             return false;
         }
 
-        if(diagnostic.Location.Start.Line != entryData.Line)
+        if(diagnostic.Position().Start.Line != entryData.Line)
         {
             return false;
         }
 
-        // Verify: Location.Start.Column == entry.Column
-        if(diagnostic.Location.Start.Column != entryData.Column)
+        if(diagnostic.Position().Start.Column != entryData.Column)
         {
             return false;
         }
 
-        // Verify: CompilationUnitPath == entry.FilePath
-        if(diagnostic.CompilationUnitPath != entryData.FilePath)
+        if(diagnostic.Location.Path != entryData.FilePath)
         {
             return false;
         }
@@ -109,19 +95,13 @@ public class MistParserMappingPropertyTests
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(MistParserMappingPropertyTests) })]
     public bool MistParserMapping_PositiveLineColumn_ProducesNonNullLocation(DiagnosticEntryData entryData)
     {
-        // Apply the mapping guard condition
-        var location = (entryData.Line > 0 && entryData.Column > 0)
-            ? new LinePositionSpan(
-                new LinePosition(entryData.Line, entryData.Column),
-                new LinePosition(entryData.Line, entryData.Column))
-            : default;
+        var source = SourceOf(entryData.FilePath, entryData.Line, entryData.Column);
 
-        // Since our generator always produces positive line/column, location must be non-null
-        return location != default;
+        return StormEntryLocation.Of(source, entryData.FilePath, entryData.Line, entryData.Column) is SourcePoint;
     }
 
     /// <summary>
-    /// Property 4 (supplementary): CompilationUnitPath falls back to source path when
+    /// Property 4 (supplementary): the path falls back to the source path when
     /// entry.FilePath is null.
     ///
     /// This verifies the fallback behavior in the mapping logic.
@@ -137,10 +117,11 @@ public class MistParserMappingPropertyTests
 
         var entry = stormDiagnostics.Entries[0];
 
-        // Apply the mapping logic
-        var compilationUnitPath = entry.FilePath ?? sourcePath;
+        return StormEntryLocation.Of(SourceOf(sourcePath, line.Get, column.Get), entry.FilePath, entry.Line, entry.Column).Path == sourcePath;
+    }
 
-        // When FilePath is null, should fall back to source path
-        return compilationUnitPath == sourcePath;
+    private static Mist.Common.Source.SourceText SourceOf(string path, int lines, int width)
+    {
+        return new Mist.Common.Source.SourceText(path, string.Join("\n", Enumerable.Repeat(new string(' ', width), lines)));
     }
 }

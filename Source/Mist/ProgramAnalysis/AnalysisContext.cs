@@ -107,7 +107,8 @@ internal sealed class AnalysisContext(
 
     public bool IsInSource(SyntaxNode node)
     {
-        return sourcePaths.Contains(DiagnosticHelper.ResolveLocation(node).Path)
+        return DiagnosticHelper.ResolveLocation(node).Location.Path is { } path
+            && sourcePaths.Contains(path)
             && (scope.Boundary?.Contains(node) ?? true);
     }
 
@@ -162,7 +163,7 @@ internal sealed class AnalysisContext(
     public void ReportAtProject(MistDiagnostic descriptor, MistAssembly project, params ReadOnlySpan<object?> args)
     {
         diagnostics.Admit(DiagnosticFactory.Create(
-            descriptor, default, project.ProjectPath ?? project.Name, diagnostics.Stage,
-            LegacyArguments.For(descriptor, args).AsSpan(), analyzerId));
+            descriptor, LegacyLocation.Map(project.ProjectPath ?? project.Name), diagnostics.Stage,
+            LegacyArguments.For(descriptor, args).AsSpan(), analyzerName: analyzerId));
     }
 }

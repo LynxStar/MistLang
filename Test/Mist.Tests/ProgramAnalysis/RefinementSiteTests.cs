@@ -66,8 +66,8 @@ public sealed class RefinementSiteTests
 
         var finding = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), root));
         Assert.Equal(expected, finding.Number.Value);
-        Assert.Equal("hand-built.mist", finding.CompilationUnitPath);
-        Assert.Equal(25, finding.Location.Start.Column);
+        Assert.Equal("hand-built.mist", finding.Location.Path);
+        Assert.Equal(25, finding.Position().Start.Column);
     }
 
     [Theory]
@@ -126,8 +126,8 @@ public sealed class RefinementSiteTests
 
         var finding = Assert.Single(fragments.Run(new RefinementAnalyzer()));
         Assert.Equal(expected, finding.Number.Value);
-        Assert.Equal("hand-built.mist", finding.CompilationUnitPath);
-        Assert.Equal(25, finding.Location.Start.Column);
+        Assert.Equal("hand-built.mist", finding.Location.Path);
+        Assert.Equal(25, finding.Position().Start.Column);
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class RefinementSiteTests
         concrete.ConstructorsList.Add(constructor);
         var finding = Assert.Single(fragments.Run(new RefinementAnalyzer()));
         Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Number.Value);
-        Assert.Equal(25, finding.Location.Start.Column);
+        Assert.Equal(25, finding.Position().Start.Column);
     }
 
     [Theory]

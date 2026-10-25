@@ -37,8 +37,7 @@ public sealed class EntryPointAnalyzerTests
         Assert.Equal(DiagnosticSeverity.Error, refusal.Severity);
         Assert.Equal(PipelineStage.Analysis, refusal.Stage);
         Assert.Equal("entry-point-resolution", refusal.AnalyzerName);
-        Assert.Equal("Probe", refusal.CompilationUnitPath);
-        Assert.Equal(default, refusal.Location);
+        Assert.Equal(new FileOnly("Probe"), refusal.Location);
         Assert.Equal(
             "Project 'Probe' produces an executable but declares no entry point. Add a 'static void Main()' method, or set output type to library.",
             refusal.Message);
@@ -101,7 +100,7 @@ public sealed class EntryPointAnalyzerTests
 
         Assert.Equal("MIST_EP_0002", refusal.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, refusal.Severity);
-        Assert.Equal("Probe", refusal.CompilationUnitPath);
+        Assert.Equal("Probe", refusal.Location.Path);
         Assert.Equal(
             "Project has both top-level statements (in 'Program.mist') and a static void Main (in 'Probe.A'). "
             + "Add entry_point = \"top-level\" to mist.toml to resolve this conflict.",
@@ -130,7 +129,7 @@ public sealed class EntryPointAnalyzerTests
 
         var refusal = Assert.Single(hand.Analyze(new EntryPointAnalyzer()));
 
-        Assert.Equal(("MIST_EP_0006", "Probe"), (refusal.Number.Value, refusal.CompilationUnitPath));
+        Assert.Equal(("MIST_EP_0006", "Probe"), (refusal.Number.Value, refusal.Location.Path));
         Assert.StartsWith(
             "File 'Program.mist' has both top-level statements and a block namespace declaration: namespace Foo { ... }, namespace Baz { ... }. ",
             refusal.Message,
@@ -149,7 +148,7 @@ public sealed class EntryPointAnalyzerTests
         var refusal = Assert.Single(hand.Analyze(new EntryPointAnalyzer()));
 
         Assert.Equal("MIST_EP_0004", refusal.Number.Value);
-        Assert.Equal("/lib/mist.toml", refusal.CompilationUnitPath);
+        Assert.Equal("/lib/mist.toml", refusal.Location.Path);
     }
 
     [Fact]
@@ -224,7 +223,7 @@ public sealed class EntryPointAnalyzerTests
         ProgramAnalysisRunner.Run(hand.Model, diagnostics);
 
         var refusal = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(("MIST_EP_0004", "/lib/mist.toml", "entry-point-resolution"), (refusal.Number.Value, refusal.CompilationUnitPath, refusal.AnalyzerName));
+        Assert.Equal(("MIST_EP_0004", "/lib/mist.toml", "entry-point-resolution"), (refusal.Number.Value, refusal.Location.Path, refusal.AnalyzerName));
     }
 
     private static void TopLevelFile(MistAssembly assembly, string path, ImmutableArray<string> blockNamespaces = default)

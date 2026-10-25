@@ -29,7 +29,7 @@ public sealed class ReferenceKeyMismatchTests
         Assert.NotNull(diagnostic);
         Assert.Equal(DriverDiagnostics.ProjectReferenceNameMismatch.Number, diagnostic.Number);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Equal(target, diagnostic.CompilationUnitPath);
+        Assert.Equal(target, diagnostic.Location.Path);
         Assert.Equal($"Reference key 'Migrations' does not match 'App.Migrations', the name the {kindText} '{target}' produces.", diagnostic.Message);
     }
 

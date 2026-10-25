@@ -44,8 +44,8 @@ public sealed class ExpressionFailuresTests
 
         var diagnostic = Assert.Single(bag.ToImmutableArray());
         Assert.Equal("INNER", diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 21), new LinePosition(1, 22)), diagnostic.Location);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 21), new LinePosition(1, 22)), diagnostic.Position());
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class ExpressionFailuresTests
 
         var diagnostics = bag.ToImmutableArray();
         Assert.Equal(["LEFT", "RIGHT"], diagnostics.Select(diagnostic => diagnostic.Number.Value));
-        Assert.Equal([11, 21], diagnostics.Select(diagnostic => diagnostic.Location.Start.Column));
+        Assert.Equal([11, 21], diagnostics.Select(diagnostic => diagnostic.Position().Start.Column));
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public sealed class ExpressionFailuresTests
 
         var diagnostic = Assert.Single(bag.ToImmutableArray());
         Assert.Equal("INDEPENDENT", diagnostic.Number.Value);
-        Assert.Equal(21, diagnostic.Location.Start.Column);
+        Assert.Equal(21, diagnostic.Position().Start.Column);
     }
 
     private static ErrorExpression Pending(string id, int offset, params Expression[] children)

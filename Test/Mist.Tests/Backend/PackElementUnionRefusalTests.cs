@@ -80,7 +80,7 @@ public sealed class PackElementUnionRefusalTests : ProgramModelProbe
             var refusal = Assert.Single(refusals);
 
             Assert.Contains("it names 'T[0]'", refusal.Message, StringComparison.Ordinal);
-            Assert.NotEmpty(refusal.CompilationUnitPath);
+            Assert.False(string.IsNullOrEmpty(refusal.Location.Path));
         }
     }
 

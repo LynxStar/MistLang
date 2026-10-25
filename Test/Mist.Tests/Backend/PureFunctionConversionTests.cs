@@ -36,7 +36,7 @@ public sealed class PureFunctionConversionTests
 
         Assert.Equal(Writes, finding.Number.Value);
         Assert.Contains("lambda", finding.Message, StringComparison.Ordinal);
-        Assert.Equal(38, finding.Location.Start.Column);
+        Assert.Equal(38, finding.Position().Start.Column);
     }
 
     [Theory]

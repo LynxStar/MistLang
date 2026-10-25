@@ -1,87 +1,81 @@
+using System.Collections.Immutable;
 using Mist.Common.Source;
 
 namespace Mist.Common.Diagnostics;
 
 /// <summary>
-/// Resolves source locations from AST node origins for diagnostic creation.
+/// Resolves where a node points by walking its origin chain to a parsed root. A span is valid only
+/// when it starts at or after zero, is not negative in length and ends at or before the end of its
+/// text, with the end computed in 64-bit arithmetic so no overflow can fake a fit; anything else
+/// resolves to an absent location and a bounds fault for the factory to report.
 /// </summary>
 public static class DiagnosticHelper
 {
     private const int MaxChainDepth = 100;
 
-    /// <summary>
-    /// Resolves the source file path and line/column position from a node's origin.
-    /// Chains through SyntheticOrigin references until a ParsedOrigin is found.
-    /// </summary>
-    public static (string Path, LinePositionSpan Location, string? SyntheticContext)
-        ResolveLocation(Storm.Runtime.SyntaxNode node, Storm.Runtime.SourceSpan? span = null)
+    public static OriginResolution ResolveLocation(Storm.Runtime.SyntaxNode node, Storm.Runtime.SourceSpan? span = null)
     {
-        var origin = node.Origin;
         var sourceSpan = span ?? node.Span;
 
-        if(origin is null or TestOrigin)
+        return node.Origin switch
         {
-            return ("<unknown>", default, null);
-        }
-
-        if(origin is ParsedOrigin parsed)
-        {
-            var location = ComputeLocation(parsed.Source, sourceSpan);
-            return (parsed.Source.Path, location, null);
-        }
-
-        if(origin is SyntheticOrigin synthetic)
-        {
-            return ResolveSyntheticChain(synthetic, sourceSpan);
-        }
-
-        return ("<unknown>", default, null);
+            null => new OriginResolution(new Absent(AbsenceReason.NotYetAttached), []),
+            TestOrigin => new OriginResolution(new Absent(AbsenceReason.TestOrigin), []),
+            ParsedOrigin parsed => Place(parsed.Source, sourceSpan, []),
+            SyntheticOrigin synthetic => ResolveSyntheticChain(synthetic, sourceSpan),
+            _ => new OriginResolution(new Absent(AbsenceReason.Unavailable), []),
+        };
     }
 
-    private static (string Path, LinePositionSpan Location, string? SyntheticContext)
-        ResolveSyntheticChain(SyntheticOrigin synthetic, Storm.Runtime.SourceSpan span)
+    private static OriginResolution ResolveSyntheticChain(SyntheticOrigin synthetic, Storm.Runtime.SourceSpan span)
     {
-        var reasons = new List<string> { synthetic.Reason };
+        var frames = ImmutableArray.CreateBuilder<Frame>();
+        var visited = new HashSet<NodeOrigin>(ReferenceEqualityComparer.Instance) { synthetic };
+        frames.Add(new SynthesisFrame(synthetic.Reason));
         var current = synthetic.DerivedFrom;
 
-        for(var depth = 0; depth < MaxChainDepth; depth++)
+        for(var depth = 1; depth <= MaxChainDepth; depth++)
         {
             switch(current)
             {
                 case ParsedOrigin parsed:
-                    var location = ComputeLocation(parsed.Source, span);
-                    var context = string.Join(" -> ", reasons);
-                    return (parsed.Source.Path, location, context);
+                    return Place(parsed.Source, span, frames.ToImmutable());
 
                 case TestOrigin:
+                    return new OriginResolution(new Absent(AbsenceReason.TestOrigin), frames.ToImmutable());
+
                 case null:
-                    var testContext = string.Join(" -> ", reasons);
-                    return ("<unknown>", default, testContext);
+                    return new OriginResolution(new Absent(AbsenceReason.SyntheticWithoutRoot), frames.ToImmutable());
+
+                case SyntheticOrigin next when !visited.Add(next):
+                    frames.Add(new TruncatedFrame(depth, Cyclic: true));
+                    return new OriginResolution(new Absent(AbsenceReason.SyntheticWithoutRoot), frames.ToImmutable());
 
                 case SyntheticOrigin next:
-                    reasons.Add(next.Reason);
+                    frames.Add(new SynthesisFrame(next.Reason));
                     current = next.DerivedFrom;
                     break;
 
                 default:
-                    var fallbackContext = string.Join(" -> ", reasons);
-                    return ("<unknown>", default, fallbackContext);
+                    return new OriginResolution(new Absent(AbsenceReason.Unavailable), frames.ToImmutable());
             }
         }
 
-        // Max depth exceeded — circular chain protection
-        var maxDepthContext = string.Join(" -> ", reasons);
-        return ("<unknown>", default, maxDepthContext);
+        frames.Add(new TruncatedFrame(MaxChainDepth, Cyclic: false));
+        return new OriginResolution(new Absent(AbsenceReason.SyntheticWithoutRoot), frames.ToImmutable());
     }
 
-    private static LinePositionSpan ComputeLocation(SourceText source, Storm.Runtime.SourceSpan span)
+    private static OriginResolution Place(SourceText source, Storm.Runtime.SourceSpan span, ImmutableArray<Frame> frames)
     {
-        if(span.Start + span.Length > source.Contents.Length)
+        var end = (long)span.Start + span.Length;
+        if(span.Start < 0 || span.Length < 0 || end > source.Contents.Length)
         {
-            return default;
+            return new OriginResolution(
+                new Absent(AbsenceReason.OutOfBounds),
+                frames,
+                $"span [{span.Start}, +{span.Length}) does not fit '{source.Path}' ({source.Contents.Length} characters)");
         }
 
-        var sourceSpan = new SourceSpan(span.Start, span.Length);
-        return source.ToLinePositionSpan(sourceSpan);
+        return new OriginResolution(new SourceRange(new SourceIdentity(source), span.Start, span.Length), frames);
     }
 }

@@ -55,13 +55,19 @@ public sealed class DiagnosticBag
     /// overload resolution no such choice to make.
     /// </para>
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "The span stays in the adapter's signature for the producers Phase 2 migrates; without the text it was computed against it cannot be placed.")]
     public void Report(
         MistDiagnostic descriptor,
         LinePositionSpan location,
         string compilationUnitPath,
         params ReadOnlySpan<object?> args)
     {
-        Admit(DiagnosticFactory.Create(descriptor, location, compilationUnitPath, Stage, LegacyArguments.For(descriptor, args).AsSpan()));
+        ReportAt(descriptor, LegacyLocation.Map(compilationUnitPath), args);
+    }
+
+    public void ReportAt(MistDiagnostic descriptor, Location location, params ReadOnlySpan<object?> args)
+    {
+        Admit(DiagnosticFactory.Create(descriptor, location, Stage, LegacyArguments.For(descriptor, args).AsSpan()));
     }
 
     /// <summary>
@@ -87,8 +93,7 @@ public sealed class DiagnosticBag
     public bool Contains(Diagnostic diagnostic)
     {
         return diagnostics.Exists(existing => existing.Number == diagnostic.Number
-            && existing.Location == diagnostic.Location
-            && existing.CompilationUnitPath == diagnostic.CompilationUnitPath);
+            && existing.Location == diagnostic.Location);
     }
 
     /// <summary>

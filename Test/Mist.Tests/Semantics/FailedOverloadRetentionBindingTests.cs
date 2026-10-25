@@ -51,8 +51,8 @@ public sealed class FailedOverloadRetentionBindingTests
 
         var diagnostic = Assert.IsType<Diagnostic>(error.DeferredDiagnostic);
         Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 41), new LinePosition(1, 42)), diagnostic.Location);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 41), new LinePosition(1, 42)), diagnostic.Position());
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public sealed class FailedOverloadRetentionBindingTests
         Assert.Equal("Length", Assert.IsType<MemberAccessExpression>(Assert.Single(error.Children)).MemberName);
         var diagnostic = Assert.IsType<Diagnostic>(error.DeferredDiagnostic);
         Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", diagnostic.Number.Value);
-        Assert.Equal(41, diagnostic.Location.Start.Column);
+        Assert.Equal(41, diagnostic.Position().Start.Column);
         Assert.Empty(f.Diagnostics.ToImmutableArray());
     }
 
@@ -173,7 +173,7 @@ public sealed class FailedOverloadRetentionBindingTests
         Assert.Equal("Length", Assert.IsType<MemberAccessExpression>(error.Children[2]).MemberName);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", diagnostic.Number.Value);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Theory]
@@ -203,7 +203,7 @@ public sealed class FailedOverloadRetentionBindingTests
         Assert.Equal(2, error.Children.Count);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal(diagnosticId, diagnostic.Number.Value);
-        Assert.Equal(41, diagnostic.Location.Start.Column);
+        Assert.Equal(41, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -250,8 +250,8 @@ public sealed class FailedOverloadRetentionBindingTests
         Assert.Same(UnknownType.Instance, argument.Receiver.Type);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal(expected, diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 41), new LinePosition(1, 42)), diagnostic.Location);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 41), new LinePosition(1, 42)), diagnostic.Position());
     }
 
     [Fact]

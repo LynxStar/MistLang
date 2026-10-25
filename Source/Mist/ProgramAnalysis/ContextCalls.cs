@@ -268,8 +268,9 @@ internal sealed record ContextSite(
             return "<unknown>";
         }
 
-        var (path, location, _) = DiagnosticHelper.ResolveLocation(Node);
+        var resolved = DiagnosticHelper.ResolveLocation(Node).Location;
+        var location = resolved.Lines ?? default;
 
-        return $"{path}:{location.Start.Line}:{location.Start.Column}";
+        return $"{resolved.Path ?? "<unknown>"}:{location.Start.Line}:{location.Start.Column}";
     }
 }

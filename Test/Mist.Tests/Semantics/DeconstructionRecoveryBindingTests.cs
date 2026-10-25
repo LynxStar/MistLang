@@ -36,7 +36,7 @@ public sealed class DeconstructionRecoveryBindingTests
         Assert.Equal(typed ? "Int32" : "<error>", f.Scope.Locals["first"].Type.Name);
         if(diagnosticId is not null)
         {
-            Assert.Equal(31, Assert.Single(f.Diagnostics.ToImmutableArray()).Location.Start.Column);
+            Assert.Equal(31, Assert.Single(f.Diagnostics.ToImmutableArray()).Position().Start.Column);
         }
     }
 
@@ -65,8 +65,8 @@ public sealed class DeconstructionRecoveryBindingTests
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal(diagnosticId, diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Equal(DeclarationPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Location);
+        Assert.Equal(DeclarationPath, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Position());
     }
 
     [Theory]

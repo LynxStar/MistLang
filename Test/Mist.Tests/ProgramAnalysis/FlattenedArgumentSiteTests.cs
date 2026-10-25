@@ -44,7 +44,7 @@ public sealed class FlattenedArgumentSiteTests
         var diagnostic = Assert.Single(Analyze(Call(slot, arguments)));
 
         Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", diagnostic.Number.Value);
-        Assert.Equal(column, diagnostic.Location.Start.Column);
+        Assert.Equal(column, diagnostic.Position().Start.Column);
         Assert.Contains(conversion, diagnostic.Message);
     }
 
@@ -85,7 +85,7 @@ public sealed class FlattenedArgumentSiteTests
     {
         var diagnostic = Assert.Single(Analyze(Call("array", "Int32, String, Boolean", isClrProjected: true)));
 
-        Assert.Equal(11, diagnostic.Location.Start.Column);
+        Assert.Equal(11, diagnostic.Position().Start.Column);
         Assert.Contains("'string' to 'int'", diagnostic.Message);
     }
 
@@ -97,7 +97,7 @@ public sealed class FlattenedArgumentSiteTests
         var creation = new NewExpression(
             HandBuiltModel.Node(90), HandBuiltModel.Class("Holder"), Arguments("Int32, String, Boolean"), constructor, [], closed);
 
-        Assert.Equal(11, Assert.Single(Analyze(creation)).Location.Start.Column);
+        Assert.Equal(11, Assert.Single(Analyze(creation)).Position().Start.Column);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class FlattenedArgumentSiteTests
         chaining.ChainArgumentsList.AddRange(Arguments("Int32, String, Boolean"));
         owner.ConstructorsList.Add(chaining);
 
-        Assert.Equal(11, Assert.Single(input.Analyze(new AssignabilityAnalyzer(), types: [owner])).Location.Start.Column);
+        Assert.Equal(11, Assert.Single(input.Analyze(new AssignabilityAnalyzer(), types: [owner])).Position().Start.Column);
     }
 
     private IReadOnlyList<Diagnostic> Analyze(Expression root)

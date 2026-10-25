@@ -53,7 +53,7 @@ public sealed class UsingValidationTests
 
         var diagnostic = Assert.Single(f.Run());
 
-        Assert.Equal("/lib/mist.toml", diagnostic.CompilationUnitPath);
+        Assert.Equal("/lib/mist.toml", diagnostic.Location.Path);
         Assert.Contains("'Lib.Missing'", diagnostic.Message);
         Assert.Contains("'Lib'", diagnostic.Message);
         Assert.Equal<string>(["Shared"], library.GlobalUsings);

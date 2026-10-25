@@ -26,7 +26,7 @@ public sealed class VariadicResidualRefusalTests
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_SPREAD_VALUE_PARAMETER", diagnostic.Number.Value);
         Assert.Contains("params", diagnostic.Message);
-        Assert.Equal(21, diagnostic.Location.Start.Column);
+        Assert.Equal(21, diagnostic.Position().Start.Column);
         Assert.True(parameter.IsFailed);
     }
 
@@ -72,7 +72,7 @@ public sealed class VariadicResidualRefusalTests
         {
             var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
             Assert.Equal("MIST_PM_SPREAD_NON_PACK_ARGUMENT", diagnostic.Number.Value);
-            Assert.Equal(41, diagnostic.Location.Start.Column);
+            Assert.Equal(41, diagnostic.Position().Start.Column);
         }
     }
 
@@ -129,7 +129,7 @@ public sealed class VariadicResidualRefusalTests
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_SPREAD_NON_PACK_ARGUMENT", diagnostic.Number.Value);
-        Assert.Equal(41, diagnostic.Location.Start.Column);
+        Assert.Equal(41, diagnostic.Position().Start.Column);
         Assert.True(PriorFailure.Of(result));
         Assert.Empty(f.Built.Model.GenericCalls.All());
     }

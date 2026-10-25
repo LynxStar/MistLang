@@ -64,7 +64,7 @@ public sealed class DeclarationShapeRefusalTests
         var findings = fragment.Run(analyzer);
         Assert.Equal(count, findings.Count);
         Assert.All(findings, finding => Assert.Equal(expected, finding.Number.Value));
-        Assert.All(findings, finding => Assert.Equal("hand-built.mist", finding.CompilationUnitPath));
+        Assert.All(findings, finding => Assert.Equal("hand-built.mist", finding.Location.Path));
     }
 
     [Theory]
@@ -75,7 +75,7 @@ public sealed class DeclarationShapeRefusalTests
     {
         var fragment = Duplicate($"duplicate-{kind}-signature");
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
-        Assert.Equal(31, finding.Location.Start.Column);
+        Assert.Equal(31, finding.Position().Start.Column);
     }
 
     [Fact]

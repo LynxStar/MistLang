@@ -118,8 +118,8 @@ public sealed class ConstructorChainAccessibilityTests
         var finding = Assert.Single(fragment.Run(new AccessibilityAnalyzer()));
 
         Assert.Equal("MIST_PA_INACCESSIBLE_MEMBER", finding.Number.Value);
-        Assert.Equal("hand-built.mist", finding.CompilationUnitPath);
-        Assert.Equal(41, finding.Location.Start.Column);
+        Assert.Equal("hand-built.mist", finding.Location.Path);
+        Assert.Equal(41, finding.Position().Start.Column);
         Assert.Equal("'Base' is inaccessible due to its protection level: private members are accessible only within the declaring type.", finding.Message);
         Assert.Same(target, constructor.ChainedConstructor);
         Assert.Same(argument, Assert.Single(constructor.ChainArgumentsList));
@@ -142,7 +142,7 @@ public sealed class ConstructorChainAccessibilityTests
         Assert.Empty(fragment.Run(new AccessibilityAnalyzer()));
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
         Assert.Equal(diagnosticId, finding.Number.Value);
-        Assert.Equal(11, finding.Location.Start.Column);
+        Assert.Equal(11, finding.Position().Start.Column);
     }
 
     private static ConcreteType Type(DeclarationFragments fragment, string name, bool isStruct)

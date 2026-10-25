@@ -199,7 +199,7 @@ public sealed class PatternRefusalTests
 
         var finding = Assert.Single(findings);
         Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Number.Value);
-        Assert.Equal(38, finding.Location.Start.Column);
+        Assert.Equal(38, finding.Position().Start.Column);
     }
 
     [Theory]
@@ -288,7 +288,7 @@ public sealed class PatternRefusalTests
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
 
         Assert.Equal(expected, finding.Number.Value);
-        Assert.Equal(21, finding.Location.Start.Column);
+        Assert.Equal(21, finding.Position().Start.Column);
         Assert.Contains($"'{judgedAgainst}'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -378,7 +378,7 @@ public sealed class PatternRefusalTests
             : new IsPatternExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(input), pattern, fixture.Types["Boolean"]);
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
         Assert.Equal("MIST_PA_PATTERN_NEVER_MATCHES", finding.Number.Value);
-        Assert.Equal(21, finding.Location.Start.Column);
+        Assert.Equal(21, finding.Position().Start.Column);
     }
 
     [Theory]
@@ -405,7 +405,7 @@ public sealed class PatternRefusalTests
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
 
         Assert.Equal(expected, finding.Number.Value);
-        Assert.Equal(21, finding.Location.Start.Column);
+        Assert.Equal(21, finding.Position().Start.Column);
     }
 
     [Fact]
@@ -425,7 +425,7 @@ public sealed class PatternRefusalTests
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
 
         Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Number.Value);
-        Assert.Equal(38, finding.Location.Start.Column);
+        Assert.Equal(38, finding.Position().Start.Column);
     }
 
     [Theory]

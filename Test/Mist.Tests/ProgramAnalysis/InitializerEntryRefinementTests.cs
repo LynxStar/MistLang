@@ -27,7 +27,7 @@ public sealed class InitializerEntryRefinementTests
 
         if(finding is not null)
         {
-            Assert.Equal(25, finding.Location.Start.Column);
+            Assert.Equal(25, finding.Position().Start.Column);
             Assert.Contains("parameter 'value'", finding.Message, StringComparison.Ordinal);
         }
     }
@@ -49,7 +49,7 @@ public sealed class InitializerEntryRefinementTests
         var finding = Assert.Single(Findings(Bag(Element(HandBuiltRefinements.Local(h.Int, "m", offset: 24), PositiveAdd()))));
 
         Assert.Equal("MIST_PA_CONSTRAINT_UNPROVEN", finding.Number.Value);
-        Assert.Equal(25, finding.Location.Start.Column);
+        Assert.Equal(25, finding.Position().Start.Column);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class InitializerEntryRefinementTests
             Element(h.Literal(-3L, offset: 24), PositiveAdd()))));
 
         Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Number.Value);
-        Assert.Equal(25, finding.Location.Start.Column);
+        Assert.Equal(25, finding.Position().Start.Column);
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public sealed class InitializerEntryRefinementTests
 
         var finding = Assert.Single(Findings(body));
 
-        Assert.Equal(25, finding.Location.Start.Column);
+        Assert.Equal(25, finding.Position().Start.Column);
     }
 
     [Theory]
@@ -126,7 +126,7 @@ public sealed class InitializerEntryRefinementTests
         var finding = Findings(Bag(entry)).SingleOrDefault();
 
         Assert.Equal(expected, finding?.Number.Value);
-        Assert.Equal(expected is null ? null : 25, finding?.Location.Start.Column);
+        Assert.Equal(expected is null ? null : 25, finding?.Position().Start.Column);
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public sealed class InitializerEntryRefinementTests
         var finding = Assert.Single(Findings(outer));
 
         Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Number.Value);
-        Assert.Equal(25, finding.Location.Start.Column);
+        Assert.Equal(25, finding.Position().Start.Column);
     }
 
     [Fact]

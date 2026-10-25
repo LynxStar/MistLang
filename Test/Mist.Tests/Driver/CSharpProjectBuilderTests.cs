@@ -33,7 +33,7 @@ public sealed class CSharpProjectBuilderTests
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
         Assert.Equal(DriverDiagnostics.CSharpProjectBuildFailed.Number, diagnostic.Number);
-        Assert.Equal(Manifest, diagnostic.CompilationUnitPath);
+        Assert.Equal(Manifest, diagnostic.Location.Path);
         Assert.Equal($"Building C# project '{Project}' for reference 'App.Migrations' failed: {error}", diagnostic.Message);
         _ = Assert.Single(invocations);
     }

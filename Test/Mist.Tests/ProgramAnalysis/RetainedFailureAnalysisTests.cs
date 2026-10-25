@@ -39,8 +39,8 @@ public sealed class RetainedFailureAnalysisTests
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_MEMBERS", diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(12, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(12, diagnostic.Position().Start.Column);
         Assert.Equal("operator-and-positional-checks", diagnostic.AnalyzerName);
     }
 
@@ -56,7 +56,7 @@ public sealed class RetainedFailureAnalysisTests
         var diagnostics = Analyze(f, root);
 
         Assert.Equal(["MIST_PA_OPERATOR_NOT_APPLICABLE", "MIST_PA_UNKNOWN_HAS_NO_MEMBERS"], diagnostics.Select(diagnostic => diagnostic.Number.Value));
-        Assert.Equal([12, 22], diagnostics.Select(diagnostic => diagnostic.Location.Start.Column));
+        Assert.Equal([12, 22], diagnostics.Select(diagnostic => diagnostic.Position().Start.Column));
     }
 
     [Theory]
@@ -81,7 +81,7 @@ public sealed class RetainedFailureAnalysisTests
         var diagnostic = Assert.Single(Analyze(f, root));
 
         Assert.Equal(expected, diagnostic.Number.Value);
-        Assert.Equal(shape is "optional" or "unfinished" ? 41 : 12, diagnostic.Location.Start.Column);
+        Assert.Equal(shape is "optional" or "unfinished" ? 41 : 12, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public sealed class RetainedFailureAnalysisTests
         var diagnostic = Assert.Single(Analyze(f, root));
 
         Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_MEMBERS", diagnostic.Number.Value);
-        Assert.Equal(12, diagnostic.Location.Start.Column);
+        Assert.Equal(12, diagnostic.Position().Start.Column);
         Assert.False(local.IsFailed);
     }
 
@@ -111,7 +111,7 @@ public sealed class RetainedFailureAnalysisTests
         var diagnostic = Assert.Single(Analyze(f, root));
 
         Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_MEMBERS", diagnostic.Number.Value);
-        Assert.Equal(12, diagnostic.Location.Start.Column);
+        Assert.Equal(12, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public sealed class RetainedFailureAnalysisTests
         var diagnostic = Assert.Single(Analyze(f, root));
 
         Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", diagnostic.Number.Value);
-        Assert.Equal(41, diagnostic.Location.Start.Column);
+        Assert.Equal(41, diagnostic.Position().Start.Column);
     }
 
     private static IReadOnlyList<Diagnostic> Analyze(HandBuiltModel f, object root)

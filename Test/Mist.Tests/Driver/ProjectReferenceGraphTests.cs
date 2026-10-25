@@ -133,7 +133,7 @@ public sealed class ProjectReferenceGraphTests
         Assert.Equal(["Left", "Right"], result.Select(project => project.Configuration.Name));
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
         Assert.Equal(DriverDiagnostics.ProjectMissingName.Number, diagnostic.Number);
-        Assert.Equal(failed.Path, diagnostic.CompilationUnitPath);
+        Assert.Equal(failed.Path, diagnostic.Location.Path);
         Assert.All(graph.LoadCounts.Values, count => Assert.Equal(1, count));
         Assert.Equal(3, graph.LoadCounts.Count);
         Assert.DoesNotContain(Path.GetDirectoryName(failed.Path)!, graph.DiscoveryCounts.Keys);
@@ -242,7 +242,7 @@ public sealed class ProjectReferenceGraphTests
         Assert.Equal(DriverDiagnostics.ProjectReferenceNameMismatch.Number, diagnostic.Number);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(PipelineStage.Driver, diagnostic.Stage);
-        Assert.Equal(path, diagnostic.CompilationUnitPath);
+        Assert.Equal(path, diagnostic.Location.Path);
         Assert.Equal($"Reference key '{declaredName}' does not match '{actualName}', the name the Mist project '{path}' produces.", diagnostic.Message);
     }
 
@@ -250,7 +250,7 @@ public sealed class ProjectReferenceGraphTests
     {
         Assert.Equal(DriverDiagnostics.ProjectCircularReference.Number, diagnostic.Number);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Equal(chain[^1], diagnostic.CompilationUnitPath);
+        Assert.Equal(chain[^1], diagnostic.Location.Path);
         Assert.Equal($"Circular project reference detected: {string.Join(" \u2192 ", chain)}.", diagnostic.Message);
     }
 

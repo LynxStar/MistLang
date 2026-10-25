@@ -47,7 +47,7 @@ public sealed class UnaryRefinementTests
         var finding = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), At(h, site, value, target)));
 
         Assert.Equal(form == "anonymous" && site == "argument" ? "MIST_PA_CONSTRAINT_UNPROVEN" : "MIST_PA_REFINEMENT_UNPROVEN", finding.Number.Value);
-        Assert.Equal(25, finding.Location.Start.Column);
+        Assert.Equal(25, finding.Position().Start.Column);
     }
 
     [Theory]

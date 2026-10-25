@@ -34,8 +34,8 @@ public sealed class UnionNonConstituentPatternTests
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT", diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Equal(Path, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 41), new LinePosition(1, 42)), diagnostic.Location);
+        Assert.Equal(Path, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 41), new LinePosition(1, 42)), diagnostic.Position());
     }
 
     [Theory]

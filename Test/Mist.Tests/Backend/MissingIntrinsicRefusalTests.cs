@@ -55,7 +55,7 @@ public sealed class MissingIntrinsicRefusalTests : IDisposable
         var refusal = Assert.Single(result.Diagnostics, d => d.Number == BackendDiagnostics.MissingIntrinsicEmissionTemplate.Number);
         Assert.Equal(DiagnosticSeverity.Error, refusal.Severity);
         Assert.Contains("Standard.Math.Abs(int)", refusal.Message);
-        Assert.EndsWith("Probe.mist", refusal.CompilationUnitPath);
+        Assert.EndsWith("Probe.mist", refusal.Location.Path);
 
         var emitted = Directory.EnumerateFiles(outputDir, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText).ToList();
         Assert.NotEmpty(emitted);

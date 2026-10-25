@@ -28,8 +28,8 @@ public sealed class InheritanceCyclePreflightTests
         var diagnostic = findings[1];
         Assert.Equal("MIST_PA_CYCLIC_INHERITANCE", diagnostic.Number.Value);
         Assert.Equal("inheritance-cycle-checks", diagnostic.AnalyzerName);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
         Assert.Equal("The base 'First' of 'Second' forms an inheritance cycle.", diagnostic.Message);
         Assert.Equal(["EntryPointAnalyzer", "InheritanceCycleAnalyzer"], timings.Analyzers.Select(analyzer => analyzer.Name));
         Assert.Equal(0, timings.Scopes);

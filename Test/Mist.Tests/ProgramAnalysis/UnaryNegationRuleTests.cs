@@ -204,8 +204,8 @@ public sealed class UnaryNegationRuleTests
         var diagnostic = Assert.Single(built.Analyze(new OperatorAnalyzer(), unary));
 
         Assert.Equal(diagnosticId, diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Theory]

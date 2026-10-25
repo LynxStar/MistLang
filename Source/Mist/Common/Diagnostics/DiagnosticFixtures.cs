@@ -37,8 +37,32 @@ internal static class DiagnosticFixtures
         string compilationUnitPath = "",
         string? analyzerName = null)
     {
+        var placed = location == default ? LegacyLocation.Map(compilationUnitPath) : At(compilationUnitPath, location);
+
+        return Occurrence(code, severity, stage, message, placed, analyzerName);
+    }
+
+    public static Diagnostic Occurrence(
+        string code,
+        DiagnosticSeverity severity,
+        PipelineStage stage,
+        string message,
+        Location location,
+        string? analyzerName = null)
+    {
         var descriptor = Descriptor(code, message.Replace("{", "{{").Replace("}", "}}"), severity);
 
-        return DiagnosticFactory.Create(descriptor, location, compilationUnitPath, stage, [], analyzerName).Occurrence;
+        return DiagnosticFactory.Create(descriptor, location, stage, [], analyzerName: analyzerName).Occurrence;
+    }
+
+    public static SourceRange At(string path, LinePositionSpan span)
+    {
+        var lines = Math.Max(span.Start.Line, span.End.Line);
+        var width = Math.Max(span.Start.Column, span.End.Column);
+        var text = new SourceText(path, string.Join("\n", Enumerable.Repeat(new string(' ', width), lines)));
+        var start = (span.Start.Line - 1) * (width + 1) + span.Start.Column - 1;
+        var end = (span.End.Line - 1) * (width + 1) + span.End.Column - 1;
+
+        return new SourceRange(new SourceIdentity(text), start, Math.Max(0, end - start));
     }
 }

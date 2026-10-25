@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.Common.Source;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
@@ -94,7 +95,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
         foreach(var repeat in ExtensionSignatureDecision.Repeats(context.Extensions))
         {
-            var (path, location, _) = DiagnosticHelper.ResolveLocation(repeat.Earlier);
+            var (path, location) = Spelled(DiagnosticHelper.ResolveLocation(repeat.Earlier).Location);
             if(repeat.IsProperty)
             {
                 context.Report(ProgramAnalysisDiagnostics.DuplicateExtensionProperty, repeat.Later, [],
@@ -345,7 +346,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         foreach(var repeat in CallableSignatureDecision.Operators(type.OperatorsList)
             .Concat(CallableSignatureDecision.Casts(type.CastOperatorsList)))
         {
-            var (path, location, _) = DiagnosticHelper.ResolveLocation(repeat.Earlier.DeclarationNode!);
+            var (path, location) = Spelled(DiagnosticHelper.ResolveLocation(repeat.Earlier.DeclarationNode!).Location);
             if(repeat.Later is CastOperator cast)
             {
                 Report(context, cast.DeclarationNode, CallableSignatureDiagnostics.DuplicateCastSignature,
@@ -488,6 +489,11 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
     }
 
     private readonly record struct Member(string Name, SyntaxNode? Node, IOverload? Overload);
+
+    private static (string Path, LinePositionSpan Lines) Spelled(Location location)
+    {
+        return (location.Path ?? "<unknown>", location.Lines ?? default);
+    }
 
     private static void Report(AnalysisContext context, SyntaxNode? at, MistDiagnostic descriptor, params object?[] args)
     {

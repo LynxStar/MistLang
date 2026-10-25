@@ -29,7 +29,7 @@ public sealed class QualifiedNameBindingTests
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", diagnostic.Number.Value);
         Assert.Equal("The name 'System.NoSuchType' could not be found in this scope.", diagnostic.Message);
-        Assert.Equal(22, diagnostic.Location.Start.Column);
+        Assert.Equal(22, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class QualifiedNameBindingTests
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", diagnostic.Number.Value);
-        Assert.Equal(22, diagnostic.Location.Start.Column);
+        Assert.Equal(22, diagnostic.Position().Start.Column);
     }
 
     [Fact]

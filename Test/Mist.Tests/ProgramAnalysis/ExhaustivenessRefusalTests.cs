@@ -92,7 +92,7 @@ public sealed class ExhaustivenessRefusalTests
         var diagnostics = new HandBuiltModel().Analyze(new ExhaustivenessAnalyzer(), input);
         var finding = Assert.Single(diagnostics);
         Assert.Equal("MIST_PA_SWITCH_NOT_EXHAUSTIVE", finding.Number.Value);
-        Assert.Equal(31, finding.Location.Start.Column);
+        Assert.Equal(31, finding.Position().Start.Column);
         Assert.Contains(witness, finding.Message, StringComparison.Ordinal);
     }
 

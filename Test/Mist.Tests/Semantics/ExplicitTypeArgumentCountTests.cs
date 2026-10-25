@@ -33,8 +33,8 @@ public sealed class ExplicitTypeArgumentCountTests
         Assert.Equal(
             "The call to method 'Convert' states the wrong number of type arguments. Declared type parameter counts: 0, 1, 2.",
             diagnostic.Message);
-        Assert.Equal(CallPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 17), new LinePosition(1, 18)), diagnostic.Location);
+        Assert.Equal(CallPath, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 17), new LinePosition(1, 18)), diagnostic.Position());
     }
 
     [Fact]

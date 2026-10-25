@@ -206,7 +206,7 @@ public sealed class ExtensionSignatureAnalysisTests
 
         var finding = Assert.Single(f.Built.Analyze(new DeclarationShapeAnalyzer(), extensions: [block]));
         Assert.Equal("MIST_PA_DUPLICATE_EXTENSION_METHOD", finding.Number.Value);
-        Assert.Equal(later.DeclarationNode!.Span.Start + 1, finding.Location.Start.Column);
+        Assert.Equal(later.DeclarationNode!.Span.Start + 1, finding.Position().Start.Column);
         Assert.Contains($"hand-built.mist:1:{earlier.DeclarationNode!.Span.Start + 1}", finding.Message, StringComparison.Ordinal);
     }
 
@@ -220,7 +220,7 @@ public sealed class ExtensionSignatureAnalysisTests
 
         var finding = Assert.Single(f.Built.Analyze(new DeclarationShapeAnalyzer(), extensions: [block]));
         Assert.Equal("MIST_PA_DUPLICATE_EXTENSION_PROPERTY", finding.Number.Value);
-        Assert.Equal(later.DeclarationNode!.Span.Start + 1, finding.Location.Start.Column);
+        Assert.Equal(later.DeclarationNode!.Span.Start + 1, finding.Position().Start.Column);
         Assert.Contains($"hand-built.mist:1:{earlier.DeclarationNode!.Span.Start + 1}", finding.Message, StringComparison.Ordinal);
     }
 }

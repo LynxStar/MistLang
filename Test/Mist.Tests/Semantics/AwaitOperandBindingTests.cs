@@ -55,8 +55,8 @@ public sealed class AwaitOperandBindingTests
         Assert.Equal("MIST_PM_AWAIT_OF_NON_TASK", diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal($"'await' requires a task, but '{operandTypeName}' is not one.", diagnostic.Message);
-        Assert.Equal(AwaitPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Location);
+        Assert.Equal(AwaitPath, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Position());
     }
 
     [Theory]
@@ -93,8 +93,8 @@ public sealed class AwaitOperandBindingTests
         Assert.False(operand.Local.IsFailed);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_AWAIT_OF_NON_TASK", diagnostic.Number.Value);
-        Assert.Equal(AwaitPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Location);
+        Assert.Equal(AwaitPath, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Position());
     }
 
     [Fact]
@@ -116,8 +116,8 @@ public sealed class AwaitOperandBindingTests
         _ = Assert.IsType<LocalReferenceExpression>(access.Receiver);
         var diagnostic = Assert.IsType<Diagnostic>(error.DeferredDiagnostic);
         Assert.Equal("MIST_PM_AWAIT_OF_NON_TASK", diagnostic.Number.Value);
-        Assert.Equal(AwaitPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Location);
+        Assert.Equal(AwaitPath, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Position());
     }
 
     [Fact]

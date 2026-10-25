@@ -41,7 +41,7 @@ public sealed class ReferenceLocationSiteTests
         var diagnostic = Assert.Single(model.Analyze(new PositionAnalyzer(), root));
         Assert.Equal("MIST_PA_REF_NOT_A_LOCATION", diagnostic.Number.Value);
         Assert.StartsWith(message, diagnostic.Message, StringComparison.Ordinal);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 
     [Theory]

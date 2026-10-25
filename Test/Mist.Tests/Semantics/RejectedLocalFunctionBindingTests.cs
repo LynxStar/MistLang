@@ -46,8 +46,8 @@ public sealed class RejectedLocalFunctionBindingTests
         });
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_LOCAL_FUNCTION_GENERIC", diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 51), new LinePosition(1, 52)), diagnostic.Location);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 51), new LinePosition(1, 52)), diagnostic.Position());
         Assert.Empty(body.Function.TypeParametersList);
     }
 
@@ -179,8 +179,8 @@ public sealed class RejectedLocalFunctionBindingTests
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_DUPLICATE_LOCAL", diagnostic.Number.Value);
-        Assert.Equal("local-function.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(2, 9), new LinePosition(2, 10)), diagnostic.Location);
+        Assert.Equal("local-function.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(2, 9), new LinePosition(2, 10)), diagnostic.Position());
     }
 
     [Fact]

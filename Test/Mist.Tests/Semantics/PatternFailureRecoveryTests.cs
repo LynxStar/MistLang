@@ -386,7 +386,7 @@ public sealed class PatternFailureRecoveryTests
 
     private static void AssertLocation(Diagnostic diagnostic, int offset)
     {
-        Assert.Equal(Path, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, offset + 1), new LinePosition(1, offset + 2)), diagnostic.Location);
+        Assert.Equal(Path, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, offset + 1), new LinePosition(1, offset + 2)), diagnostic.Position());
     }
 }

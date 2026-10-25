@@ -73,7 +73,7 @@ public sealed class FunctionAllocationElementTypeTests : ProgramModelProbe
 
         var error = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
         Assert.Contains("Missing", error.Message, StringComparison.Ordinal);
-        Assert.NotEqual(error.Location.Start, error.Location.End);
+        Assert.NotEqual(error.Position().Start, error.Position().End);
     }
 
     private static LocalDeclarationStatement[] Declarations(ProgramModelClass model)

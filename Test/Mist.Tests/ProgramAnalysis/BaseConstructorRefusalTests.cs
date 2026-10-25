@@ -25,7 +25,7 @@ public sealed class BaseConstructorRefusalTests
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
 
         Assert.Equal("MIST_PA_BASE_CTOR_UNSATISFIED", finding.Number.Value);
-        Assert.Equal(61, finding.Location.Start.Column);
+        Assert.Equal(61, finding.Position().Start.Column);
         Assert.Equal("Base class 'Meter' requires constructor arguments that are not provided.", finding.Message);
     }
 
@@ -55,7 +55,7 @@ public sealed class BaseConstructorRefusalTests
 
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
 
-        Assert.Equal(71, finding.Location.Start.Column);
+        Assert.Equal(71, finding.Position().Start.Column);
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public sealed class BaseConstructorRefusalTests
         {
             var finding = Assert.Single(findings);
             Assert.Equal("MIST_PA_BASE_CTOR_UNSATISFIED", finding.Number.Value);
-            Assert.Equal(61, finding.Location.Start.Column);
+            Assert.Equal(61, finding.Position().Start.Column);
             Assert.Contains("Meter", finding.Message, StringComparison.Ordinal);
         }
         else

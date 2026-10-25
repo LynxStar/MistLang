@@ -302,7 +302,7 @@ public sealed class OwnedFieldTypeDecisionTests
 
         var diagnostic = Assert.Single(fragment.Run(new OwnedFieldTypeAnalyzer()));
 
-        Assert.Equal(11, diagnostic.Location.Start.Column);
+        Assert.Equal(11, diagnostic.Position().Start.Column);
         Assert.Equal(
             "Field 'Root.Text' of owned type 'Holder' has type 'StringBuilder', which is neither owned, clonable nor a value type. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be a value type, so that the owned type owns its whole graph.",
             diagnostic.Message);
@@ -319,9 +319,9 @@ public sealed class OwnedFieldTypeDecisionTests
         var diagnostic = Assert.Single(fragment.Run(new OwnedFieldTypeAnalyzer()));
 
         Assert.Equal("MIST_PA_OWNED_FIELD_TYPE", diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(1, diagnostic.Location.Start.Line);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(1, diagnostic.Position().Start.Line);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
         Assert.Equal(
             "Field 'Text' of owned type 'Holder' has type 'StringBuilder', which is neither owned, clonable nor a value type. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be a value type, so that the owned type owns its whole graph.",
             diagnostic.Message);

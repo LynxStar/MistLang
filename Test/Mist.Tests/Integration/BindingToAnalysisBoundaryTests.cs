@@ -84,7 +84,7 @@ public sealed class BindingToAnalysisBoundaryTests : ProgramModelProbe
         var bag = new DiagnosticBag();
         ProgramAnalysisRunner.Run(model, bag);
         var diagnostics = bag.ToImmutableArray().Where(finding => finding.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning)
-            .OrderBy(finding => finding.Location.Start.Line).ToArray();
+            .OrderBy(finding => finding.Position().Start.Line).ToArray();
         string[] expected = [
             "MIST_PA_OPERATOR_NOT_APPLICABLE", "MIST_PA_OPERATOR_NOT_APPLICABLE",
             "MIST_PA_UNKNOWN_HAS_NO_MEMBERS", "MIST_PA_UNKNOWN_HAS_NO_MEMBERS",
@@ -96,13 +96,13 @@ public sealed class BindingToAnalysisBoundaryTests : ProgramModelProbe
             .OfType<Expression>().Where(expression => expression is BinaryExpression
                 or MemberAccessExpression { IsConditional: true }
                 or MemberAccessExpression { Receiver.Type: ProgramModel.Model.Types.UnknownType })
-            .OrderBy(expression => DiagnosticHelper.ResolveLocation(expression.Node).Location.Start.Line).ToArray();
+            .OrderBy(expression => DiagnosticHelper.ResolveLocation(expression.Node).Location.Position().Start.Line).ToArray();
         Assert.Equal(expected.Length, owners.Length);
         for(var i = 0; i < diagnostics.Length; i++)
         {
-            Assert.Equal(i + 5, diagnostics[i].Location.Start.Line);
+            Assert.Equal(i + 5, diagnostics[i].Position().Start.Line);
             Assert.Equal(DiagnosticHelper.ResolveLocation(owners[i].Node).Location, diagnostics[i].Location);
-            Assert.EndsWith("Program.mist", diagnostics[i].CompilationUnitPath, StringComparison.Ordinal);
+            Assert.EndsWith("Program.mist", diagnostics[i].Location.Path, StringComparison.Ordinal);
         }
     }
 

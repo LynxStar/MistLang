@@ -72,8 +72,8 @@ public sealed class PredicateDeclarationRefusalTests
             : name.StartsWith("refinement-constant-mismatch-", StringComparison.Ordinal) ? Mismatched(name) : Unstable(name);
         var diagnostic = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
         Assert.Equal(expected, diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Theory]

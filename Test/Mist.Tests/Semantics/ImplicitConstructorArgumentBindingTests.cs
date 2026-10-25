@@ -28,7 +28,7 @@ public sealed class ImplicitConstructorArgumentBindingTests
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_NO_APPLICABLE_OVERLOAD", diagnostic.Number.Value);
         Assert.Equal("There is no overload of constructor 'Bag' accepting 1 argument(s). Declared arities: 0.", diagnostic.Message);
-        Assert.Equal(41, diagnostic.Location.Start.Column);
+        Assert.Equal(41, diagnostic.Position().Start.Column);
     }
 
     [Theory]

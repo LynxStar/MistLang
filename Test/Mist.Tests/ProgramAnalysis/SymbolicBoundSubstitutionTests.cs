@@ -79,7 +79,7 @@ public sealed class SymbolicBoundSubstitutionTests
         var findings = Call(take, [h.Literal(lo, offset: 0), passed], [.. take.ParametersList.Select(parameter => parameter.Type)]);
 
         Assert.Equal(expected, Single(findings));
-        Assert.All(findings, finding => Assert.Equal(column, finding.Location.Start.Column));
+        Assert.All(findings, finding => Assert.Equal(column, finding.Position().Start.Column));
     }
 
     [Fact]

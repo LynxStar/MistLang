@@ -38,13 +38,12 @@ public sealed partial class RoslynDiagnosticMapper
             new LinePosition(lineNum, colNum),
             new LinePosition(lineNum, colNum));
 
-        return DiagnosticFactory.Legacy(
+        return DiagnosticFactory.LegacyAt(
             BackendDiagnostics.CSharpError,
             severity,
             PipelineStage.Backend,
             message,
-            location,
-            filePath,
+            new GeneratedLocation(filePath, location, null),
             native: new ProviderCode("roslyn", code, severity));
     }
 }

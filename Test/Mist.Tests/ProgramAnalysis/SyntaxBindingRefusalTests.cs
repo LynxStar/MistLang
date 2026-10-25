@@ -120,11 +120,11 @@ public sealed class SyntaxBindingRefusalTests
         Assert.Equal(diagnosticId, diagnostic.Number.Value);
         if(refusal == "local-after-local-function-of-the-same-name")
         {
-            Assert.Equal("<unknown>", diagnostic.CompilationUnitPath);
+            Assert.Null(diagnostic.Location.Path);
         }
         else
         {
-            Assert.Equal(31, diagnostic.Location.Start.Column);
+            Assert.Equal(31, diagnostic.Position().Start.Column);
         }
     }
 

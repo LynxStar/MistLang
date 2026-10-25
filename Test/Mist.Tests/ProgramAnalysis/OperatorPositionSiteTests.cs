@@ -131,8 +131,8 @@ public sealed class OperatorPositionSiteTests
     {
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(expected, diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(1, diagnostic.Location.Start.Line);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(1, diagnostic.Position().Start.Line);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 }

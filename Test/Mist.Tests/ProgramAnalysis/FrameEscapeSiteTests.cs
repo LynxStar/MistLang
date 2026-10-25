@@ -175,6 +175,6 @@ public sealed class FrameEscapeSiteTests
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(expected, diagnostic.Number.Value);
         Assert.Contains(message, diagnostic.Message, StringComparison.Ordinal);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 }

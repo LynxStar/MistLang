@@ -85,7 +85,7 @@ public sealed class TypeParameterDistinctionTests
             "Cannot infer the type arguments of method 'Pick': the arguments give 'T' the types 'string', 'int', "
             + "and none of them is a type the others all convert to. State all of them explicitly at the call: 'T'.",
             diagnostic.Message);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Fact]

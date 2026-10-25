@@ -1,5 +1,4 @@
 using Mist.Common.Diagnostics;
-using Mist.Common.Source;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
@@ -22,7 +21,7 @@ internal static class CloneDiagnostics
 
             foreach(var withheld in bag.Withhold(() => step(clone)))
             {
-                if(Contains(newtypeLocation, withheld.Location))
+                if(newtypeLocation.Contains(withheld.Location))
                 {
                     bag.Add(withheld);
                     continue;
@@ -45,7 +44,7 @@ internal static class CloneDiagnostics
         }
     }
 
-    private static string? MemberAt(ConcreteType clone, LinePositionSpan location)
+    private static string? MemberAt(ConcreteType clone, Location location)
     {
         var members = clone.FieldsList.Select(field => (field.Name, field.DeclarationNode))
             .Concat(clone.PropertiesList.Select(property => (property.Name, property.DeclarationNode)))
@@ -54,22 +53,12 @@ internal static class CloneDiagnostics
 
         foreach(var (name, node) in members)
         {
-            if(node is not null && Contains(DiagnosticHelper.ResolveLocation(node).Location, location))
+            if(node is not null && DiagnosticHelper.ResolveLocation(node).Location.Contains(location))
             {
                 return name;
             }
         }
 
         return null;
-    }
-
-    private static bool Contains(LinePositionSpan outer, LinePositionSpan inner)
-    {
-        return Compare(outer.Start, inner.Start) <= 0 && Compare(inner.End, outer.End) <= 0;
-    }
-
-    private static int Compare(LinePosition left, LinePosition right)
-    {
-        return left.Line != right.Line ? left.Line.CompareTo(right.Line) : left.Column.CompareTo(right.Column);
     }
 }

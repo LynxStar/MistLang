@@ -122,6 +122,7 @@ internal static class TextFreezeTable
         ["EntryPointDiagnostics.LibraryWithTopLevelStatements"] = "Library projects cannot have top-level statements. Files: arg0",
         ["EntryPointDiagnostics.DuplicateEntryPoint"] = "'arg0' is the program's entry point but declares more than one 'Main' that can be one. A program can have only one entry point.",
         ["InternalDiagnostics.ArgumentSchemaBreach"] = "Internal compiler error: the arguments reported for diagnostic 'arg0' by stage 'arg1' do not match its slot schema (arg2), so its message was replaced by a fallback. This is a compiler bug; please report it with the program that caused it.",
+        ["InternalDiagnostics.LocationOutOfBounds"] = "Internal compiler error: stage 'arg0' reported diagnostic 'arg1' with a source span that does not fit its file (arg2), so the occurrence carries no location. This is a compiler bug; please report it with the program that caused it.",
         ["LexerDiagnostics.LexError"] = "arg0",
         ["ParserDiagnostics.ParseStub"] = "Parser is not yet implemented (Storm-generated parser is skeletal). Source file was lexed but not parsed.",
         ["ParserDiagnostics.ParseError"] = "arg0",

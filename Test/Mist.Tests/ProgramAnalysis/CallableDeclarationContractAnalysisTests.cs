@@ -36,8 +36,8 @@ public sealed class CallableDeclarationContractAnalysisTests
         Assert.Equal(expected, finding.Number.Value);
         Assert.Equal(PipelineStage.Analysis, finding.Stage);
         Assert.Equal("declaration-shape-checks", finding.AnalyzerName);
-        Assert.Equal("hand-built.mist", finding.CompilationUnitPath);
-        Assert.Equal(31, finding.Location.Start.Column);
+        Assert.Equal("hand-built.mist", finding.Location.Path);
+        Assert.Equal(31, finding.Position().Start.Column);
         Assert.Contains("Money", finding.Message, StringComparison.Ordinal);
         Assert.Contains("hand-built.mist(1,21)", finding.Message, StringComparison.Ordinal);
         Assert.Contains(kind.StartsWith("operator", StringComparison.Ordinal) ? "'+'" : $"an {kind} cast operator from 'Money' to 'int'", finding.Message, StringComparison.Ordinal);

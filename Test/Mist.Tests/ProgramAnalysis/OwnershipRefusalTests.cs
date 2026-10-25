@@ -150,8 +150,8 @@ public sealed class OwnershipRefusalTests
     {
         var diagnostic = Assert.Single(new OwnershipFragments().Analyze(site));
 
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 
     [Theory]

@@ -106,7 +106,7 @@ public sealed class FlowRefusalTests
     {
         var diagnostic = Assert.Single(new FlowFragments().Analyze(site));
 
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 }

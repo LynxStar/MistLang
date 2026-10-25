@@ -342,10 +342,10 @@ public sealed class QualifiedNominalBaseResolutionTests
 
     private static void AssertBaseSite(Diagnostic diagnostic)
     {
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(1, diagnostic.Location.Start.Line);
-        Assert.Equal(51, diagnostic.Location.Start.Column);
-        Assert.Equal(52, diagnostic.Location.End.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(1, diagnostic.Position().Start.Line);
+        Assert.Equal(51, diagnostic.Position().Start.Column);
+        Assert.Equal(52, diagnostic.Position().End.Column);
     }
 
     private sealed class Fragments

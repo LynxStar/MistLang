@@ -209,7 +209,7 @@ public sealed class ContextualExpressionContractCommonTypeBindingTests
         Assert.Same(ErrorType.Instance, ResultType(Bind(consumer, fragments)));
         var diagnostic = Assert.Single(fragments.Diagnostics.ToImmutableArray());
         Assert.Equal(id, diagnostic.Number.Value);
-        Assert.Equal(45, diagnostic.Location.Start.Column);
+        Assert.Equal(45, diagnostic.Position().Start.Column);
     }
 
     [Fact]

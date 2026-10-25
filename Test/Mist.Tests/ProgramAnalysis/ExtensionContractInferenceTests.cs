@@ -37,7 +37,7 @@ public sealed class ExtensionContractInferenceTests
         Assert.Equal("MIST_PA_PURE_SCOPE_CALLS_IMPURE", finding.Number.Value);
         Assert.Contains("Helper", finding.Message, StringComparison.Ordinal);
         Assert.Contains("Caller", finding.Message, StringComparison.Ordinal);
-        Assert.Equal(38, finding.Location.Start.Column);
+        Assert.Equal(38, finding.Position().Start.Column);
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public sealed class ExtensionContractInferenceTests
         var finding = Assert.Single(fixture.Analyze(declaration));
 
         Assert.Equal("MIST_PA_PURE_SCOPE_READS_MUTABLE", finding.Number.Value);
-        Assert.Equal(24, finding.Location.Start.Column);
+        Assert.Equal(24, finding.Position().Start.Column);
         Assert.Empty(fixture.ThroughCaller(fixture.View(declaration)));
     }
 

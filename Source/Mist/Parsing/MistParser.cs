@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
+using Mist.Lexing;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
 
@@ -42,13 +43,7 @@ public sealed class MistParser : IParser
         // Map Storm diagnostics to Mist diagnostics.
         foreach(var entry in stormDiagnostics.Entries)
         {
-            var location = (entry.Line > 0 && entry.Column > 0)
-                ? new LinePositionSpan(
-                    new LinePosition(entry.Line, entry.Column),
-                    new LinePosition(entry.Line, entry.Column))
-                : default;
-
-            diagnostics.Report(ParserDiagnostics.ParseError, location, entry.FilePath ?? tokens.Source.Path, entry.Message);
+            diagnostics.ReportAt(ParserDiagnostics.ParseError, StormEntryLocation.Of(tokens.Source, entry.FilePath, entry.Line, entry.Column), entry.Message);
         }
 
         // The Storm-generated parser is a backtracking PEG parser: when the
@@ -105,11 +100,8 @@ public sealed class MistParser : IParser
             if(lastPos < contentTokenCount)
             {
                 var unconsumedToken = defaultTokens[lastPos];
-                var location = new LinePositionSpan(
-                    new LinePosition(unconsumedToken.Start.Line, unconsumedToken.Start.Column),
-                    new LinePosition(unconsumedToken.Start.Line, unconsumedToken.Start.Column));
 
-                diagnostics.Report(ParserDiagnostics.ParseIncomplete, location, tokens.Source.Path, unconsumedToken.Start.Line);
+                diagnostics.ReportAt(ParserDiagnostics.ParseIncomplete, TokenLocation(tokens.Source, unconsumedToken, point: true), unconsumedToken.Start.Line);
             }
         }
 
@@ -198,7 +190,7 @@ public sealed class MistParser : IParser
             if(!hasOpenBracket)
             {
                 // Requirement 3.4: `stackalloc T` with no bracketed size.
-                AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source.Path, diagnostics);
+                AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source, diagnostics);
                 continue;
             }
 
@@ -208,23 +200,28 @@ public sealed class MistParser : IParser
             if(isEmptyBrackets)
             {
                 // Requirement 3.5: `stackalloc T[]` with empty brackets.
-                AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source.Path, diagnostics);
+                AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source, diagnostics);
             }
         }
     }
 
     private static void AddStackallocSizeDiagnostic(
         Storm.Runtime.Token stackallocToken,
-        string sourcePath,
+        SourceText source,
         DiagnosticBag diagnostics)
     {
-        var location = (stackallocToken.Start.Line > 0 && stackallocToken.Start.Column > 0)
-            ? new LinePositionSpan(
-                new LinePosition(stackallocToken.Start.Line, stackallocToken.Start.Column),
-                new LinePosition(stackallocToken.End.Line, stackallocToken.End.Column))
-            : default;
+        diagnostics.ReportAt(ParserDiagnostics.StackallocSize, TokenLocation(source, stackallocToken, point: false));
+    }
 
-        diagnostics.Report(ParserDiagnostics.StackallocSize, location, sourcePath);
+    private static Location TokenLocation(SourceText source, Storm.Runtime.Token token, bool point)
+    {
+        if(token.Start.Line <= 0 || token.Start.Column <= 0 || token.Span.Start < 0 || token.Span.End > source.Contents.Length)
+        {
+            return new FileOnly(source.Path);
+        }
+
+        var identity = new SourceIdentity(source);
+        return point ? new SourcePoint(identity, token.Span.Start) : new SourceRange(identity, token.Span.Start, token.Span.Length);
     }
 
     /// <summary>
@@ -246,14 +243,7 @@ public sealed class MistParser : IParser
             if(defaultTokens[i].Kind == identifierKind
                 && defaultTokens[i].Lexeme == "interface")
             {
-                var token = defaultTokens[i];
-                var location = (token.Start.Line > 0 && token.Start.Column > 0)
-                    ? new LinePositionSpan(
-                        new LinePosition(token.Start.Line, token.Start.Column),
-                        new LinePosition(token.End.Line, token.End.Column))
-                    : default;
-
-                diagnostics.Report(ParserDiagnostics.RemovedInterfaceKeyword, location, tokens.Source.Path);
+                diagnostics.ReportAt(ParserDiagnostics.RemovedInterfaceKeyword, TokenLocation(tokens.Source, defaultTokens[i], point: false));
             }
         }
     }
@@ -278,14 +268,7 @@ public sealed class MistParser : IParser
             if(defaultTokens[i].Kind == identifierKind
                 && defaultTokens[i].Lexeme == "trait")
             {
-                var token = defaultTokens[i];
-                var location = (token.Start.Line > 0 && token.Start.Column > 0)
-                    ? new LinePositionSpan(
-                        new LinePosition(token.Start.Line, token.Start.Column),
-                        new LinePosition(token.End.Line, token.End.Column))
-                    : default;
-
-                diagnostics.Report(ParserDiagnostics.RemovedTraitKeyword, location, tokens.Source.Path);
+                diagnostics.ReportAt(ParserDiagnostics.RemovedTraitKeyword, TokenLocation(tokens.Source, defaultTokens[i], point: false));
             }
         }
     }
@@ -344,7 +327,7 @@ public sealed class MistParser : IParser
                 continue;
             }
 
-            ScanAbstractBodyForPropertyDefaults(defaultTokens, open, tokens.Source.Path, diagnostics);
+            ScanAbstractBodyForPropertyDefaults(defaultTokens, open, tokens.Source, diagnostics);
         }
     }
 
@@ -356,7 +339,7 @@ public sealed class MistParser : IParser
     private static void ScanAbstractBodyForPropertyDefaults(
         ImmutableArray<Storm.Runtime.Token> tokens,
         int bodyOpenIndex,
-        string sourcePath,
+        SourceText source,
         DiagnosticBag diagnostics)
     {
         var leftBraceKind = (int)Generated.TokenKind.LEFT_BRACE;
@@ -382,7 +365,7 @@ public sealed class MistParser : IParser
                     && AccessorBlockHasBody(tokens, i))
                 {
                     // `Type Name { get { ... } }` or `Type Name { get => ...; }`.
-                    AddPropertyDefaultDiagnostic(tokens[i], sourcePath, diagnostics);
+                    AddPropertyDefaultDiagnostic(tokens[i], source, diagnostics);
                 }
 
                 depth++;
@@ -419,7 +402,7 @@ public sealed class MistParser : IParser
             else if(kind == suchThatKind && !memberIsMethodOrType)
             {
                 // `Type Name => expr;` expression-bodied property at member level.
-                AddPropertyDefaultDiagnostic(tokens[i], sourcePath, diagnostics);
+                AddPropertyDefaultDiagnostic(tokens[i], source, diagnostics);
             }
             else if(kind == semicolonKind)
             {
@@ -487,16 +470,10 @@ public sealed class MistParser : IParser
 
     private static void AddPropertyDefaultDiagnostic(
         Storm.Runtime.Token token,
-        string sourcePath,
+        SourceText source,
         DiagnosticBag diagnostics)
     {
-        var location = (token.Start.Line > 0 && token.Start.Column > 0)
-            ? new LinePositionSpan(
-                new LinePosition(token.Start.Line, token.Start.Column),
-                new LinePosition(token.End.Line, token.End.Column))
-            : default;
-
-        diagnostics.Report(ParserDiagnostics.AbstractPropertyDefault, location, sourcePath);
+        diagnostics.ReportAt(ParserDiagnostics.AbstractPropertyDefault, TokenLocation(source, token, point: false));
     }
 
     /// <summary>

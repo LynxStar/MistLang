@@ -52,7 +52,7 @@ public sealed class InitializerBlockTests
 
         Assert.Equal("MIST_PA_INITIALIZER_KINDS_MIXED", diagnostic.Number.Value);
         Assert.Contains("this entry adds a collection element, but the block's first entry assigns 'Count'", diagnostic.Message, StringComparison.Ordinal);
-        Assert.Equal(25, diagnostic.Location.Start.Column);
+        Assert.Equal(25, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class InitializerBlockTests
 
         Assert.Equal("MIST_PA_INITIALIZER_MEMBER_REPEATED", diagnostic.Number.Value);
         Assert.Equal("Member 'Value' is assigned more than once in this initializer block.", diagnostic.Message);
-        Assert.Equal(25, diagnostic.Location.Start.Column);
+        Assert.Equal(25, diagnostic.Position().Start.Column);
     }
 
     [Fact]

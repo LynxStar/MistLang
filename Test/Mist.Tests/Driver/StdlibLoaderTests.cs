@@ -85,7 +85,7 @@ public sealed class StdlibLoaderTests
         Assert.Equal(CommonDiagnostics.StdlibParse.Number, diag.Number);
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Equal(PipelineStage.Driver, diag.Stage);
-        Assert.Equal(missing, diag.CompilationUnitPath);
+        Assert.Equal(missing, diag.Location.Path);
         Assert.Contains(missing, diag.Message);
     }
 }

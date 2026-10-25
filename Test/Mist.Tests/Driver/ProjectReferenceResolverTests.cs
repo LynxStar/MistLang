@@ -557,7 +557,7 @@ public sealed class ProjectReferenceResolverTests
 
             var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
             Assert.Equal(DriverDiagnostics.ReferenceAmbiguous.Number, diagnostic.Number);
-            Assert.Equal(Path.Combine(rootDir, ProjectFileParser.FileName), diagnostic.CompilationUnitPath);
+            Assert.Equal(Path.Combine(rootDir, ProjectFileParser.FileName), diagnostic.Location.Path);
             Assert.Equal(
                 $"Reference 'Both' names directory '{both}', which holds more than one referenceable file: Both.csproj, mist.toml. Name the intended file in 'path'.",
                 diagnostic.Message);

@@ -110,7 +110,7 @@ public sealed class MemberBindingRefusalTests
 
 
         Assert.Equal(diagnosticId, diagnostic.Number.Value);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Theory]
@@ -135,7 +135,7 @@ public sealed class MemberBindingRefusalTests
         Assert.Empty(f.Built.Analyze(new DefiniteAssignmentAnalyzer(), root));
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.True(diagnostic.Number.Value == "MIST_PM_UNRESOLVED_MEMBER", refusal);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     private static VariableDeclarationStatementStatementNode Declare(string name, ExpressionNode initializer)

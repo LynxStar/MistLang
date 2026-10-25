@@ -163,8 +163,8 @@ public sealed class KeywordTypeStaticLookupTests
         Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", diagnostic.Number.Value);
         Assert.Contains("'int'", diagnostic.Message);
         Assert.Contains("'NoSuchMember'", diagnostic.Message);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 56), new LinePosition(1, 57)), diagnostic.Location);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 56), new LinePosition(1, 57)), diagnostic.Position());
     }
 
     [Fact]

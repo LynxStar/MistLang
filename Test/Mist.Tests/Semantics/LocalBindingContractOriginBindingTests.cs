@@ -217,8 +217,8 @@ public sealed class LocalBindingContractOriginBindingTests
     {
         var duplicate = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_DUPLICATE_LOCAL", duplicate.Number.Value);
-        Assert.Equal(path, duplicate.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(line, column), new LinePosition(line, column + 4)), duplicate.Location);
+        Assert.Equal(path, duplicate.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(line, column), new LinePosition(line, column + 4)), duplicate.Position());
     }
 
     private static ParameterNode Parameter(SourceText source, int start, int nameStart)

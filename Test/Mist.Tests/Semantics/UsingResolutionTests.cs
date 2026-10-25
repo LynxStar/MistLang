@@ -125,6 +125,6 @@ public sealed class UsingResolutionTests : ProgramModelProbe
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(("MIST_UNDEFINED_NAMESPACE", DiagnosticSeverity.Error), (diagnostic.Number.Value, diagnostic.Severity));
         Assert.Equal("The namespace 'No.Such.Namespace' could not be found.", diagnostic.Message);
-        Assert.Equal(2, diagnostic.Location.Start.Line);
+        Assert.Equal(2, diagnostic.Position().Start.Line);
     }
 }

@@ -24,7 +24,7 @@ public sealed class DelegateInvocationSignatureTests
 
         var diagnostic = Assert.Single(model.Analyze(new PositionAnalyzer(), call));
         Assert.Equal("MIST_PA_REF_NOT_A_LOCATION", diagnostic.Number.Value);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 
     [Theory]

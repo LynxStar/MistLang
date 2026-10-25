@@ -12,9 +12,9 @@ public sealed class RenderingTests
         foreach(var entry in DiagnosticRegistry.Index.Entries)
         {
             var admission = DiagnosticFactory.Create(
-                entry.Descriptor, default, "probe.mist", PipelineStage.Driver, Representative(entry.Descriptor).AsSpan());
+                entry.Descriptor, new FileOnly("probe.mist"), PipelineStage.Driver, Representative(entry.Descriptor).AsSpan());
 
-            Assert.Null(admission.Breach);
+            Assert.Empty(admission.Breaches);
             var message = admission.Occurrence.Message;
             Assert.NotEqual(DiagnosticRenderer.Fallback(entry.Descriptor), message);
             Assert.False(string.IsNullOrWhiteSpace(message), entry.Field);
@@ -28,10 +28,10 @@ public sealed class RenderingTests
             "MIST_FIXTURE_NAMED", "'{name}' has type '{type}'.", slots: [new Slot("name", SlotKind.Name), new Slot("type", SlotKind.Type)]);
 
         var admission = DiagnosticFactory.Create(
-            descriptor, default, "probe.mist", PipelineStage.Analysis, [new TextValue("wrong kind"), new TypeValue("Standard.Int32", "int")]);
+            descriptor, new FileOnly("probe.mist"), PipelineStage.Analysis, [new TextValue("wrong kind"), new TypeValue("Standard.Int32", "int")]);
 
         Assert.Equal(DiagnosticRenderer.Fallback(descriptor), admission.Occurrence.Message);
-        var breach = Assert.IsType<Diagnostic>(admission.Breach);
+        var breach = Assert.Single(admission.Breaches);
         Assert.Same(InternalDiagnostics.ArgumentSchemaBreach, breach.Descriptor);
         Assert.Equal(DiagnosticCategory.Ice, breach.Descriptor.Category);
         Assert.Contains("MIST_FIXTURE_NAMED", breach.Message);
@@ -44,9 +44,9 @@ public sealed class RenderingTests
     {
         var descriptor = DiagnosticFixtures.Descriptor("MIST_FIXTURE_POSITIONAL", "'{0}' and '{1}'.");
 
-        var admission = DiagnosticFactory.Create(descriptor, default, "", PipelineStage.Parsing, [new TextValue("only one")]);
+        var admission = DiagnosticFactory.Create(descriptor, new Absent(AbsenceReason.Unavailable), PipelineStage.Parsing, [new TextValue("only one")]);
 
-        Assert.NotNull(admission.Breach);
+        _ = Assert.Single(admission.Breaches);
         Assert.Equal(DiagnosticRenderer.Fallback(descriptor), admission.Occurrence.Message);
         Assert.Equal(2, admission.Occurrences.Count());
     }

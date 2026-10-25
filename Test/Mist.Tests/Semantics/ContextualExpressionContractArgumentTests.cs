@@ -91,7 +91,7 @@ public sealed class ContextualExpressionContractArgumentTests
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_AMBIGUOUS_OVERLOAD", diagnostic.Number.Value);
-        Assert.Equal(51, diagnostic.Location.Start.Column);
+        Assert.Equal(51, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -159,7 +159,7 @@ public sealed class ContextualExpressionContractArgumentTests
         _ = Assert.IsType<ErrorExpression>(bound.Arguments[0]);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_NO_APPLICABLE_OVERLOAD", diagnostic.Number.Value);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Fact]

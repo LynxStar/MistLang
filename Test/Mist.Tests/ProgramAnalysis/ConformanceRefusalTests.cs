@@ -41,8 +41,8 @@ public sealed class ConformanceRefusalTests
         var (fragment, offset) = Build(name);
         var diagnostic = Assert.Single(fragment.Run(new ConformanceAnalyzer()));
         Assert.Equal(expected, diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(offset + 1, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(offset + 1, diagnostic.Position().Start.Column);
     }
 
     [Theory]
@@ -73,7 +73,7 @@ public sealed class ConformanceRefusalTests
 
         Assert.Equal(expected, diagnostic.Number.Value);
         Assert.Contains(message, diagnostic.Message, StringComparison.Ordinal);
-        Assert.Equal(offset + 1, diagnostic.Location.Start.Column);
+        Assert.Equal(offset + 1, diagnostic.Position().Start.Column);
     }
 
     [Theory]

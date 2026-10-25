@@ -39,7 +39,7 @@ public sealed class PackTuplePatternAnalysisTests
         var finding = Assert.Single(Analyze(Spread(pack == "open" ? open : pair), pattern));
 
         Assert.Equal("MIST_PA_PURE_FUNCTION_TYPE_UNTESTABLE", finding.Number.Value);
-        Assert.Equal(21, finding.Location.Start.Column);
+        Assert.Equal(21, finding.Position().Start.Column);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class PackTuplePatternAnalysisTests
         var finding = Assert.Single(Analyze(closed, pattern));
 
         Assert.Equal("MIST_PA_PATTERN_NEVER_MATCHES", finding.Number.Value);
-        Assert.Equal(21, finding.Location.Start.Column);
+        Assert.Equal(21, finding.Position().Start.Column);
     }
 
     private IReadOnlyList<Mist.Common.Diagnostics.Diagnostic> Analyze(IMistType scrutinee, Pattern pattern)

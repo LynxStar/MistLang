@@ -76,7 +76,7 @@ public sealed class CastRefusalTests
         var input = Case(caseName);
         var finding = Assert.Single(input.Model.Analyze(new CastAnalyzer(), input.Cast));
         Assert.Equal(expected, finding.Number.Value);
-        Assert.Equal(41, finding.Location.Start.Column);
+        Assert.Equal(41, finding.Position().Start.Column);
     }
 
     [Theory]

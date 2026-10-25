@@ -1,5 +1,4 @@
 using Mist.Common.Diagnostics;
-using Mist.Common.Source;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Storm.Runtime;
@@ -48,19 +47,11 @@ internal static class CloneConversionRefusals
                 _ => (Node: null, Name: null),
             })
             .Where(candidate => candidate.Node is not null && candidate.Name is not null)
-            .Select(candidate => (candidate.Name, Location: DiagnosticHelper.ResolveLocation(candidate.Node!)))
-            .Where(candidate => candidate.Location.Path == failure.CompilationUnitPath
-                && Contains(candidate.Location.Location, failure.Location))
-            .OrderBy(candidate => candidate.Location.Location.End.Line - candidate.Location.Location.Start.Line)
-            .ThenBy(candidate => candidate.Location.Location.End.Column - candidate.Location.Location.Start.Column)
+            .Select(candidate => (candidate.Name, DiagnosticHelper.ResolveLocation(candidate.Node!).Location))
+            .Where(candidate => candidate.Location.Contains(failure.Location))
+            .OrderBy(candidate => (candidate.Location as SourceRange)?.Length ?? 0)
             .Select(candidate => candidate.Name)
             .FirstOrDefault();
-    }
-
-    private static bool Contains(LinePositionSpan outer, LinePositionSpan inner)
-    {
-        return (outer.Start.Line < inner.Start.Line || (outer.Start.Line == inner.Start.Line && outer.Start.Column <= inner.Start.Column))
-            && (inner.End.Line < outer.End.Line || (inner.End.Line == outer.End.Line && inner.End.Column <= outer.End.Column));
     }
 
     private static string? Named(Expression expression)

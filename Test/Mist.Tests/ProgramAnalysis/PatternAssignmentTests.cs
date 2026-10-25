@@ -20,8 +20,8 @@ public sealed class PatternAssignmentTests
         var diagnostic = Assert.Single(fixture.Analyze(If(fixture.Or(fixture.Flag(), fixture.Match(variable)), Use(Read(variable)))));
 
         AssertRead(diagnostic, "log");
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
         Assert.Equal(PipelineStage.Analysis, diagnostic.Stage);
         Assert.Equal("flow-framework", diagnostic.AnalyzerName);
     }
@@ -298,7 +298,7 @@ public sealed class PatternAssignmentTests
         {
             var diagnostic = Assert.Single(diagnostics);
             AssertEntry(diagnostic, variable.Name);
-            Assert.Equal(38, diagnostic.Location.Start.Column);
+            Assert.Equal(38, diagnostic.Position().Start.Column);
         }
     }
 

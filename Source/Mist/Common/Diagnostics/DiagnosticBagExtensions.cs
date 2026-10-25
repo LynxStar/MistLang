@@ -30,9 +30,8 @@ public static class DiagnosticBagExtensions
         string? analyzerName,
         params ReadOnlySpan<object?> args)
     {
-        var (path, location, _) = DiagnosticHelper.ResolveLocation(node, span);
-
         bag.Admit(DiagnosticFactory.Create(
-            descriptor, location, path, bag.Stage, LegacyArguments.For(descriptor, args).AsSpan(), analyzerName));
+            descriptor, DiagnosticHelper.ResolveLocation(node, span), bag.Stage,
+            LegacyArguments.For(descriptor, args).AsSpan(), analyzerName: analyzerName));
     }
 }

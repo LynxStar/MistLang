@@ -28,8 +28,8 @@ public sealed class ContextualExpressionIndexContractTests
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_RECEIVER_NOT_INDEXABLE", diagnostic.Number.Value);
         Assert.Contains("'int'", diagnostic.Message);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 46), new LinePosition(1, 47)), diagnostic.Location);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 46), new LinePosition(1, 47)), diagnostic.Position());
     }
 
     [Fact]

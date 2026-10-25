@@ -85,7 +85,7 @@ public sealed class NamedAllocationElementTypeTests : ProgramModelProbe
 
         var error = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
         Assert.Contains(requestedName, error.Message, StringComparison.Ordinal);
-        Assert.NotEqual(error.Location.Start, error.Location.End);
+        Assert.NotEqual(error.Position().Start, error.Position().End);
         _ = Assert.IsType<ErrorType>(ElementOf(Initializer(model)));
     }
 
@@ -98,7 +98,7 @@ public sealed class NamedAllocationElementTypeTests : ProgramModelProbe
 
         var error = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
         Assert.Contains("Missing", error.Message, StringComparison.Ordinal);
-        Assert.NotEqual(error.Location.Start, error.Location.End);
+        Assert.NotEqual(error.Position().Start, error.Position().End);
 
         var element = Assert.IsType<ConstructedType>(ElementOf(Initializer(model)));
         Assert.Same(model.TypesByFQN["Ns.Pair<>"], element.Definition);

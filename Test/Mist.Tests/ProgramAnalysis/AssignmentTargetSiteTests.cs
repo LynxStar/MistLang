@@ -21,7 +21,7 @@ public sealed class AssignmentTargetSiteTests
 
         Assert.Equal("MIST_PA_NOT_ASSIGNABLE", diagnostic.Number.Value);
         Assert.StartsWith("Cannot assign to the result of 'Abs':", diagnostic.Message, StringComparison.Ordinal);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 
     [Fact]

@@ -24,7 +24,7 @@ public sealed class ModifierPlacementBuildTests
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_ASYNC_NOT_ALLOWED", diagnostic.Number.Value);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public sealed class ModifierPlacementBuildTests
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
         Assert.Equal("MIST_PM_REF_ON_OPERATOR", diagnostic.Number.Value);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Theory]
@@ -59,8 +59,8 @@ public sealed class ModifierPlacementBuildTests
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
         Assert.Equal(expected, diagnostic.Number.Value);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
     }
 
     [Fact]

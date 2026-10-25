@@ -35,8 +35,8 @@ public sealed class ContextualExpressionStorageContractTests
         Assert.True(f.Scope.Locals["kept"].IsFailed);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
         Assert.Equal(diagnosticId, diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 46), new LinePosition(1, 47)), diagnostic.Location);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 46), new LinePosition(1, 47)), diagnostic.Position());
     }
 
     [Fact]

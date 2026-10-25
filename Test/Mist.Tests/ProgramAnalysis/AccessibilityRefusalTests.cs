@@ -97,8 +97,8 @@ public sealed class AccessibilityRefusalTests
         var fragment = name.StartsWith("refinement-", StringComparison.Ordinal) ? PredicateAccess(name) : MemberUse(name);
         var diagnostic = Assert.Single(fragment.Run(new AccessibilityAnalyzer()));
         Assert.Equal("MIST_PA_INACCESSIBLE_MEMBER", diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
 
         if(name == "protected-property-with-a-private-setter-written-outside")
         {
@@ -123,7 +123,7 @@ public sealed class AccessibilityRefusalTests
         var fragment = name.StartsWith("refinement-", StringComparison.Ordinal) ? PredicateAccess(name) : Exposure(name);
         var diagnostic = Assert.Single(fragment.Run(new AccessibilityAnalyzer()));
         Assert.Equal("MIST_PA_INCONSISTENT_ACCESSIBILITY", diagnostic.Number.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
     }
 
     [Theory]
@@ -141,7 +141,7 @@ public sealed class AccessibilityRefusalTests
         var fragment = Naming(name);
         var finding = Assert.Single(fragment.Run(new AccessibilityAnalyzer()));
         Assert.Equal("MIST_PA_INACCESSIBLE_TYPE", finding.Number.Value);
-        Assert.Equal(31, finding.Location.Start.Column);
+        Assert.Equal(31, finding.Position().Start.Column);
         Assert.Empty(fragment.Run(new AccessorAnalyzer()));
     }
 

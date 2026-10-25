@@ -27,7 +27,7 @@ public sealed class ClosedOperatorRefusalTests
         var finding = Assert.Single(model.Analyze(new OperatorAnalyzer(), binary));
 
         Assert.Equal("MIST_PM_AMBIGUOUS_OVERLOAD", finding.Number.Value);
-        Assert.Equal(38, finding.Location.Start.Column);
+        Assert.Equal(38, finding.Position().Start.Column);
         Assert.Equal(
             "The call to operator '+' is ambiguous. These overloads are equally applicable: "
             + "Left.operator +(Left, Right), Right.operator +(Left, Right). Cast an argument to choose one.",
@@ -47,7 +47,7 @@ public sealed class ClosedOperatorRefusalTests
         var finding = Assert.Single(model.Analyze(new OperatorAnalyzer(), unary));
 
         Assert.Equal("MIST_PM_AMBIGUOUS_OVERLOAD", finding.Number.Value);
-        Assert.Equal(38, finding.Location.Start.Column);
+        Assert.Equal(38, finding.Position().Start.Column);
         Assert.Contains("operator '-'", finding.Message, StringComparison.Ordinal);
     }
 

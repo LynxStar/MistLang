@@ -31,7 +31,7 @@ public sealed class ProjectReferenceManifestSeamTests : IDisposable
         Assert.Equal(DriverDiagnostics.ProjectReferenceNameMismatch.Number, diagnostic.Number);
         Assert.Contains("'Alias'", diagnostic.Message);
         Assert.Contains("'Target'", diagnostic.Message);
-        Assert.Equal(targetPath, diagnostic.CompilationUnitPath);
+        Assert.Equal(targetPath, diagnostic.Location.Path);
     }
 
     [Theory]
@@ -58,7 +58,7 @@ public sealed class ProjectReferenceManifestSeamTests : IDisposable
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
         Assert.Equal(expectedId, diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Equal(Path.Combine(brokenFolder, ProjectFileParser.FileName), diagnostic.CompilationUnitPath);
+        Assert.Equal(Path.Combine(brokenFolder, ProjectFileParser.FileName), diagnostic.Location.Path);
     }
 
     public void Dispose()

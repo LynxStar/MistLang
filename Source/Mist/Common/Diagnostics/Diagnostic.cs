@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using Mist.Common.Source;
 
 namespace Mist.Common.Diagnostics;
 
@@ -15,8 +14,9 @@ public sealed record Diagnostic
         ImmutableArray<SlotValue> arguments,
         DiagnosticSeverity severity,
         PipelineStage stage,
-        LinePositionSpan location,
-        string compilationUnitPath,
+        Location location,
+        ImmutableArray<RelatedLocation> related,
+        ImmutableArray<Frame> frames,
         string? analyzerName,
         ProviderCode? native,
         bool rendersFallback,
@@ -27,7 +27,8 @@ public sealed record Diagnostic
         Severity = severity;
         Stage = stage;
         Location = location;
-        CompilationUnitPath = compilationUnitPath;
+        Related = related.IsDefault ? [] : related;
+        Frames = frames.IsDefault ? [] : frames;
         AnalyzerName = analyzerName;
         Native = native;
         RendersFallback = rendersFallback;
@@ -46,9 +47,11 @@ public sealed record Diagnostic
 
     public PipelineStage Stage { get; }
 
-    public LinePositionSpan Location { get; }
+    public Location Location { get; }
 
-    public string CompilationUnitPath { get; }
+    public ImmutableArray<RelatedLocation> Related { get; }
+
+    public ImmutableArray<Frame> Frames { get; }
 
     public string? AnalyzerName { get; }
 
@@ -68,7 +71,8 @@ public sealed record Diagnostic
             && Severity == other.Severity
             && Stage == other.Stage
             && Location == other.Location
-            && CompilationUnitPath == other.CompilationUnitPath
+            && Related.SequenceEqual(other.Related)
+            && Frames.SequenceEqual(other.Frames)
             && AnalyzerName == other.AnalyzerName
             && Native == other.Native
             && RendersFallback == other.RendersFallback
@@ -77,6 +81,6 @@ public sealed record Diagnostic
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(Descriptor.Number, Severity, Stage, Location, CompilationUnitPath, Arguments.Length);
+        return HashCode.Combine(Descriptor.Number, Severity, Stage, Location, Arguments.Length);
     }
 }

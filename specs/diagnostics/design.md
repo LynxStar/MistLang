@@ -287,7 +287,7 @@ enable  = ["MIST0451"]
 
 ### The crosswalk
 
-One row per descriptor field at `af6a1f70`, in the file `.kiro/specs/diagnostics/crosswalk.md`:
+One row per descriptor field at `af6a1f70`, in the file `specs/diagnostics/crosswalk.md`:
 
 | Field | Old code | Disposition | Number | Title | Category |
 |---|---|---|---|---|---|
@@ -344,7 +344,7 @@ Frozen history is never touched: `git show 6d862f63:backlog/issues.yaml`, Carbon
 
 ## Migration plan
 
-Each packet is bounded, lands behind the adapters above, and is verified at the tiers Requirement 17 names. Dependencies are strict within Phase 1 and loose across Phase 2.
+Each packet is bounded, lands behind the adapters above, and is verified at the tiers Requirement 17 names. Dependencies are strict within Phase 1 and loose across Phase 2. The packets are Carbonek tasks MIST-1074 to MIST-1107 under the `Diagnostics` workstream, which is the record of their execution; this section keeps the sequencing rationale and is not a checklist.
 
 ### Phase 0: pin and probe
 

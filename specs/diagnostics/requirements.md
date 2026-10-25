@@ -277,7 +277,7 @@ The twelfth question the review raised, how work enters the backlog, is not part
 #### Acceptance Criteria
 
 1. THE Reissue SHALL happen once, in a single change, after the Registry types of Requirement 2 exist and after the merges and retirements of criteria 5 to 7 are applied.
-2. THE Crosswalk SHALL be committed at `.kiro/specs/diagnostics/crosswalk.md` and SHALL list, for every descriptor field at `af6a1f70`, its old code, its Number or its disposition as merged or retired, its Title and its Category.
+2. THE Crosswalk SHALL be committed at `specs/diagnostics/crosswalk.md` and SHALL list, for every descriptor field at `af6a1f70`, its old code, its Number or its disposition as merged or retired, its Title and its Category.
 3. Book pages, specification documents, test assertions and the CLI help SHALL be rewritten through the Crosswalk; the frozen ledger, Carbonek findings and test-ledger history SHALL never be rewritten.
 4. Test assertions on codes SHALL be updated deliberately, one file at a time, and assertions on message text SHALL not change, per Requirement 7.9.
 5. THE two not-callable Descriptors for a named member, with and without the unimported-extension hint, SHALL merge into one Descriptor whose template has an `Optional<Name>` namespace Slot, and the Renderer SHALL produce the current text for both cases; the plain-value variant SHALL keep its own Number.
